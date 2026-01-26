@@ -21,4 +21,6 @@ games/
 # Test files (if you want to exclude them)
 test_path
 testgame.txt
+*.md
+!README.md
 
