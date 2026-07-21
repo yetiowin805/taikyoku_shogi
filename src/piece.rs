@@ -963,6 +963,11 @@ impl PieceType {
         MovementConfig::for_piece_type(*self)
     }
     
+    /// Parse a piece type from its serde/Debug name (e.g. "King", "FreeEagle", "Pawn").
+    pub fn from_name(name: &str) -> Option<PieceType> {
+        serde_json::from_str(&format!("\"{}\"", name)).ok()
+    }
+
     /// Check if this piece type must promote when moving to the target rank
     /// This is piece-specific: some pieces (like pawns and dogs) must promote on the final rank
     pub fn must_promote_on_rank(&self, target_rank: u8, color: Color) -> bool {

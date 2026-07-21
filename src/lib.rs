@@ -8,6 +8,7 @@ pub mod minimal_intelligence_player;
 pub mod move_simulation;
 pub mod path_utils;
 pub mod piece;
+pub mod player;
 pub mod position;
 pub mod random_player;
 pub mod royal_capture_player;

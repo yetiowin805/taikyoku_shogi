@@ -64,6 +64,7 @@ impl Move {
     }
 }
 
+#[derive(Clone)]
 pub struct GameState {
     board: Board,
     current_turn: Color,
@@ -100,6 +101,36 @@ impl GameState {
     /// Place a piece on the board (for initial setup)
     pub fn place_piece(&mut self, piece: Piece) {
         self.board.place_piece(piece);
+    }
+
+    /// Remove a piece from the board, if any
+    pub fn remove_piece(&mut self, pos: Position) -> Option<Piece> {
+        let piece = self.board.get_piece(pos);
+        if piece.is_some() {
+            self.board.remove_piece(pos);
+        }
+        piece
+    }
+
+    /// Clear all pieces from the board (keeps turn / history / draw counter)
+    pub fn clear_board(&mut self) {
+        self.board = Board::new();
+    }
+
+    pub fn get_turns_without_capture_or_promotion(&self) -> u32 {
+        self.turns_without_capture_or_promotion
+    }
+
+    pub fn set_turns_without_capture_or_promotion(&mut self, turns: u32) {
+        self.turns_without_capture_or_promotion = turns;
+    }
+
+    /// Replace board and turn from a snapshot, clearing in-engine move history
+    pub fn restore_position(&mut self, board: Board, turn: Color, draw_counter: u32) {
+        self.board = board;
+        self.current_turn = turn;
+        self.move_history.clear();
+        self.turns_without_capture_or_promotion = draw_counter;
     }
 
     /// Mirror a position across both axes (for White setup)
