@@ -101,6 +101,14 @@ impl Board {
         }
     }
 
+    /// Borrow the piece list for a color (no clone).
+    pub fn pieces_by_color(&self, color: Color) -> &[Piece] {
+        match color {
+            Color::Black => &self.black_pieces,
+            Color::White => &self.white_pieces,
+        }
+    }
+
     /// Move a piece from one position to another
     /// Returns the captured piece if any
     pub fn move_piece(&mut self, from: Position, to: Position) -> Option<Piece> {

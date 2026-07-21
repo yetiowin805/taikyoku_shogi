@@ -6,6 +6,18 @@ use crate::player::AgentOptions;
 use crate::search::{search, SearchConfig};
 use std::env;
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
+
+/// Cached default seed weights (avoids re-parsing JSON every request).
+fn cached_seed_weights() -> &'static EvalWeights {
+    static WEIGHTS: OnceLock<EvalWeights> = OnceLock::new();
+    WEIGHTS.get_or_init(|| {
+        let path = env::var("TAIKYOKU_AB_MODEL")
+            .map(PathBuf::from)
+            .unwrap_or_else(|_| PathBuf::from(DEFAULT_MODEL_PATH));
+        load_checkpoint_or_seed(&path).weights
+    })
+}
 
 pub struct AlphaBetaPlayer {
     weights: EvalWeights,
@@ -30,15 +42,52 @@ impl AlphaBetaPlayer {
 
     /// Build from explicit options (GUI/API), falling back to env then checkpoint defaults.
     pub fn from_options(opts: &AgentOptions) -> Self {
-        let model_path = opts
-            .model
-            .as_ref()
-            .map(PathBuf::from)
-            .or_else(|| env::var("TAIKYOKU_AB_MODEL").ok().map(PathBuf::from))
-            .unwrap_or_else(|| PathBuf::from(DEFAULT_MODEL_PATH));
+        let using_default_model = opts.model.is_none()
+            && env::var("TAIKYOKU_AB_MODEL").is_err();
+        let weights = if using_default_model {
+            cached_seed_weights().clone()
+        } else {
+            let model_path = opts
+                .model
+                .as_ref()
+                .map(PathBuf::from)
+                .or_else(|| env::var("TAIKYOKU_AB_MODEL").ok().map(PathBuf::from))
+                .unwrap_or_else(|| PathBuf::from(DEFAULT_MODEL_PATH));
+            load_checkpoint_or_seed(&model_path).weights
+        };
 
-        let checkpoint = load_checkpoint_or_seed(&model_path);
-        Self::from_checkpoint_with_overrides(checkpoint, opts)
+        let checkpoint_defaults = if using_default_model {
+            crate::eval::SearchDefaults::default()
+        } else {
+            let model_path = opts
+                .model
+                .as_ref()
+                .map(PathBuf::from)
+                .or_else(|| env::var("TAIKYOKU_AB_MODEL").ok().map(PathBuf::from))
+                .unwrap_or_else(|| PathBuf::from(DEFAULT_MODEL_PATH));
+            load_checkpoint_or_seed(&model_path).search_defaults
+        };
+
+        let mut config = SearchConfig {
+            depth: checkpoint_defaults.depth.max(1),
+            max_time_ms: checkpoint_defaults.max_time_ms,
+            collect_trace: false,
+        };
+        if let Ok(d) = env::var("TAIKYOKU_AB_DEPTH") {
+            if let Ok(v) = d.parse::<u32>() {
+                config.depth = v.max(1);
+            }
+        }
+        if let Ok(t) = env::var("TAIKYOKU_AB_TIME_MS") {
+            config.max_time_ms = t.parse::<u64>().ok();
+        }
+        if let Some(d) = opts.depth {
+            config.depth = d.max(1);
+        }
+        if let Some(t) = opts.max_time_ms {
+            config.max_time_ms = Some(t);
+        }
+        Self::new(weights, config)
     }
 
     pub fn from_checkpoint(checkpoint: EvalCheckpoint) -> Self {
@@ -49,6 +98,7 @@ impl AlphaBetaPlayer {
         let mut config = SearchConfig {
             depth: checkpoint.search_defaults.depth.max(1),
             max_time_ms: checkpoint.search_defaults.max_time_ms,
+            collect_trace: false,
         };
         if let Ok(d) = env::var("TAIKYOKU_AB_DEPTH") {
             if let Ok(v) = d.parse::<u32>() {
@@ -83,12 +133,16 @@ impl AlphaBetaPlayer {
     }
 
     pub fn choose_move_inner(&self, game_state: &GameState) -> Option<Move> {
-        self.analyze(game_state).best_move
+        let mut cfg = self.config.clone();
+        cfg.collect_trace = false;
+        search(game_state, &self.weights, &cfg).best_move
     }
 
     /// Full search with eval / tree trace for the GUI.
     pub fn analyze(&self, game_state: &GameState) -> crate::search::SearchResult {
-        search(game_state, &self.weights, &self.config)
+        let mut cfg = self.config.clone();
+        cfg.collect_trace = true;
+        search(game_state, &self.weights, &cfg)
     }
 
     pub fn search_info(&self, game_state: &GameState) -> crate::search::SearchInfo {

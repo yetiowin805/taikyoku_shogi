@@ -72,6 +72,11 @@ pub struct GameState {
     turns_without_capture_or_promotion: u32,  // Counter for draw by 500-move rule
 }
 
+enum ApplyOutcome {
+    Failed,
+    Ok { intermediate: Option<Position> },
+}
+
 impl GameState {
     pub fn new() -> GameState {
         GameState {
@@ -874,123 +879,111 @@ impl GameState {
 
     /// Make a move (assumes move is legal - caller should validate)
     /// Executes a move and returns the intermediate position if this was a two-step move, None otherwise
-    pub fn make_move(&mut self, mut mv: Move) -> Option<Position> {
-        // Get the piece making the move first (before validation)
+    pub fn make_move(&mut self, mv: Move) -> Option<Position> {
+        match self.apply_move(mv, true, true) {
+            ApplyOutcome::Failed => None,
+            ApplyOutcome::Ok { intermediate } => intermediate,
+        }
+    }
+
+    /// Apply a move produced by `generate_legal_moves` during search.
+    ///
+    /// Skips reachability re-validation and does not append to `move_history`
+    /// (eval noise should use an explicit ply). Board updates, captures,
+    /// promotions, and turn flip match `make_move`.
+    pub fn make_move_for_search(&mut self, mv: Move) -> bool {
+        matches!(self.apply_move(mv, false, false), ApplyOutcome::Ok { .. })
+    }
+
+    fn apply_move(
+        &mut self,
+        mut mv: Move,
+        validate: bool,
+        record_history: bool,
+    ) -> ApplyOutcome {
         let Some(piece) = self.board.get_piece(mv.from) else {
-            return None;
+            return ApplyOutcome::Failed;
         };
 
-        // Special handling for Free Eagle: reconstruct path if missing
         if piece.piece_type == PieceType::FreeEagle && !mv.is_free_eagle() {
-            // Generate all legal Free Eagle moves for this piece
             let free_eagle_moves = self.generate_free_eagle_moves(&piece);
-            
-            // Find a move that matches the destination
             if let Some(matching_move) = free_eagle_moves.iter().find(|m| m.to == mv.to) {
-                // Check if this is a standard range move (no path) or a multi-move pattern (has path)
                 if let Some(path) = matching_move.free_eagle_path() {
-                    // Multi-move pattern: use the path and skip is_legal_move check
                     mv.data = MoveData::FreeEagle { path: path.clone() };
-                } else {
-                    // Standard range move: move is already validated (found in legal moves list)
-                    // Don't set free_eagle_path - let it proceed to regular move execution
-                    // Skip is_legal_move check since we know it's valid
                 }
             } else {
-                // No valid Free Eagle move found to this destination
-                return None;
+                return ApplyOutcome::Failed;
             }
-        } else {
-            // For non-Free Eagle moves, validate legality
-            let is_legal = self.is_legal_move(mv.from, mv.to);
-            
-            if !is_legal {
-                return None;
-            }
+        } else if validate && !self.is_legal_move(mv.from, mv.to) {
+            return ApplyOutcome::Failed;
         }
 
-        // Check if this is a two-step move (Tengu, Peacock, etc.)
         if let Some(intermediate) = mv.intermediate() {
-            // Validate both steps before executing
-            // First step: from -> intermediate
-            if !self.is_legal_move(mv.from, intermediate) {
-                return None;
-            }
-            
-            // Second step: intermediate -> to
-            // Create a temporary piece at the intermediate position to check legality
-            let mut temp_piece = piece;
-            temp_piece.position = intermediate;
-            // Check if the piece at intermediate can reach the final destination
-            if !temp_piece.can_reach(mv.to, &self.board) {
-                return None;
-            }
-            // Also check if the second step would capture a friendly piece
-            if let Some(target_piece) = self.board.get_piece(mv.to) {
-                if target_piece.color == piece.color {
-                    return None;
+            if validate {
+                if !self.is_legal_move(mv.from, intermediate) {
+                    return ApplyOutcome::Failed;
+                }
+                let mut temp_piece = piece;
+                temp_piece.position = intermediate;
+                if !temp_piece.can_reach(mv.to, &self.board) {
+                    return ApplyOutcome::Failed;
+                }
+                if let Some(target_piece) = self.board.get_piece(mv.to) {
+                    if target_piece.color == piece.color {
+                        return ApplyOutcome::Failed;
+                    }
                 }
             }
-            
-            // Both steps are legal - execute them
-            // First step: from -> intermediate
+
             let first_move = Move::new(mv.from, intermediate);
-            let (first_success, first_capture, _) = self.execute_single_move(first_move);
+            let (first_success, first_capture, _) =
+                self.execute_single_move(first_move, record_history);
             if !first_success {
-                return None;
+                return ApplyOutcome::Failed;
             }
-            
-            // Second step: intermediate -> to
+
             let second_move = Move::new_with_promotion(intermediate, mv.to, mv.promoted);
-            let (second_success, second_capture, second_promotion) = self.execute_single_move(second_move);
+            let (second_success, second_capture, second_promotion) =
+                self.execute_single_move(second_move, record_history);
             if !second_success {
-                // Rollback first move if second fails
                 self.board.move_piece(intermediate, mv.from);
-                return None;
+                return ApplyOutcome::Failed;
             }
-            
-            // Update counter: if either step had capture or promotion, reset counter; otherwise increment
+
             if first_capture || second_capture || second_promotion {
                 self.turns_without_capture_or_promotion = 0;
             } else {
                 self.turns_without_capture_or_promotion += 1;
             }
-            
-            // Turn only changes after the second move
+
             self.current_turn = self.current_turn.opposite();
-            return mv.intermediate();
+            return ApplyOutcome::Ok {
+                intermediate: Some(intermediate),
+            };
         }
 
-        // Check if this is a Free Eagle multi-move
         if let Some(path) = mv.free_eagle_path() {
-            // Execute Free Eagle path step by step
             let mut had_capture = false;
             let mut had_promotion = false;
-            
-            // Execute each step in the path
+
             for i in 1..path.len() {
                 let from_pos = path[i - 1];
                 let to_pos = path[i];
-                
-                // Get piece at current position (may have moved)
+
                 let Some(current_piece) = self.board.get_piece(from_pos) else {
-                    return None; // Piece not found - invalid path
+                    return ApplyOutcome::Failed;
                 };
-                
-                // Check if there's a piece at destination (capture)
+
                 if let Some(target_piece) = self.board.get_piece(to_pos) {
                     if target_piece.color == current_piece.color {
-                        return None; // Cannot capture friendly
+                        return ApplyOutcome::Failed;
                     }
                     had_capture = true;
-                    // Remove captured piece
                     self.board.remove_piece(to_pos);
                 }
-                
-                // Move the piece
+
                 self.board.move_piece(from_pos, to_pos);
-                
-                // Check for promotion (only on final step)
+
                 if i == path.len() - 1 && mv.promoted {
                     if let Some(mut p) = self.board.get_piece(to_pos) {
                         if p.piece_type.promotes_to().is_some() {
@@ -1002,63 +995,55 @@ impl GameState {
                     }
                 }
             }
-            
-            // Record moves for notation (only captures, not empty squares)
-            for i in 1..path.len() {
-                let pos = path[i];
-                // Check if there was a capture at this position
-                // We need to check the original board state, but we've already moved pieces
-                // So we'll record all positions in the path that aren't the start
-                // The notation formatter will handle showing only captures
-                if i < path.len() - 1 || path[i] != mv.to {
-                    // This is an intermediate position or a capture position
-                    // Record it (the formatter will determine if it was a capture)
-                    let step_move = Move::new(path[i-1], pos);
-                    self.move_history.push(step_move);
+
+            if record_history {
+                for i in 1..path.len() {
+                    let pos = path[i];
+                    if i < path.len() - 1 || path[i] != mv.to {
+                        self.move_history.push(Move::new(path[i - 1], pos));
+                    }
+                }
+                if let Some(last_pos) = path.last() {
+                    if *last_pos != mv.to {
+                        self.move_history.push(Move::new(*last_pos, mv.to));
+                    }
                 }
             }
-            // Record final destination
-            if let Some(last_pos) = path.last() {
-                if *last_pos == mv.to {
-                    // Final destination is already in path
-                    // Don't record it again if it was the last step
-                } else {
-                    // Final destination is different - record it
-                    self.move_history.push(Move::new(*last_pos, mv.to));
-                }
-            }
-            
-            // Update counter
+
             if had_capture || had_promotion {
                 self.turns_without_capture_or_promotion = 0;
             } else {
                 self.turns_without_capture_or_promotion += 1;
             }
-            
+
             self.current_turn = self.current_turn.opposite();
-            return None;
+            return ApplyOutcome::Ok {
+                intermediate: None,
+            };
         }
-        
-        // Regular single move
-        let (execute_result, had_capture, had_promotion) = self.execute_single_move(mv);
-        
-        if execute_result {
-            // Update counter: if move had capture or promotion, reset counter; otherwise increment
-            if had_capture || had_promotion {
-                self.turns_without_capture_or_promotion = 0;
-            } else {
-                self.turns_without_capture_or_promotion += 1;
-            }
-            
-            self.current_turn = self.current_turn.opposite();
+
+        let (execute_result, had_capture, had_promotion) =
+            self.execute_single_move(mv, record_history);
+
+        if !execute_result {
+            return ApplyOutcome::Failed;
         }
-        None
+
+        if had_capture || had_promotion {
+            self.turns_without_capture_or_promotion = 0;
+        } else {
+            self.turns_without_capture_or_promotion += 1;
+        }
+        self.current_turn = self.current_turn.opposite();
+        ApplyOutcome::Ok {
+            intermediate: None,
+        }
     }
     
     /// Execute a single move (helper for make_move)
     /// Does not change the turn
     /// Returns (success, had_capture, had_promotion)
-    fn execute_single_move(&mut self, mv: Move) -> (bool, bool, bool) {
+    fn execute_single_move(&mut self, mv: Move, record_history: bool) -> (bool, bool, bool) {
         // Get the piece making the move
         let Some(piece) = self.board.get_piece(mv.from) else {
             return (false, false, false);
@@ -1129,7 +1114,9 @@ impl GameState {
             }
         }
 
-        self.move_history.push(mv);
+        if record_history {
+            self.move_history.push(mv);
+        }
         let had_capture = had_capture_dest || had_capture_path;
         (true, had_capture, had_promotion)
     }
@@ -1160,11 +1147,10 @@ impl GameState {
     /// Check if a player has lost (all their royal pieces are captured)
     /// A player loses when ALL their royal pieces (King and Crown Prince) are captured
     pub fn has_lost(&self, color: Color) -> bool {
-        let pieces = self.board.get_pieces_by_color(color);
-        let royal_pieces = pieces.iter()
-            .filter(|p| p.piece_type.is_royal())
-            .count();
-        royal_pieces == 0
+        !self
+            .board
+            .iter_pieces_by_color(color)
+            .any(|p| p.piece_type.is_royal())
     }
     
     /// Check if a piece type is King, CrownPrince, GreatGeneral, or can promote into one of these

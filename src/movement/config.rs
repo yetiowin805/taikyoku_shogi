@@ -102,6 +102,24 @@ impl MovementConfig {
 
     /// Get movement config for a piece type
     pub fn for_piece_type(piece_type: crate::piece::PieceType) -> MovementConfig {
+        use std::sync::OnceLock;
+        static CACHE: OnceLock<std::sync::Mutex<std::collections::HashMap<u16, MovementConfig>>> =
+            OnceLock::new();
+        let cache = CACHE.get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()));
+        let key = piece_type as u16;
+        {
+            let guard = cache.lock().unwrap();
+            if let Some(cfg) = guard.get(&key) {
+                return cfg.clone();
+            }
+        }
+        let cfg = Self::for_piece_type_uncached(piece_type);
+        let mut guard = cache.lock().unwrap();
+        guard.entry(key).or_insert_with(|| cfg.clone());
+        cfg
+    }
+
+    fn for_piece_type_uncached(piece_type: crate::piece::PieceType) -> MovementConfig {
         match piece_type {
             crate::piece::PieceType::King => king_movement(),
             crate::piece::PieceType::Pawn => pawn_movement(),
