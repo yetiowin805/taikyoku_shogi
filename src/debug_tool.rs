@@ -951,8 +951,8 @@ impl DebugTool {
 
   Branch / agents:
     move <ff> <fr> <tf> <tr> [promote|n] [path_index]
-    suggest [mi|random|royal] - Show agent choice
-    play [mi|random|royal]    - Apply agent choice
+    suggest [mi|random|royal|ab] - Show agent choice
+    play [mi|random|royal|ab]    - Apply agent choice
     save [filename]           - Write effective timeline JSON
 
   Utility:

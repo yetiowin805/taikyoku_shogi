@@ -1,5 +1,6 @@
 <script>
   import Board from './lib/Board.svelte';
+  import SearchPanel from './lib/SearchPanel.svelte';
   import * as api from './lib/api.js';
 
   let mode = $state('play'); // play | debug
@@ -15,6 +16,30 @@
   let autoPlay = $state(false);
   let busy = $state(false);
   let gotoPly = $state(0);
+  let models = $state(['ab-seed.json']);
+  let abModel = $state('ab-seed.json');
+  let abDepth = $state(2);
+  let abTimeMs = $state(0); // 0 = unlimited
+  let runActive = $state(false);
+  let runLabel = $state('');
+  let blackSearch = $state(null);
+  let whiteSearch = $state(null);
+  let blackSearchExpanded = $state(false);
+  let whiteSearchExpanded = $state(false);
+
+  function abOpts() {
+    const opts = {
+      depth: Number(abDepth) || 2,
+      model: `models/${abModel}`,
+    };
+    const t = Number(abTimeMs);
+    if (t > 0) opts.max_time_ms = t;
+    return opts;
+  }
+
+  function agentOptsFor(name) {
+    return name === 'ab' || name === 'search' ? abOpts() : {};
+  }
 
   function log(msg, kind = 'ok') {
     const t = new Date().toLocaleTimeString();
@@ -29,6 +54,11 @@
     if (!res) return;
     snapshot = res.snapshot;
     gotoPly = res.snapshot?.cursor ?? 0;
+    if (res.search) {
+      const side = res.search.side || snapshot?.turn;
+      if (side === 'White') whiteSearch = res.search;
+      else blackSearch = res.search;
+    }
     if (!silent) {
       if (res.ok) log(res.message, 'ok');
       else log(res.message, 'err');
@@ -61,6 +91,18 @@
     }
   }
 
+  async function refreshModels() {
+    try {
+      const res = await api.listModels();
+      if (res.ok && res.models?.length) {
+        models = res.models;
+        if (!models.includes(abModel)) abModel = models[0];
+      }
+    } catch (e) {
+      log(String(e), 'err');
+    }
+  }
+
   async function onNew() {
     const res = await api.newGame();
     selected = null;
@@ -86,19 +128,26 @@
   async function onSuggest() {
     const agent = snapshot?.turn === 'White' ? whiteController : blackController;
     const name = agent === 'human' ? 'mi' : agent;
-    const res = await api.suggest(name);
+    const res = await api.suggest(name, agentOptsFor(name));
     applyResult(res);
   }
 
   async function runAgentIfNeeded() {
     if (mode !== 'play' || !autoPlay || !snapshot || busy) return;
-    if (snapshot.winner || snapshot.draw) return;
+    if (snapshot.winner || snapshot.draw) {
+      if (runActive) {
+        log(`Run finished: ${snapshot.winner ? `winner ${snapshot.winner}` : snapshot.draw}`);
+        runActive = false;
+        autoPlay = false;
+      }
+      return;
+    }
     const turn = snapshot.turn;
     const ctrl = turn === 'Black' ? blackController : whiteController;
     if (ctrl === 'human') return;
     busy = true;
     try {
-      const res = await api.playAgent(ctrl);
+      const res = await api.playAgent(ctrl, agentOptsFor(ctrl));
       applyResult(res);
       selected = null;
       highlights = [];
@@ -241,15 +290,48 @@
     const turn = snapshot?.turn;
     const ctrl = turn === 'Black' ? blackController : whiteController;
     const agent = ctrl === 'human' ? 'mi' : ctrl;
-    const res = await api.playAgent(agent);
+    const res = await api.playAgent(agent, agentOptsFor(agent));
     selected = null;
     highlights = [];
     applyResult(res);
   }
 
+  async function startRun(black, white, label) {
+    mode = 'play';
+    blackController = black;
+    whiteController = white;
+    runLabel = label;
+    runActive = true;
+    blackSearch = null;
+    whiteSearch = null;
+    blackSearchExpanded = false;
+    whiteSearchExpanded = false;
+    selected = null;
+    highlights = [];
+    pendingMoves = [];
+    const res = await api.newGame();
+    applyResult(res);
+    autoPlay = true;
+    log(
+      `Started run: ${label} (ab depth=${abDepth}, model=${abModel}${abTimeMs > 0 ? `, time=${abTimeMs}ms` : ''})`,
+    );
+  }
+
+  async function stopRun(save = false) {
+    autoPlay = false;
+    runActive = false;
+    log(`Stopped run${runLabel ? `: ${runLabel}` : ''}`);
+    runLabel = '';
+    if (save) {
+      const res = await api.saveGame(null);
+      applyResult(res);
+    }
+  }
+
   $effect(() => {
     refresh();
     refreshGames();
+    refreshModels();
   });
 </script>
 
@@ -304,6 +386,7 @@
               <option value="mi">mi</option>
               <option value="random">random</option>
               <option value="royal">royal</option>
+              <option value="ab">ab</option>
             </select>
           </div>
           <div class="row">
@@ -313,6 +396,7 @@
               <option value="mi">mi</option>
               <option value="random">random</option>
               <option value="royal">royal</option>
+              <option value="ab">ab</option>
             </select>
           </div>
           <div class="row">
@@ -322,8 +406,76 @@
             >
           </div>
           <div class="row">
-            <button onclick={playOnce}>Play one AI move</button>
-            <button onclick={onSuggest}>Suggest</button>
+            <button onclick={playOnce} disabled={busy}>Play one AI move</button>
+            <button onclick={onSuggest} disabled={busy}>Suggest</button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>Alpha-beta (ab)</h3>
+          <div class="row">
+            <label>Model</label>
+            <select bind:value={abModel}>
+              {#each models as m}
+                <option value={m}>{m}</option>
+              {/each}
+            </select>
+            <button onclick={refreshModels} title="Refresh models">↻</button>
+          </div>
+          <div class="row">
+            <label>Depth</label>
+            <input
+              type="number"
+              min="1"
+              max="4"
+              bind:value={abDepth}
+              style="width:4rem"
+            />
+          </div>
+          <div class="row">
+            <label>Time ms</label>
+            <input
+              type="number"
+              min="0"
+              step="100"
+              bind:value={abTimeMs}
+              style="width:5rem"
+              title="0 = no time limit"
+            />
+            <span class="hint">0=off</span>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>Runs</h3>
+          {#if runActive}
+            <p class="hint">Active: {runLabel || 'custom'} {busy ? '· thinking…' : ''}</p>
+          {/if}
+          <div class="row wrap">
+            <button
+              onclick={() => startRun('ab', 'ab', 'ab vs ab')}
+              disabled={busy}>ab vs ab</button
+            >
+            <button
+              onclick={() => startRun('ab', 'mi', 'ab vs mi')}
+              disabled={busy}>ab vs mi</button
+            >
+            <button
+              onclick={() => startRun('mi', 'ab', 'mi vs ab')}
+              disabled={busy}>mi vs ab</button
+            >
+          </div>
+          <div class="row wrap">
+            <button
+              onclick={() => startRun(blackController === 'human' ? 'ab' : blackController, whiteController === 'human' ? 'ab' : whiteController, `${blackController} vs ${whiteController}`)}
+              disabled={busy}>Start with controllers</button
+            >
+            <button onclick={() => stopRun(false)} disabled={!autoPlay && !runActive}
+              >Stop</button
+            >
+            <button onclick={() => stopRun(true)} disabled={!autoPlay && !runActive}
+              >Stop + save</button
+            >
           </div>
         </div>
       {:else}
@@ -369,6 +521,17 @@
           </p>
         {/if}
       </div>
+
+      <SearchPanel
+        title="Black search"
+        search={blackSearch}
+        bind:expanded={blackSearchExpanded}
+      />
+      <SearchPanel
+        title="White search"
+        search={whiteSearch}
+        bind:expanded={whiteSearchExpanded}
+      />
     </div>
   </div>
 
