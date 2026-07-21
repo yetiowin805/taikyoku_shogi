@@ -113,23 +113,97 @@ impl GameHistory {
 
     /// End the game and save it
     pub fn end_game(&mut self, result: GameResult) -> Result<String, String> {
-        if let Some(ref mut game) = self.current_game {
-            game.result = Some(result);
-            
-            let filename = format!("{}/game_{}.json", self.games_dir, game.timestamp);
-            let json = serde_json::to_string_pretty(game)
-                .map_err(|e| format!("Failed to serialize game: {}", e))?;
-            
-            fs::write(&filename, json)
-                .map_err(|e| format!("Failed to write game file: {}", e))?;
-            
-            let saved_path = filename.clone();
-            self.current_game = None;
-            
-            Ok(saved_path)
-        } else {
-            Err("No game in progress".to_string())
+        let mut game = self
+            .current_game
+            .take()
+            .ok_or_else(|| "No game in progress".to_string())?;
+        game.result = Some(result);
+        self.save_game(&game, None)
+    }
+
+    /// Save an arbitrary game record (e.g. a branched debug session).
+    /// If `filename` is None, uses `game_<timestamp>.json` under the games directory.
+    pub fn save_game(&self, game: &GameRecord, filename: Option<&str>) -> Result<String, String> {
+        let path = match filename {
+            Some(name) => {
+                let name = name.strip_prefix("games/").unwrap_or(name);
+                format!("{}/{}", self.games_dir, name)
+            }
+            None => {
+                let timestamp = if game.timestamp > 0 {
+                    game.timestamp
+                } else {
+                    SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs()
+                };
+                format!("{}/game_{}.json", self.games_dir, timestamp)
+            }
+        };
+
+        let json = serde_json::to_string_pretty(game)
+            .map_err(|e| format!("Failed to serialize game: {}", e))?;
+
+        fs::write(&path, json)
+            .map_err(|e| format!("Failed to write game file: {}", e))?;
+
+        Ok(path)
+    }
+
+    /// Convert a live Move into a MoveRecord for persistence
+    pub fn move_to_record(mv: &Move, color: Color, move_number: usize) -> MoveRecord {
+        let data = match &mv.data {
+            MoveData::Standard => MoveRecordData::Standard,
+            MoveData::TwoStep { intermediate } => MoveRecordData::TwoStep {
+                intermediate_file: intermediate.file,
+                intermediate_rank: intermediate.rank,
+            },
+            MoveData::FreeEagle { path } => MoveRecordData::FreeEagle {
+                path: path.clone(),
+            },
+        };
+
+        MoveRecord {
+            move_number,
+            color,
+            from_file: mv.from.file,
+            from_rank: mv.from.rank,
+            to_file: mv.to.file,
+            to_rank: mv.to.rank,
+            promoted: mv.promoted,
+            data,
         }
+    }
+
+    /// Convert a MoveRecord back into a live Move
+    pub fn record_to_move(mv: &MoveRecord) -> Result<Move, String> {
+        let from = Position::new(mv.from_file, mv.from_rank)
+            .ok_or_else(|| format!("Invalid from position: ({}, {})", mv.from_file, mv.from_rank))?;
+        let to = Position::new(mv.to_file, mv.to_rank)
+            .ok_or_else(|| format!("Invalid to position: ({}, {})", mv.to_file, mv.to_rank))?;
+
+        Ok(match &mv.data {
+            MoveRecordData::Standard => Move::new_with_promotion(from, to, mv.promoted),
+            MoveRecordData::TwoStep {
+                intermediate_file,
+                intermediate_rank,
+            } => {
+                let intermediate = Position::new(*intermediate_file, *intermediate_rank)
+                    .ok_or_else(|| {
+                        format!(
+                            "Invalid intermediate position: ({}, {})",
+                            intermediate_file, intermediate_rank
+                        )
+                    })?;
+                Move::new_two_step_with_promotion(from, intermediate, to, mv.promoted)
+            }
+            MoveRecordData::FreeEagle { path } => {
+                let mut move_obj = Move::new_free_eagle(from, to, path.clone());
+                move_obj.promoted = mv.promoted;
+                move_obj
+            }
+        })
     }
 
     /// List all saved games

@@ -44,7 +44,14 @@ cargo run -- view games/game_1234567890.json
 cargo run -- debug
 ```
 
-Interactive REPL for loading games, stepping moves, listing legal moves, and attack/check queries.
+Interactive REPL for iterating on engine/agent behavior against saved games:
+
+- **Replay:** `load`, `forward`/`f`, `back`/`b`, `goto`/`g` (plies = MoveRecords; rebuild-from-start)
+- **Inspect:** `board`, `pieces`, `piece`, `moves`, `check`, `attacked`, `status`/`info`
+- **Edit:** `turn`, `place`, `remove`, `clear`, `reset` (edits snapshot a setup and branch)
+- **Branch / agents:** `move …`, `suggest [mi|random|royal]`, `play [mi|random|royal]`, `save [file]`
+
+Type `help` inside the REPL for full command syntax. Coordinates are shogi-style (file 1 = rightmost, rank 1 = top).
 
 ### UCI interface (stub)
 
@@ -83,6 +90,6 @@ cargo test
 | Piece set + opening | Largely complete |
 | Move generation / apply | Working |
 | Heuristic / random self-play | Working |
-| Debug + JSON history | Working |
+| Debug + JSON history | Working (replay / edit / branch / agents) |
 | UCI / search engine | Stub / absent |
 | Graphical UI | None |

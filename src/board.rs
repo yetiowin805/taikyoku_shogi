@@ -144,11 +144,7 @@ impl Board {
 
     /// Create a copy of the board
     pub fn clone(&self) -> Board {
-        Board {
-            squares: self.squares.clone(),
-            black_pieces: self.black_pieces.clone(),
-            white_pieces: self.white_pieces.clone(),
-        }
+        Clone::clone(self)
     }
 
     /// Check if a position is attacked by pieces of a given color
@@ -164,6 +160,16 @@ impl Board {
     /// Returns true immediately when first attacker is found
     pub fn is_position_attacked_by_color_for_check(&self, position: Position, attacker_color: Color) -> bool {
         is_position_attacked_by_color_impl(self, position, attacker_color, true)
+    }
+}
+
+impl Clone for Board {
+    fn clone(&self) -> Board {
+        Board {
+            squares: self.squares.clone(),
+            black_pieces: self.black_pieces.clone(),
+            white_pieces: self.white_pieces.clone(),
+        }
     }
 }
 
