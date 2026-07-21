@@ -341,7 +341,7 @@ pub fn move_to_delta(board: &Board, mv: &Move, moving_piece: &Piece) -> MoveDelt
     // 1. Track piece movement
     delta.piece_moved = Some((mv.from, mv.to, *moving_piece));
     
-    // 2. Handle capturing range movements
+    // 2. Handle capturing range movements (pieces cleared along the path, not endpoints)
     let config = MovementConfig::for_piece(moving_piece);
     let uses_capturing = config.capabilities.iter().any(|cap| {
         if let crate::movement::types::MovementCapability::Range { blocking, .. } = cap {
@@ -361,8 +361,25 @@ pub fn move_to_delta(board: &Board, mv: &Move, moving_piece: &Piece) -> MoveDelt
             }
         }
     }
+
+    // 3. Capture at destination — must be recorded so VirtualBoard piece-lists
+    // drop the captured piece (get_piece alone is not enough for attack checks).
+    if let Some(captured) = board.get_piece(mv.to) {
+        if captured.color != moving_piece.color {
+            delta.pieces_removed.push((mv.to, captured));
+        }
+    }
+
+    // 4. Two-step intermediate capture (if present)
+    if let Some(intermediate) = mv.intermediate() {
+        if let Some(captured) = board.get_piece(intermediate) {
+            if captured.color != moving_piece.color {
+                delta.pieces_removed.push((intermediate, captured));
+            }
+        }
+    }
     
-    // 3. Handle promotion
+    // 5. Handle promotion
     if mv.promoted {
         if let Some(new_type) = moving_piece.piece_type.promotes_to() {
             delta.piece_promoted = Some((
@@ -519,6 +536,75 @@ mod tests {
         assert!(black_pieces.iter().any(|p| p.position == new_pos));
         assert!(black_pieces.iter().any(|p| p.position == pos2));
         assert!(!black_pieces.iter().any(|p| p.position == pos1));
+    }
+
+    #[test]
+    fn test_move_to_delta_records_destination_capture() {
+        let mut board = Board::new();
+        let from = Position::new(10, 10).unwrap();
+        let to = Position::new(11, 10).unwrap();
+        let mover = Piece::new(PieceType::GoldGeneral, Color::White, from);
+        let victim = Piece::new(PieceType::Lance, Color::Black, to);
+        board.place_piece(mover);
+        board.place_piece(victim);
+
+        let mv = Move::new(from, to);
+        let delta = move_to_delta(&board, &mv, &mover);
+
+        assert!(
+            delta
+                .pieces_removed
+                .iter()
+                .any(|(pos, p)| *pos == to && p.piece_type == PieceType::Lance),
+            "destination capture must be in pieces_removed"
+        );
+
+        let vb = simulate_move(&board, &mv, &mover);
+        let black = vb.get_pieces_by_color(Color::Black);
+        assert!(
+            !black.iter().any(|p| p.position == to),
+            "captured piece must leave the color piece-list"
+        );
+        assert_eq!(vb.get_piece(to).map(|p| p.color), Some(Color::White));
+    }
+
+    #[test]
+    fn test_capturing_checker_clears_check_in_simulation() {
+        // White king checked vertically by a Black lance; adjacent White gold
+        // captures the lance. Simulation must report the king safe afterward.
+        let mut board = Board::new();
+        let king_pos = Position::new(10, 20).unwrap();
+        let checker_pos = Position::new(10, 10).unwrap();
+        let capturer_pos = Position::new(11, 10).unwrap();
+
+        board.place_piece(Piece::new(PieceType::King, Color::White, king_pos));
+        board.place_piece(Piece::new(PieceType::Lance, Color::Black, checker_pos));
+        let capturer = Piece::new(PieceType::GoldGeneral, Color::White, capturer_pos);
+        board.place_piece(capturer);
+
+        assert!(
+            board.is_position_attacked_by_color_for_check(king_pos, Color::Black),
+            "precondition: king is in check from lance"
+        );
+        assert!(
+            board.is_position_attacked_by_color(king_pos, Color::Black),
+            "precondition: also attacked under full attack rules"
+        );
+
+        let mv = Move::new(capturer_pos, checker_pos);
+        let vb = simulate_move(&board, &mv, &capturer);
+
+        assert!(
+            !vb.is_position_attacked_by_color_for_check(king_pos, Color::Black),
+            "after capturing the checker, king must not be in check"
+        );
+        assert!(
+            !vb
+                .get_pieces_by_color(Color::Black)
+                .iter()
+                .any(|p| p.piece_type == PieceType::Lance),
+            "checker must be gone from black piece list"
+        );
     }
 }
 
