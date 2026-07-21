@@ -58,7 +58,7 @@ button {
 
 .main {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 280px;
+  grid-template-columns: minmax(0, 1fr) 320px;
   gap: 0.75rem;
   min-height: 0;
 }
@@ -103,6 +103,16 @@ button {
   gap: 0.35rem;
   align-items: center;
   margin-bottom: 0.35rem;
+}
+
+.row.wrap {
+  flex-wrap: wrap;
+}
+
+.hint {
+  font-size: 0.8rem;
+  color: #5a5346;
+  margin: 0 0 0.35rem;
 }
 
 .status pre {

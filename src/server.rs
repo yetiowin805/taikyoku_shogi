@@ -58,10 +58,23 @@ pub struct MoveBody {
 pub struct AgentBody {
     #[serde(default = "default_mi")]
     pub agent: String,
+    pub depth: Option<u32>,
+    pub model: Option<String>,
+    pub max_time_ms: Option<u64>,
 }
 
 fn default_mi() -> String {
     "mi".to_string()
+}
+
+impl AgentBody {
+    fn options(&self) -> crate::player::AgentOptions {
+        crate::player::AgentOptions {
+            depth: self.depth,
+            model: self.model.clone(),
+            max_time_ms: self.max_time_ms,
+        }
+    }
 }
 
 #[derive(Deserialize)]
@@ -180,8 +193,9 @@ async fn api_suggest(
     Json(body): Json<AgentBody>,
 ) -> Json<CommandResult> {
     let tool = state.lock().await;
-    match tool.suggest_agent(&body.agent) {
-        Ok(msg) => Json(tool.ok_result(msg)),
+    match tool.suggest_agent_with_options(&body.agent, &body.options()) {
+        Ok((msg, Some(search))) => Json(tool.ok_result_with_search(msg, search)),
+        Ok((msg, None)) => Json(tool.ok_result(msg)),
         Err(e) => Json(tool.err_result(e)),
     }
 }
@@ -191,9 +205,21 @@ async fn api_play_agent(
     Json(body): Json<AgentBody>,
 ) -> Json<CommandResult> {
     let mut tool = state.lock().await;
-    match tool.play_agent(&body.agent) {
-        Ok(msg) => Json(tool.ok_result(msg)),
+    match tool.play_agent_with_options(&body.agent, &body.options()) {
+        Ok((msg, Some(search))) => Json(tool.ok_result_with_search(msg, search)),
+        Ok((msg, None)) => Json(tool.ok_result(msg)),
         Err(e) => Json(tool.err_result(e)),
+    }
+}
+
+async fn api_list_models() -> impl IntoResponse {
+    match crate::eval::list_model_files("models") {
+        Ok(models) => (StatusCode::OK, Json(serde_json::json!({ "ok": true, "models": models }))).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({ "ok": false, "message": e })),
+        )
+            .into_response(),
     }
 }
 
@@ -222,6 +248,7 @@ pub fn app_router(state: AppState, static_dir: Option<PathBuf>) -> Router {
         .route("/suggest", post(api_suggest))
         .route("/play", post(api_play_agent))
         .route("/save", post(api_save))
+        .route("/models", get(api_list_models))
         .with_state(state);
 
     let cors = CorsLayer::new()

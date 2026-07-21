@@ -8,8 +8,9 @@ A Rust game engine for **Taikyoku (Ultimate) Shogi**, a large historical Shogi v
 - Legal move generation, including two-step pieces, capturing-range generals, and Free Eagle multi-move patterns
 - Promotion (zone + mandatory promotion for pawns, knights, etc.)
 - Win by capturing all opponent royals (King / Crown Prince); draw by 500-move rule or insufficient material
-- Self-play with a heuristic player or uniform random moves
+- Self-play with heuristic (`mi`), random, royal-capture, or alpha-beta (`ab`) agents
 - JSON game save / list / view under `games/`
+- Versioned alpha-beta eval checkpoints under `models/`
 - Interactive debug REPL (`debug`)
 - **Local web UI** (`serve`): Play mode (human/AI per side) + Debug scrubber + log
 - Stub UCI loop (handshake + first legal move only; not GUI-ready)
@@ -36,13 +37,21 @@ cargo run -- serve          # http://127.0.0.1:3000
 
 Open the UI, switch **Play** / **Debug**, load games from `games/`, click pieces to move.
 
+In **Play**, the **Alpha-beta** panel sets depth / model / time for `ab`, and **Runs** can start `ab vs ab` (or vs `mi`) autoplay and stop/save when done.
+
 ### Self-play
 
 ```bash
 cargo run -- play          # heuristic (MinimalIntelligencePlayer) — default
 cargo run -- play mi       # same as above
 cargo run -- play random   # uniform random legal moves
+cargo run -- play royal    # prefer capturing royals
+cargo run -- play ab       # alpha-beta (default depth 2, seed eval)
+cargo run -- play ab --depth 2 --model models/ab-seed.json
+cargo run -- export-seed   # write models/ab-seed.json
 ```
+
+`ab` / `search` loads `models/ab-seed.json` when present (else built-in seed). Override with `--model`, `--depth`, or env `TAIKYOKU_AB_MODEL` / `TAIKYOKU_AB_DEPTH` / `TAIKYOKU_AB_TIME_MS`.
 
 Games are saved as JSON under `games/`.
 
@@ -64,7 +73,7 @@ Interactive REPL for iterating on engine/agent behavior against saved games:
 - **Replay:** `load`, `forward`/`f`, `back`/`b`, `goto`/`g` (plies = MoveRecords; rebuild-from-start)
 - **Inspect:** `board`, `pieces`, `piece`, `moves`, `check`, `attacked`, `status`/`info`
 - **Edit:** `turn`, `place`, `remove`, `clear`, `reset` (edits snapshot a setup and branch)
-- **Branch / agents:** `move …`, `suggest [mi|random|royal]`, `play [mi|random|royal]`, `save [file]`
+- **Branch / agents:** `move …`, `suggest [mi|random|royal|ab]`, `play [mi|random|royal|ab]`, `save [file]`
 
 Type `help` inside the REPL for full command syntax. Coordinates are shogi-style (file 1 = rightmost, rank 1 = top).
 
@@ -104,7 +113,8 @@ cargo test
 |------|--------|
 | Piece set + opening | Largely complete |
 | Move generation / apply | Working |
-| Heuristic / random self-play | Working |
+| Heuristic / random / royal / ab self-play | Working |
+| Alpha-beta eval + checkpoints (`models/`) | Working (depth 2 default; no quiescence yet) |
 | Debug + JSON history | Working (replay / edit / branch / agents) |
 | Local web GUI | Working (Play + Debug + log) |
-| UCI / search engine | Stub / absent |
+| UCI | Stub |

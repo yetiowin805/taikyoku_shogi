@@ -1,6 +1,8 @@
+pub mod alphabeta_player;
 pub mod attack_utils;
 pub mod board;
 pub mod debug_tool;
+pub mod eval;
 pub mod game_history;
 pub mod game_state;
 pub mod movement;
@@ -12,6 +14,7 @@ pub mod player;
 pub mod position;
 pub mod random_player;
 pub mod royal_capture_player;
+pub mod search;
 pub mod server;
 pub mod session_api;
 pub mod tengu_attack;

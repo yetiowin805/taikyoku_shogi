@@ -1,7 +1,6 @@
 //! JSON-friendly session views and commands for the HTTP / GUI layer.
 use crate::debug_tool::DebugTool;
 use crate::piece::Color;
-use crate::player::player_by_name;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -45,6 +44,8 @@ pub struct CommandResult {
     pub message: String,
     pub snapshot: SessionSnapshot,
     pub moves: Option<Vec<MoveDto>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub search: Option<crate::search::SearchInfo>,
 }
 
 fn color_name(c: Color) -> String {
@@ -159,24 +160,82 @@ impl DebugTool {
     }
 
     pub fn suggest_agent(&self, name: &str) -> Result<String, String> {
-        let player = player_by_name(name)?;
+        self.suggest_agent_with_options(name, &crate::player::AgentOptions::default())
+            .map(|(msg, _)| msg)
+    }
+
+    pub fn suggest_agent_with_options(
+        &self,
+        name: &str,
+        opts: &crate::player::AgentOptions,
+    ) -> Result<(String, Option<crate::search::SearchInfo>), String> {
+        if matches!(name, "ab" | "search") {
+            let player = crate::alphabeta_player::AlphaBetaPlayer::from_options(opts);
+            let info = player.search_info(self.game_state_ref());
+            let msg = match &info.best_move {
+                Some(label) => format!(
+                    "ab suggests: {} (eval {} → search {}, nodes {})",
+                    label, info.static_eval, info.score, info.nodes
+                ),
+                None => "ab has no legal moves".to_string(),
+            };
+            return Ok((msg, Some(info)));
+        }
+
+        let player = crate::player::player_by_name_with_options(name, opts)?;
         match player.choose_move(self.game_state_ref()) {
-            Some(mv) => Ok(format!(
-                "{} suggests: {}",
-                player.name(),
-                Self::format_move_public(&mv)
+            Some(mv) => Ok((
+                format!(
+                    "{} suggests: {}",
+                    player.name(),
+                    Self::format_move_public(&mv)
+                ),
+                None,
             )),
-            None => Ok(format!("{} has no legal moves", player.name())),
+            None => Ok((format!("{} has no legal moves", player.name()), None)),
         }
     }
 
     pub fn play_agent(&mut self, name: &str) -> Result<String, String> {
-        let player = player_by_name(name)?;
+        self.play_agent_with_options(name, &crate::player::AgentOptions::default())
+            .map(|(msg, _)| msg)
+    }
+
+    pub fn play_agent_with_options(
+        &mut self,
+        name: &str,
+        opts: &crate::player::AgentOptions,
+    ) -> Result<(String, Option<crate::search::SearchInfo>), String> {
+        if matches!(name, "ab" | "search") {
+            let player = crate::alphabeta_player::AlphaBetaPlayer::from_options(opts);
+            let side = match self.game_state_ref().get_current_turn() {
+                Color::Black => "Black",
+                Color::White => "White",
+            };
+            let result = player.analyze(self.game_state_ref());
+            let info = crate::search::search_info_from_result(
+                "ab",
+                side,
+                player.config().depth,
+                &result,
+            );
+            let Some(mv) = result.best_move else {
+                return Err("ab has no legal moves".to_string());
+            };
+            let msg = self.apply_live_move_pub(mv)?;
+            let msg = format!(
+                "ab: {} (eval {} → search {}, nodes {})",
+                msg, info.static_eval, info.score, info.nodes
+            );
+            return Ok((msg, Some(info)));
+        }
+
+        let player = crate::player::player_by_name_with_options(name, opts)?;
         let pname = player.name().to_string();
         match player.choose_move(self.game_state_ref()) {
             Some(mv) => {
                 let msg = self.apply_live_move_pub(mv)?;
-                Ok(format!("{}: {}", pname, msg))
+                Ok((format!("{}: {}", pname, msg), None))
             }
             None => Err(format!("{} has no legal moves", pname)),
         }
@@ -188,6 +247,21 @@ impl DebugTool {
             message: message.into(),
             snapshot: self.snapshot(),
             moves: None,
+            search: None,
+        }
+    }
+
+    pub fn ok_result_with_search(
+        &self,
+        message: impl Into<String>,
+        search: crate::search::SearchInfo,
+    ) -> CommandResult {
+        CommandResult {
+            ok: true,
+            message: message.into(),
+            snapshot: self.snapshot(),
+            moves: None,
+            search: Some(search),
         }
     }
 
@@ -201,6 +275,7 @@ impl DebugTool {
             message: message.into(),
             snapshot: self.snapshot(),
             moves: Some(moves),
+            search: None,
         }
     }
 
@@ -210,6 +285,7 @@ impl DebugTool {
             message: message.into(),
             snapshot: self.snapshot(),
             moves: None,
+            search: None,
         }
     }
 }

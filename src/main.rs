@@ -1,36 +1,12 @@
 // Modules are now declared in lib.rs
 use taikyoku_shogi::debug_tool::DebugTool;
-use taikyoku_shogi::game_state::{GameState, Move};
+use taikyoku_shogi::eval::{EvalCheckpoint, DEFAULT_MODEL_PATH};
+use taikyoku_shogi::game_state::GameState;
 use taikyoku_shogi::game_history::{GameHistory, GameResult};
-use taikyoku_shogi::minimal_intelligence_player::MinimalIntelligencePlayer;
 use taikyoku_shogi::piece::Color;
-use taikyoku_shogi::random_player::RandomPlayer;
+use taikyoku_shogi::player::player_by_name;
 use taikyoku_shogi::uci;
 use std::env;
-
-#[derive(Clone, Copy)]
-enum PlayMode {
-    /// Heuristic player (MinimalIntelligencePlayer)
-    Heuristic,
-    /// Uniform random legal moves
-    Random,
-}
-
-impl PlayMode {
-    fn label(self) -> &'static str {
-        match self {
-            PlayMode::Heuristic => "heuristic",
-            PlayMode::Random => "random",
-        }
-    }
-
-    fn choose_move(self, game_state: &GameState) -> Option<Move> {
-        match self {
-            PlayMode::Heuristic => MinimalIntelligencePlayer::make_move(game_state),
-            PlayMode::Random => RandomPlayer::make_move(game_state),
-        }
-    }
-}
 
 /// Convert a number to Japanese/Chinese numerals (1-indexed, no zero)
 fn to_japanese_numeral(n: u8) -> String {
@@ -87,12 +63,16 @@ fn flip_rank(rank: u8) -> u8 {
 
 fn print_usage() {
     println!("Usage:");
-    println!("  cargo run -- play [mi|random]  - Self-play (default: mi heuristic)");
+    println!("  cargo run -- play [mi|random|royal|ab] [--depth N] [--model path]");
+    println!("                                 - Self-play (default: mi)");
+    println!("  cargo run -- export-seed [path] - Write alpha-beta seed checkpoint JSON");
     println!("  cargo run -- list              - List saved games");
     println!("  cargo run -- view <file>       - View a game");
     println!("  cargo run -- debug             - Start debug REPL");
     println!("  cargo run -- serve [port]      - Start local GUI/API server (default 3000)");
     println!("  cargo run --                   - Start UCI interface (stub)");
+    println!();
+    println!("  Env for ab: TAIKYOKU_AB_MODEL, TAIKYOKU_AB_DEPTH, TAIKYOKU_AB_TIME_MS");
 }
 
 fn main() {
@@ -101,16 +81,32 @@ fn main() {
     if args.len() > 1 {
         match args[1].as_str() {
             "play" => {
-                let mode = match args.get(2).map(|s| s.as_str()) {
-                    None | Some("mi") | Some("heuristic") => PlayMode::Heuristic,
-                    Some("random") => PlayMode::Random,
-                    Some(other) => {
-                        println!("Unknown play mode '{}'. Use 'mi' or 'random'.", other);
-                        print_usage();
-                        return;
+                match parse_play_args(&args) {
+                    Ok((agent, depth, model)) => {
+                        if let Some(d) = depth {
+                            env::set_var("TAIKYOKU_AB_DEPTH", d.to_string());
+                        }
+                        if let Some(m) = model {
+                            env::set_var("TAIKYOKU_AB_MODEL", m);
+                        }
+                        play_game(&agent);
                     }
-                };
-                play_game(mode);
+                    Err(msg) => {
+                        println!("{}", msg);
+                        print_usage();
+                    }
+                }
+            }
+            "export-seed" => {
+                let path = args
+                    .get(2)
+                    .map(|s| s.as_str())
+                    .unwrap_or(DEFAULT_MODEL_PATH);
+                let cp = EvalCheckpoint::seed("ab-seed");
+                match cp.save_path(path) {
+                    Ok(()) => println!("Wrote seed checkpoint to {}", path),
+                    Err(e) => eprintln!("Failed to write {}: {}", path, e),
+                }
             }
             "view" => {
                 if args.len() < 3 {
@@ -154,7 +150,53 @@ fn main() {
     }
 }
 
-fn play_game(mode: PlayMode) {
+fn parse_play_args(args: &[String]) -> Result<(String, Option<u32>, Option<String>), String> {
+    let mut agent = "mi".to_string();
+    let mut depth = None;
+    let mut model = None;
+    let mut i = 2;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--depth" => {
+                i += 1;
+                let v = args
+                    .get(i)
+                    .ok_or_else(|| "Missing value for --depth".to_string())?
+                    .parse::<u32>()
+                    .map_err(|_| "Invalid --depth value".to_string())?;
+                depth = Some(v);
+            }
+            "--model" => {
+                i += 1;
+                let v = args
+                    .get(i)
+                    .ok_or_else(|| "Missing value for --model".to_string())?
+                    .clone();
+                model = Some(v);
+            }
+            other if other.starts_with('-') => {
+                return Err(format!("Unknown flag '{}'", other));
+            }
+            other => {
+                agent = other.to_string();
+            }
+        }
+        i += 1;
+    }
+    // Validate agent early
+    player_by_name(&agent).map_err(|e| e)?;
+    Ok((agent, depth, model))
+}
+
+fn play_game(agent: &str) {
+    let player = match player_by_name(agent) {
+        Ok(p) => p,
+        Err(e) => {
+            println!("{}", e);
+            return;
+        }
+    };
+
     let mut game_state = GameState::new();
     game_state.setup_initial_position();
     
@@ -164,7 +206,7 @@ fn play_game(mode: PlayMode) {
     let mut move_number = 1;
     let max_moves = 20000; // Prevent infinite games
     
-    println!("Starting {} self-play game...", mode.label());
+    println!("Starting {} self-play game...", player.name());
     
     while move_number <= max_moves {
         // Check if game is a draw by 500-move rule (no capture or promotion for 500 turns)
@@ -214,7 +256,7 @@ fn play_game(mode: PlayMode) {
             return;
         }
         
-        if let Some(mv) = mode.choose_move(&game_state) {
+        if let Some(mv) = player.choose_move(&game_state) {
             let color = game_state.get_current_turn();
             let promoted = mv.promoted;
             

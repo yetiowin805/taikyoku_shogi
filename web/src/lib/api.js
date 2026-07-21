@@ -21,6 +21,10 @@ export async function listGames() {
   return req('/list');
 }
 
+export async function listModels() {
+  return req('/models');
+}
+
 export async function loadGame(filename) {
   return req('/load', { method: 'POST', body: JSON.stringify({ filename }) });
 }
@@ -49,12 +53,20 @@ export async function applyMove(body) {
   return req('/move', { method: 'POST', body: JSON.stringify(body) });
 }
 
-export async function suggest(agent = 'mi') {
-  return req('/suggest', { method: 'POST', body: JSON.stringify({ agent }) });
+/** @param {string} agent @param {{ depth?: number, model?: string, max_time_ms?: number }} [opts] */
+export async function suggest(agent = 'mi', opts = {}) {
+  return req('/suggest', {
+    method: 'POST',
+    body: JSON.stringify({ agent, ...opts }),
+  });
 }
 
-export async function playAgent(agent = 'mi') {
-  return req('/play', { method: 'POST', body: JSON.stringify({ agent }) });
+/** @param {string} agent @param {{ depth?: number, model?: string, max_time_ms?: number }} [opts] */
+export async function playAgent(agent = 'mi', opts = {}) {
+  return req('/play', {
+    method: 'POST',
+    body: JSON.stringify({ agent, ...opts }),
+  });
 }
 
 export async function saveGame(filename) {
