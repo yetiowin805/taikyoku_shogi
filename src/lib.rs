@@ -12,6 +12,8 @@ pub mod player;
 pub mod position;
 pub mod random_player;
 pub mod royal_capture_player;
+pub mod server;
+pub mod session_api;
 pub mod tengu_attack;
 pub mod uci;
 
