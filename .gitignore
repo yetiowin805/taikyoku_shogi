@@ -24,3 +24,7 @@ testgame.txt
 *.md
 !README.md
 
+# Web frontend
+web/node_modules/
+web/dist/
+

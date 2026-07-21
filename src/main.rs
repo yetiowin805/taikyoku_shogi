@@ -90,7 +90,8 @@ fn print_usage() {
     println!("  cargo run -- play [mi|random]  - Self-play (default: mi heuristic)");
     println!("  cargo run -- list              - List saved games");
     println!("  cargo run -- view <file>       - View a game");
-    println!("  cargo run -- debug             - Start debug tool");
+    println!("  cargo run -- debug             - Start debug REPL");
+    println!("  cargo run -- serve [port]      - Start local GUI/API server (default 3000)");
     println!("  cargo run --                   - Start UCI interface (stub)");
 }
 
@@ -124,6 +125,25 @@ fn main() {
             "debug" => {
                 let mut debug_tool = DebugTool::new();
                 debug_tool.run();
+            }
+            "serve" => {
+                let port: u16 = args
+                    .get(2)
+                    .and_then(|s| s.parse().ok())
+                    .unwrap_or(3000);
+                let addr = std::net::SocketAddr::from(([127, 0, 0, 1], port));
+                let static_dir = std::path::PathBuf::from("web/dist");
+                let rt = tokio::runtime::Runtime::new().expect("tokio runtime");
+                if let Err(e) = rt.block_on(taikyoku_shogi::server::serve(
+                    addr,
+                    if static_dir.exists() {
+                        Some(static_dir)
+                    } else {
+                        None
+                    },
+                )) {
+                    eprintln!("{}", e);
+                }
             }
             _ => {
                 print_usage();

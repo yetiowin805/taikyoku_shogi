@@ -1,6 +1,6 @@
 # Taikyoku Shogi Engine
 
-A Rust game engine for **Taikyoku (Ultimate) Shogi**, a large historical Shogi variant on a **36×36 board**. Interaction is CLI-only (no graphical UI yet).
+A Rust game engine for **Taikyoku (Ultimate) Shogi**, a large historical Shogi variant on a **36×36 board**, with a local web GUI for play and debug.
 
 ## Features
 
@@ -11,15 +11,30 @@ A Rust game engine for **Taikyoku (Ultimate) Shogi**, a large historical Shogi v
 - Self-play with a heuristic player or uniform random moves
 - JSON game save / list / view under `games/`
 - Interactive debug REPL (`debug`)
+- **Local web UI** (`serve`): Play mode (human/AI per side) + Debug scrubber + log
 - Stub UCI loop (handshake + first legal move only; not GUI-ready)
 
 ## Building
 
 ```bash
 cargo build
+cd web && npm install && npm run build && cd ..
 ```
 
 ## Running
+
+### Local GUI (recommended)
+
+```bash
+# After building the web UI (see Building):
+cargo run -- serve          # http://127.0.0.1:3000
+
+# Frontend hot-reload during development:
+#   terminal 1: cargo run -- serve
+#   terminal 2: cd web && npm run dev   # http://127.0.0.1:5173 (proxies /api)
+```
+
+Open the UI, switch **Play** / **Debug**, load games from `games/`, click pieces to move.
 
 ### Self-play
 
@@ -38,7 +53,7 @@ cargo run -- list
 cargo run -- view games/game_1234567890.json
 ```
 
-### Debug tool
+### Debug REPL
 
 ```bash
 cargo run -- debug
@@ -91,5 +106,5 @@ cargo test
 | Move generation / apply | Working |
 | Heuristic / random self-play | Working |
 | Debug + JSON history | Working (replay / edit / branch / agents) |
+| Local web GUI | Working (Play + Debug + log) |
 | UCI / search engine | Stub / absent |
-| Graphical UI | None |

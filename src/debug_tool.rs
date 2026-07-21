@@ -109,29 +109,31 @@ impl DebugTool {
         Ok(())
     }
 
-    /// Enter a branched line at the current cursor (trunk prefix ends here).
+    /// Prepare the timeline so the next applied move appends at `cursor`.
+    /// Does not wipe prior branch moves when already at the tip of the line.
     fn ensure_branch_point(&mut self) {
         if self.setup.is_some() {
-            // Already on a setup-based branch; truncate forward moves past cursor.
+            // Setup-based timeline is just `branch`; drop moves after cursor.
             if self.cursor < self.branch.len() {
                 self.branch.truncate(self.cursor);
             }
             return;
         }
 
-        // Mid-trunk divergence: keep trunk[0..cursor) as prefix, drop later trunk.
-        self.branch_index = self.cursor;
-        // Branch may have held extension moves; drop anything past cursor relative to prefix.
-        let prefix_len = self.branch_index;
-        let absolute = self.cursor;
-        if absolute < prefix_len {
-            // Shouldn't happen when branch_index == cursor and branch empty;
-            // keep branch empty when diverging from pure trunk.
+        // Scrubbed back into the trunk prefix — diverge here and drop any branch.
+        if self.cursor < self.branch_index {
+            self.branch_index = self.cursor;
             self.branch.clear();
-        } else {
-            let branch_keep = absolute - prefix_len;
-            self.branch.truncate(branch_keep);
+            return;
         }
+
+        // Cursor is on the branch segment (or at its tip).
+        let into_branch = self.cursor - self.branch_index;
+        if into_branch < self.branch.len() {
+            // Scrubbed back within the branch — drop future branch moves.
+            self.branch.truncate(into_branch);
+        }
+        // else: already at tip (into_branch == branch.len()) — keep branch as-is.
     }
 
     /// Snapshot current board as a setup root (after edits). Clears forward branch.
@@ -325,27 +327,9 @@ impl DebugTool {
         }
 
         let record = GameHistory::move_to_record(&mv, color, move_number);
-        // After ensure_branch_point, cursor indexes into effective timeline at end of prefix.
-        // Append to branch: when setup, branch index == cursor; when trunk diverge, same.
-        if self.setup.is_some() {
-            self.branch.truncate(self.cursor);
-            self.branch.push(record);
-            self.cursor += 1;
-        } else {
-            // effective = trunk[0..branch_index) + branch; cursor should equal branch_index + branch.len()
-            let expected = self.branch_index + self.branch.len();
-            if self.cursor != expected {
-                // Rebuild consistency: truncate branch to match cursor relative to prefix
-                if self.cursor < self.branch_index {
-                    self.branch_index = self.cursor;
-                    self.branch.clear();
-                } else {
-                    self.branch.truncate(self.cursor - self.branch_index);
-                }
-            }
-            self.branch.push(record);
-            self.cursor += 1;
-        }
+        // ensure_branch_point left us at the tip of the branch segment.
+        self.branch.push(record);
+        self.cursor += 1;
 
         // Re-sync from rebuild for reliability
         let target = self.cursor;
@@ -398,6 +382,76 @@ impl DebugTool {
             moves,
             result,
         }
+    }
+
+    pub fn game_state_ref(&self) -> &GameState {
+        &self.game_state
+    }
+
+    pub fn cursor_ply(&self) -> usize {
+        self.cursor
+    }
+
+    pub fn timeline_length(&self) -> usize {
+        self.timeline_len()
+    }
+
+    pub fn check_color(&self, color: Color) -> bool {
+        self.is_in_check(color)
+    }
+
+    pub fn status_summary(&self) -> String {
+        self.status_text()
+    }
+
+    pub fn to_shogi_file(file: u8) -> u8 {
+        Self::internal_to_shogi_file(file)
+    }
+
+    pub fn to_shogi_rank(rank: u8) -> u8 {
+        Self::internal_to_shogi_rank(rank)
+    }
+
+    pub fn parse_shogi_position(&self, file: u8, rank: u8) -> Result<Position, String> {
+        let f = Self::shogi_to_internal_file(file)?;
+        let r = Self::shogi_to_internal_rank(rank)?;
+        Position::new(f, r).ok_or_else(|| "Invalid position".to_string())
+    }
+
+    pub fn format_move_public(mv: &Move) -> String {
+        Self::format_move(mv)
+    }
+
+    pub fn find_matching_moves_pub(
+        &self,
+        from: Position,
+        to: Position,
+        promote: Option<bool>,
+    ) -> Vec<Move> {
+        self.find_matching_moves(from, to, promote)
+    }
+
+    pub fn apply_live_move_pub(&mut self, mv: Move) -> Result<String, String> {
+        self.apply_live_move(mv)
+    }
+
+    pub fn list_games_pub(&self) -> Result<Vec<String>, String> {
+        self.game_history.list_games()
+    }
+
+    pub fn save_current(&self, filename: Option<&str>) -> Result<String, String> {
+        let mut warning = String::new();
+        if self.setup.is_some() {
+            warning = " (warning: edited setup — branch moves only)".to_string();
+        }
+        let record = self.build_save_record();
+        let path = self.game_history.save_game(&record, filename)?;
+        Ok(format!("{}{}", path, warning))
+    }
+
+    /// Start a fresh game from the initial setup (clears trunk/branch).
+    pub fn new_game(&mut self) {
+        *self = DebugTool::new();
     }
 
     pub fn run(&mut self) {
@@ -947,6 +1001,59 @@ mod tests {
         assert_eq!(tool.cursor, 0);
         tool.forward(1).unwrap();
         assert_eq!(tool.cursor, 1);
+    }
+
+    #[test]
+    fn test_successive_ai_moves_accumulate_from_current_position() {
+        let mut tool = DebugTool::new();
+        tool.play_agent("mi").unwrap();
+        tool.play_agent("mi").unwrap();
+        tool.play_agent("mi").unwrap();
+        assert_eq!(tool.cursor_ply(), 3);
+        assert_eq!(tool.branch.len(), 3);
+        assert_eq!(tool.timeline_length(), 3);
+
+        // Board should reflect all three moves, not only the last from the start.
+        let black = tool
+            .game_state_ref()
+            .get_board()
+            .get_pieces_by_color(Color::Black)
+            .len();
+        let white = tool
+            .game_state_ref()
+            .get_board()
+            .get_pieces_by_color(Color::White)
+            .len();
+        assert!(black + white > 0);
+
+        // Rebuild from scratch to the same ply must match live piece counts.
+        let live_black = black;
+        tool.rebuild_to(3).unwrap();
+        assert_eq!(
+            tool.game_state_ref()
+                .get_board()
+                .get_pieces_by_color(Color::Black)
+                .len(),
+            live_black
+        );
+    }
+
+    #[test]
+    fn test_ai_move_after_scrub_into_loaded_prefix() {
+        let mut tool = DebugTool::new();
+        // Synthesize a short trunk by playing then saving via branch as trunk-like state:
+        tool.play_agent("mi").unwrap();
+        tool.play_agent("mi").unwrap();
+        tool.play_agent("mi").unwrap();
+        tool.play_agent("mi").unwrap();
+        assert_eq!(tool.cursor_ply(), 4);
+
+        // Scrub back to ply 2 and play from there — should diverge and continue.
+        tool.goto_move(2).unwrap();
+        assert_eq!(tool.cursor_ply(), 2);
+        tool.play_agent("mi").unwrap();
+        assert_eq!(tool.cursor_ply(), 3);
+        assert_eq!(tool.timeline_length(), 3);
     }
 
     #[test]
