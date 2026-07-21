@@ -372,6 +372,9 @@ pub struct EvalWeights {
     /// Mix into the position hash for reproducible noise.
     #[serde(default)]
     pub weight_seed: u64,
+    /// Dense lookup rebuilt after load/seed (not serialized).
+    #[serde(skip)]
+    pub(crate) piece_value_table: Vec<i32>,
 }
 
 impl Default for EvalWeights {
@@ -391,7 +394,7 @@ impl EvalWeights {
             };
             piece.insert(pt, v);
         }
-        Self {
+        let mut w = Self {
             piece,
             royal_alive: 50,
             sole_royal_factor: 80,
@@ -399,14 +402,37 @@ impl EvalWeights {
             noise_scale: 1.0,
             mate_score: 1_000_000,
             weight_seed: 0xA11B_E7A1,
+            piece_value_table: Vec::new(),
+        };
+        w.rebuild_piece_value_table();
+        w
+    }
+
+    pub fn rebuild_piece_value_table(&mut self) {
+        let mut max_idx = 0usize;
+        for &pt in ALL_PIECE_TYPES {
+            max_idx = max_idx.max(pt as usize);
+        }
+        self.piece_value_table = vec![DEFAULT_PIECE_VALUE; max_idx + 1];
+        for (&pt, &v) in &self.piece {
+            let i = pt as usize;
+            if i >= self.piece_value_table.len() {
+                self.piece_value_table.resize(i + 1, DEFAULT_PIECE_VALUE);
+            }
+            self.piece_value_table[i] = v;
         }
     }
 
     pub fn piece_value(&self, pt: PieceType) -> i32 {
-        self.piece
-            .get(&pt)
-            .copied()
-            .unwrap_or(DEFAULT_PIECE_VALUE)
+        let i = pt as usize;
+        if i < self.piece_value_table.len() {
+            self.piece_value_table[i]
+        } else {
+            self.piece
+                .get(&pt)
+                .copied()
+                .unwrap_or(DEFAULT_PIECE_VALUE)
+        }
     }
 }
 
@@ -432,7 +458,9 @@ impl EvalCheckpoint {
 
     pub fn load_path(path: impl AsRef<Path>) -> Result<Self, String> {
         let text = fs::read_to_string(path.as_ref()).map_err(|e| e.to_string())?;
-        serde_json::from_str(&text).map_err(|e| e.to_string())
+        let mut cp: Self = serde_json::from_str(&text).map_err(|e| e.to_string())?;
+        cp.weights.rebuild_piece_value_table();
+        Ok(cp)
     }
 
     pub fn save_path(&self, path: impl AsRef<Path>) -> Result<(), String> {
@@ -456,6 +484,11 @@ fn chrono_like_now() -> String {
 
 /// Evaluate `state` from the side-to-move's perspective (positive = good for STM).
 pub fn evaluate(state: &GameState, weights: &EvalWeights) -> i32 {
+    evaluate_with_ply(state, weights, state.get_move_history().len())
+}
+
+/// Like [`evaluate`], but use an explicit ply for deterministic noise (search without history).
+pub fn evaluate_with_ply(state: &GameState, weights: &EvalWeights, ply: usize) -> i32 {
     let stm = state.get_current_turn();
     if let Some(winner) = state.get_winner() {
         return if winner == stm {
@@ -465,8 +498,7 @@ pub fn evaluate(state: &GameState, weights: &EvalWeights) -> i32 {
         };
     }
 
-    let absolute_black =
-        evaluate_absolute_black(state.get_board(), weights, state.get_move_history().len());
+    let absolute_black = evaluate_absolute_black(state.get_board(), weights, ply);
     if stm == Color::Black {
         absolute_black
     } else {
@@ -476,11 +508,11 @@ pub fn evaluate(state: &GameState, weights: &EvalWeights) -> i32 {
 
 /// Black-positive absolute evaluation (independent of who moves).
 pub fn evaluate_absolute_black(board: &Board, weights: &EvalWeights, ply: usize) -> i32 {
-    let black = board.get_pieces_by_color(Color::Black);
-    let white = board.get_pieces_by_color(Color::White);
+    let black = board.pieces_by_color(Color::Black);
+    let white = board.pieces_by_color(Color::White);
 
-    let black_royals = count_royals(&black);
-    let white_royals = count_royals(&white);
+    let black_royals = count_royals(black);
+    let white_royals = count_royals(white);
 
     if black_royals == 0 {
         return -weights.mate_score;
@@ -490,7 +522,7 @@ pub fn evaluate_absolute_black(board: &Board, weights: &EvalWeights, ply: usize)
     }
 
     let mut score = 0i32;
-    score += material_of(&black, weights) - material_of(&white, weights);
+    score += material_of(black, weights) - material_of(white, weights);
 
     score += weights.royal_alive * (black_royals as i32 - white_royals as i32);
     if black_royals == 1 {
@@ -500,8 +532,8 @@ pub fn evaluate_absolute_black(board: &Board, weights: &EvalWeights, ply: usize)
         score += weights.sole_royal_factor;
     }
 
-    score += de_positional(&black, Color::Black, weights);
-    score -= de_positional(&white, Color::White, weights);
+    score += de_positional(black, Color::Black, weights);
+    score -= de_positional(white, Color::White, weights);
 
     score += noise_component(board, weights, ply);
     score
@@ -553,7 +585,7 @@ fn noise_component(board: &Board, weights: &EvalWeights, ply: usize) -> i32 {
     weights.weight_seed.hash(&mut hasher);
     ply.hash(&mut hasher);
     for color in [Color::Black, Color::White] {
-        for p in board.get_pieces_by_color(color) {
+        for p in board.pieces_by_color(color) {
             p.piece_type.hash(&mut hasher);
             p.color.hash(&mut hasher);
             p.position.file.hash(&mut hasher);
@@ -610,11 +642,13 @@ mod tests {
     fn seed_round_trip_json() {
         let cp = EvalCheckpoint::seed("ab-seed");
         let text = serde_json::to_string(&cp).unwrap();
-        let back: EvalCheckpoint = serde_json::from_str(&text).unwrap();
+        let mut back: EvalCheckpoint = serde_json::from_str(&text).unwrap();
+        back.weights.rebuild_piece_value_table();
         assert_eq!(back.format_version, 1);
         assert_eq!(back.weights.piece_value(PieceType::King), 100);
         assert_eq!(back.weights.piece_value(PieceType::Pawn), 1);
         assert_eq!(back.weights.piece.len(), ALL_PIECE_TYPES.len());
+        assert!(!back.weights.piece_value_table.is_empty());
     }
 
     #[test]

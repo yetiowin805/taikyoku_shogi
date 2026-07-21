@@ -1,6 +1,6 @@
 //! Shallow alpha-beta search over GameState clones, with compact search traces for the GUI.
 
-use crate::eval::{evaluate, EvalWeights};
+use crate::eval::{evaluate_with_ply, EvalWeights};
 use crate::game_state::{GameState, Move};
 use serde::{Deserialize, Serialize};
 use std::time::{Duration, Instant};
@@ -14,6 +14,9 @@ pub const MAX_TREE_BRANCH: usize = 8;
 pub struct SearchConfig {
     pub depth: u32,
     pub max_time_ms: Option<u64>,
+    /// When true, build multipv root lines + reply trees for the GUI.
+    /// Does not change which move is selected as best.
+    pub collect_trace: bool,
 }
 
 impl Default for SearchConfig {
@@ -21,6 +24,7 @@ impl Default for SearchConfig {
         Self {
             depth: 2,
             max_time_ms: None,
+            collect_trace: false,
         }
     }
 }
@@ -75,18 +79,14 @@ struct SearchContext {
     deadline: Option<Instant>,
     nodes: u64,
     abort: bool,
+    /// Ply counter for eval noise (does not rely on move_history during search).
+    ply: usize,
 }
 
-struct RecordedChild {
-    mv: Move,
-    label: String,
-    score: i32,
-    subtree: Option<SearchTreeNode>,
-}
-
-/// Pick a move with alpha-beta.
+/// Pick a move with alpha-beta (no GUI trace by default).
 pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -> SearchResult {
-    let static_eval = evaluate(state, weights);
+    let root_ply = state.get_move_history().len();
+    let static_eval = evaluate_with_ply(state, weights, root_ply);
     let deadline = config
         .max_time_ms
         .map(|ms| Instant::now() + Duration::from_millis(ms));
@@ -95,6 +95,7 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
         deadline,
         nodes: 0,
         abort: false,
+        ply: root_ply,
     };
 
     let mut moves = state.generate_legal_moves();
@@ -125,34 +126,20 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
     let mut alpha = i32::MIN + 1;
     let beta = i32::MAX - 1;
     let mut root_lines: Vec<(Move, i32)> = Vec::with_capacity(moves.len());
-    let mut recorded: Vec<RecordedChild> = Vec::with_capacity(moves.len());
 
     for mv in &moves {
         if ctx.timed_out() {
             break;
         }
-        let label = move_label(state, mv);
         let mut child = state.clone();
-        child.make_move(mv.clone());
+        if !child.make_move_for_search(mv.clone()) {
+            continue;
+        }
         ctx.nodes += 1;
+        ctx.ply = root_ply + 1;
 
-        let (raw, subtree) = alphabeta(
-            &mut child,
-            weights,
-            depth - 1,
-            -beta,
-            -alpha,
-            &mut ctx,
-            depth > 1,
-        );
-        let score = -raw;
+        let score = -alphabeta(&mut child, weights, depth - 1, -beta, -alpha, &mut ctx);
         root_lines.push((mv.clone(), score));
-        recorded.push(RecordedChild {
-            mv: mv.clone(),
-            label,
-            score,
-            subtree,
-        });
 
         if score > best_score {
             best_score = score;
@@ -163,49 +150,30 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
         }
     }
 
-    recorded.sort_by(|a, b| b.score.cmp(&a.score));
-
-    let tree_children: Vec<SearchTreeNode> = recorded
-        .iter()
-        .take(MAX_TREE_ROOT_CHILDREN)
-        .map(|r| {
-            let is_best = r.mv.from == best_move.from
-                && r.mv.to == best_move.to
-                && r.mv.promoted == best_move.promoted;
-            let mut children = r
-                .subtree
-                .as_ref()
-                .map(|t| t.children.clone())
-                .unwrap_or_default();
-            if children.len() > MAX_TREE_BRANCH {
-                children.sort_by(|a, b| {
-                    b.best
-                        .cmp(&a.best)
-                        .then(b.score.unwrap_or(i32::MIN).cmp(&a.score.unwrap_or(i32::MIN)))
-                });
-                children.truncate(MAX_TREE_BRANCH);
-            }
-            SearchTreeNode {
-                label: r.label.clone(),
-                score: Some(r.score),
-                static_eval: None,
-                best: is_best,
-                cutoff: false,
-                children,
-            }
-        })
-        .collect();
-
-    let tree = SearchTreeNode {
-        label: "root".into(),
-        score: Some(best_score),
-        static_eval: Some(static_eval),
-        best: true,
-        cutoff: false,
-        children: tree_children,
-    };
-
     root_lines.sort_by(|a, b| b.1.cmp(&a.1));
+
+    let tree = if config.collect_trace {
+        build_trace_tree(
+            state,
+            weights,
+            depth,
+            root_ply,
+            &root_lines,
+            &best_move,
+            best_score,
+            static_eval,
+            &mut ctx,
+        )
+    } else {
+        SearchTreeNode {
+            label: "root".into(),
+            score: Some(best_score),
+            static_eval: Some(static_eval),
+            best: true,
+            cutoff: false,
+            children: vec![],
+        }
+    };
 
     SearchResult {
         best_move: Some(best_move),
@@ -217,6 +185,61 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
     }
 }
 
+/// After the main search, build a capped GUI tree without changing the chosen move.
+fn build_trace_tree(
+    state: &GameState,
+    weights: &EvalWeights,
+    depth: u32,
+    root_ply: usize,
+    root_lines: &[(Move, i32)],
+    best_move: &Move,
+    best_score: i32,
+    static_eval: i32,
+    ctx: &mut SearchContext,
+) -> SearchTreeNode {
+    let mut children: Vec<SearchTreeNode> = root_lines
+        .iter()
+        .take(MAX_TREE_ROOT_CHILDREN)
+        .map(|(mv, score)| {
+            let is_best = mv.from == best_move.from
+                && mv.to == best_move.to
+                && mv.promoted == best_move.promoted;
+            SearchTreeNode {
+                label: move_label(state, mv),
+                score: Some(*score),
+                static_eval: None,
+                best: is_best,
+                cutoff: false,
+                children: vec![],
+            }
+        })
+        .collect();
+
+    // Expand replies only under the best root move (one extra depth-1 search with recording).
+    if depth > 1 {
+        if let Some(best_node) = children.iter_mut().find(|c| c.best) {
+            let mut child = state.clone();
+            if child.make_move_for_search(best_move.clone()) {
+                ctx.ply = root_ply + 1;
+                let (_score, subtree) =
+                    alphabeta_record(&mut child, weights, depth - 1, &mut *ctx);
+                if let Some(sub) = subtree {
+                    best_node.children = sub.children;
+                }
+            }
+        }
+    }
+
+    SearchTreeNode {
+        label: "root".into(),
+        score: Some(best_score),
+        static_eval: Some(static_eval),
+        best: true,
+        cutoff: false,
+        children,
+    }
+}
+
 fn alphabeta(
     state: &mut GameState,
     weights: &EvalWeights,
@@ -224,26 +247,71 @@ fn alphabeta(
     mut alpha: i32,
     beta: i32,
     ctx: &mut SearchContext,
-    record: bool,
+) -> i32 {
+    ctx.nodes += 1;
+
+    // Terminal / leaf: evaluate only here (correctness-preserving for plain AB).
+    if state.get_winner().is_some() || depth == 0 || ctx.timed_out() {
+        return evaluate_with_ply(state, weights, ctx.ply);
+    }
+
+    let mut moves = state.generate_legal_moves();
+    if moves.is_empty() {
+        return evaluate_with_ply(state, weights, ctx.ply);
+    }
+
+    order_moves(state, weights, &mut moves);
+
+    let mut best = i32::MIN + 1;
+    let parent_ply = ctx.ply;
+
+    for mv in moves {
+        if ctx.timed_out() {
+            break;
+        }
+        let mut child_state = state.clone();
+        if !child_state.make_move_for_search(mv) {
+            continue;
+        }
+        ctx.ply = parent_ply + 1;
+        let score = -alphabeta(&mut child_state, weights, depth - 1, -beta, -alpha, ctx);
+        ctx.ply = parent_ply;
+
+        if score > best {
+            best = score;
+        }
+        if score > alpha {
+            alpha = score;
+        }
+        if alpha >= beta {
+            break;
+        }
+    }
+
+    best
+}
+
+/// Like alphabeta but records reply nodes for the GUI (best-move expansion only).
+fn alphabeta_record(
+    state: &mut GameState,
+    weights: &EvalWeights,
+    depth: u32,
+    ctx: &mut SearchContext,
 ) -> (i32, Option<SearchTreeNode>) {
     ctx.nodes += 1;
-    let static_eval = evaluate(state, weights);
+    let static_eval = evaluate_with_ply(state, weights, ctx.ply);
 
     if state.get_winner().is_some() || depth == 0 || ctx.timed_out() {
         return (
             static_eval,
-            if record {
-                Some(SearchTreeNode {
-                    label: "eval".into(),
-                    score: Some(static_eval),
-                    static_eval: Some(static_eval),
-                    best: true,
-                    cutoff: false,
-                    children: vec![],
-                })
-            } else {
-                None
-            },
+            Some(SearchTreeNode {
+                label: "eval".into(),
+                score: Some(static_eval),
+                static_eval: Some(static_eval),
+                best: true,
+                cutoff: false,
+                children: vec![],
+            }),
         );
     }
 
@@ -257,6 +325,9 @@ fn alphabeta(
     let mut best = i32::MIN + 1;
     let mut best_label: Option<String> = None;
     let mut children: Vec<SearchTreeNode> = Vec::new();
+    let parent_ply = ctx.ply;
+    let mut alpha = i32::MIN + 1;
+    let beta = i32::MAX - 1;
 
     for mv in moves {
         if ctx.timed_out() {
@@ -264,17 +335,12 @@ fn alphabeta(
         }
         let label = move_label(state, &mv);
         let mut child_state = state.clone();
-        child_state.make_move(mv);
-        let (raw, _) = alphabeta(
-            &mut child_state,
-            weights,
-            depth - 1,
-            -beta,
-            -alpha,
-            ctx,
-            false,
-        );
-        let score = -raw;
+        if !child_state.make_move_for_search(mv) {
+            continue;
+        }
+        ctx.ply = parent_ply + 1;
+        let score = -alphabeta(&mut child_state, weights, depth - 1, -beta, -alpha, ctx);
+        ctx.ply = parent_ply;
 
         if score > best {
             best = score;
@@ -283,53 +349,47 @@ fn alphabeta(
         if score > alpha {
             alpha = score;
         }
-
         let cutoff = alpha >= beta;
-        if record {
-            children.push(SearchTreeNode {
-                label,
-                score: Some(score),
-                static_eval: None,
-                best: false,
-                cutoff,
-                children: vec![],
-            });
-        }
+        children.push(SearchTreeNode {
+            label,
+            score: Some(score),
+            static_eval: None,
+            best: false,
+            cutoff,
+            children: vec![],
+        });
         if cutoff {
             break;
         }
     }
 
-    if record {
-        if let Some(ref bl) = best_label {
-            for c in &mut children {
-                if &c.label == bl {
-                    c.best = true;
-                }
+    if let Some(ref bl) = best_label {
+        for c in &mut children {
+            if &c.label == bl {
+                c.best = true;
             }
         }
-        children.sort_by(|a, b| {
-            b.best
-                .cmp(&a.best)
-                .then(b.score.unwrap_or(i32::MIN).cmp(&a.score.unwrap_or(i32::MIN)))
-        });
-        if children.len() > MAX_TREE_BRANCH {
-            children.truncate(MAX_TREE_BRANCH);
-        }
-        return (
-            best,
-            Some(SearchTreeNode {
-                label: "replies".into(),
-                score: Some(best),
-                static_eval: Some(static_eval),
-                best: true,
-                cutoff: false,
-                children,
-            }),
-        );
+    }
+    children.sort_by(|a, b| {
+        b.best
+            .cmp(&a.best)
+            .then(b.score.unwrap_or(i32::MIN).cmp(&a.score.unwrap_or(i32::MIN)))
+    });
+    if children.len() > MAX_TREE_BRANCH {
+        children.truncate(MAX_TREE_BRANCH);
     }
 
-    (best, None)
+    (
+        best,
+        Some(SearchTreeNode {
+            label: "replies".into(),
+            score: Some(best),
+            static_eval: Some(static_eval),
+            best: true,
+            cutoff: false,
+            children,
+        }),
+    )
 }
 
 impl SearchContext {
@@ -491,11 +551,101 @@ mod tests {
             &SearchConfig {
                 depth: 1,
                 max_time_ms: None,
+                collect_trace: true,
             },
         );
         let best = result.best_move.expect("expected a move");
         assert_eq!(best.to, Position::new(10, 11).unwrap());
         assert!(result.score > 100_000, "mate-ish score, got {}", result.score);
         assert!(!result.tree.children.is_empty());
+    }
+
+    #[test]
+    fn play_and_trace_agree_on_best_move() {
+        let weights = EvalWeights::seed();
+        let mut state = GameState::new();
+        state.setup_initial_position();
+        let play = search(
+            &state,
+            &weights,
+            &SearchConfig {
+                depth: 1,
+                collect_trace: false,
+                ..SearchConfig::default()
+            },
+        );
+        let traced = search(
+            &state,
+            &weights,
+            &SearchConfig {
+                depth: 1,
+                collect_trace: true,
+                ..SearchConfig::default()
+            },
+        );
+        assert_eq!(play.best_move.as_ref().map(|m| (m.from, m.to, m.promoted)), traced.best_move.as_ref().map(|m| (m.from, m.to, m.promoted)));
+        assert_eq!(play.score, traced.score);
+    }
+
+    #[test]
+    fn search_apply_matches_make_move_on_opening_moves() {
+        let mut state = GameState::new();
+        state.setup_initial_position();
+        let moves = state.generate_legal_moves();
+        // Spot-check a spread of opening moves (includes various piece types).
+        for mv in moves.iter().step_by(17).take(20) {
+            let mut a = state.clone();
+            let mut b = state.clone();
+            let ok_search = a.make_move_for_search(mv.clone());
+            let _ = b.make_move(mv.clone());
+            assert!(ok_search, "search apply failed for {:?}", mv);
+            assert_eq!(a.get_current_turn(), b.get_current_turn());
+            assert_eq!(
+                a.get_turns_without_capture_or_promotion(),
+                b.get_turns_without_capture_or_promotion()
+            );
+            for file in 0..36u8 {
+                for rank in 0..36u8 {
+                    let pos = Position::new(file, rank).unwrap();
+                    assert_eq!(
+                        a.get_board().get_piece(pos),
+                        b.get_board().get_piece(pos),
+                        "board mismatch after {:?}",
+                        mv
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn opening_depth2_play_search_completes() {
+        let weights = EvalWeights::seed();
+        let mut state = GameState::new();
+        state.setup_initial_position();
+        let t0 = Instant::now();
+        let result = search(
+            &state,
+            &weights,
+            &SearchConfig {
+                depth: 2,
+                max_time_ms: None,
+                collect_trace: false,
+            },
+        );
+        let elapsed = t0.elapsed();
+        assert!(result.best_move.is_some());
+        assert!(result.nodes > 0);
+        // Soft sanity: depth-2 opening should finish well under a few seconds after speedups.
+        assert!(
+            elapsed.as_secs() < 5,
+            "opening depth-2 took {:?}, nodes={}",
+            elapsed,
+            result.nodes
+        );
+        eprintln!(
+            "opening depth-2 play: {:?} nodes={} score={}",
+            elapsed, result.nodes, result.score
+        );
     }
 }
