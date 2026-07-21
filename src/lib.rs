@@ -1,5 +1,6 @@
 pub mod attack_utils;
 pub mod board;
+pub mod debug_tool;
 pub mod game_history;
 pub mod game_state;
 pub mod movement;

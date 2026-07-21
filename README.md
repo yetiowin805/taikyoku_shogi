@@ -1,15 +1,17 @@
 # Taikyoku Shogi Engine
 
-A game engine for Taikyoku (Ultimate) Shogi, a large variant of Shogi played on a 36x36 board.
+A Rust game engine for **Taikyoku (Ultimate) Shogi**, a large historical Shogi variant on a **36×36 board**. Interaction is CLI-only (no graphical UI yet).
 
 ## Features
 
-- Game engine with legal move generation
-- King and Pawn pieces (more pieces to be added)
-- Promotion rules (pieces promote when entering opponent's 11th rank)
-- Random player for testing
-- Game history saving and viewing
-- UCI protocol interface
+- Full opening setup (~720 pieces) with ~303 piece types and movement configs
+- Legal move generation, including two-step pieces, capturing-range generals, and Free Eagle multi-move patterns
+- Promotion (zone + mandatory promotion for pawns, knights, etc.)
+- Win by capturing all opponent royals (King / Crown Prince); draw by 500-move rule or insufficient material
+- Self-play with a heuristic player or uniform random moves
+- JSON game save / list / view under `games/`
+- Interactive debug REPL (`debug`)
+- Stub UCI loop (handshake + first legal move only; not GUI-ready)
 
 ## Building
 
@@ -19,29 +21,47 @@ cargo build
 
 ## Running
 
-### UCI Interface
+### Self-play
+
+```bash
+cargo run -- play          # heuristic (MinimalIntelligencePlayer) — default
+cargo run -- play mi       # same as above
+cargo run -- play random   # uniform random legal moves
+```
+
+Games are saved as JSON under `games/`.
+
+### List / view saved games
+
+```bash
+cargo run -- list
+cargo run -- view games/game_1234567890.json
+```
+
+### Debug tool
+
+```bash
+cargo run -- debug
+```
+
+Interactive REPL for loading games, stepping moves, listing legal moves, and attack/check queries.
+
+### UCI interface (stub)
+
 ```bash
 cargo run
 ```
-This starts the UCI protocol interface for use with chess GUIs or AI players.
 
-### Play Random Game
-```bash
-cargo run -- play
-```
-Plays a random game between two random players and saves it to the `games/` directory.
+Responds to basic UCI commands (`uci`, `isready`, `ucinewgame`, `position startpos`, `go`, `quit`).  
+`go` returns the first legal move as `bestmove`. FEN and move-string parsing are not implemented.
 
-### List Saved Games
-```bash
-cargo run -- list
-```
-Lists all saved game files.
+### Free Eagle sandbox
 
-### View a Game
 ```bash
-cargo run -- view games/game_1234567890.json
+cargo run --bin test_free_eagle
 ```
-Displays the move history and result of a saved game.
+
+Small-board REPL for experimenting with Free Eagle patterns.
 
 ## Testing
 
@@ -49,17 +69,20 @@ Displays the move history and result of a saved game.
 cargo test
 ```
 
-## Current Implementation
+## Coordinates
 
-- **Board**: 36x36 board representation
-- **Pieces**: King (moves up to 2 squares in any direction) and Pawn (standard shogi movement)
-- **Promotion**: Pawns promote when entering opponent's 11th rank (rank 26 for Black, rank 11 for White when displayed as 1-indexed)
-- **Game History**: Games are saved as JSON files in the `games/` directory
+- Internal storage is **0-indexed** (files/ranks `0..=35`).
+- Human-facing display often uses **1-indexed** values, and shogi-style viewers may flip file/rank for notation.
+- **Black** advances toward **high** ranks; **White** toward **low** ranks.
+- Promotion zone: Black ranks `25–35`, White ranks `0–10` (opponent’s last 11 ranks).
 
-## Initial Setup
+## Current scope
 
-- **Kings**: File 17 (17th from left, displayed as 17), on back ranks (rank 1 for Black, rank 36 for White when displayed)
-- **Pawns**: Rank 11 for Black, rank 26 for White (when displayed), all files (1-36 when displayed)
-
-Note: Coordinates are displayed as 1-indexed (1-36) for human readability, but stored internally as 0-indexed (0-35).
-
+| Area | Status |
+|------|--------|
+| Piece set + opening | Largely complete |
+| Move generation / apply | Working |
+| Heuristic / random self-play | Working |
+| Debug + JSON history | Working |
+| UCI / search engine | Stub / absent |
+| Graphical UI | None |

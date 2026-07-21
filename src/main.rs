@@ -1,10 +1,36 @@
 // Modules are now declared in lib.rs
-use taikyoku_shogi::game_state::GameState;
+use taikyoku_shogi::debug_tool::DebugTool;
+use taikyoku_shogi::game_state::{GameState, Move};
 use taikyoku_shogi::game_history::{GameHistory, GameResult};
 use taikyoku_shogi::minimal_intelligence_player::MinimalIntelligencePlayer;
 use taikyoku_shogi::piece::Color;
+use taikyoku_shogi::random_player::RandomPlayer;
 use taikyoku_shogi::uci;
 use std::env;
+
+#[derive(Clone, Copy)]
+enum PlayMode {
+    /// Heuristic player (MinimalIntelligencePlayer)
+    Heuristic,
+    /// Uniform random legal moves
+    Random,
+}
+
+impl PlayMode {
+    fn label(self) -> &'static str {
+        match self {
+            PlayMode::Heuristic => "heuristic",
+            PlayMode::Random => "random",
+        }
+    }
+
+    fn choose_move(self, game_state: &GameState) -> Option<Move> {
+        match self {
+            PlayMode::Heuristic => MinimalIntelligencePlayer::make_move(game_state),
+            PlayMode::Random => RandomPlayer::make_move(game_state),
+        }
+    }
+}
 
 /// Convert a number to Japanese/Chinese numerals (1-indexed, no zero)
 fn to_japanese_numeral(n: u8) -> String {
@@ -59,13 +85,31 @@ fn flip_rank(rank: u8) -> u8 {
     36 - rank
 }
 
+fn print_usage() {
+    println!("Usage:");
+    println!("  cargo run -- play [mi|random]  - Self-play (default: mi heuristic)");
+    println!("  cargo run -- list              - List saved games");
+    println!("  cargo run -- view <file>       - View a game");
+    println!("  cargo run -- debug             - Start debug tool");
+    println!("  cargo run --                   - Start UCI interface (stub)");
+}
+
 fn main() {
     let args: Vec<String> = env::args().collect();
     
     if args.len() > 1 {
         match args[1].as_str() {
             "play" => {
-                play_random_game();
+                let mode = match args.get(2).map(|s| s.as_str()) {
+                    None | Some("mi") | Some("heuristic") => PlayMode::Heuristic,
+                    Some("random") => PlayMode::Random,
+                    Some(other) => {
+                        println!("Unknown play mode '{}'. Use 'mi' or 'random'.", other);
+                        print_usage();
+                        return;
+                    }
+                };
+                play_game(mode);
             }
             "view" => {
                 if args.len() < 3 {
@@ -77,12 +121,12 @@ fn main() {
             "list" => {
                 list_games();
             }
+            "debug" => {
+                let mut debug_tool = DebugTool::new();
+                debug_tool.run();
+            }
             _ => {
-                println!("Usage:");
-                println!("  cargo run -- play          - Play a random game");
-                println!("  cargo run -- list          - List saved games");
-                println!("  cargo run -- view <file>   - View a game");
-                println!("  cargo run --               - Start UCI interface");
+                print_usage();
             }
         }
     } else {
@@ -90,7 +134,7 @@ fn main() {
     }
 }
 
-fn play_random_game() {
+fn play_game(mode: PlayMode) {
     let mut game_state = GameState::new();
     game_state.setup_initial_position();
     
@@ -100,7 +144,7 @@ fn play_random_game() {
     let mut move_number = 1;
     let max_moves = 20000; // Prevent infinite games
     
-    println!("Starting random game...");
+    println!("Starting {} self-play game...", mode.label());
     
     while move_number <= max_moves {
         // Check if game is a draw by 500-move rule (no capture or promotion for 500 turns)
@@ -150,7 +194,7 @@ fn play_random_game() {
             return;
         }
         
-        if let Some(mv) = MinimalIntelligencePlayer::make_move(&game_state) {
+        if let Some(mv) = mode.choose_move(&game_state) {
             let color = game_state.get_current_turn();
             let promoted = mv.promoted;
             
@@ -172,7 +216,7 @@ fn play_random_game() {
             let turn_before = game_state.get_current_turn();
             
             // Execute the move
-            let move_result = game_state.make_move(mv.clone());
+            let _ = game_state.make_move(mv.clone());
             let turn_after = game_state.get_current_turn();
             
             // Move succeeded if turn changed (for both regular and two-step moves)

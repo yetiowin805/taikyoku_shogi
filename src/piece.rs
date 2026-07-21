@@ -975,10 +975,11 @@ impl PieceType {
                 }
             }
             PieceType::Knight => {
-                // Knight must promote on the back 2 ranks (cannot move backwards)
+                // Knight must promote on the last 2 ranks (cannot move backwards from there)
+                // Black advances toward high ranks; White toward low ranks.
                 match color {
-                    Color::Black => target_rank <= 1,  // Back 2 ranks for Black (0, 1)
-                    Color::White => target_rank >= 34,  // Back 2 ranks for White (34, 35)
+                    Color::Black => target_rank >= 34, // Last 2 ranks for Black (34, 35)
+                    Color::White => target_rank <= 1,  // Last 2 ranks for White (0, 1)
                 }
             }
             _ => false,  // Other pieces don't have mandatory promotion
@@ -1125,6 +1126,23 @@ mod tests {
         
         // Cannot move sideways
         assert!(!pawn.can_reach(Position::new(11, 10).unwrap(), &board));
+    }
+
+    #[test]
+    fn test_knight_must_promote_on_last_two_ranks() {
+        // Black advances toward high ranks — mandatory on 34 and 35, not home ranks.
+        assert!(PieceType::Knight.must_promote_on_rank(34, Color::Black));
+        assert!(PieceType::Knight.must_promote_on_rank(35, Color::Black));
+        assert!(!PieceType::Knight.must_promote_on_rank(0, Color::Black));
+        assert!(!PieceType::Knight.must_promote_on_rank(1, Color::Black));
+        assert!(!PieceType::Knight.must_promote_on_rank(33, Color::Black));
+
+        // White advances toward low ranks — mandatory on 0 and 1, not home ranks.
+        assert!(PieceType::Knight.must_promote_on_rank(0, Color::White));
+        assert!(PieceType::Knight.must_promote_on_rank(1, Color::White));
+        assert!(!PieceType::Knight.must_promote_on_rank(34, Color::White));
+        assert!(!PieceType::Knight.must_promote_on_rank(35, Color::White));
+        assert!(!PieceType::Knight.must_promote_on_rank(2, Color::White));
     }
 }
 
