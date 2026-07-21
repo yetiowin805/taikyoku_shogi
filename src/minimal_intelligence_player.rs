@@ -97,7 +97,7 @@ impl MinimalIntelligencePlayer {
             }
         }
 
-        // Priority 5: Weighted random move (excluding unsafe moves: walking into check, unpinning, Tengu exposure)
+        // Priority 5: Weighted random move (excluding moves that leave a royal in check)
         // We calculate weights upfront, but check moves lazily - only when we're about to choose them
         let mut available_moves = legal_moves;
         let mut attempts = 0;
@@ -393,268 +393,34 @@ impl MinimalIntelligencePlayer {
         }
     }
 
-    /// Check if a royal piece would be under attack after making a move
-    /// This simulates the move and checks if the destination square is under attack
-    fn would_royal_be_under_attack_after_move(game_state: &GameState, mv: &Move, moving_piece: &Piece) -> bool {
-        use crate::move_simulation::BoardLike;
-        let base_board = game_state.get_board();
-        let virtual_board = crate::move_simulation::simulate_move(base_board, mv, moving_piece);
-        BoardLike::is_position_attacked_by_color_for_check(&virtual_board, mv.to, moving_piece.color.opposite())
-    }
-
-    /// Check if moving a piece would unpin it from a royal piece, exposing the royal to attack
-    /// Returns true if the move would unpin and expose a royal piece to attack
-    /// Note: This accounts for pieces that can jump over or capture through other pieces
-    fn would_move_unpin_royal_piece(board: &Board, mv: &Move, moving_piece: &Piece) -> bool {
-        // Get all royal pieces of the same color
-        let royal_pieces: Vec<Piece> = board.get_pieces_by_color(moving_piece.color)
-            .into_iter()
-            .filter(|piece| piece.piece_type.is_royal())
-            .collect();
-
-        // For each royal piece, check if the moving piece is pinned to it
-        for royal in &royal_pieces {
-            // Check if the moving piece is in the same line as the royal piece
-            if let Some(direction) = attack_utils::get_direction_toward(royal.position, moving_piece.position) {
-                // The moving piece is aligned with the royal piece
-                // Check if there's an opponent piece beyond the moving piece that could attack the royal
-                
-                // Get the direction offset
-                let (file_step, rank_step) = direction.to_offset();
-                
-                // Start from the royal piece and iterate in the direction
-                let mut current_pos = royal.position;
-                let mut found_moving_piece = false;
-                let mut opponent_pieces_beyond = Vec::new();
-                
-                loop {
-                    // Move to the next position in the direction
-                    if let Some(next_pos) = current_pos.offset(file_step, rank_step) {
-                        current_pos = next_pos;
-                        
-                        // If we've found the moving piece, continue beyond it
-                        if current_pos == moving_piece.position {
-                            found_moving_piece = true;
-                            continue;
-                        }
-                        
-                        // If we've passed the moving piece, look for opponent pieces
-                        if found_moving_piece {
-                            if let Some(piece) = board.get_piece(current_pos) {
-                                if piece.color != moving_piece.color {
-                                    // Found an opponent piece beyond the moving piece
-                                    // We don't stop here because pieces might be able to jump over or capture through
-                                    opponent_pieces_beyond.push(piece);
-                                }
-                            }
-                            // Continue scanning even through empty squares, because pieces with jumping
-                            // or capturing range moves might be able to attack through them
-                        }
-                    } else {
-                        // Out of bounds
-                        break;
-                    }
-                }
-                
-                // If we found opponent pieces beyond the moving piece, check if they can attack the royal
-                // after the move is simulated
-                if !opponent_pieces_beyond.is_empty() {
-                    use crate::move_simulation::BoardLike;
-                    let virtual_board = crate::move_simulation::simulate_move(board, mv, moving_piece);
-                    
-                    // Check if the royal piece is now under attack by the opponent
-                    if BoardLike::is_position_attacked_by_color_for_check(&virtual_board, royal.position, moving_piece.color.opposite()) {
-                        return true; // This move would unpin and expose the royal
-                    }
-                }
-            }
-        }
-        
-        false
-    }
-
-    /// Check if capturing a piece on the intermediate space of a two-step move would open a line of attack
-    /// Returns true if capturing on the intermediate space would expose a royal piece to attack
-    fn would_capture_on_intermediate_expose_royal(board: &Board, mv: &Move, moving_piece: &Piece) -> bool {
-        // Only check for two-step moving pieces (Tengu or Peacock)
-        if !attack_utils::is_tengu_or_promoted_peacock(moving_piece) && !attack_utils::is_unpromoted_peacock(moving_piece) {
-            return false;
-        }
-        
-        // Must have an intermediate position
-        let Some(intermediate_pos) = mv.intermediate() else {
-            return false;
-        };
-        
-        // Check if there's an enemy piece at the intermediate position (before the move)
-        let Some(captured_piece) = board.get_piece(intermediate_pos) else {
-            return false; // No piece to capture at intermediate
-        };
-        
-        // Must be an enemy piece
-        if captured_piece.color == moving_piece.color {
-            return false;
-        }
-        
-        // Get all royal pieces of the moving piece's color
-        let royal_pieces: Vec<Piece> = board.get_pieces_by_color(moving_piece.color)
-            .into_iter()
-            .filter(|piece| piece.piece_type.is_royal())
-            .collect();
-        
-        // For each royal piece, check if the intermediate position is on a line with it
-        for royal in &royal_pieces {
-            // Check if intermediate position is on a line with the royal piece
-            if let Some(direction) = attack_utils::get_direction_toward(royal.position, intermediate_pos) {
-                // The intermediate position is aligned with the royal piece
-                // Check if there's an opponent piece beyond the intermediate position that could attack the royal
-                
-                // Get the direction offset
-                let (file_step, rank_step) = direction.to_offset();
-                
-                // Start from the royal piece and iterate in the direction
-                let mut current_pos = royal.position;
-                let mut found_intermediate = false;
-                let mut opponent_pieces_beyond = Vec::new();
-                
-                loop {
-                    // Move to the next position in the direction
-                    if let Some(next_pos) = current_pos.offset(file_step, rank_step) {
-                        current_pos = next_pos;
-                        
-                        // If we've found the intermediate position, continue beyond it
-                        if current_pos == intermediate_pos {
-                            found_intermediate = true;
-                            continue;
-                        }
-                        
-                        // If we've passed the intermediate position, look for opponent pieces
-                        if found_intermediate {
-                            if let Some(piece) = board.get_piece(current_pos) {
-                                if piece.color != moving_piece.color {
-                                    // Found an opponent piece beyond the intermediate position
-                                    // Check if it has range movement in the direction toward the royal
-                                    if attack_utils::has_range_movement_in_direction(&piece, direction) {
-                                        opponent_pieces_beyond.push(piece);
-                                    }
-                                }
-                            }
-                            // Continue scanning even through empty squares, because pieces with jumping
-                            // or capturing range moves might be able to attack through them
-                        }
-                    } else {
-                        // Out of bounds
-                        break;
-                    }
-                }
-                
-                // If we found opponent pieces beyond the intermediate position with range movement,
-                // check if they can attack the royal after the capture
-                if !opponent_pieces_beyond.is_empty() {
-                    use crate::move_simulation::{BoardLike, MoveDelta, VirtualBoard};
-                    // Create a delta that only removes the captured piece at intermediate
-                    let mut delta = MoveDelta::new();
-                    if let Some(captured) = board.get_piece(intermediate_pos) {
-                        delta.pieces_removed.push((intermediate_pos, captured));
-                    }
-                    let virtual_board = VirtualBoard::new(board, delta);
-                    
-                    // Check if the royal piece is now under attack by the opponent
-                    if BoardLike::is_position_attacked_by_color_for_check(&virtual_board, royal.position, moving_piece.color.opposite()) {
-                        return true; // Capturing on intermediate would expose the royal
-                    }
-                }
-            }
-        }
-        
-        false
-    }
-
-    /// Check if any opponent Tengu/Capricorn or Hook Mover can attack a royal piece after a move
-    /// Returns true if any such piece can attack any royal piece after the move
-    fn would_tengu_attack_royal_after_move(board: &Board, mv: &Move, moving_piece: &Piece) -> bool {
+    /// After simulating `mv`, true if any royal of `moving_piece`'s color is in check.
+    /// This is the general safety net for discovered checks (sliders, Lion Hawk, Tengu, etc.).
+    fn any_royal_in_check_after(board: &Board, mv: &Move, moving_piece: &Piece) -> bool {
         use crate::move_simulation::BoardLike;
         let virtual_board = crate::move_simulation::simulate_move(board, mv, moving_piece);
-        
-        // Get all royal pieces of the moving piece's color
-        let royal_pieces: Vec<Piece> = BoardLike::get_pieces_by_color(&virtual_board, moving_piece.color)
-            .into_iter()
-            .filter(|piece| piece.piece_type.is_royal())
-            .collect();
-        
-        // Get all opponent Tengu/Capricorn/promoted Peacock pieces
-        let opponent_color = moving_piece.color.opposite();
-        let opponent_tengu: Vec<Piece> = BoardLike::get_pieces_by_color(&virtual_board, opponent_color)
-            .into_iter()
-            .filter(|piece| attack_utils::is_tengu_or_promoted_peacock(piece))
-            .collect();
-        
-        // Get all opponent Hook Mover/promoted forms
-        let opponent_hook_mover: Vec<Piece> = BoardLike::get_pieces_by_color(&virtual_board, opponent_color)
-            .into_iter()
-            .filter(|piece| attack_utils::is_hook_mover_like_piece(piece))
-            .collect();
-        
-        // For each royal piece, check if any Tengu/Capricorn/promoted Peacock can attack it
-        // Note: tengu_attack functions require &Board, so we'll use can_reach_boardlike as fallback
-        for royal in &royal_pieces {
-            for tengu in &opponent_tengu {
-                // Use BoardLike's attack detection which will use can_reach for VirtualBoard
-                if BoardLike::is_position_attacked_by_color_for_check(&virtual_board, royal.position, opponent_color) {
-                    // Check if this specific tengu is the attacker
-                    if tengu.can_reach_boardlike(royal.position, &virtual_board) {
-                        return true;
-                    }
-                }
+        let opponent = moving_piece.color.opposite();
+
+        for royal in BoardLike::get_pieces_by_color(&virtual_board, moving_piece.color) {
+            if !royal.piece_type.is_royal() {
+                continue;
             }
-            
-            // Check if any Hook Mover/promoted forms can attack it
-            for hook_mover in &opponent_hook_mover {
-                if hook_mover.can_reach_boardlike(royal.position, &virtual_board) {
-                    return true;
-                }
+            if BoardLike::is_position_attacked_by_color_for_check(
+                &virtual_board,
+                royal.position,
+                opponent,
+            ) {
+                return true;
             }
         }
-        
         false
     }
 
-    /// Check if a move is safe (doesn't put royal pieces into check, doesn't unpin, and doesn't expose to Tengu)
-    /// Returns true if the move is safe, false otherwise
+    /// Check if a move is safe (does not leave any friendly royal in check).
     fn is_move_safe(game_state: &GameState, mv: &Move) -> bool {
-        // Get the moving piece
         let Some(moving_piece) = game_state.get_board().get_piece(mv.from) else {
-            return false; // Piece not found, consider unsafe
+            return false;
         };
-        
-        use crate::move_simulation::BoardLike;
-        let base_board = game_state.get_board();
-        let virtual_board = crate::move_simulation::simulate_move(base_board, mv, &moving_piece);
-        
-        // Check 1: Walking into check (if moving piece is royal)
-        if moving_piece.piece_type.is_royal() {
-            if BoardLike::is_position_attacked_by_color_for_check(&virtual_board, mv.to, moving_piece.color.opposite()) {
-                return false; // Royal piece would be in check at destination
-            }
-        }
-        
-        // Check 2: Unpinning detection
-        if Self::would_move_unpin_royal_piece(base_board, mv, &moving_piece) {
-            return false; // Move would unpin and expose a royal piece
-        }
-        
-        // Check 3: Two-step capture on intermediate exposing royal
-        if Self::would_capture_on_intermediate_expose_royal(base_board, mv, &moving_piece) {
-            return false; // Capturing on intermediate would expose royal piece to attack
-        }
-        
-        // Check 4: Tengu attack detection
-        if Self::would_tengu_attack_royal_after_move(base_board, mv, &moving_piece) {
-            return false; // Move would expose royal piece to Tengu attack
-        }
-        
-        // All checks passed
-        true
+        !Self::any_royal_in_check_after(game_state.get_board(), mv, &moving_piece)
     }
 
     /// Check if a range capturing move would be safe
@@ -909,3 +675,61 @@ impl MinimalIntelligencePlayer {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// White Lion Hawk on a diagonal toward Black's king, blocked by a Black pawn.
+    /// Moving the pawn off the diagonal discovers check — mi must reject that move.
+    #[test]
+    fn rejects_move_that_opens_lion_hawk_discovered_check() {
+        let mut state = GameState::new();
+        let king_pos = Position::new(10, 10).unwrap();
+        let blocker_pos = Position::new(7, 7).unwrap();
+        let li_pos = Position::new(5, 5).unwrap();
+        let off_diagonal = Position::new(7, 8).unwrap();
+
+        state.place_piece(Piece::new(PieceType::King, Color::Black, king_pos));
+        state.place_piece(Piece::new(PieceType::Pawn, Color::Black, blocker_pos));
+        state.place_piece(Piece::new(PieceType::LionHawk, Color::White, li_pos));
+        // Unrelated piece whose move does not open check
+        let free_pos = Position::new(20, 10).unwrap();
+        state.place_piece(Piece::new(PieceType::Pawn, Color::Black, free_pos));
+        state.set_current_turn(Color::Black);
+
+        assert!(
+            !state
+                .get_board()
+                .is_position_attacked_by_color_for_check(king_pos, Color::White),
+            "king should not be in check while the diagonal is blocked"
+        );
+
+        let opens_check = Move::new(blocker_pos, off_diagonal);
+        assert!(
+            !MinimalIntelligencePlayer::is_move_safe(&state, &opens_check),
+            "moving the blocker off the LI diagonal must be unsafe"
+        );
+
+        let safe = Move::new(free_pos, Position::new(20, 11).unwrap());
+        assert!(
+            MinimalIntelligencePlayer::is_move_safe(&state, &safe),
+            "an unrelated forward pawn move should remain safe"
+        );
+    }
+
+    #[test]
+    fn rejects_move_that_opens_lance_discovered_check() {
+        let mut state = GameState::new();
+        let king_pos = Position::new(10, 10).unwrap();
+        let blocker_pos = Position::new(10, 15).unwrap();
+        let lance_pos = Position::new(10, 20).unwrap();
+
+        state.place_piece(Piece::new(PieceType::King, Color::Black, king_pos));
+        state.place_piece(Piece::new(PieceType::GoldGeneral, Color::Black, blocker_pos));
+        state.place_piece(Piece::new(PieceType::Lance, Color::White, lance_pos));
+        state.set_current_turn(Color::Black);
+
+        let opens_check = Move::new(blocker_pos, Position::new(11, 15).unwrap());
+        assert!(!MinimalIntelligencePlayer::is_move_safe(&state, &opens_check));
+    }
+}

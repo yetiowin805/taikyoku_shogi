@@ -622,66 +622,73 @@ pub fn can_cannon_soldier_attack_target<B: BoardLike>(cannon_soldier: &Piece, ta
 /// 1. Simple 1 space orthogonally → Simple 1 space any direction
 /// 2. Range diagonal → Simple 1 space any direction
 pub fn can_lion_hawk_attack_target<B: BoardLike>(lion_hawk: &Piece, target: Position, board: &B) -> bool {
-    // Option 1: Simple 1 space orthogonally → Simple 1 space any direction
-    // Check all 4 orthogonal directions (N, S, E, W)
-    let orthogonal_directions = vec![
-        (0i8, 1i8),   // N
-        (0i8, -1i8),  // S
-        (1i8, 0i8),   // E
-        (-1i8, 0i8),  // W
-    ];
-    
-    for (file_delta, rank_delta) in orthogonal_directions {
-        // Adjust for White (flip rank)
-        let adjusted_rank_delta = if lion_hawk.color == Color::White {
-            -rank_delta
-        } else {
-            rank_delta
-        };
-        
-        if let Some(intermediate) = lion_hawk.position.offset(file_delta, adjusted_rank_delta) {
-            // Check if intermediate is valid (empty or enemy, not friendly)
+    if lion_hawk.position == target {
+        return false;
+    }
+    // Can't capture friendly
+    if let Some(target_piece) = BoardLike::get_piece(board, target) {
+        if target_piece.color == lion_hawk.color {
+            return false;
+        }
+    }
+
+    let file_diff = (target.file as i8 - lion_hawk.position.file as i8).abs();
+    let rank_diff = (target.rank as i8 - lion_hawk.position.rank as i8).abs();
+
+    // Jump: all squares at Chebyshev distance 2 (same as Lion)
+    if file_diff.max(rank_diff) == 2 {
+        return true;
+    }
+
+    // TwoStep includes first-step-only destinations:
+    // - orthogonal simple 1
+    if (file_diff == 1 && rank_diff == 0) || (file_diff == 0 && rank_diff == 1) {
+        return true;
+    }
+    // - diagonal range any distance
+    if can_reach_via_diagonal_range(lion_hawk, lion_hawk.position, target, board) {
+        return true;
+    }
+
+    // Option 1 completed: orthogonal 1 → any 1
+    for (file_delta, rank_delta) in [(0i8, 1i8), (0, -1), (1, 0), (-1, 0)] {
+        if let Some(intermediate) = lion_hawk.position.offset(file_delta, rank_delta) {
             if let Some(piece_at_intermediate) = BoardLike::get_piece(board, intermediate) {
                 if piece_at_intermediate.color == lion_hawk.color {
-                    continue; // Can't land on friendly piece
+                    continue;
                 }
             }
-            
-            // Check if from intermediate, we can reach target with 1 space any direction
             if can_reach_via_simple_1_any_direction(lion_hawk, intermediate, target, board) {
-                // Check if target is valid (empty or enemy, not friendly)
-                if let Some(target_piece) = BoardLike::get_piece(board, target) {
-                    if target_piece.color == lion_hawk.color {
-                        continue; // Can't capture friendly piece
-                    }
-                }
                 return true;
             }
         }
     }
-    
-    // Option 2: Range diagonal → Simple 1 space any direction
-    // Find all intermediate positions reachable via diagonal range movement
-    let intermediates = find_potential_intermediates(lion_hawk.position, target);
-    
-    for intermediate in intermediates {
-        // Check if first step (Lion Hawk -> intermediate) is legal via diagonal range
-        if !can_reach_via_diagonal_range(lion_hawk, lion_hawk.position, intermediate, board) {
+
+    // Option 2 completed: diagonal range → any 1
+    // Intermediate must be adjacent to the target (second step is only 1 square).
+    // Tengu-style find_potential_intermediates is wrong here: when LI and target share a
+    // diagonal it returns no intermediates, and second-step distance is not a diagonal range.
+    for (file_delta, rank_delta) in [
+        (0i8, 1i8),
+        (0, -1),
+        (1, 0),
+        (-1, 0),
+        (1, 1),
+        (1, -1),
+        (-1, 1),
+        (-1, -1),
+    ] {
+        let Some(intermediate) = target.offset(file_delta, rank_delta) else {
+            continue;
+        };
+        if intermediate == lion_hawk.position {
             continue;
         }
-        
-        // Check if second step (intermediate -> target) is legal via simple 1 space any direction
-        if can_reach_via_simple_1_any_direction(lion_hawk, intermediate, target, board) {
-            // Check if target has a friendly piece (can't capture friendly)
-            if let Some(target_piece) = BoardLike::get_piece(board, target) {
-                if target_piece.color == lion_hawk.color {
-                    continue; // Can't capture friendly piece
-                }
-            }
-            return true; // Found a valid two-step path
+        if can_reach_via_diagonal_range(lion_hawk, lion_hawk.position, intermediate, board) {
+            return true;
         }
     }
-    
+
     false
 }
 
@@ -711,3 +718,61 @@ fn can_reach_via_simple_1_any_direction<B: BoardLike>(piece: &Piece, from: Posit
     true
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::board::Board;
+    use crate::piece::{Color, Piece, PieceType};
+
+    #[test]
+    fn lion_hawk_attacks_clear_long_diagonal() {
+        let mut board = Board::new();
+        let li_pos = Position::new(5, 5).unwrap();
+        let target = Position::new(10, 10).unwrap();
+        let li = Piece::new(PieceType::LionHawk, Color::White, li_pos);
+        board.place_piece(li);
+        board.place_piece(Piece::new(PieceType::King, Color::Black, target));
+
+        assert!(can_lion_hawk_attack_target(&li, target, &board));
+        assert!(board.is_position_attacked_by_color_for_check(target, Color::White));
+    }
+
+    #[test]
+    fn lion_hawk_blocked_on_diagonal() {
+        let mut board = Board::new();
+        let li_pos = Position::new(5, 5).unwrap();
+        let blocker = Position::new(7, 7).unwrap();
+        let target = Position::new(10, 10).unwrap();
+        let li = Piece::new(PieceType::LionHawk, Color::White, li_pos);
+        board.place_piece(li);
+        board.place_piece(Piece::new(PieceType::Pawn, Color::Black, blocker));
+        board.place_piece(Piece::new(PieceType::King, Color::Black, target));
+
+        assert!(!can_lion_hawk_attack_target(&li, target, &board));
+        assert!(!board.is_position_attacked_by_color_for_check(target, Color::White));
+    }
+
+    #[test]
+    fn lion_hawk_attacks_via_diagonal_then_orthogonal_step() {
+        let mut board = Board::new();
+        let li_pos = Position::new(5, 5).unwrap();
+        // Not on LI's diagonal; reachable via range to (9,9) then step to (9,10)
+        let target = Position::new(9, 10).unwrap();
+        let li = Piece::new(PieceType::LionHawk, Color::White, li_pos);
+        board.place_piece(li);
+        board.place_piece(Piece::new(PieceType::King, Color::Black, target));
+
+        assert!(can_lion_hawk_attack_target(&li, target, &board));
+    }
+
+    #[test]
+    fn lion_hawk_jumps_chebyshev_two() {
+        let mut board = Board::new();
+        let li_pos = Position::new(10, 10).unwrap();
+        let target = Position::new(12, 11).unwrap();
+        let li = Piece::new(PieceType::LionHawk, Color::Black, li_pos);
+        board.place_piece(li);
+
+        assert!(can_lion_hawk_attack_target(&li, target, &board));
+    }
+}
