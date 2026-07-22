@@ -2,6 +2,7 @@
 
 use crate::board::Board;
 use crate::game_state::GameState;
+use crate::movement::{BlockingMode, MovementCapability, MovementConfig};
 use crate::piece::{Color, Piece, PieceType};
 use crate::position::Position;
 use serde::{Deserialize, Serialize};
@@ -317,65 +318,64 @@ pub const ALL_PIECE_TYPES: &[PieceType] = &[
     PieceType::SwordGeneral,
 ];
 
-const ORDINARY_PIECE_VALUE: i32 = 3;
-const PROMOTED_PIECE_VALUE: i32 = 5;
 /// Fallback for unknown / missing table entries.
-const DEFAULT_PIECE_VALUE: i32 = ORDINARY_PIECE_VALUE;
-const PAWN_VALUE: i32 = 1;
-const DOG_GO_BETWEEN_VALUE: i32 = 2;
-const HIGH_PIECE_VALUE: i32 = 100;
-/// Capturing-range generals (opening long-range jump takes). High so hanging
-/// them after a cheap sweep is clearly refuted in search / quiescence.
-const JUMP_CAPTURE_GENERAL_VALUE: i32 = 90;
+const DEFAULT_PIECE_VALUE: f32 = 1.0;
 
-fn is_high_value_piece(pt: PieceType) -> bool {
-    matches!(
-        pt,
-        PieceType::King
-            | PieceType::CrownPrince
-            | PieceType::FreeKing
-            | PieceType::Lion
-            | PieceType::LionHawk
-            | PieceType::Tengu
-            | PieceType::HookMover
-            | PieceType::FreeEagle
-            | PieceType::GreatDove
-            | PieceType::FireDemon
-            | PieceType::FreeFire
-            | PieceType::FuriousFiend
-            | PieceType::BuddhistSpirit
-            | PieceType::FreeDemon
-    )
-}
-
-fn is_jump_capture_general(pt: PieceType) -> bool {
-    matches!(
-        pt,
-        PieceType::GreatGeneral | PieceType::BishopGeneral | PieceType::FlyingGeneral
-    )
-}
-
-/// True if some piece type promotes into `pt` (tokin-style and other promotes).
-fn is_promotion_result(pt: PieceType) -> bool {
-    ALL_PIECE_TYPES
-        .iter()
-        .any(|from| from.promotes_to() == Some(pt))
-}
-
-fn seed_piece_value(pt: PieceType) -> i32 {
-    if matches!(pt, PieceType::Pawn) {
-        PAWN_VALUE
-    } else if matches!(pt, PieceType::Dog | PieceType::GoBetween) {
-        DOG_GO_BETWEEN_VALUE
-    } else if is_jump_capture_general(pt) {
-        JUMP_CAPTURE_GENERAL_VALUE
-    } else if is_high_value_piece(pt) {
-        HIGH_PIECE_VALUE
-    } else if is_promotion_result(pt) {
-        PROMOTED_PIECE_VALUE
-    } else {
-        ORDINARY_PIECE_VALUE
+fn capability_material_value(cap: &MovementCapability) -> f32 {
+    match cap {
+        MovementCapability::Simple {
+            directions,
+            max_distance,
+        } => 0.5 * directions.count_ones() as f32 * (*max_distance as f32),
+        MovementCapability::Range {
+            directions,
+            blocking,
+            ..
+        } => match *blocking {
+            BlockingMode::Capturing => 250.0,
+            BlockingMode::Jump => 100.0,
+            BlockingMode::NoJump => 4.0 * directions.count_ones() as f32,
+        },
+        MovementCapability::Jumping { offsets } => 2.0 * offsets.len() as f32,
+        MovementCapability::TwoStep { first, second } => capability_material_value(first)
+            .max(capability_material_value(second)),
+        // Only WoodenDove uses this; override usually wins, but keep a jump-class floor.
+        MovementCapability::ConditionalDiagonalJump { .. } => 40.0,
+        // FreeEagle multi-move is covered by the FreeEagle override.
+        MovementCapability::FreeEagleMultiMove { .. } => 0.0,
     }
+}
+
+fn explicit_material_override(pt: PieceType) -> Option<f32> {
+    match pt {
+        PieceType::King => Some(600.0),
+        PieceType::CrownPrince => Some(500.0),
+        PieceType::HookMover | PieceType::Tengu | PieceType::Capricorn => Some(300.0),
+        PieceType::Peacock => Some(250.0),
+        PieceType::FreeEagle | PieceType::WoodenDove => Some(40.0),
+        PieceType::BuddhistSpirit => Some(40.0),
+        PieceType::LionHawk => Some(25.0),
+        PieceType::FuriousFiend => Some(24.0),
+        PieceType::Lion => Some(15.0),
+        _ => None,
+    }
+}
+
+/// Seed material from movement capabilities (+ explicit overrides).
+pub fn seed_piece_value(pt: PieceType) -> f32 {
+    if let Some(v) = explicit_material_override(pt) {
+        return v;
+    }
+    // Other royals (if any are added later).
+    if pt.is_royal() {
+        return 500.0;
+    }
+    let cfg = MovementConfig::for_piece_type(pt);
+    let mut best = 0.0f32;
+    for cap in &cfg.capabilities {
+        best = best.max(capability_material_value(cap));
+    }
+    best
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -404,7 +404,7 @@ impl Default for SearchDefaults {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EvalWeights {
     /// Material value keyed by current piece type (after promotion).
-    pub piece: HashMap<PieceType, i32>,
+    pub piece: HashMap<PieceType, f32>,
     /// Bonus per living royal (friendly positive / enemy negative via difference).
     pub royal_alive: i32,
     /// Extra weight when a side is down to a single royal.
@@ -419,7 +419,7 @@ pub struct EvalWeights {
     pub weight_seed: u64,
     /// Dense lookup rebuilt after load/seed (not serialized).
     #[serde(skip)]
-    pub(crate) piece_value_table: Vec<i32>,
+    pub(crate) piece_value_table: Vec<f32>,
 }
 
 impl Default for EvalWeights {
@@ -463,7 +463,7 @@ impl EvalWeights {
         }
     }
 
-    pub fn piece_value(&self, pt: PieceType) -> i32 {
+    pub fn piece_value(&self, pt: PieceType) -> f32 {
         let i = pt as usize;
         if i < self.piece_value_table.len() {
             self.piece_value_table[i]
@@ -473,6 +473,11 @@ impl EvalWeights {
                 .copied()
                 .unwrap_or(DEFAULT_PIECE_VALUE)
         }
+    }
+
+    /// Rounded material for integer search / MVV comparisons.
+    pub fn piece_value_i32(&self, pt: PieceType) -> i32 {
+        self.piece_value(pt).round() as i32
     }
 }
 
@@ -561,30 +566,32 @@ pub fn evaluate_absolute_black(board: &Board, weights: &EvalWeights, ply: usize)
         return weights.mate_score;
     }
 
-    let mut score = 0i32;
+    let mut score = 0.0f32;
     score += material_of(black, weights) - material_of(white, weights);
 
-    score += weights.royal_alive * (black_royals as i32 - white_royals as i32);
+    score += weights.royal_alive as f32 * (black_royals as f32 - white_royals as f32);
     if black_royals == 1 {
-        score -= weights.sole_royal_factor;
+        score -= weights.sole_royal_factor as f32;
     }
     if white_royals == 1 {
-        score += weights.sole_royal_factor;
+        score += weights.sole_royal_factor as f32;
     }
 
-    score += de_positional(black, Color::Black, weights);
-    score -= de_positional(white, Color::White, weights);
+    score += de_positional(black, Color::Black, weights) as f32;
+    score -= de_positional(white, Color::White, weights) as f32;
 
-    score += noise_component(board, weights, ply);
-    score
+    score.round() as i32 + noise_component(board, weights, ply)
 }
 
 fn count_royals(pieces: &[Piece]) -> usize {
     pieces.iter().filter(|p| p.piece_type.is_royal()).count()
 }
 
-fn material_of(pieces: &[Piece], weights: &EvalWeights) -> i32 {
-    pieces.iter().map(|p| weights.piece_value(p.piece_type)).sum()
+fn material_of(pieces: &[Piece], weights: &EvalWeights) -> f32 {
+    pieces
+        .iter()
+        .map(|p| weights.piece_value(p.piece_type))
+        .sum()
 }
 
 fn de_positional(pieces: &[Piece], color: Color, weights: &EvalWeights) -> i32 {
@@ -685,15 +692,17 @@ mod tests {
         let mut back: EvalCheckpoint = serde_json::from_str(&text).unwrap();
         back.weights.rebuild_piece_value_table();
         assert_eq!(back.format_version, 1);
-        assert_eq!(back.weights.piece_value(PieceType::King), 100);
-        assert_eq!(back.weights.piece_value(PieceType::Pawn), 1);
-        assert_eq!(back.weights.piece_value(PieceType::Dog), 2);
-        assert_eq!(back.weights.piece_value(PieceType::GoBetween), 2);
-        assert_eq!(back.weights.piece_value(PieceType::SilverGeneral), 3);
-        // Pawn → GoldGeneral; SilverGeneral → VerticalMover.
-        assert_eq!(back.weights.piece_value(PieceType::GoldGeneral), 5);
-        assert_eq!(back.weights.piece_value(PieceType::VerticalMover), 5);
-        assert_eq!(back.weights.piece_value(PieceType::GreatGeneral), 90);
+        assert_eq!(back.weights.piece_value(PieceType::King), 600.0);
+        assert_eq!(back.weights.piece_value(PieceType::CrownPrince), 500.0);
+        assert_eq!(back.weights.piece_value(PieceType::GreatGeneral), 250.0);
+        assert_eq!(back.weights.piece_value(PieceType::FreeEagle), 40.0);
+        assert_eq!(back.weights.piece_value(PieceType::WoodenDove), 40.0);
+        assert_eq!(back.weights.piece_value(PieceType::HookMover), 300.0);
+        assert_eq!(back.weights.piece_value(PieceType::Lion), 15.0);
+        // Pawn: Simple 1 dir × 1 step × 0.5
+        assert!((back.weights.piece_value(PieceType::Pawn) - 0.5).abs() < 1e-3);
+        // Rook-like: 4 orthogonal NoJump → 16
+        assert!((back.weights.piece_value(PieceType::Rook) - 16.0).abs() < 1e-3);
         assert_eq!(back.weights.piece.len(), ALL_PIECE_TYPES.len());
         assert!(!back.weights.piece_value_table.is_empty());
     }
