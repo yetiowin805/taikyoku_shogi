@@ -73,7 +73,7 @@ impl AlphaBetaPlayer {
             max_time_ms: checkpoint_defaults.max_time_ms,
             collect_trace: false,
             quiescence_depth: checkpoint_defaults.quiescence_depth,
-            q_prune_mode: QPruneMode::NetGainAndTopN,
+            q_prune_mode: QPruneMode::PathAware,
         };
         if let Ok(d) = env::var("TAIKYOKU_AB_DEPTH") {
             if let Ok(v) = d.parse::<u32>() {
@@ -110,7 +110,7 @@ impl AlphaBetaPlayer {
             max_time_ms: checkpoint.search_defaults.max_time_ms,
             collect_trace: false,
             quiescence_depth: checkpoint.search_defaults.quiescence_depth,
-            q_prune_mode: QPruneMode::NetGainAndTopN,
+            q_prune_mode: QPruneMode::PathAware,
         };
         if let Ok(d) = env::var("TAIKYOKU_AB_DEPTH") {
             if let Ok(v) = d.parse::<u32>() {
