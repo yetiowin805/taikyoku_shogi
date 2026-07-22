@@ -7,13 +7,24 @@ use crate::path_utils;
 use crate::piece::Color;
 use crate::position::Position;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::time::{Duration, Instant};
 
 /// Max root moves kept in the GUI tree (best + alternatives).
 pub const MAX_TREE_ROOT_CHILDREN: usize = 12;
 /// Max children kept under a non-root tree node.
 pub const MAX_TREE_BRANCH: usize = 8;
+
+/// Stop root iteration after this many consecutive non-improving moves (stable best).
+const ROOT_STABLE_STREAK: usize = 48;
+/// Do not stable-exit before searching at least this many root moves.
+const ROOT_STABLE_MIN_SEARCHED: usize = 24;
+/// Stable-exit only when PVS fail-high rate so far is below this.
+const ROOT_STABLE_MAX_FAIL_HIGH: f64 = 0.30;
+/// Soft-stop remaining root moves when this fraction of the time budget remains.
+const ROOT_SOFT_TIME_REMAINING: f64 = 0.15;
+/// Cap unique-q hash tracking (memory); report saturated if hit.
+const Q_UNIQUE_CAP: usize = 65_536;
 
 /// Experimental / production quiescence capture filters.
 ///
@@ -23,7 +34,10 @@ pub const MAX_TREE_BRANCH: usize = 8;
 /// - **RecaptureOnly**: ~200× cut but score 90 vs 7 (over-prune) — not default
 /// - **StaleHang**: no meaningful cut on the GG blowup
 /// - **PathAware**: ~37× fewer q-nodes vs baseline on post-GG leaf (58 vs 2158),
-///   score 127 vs 126; ~3× fewer than A+B alone — shipped default
+///   score 127 vs 126; ~3× fewer than A+B alone — shipped default.
+///   Tuned further with first-ply TopN=2, deep TopN=3, PathClear/MultiLeg
+///   deep budget ([`QUIESCE_PATHCLEAR_DEEP_BUDGET`]), and deep SimpleTakes
+///   restricted to recaptures onto the previous landing square.
 ///
 /// Default: [`QPruneMode::PathAware`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -50,9 +64,11 @@ pub enum QPruneMode {
 /// Max captures expanded per q-node at the first quiescence ply.
 pub const QUIESCE_TOP_N: usize = 8;
 /// PathAware first ply: keep fanout small — GG/BG PathClears dominate here.
-pub const QUIESCE_TOP_N_PATH_AWARE_ROOT: usize = 3;
+pub const QUIESCE_TOP_N_PATH_AWARE_ROOT: usize = 2;
 /// Max captures at deeper q-plies under [`QPruneMode::PathAware`].
-pub const QUIESCE_TOP_N_DEEP: usize = 4;
+pub const QUIESCE_TOP_N_DEEP: usize = 3;
+/// At deep q-plies, expand at most this many PathClear/MultiLeg captures.
+pub const QUIESCE_PATHCLEAR_DEEP_BUDGET: usize = 1;
 /// Deeper-ply loudness floor (jump-range class on the new material scale).
 pub const MIN_QUIESCENCE_DEEP_ENEMY: f32 = 100.0;
 
@@ -147,11 +163,19 @@ pub struct SearchResult {
 
 struct SearchContext {
     deadline: Option<Instant>,
+    /// Full wall-clock budget when `deadline` is set (for soft root exit).
+    time_budget: Option<Duration>,
     nodes: u64,
     abort: bool,
+    /// Soft abort: leave remaining root moves when little time remains.
+    soft_abort: bool,
+    /// Stable-best early exit (not a hard timeout).
+    stable_abort: bool,
     /// Ply counter for eval noise (does not rely on move_history during search).
     ply: usize,
     quiescence_depth: u32,
+    /// Entry q-ply budget for the current quiescence call (PathAware deep_ply).
+    quiesce_entry_depth: u32,
     /// Wall-clock start of this `search()` call.
     search_started: Instant,
     last_progress_log: Instant,
@@ -165,6 +189,8 @@ struct SearchContext {
     /// Short phase tag for logs: "root", "search", "quiesce", "trace".
     phase: &'static str,
     tt: TranspositionTable,
+    /// Dedicated TT for quiescence (depths are q-plies, not AB plies).
+    q_tt: TranspositionTable,
     /// Two killer quiets per ply (cutoff memory for capture-setups).
     killers: Vec<[Option<MoveKey>; 2]>,
     /// Quiet history: (from_index << 16) | to_index → score.
@@ -173,6 +199,10 @@ struct SearchContext {
     allow_null: bool,
     /// Quiescence diagnostics (updated while in `quiesce`).
     q_nodes: u64,
+    /// `q_nodes` at the start of the current root move.
+    q_nodes_at_root_start: u64,
+    /// Q-nodes spent on the most recently finished root move.
+    q_nodes_last_root: u64,
     q_depth_left: u32,
     q_caps_at_node: usize,
     q_cap_index: usize,
@@ -181,6 +211,20 @@ struct SearchContext {
     q_prune_mode: QPruneMode,
     q_caps_generated: u64,
     q_caps_searched: u64,
+    /// Searched quiescence captures by kind (PathAware diagnostics).
+    q_kind_simple: u64,
+    q_kind_path: u64,
+    q_kind_multi: u64,
+    /// Root PVS diagnostics.
+    root_pvs_tried: u64,
+    root_fail_high: u64,
+    root_near_best: u64,
+    root_moves_scored: u64,
+    /// Unique q position hashes (capped).
+    q_unique: HashSet<u64>,
+    q_unique_saturated: bool,
+    q_tt_hits: u64,
+    q_tt_probes: u64,
 }
 
 impl QPruneMode {
@@ -267,29 +311,7 @@ impl TranspositionTable {
 }
 
 fn position_hash(state: &GameState) -> u64 {
-    // Fast non-cryptographic board hash (not incremental; good enough for TT keys).
-    let mut h = match state.get_current_turn() {
-        Color::Black => 0xA5A5_A5A5_A5A5_A5A5u64,
-        Color::White => 0x5A5A_5A5A_5A5A_5A5Au64,
-    };
-    h ^= (state.get_turns_without_capture_or_promotion() as u64)
-        .wrapping_mul(0x9E37_79B9_7F4A_7C15);
-    let board = state.get_board();
-    for color in [Color::Black, Color::White] {
-        for p in board.pieces_by_color(color) {
-            let mut x = (p.piece_type as u64).wrapping_mul(0x1000_0000_1B3);
-            x ^= (p.position.file as u64) << 24;
-            x ^= (p.position.rank as u64) << 16;
-            x ^= (p.is_promoted as u64) << 8;
-            x ^= match color {
-                Color::Black => 1,
-                Color::White => 2,
-            };
-            h ^= x.wrapping_mul(0xC2B2_AE3D_27D4_EB4F);
-            h = h.rotate_left(13);
-        }
-    }
-    h
+    state.hash()
 }
 
 fn move_tt_key(mv: &Move) -> MoveKey {
@@ -610,15 +632,20 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
     let deadline = config
         .max_time_ms
         .map(|ms| Instant::now() + Duration::from_millis(ms));
+    let time_budget = config.max_time_ms.map(Duration::from_millis);
     let now = Instant::now();
     let max_depth = config.depth.max(1);
 
     let mut ctx = SearchContext {
         deadline,
+        time_budget,
         nodes: 0,
         abort: false,
+        soft_abort: false,
+        stable_abort: false,
         ply: root_ply,
         quiescence_depth: config.quiescence_depth,
+        quiesce_entry_depth: config.quiescence_depth,
         search_started: now,
         last_progress_log: now,
         search_depth: max_depth,
@@ -628,10 +655,13 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
         best_score: i32::MIN + 1,
         phase: "root",
         tt: TranspositionTable::new(1 << 20),
+        q_tt: TranspositionTable::new(1 << 18),
         killers: Vec::new(),
         history: HashMap::new(),
         allow_null: true,
         q_nodes: 0,
+        q_nodes_at_root_start: 0,
+        q_nodes_last_root: 0,
         q_depth_left: 0,
         q_caps_at_node: 0,
         q_cap_index: 0,
@@ -640,6 +670,17 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
         q_prune_mode: config.q_prune_mode,
         q_caps_generated: 0,
         q_caps_searched: 0,
+        q_kind_simple: 0,
+        q_kind_path: 0,
+        q_kind_multi: 0,
+        root_pvs_tried: 0,
+        root_fail_high: 0,
+        root_near_best: 0,
+        root_moves_scored: 0,
+        q_unique: HashSet::new(),
+        q_unique_saturated: false,
+        q_tt_hits: 0,
+        q_tt_probes: 0,
     };
 
     let mut moves = state.generate_legal_moves();
@@ -683,6 +724,7 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
         ctx.search_depth = d;
         ctx.phase = "root";
         ctx.best_score = completed_score;
+        ctx.stable_abort = false;
 
         let mut iter_best = moves[0].clone();
         let mut iter_score = i32::MIN + 1;
@@ -690,15 +732,19 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
         let beta = i32::MAX - 1;
         let mut iter_lines: Vec<(Move, i32)> = Vec::with_capacity(moves.len());
         let mut finished_iteration = true;
+        let mut stable_streak = 0usize;
+        let iter_pvs_base = ctx.root_pvs_tried;
+        let iter_fh_base = ctx.root_fail_high;
 
         for (i, mv) in moves.iter().enumerate() {
-            if ctx.timed_out() {
+            if ctx.timed_out() || ctx.soft_time_exhausted() {
                 finished_iteration = false;
                 break;
             }
             ctx.root_index = i + 1;
             ctx.root_label = move_label(state, mv);
             ctx.phase = "root";
+            ctx.q_nodes_at_root_start = ctx.q_nodes;
             ctx.maybe_log_progress();
 
             let is_capture = move_captures_enemy(state, mv);
@@ -717,47 +763,118 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
             ctx.nodes += 1;
             ctx.ply = root_ply + 1;
             ctx.phase = "search";
-            ctx.q_nodes = 0;
             ctx.q_label.clear();
             ctx.q_caps_at_node = 0;
             ctx.q_cap_index = 0;
 
-            let mut score = if reduction > 0 {
-                let reduced = child_depth - reduction;
-                -alphabeta(&mut pos, weights, reduced, -beta, -alpha, &mut ctx)
+            // Root PVS: first move full window (PV); later moves null-window then
+            // full-window research on fail-high (research keeps full q depth).
+            let mut score = if i == 0 {
+                if reduction > 0 {
+                    let reduced = child_depth - reduction;
+                    -alphabeta(&mut pos, weights, reduced, -beta, -alpha, true, &mut ctx)
+                } else {
+                    -alphabeta(&mut pos, weights, child_depth, -beta, -alpha, true, &mut ctx)
+                }
             } else {
-                -alphabeta(&mut pos, weights, child_depth, -beta, -alpha, &mut ctx)
+                ctx.root_pvs_tried += 1;
+                let nw_beta = alpha.saturating_add(1);
+                let mut s = if reduction > 0 {
+                    let reduced = child_depth - reduction;
+                    -alphabeta(&mut pos, weights, reduced, -nw_beta, -alpha, false, &mut ctx)
+                } else {
+                    -alphabeta(&mut pos, weights, child_depth, -nw_beta, -alpha, false, &mut ctx)
+                };
+                if !ctx.abort && s > alpha {
+                    ctx.root_fail_high += 1;
+                    s = -alphabeta(&mut pos, weights, child_depth, -beta, -alpha, true, &mut ctx);
+                }
+                s
             };
-            if reduction > 0 && !ctx.abort && score > alpha {
-                score = -alphabeta(&mut pos, weights, child_depth, -beta, -alpha, &mut ctx);
+            if i == 0 && reduction > 0 && !ctx.abort && score > alpha {
+                score = -alphabeta(&mut pos, weights, child_depth, -beta, -alpha, true, &mut ctx);
             }
 
             pos.unmake_move_for_search(undo);
             ctx.ply = root_ply;
+            ctx.q_nodes_last_root = ctx.q_nodes.saturating_sub(ctx.q_nodes_at_root_start);
 
             if ctx.abort {
                 finished_iteration = false;
                 break;
             }
             iter_lines.push((mv.clone(), score));
+            ctx.root_moves_scored += 1;
 
-            if score > iter_score {
+            let improved = score > iter_score;
+            if improved {
                 iter_score = score;
                 iter_best = mv.clone();
                 ctx.best_score = iter_score;
+                stable_streak = 0;
                 if !is_capture {
                     store_killer(&mut ctx, root_ply, move_tt_key(mv));
                     bump_history(&mut ctx, mv, d);
                 }
+            } else {
+                stable_streak = stable_streak.saturating_add(1);
+            }
+            if iter_score > i32::MIN + 1 && (score - iter_score).abs() < 20 {
+                ctx.root_near_best += 1;
             }
             if score > alpha {
                 alpha = score;
             }
+
+            // Stable-best early exit: skip remaining root when best is stuck and
+            // fail-highs are uncommon (null windows are cutting).
+            if i + 1 >= ROOT_STABLE_MIN_SEARCHED && stable_streak >= ROOT_STABLE_STREAK {
+                let tried = ctx.root_pvs_tried.saturating_sub(iter_pvs_base);
+                let fh = ctx.root_fail_high.saturating_sub(iter_fh_base);
+                let fh_rate = if tried == 0 {
+                    0.0
+                } else {
+                    fh as f64 / tried as f64
+                };
+                if fh_rate <= ROOT_STABLE_MAX_FAIL_HIGH {
+                    ctx.stable_abort = true;
+                    finished_iteration = false;
+                    break;
+                }
+            }
+            if ctx.soft_time_exhausted() {
+                finished_iteration = false;
+                break;
+            }
         }
 
         if !finished_iteration {
-            // Keep last completed iteration (partial d=1 only if nothing completed yet).
+            if ctx.stable_abort && !iter_lines.is_empty() {
+                // Stable-best: keep partial coverage of this depth, then deepen.
+                iter_lines.sort_by(|a, b| b.1.cmp(&a.1));
+                completed_lines = iter_lines;
+                completed_best = iter_best;
+                completed_score = iter_score;
+                completed_depth = d;
+                ctx.best_score = completed_score;
+                if d < max_depth {
+                    reorder_root_moves(&mut moves, &completed_best, &completed_lines);
+                    continue;
+                }
+                break;
+            }
+            if ctx.soft_abort && !iter_lines.is_empty() {
+                // Soft time: keep partial root coverage of this depth and stop.
+                iter_lines.sort_by(|a, b| b.1.cmp(&a.1));
+                completed_lines = iter_lines;
+                completed_best = iter_best;
+                completed_score = iter_score;
+                completed_depth = d;
+                ctx.best_score = completed_score;
+                break;
+            }
             if completed_depth == 0 && !iter_lines.is_empty() {
+                // Hard timeout: keep last completed iteration (partial d=1 only if nothing completed yet).
                 iter_lines.sort_by(|a, b| b.1.cmp(&a.1));
                 completed_lines = iter_lines;
                 completed_best = iter_best;
@@ -783,6 +900,47 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
     let best_score = completed_score;
     let root_lines = completed_lines;
     let depth_for_trace = completed_depth.max(1);
+
+    // One-shot diagnosis summary for midgame dumps.
+    {
+        let fh_pct = if ctx.root_pvs_tried == 0 {
+            0
+        } else {
+            (ctx.root_fail_high.saturating_mul(100)) / ctx.root_pvs_tried
+        };
+        let near_pct = if ctx.root_moves_scored == 0 {
+            0
+        } else {
+            (ctx.root_near_best.saturating_mul(100)) / ctx.root_moves_scored
+        };
+        let mut scores: Vec<i32> = root_lines.iter().map(|(_, s)| *s).collect();
+        scores.sort_unstable();
+        let spread = if scores.is_empty() {
+            0
+        } else {
+            scores[scores.len() - 1] - scores[scores.len() / 2]
+        };
+        let quniq = ctx.q_unique.len();
+        let qhit_pct = if ctx.q_tt_probes == 0 {
+            0
+        } else {
+            (ctx.q_tt_hits.saturating_mul(100)) / ctx.q_tt_probes
+        };
+        eprintln!(
+            "ab diag: root={} fh={}% near20={}% spread(max-med)={} qnodes={} quniq={}{} qTThit={}%/{}/{} stable={}",
+            ctx.root_total,
+            fh_pct,
+            near_pct,
+            spread,
+            ctx.q_nodes,
+            quniq,
+            if ctx.q_unique_saturated { "+" } else { "" },
+            qhit_pct,
+            ctx.q_tt_hits,
+            ctx.q_tt_probes,
+            ctx.stable_abort || ctx.soft_abort
+        );
+    }
 
     let tree = if config.collect_trace {
         build_trace_tree(
@@ -834,10 +992,14 @@ pub fn probe_quiescence(
     let now = Instant::now();
     let mut ctx = SearchContext {
         deadline,
+        time_budget: max_time_ms.map(Duration::from_millis),
         nodes: 0,
         abort: false,
+        soft_abort: false,
+        stable_abort: false,
         ply: root_ply,
         quiescence_depth: qdepth,
+        quiesce_entry_depth: qdepth,
         search_started: now,
         last_progress_log: now,
         search_depth: 0,
@@ -847,10 +1009,13 @@ pub fn probe_quiescence(
         best_score: i32::MIN + 1,
         phase: "quiesce",
         tt: TranspositionTable::new(1024),
+        q_tt: TranspositionTable::new(1 << 16),
         killers: Vec::new(),
         history: HashMap::new(),
         allow_null: true,
         q_nodes: 0,
+        q_nodes_at_root_start: 0,
+        q_nodes_last_root: 0,
         q_depth_left: 0,
         q_caps_at_node: 0,
         q_cap_index: 0,
@@ -859,11 +1024,23 @@ pub fn probe_quiescence(
         q_prune_mode: mode,
         q_caps_generated: 0,
         q_caps_searched: 0,
+        q_kind_simple: 0,
+        q_kind_path: 0,
+        q_kind_multi: 0,
+        root_pvs_tried: 0,
+        root_fail_high: 0,
+        root_near_best: 0,
+        root_moves_scored: 0,
+        q_unique: HashSet::new(),
+        q_unique_saturated: false,
+        q_tt_hits: 0,
+        q_tt_probes: 0,
     };
     let mut pos = state.clone();
     let score = if qdepth == 0 {
         static_eval
     } else {
+        ctx.quiesce_entry_depth = qdepth;
         quiesce(
             &mut pos,
             weights,
@@ -987,15 +1164,25 @@ fn alphabeta(
     depth: u32,
     mut alpha: i32,
     beta: i32,
+    is_pv: bool,
     ctx: &mut SearchContext,
 ) -> i32 {
     ctx.nodes += 1;
+
+    if cfg!(debug_assertions) && ctx.nodes % 256 == 0 {
+        debug_assert_eq!(
+            state.hash(),
+            crate::zobrist::compute(state),
+            "zobrist drift at node {}",
+            ctx.nodes
+        );
+    }
 
     if state.get_winner().is_some() || ctx.timed_out() {
         return evaluate_with_ply(state, weights, ctx.ply);
     }
     if depth == 0 {
-        return leaf_or_quiesce(state, weights, alpha, beta, ctx);
+        return leaf_or_quiesce(state, weights, alpha, beta, is_pv, ctx);
     }
 
     let key = position_hash(state);
@@ -1035,7 +1222,7 @@ fn alphabeta(
         let parent_ply = ctx.ply;
         ctx.ply = parent_ply + 1;
         let null_depth = depth - 1 - r;
-        let score = -alphabeta(state, weights, null_depth, -beta, -beta + 1, ctx);
+        let score = -alphabeta(state, weights, null_depth, -beta, -beta + 1, false, ctx);
         ctx.ply = parent_ply;
         state.set_current_turn(prev_turn);
         ctx.allow_null = true;
@@ -1070,6 +1257,7 @@ fn alphabeta(
         depth,
         alpha,
         beta,
+        is_pv,
         ctx,
         parent_ply,
         moves,
@@ -1087,6 +1275,7 @@ fn alphabeta(
                 depth,
                 alpha,
                 beta,
+                is_pv,
                 ctx,
                 parent_ply,
                 stage_b,
@@ -1138,6 +1327,7 @@ fn search_move_list(
     depth: u32,
     mut alpha: i32,
     beta: i32,
+    is_pv: bool,
     ctx: &mut SearchContext,
     parent_ply: usize,
     moves: Vec<Move>,
@@ -1181,16 +1371,21 @@ fn search_move_list(
         };
         ctx.ply = parent_ply + 1;
 
+        // PV only along the first move of a PV node (root PVS / research sets
+        // is_pv). Non-PV leaves use capped quiescence when config > 2.
+        let child_pv = is_pv && i == 0 && reduction == 0;
+
         let mut score = if reduction > 0 {
             let reduced = depth - 1 - reduction;
-            -alphabeta(state, weights, reduced, -beta, -alpha, ctx)
+            -alphabeta(state, weights, reduced, -beta, -alpha, false, ctx)
         } else {
-            -alphabeta(state, weights, depth - 1, -beta, -alpha, ctx)
+            -alphabeta(state, weights, depth - 1, -beta, -alpha, child_pv, ctx)
         };
 
         // Re-search at full depth if reduced search looks interesting.
+        // Fail-high research restores PV (full q) when the parent was PV.
         if reduction > 0 && !ctx.abort && score > alpha {
-            score = -alphabeta(state, weights, depth - 1, -beta, -alpha, ctx);
+            score = -alphabeta(state, weights, depth - 1, -beta, -alpha, is_pv && i == 0, ctx);
         }
 
         state.unmake_move_for_search(undo);
@@ -1215,27 +1410,32 @@ fn search_move_list(
     (best, best_move_key, alpha, did_cutoff)
 }
 
+/// Quiescence ply budget for this leaf: full config on PV / fail-high research;
+/// null-window (non-PV) caps at 2 when config is deeper (midgame q=4).
+fn leaf_quiescence_depth(ctx: &SearchContext, is_pv: bool) -> u32 {
+    let cfg = ctx.quiescence_depth;
+    if cfg == 0 || is_pv {
+        cfg
+    } else {
+        cfg.min(2)
+    }
+}
+
 fn leaf_or_quiesce(
     state: &mut GameState,
     weights: &EvalWeights,
     alpha: i32,
     beta: i32,
+    is_pv: bool,
     ctx: &mut SearchContext,
 ) -> i32 {
-    if ctx.quiescence_depth == 0 {
+    let q = leaf_quiescence_depth(ctx, is_pv);
+    if q == 0 {
         evaluate_with_ply(state, weights, ctx.ply)
     } else {
         ctx.phase = "quiesce";
-        quiesce(
-            state,
-            weights,
-            ctx.quiescence_depth,
-            alpha,
-            beta,
-            None,
-            false,
-            ctx,
-        )
+        ctx.quiesce_entry_depth = q;
+        quiesce(state, weights, q, alpha, beta, None, false, ctx)
     }
 }
 
@@ -1261,12 +1461,51 @@ fn quiesce(
         return evaluate_with_ply(state, weights, ctx.ply);
     }
 
+    let key = position_hash(state);
+    if !ctx.q_unique_saturated {
+        if ctx.q_unique.len() < Q_UNIQUE_CAP {
+            ctx.q_unique.insert(key);
+        } else {
+            ctx.q_unique_saturated = true;
+        }
+    }
+
+    // Quiescence TT: depth is remaining q-plies.
+    ctx.q_tt_probes += 1;
+    if let Some(e) = ctx.q_tt.probe(key) {
+        if e.depth >= qdepth {
+            ctx.q_tt_hits += 1;
+            match e.bound {
+                TtBound::Exact => return e.score,
+                TtBound::Lower => {
+                    if e.score >= beta {
+                        return e.score;
+                    }
+                    alpha = alpha.max(e.score);
+                }
+                TtBound::Upper => {
+                    if e.score <= alpha {
+                        return e.score;
+                    }
+                }
+            }
+        }
+    }
+    let alpha_orig = alpha;
+
     let stand_pat = evaluate_with_ply(state, weights, ctx.ply);
     ctx.q_stand_pat = stand_pat;
     if qdepth == 0 {
         return stand_pat;
     }
     if stand_pat >= beta {
+        ctx.q_tt.store(TtEntry {
+            key,
+            depth: qdepth,
+            score: stand_pat,
+            bound: TtBound::Lower,
+            best: None,
+        });
         return stand_pat;
     }
     // Optimistic delta against the incoming alpha (before stand-pat raise).
@@ -1290,7 +1529,7 @@ fn quiesce(
     }
 
     let path_aware = ctx.q_prune_mode.uses_path_aware();
-    let deep_ply = qdepth < ctx.quiescence_depth;
+    let deep_ply = qdepth < ctx.quiesce_entry_depth;
 
     // Recapture-only after the first q-ply.
     if ctx.q_prune_mode.uses_recapture_only() {
@@ -1352,8 +1591,8 @@ fn quiesce(
         .q_caps_generated
         .saturating_add(moves.len() as u64);
 
-    if ctx.q_prune_mode.uses_top_n() {
-        let cap = if path_aware {
+    let top_n_cap = if ctx.q_prune_mode.uses_top_n() {
+        if path_aware {
             if deep_ply {
                 QUIESCE_TOP_N_DEEP
             } else {
@@ -1361,10 +1600,43 @@ fn quiesce(
             }
         } else {
             QUIESCE_TOP_N
-        };
-        if moves.len() > cap {
-            moves.truncate(cap);
         }
+    } else {
+        usize::MAX
+    };
+
+    // PathAware deep: PathClear/MultiLeg under budget; SimpleTakes only as
+    // recaptures onto the previous landing square (cuts ST side-quests that
+    // dominate midgame logs while preserving hang/recapture tactics).
+    if path_aware && deep_ply {
+        let mut kept = Vec::with_capacity(top_n_cap.min(moves.len()));
+        let mut path_kept = 0usize;
+        for mv in moves.drain(..) {
+            if kept.len() >= top_n_cap {
+                break;
+            }
+            let kind = classify_capture(state, &mv);
+            match kind {
+                CaptureKind::SimpleTake => {
+                    let is_recapture = prev_to
+                        .map(|sq| capture_hits_square(state, &mv, sq))
+                        .unwrap_or(false);
+                    if !is_recapture {
+                        continue;
+                    }
+                }
+                CaptureKind::PathClear | CaptureKind::MultiLeg => {
+                    if path_kept >= QUIESCE_PATHCLEAR_DEEP_BUDGET {
+                        continue;
+                    }
+                    path_kept += 1;
+                }
+            }
+            kept.push(mv);
+        }
+        moves = kept;
+    } else if top_n_cap != usize::MAX && moves.len() > top_n_cap {
+        moves.truncate(top_n_cap);
     }
 
     let n_caps = moves.len();
@@ -1418,6 +1690,11 @@ fn quiesce(
         let next_was_simple = kind == CaptureKind::SimpleTake;
 
         ctx.q_caps_searched += 1;
+        match kind {
+            CaptureKind::SimpleTake => ctx.q_kind_simple += 1,
+            CaptureKind::PathClear => ctx.q_kind_path += 1,
+            CaptureKind::MultiLeg => ctx.q_kind_multi += 1,
+        }
         ctx.ply = parent_ply + 1;
         let score = -quiesce(
             state,
@@ -1445,6 +1722,20 @@ fn quiesce(
         }
     }
 
+    let bound = if best <= alpha_orig {
+        TtBound::Upper
+    } else if best >= beta {
+        TtBound::Lower
+    } else {
+        TtBound::Exact
+    };
+    ctx.q_tt.store(TtEntry {
+        key,
+        depth: qdepth,
+        score: best,
+        bound,
+        best: None,
+    });
     best
 }
 
@@ -1519,6 +1810,7 @@ fn alphabeta_record(
             weights,
             i32::MIN + 1,
             i32::MAX - 1,
+            true,
             ctx,
         );
         return (
@@ -1557,7 +1849,7 @@ fn alphabeta_record(
             continue;
         };
         ctx.ply = parent_ply + 1;
-        let score = -alphabeta(state, weights, depth - 1, -beta, -alpha, ctx);
+        let score = -alphabeta(state, weights, depth - 1, -beta, -alpha, true, ctx);
         state.unmake_move_for_search(undo);
         ctx.ply = parent_ply;
 
@@ -1635,10 +1927,35 @@ impl SearchContext {
         } else {
             "-".into()
         };
+        let q_this = self.q_nodes.saturating_sub(self.q_nodes_at_root_start);
+        let qpct = if self.nodes > 0 {
+            (self.q_nodes.saturating_mul(100)) / self.nodes
+        } else {
+            0
+        };
+        let fh_pct = if self.root_pvs_tried == 0 {
+            0
+        } else {
+            (self.root_fail_high.saturating_mul(100)) / self.root_pvs_tried
+        };
+        let qhit_pct = if self.q_tt_probes == 0 {
+            0
+        } else {
+            (self.q_tt_hits.saturating_mul(100)) / self.q_tt_probes
+        };
         let qinfo = if self.phase == "quiesce" || self.q_nodes > 0 {
             format!(
-                " qnodes={} qleft={} qcaps={}/{} qmv={} spat={}",
+                " qnodes={} q%={} qroot={} qlast={} quniq={} qTThit={}% fh={}% qPC/ST/ML={}/{}/{} qleft={} qcaps={}/{} qmv={} spat={}",
                 self.q_nodes,
+                qpct,
+                q_this,
+                self.q_nodes_last_root,
+                self.q_unique.len(),
+                qhit_pct,
+                fh_pct,
+                self.q_kind_path,
+                self.q_kind_simple,
+                self.q_kind_multi,
                 self.q_depth_left,
                 self.q_cap_index,
                 self.q_caps_at_node,
@@ -1666,12 +1983,42 @@ impl SearchContext {
         );
     }
 
+    /// Stop scheduling more root moves when little time remains and we have a score.
+    fn soft_time_exhausted(&mut self) -> bool {
+        if self.soft_abort {
+            return true;
+        }
+        if self.best_score <= i32::MIN + 1 {
+            return false;
+        }
+        let (Some(deadline), Some(budget)) = (self.deadline, self.time_budget) else {
+            return false;
+        };
+        if budget.is_zero() {
+            return false;
+        }
+        let now = Instant::now();
+        if now >= deadline {
+            self.abort = true;
+            return true;
+        }
+        let remaining = deadline.saturating_duration_since(now);
+        let threshold = budget.mul_f64(ROOT_SOFT_TIME_REMAINING);
+        if remaining <= threshold {
+            self.soft_abort = true;
+            return true;
+        }
+        false
+    }
+
     fn timed_out(&mut self) -> bool {
         // Cheap throttle: don't Instant::now on every node.
         if self.nodes & 0xff == 0 {
             self.maybe_log_progress();
+            // Soft-stop long qsearches (esp. last root) when little time remains.
+            let _ = self.soft_time_exhausted();
         }
-        if self.abort {
+        if self.abort || self.soft_abort {
             return true;
         }
         if let Some(deadline) = self.deadline {
@@ -2057,6 +2404,149 @@ mod tests {
             eprintln!(
                 "opening d3/q2: {:?} nodes={} score={}",
                 elapsed, result.nodes, result.score
+            );
+        }
+    }
+
+    #[test]
+    fn pathaware_quiesce_budgets_are_tight() {
+        assert_eq!(QUIESCE_TOP_N_PATH_AWARE_ROOT, 2);
+        assert_eq!(QUIESCE_TOP_N_DEEP, 3);
+        assert_eq!(QUIESCE_PATHCLEAR_DEEP_BUDGET, 1);
+    }
+
+    /// Advance from the opening with deterministic quiet pawn pushes to get
+    /// a busier midgame-ish branching factor for smoke timing.
+    fn midgame_ish_after_pawn_pushes() -> GameState {
+        let mut state = GameState::new();
+        state.setup_initial_position();
+        // Push several black/white pawns one step each when legal.
+        for file in [4u8, 8, 12, 16, 20, 24, 28] {
+            for &(from_rank, to_rank, color) in &[
+                (10u8, 11u8, Color::Black),
+                (25u8, 24u8, Color::White),
+            ] {
+                state.set_current_turn(color);
+                let from = Position::new(file, from_rank).unwrap();
+                let to = Position::new(file, to_rank).unwrap();
+                if state.get_board().get_piece(from).map(|p| p.piece_type)
+                    == Some(PieceType::Pawn)
+                    && state.get_board().get_piece(to).is_none()
+                {
+                    let mv = Move::new(from, to);
+                    let _ = state.make_move_for_search(mv);
+                }
+            }
+        }
+        state.set_current_turn(Color::Black);
+        state
+    }
+
+    #[test]
+    fn midgame_d4_q2_and_q4_smoke_release() {
+        #[cfg(debug_assertions)]
+        {
+            return;
+        }
+        #[cfg(not(debug_assertions))]
+        {
+            let weights = EvalWeights::seed();
+            let state = midgame_ish_after_pawn_pushes();
+            let root_n = state.generate_legal_moves().len();
+            assert!(root_n > 200, "expected busy root, got {root_n}");
+
+            let t0 = Instant::now();
+            let q2 = search(
+                &state,
+                &weights,
+                &SearchConfig {
+                    depth: 4,
+                    max_time_ms: Some(12_000),
+                    collect_trace: false,
+                    quiescence_depth: 2,
+                    q_prune_mode: QPruneMode::PathAware,
+                },
+            );
+            let q2_ms = t0.elapsed().as_millis();
+
+            let t1 = Instant::now();
+            let q4 = search(
+                &state,
+                &weights,
+                &SearchConfig {
+                    depth: 4,
+                    max_time_ms: Some(12_000),
+                    collect_trace: false,
+                    quiescence_depth: 4,
+                    q_prune_mode: QPruneMode::PathAware,
+                },
+            );
+            let q4_ms = t1.elapsed().as_millis();
+
+            assert!(q2.best_move.is_some());
+            assert!(q4.best_move.is_some());
+            eprintln!(
+                "midgame smoke root={root_n}: d4/q2 {}ms nodes={} qnodes={} | d4/q4 {}ms nodes={} qnodes={}",
+                q2_ms, q2.nodes, q2.q_nodes, q4_ms, q4.nodes, q4.q_nodes
+            );
+            // Soft budgets: should make progress well under the wall, not hang.
+            assert!(
+                q2_ms < 12_500,
+                "d4/q2 exceeded soft wall: {q2_ms}ms nodes={}",
+                q2.nodes
+            );
+            assert!(
+                q4.nodes > 500,
+                "d4/q4 made too little progress: nodes={}",
+                q4.nodes
+            );
+        }
+    }
+
+    #[test]
+    fn midgame_d4_q_ablation_release() {
+        // Separates root-width cost (q0) from quiescence cost (q2/q4).
+        #[cfg(debug_assertions)]
+        {
+            return;
+        }
+        #[cfg(not(debug_assertions))]
+        {
+            let weights = EvalWeights::seed();
+            let state = midgame_ish_after_pawn_pushes();
+            let budget = Some(8_000u64);
+            let mut rows = Vec::new();
+            for q in [0u32, 2, 4] {
+                let t0 = Instant::now();
+                let r = search(
+                    &state,
+                    &weights,
+                    &SearchConfig {
+                        depth: 4,
+                        max_time_ms: budget,
+                        collect_trace: false,
+                        quiescence_depth: q,
+                        q_prune_mode: QPruneMode::PathAware,
+                    },
+                );
+                let ms = t0.elapsed().as_millis();
+                eprintln!(
+                    "ablation d4/q{q}: {ms}ms nodes={} qnodes={} score={} best={:?}",
+                    r.nodes,
+                    r.q_nodes,
+                    r.score,
+                    r.best_move.as_ref().map(|m| (m.from, m.to))
+                );
+                assert!(r.best_move.is_some());
+                rows.push((q, ms, r.nodes, r.q_nodes));
+            }
+            // q0 should not be dominated by qnodes.
+            assert_eq!(rows[0].0, 0);
+            assert!(
+                rows[0].3 < rows[0].2 / 2 || rows[0].3 < 1_000,
+                "q0 should spend little in quiescence: nodes={} qnodes={}",
+                rows[0].2,
+                rows[0].3
             );
         }
     }
