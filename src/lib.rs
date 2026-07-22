@@ -19,4 +19,5 @@ pub mod server;
 pub mod session_api;
 pub mod tengu_attack;
 pub mod uci;
+pub mod zobrist;
 

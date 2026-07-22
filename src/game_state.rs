@@ -74,6 +74,7 @@ pub struct SearchUndo {
     removed: Vec<(Position, Piece)>,
     prev_turn: Color,
     prev_draw: u32,
+    prev_hash: u64,
 }
 
 /// Filters for [`GameState::generate_legal_moves_mode`].
@@ -95,6 +96,8 @@ pub struct GameState {
     current_turn: Color,
     move_history: Vec<Move>,
     turns_without_capture_or_promotion: u32,  // Counter for draw by 500-move rule
+    /// Incremental Zobrist key (see [`crate::zobrist`]).
+    hash: u64,
 }
 
 enum ApplyOutcome {
@@ -107,12 +110,25 @@ enum ApplyOutcome {
 
 impl GameState {
     pub fn new() -> GameState {
-        GameState {
+        let mut state = GameState {
             board: Board::new(),
             current_turn: Color::Black,
             move_history: Vec::new(),
             turns_without_capture_or_promotion: 0,
-        }
+            hash: 0,
+        };
+        state.recompute_hash();
+        state
+    }
+
+    /// Current Zobrist key (maintained incrementally across search make/unmake).
+    #[inline]
+    pub fn hash(&self) -> u64 {
+        self.hash
+    }
+
+    pub fn recompute_hash(&mut self) {
+        self.hash = crate::zobrist::compute(self);
     }
 
     pub fn get_board(&self) -> &Board {
@@ -128,12 +144,18 @@ impl GameState {
     }
 
     pub fn set_current_turn(&mut self, turn: Color) {
+        if turn == self.current_turn {
+            return;
+        }
+        self.hash ^= crate::zobrist::side_key(self.current_turn);
+        self.hash ^= crate::zobrist::side_key(turn);
         self.current_turn = turn;
     }
 
     /// Place a piece on the board (for initial setup)
     pub fn place_piece(&mut self, piece: Piece) {
         self.board.place_piece(piece);
+        self.recompute_hash();
     }
 
     /// Remove a piece from the board, if any
@@ -141,6 +163,7 @@ impl GameState {
         let piece = self.board.get_piece(pos);
         if piece.is_some() {
             self.board.remove_piece(pos);
+            self.recompute_hash();
         }
         piece
     }
@@ -148,6 +171,7 @@ impl GameState {
     /// Clear all pieces from the board (keeps turn / history / draw counter)
     pub fn clear_board(&mut self) {
         self.board = Board::new();
+        self.recompute_hash();
     }
 
     pub fn get_turns_without_capture_or_promotion(&self) -> u32 {
@@ -155,6 +179,11 @@ impl GameState {
     }
 
     pub fn set_turns_without_capture_or_promotion(&mut self, turns: u32) {
+        if turns == self.turns_without_capture_or_promotion {
+            return;
+        }
+        self.hash ^= crate::zobrist::draw_key(self.turns_without_capture_or_promotion);
+        self.hash ^= crate::zobrist::draw_key(turns);
         self.turns_without_capture_or_promotion = turns;
     }
 
@@ -164,6 +193,7 @@ impl GameState {
         self.current_turn = turn;
         self.move_history.clear();
         self.turns_without_capture_or_promotion = draw_counter;
+        self.recompute_hash();
     }
 
     /// Mirror a position across both axes (for White setup)
@@ -175,14 +205,15 @@ impl GameState {
     /// Place a piece for Black and its mirrored version for White
     /// This ensures White's setup is an exact mirror of Black's
     fn place_piece_mirrored(&mut self, piece_type: PieceType, file: u8, rank: u8) {
-        // Place Black piece
+        // Place Black piece (board-only; hash refreshed at end of setup).
         let black_piece = Piece::new(piece_type, Color::Black, Position::new(file, rank).unwrap());
-        self.place_piece(black_piece);
-        
+        self.board.place_piece(black_piece);
+
         // Place White piece at mirrored position
         let (white_file, white_rank) = Self::mirror_position(file, rank);
-        let white_piece = Piece::new(piece_type, Color::White, Position::new(white_file, white_rank).unwrap());
-        self.place_piece(white_piece);
+        let white_piece =
+            Piece::new(piece_type, Color::White, Position::new(white_file, white_rank).unwrap());
+        self.board.place_piece(white_piece);
     }
 
     /// Place pieces from a list, automatically mirroring for White
@@ -644,6 +675,7 @@ impl GameState {
         for file in go_between_files.iter() {
             self.place_piece_mirrored(PieceType::GoBetween, *file, 11);
         }
+        self.recompute_hash();
     }
 
     /// Generate all legal moves for the current player
@@ -1079,7 +1111,10 @@ impl GameState {
     pub fn make_move(&mut self, mv: Move) -> Option<Position> {
         match self.apply_move(mv, true, true, None) {
             ApplyOutcome::Failed => None,
-            ApplyOutcome::Ok { intermediate, .. } => intermediate,
+            ApplyOutcome::Ok { intermediate, .. } => {
+                self.recompute_hash();
+                intermediate
+            }
         }
     }
 
@@ -1091,6 +1126,7 @@ impl GameState {
     ///
     /// Returns a [`SearchUndo`] token for [`unmake_move_for_search`].
     pub fn make_move_for_search(&mut self, mv: Move) -> Option<SearchUndo> {
+        let prev_hash = self.hash;
         let prev_turn = self.current_turn;
         let prev_draw = self.turns_without_capture_or_promotion;
         let original_mover = self.board.get_piece(mv.from)?;
@@ -1100,6 +1136,23 @@ impl GameState {
             ApplyOutcome::Failed => return None,
             ApplyOutcome::Ok { final_to, .. } => final_to,
         };
+
+        // Incremental Zobrist: XOR out prior side/draw/mover/captures; XOR in
+        // final piece + new side/draw. Path shape does not matter.
+        let mut h = prev_hash;
+        h ^= crate::zobrist::side_key(prev_turn);
+        h ^= crate::zobrist::draw_key(prev_draw);
+        h ^= crate::zobrist::piece_key(&original_mover);
+        for (_pos, piece) in &removed {
+            h ^= crate::zobrist::piece_key(piece);
+        }
+        if let Some(final_piece) = self.board.get_piece(final_to) {
+            h ^= crate::zobrist::piece_key(&final_piece);
+        }
+        h ^= crate::zobrist::side_key(self.current_turn);
+        h ^= crate::zobrist::draw_key(self.turns_without_capture_or_promotion);
+        self.hash = h;
+
         Some(SearchUndo {
             from,
             final_to,
@@ -1107,6 +1160,7 @@ impl GameState {
             removed,
             prev_turn,
             prev_draw,
+            prev_hash,
         })
     }
 
@@ -1119,6 +1173,7 @@ impl GameState {
         }
         self.current_turn = undo.prev_turn;
         self.turns_without_capture_or_promotion = undo.prev_draw;
+        self.hash = undo.prev_hash;
     }
 
     fn apply_move(
@@ -1380,12 +1435,16 @@ impl GameState {
     /// Create a temporary GameState with the opponent's turn set
     /// Used for attack detection - same board state but opponent's perspective
     pub fn with_opponent_turn(&self) -> GameState {
-        GameState {
+        let mut state = GameState {
             board: self.board.clone(),
             current_turn: self.current_turn.opposite(),
             move_history: Vec::new(), // Don't copy history for attack checking
             turns_without_capture_or_promotion: self.turns_without_capture_or_promotion, // Preserve counter
-        }
+            hash: self.hash,
+        };
+        state.hash ^= crate::zobrist::side_key(self.current_turn);
+        state.hash ^= crate::zobrist::side_key(state.current_turn);
+        state
     }
 
     /// Check if a player has lost (all their royal pieces are captured)

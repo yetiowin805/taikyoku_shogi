@@ -333,7 +333,7 @@ fn capability_material_value(cap: &MovementCapability) -> f32 {
             blocking,
             ..
         } => match *blocking {
-            BlockingMode::Capturing => 250.0,
+            BlockingMode::Capturing => 800.0,
             BlockingMode::Jump => 100.0,
             BlockingMode::NoJump => 4.0 * directions.count_ones() as f32,
         },
@@ -349,10 +349,11 @@ fn capability_material_value(cap: &MovementCapability) -> f32 {
 
 fn explicit_material_override(pt: PieceType) -> Option<f32> {
     match pt {
-        PieceType::King => Some(600.0),
-        PieceType::CrownPrince => Some(500.0),
-        PieceType::HookMover | PieceType::Tengu | PieceType::Capricorn => Some(300.0),
-        PieceType::Peacock => Some(250.0),
+        PieceType::King => Some(1800.0),
+        PieceType::CrownPrince => Some(1600.0),
+        PieceType::DrunkenElephant => Some(100.0),
+        PieceType::HookMover | PieceType::Tengu | PieceType::Capricorn => Some(1200.0),
+        PieceType::Peacock | PieceType::GreatGeneral => Some(1100.0),
         PieceType::FreeEagle | PieceType::WoodenDove => Some(40.0),
         PieceType::BuddhistSpirit => Some(40.0),
         PieceType::LionHawk => Some(25.0),
@@ -369,7 +370,7 @@ pub fn seed_piece_value(pt: PieceType) -> f32 {
     }
     // Other royals (if any are added later).
     if pt.is_royal() {
-        return 500.0;
+        return 1600.0;
     }
     let cfg = MovementConfig::for_piece_type(pt);
     let mut best = 0.0f32;
@@ -413,9 +414,13 @@ pub struct EvalWeights {
     /// Scale for Drunken Elephant / Go-Between advance toward promotion.
     pub de_advance: i32,
     /// Floor for undeveloped penalty (on opening rank or behind):
-    /// `min(0.9 * value, max(undeveloped_home, 0.2 * value))` per non-royal.
+    /// `min(20, min(0.9 * value, max(undeveloped_home, 0.2 * value)))` per non-royal.
     #[serde(default = "default_undeveloped_home")]
     pub undeveloped_home: i32,
+    /// Small forwardness bonus for non-royals: `advance * progress / 12`
+    /// (progress = ranks toward the enemy back rank). Separates quiet shuffles.
+    #[serde(default = "default_advance")]
+    pub advance: i32,
     /// Max absolute noise contribution (deterministic).
     pub noise_scale: f64,
     pub mate_score: i32,
@@ -429,6 +434,10 @@ pub struct EvalWeights {
 
 fn default_undeveloped_home() -> i32 {
     3
+}
+
+fn default_advance() -> i32 {
+    2
 }
 
 impl Default for EvalWeights {
@@ -449,6 +458,7 @@ impl EvalWeights {
             sole_royal_factor: 80,
             de_advance: 5,
             undeveloped_home: default_undeveloped_home(),
+            advance: default_advance(),
             noise_scale: 1.0,
             mate_score: 1_000_000,
             weight_seed: 0xA11B_E7A1,
@@ -593,6 +603,9 @@ pub fn evaluate_absolute_black(board: &Board, weights: &EvalWeights, ply: usize)
     score -= undeveloped_home_penalty(black, weights);
     score += undeveloped_home_penalty(white, weights);
 
+    score += advance_positional(black, Color::Black, weights) as f32;
+    score -= advance_positional(white, Color::White, weights) as f32;
+
     score.round() as i32 + noise_component(board, weights, ply)
 }
 
@@ -630,6 +643,9 @@ fn on_home_rank_or_behind(piece: &Piece, home_rank: u8) -> bool {
     }
 }
 
+/// Hard cap on per-piece undeveloped penalty (score impact at most -20).
+const UNDEVELOPED_PENALTY_CAP: f32 = 20.0;
+
 fn undeveloped_penalty_for_piece(piece: &Piece, weights: &EvalWeights) -> f32 {
     if piece.piece_type.is_royal() {
         return 0.0;
@@ -643,7 +659,10 @@ fn undeveloped_penalty_for_piece(piece: &Piece, weights: &EvalWeights) -> f32 {
     }
     let floor = weights.undeveloped_home as f32;
     let value = weights.piece_value(piece.piece_type);
-    floor.max(0.2 * value).min(0.9 * value)
+    floor
+        .max(0.2 * value)
+        .min(0.9 * value)
+        .min(UNDEVELOPED_PENALTY_CAP)
 }
 
 fn undeveloped_home_penalty(pieces: &[Piece], weights: &EvalWeights) -> f32 {
@@ -651,6 +670,25 @@ fn undeveloped_home_penalty(pieces: &[Piece], weights: &EvalWeights) -> f32 {
         .iter()
         .map(|p| undeveloped_penalty_for_piece(p, weights))
         .sum()
+}
+
+/// Cheap forwardness: non-royals score for how far they have advanced.
+fn advance_positional(pieces: &[Piece], color: Color, weights: &EvalWeights) -> i32 {
+    if weights.advance == 0 {
+        return 0;
+    }
+    let mut s = 0i32;
+    for p in pieces {
+        if p.piece_type.is_royal() {
+            continue;
+        }
+        let progress = match color {
+            Color::Black => p.position.rank as i32,
+            Color::White => 35 - p.position.rank as i32,
+        };
+        s += weights.advance * progress / 12;
+    }
+    s
 }
 
 fn count_royals(pieces: &[Piece]) -> usize {
@@ -762,12 +800,12 @@ mod tests {
         let mut back: EvalCheckpoint = serde_json::from_str(&text).unwrap();
         back.weights.rebuild_piece_value_table();
         assert_eq!(back.format_version, 1);
-        assert_eq!(back.weights.piece_value(PieceType::King), 600.0);
-        assert_eq!(back.weights.piece_value(PieceType::CrownPrince), 500.0);
-        assert_eq!(back.weights.piece_value(PieceType::GreatGeneral), 250.0);
+        assert_eq!(back.weights.piece_value(PieceType::King), 1800.0);
+        assert_eq!(back.weights.piece_value(PieceType::CrownPrince), 1600.0);
+        assert_eq!(back.weights.piece_value(PieceType::GreatGeneral), 1100.0);
         assert_eq!(back.weights.piece_value(PieceType::FreeEagle), 40.0);
         assert_eq!(back.weights.piece_value(PieceType::WoodenDove), 40.0);
-        assert_eq!(back.weights.piece_value(PieceType::HookMover), 300.0);
+        assert_eq!(back.weights.piece_value(PieceType::HookMover), 1200.0);
         assert_eq!(back.weights.piece_value(PieceType::Lion), 15.0);
         // Pawn: Simple 1 dir × 1 step × 0.5
         assert!((back.weights.piece_value(PieceType::Pawn) - 0.5).abs() < 1e-3);
@@ -855,8 +893,29 @@ mod tests {
         let retreated = state.get_board().get_piece(behind).unwrap();
         assert!((undeveloped_penalty_for_piece(&retreated, &weights) - 0.45).abs() < 1e-3);
 
-        // High-value piece: max(3, 20% * value). FireDemon = 24 → 4.8.
-        // Isolated board so the move doesn't capture a same-side piece on rank 1.
+        // High-value piece: raw would be max(3, 20% * value), but capped at 20.
+        // Tengu = 1200 → uncapped 240, capped 20. Tengu's opening home is back rank.
+        let mut hi_board = Board::new();
+        hi_board.place_piece(Piece::new(
+            PieceType::King,
+            Color::Black,
+            Position::new(17, 0).unwrap(),
+        ));
+        hi_board.place_piece(Piece::new(
+            PieceType::King,
+            Color::White,
+            Position::new(17, 35).unwrap(),
+        ));
+        let hi_from = Position::new(6, 0).unwrap();
+        hi_board.place_piece(Piece::new(PieceType::Tengu, Color::Black, hi_from));
+        let hi = hi_board.get_piece(hi_from).unwrap();
+        let hi_pen = undeveloped_penalty_for_piece(&hi, &weights);
+        assert!(
+            (hi_pen - 20.0).abs() < 1e-3,
+            "expected undeveloped cap 20, got {hi_pen}"
+        );
+
+        // FireDemon = 24 → 4.8 (under the cap).
         let mut fd_board = Board::new();
         fd_board.place_piece(Piece::new(
             PieceType::King,
@@ -890,5 +949,36 @@ mod tests {
         // Royals never count as undeveloped.
         let king = Piece::new(PieceType::King, Color::Black, Position::new(17, 0).unwrap());
         assert_eq!(undeveloped_penalty_for_piece(&king, &weights), 0.0);
+    }
+
+    #[test]
+    fn advance_prefers_forward_non_royal() {
+        let mut weights = EvalWeights::seed();
+        weights.noise_scale = 0.0;
+        weights.advance = 12; // 1 point per rank of progress
+        let mut back = Board::new();
+        back.place_piece(Piece::new(
+            PieceType::King,
+            Color::Black,
+            Position::new(17, 0).unwrap(),
+        ));
+        back.place_piece(Piece::new(
+            PieceType::King,
+            Color::White,
+            Position::new(17, 35).unwrap(),
+        ));
+        back.place_piece(Piece::new(
+            PieceType::GoldGeneral,
+            Color::Black,
+            Position::new(16, 5).unwrap(),
+        ));
+        let mut fwd = back.clone();
+        fwd.move_piece(Position::new(16, 5).unwrap(), Position::new(16, 17).unwrap());
+        let a = evaluate_absolute_black(&back, &weights, 0);
+        let b = evaluate_absolute_black(&fwd, &weights, 0);
+        assert!(
+            b > a,
+            "forward gold should score higher: back={a} fwd={b}"
+        );
     }
 }
