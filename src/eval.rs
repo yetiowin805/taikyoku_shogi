@@ -10,6 +10,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::hash::{Hash, Hasher};
 use std::path::Path;
+use std::sync::OnceLock;
 
 /// All piece types (for seed export / complete tables).
 pub const ALL_PIECE_TYPES: &[PieceType] = &[
@@ -411,6 +412,10 @@ pub struct EvalWeights {
     pub sole_royal_factor: i32,
     /// Scale for Drunken Elephant / Go-Between advance toward promotion.
     pub de_advance: i32,
+    /// Floor for undeveloped penalty (on opening rank or behind):
+    /// `min(0.9 * value, max(undeveloped_home, 0.2 * value))` per non-royal.
+    #[serde(default = "default_undeveloped_home")]
+    pub undeveloped_home: i32,
     /// Max absolute noise contribution (deterministic).
     pub noise_scale: f64,
     pub mate_score: i32,
@@ -420,6 +425,10 @@ pub struct EvalWeights {
     /// Dense lookup rebuilt after load/seed (not serialized).
     #[serde(skip)]
     pub(crate) piece_value_table: Vec<f32>,
+}
+
+fn default_undeveloped_home() -> i32 {
+    3
 }
 
 impl Default for EvalWeights {
@@ -439,6 +448,7 @@ impl EvalWeights {
             royal_alive: 50,
             sole_royal_factor: 80,
             de_advance: 5,
+            undeveloped_home: default_undeveloped_home(),
             noise_scale: 1.0,
             mate_score: 1_000_000,
             weight_seed: 0xA11B_E7A1,
@@ -580,7 +590,67 @@ pub fn evaluate_absolute_black(board: &Board, weights: &EvalWeights, ply: usize)
     score += de_positional(black, Color::Black, weights) as f32;
     score -= de_positional(white, Color::White, weights) as f32;
 
+    score -= undeveloped_home_penalty(black, weights);
+    score += undeveloped_home_penalty(white, weights);
+
     score.round() as i32 + noise_component(board, weights, ply)
+}
+
+/// Opening home rank per `(color, piece_type)` for non-royals.
+fn initial_non_royal_home_ranks() -> &'static HashMap<(Color, PieceType), u8> {
+    static HOMES: OnceLock<HashMap<(Color, PieceType), u8>> = OnceLock::new();
+    HOMES.get_or_init(|| {
+        let mut state = GameState::new();
+        state.setup_initial_position();
+        let mut map = HashMap::new();
+        for color in [Color::Black, Color::White] {
+            for p in state.get_board().pieces_by_color(color) {
+                if p.piece_type.is_royal() {
+                    continue;
+                }
+                let key = (p.color, p.piece_type);
+                if let Some(&prev) = map.get(&key) {
+                    debug_assert_eq!(
+                        prev, p.position.rank,
+                        "piece type {:?} starts on multiple ranks for {:?}",
+                        p.piece_type, p.color
+                    );
+                }
+                map.insert(key, p.position.rank);
+            }
+        }
+        map
+    })
+}
+
+fn on_home_rank_or_behind(piece: &Piece, home_rank: u8) -> bool {
+    match piece.color {
+        Color::Black => piece.position.rank <= home_rank,
+        Color::White => piece.position.rank >= home_rank,
+    }
+}
+
+fn undeveloped_penalty_for_piece(piece: &Piece, weights: &EvalWeights) -> f32 {
+    if piece.piece_type.is_royal() {
+        return 0.0;
+    }
+    let Some(&home_rank) = initial_non_royal_home_ranks().get(&(piece.color, piece.piece_type))
+    else {
+        return 0.0;
+    };
+    if !on_home_rank_or_behind(piece, home_rank) {
+        return 0.0;
+    }
+    let floor = weights.undeveloped_home as f32;
+    let value = weights.piece_value(piece.piece_type);
+    floor.max(0.2 * value).min(0.9 * value)
+}
+
+fn undeveloped_home_penalty(pieces: &[Piece], weights: &EvalWeights) -> f32 {
+    pieces
+        .iter()
+        .map(|p| undeveloped_penalty_for_piece(p, weights))
+        .sum()
 }
 
 fn count_royals(pieces: &[Piece]) -> usize {
@@ -742,5 +812,83 @@ mod tests {
         ));
         let score = evaluate_absolute_black(&board, &weights, 0);
         assert_eq!(score, weights.mate_score);
+    }
+
+    #[test]
+    fn undeveloped_home_penalizes_home_rank_or_behind() {
+        let mut weights = EvalWeights::seed();
+        weights.noise_scale = 0.0;
+        weights.undeveloped_home = 3;
+
+        let mut state = GameState::new();
+        state.setup_initial_position();
+        let opening = evaluate_absolute_black(state.get_board(), &weights, 0);
+
+        let black_pen =
+            undeveloped_home_penalty(state.get_board().pieces_by_color(Color::Black), &weights);
+        let white_pen =
+            undeveloped_home_penalty(state.get_board().pieces_by_color(Color::White), &weights);
+        assert!((black_pen - white_pen).abs() < 1e-3);
+        assert!(black_pen > 100.0, "expected full-army undeveloped penalty, got {black_pen}");
+
+        // Pawn: 20% floor would be 3, but cap at 90% of value (0.45).
+        let from = Position::new(16, 10).unwrap();
+        let to = Position::new(16, 11).unwrap();
+        assert_eq!(
+            state.get_board().get_piece(from).map(|p| p.piece_type),
+            Some(PieceType::Pawn)
+        );
+        let pawn = state.get_board().get_piece(from).unwrap();
+        let pawn_pen = undeveloped_penalty_for_piece(&pawn, &weights);
+        assert!(
+            (pawn_pen - 0.45).abs() < 1e-3,
+            "pawn undeveloped should be 0.9*0.5=0.45, got {pawn_pen}"
+        );
+        state.get_board_mut().move_piece(from, to);
+        let after_pawn = evaluate_absolute_black(state.get_board(), &weights, 0);
+        // Total score is rounded; clearing 0.45 may or may not change the i32 by 1.
+        assert!(after_pawn >= opening);
+
+        // Still behind home rank (rank < 10 for Black) keeps the penalty.
+        let behind = Position::new(16, 9).unwrap();
+        state.get_board_mut().move_piece(to, behind);
+        let retreated = state.get_board().get_piece(behind).unwrap();
+        assert!((undeveloped_penalty_for_piece(&retreated, &weights) - 0.45).abs() < 1e-3);
+
+        // High-value piece: max(3, 20% * value). FireDemon = 24 → 4.8.
+        // Isolated board so the move doesn't capture a same-side piece on rank 1.
+        let mut fd_board = Board::new();
+        fd_board.place_piece(Piece::new(
+            PieceType::King,
+            Color::Black,
+            Position::new(17, 0).unwrap(),
+        ));
+        fd_board.place_piece(Piece::new(
+            PieceType::King,
+            Color::White,
+            Position::new(17, 35).unwrap(),
+        ));
+        let fd_from = Position::new(4, 0).unwrap();
+        let fd_to = Position::new(4, 1).unwrap();
+        fd_board.place_piece(Piece::new(
+            PieceType::FireDemon,
+            Color::Black,
+            fd_from,
+        ));
+        let fd = fd_board.get_piece(fd_from).unwrap();
+        let fd_pen = undeveloped_penalty_for_piece(&fd, &weights);
+        assert!((fd_pen - 4.8).abs() < 1e-3, "expected 4.8, got {fd_pen}");
+        let before_fd = evaluate_absolute_black(&fd_board, &weights, 0);
+        fd_board.move_piece(fd_from, fd_to);
+        let after_fd = evaluate_absolute_black(&fd_board, &weights, 0);
+        assert_eq!(
+            after_fd - before_fd,
+            5,
+            "leaving FireDemon home rank should gain round(4.8) vs integer scores"
+        );
+
+        // Royals never count as undeveloped.
+        let king = Piece::new(PieceType::King, Color::Black, Position::new(17, 0).unwrap());
+        assert_eq!(undeveloped_penalty_for_piece(&king, &weights), 0.0);
     }
 }
