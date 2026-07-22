@@ -49,10 +49,12 @@ pub enum QPruneMode {
 
 /// Max captures expanded per q-node at the first quiescence ply.
 pub const QUIESCE_TOP_N: usize = 8;
+/// PathAware first ply: keep fanout small — GG/BG PathClears dominate here.
+pub const QUIESCE_TOP_N_PATH_AWARE_ROOT: usize = 3;
 /// Max captures at deeper q-plies under [`QPruneMode::PathAware`].
 pub const QUIESCE_TOP_N_DEEP: usize = 4;
-/// Deeper-ply loudness floor (jump-general / high-piece class) unless SimpleTake recapture.
-pub const MIN_QUIESCENCE_DEEP_ENEMY: i32 = 90;
+/// Deeper-ply loudness floor (jump-range class on the new material scale).
+pub const MIN_QUIESCENCE_DEEP_ENEMY: f32 = 100.0;
 
 /// How a capture removes material (drives PathAware hang / taper rules).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -413,18 +415,18 @@ fn capture_material_exchange(
     state: &GameState,
     weights: &EvalWeights,
     mv: &Move,
-) -> (i32, i32) {
+) -> (f32, f32) {
     if mv.from == mv.to {
-        return (0, 0);
+        return (0.0, 0.0);
     }
     let board = state.get_board();
     let Some(piece) = board.get_piece(mv.from) else {
-        return (0, 0);
+        return (0.0, 0.0);
     };
     let us = piece.color;
     let them = us.opposite();
-    let mut enemy = 0i32;
-    let mut own = 0i32;
+    let mut enemy = 0.0f32;
+    let mut own = 0.0f32;
 
     let mut add = |pos: crate::position::Position| {
         if let Some(p) = board.get_piece(pos) {
@@ -500,9 +502,9 @@ fn classify_capture(state: &GameState, mv: &Move) -> CaptureKind {
     CaptureKind::SimpleTake
 }
 
-/// Minimum enemy material (eval points) for a capture to enter quiescence.
-/// With seed weights, one jump-capture general / high piece is 90–100.
-pub const MIN_QUIESCENCE_ENEMY_MATERIAL: i32 = 50;
+/// Minimum enemy material for a capture to enter quiescence (capability scale).
+/// Jump-range class and above (hooks / capturing-range / royals).
+pub const MIN_QUIESCENCE_ENEMY_MATERIAL: f32 = 100.0;
 
 /// Quiescence only expands "loud" captures (big enemy material), not nibbling
 /// at low-value pieces. Pure self-captures excluded.
@@ -526,12 +528,10 @@ fn mvv_lva_score(state: &GameState, weights: &EvalWeights, mv: &Move) -> i32 {
     };
     let mover_value = weights.piece_value(mover.piece_type);
     let (enemy, own) = capture_material_exchange(state, weights, mv);
-    if enemy == 0 {
+    if enemy == 0.0 {
         return i32::MIN / 4;
     }
-    (enemy - own)
-        .saturating_mul(1000)
-        .saturating_sub(mover_value)
+    ((enemy - own) * 1000.0 - mover_value).round() as i32
 }
 
 /// Move-ordering score (heuristic only — not search correctness).
@@ -553,7 +553,7 @@ fn move_order_score(
     };
     let mover_value = weights.piece_value(mover.piece_type);
     let (enemy, own) = capture_material_exchange(state, weights, mv);
-    if enemy == 0 {
+    if enemy == 0.0 {
         return i32::MIN / 4;
     }
 
@@ -561,7 +561,7 @@ fn move_order_score(
     if landing_attacked_cached(board, mv.to, opponent, attack_cache) {
         gain -= mover_value;
     }
-    gain.saturating_mul(1000).saturating_sub(mover_value)
+    (gain * 1000.0 - mover_value).round() as i32
 }
 
 fn landing_attacked_cached(
@@ -1250,7 +1250,7 @@ fn quiesce(
     mut alpha: i32,
     beta: i32,
     prev_to: Option<Position>,
-    prev_was_simple: bool,
+    _prev_was_simple: bool,
     ctx: &mut SearchContext,
 ) -> i32 {
     ctx.nodes += 1;
@@ -1274,9 +1274,9 @@ fn quiesce(
         .piece_value_table
         .iter()
         .copied()
-        .max()
-        .unwrap_or(100)
-        .max(MIN_QUIESCENCE_ENEMY_MATERIAL);
+        .fold(0.0f32, f32::max)
+        .max(MIN_QUIESCENCE_ENEMY_MATERIAL)
+        .round() as i32;
     if stand_pat.saturating_add(optimistic) <= alpha {
         return stand_pat;
     }
@@ -1302,21 +1302,12 @@ fn quiesce(
         }
     }
 
-    // PathAware deep taper: require jump-general-class victims unless SimpleTake
-    // recapture onto the previous simple landing.
+    // PathAware deep taper: only jump-range+ victims (no cheap simple-recapture
+    // side quests — those kept GG/RO leaves exploding after the 100 floor).
     if path_aware && deep_ply {
         moves.retain(|mv| {
             let (enemy, _) = capture_material_exchange(state, weights, mv);
-            if enemy >= MIN_QUIESCENCE_DEEP_ENEMY {
-                return true;
-            }
-            if prev_was_simple {
-                if let Some(sq) = prev_to {
-                    return classify_capture(state, mv) == CaptureKind::SimpleTake
-                        && mv.to == sq;
-                }
-            }
-            false
+            enemy >= MIN_QUIESCENCE_DEEP_ENEMY
         });
         if moves.is_empty() {
             return stand_pat;
@@ -1327,12 +1318,8 @@ fn quiesce(
     // Delta prune: drop captures that cannot raise alpha.
     moves.retain(|mv| {
         let (enemy, own) = capture_material_exchange(state, weights, mv);
-        let gain = if use_net {
-            enemy.saturating_sub(own)
-        } else {
-            enemy
-        };
-        stand_pat.saturating_add(gain) > alpha
+        let gain = if use_net { enemy - own } else { enemy };
+        (stand_pat as f32 + gain) > alpha as f32
     });
     if moves.is_empty() {
         return stand_pat;
@@ -1366,8 +1353,12 @@ fn quiesce(
         .saturating_add(moves.len() as u64);
 
     if ctx.q_prune_mode.uses_top_n() {
-        let cap = if path_aware && deep_ply {
-            QUIESCE_TOP_N_DEEP
+        let cap = if path_aware {
+            if deep_ply {
+                QUIESCE_TOP_N_DEEP
+            } else {
+                QUIESCE_TOP_N_PATH_AWARE_ROOT
+            }
         } else {
             QUIESCE_TOP_N
         };
@@ -1401,7 +1392,7 @@ fn quiesce(
             .get_board()
             .get_piece(mv.from)
             .map(|p| weights.piece_value(p.piece_type))
-            .unwrap_or(0);
+            .unwrap_or(0.0);
         let landing = mv.to;
 
         let Some(undo) = state.make_move_for_search(mv) else {
@@ -2302,7 +2293,7 @@ mod tests {
             Color::Black,
             Position::new(10, 10).unwrap(),
         ));
-        // Seed pawn value is 1 — below the 50-point qsearch threshold.
+        // Seed pawn value is 0.5 — below the 100-point qsearch threshold.
         state.place_piece(Piece::new(
             PieceType::Pawn,
             Color::White,
@@ -2316,7 +2307,7 @@ mod tests {
         assert!(move_captures_enemy(&state, &mv));
         assert!(
             !is_worthwhile_quiescence_capture(&state, &weights, &mv),
-            "taking a 1-point pawn should not enter qsearch"
+            "taking a low-value pawn should not enter qsearch"
         );
     }
 
@@ -2371,9 +2362,9 @@ mod tests {
         // Fixed mock values: gold >> pawn so hanging the gold is clearly wrong.
         let mut weights = EvalWeights::seed();
         weights.noise_scale = 0.0;
-        weights.piece.insert(PieceType::GoldGeneral, 100);
-        weights.piece.insert(PieceType::Pawn, 1);
-        weights.piece.insert(PieceType::King, 100);
+        weights.piece.insert(PieceType::GoldGeneral, 100.0);
+        weights.piece.insert(PieceType::Pawn, 1.0);
+        weights.piece.insert(PieceType::King, 100.0);
         weights.rebuild_piece_value_table();
 
         let mut state = GameState::new();
@@ -2446,9 +2437,9 @@ mod tests {
     fn see_orders_safe_landing_above_guarded() {
         let mut weights = EvalWeights::seed();
         weights.noise_scale = 0.0;
-        weights.piece.insert(PieceType::GreatGeneral, 90);
-        weights.piece.insert(PieceType::Pawn, 1);
-        weights.piece.insert(PieceType::GoldGeneral, 50);
+        weights.piece.insert(PieceType::GreatGeneral, 90.0);
+        weights.piece.insert(PieceType::Pawn, 1.0);
+        weights.piece.insert(PieceType::GoldGeneral, 50.0);
         weights.rebuild_piece_value_table();
 
         let mut state = GameState::new();
@@ -2503,8 +2494,8 @@ mod tests {
     fn see_lva_prefers_cheaper_attacker_equal_gain() {
         let mut weights = EvalWeights::seed();
         weights.noise_scale = 0.0;
-        weights.piece.insert(PieceType::Pawn, 1);
-        weights.piece.insert(PieceType::GoldGeneral, 50);
+        weights.piece.insert(PieceType::Pawn, 1.0);
+        weights.piece.insert(PieceType::GoldGeneral, 50.0);
         weights.rebuild_piece_value_table();
 
         let mut state = GameState::new();
