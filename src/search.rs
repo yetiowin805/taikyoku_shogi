@@ -15,6 +15,37 @@ pub const MAX_TREE_ROOT_CHILDREN: usize = 12;
 /// Max children kept under a non-root tree node.
 pub const MAX_TREE_BRANCH: usize = 8;
 
+/// Experimental / production quiescence capture filters.
+///
+/// Measurement (`qprune_mode_matrix`, post-GG leaf q=6):
+/// - **TopN**: ~4.4× fewer q-nodes, score ~5 vs baseline 7
+/// - **NetGain**: little leaf effect; fewer AB nodes on opening
+/// - **RecaptureOnly**: ~200× cut but score 90 vs 7 (over-prune) — not default
+/// - **StaleHang**: no meaningful cut on the GG blowup
+///
+/// Default: [`QPruneMode::NetGainAndTopN`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum QPruneMode {
+    /// Existing: free-capture delta only (`stand_pat + enemy > α`).
+    Baseline,
+    /// A: delta uses net path material `enemy - own`.
+    NetGainDelta,
+    /// B: after MVV order, search at most [`QUIESCE_TOP_N`] captures.
+    TopN,
+    /// C: after the first q-ply, only recaptures onto the previous landing square.
+    RecaptureOnly,
+    /// D: drop captures where landing looks attacked and enemy < mover (stale).
+    StaleHang,
+    /// A+B — shipped default after measurement.
+    #[default]
+    NetGainAndTopN,
+    /// B+C (kept for harness; recapture over-pruned alone).
+    TopNAndRecapture,
+}
+
+/// Max captures expanded per q-node in TopN modes.
+pub const QUIESCE_TOP_N: usize = 8;
+
 #[derive(Debug, Clone)]
 pub struct SearchConfig {
     pub depth: u32,
@@ -24,6 +55,8 @@ pub struct SearchConfig {
     pub collect_trace: bool,
     /// Capture-only quiescence plies at main-search leaves (0 = off).
     pub quiescence_depth: u32,
+    /// Quiescence capture prune policy.
+    pub q_prune_mode: QPruneMode,
 }
 
 impl Default for SearchConfig {
@@ -33,6 +66,10 @@ impl Default for SearchConfig {
             max_time_ms: None,
             collect_trace: false,
             quiescence_depth: 2,
+            // Measurement (qprune_mode_matrix): TopN ~4× on GG leaves with
+            // near-stable score; net-gain is free and helps AB node counts.
+            // Recapture-only over-pruned (score 90 vs baseline 7) — not default.
+            q_prune_mode: QPruneMode::NetGainAndTopN,
         }
     }
 }
@@ -81,6 +118,12 @@ pub struct SearchResult {
     pub static_eval: i32,
     pub root_lines: Vec<(Move, i32)>,
     pub tree: SearchTreeNode,
+    /// Quiescence nodes visited.
+    pub q_nodes: u64,
+    /// Capture candidates after delta prune (summed over q-nodes).
+    pub q_caps_generated: u64,
+    /// Captures actually recursed into.
+    pub q_caps_searched: u64,
 }
 
 struct SearchContext {
@@ -103,7 +146,46 @@ struct SearchContext {
     /// Short phase tag for logs: "root", "search", "quiesce", "trace".
     phase: &'static str,
     tt: TranspositionTable,
+    /// Two killer quiets per ply (cutoff memory for capture-setups).
+    killers: Vec<[Option<MoveKey>; 2]>,
+    /// Quiet history: (from_index << 16) | to_index → score.
+    history: HashMap<u32, i32>,
+    /// Disallow consecutive null moves.
+    allow_null: bool,
+    /// Quiescence diagnostics (updated while in `quiesce`).
+    q_nodes: u64,
+    q_depth_left: u32,
+    q_caps_at_node: usize,
+    q_cap_index: usize,
+    q_label: String,
+    q_stand_pat: i32,
+    q_prune_mode: QPruneMode,
+    q_caps_generated: u64,
+    q_caps_searched: u64,
 }
+
+impl QPruneMode {
+    fn uses_net_gain(self) -> bool {
+        matches!(self, Self::NetGainDelta | Self::NetGainAndTopN)
+    }
+
+    fn uses_top_n(self) -> bool {
+        matches!(
+            self,
+            Self::TopN | Self::NetGainAndTopN | Self::TopNAndRecapture
+        )
+    }
+
+    fn uses_recapture_only(self) -> bool {
+        matches!(self, Self::RecaptureOnly | Self::TopNAndRecapture)
+    }
+
+    fn uses_stale_hang(self) -> bool {
+        matches!(self, Self::StaleHang)
+    }
+}
+
+type MoveKey = (u8, u8, u8, u8, bool);
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum TtBound {
@@ -118,7 +200,7 @@ struct TtEntry {
     depth: u32,
     score: i32,
     bound: TtBound,
-    best: Option<(u8, u8, u8, u8, bool)>, // from_file, from_rank, to_file, to_rank, promoted
+    best: Option<MoveKey>, // from_file, from_rank, to_file, to_rank, promoted
 }
 
 struct TranspositionTable {
@@ -184,7 +266,7 @@ fn position_hash(state: &GameState) -> u64 {
     h
 }
 
-fn move_tt_key(mv: &Move) -> (u8, u8, u8, u8, bool) {
+fn move_tt_key(mv: &Move) -> MoveKey {
     (
         mv.from.file,
         mv.from.rank,
@@ -194,8 +276,49 @@ fn move_tt_key(mv: &Move) -> (u8, u8, u8, u8, bool) {
     )
 }
 
-fn same_tt_move(mv: &Move, key: (u8, u8, u8, u8, bool)) -> bool {
+fn same_tt_move(mv: &Move, key: MoveKey) -> bool {
     move_tt_key(mv) == key
+}
+
+fn history_key(mv: &Move) -> u32 {
+    ((mv.from.to_index() as u32) << 16) | (mv.to.to_index() as u32)
+}
+
+fn ensure_killers(ctx: &mut SearchContext, ply: usize) {
+    while ctx.killers.len() <= ply {
+        ctx.killers.push([None, None]);
+    }
+}
+
+fn store_killer(ctx: &mut SearchContext, ply: usize, key: MoveKey) {
+    ensure_killers(ctx, ply);
+    if ctx.killers[ply][0] == Some(key) {
+        return;
+    }
+    ctx.killers[ply][1] = ctx.killers[ply][0];
+    ctx.killers[ply][0] = Some(key);
+}
+
+fn killer_rank(ctx: &SearchContext, ply: usize, mv: &Move) -> i32 {
+    let key = move_tt_key(mv);
+    if ctx.killers.get(ply).and_then(|k| k[0]) == Some(key) {
+        2
+    } else if ctx.killers.get(ply).and_then(|k| k[1]) == Some(key) {
+        1
+    } else {
+        0
+    }
+}
+
+fn history_score(ctx: &SearchContext, mv: &Move) -> i32 {
+    ctx.history.get(&history_key(mv)).copied().unwrap_or(0)
+}
+
+fn bump_history(ctx: &mut SearchContext, mv: &Move, depth: u32) {
+    let d = depth as i32;
+    let add = d.saturating_mul(d);
+    let e = ctx.history.entry(history_key(mv)).or_insert(0);
+    *e = e.saturating_add(add).min(1_000_000);
 }
 
 /// True if `mv` captures enemy material and is not a pure self-capture (`from == to`).
@@ -451,6 +574,18 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
         best_score: i32::MIN + 1,
         phase: "root",
         tt: TranspositionTable::new(1 << 20),
+        killers: Vec::new(),
+        history: HashMap::new(),
+        allow_null: true,
+        q_nodes: 0,
+        q_depth_left: 0,
+        q_caps_at_node: 0,
+        q_cap_index: 0,
+        q_label: String::new(),
+        q_stand_pat: 0,
+        q_prune_mode: config.q_prune_mode,
+        q_caps_generated: 0,
+        q_caps_searched: 0,
     };
 
     let mut moves = state.generate_legal_moves();
@@ -470,10 +605,13 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
             static_eval,
             root_lines: vec![],
             tree,
+            q_nodes: 0,
+            q_caps_generated: 0,
+            q_caps_searched: 0,
         };
     }
 
-    order_moves(state, weights, &mut moves);
+    order_moves_with_heuristics(state, weights, &mut moves, &ctx, root_ply, false);
     ctx.root_total = moves.len();
 
     let mut completed_best = moves[0].clone();
@@ -509,14 +647,37 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
             ctx.phase = "root";
             ctx.maybe_log_progress();
 
+            let is_capture = move_captures_enemy(state, mv);
+            let child_depth = d - 1;
+            // Root LMR: late quiets at ID depth >= 2.
+            let can_reduce = d >= 2 && i >= 3 && !is_capture && child_depth >= 1;
+            let reduction = if can_reduce {
+                (if i >= 12 { 2 } else { 1 }).min(child_depth)
+            } else {
+                0
+            };
+
             let Some(undo) = pos.make_move_for_search(mv.clone()) else {
                 continue;
             };
             ctx.nodes += 1;
             ctx.ply = root_ply + 1;
             ctx.phase = "search";
+            ctx.q_nodes = 0;
+            ctx.q_label.clear();
+            ctx.q_caps_at_node = 0;
+            ctx.q_cap_index = 0;
 
-            let score = -alphabeta(&mut pos, weights, d - 1, -beta, -alpha, &mut ctx);
+            let mut score = if reduction > 0 {
+                let reduced = child_depth - reduction;
+                -alphabeta(&mut pos, weights, reduced, -beta, -alpha, &mut ctx)
+            } else {
+                -alphabeta(&mut pos, weights, child_depth, -beta, -alpha, &mut ctx)
+            };
+            if reduction > 0 && !ctx.abort && score > alpha {
+                score = -alphabeta(&mut pos, weights, child_depth, -beta, -alpha, &mut ctx);
+            }
+
             pos.unmake_move_for_search(undo);
             ctx.ply = root_ply;
 
@@ -530,6 +691,10 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
                 iter_score = score;
                 iter_best = mv.clone();
                 ctx.best_score = iter_score;
+                if !is_capture {
+                    store_killer(&mut ctx, root_ply, move_tt_key(mv));
+                    bump_history(&mut ctx, mv, d);
+                }
             }
             if score > alpha {
                 alpha = score;
@@ -595,6 +760,83 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
         static_eval,
         root_lines,
         tree,
+        q_nodes: ctx.q_nodes,
+        q_caps_generated: ctx.q_caps_generated,
+        q_caps_searched: ctx.q_caps_searched,
+    }
+}
+
+/// Leaf-only quiescence probe (open window) for prune measurement harnesses.
+pub fn probe_quiescence(
+    state: &GameState,
+    weights: &EvalWeights,
+    qdepth: u32,
+    mode: QPruneMode,
+    max_time_ms: Option<u64>,
+) -> SearchResult {
+    let root_ply = state.get_move_history().len();
+    let static_eval = evaluate_with_ply(state, weights, root_ply);
+    let deadline = max_time_ms.map(|ms| Instant::now() + Duration::from_millis(ms));
+    let now = Instant::now();
+    let mut ctx = SearchContext {
+        deadline,
+        nodes: 0,
+        abort: false,
+        ply: root_ply,
+        quiescence_depth: qdepth,
+        search_started: now,
+        last_progress_log: now,
+        search_depth: 0,
+        root_index: 0,
+        root_total: 0,
+        root_label: String::new(),
+        best_score: i32::MIN + 1,
+        phase: "quiesce",
+        tt: TranspositionTable::new(1024),
+        killers: Vec::new(),
+        history: HashMap::new(),
+        allow_null: true,
+        q_nodes: 0,
+        q_depth_left: 0,
+        q_caps_at_node: 0,
+        q_cap_index: 0,
+        q_label: String::new(),
+        q_stand_pat: 0,
+        q_prune_mode: mode,
+        q_caps_generated: 0,
+        q_caps_searched: 0,
+    };
+    let mut pos = state.clone();
+    let score = if qdepth == 0 {
+        static_eval
+    } else {
+        quiesce(
+            &mut pos,
+            weights,
+            qdepth,
+            i32::MIN + 1,
+            i32::MAX - 1,
+            None,
+            &mut ctx,
+        )
+    };
+    SearchResult {
+        best_move: None,
+        score,
+        nodes: ctx.nodes,
+        static_eval,
+        root_lines: vec![],
+        tree: SearchTreeNode {
+            label: "qprobe".into(),
+            score: Some(score),
+            static_eval: Some(static_eval),
+            best: true,
+            cutoff: false,
+            children: vec![],
+        },
+        q_nodes: ctx.q_nodes,
+        q_caps_generated: ctx.q_caps_generated,
+        q_caps_searched: ctx.q_caps_searched,
     }
 }
 
@@ -703,7 +945,7 @@ fn alphabeta(
 
     let key = position_hash(state);
     let alpha_orig = alpha;
-    let mut tt_move: Option<(u8, u8, u8, u8, bool)> = None;
+    let mut tt_move: Option<MoveKey> = None;
     if let Some(e) = ctx.tt.probe(key) {
         if e.depth >= depth {
             match e.bound {
@@ -724,6 +966,29 @@ fn alphabeta(
         tt_move = e.best;
     }
 
+    // Null-move prune: pass and search shallow; if still >= beta, cutoff.
+    // Ultimate Shogi almost always has near-null quiets, so zugzwang is rare.
+    // Note: root calls alphabeta with depth = ID_depth - 1, so thresholds must
+    // fire at depth >= 2 to help opening d3 searches.
+    const NULL_R: u32 = 2;
+    const MATE_BAND: i32 = 900_000;
+    if ctx.allow_null && depth >= 2 && beta < MATE_BAND && beta > -MATE_BAND {
+        let r = NULL_R.min(depth - 1);
+        ctx.allow_null = false;
+        let prev_turn = state.get_current_turn();
+        state.set_current_turn(prev_turn.opposite());
+        let parent_ply = ctx.ply;
+        ctx.ply = parent_ply + 1;
+        let null_depth = depth - 1 - r;
+        let score = -alphabeta(state, weights, null_depth, -beta, -beta + 1, ctx);
+        ctx.ply = parent_ply;
+        state.set_current_turn(prev_turn);
+        ctx.allow_null = true;
+        if !ctx.abort && score >= beta {
+            return score;
+        }
+    }
+
     // Stage A: captures + non-multi-leg quiets (+ capturing multi-leg).
     // Stage B: quiet two-step / FreeEagle only if A did not cut.
     let mut moves = state.generate_legal_moves_mode(LegalMoveGen::WithoutQuietMultiLeg);
@@ -736,24 +1001,41 @@ fn alphabeta(
         }
     }
     if used_only_stage_b {
-        order_moves_quiescence(state, weights, &mut moves);
+        order_moves_with_heuristics(state, weights, &mut moves, ctx, ctx.ply, true);
     } else {
-        order_moves(state, weights, &mut moves);
+        order_moves_with_heuristics(state, weights, &mut moves, ctx, ctx.ply, false);
     }
     prefer_tt_move(&mut moves, tt_move);
 
     let parent_ply = ctx.ply;
+    let stage_a_len = moves.len();
     let (mut best, mut best_move_key, mut alpha, did_cutoff) = search_move_list(
-        state, weights, depth, alpha, beta, ctx, parent_ply, moves,
+        state,
+        weights,
+        depth,
+        alpha,
+        beta,
+        ctx,
+        parent_ply,
+        moves,
+        0,
     );
 
     if !did_cutoff && !ctx.abort && !used_only_stage_b {
         let mut stage_b = state.generate_legal_moves_mode(LegalMoveGen::QuietMultiLegOnly);
         if !stage_b.is_empty() {
-            order_moves_quiescence(state, weights, &mut stage_b);
+            order_moves_with_heuristics(state, weights, &mut stage_b, ctx, parent_ply, true);
             prefer_tt_move(&mut stage_b, tt_move);
             let (b2, k2, a2, _cut2) = search_move_list(
-                state, weights, depth, alpha, beta, ctx, parent_ply, stage_b,
+                state,
+                weights,
+                depth,
+                alpha,
+                beta,
+                ctx,
+                parent_ply,
+                stage_b,
+                stage_a_len,
             );
             if b2 > best {
                 best = b2;
@@ -787,7 +1069,7 @@ fn alphabeta(
     best
 }
 
-fn prefer_tt_move(moves: &mut [Move], tt_move: Option<(u8, u8, u8, u8, bool)>) {
+fn prefer_tt_move(moves: &mut [Move], tt_move: Option<MoveKey>) {
     if let Some(tm) = tt_move {
         if let Some(idx) = moves.iter().position(|m| same_tt_move(m, tm)) {
             moves.swap(0, idx);
@@ -804,20 +1086,58 @@ fn search_move_list(
     ctx: &mut SearchContext,
     parent_ply: usize,
     moves: Vec<Move>,
-) -> (i32, Option<(u8, u8, u8, u8, bool)>, i32, bool) {
+    move_index_base: usize,
+) -> (i32, Option<MoveKey>, i32, bool) {
     let mut best = i32::MIN + 1;
     let mut best_move_key = None;
     let mut did_cutoff = false;
-    for mv in moves {
+
+    for (i, mv) in moves.into_iter().enumerate() {
         if ctx.timed_out() {
             break;
         }
         let mv_key = move_tt_key(&mv);
-        let Some(undo) = state.make_move_for_search(mv) else {
+        let is_capture = move_captures_enemy(state, &mv);
+        let is_killer = killer_rank(ctx, parent_ply, &mv) > 0;
+        let move_index = move_index_base + i;
+
+        // LMR: late quiet non-killers get a reduced child search.
+        // depth is the remaining AB depth at this node (root passes ID_depth-1).
+        const LMR_MIN_DEPTH: u32 = 2;
+        const LMR_MOVE_THRESHOLD: usize = 3;
+        const LMR_R: u32 = 1;
+        let can_reduce = depth >= LMR_MIN_DEPTH
+            && move_index >= LMR_MOVE_THRESHOLD
+            && !is_capture
+            && !is_killer;
+        let reduction = if can_reduce {
+            if move_index >= 12 {
+                2
+            } else {
+                LMR_R
+            }
+            .min(depth - 1)
+        } else {
+            0
+        };
+
+        let Some(undo) = state.make_move_for_search(mv.clone()) else {
             continue;
         };
         ctx.ply = parent_ply + 1;
-        let score = -alphabeta(state, weights, depth - 1, -beta, -alpha, ctx);
+
+        let mut score = if reduction > 0 {
+            let reduced = depth - 1 - reduction;
+            -alphabeta(state, weights, reduced, -beta, -alpha, ctx)
+        } else {
+            -alphabeta(state, weights, depth - 1, -beta, -alpha, ctx)
+        };
+
+        // Re-search at full depth if reduced search looks interesting.
+        if reduction > 0 && !ctx.abort && score > alpha {
+            score = -alphabeta(state, weights, depth - 1, -beta, -alpha, ctx);
+        }
+
         state.unmake_move_for_search(undo);
         ctx.ply = parent_ply;
 
@@ -830,6 +1150,10 @@ fn search_move_list(
         }
         if alpha >= beta {
             did_cutoff = true;
+            if !is_capture {
+                store_killer(ctx, parent_ply, mv_key);
+                bump_history(ctx, &mv, depth);
+            }
             break;
         }
     }
@@ -847,26 +1171,41 @@ fn leaf_or_quiesce(
         evaluate_with_ply(state, weights, ctx.ply)
     } else {
         ctx.phase = "quiesce";
-        quiesce(state, weights, ctx.quiescence_depth, alpha, beta, ctx)
+        quiesce(
+            state,
+            weights,
+            ctx.quiescence_depth,
+            alpha,
+            beta,
+            None,
+            ctx,
+        )
     }
 }
 
 /// Capture-only quiescence (excludes pure self-captures via `move_captures_enemy`).
+///
+/// `recapture_sq`: when set (deeper q-plies under RecaptureOnly modes), only
+/// expands captures that take on that square.
 fn quiesce(
     state: &mut GameState,
     weights: &EvalWeights,
     qdepth: u32,
     mut alpha: i32,
     beta: i32,
+    recapture_sq: Option<Position>,
     ctx: &mut SearchContext,
 ) -> i32 {
     ctx.nodes += 1;
+    ctx.q_nodes += 1;
+    ctx.q_depth_left = qdepth;
 
     if state.get_winner().is_some() || ctx.timed_out() {
         return evaluate_with_ply(state, weights, ctx.ply);
     }
 
     let stand_pat = evaluate_with_ply(state, weights, ctx.ply);
+    ctx.q_stand_pat = stand_pat;
     if qdepth == 0 {
         return stand_pat;
     }
@@ -893,31 +1232,104 @@ fn quiesce(
         return stand_pat;
     }
 
-    // Delta prune: drop captures that cannot raise alpha even if the capture is free.
+    // Recapture-only after the first q-ply.
+    if ctx.q_prune_mode.uses_recapture_only() {
+        if let Some(sq) = recapture_sq {
+            moves.retain(|mv| capture_hits_square(state, mv, sq));
+            if moves.is_empty() {
+                return stand_pat;
+            }
+        }
+    }
+
+    let use_net = ctx.q_prune_mode.uses_net_gain();
+    // Delta prune: drop captures that cannot raise alpha.
     moves.retain(|mv| {
-        let (enemy, _) = capture_material_exchange(state, weights, mv);
-        stand_pat.saturating_add(enemy) > alpha
+        let (enemy, own) = capture_material_exchange(state, weights, mv);
+        let gain = if use_net {
+            enemy.saturating_sub(own)
+        } else {
+            enemy
+        };
+        stand_pat.saturating_add(gain) > alpha
     });
     if moves.is_empty() {
         return stand_pat;
     }
 
+    // Stale hang prune (pre-move landing attack).
+    if ctx.q_prune_mode.uses_stale_hang() {
+        let opponent = state.get_current_turn().opposite();
+        let mut attack_cache: HashMap<usize, bool> = HashMap::new();
+        moves.retain(|mv| {
+            let board = state.get_board();
+            let Some(mover) = board.get_piece(mv.from) else {
+                return false;
+            };
+            let mover_value = weights.piece_value(mover.piece_type);
+            let (enemy, _) = capture_material_exchange(state, weights, mv);
+            if enemy >= mover_value {
+                return true;
+            }
+            !landing_attacked_cached(board, mv.to, opponent, &mut attack_cache)
+        });
+        if moves.is_empty() {
+            return stand_pat;
+        }
+    }
+
     order_moves_quiescence(state, weights, &mut moves);
+
+    ctx.q_caps_generated = ctx
+        .q_caps_generated
+        .saturating_add(moves.len() as u64);
+
+    if ctx.q_prune_mode.uses_top_n() && moves.len() > QUIESCE_TOP_N {
+        moves.truncate(QUIESCE_TOP_N);
+    }
+
+    let n_caps = moves.len();
+    ctx.q_caps_at_node = n_caps;
 
     let mut best = stand_pat;
     let parent_ply = ctx.ply;
 
-    for mv in moves {
+    for (i, mv) in moves.into_iter().enumerate() {
         if ctx.timed_out() {
             break;
         }
+        ctx.q_cap_index = i + 1;
+        ctx.q_label = move_label(state, &mv);
+        ctx.phase = "quiesce";
+        // Periodic progress while a single loud capture line is exploding.
+        if ctx.q_nodes & 0xff == 0 {
+            ctx.maybe_log_progress();
+        }
+
+        let next_recapture = if ctx.q_prune_mode.uses_recapture_only() {
+            Some(mv.to)
+        } else {
+            None
+        };
+
         let Some(undo) = state.make_move_for_search(mv) else {
             continue;
         };
+        ctx.q_caps_searched += 1;
         ctx.ply = parent_ply + 1;
-        let score = -quiesce(state, weights, qdepth - 1, -beta, -alpha, ctx);
+        let score = -quiesce(
+            state,
+            weights,
+            qdepth - 1,
+            -beta,
+            -alpha,
+            next_recapture,
+            ctx,
+        );
         state.unmake_move_for_search(undo);
         ctx.ply = parent_ply;
+        ctx.q_depth_left = qdepth;
+        ctx.q_caps_at_node = n_caps;
 
         if score > best {
             best = score;
@@ -931,6 +1343,48 @@ fn quiesce(
     }
 
     best
+}
+
+/// True if this capture takes an enemy on `sq` (landing, intermediate, or path).
+fn capture_hits_square(state: &GameState, mv: &Move, sq: Position) -> bool {
+    if mv.to == sq {
+        return move_captures_enemy_raw(state, mv);
+    }
+    let board = state.get_board();
+    let Some(piece) = board.get_piece(mv.from) else {
+        return false;
+    };
+    let them = piece.color.opposite();
+    let is_enemy = |pos: Position| {
+        board
+            .get_piece(pos)
+            .map(|p| p.color == them)
+            .unwrap_or(false)
+    };
+    if let Some(inter) = mv.intermediate() {
+        if inter == sq && is_enemy(sq) {
+            return true;
+        }
+    }
+    if let Some(path) = mv.free_eagle_path() {
+        return path.iter().any(|p| *p == sq && is_enemy(sq));
+    }
+    let config = MovementConfig::for_piece(&piece);
+    let uses_capturing = config.capabilities.iter().any(|cap| {
+        matches!(
+            cap,
+            MovementCapability::Range {
+                blocking: BlockingMode::Capturing,
+                ..
+            }
+        )
+    });
+    if uses_capturing {
+        return path_utils::get_path_positions(mv.from, mv.to)
+            .into_iter()
+            .any(|p| p == sq && p != mv.from && is_enemy(sq));
+    }
+    false
 }
 
 /// Like alphabeta but records reply nodes for the GUI (best-move expansion only).
@@ -1078,8 +1532,25 @@ impl SearchContext {
         } else {
             "-".into()
         };
+        let qinfo = if self.phase == "quiesce" || self.q_nodes > 0 {
+            format!(
+                " qnodes={} qleft={} qcaps={}/{} qmv={} spat={}",
+                self.q_nodes,
+                self.q_depth_left,
+                self.q_cap_index,
+                self.q_caps_at_node,
+                if self.q_label.is_empty() {
+                    "-"
+                } else {
+                    &self.q_label
+                },
+                self.q_stand_pat
+            )
+        } else {
+            String::new()
+        };
         eprintln!(
-            "ab search: {:.1}s nodes={} nps={} depth={} q={} phase={} root={} best={}",
+            "ab search: {:.1}s nodes={} nps={} depth={} q={} phase={} root={} best={}{}",
             elapsed.as_secs_f64(),
             self.nodes,
             nps,
@@ -1087,7 +1558,8 @@ impl SearchContext {
             self.quiescence_depth,
             self.phase,
             root,
-            best
+            best,
+            qinfo
         );
     }
 
@@ -1120,6 +1592,29 @@ fn order_moves(state: &GameState, weights: &EvalWeights, moves: &mut [Move]) {
             opponent,
             &mut attack_cache,
         ))
+    });
+}
+
+/// Main-search ordering: captures (hang/MVV) then killers then history for quiets.
+fn order_moves_with_heuristics(
+    state: &GameState,
+    weights: &EvalWeights,
+    moves: &mut [Move],
+    ctx: &SearchContext,
+    ply: usize,
+    captures_only_style: bool,
+) {
+    let opponent = state.get_current_turn().opposite();
+    let mut attack_cache: HashMap<usize, bool> = HashMap::new();
+    moves.sort_by_key(|mv| {
+        let cap = if captures_only_style {
+            mvv_lva_score(state, weights, mv)
+        } else {
+            move_order_score(state, weights, mv, opponent, &mut attack_cache)
+        };
+        let kr = killer_rank(ctx, ply, mv);
+        let hist = history_score(ctx, mv);
+        std::cmp::Reverse((cap, kr, hist))
     });
 }
 
@@ -1270,6 +1765,7 @@ mod tests {
                 max_time_ms: None,
                 collect_trace: true,
                 quiescence_depth: 0,
+                q_prune_mode: QPruneMode::NetGainAndTopN,
             },
         );
         let best = result.best_move.expect("expected a move");
@@ -1310,6 +1806,7 @@ mod tests {
             depth: 1,
             collect_trace: false,
             quiescence_depth: 4,
+            q_prune_mode: QPruneMode::NetGainAndTopN,
             max_time_ms: None,
         };
         let mut cfg_trace = cfg_play.clone();
@@ -1391,6 +1888,7 @@ mod tests {
                 max_time_ms: None,
                 collect_trace: false,
                 quiescence_depth: qdepth,
+                q_prune_mode: QPruneMode::NetGainAndTopN,
             },
         );
         let elapsed = t0.elapsed();
@@ -1419,6 +1917,84 @@ mod tests {
             "opening depth-2 q{qdepth} ID: {:?} nodes={} score={}",
             elapsed, result.nodes, result.score
         );
+    }
+
+    #[test]
+    fn opening_depth3_q2_completes_quickly_release() {
+        // Selective search (null/LMR/killers) should make d3 interactive in release.
+        #[cfg(debug_assertions)]
+        {
+            return;
+        }
+        #[cfg(not(debug_assertions))]
+        {
+            let weights = EvalWeights::seed();
+            let mut state = GameState::new();
+            state.setup_initial_position();
+            let t0 = Instant::now();
+            let result = search(
+                &state,
+                &weights,
+                &SearchConfig {
+                    depth: 3,
+                    max_time_ms: None,
+                    collect_trace: false,
+                    quiescence_depth: 2,
+                q_prune_mode: QPruneMode::NetGainAndTopN,
+                },
+            );
+            let elapsed = t0.elapsed();
+            assert!(result.best_move.is_some());
+            assert!(
+                elapsed.as_secs_f64() < 2.5,
+                "opening d3/q2 took {:?}, nodes={}",
+                elapsed,
+                result.nodes
+            );
+            eprintln!(
+                "opening d3/q2: {:?} nodes={} score={}",
+                elapsed, result.nodes, result.score
+            );
+        }
+    }
+
+    #[test]
+    fn opening_depth4_makes_root_progress_in_budget_release() {
+        // With a few seconds, ID should finish d3 and start several d4 root moves.
+        #[cfg(debug_assertions)]
+        {
+            return;
+        }
+        #[cfg(not(debug_assertions))]
+        {
+            let weights = EvalWeights::seed();
+            let mut state = GameState::new();
+            state.setup_initial_position();
+            let result = search(
+                &state,
+                &weights,
+                &SearchConfig {
+                    depth: 4,
+                    max_time_ms: Some(8_000),
+                    collect_trace: false,
+                    quiescence_depth: 2,
+                q_prune_mode: QPruneMode::NetGainAndTopN,
+                },
+            );
+            assert!(result.best_move.is_some());
+            assert!(
+                result.nodes > 50_000,
+                "expected meaningful d4 progress, nodes={}",
+                result.nodes
+            );
+            // Completing d3 (~273k before reductions) or a large d4 partial both count.
+            eprintln!(
+                "opening d4/q2 @8s: nodes={} score={} best={:?}",
+                result.nodes,
+                result.score,
+                result.best_move.as_ref().map(|m| (m.from, m.to))
+            );
+        }
     }
 
     #[test]
@@ -1527,6 +2103,7 @@ mod tests {
                 max_time_ms: Some(250),
                 collect_trace: false,
                 quiescence_depth: 0,
+                q_prune_mode: QPruneMode::NetGainAndTopN,
             },
         );
         assert!(result.best_move.is_some());
@@ -1726,6 +2303,7 @@ mod tests {
                 max_time_ms: None,
                 collect_trace: false,
                 quiescence_depth: 0,
+                q_prune_mode: QPruneMode::NetGainAndTopN,
             },
         );
         assert_eq!(
@@ -1742,6 +2320,7 @@ mod tests {
                 max_time_ms: None,
                 collect_trace: false,
                 quiescence_depth: 4,
+                q_prune_mode: QPruneMode::NetGainAndTopN,
             },
         );
         assert_ne!(
@@ -1861,4 +2440,114 @@ mod tests {
             "cheaper attacker should rank higher: pawn={pawn_s} gold={gold_s}"
         );
     }
+
+    fn find_labeled_move(state: &GameState, from: (u8, u8), to: (u8, u8)) -> Move {
+        // Labels are 1-based; Position is 0-based.
+        let from = Position::new(from.0 - 1, from.1 - 1).unwrap();
+        let to = Position::new(to.0 - 1, to.1 - 1).unwrap();
+        state
+            .generate_legal_moves()
+            .into_iter()
+            .find(|m| m.from == from && m.to == to)
+            .unwrap_or_else(|| panic!("missing move {:?}->{:?}", from, to))
+    }
+
+    fn apply_gg(state: &mut GameState, from: (u8, u8), to: (u8, u8)) {
+        let mv = find_labeled_move(state, from, to);
+        // Search make applies capturing-range GG; SearchUndo has no Drop unmake.
+        let _undo = state
+            .make_move_for_search(mv.clone())
+            .unwrap_or_else(|| panic!("GG apply failed {}", move_label(state, &mv)));
+    }
+
+    /// Release harness: compare q-prune modes on opening + post-GG leaves.
+    /// Run: `cargo test -r --lib qprune_mode_matrix -- --ignored --nocapture`
+    #[test]
+    #[ignore]
+    fn qprune_mode_matrix() {
+        let mut weights = EvalWeights::seed();
+        weights.noise_scale = 0.0;
+        weights.rebuild_piece_value_table();
+
+        let modes = [
+            ("baseline", QPruneMode::Baseline),
+            ("A_net_gain", QPruneMode::NetGainDelta),
+            ("B_top_n", QPruneMode::TopN),
+            ("C_recapture", QPruneMode::RecaptureOnly),
+            ("D_stale_hang", QPruneMode::StaleHang),
+            ("A+B", QPruneMode::NetGainAndTopN),
+            ("B+C", QPruneMode::TopNAndRecapture),
+        ];
+
+        let mut opening = GameState::new();
+        opening.setup_initial_position();
+
+        // Logged blowups: black-side GG 18,4→18,26 and white-side GG 19,33→19,11.
+        let mut after_gg_black = opening.clone();
+        apply_gg(&mut after_gg_black, (18, 4), (18, 26));
+
+        let mut after_gg_white = opening.clone();
+        apply_gg(&mut after_gg_white, (18, 4), (18, 26));
+        apply_gg(&mut after_gg_white, (19, 33), (19, 11));
+
+        let positions = [
+            ("opening", opening.clone()),
+            ("after_GG_18_4", after_gg_black),
+            ("after_GG_19_33", after_gg_white),
+        ];
+
+        eprintln!(
+            "{:<14} {:<12} {:>10} {:>10} {:>10} {:>10} {:>10} {:>8}",
+            "pos", "mode", "ms", "nodes", "qnodes", "caps_gen", "caps_srch", "score"
+        );
+
+        for (pos_name, pos) in &positions {
+            for (mode_name, mode) in &modes {
+                let t0 = Instant::now();
+                // Leaf qsearch open-window: isolates prune effect from AB.
+                let r = probe_quiescence(pos, &weights, 6, *mode, Some(15_000));
+                let ms = t0.elapsed().as_millis();
+                eprintln!(
+                    "{:<14} {:<12} {:>10} {:>10} {:>10} {:>10} {:>10} {:>8}",
+                    pos_name,
+                    mode_name,
+                    ms,
+                    r.nodes,
+                    r.q_nodes,
+                    r.q_caps_generated,
+                    r.q_caps_searched,
+                    r.score
+                );
+            }
+        }
+
+        // Full AB smoke: opening d3/q6 with 8s ceiling per mode (wall-clock relevance).
+        eprintln!("\n--- full AB d=3 q=6 max 8s (opening) ---");
+        for (mode_name, mode) in &modes {
+            let t0 = Instant::now();
+            let r = search(
+                &opening,
+                &weights,
+                &SearchConfig {
+                    depth: 3,
+                    max_time_ms: Some(8_000),
+                    collect_trace: false,
+                    quiescence_depth: 6,
+                    q_prune_mode: *mode,
+                },
+            );
+            let ms = t0.elapsed().as_millis();
+            let best = r
+                .best_move
+                .as_ref()
+                .map(|m| move_label(&opening, m))
+                .unwrap_or_else(|| "-".into());
+            eprintln!(
+                "{:<12} ms={ms} nodes={} qnodes={} score={} best={}",
+                mode_name, r.nodes, r.q_nodes, r.score, best
+            );
+        }
+    }
 }
+
+
