@@ -7,6 +7,8 @@
 .idea/
 .vscode/
 .cursor/
+!.cursor/rules/
+!.cursor/rules/**
 *.swp
 *.swo
 *~
@@ -23,6 +25,7 @@ test_path
 testgame.txt
 *.md
 !README.md
+!AGENTS.md
 
 # Web frontend
 web/node_modules/

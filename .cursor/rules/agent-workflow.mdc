@@ -1,0 +1,10 @@
+---
+description: No workspaces; always use a new git branch for new work
+alwaysApply: true
+---
+
+# Agent workflow
+
+- Do **not** use Cursor workspaces, multi-root setups, or `move_agent_to_cloned_root` / cloned checkouts. Stay in this repo.
+- Always start new work on a **new branch** from updated `main` (e.g. `cursor/<topic>`). Do not pile new features onto a branch that already shipped or has a PR unless the user says to.
+- Follow [AGENTS.md](../../AGENTS.md) for the same rules.
