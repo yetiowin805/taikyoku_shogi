@@ -14,13 +14,25 @@ impl MovementGenerator {
         board: &B,
         capabilities: &[MovementCapability],
     ) -> Vec<Position> {
+        Self::generate_targets_filtered(piece, board, capabilities, false)
+    }
+
+    /// Like [`generate_targets`], but when `captures_only` is set only returns
+    /// landings that capture an enemy (or capturing-range path clears).
+    pub fn generate_targets_filtered<B: BoardLike>(
+        piece: &Piece,
+        board: &B,
+        capabilities: &[MovementCapability],
+        captures_only: bool,
+    ) -> Vec<Position> {
         let mut targets = Vec::new();
-        
+
         for capability in capabilities {
-            let mut new_targets = Self::generate_for_capability(piece, board, capability);
+            let mut new_targets =
+                Self::generate_for_capability(piece, board, capability, captures_only);
             targets.append(&mut new_targets);
         }
-        
+
         // Remove duplicates
         targets.sort();
         targets.dedup();
@@ -32,26 +44,57 @@ impl MovementGenerator {
         piece: &Piece,
         board: &B,
         capability: &MovementCapability,
+        captures_only: bool,
     ) -> Vec<Position> {
         match capability {
-            MovementCapability::Simple { directions, max_distance } => {
-                Self::generate_simple(piece, board, *directions, *max_distance)
-            }
-            MovementCapability::Range { directions, blocking, cannot_jump_over } => {
-                Self::generate_range(piece, board, *directions, *blocking, cannot_jump_over)
-            }
+            MovementCapability::Simple {
+                directions,
+                max_distance,
+            } => Self::generate_simple(piece, board, *directions, *max_distance, captures_only),
+            MovementCapability::Range {
+                directions,
+                blocking,
+                cannot_jump_over,
+            } => Self::generate_range(
+                piece,
+                board,
+                *directions,
+                *blocking,
+                cannot_jump_over,
+                captures_only,
+            ),
             MovementCapability::Jumping { offsets } => {
-                Self::generate_jumping(piece, board, offsets)
+                Self::generate_jumping(piece, board, offsets, captures_only)
             }
             MovementCapability::TwoStep { first, second } => {
-                Self::generate_two_step(piece, board, first, second)
+                Self::generate_two_step(piece, board, first, second, captures_only)
             }
-            MovementCapability::ConditionalDiagonalJump { directions, base_jump, conditional_jumps, required_jump_positions, empty_after_jump } => {
-                Self::generate_conditional_diagonal_jump(piece, board, *directions, *base_jump, conditional_jumps, *required_jump_positions, *empty_after_jump)
-            }
-            MovementCapability::FreeEagleMultiMove { max_distance_forward_diagonal, max_distance_other } => {
-                Self::generate_free_eagle_multi_move(piece, board, *max_distance_forward_diagonal, *max_distance_other)
-            }
+            MovementCapability::ConditionalDiagonalJump {
+                directions,
+                base_jump,
+                conditional_jumps,
+                required_jump_positions,
+                empty_after_jump,
+            } => Self::generate_conditional_diagonal_jump(
+                piece,
+                board,
+                *directions,
+                *base_jump,
+                conditional_jumps,
+                *required_jump_positions,
+                *empty_after_jump,
+                captures_only,
+            ),
+            MovementCapability::FreeEagleMultiMove {
+                max_distance_forward_diagonal,
+                max_distance_other,
+            } => Self::generate_free_eagle_multi_move(
+                piece,
+                board,
+                *max_distance_forward_diagonal,
+                *max_distance_other,
+                captures_only,
+            ),
         }
     }
 
@@ -82,6 +125,7 @@ impl MovementGenerator {
         board: &B,
         directions: DirectionSet,
         max_distance: u8,
+        captures_only: bool,
     ) -> Vec<Position> {
         let mut targets = Vec::new();
         
@@ -123,9 +167,10 @@ impl MovementGenerator {
                         // Can't land on friendly piece - stop in this direction
                         break;
                     }
+                    targets.push(target); // enemy
+                } else if !captures_only {
+                    targets.push(target);
                 }
-                
-                targets.push(target);
             }
         }
         
@@ -140,6 +185,7 @@ impl MovementGenerator {
         directions: DirectionSet,
         blocking: BlockingMode,
         cannot_jump_over: &std::collections::HashSet<crate::piece::PieceType>,
+        captures_only: bool,
     ) -> Vec<Position> {
         let mut targets = Vec::new();
         
@@ -149,6 +195,7 @@ impl MovementGenerator {
         for direction in direction_set_to_directions(adjusted_directions) {
             let (file_delta, rank_delta) = direction.to_offset();
             let mut distance = 1;
+            let mut ray_has_enemy_capture = false;
             
             loop {
                 let file_offset = file_delta * distance as i8;
@@ -165,8 +212,9 @@ impl MovementGenerator {
                 
                 match blocking {
                     BlockingMode::NoJump => {
-                        // Can land on empty or enemy square
-                        if is_empty || is_enemy {
+                        if is_enemy {
+                            targets.push(target);
+                        } else if is_empty && !captures_only {
                             targets.push(target);
                         }
                         // Stop at first piece (whether we can capture it or not)
@@ -175,31 +223,26 @@ impl MovementGenerator {
                         }
                     }
                     BlockingMode::Jump => {
-                        // Can move through all pieces, but can't land on friendly
-                        // Nothing stops movement, only board boundaries
-                        if !is_friendly {
+                        if is_enemy {
+                            targets.push(target);
+                        } else if !is_friendly && !captures_only {
                             targets.push(target);
                         }
-                        // Continue through everything (including friendly pieces)
-                        // Only stop at board boundaries
                     }
                     BlockingMode::Capturing => {
-                        // Check if this piece type cannot be jumped over or landed on
                         if let Some(piece_in_path) = target_piece {
                             if cannot_jump_over.contains(&piece_in_path.piece_type) {
-                                // Cannot jump over or land on this piece type - stop here
                                 break;
                             }
                         }
-                        
-                        // Can capture all pieces in path (both enemy and friendly)
-                        // Can land on empty or enemy squares, but not on friendly
-                        // Cannot land on pieces in the cannot_jump_over set
-                        if !is_friendly {
-                            targets.push(target);
+                        if is_enemy {
+                            ray_has_enemy_capture = true;
                         }
-                        // Continue through all pieces (both enemy and friendly get captured)
-                        // Only stop at board boundaries or pieces that cannot be jumped over
+                        if !is_friendly {
+                            if !captures_only || is_enemy || (is_empty && ray_has_enemy_capture) {
+                                targets.push(target);
+                            }
+                        }
                     }
                 }
                 
@@ -217,6 +260,7 @@ impl MovementGenerator {
         piece: &Piece,
         board: &B,
         offsets: &[(i8, i8)],
+        captures_only: bool,
     ) -> Vec<Position> {
         let mut targets = Vec::new();
         
@@ -232,12 +276,9 @@ impl MovementGenerator {
                 // Jumping moves are never blocked, but can't land on friendly pieces
                 if let Some(target_piece) = board.get_piece(target) {
                     if target_piece.color != piece.color {
-                        // Can capture enemy piece
                         targets.push(target);
                     }
-                    // Can't land on friendly piece, so skip
-                } else {
-                    // Empty square
+                } else if !captures_only {
                     targets.push(target);
                 }
             }
@@ -252,24 +293,43 @@ impl MovementGenerator {
         board: &B,
         first: &MovementCapability,
         second: &MovementCapability,
+        captures_only: bool,
     ) -> Vec<Position> {
         let mut targets = Vec::new();
         
-        // Generate first move targets
-        let first_targets = Self::generate_for_capability(piece, board, first);
+        // Intermediates need full first-leg targets even for captures_only.
+        let first_targets = Self::generate_for_capability(piece, board, first, false);
         
-        // Include targets reachable via just the first step
-        targets.extend(first_targets.iter().copied());
+        if captures_only {
+            targets.extend(first_targets.iter().copied().filter(|pos| {
+                board
+                    .get_piece(*pos)
+                    .is_some_and(|p| p.color != piece.color)
+            }));
+        } else {
+            targets.extend(first_targets.iter().copied());
+        }
         
-        // For each first move target, generate second moves from that position
         for intermediate_pos in first_targets {
-            // Create a temporary piece at the intermediate position
             let mut temp_piece = *piece;
             temp_piece.position = intermediate_pos;
-            
-            // Generate second move targets from intermediate position
-            let second_targets = Self::generate_for_capability(&temp_piece, board, second);
-            targets.extend(second_targets);
+            let second_targets =
+                Self::generate_for_capability(&temp_piece, board, second, captures_only);
+            if captures_only {
+                let inter_captures = board
+                    .get_piece(intermediate_pos)
+                    .is_some_and(|p| p.color != piece.color);
+                for t in second_targets {
+                    let dest_captures = board
+                        .get_piece(t)
+                        .is_some_and(|p| p.color != piece.color);
+                    if inter_captures || dest_captures {
+                        targets.push(t);
+                    }
+                }
+            } else {
+                targets.extend(second_targets);
+            }
         }
         
         targets
@@ -288,6 +348,7 @@ impl MovementGenerator {
         conditional_jumps: &[u8],
         required_jump_positions: u8,
         empty_after_jump: u8,
+        captures_only: bool,
     ) -> Vec<Position> {
         let mut targets = Vec::new();
         
@@ -370,7 +431,7 @@ impl MovementGenerator {
                             targets.push(target); // Can capture enemy
                         }
                         // Can't land on friendly piece
-                    } else {
+                    } else if !captures_only {
                         targets.push(target); // Empty square
                     }
                 }
@@ -388,6 +449,7 @@ impl MovementGenerator {
         board: &B,
         max_distance_forward_diagonal: u8,
         max_distance_other: u8,
+        captures_only: bool,
     ) -> Vec<Position> {
         let mut targets = Vec::new();
         
@@ -422,13 +484,13 @@ impl MovementGenerator {
                     // Enemy piece - can capture and continue
                     path.push(next);
                     current = next;
-                    // Can stop here or continue
                     targets.push(next);
                 } else {
-                    // Empty square
                     path.push(next);
                     current = next;
-                    targets.push(next);
+                    if !captures_only {
+                        targets.push(next);
+                    }
                 }
             }
         }
@@ -453,7 +515,9 @@ impl MovementGenerator {
                 } else {
                     // Empty square
                     current = next;
-                    targets.push(next);
+                    if !captures_only {
+                        targets.push(next);
+                    }
                 }
             }
         }

@@ -1,7 +1,7 @@
-//! Shallow alpha-beta search over GameState clones, with compact search traces for the GUI.
+//! Alpha-beta search over GameState with make/unmake, compact traces for the GUI.
 
 use crate::eval::{evaluate_with_ply, EvalWeights};
-use crate::game_state::{GameState, Move};
+use crate::game_state::{GameState, LegalMoveGen, Move};
 use crate::movement::{BlockingMode, MovementCapability, MovementConfig};
 use crate::path_utils;
 use crate::piece::Color;
@@ -32,7 +32,7 @@ impl Default for SearchConfig {
             depth: 2,
             max_time_ms: None,
             collect_trace: false,
-            quiescence_depth: 4,
+            quiescence_depth: 2,
         }
     }
 }
@@ -102,6 +102,100 @@ struct SearchContext {
     best_score: i32,
     /// Short phase tag for logs: "root", "search", "quiesce", "trace".
     phase: &'static str,
+    tt: TranspositionTable,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum TtBound {
+    Exact,
+    Lower,
+    Upper,
+}
+
+#[derive(Clone, Copy)]
+struct TtEntry {
+    key: u64,
+    depth: u32,
+    score: i32,
+    bound: TtBound,
+    best: Option<(u8, u8, u8, u8, bool)>, // from_file, from_rank, to_file, to_rank, promoted
+}
+
+struct TranspositionTable {
+    entries: Vec<Option<TtEntry>>,
+}
+
+impl TranspositionTable {
+    fn new(size_pow2: usize) -> Self {
+        let n = size_pow2.next_power_of_two().max(1024);
+        Self {
+            entries: vec![None; n],
+        }
+    }
+
+    fn index(&self, key: u64) -> usize {
+        (key as usize) & (self.entries.len() - 1)
+    }
+
+    fn probe(&self, key: u64) -> Option<&TtEntry> {
+        let e = self.entries[self.index(key)].as_ref()?;
+        if e.key == key {
+            Some(e)
+        } else {
+            None
+        }
+    }
+
+    fn store(&mut self, entry: TtEntry) {
+        let i = self.index(entry.key);
+        let replace = match &self.entries[i] {
+            None => true,
+            Some(old) => entry.depth >= old.depth || old.key != entry.key,
+        };
+        if replace {
+            self.entries[i] = Some(entry);
+        }
+    }
+}
+
+fn position_hash(state: &GameState) -> u64 {
+    // Fast non-cryptographic board hash (not incremental; good enough for TT keys).
+    let mut h = match state.get_current_turn() {
+        Color::Black => 0xA5A5_A5A5_A5A5_A5A5u64,
+        Color::White => 0x5A5A_5A5A_5A5A_5A5Au64,
+    };
+    h ^= (state.get_turns_without_capture_or_promotion() as u64)
+        .wrapping_mul(0x9E37_79B9_7F4A_7C15);
+    let board = state.get_board();
+    for color in [Color::Black, Color::White] {
+        for p in board.pieces_by_color(color) {
+            let mut x = (p.piece_type as u64).wrapping_mul(0x1000_0000_1B3);
+            x ^= (p.position.file as u64) << 24;
+            x ^= (p.position.rank as u64) << 16;
+            x ^= (p.is_promoted as u64) << 8;
+            x ^= match color {
+                Color::Black => 1,
+                Color::White => 2,
+            };
+            h ^= x.wrapping_mul(0xC2B2_AE3D_27D4_EB4F);
+            h = h.rotate_left(13);
+        }
+    }
+    h
+}
+
+fn move_tt_key(mv: &Move) -> (u8, u8, u8, u8, bool) {
+    (
+        mv.from.file,
+        mv.from.rank,
+        mv.to.file,
+        mv.to.rank,
+        mv.promoted,
+    )
+}
+
+fn same_tt_move(mv: &Move, key: (u8, u8, u8, u8, bool)) -> bool {
+    move_tt_key(mv) == key
 }
 
 /// True if `mv` captures enemy material and is not a pure self-capture (`from == to`).
@@ -247,6 +341,22 @@ pub fn is_worthwhile_quiescence_capture(
     enemy >= MIN_QUIESCENCE_ENEMY_MATERIAL
 }
 
+/// MVV-LVA capture score without hang checks (for quiescence ordering).
+fn mvv_lva_score(state: &GameState, weights: &EvalWeights, mv: &Move) -> i32 {
+    let board = state.get_board();
+    let Some(mover) = board.get_piece(mv.from) else {
+        return i32::MIN / 4;
+    };
+    let mover_value = weights.piece_value(mover.piece_type);
+    let (enemy, own) = capture_material_exchange(state, weights, mv);
+    if enemy == 0 {
+        return i32::MIN / 4;
+    }
+    (enemy - own)
+        .saturating_mul(1000)
+        .saturating_sub(mover_value)
+}
+
 /// Move-ordering score (heuristic only — not search correctness).
 ///
 /// Captures: `gain = enemy - own`, then if the landing square looks attacked by
@@ -294,11 +404,10 @@ fn landing_attacked_cached(
 
 /// Captures worth expanding in quiescence.
 ///
-/// Still walks full legal generation then filters: a true capture-only generator
-/// would need movement-gen changes (most cost is per-piece ray walks anyway).
+/// Uses capture-oriented generation (no quiet ray fan-out / quiet multi-leg).
 fn generate_quiescence_captures(state: &GameState, weights: &EvalWeights) -> Vec<Move> {
     state
-        .generate_legal_moves()
+        .generate_legal_moves_mode(LegalMoveGen::CapturesOnly)
         .into_iter()
         .filter(|mv| is_worthwhile_quiescence_capture(state, weights, mv))
         .collect()
@@ -309,6 +418,16 @@ fn generate_quiescence_captures(state: &GameState, weights: &EvalWeights) -> Vec
 /// Uses iterative deepening from depth 1..=`config.depth`. On timeout mid-iteration,
 /// returns the last **completed** iteration's result.
 pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -> SearchResult {
+    // Search eval skips deterministic noise (hashes every piece when enabled).
+    let mut weights_buf;
+    let weights = if weights.noise_scale != 0.0 {
+        weights_buf = weights.clone();
+        weights_buf.noise_scale = 0.0;
+        &weights_buf
+    } else {
+        weights
+    };
+
     let root_ply = state.get_move_history().len();
     let static_eval = evaluate_with_ply(state, weights, root_ply);
     let deadline = config
@@ -331,6 +450,7 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
         root_label: String::new(),
         best_score: i32::MIN + 1,
         phase: "root",
+        tt: TranspositionTable::new(1 << 20),
     };
 
     let mut moves = state.generate_legal_moves();
@@ -361,6 +481,9 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
     let mut completed_lines: Vec<(Move, i32)> = Vec::new();
     let mut completed_depth = 0u32;
 
+    // One working copy for the whole ID loop; make/unmake instead of per-child clone.
+    let mut pos = state.clone();
+
     for d in 1..=max_depth {
         if ctx.timed_out() {
             break;
@@ -386,15 +509,17 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
             ctx.phase = "root";
             ctx.maybe_log_progress();
 
-            let mut child = state.clone();
-            if !child.make_move_for_search(mv.clone()) {
+            let Some(undo) = pos.make_move_for_search(mv.clone()) else {
                 continue;
-            }
+            };
             ctx.nodes += 1;
             ctx.ply = root_ply + 1;
             ctx.phase = "search";
 
-            let score = -alphabeta(&mut child, weights, d - 1, -beta, -alpha, &mut ctx);
+            let score = -alphabeta(&mut pos, weights, d - 1, -beta, -alpha, &mut ctx);
+            pos.unmake_move_for_search(undo);
+            ctx.ply = root_ply;
+
             if ctx.abort {
                 finished_iteration = false;
                 break;
@@ -536,11 +661,12 @@ fn build_trace_tree(
     if depth > 1 {
         if let Some(best_node) = children.iter_mut().find(|c| c.best) {
             let mut child = state.clone();
-            if child.make_move_for_search(best_move.clone()) {
+            if let Some(undo) = child.make_move_for_search(best_move.clone()) {
                 ctx.ply = root_ply + 1;
                 ctx.phase = "trace";
                 let (_score, subtree) =
                     alphabeta_record(&mut child, weights, depth - 1, &mut *ctx);
+                child.unmake_move_for_search(undo);
                 if let Some(sub) = subtree {
                     best_node.children = sub.children;
                 }
@@ -575,40 +701,139 @@ fn alphabeta(
         return leaf_or_quiesce(state, weights, alpha, beta, ctx);
     }
 
-    let mut moves = state.generate_legal_moves();
+    let key = position_hash(state);
+    let alpha_orig = alpha;
+    let mut tt_move: Option<(u8, u8, u8, u8, bool)> = None;
+    if let Some(e) = ctx.tt.probe(key) {
+        if e.depth >= depth {
+            match e.bound {
+                TtBound::Exact => return e.score,
+                TtBound::Lower => {
+                    if e.score >= beta {
+                        return e.score;
+                    }
+                    alpha = alpha.max(e.score);
+                }
+                TtBound::Upper => {
+                    if e.score <= alpha {
+                        return e.score;
+                    }
+                }
+            }
+        }
+        tt_move = e.best;
+    }
+
+    // Stage A: captures + non-multi-leg quiets (+ capturing multi-leg).
+    // Stage B: quiet two-step / FreeEagle only if A did not cut.
+    let mut moves = state.generate_legal_moves_mode(LegalMoveGen::WithoutQuietMultiLeg);
+    let mut used_only_stage_b = false;
     if moves.is_empty() {
+        moves = state.generate_legal_moves_mode(LegalMoveGen::QuietMultiLegOnly);
+        used_only_stage_b = true;
+        if moves.is_empty() {
+            return evaluate_with_ply(state, weights, ctx.ply);
+        }
+    }
+    if used_only_stage_b {
+        order_moves_quiescence(state, weights, &mut moves);
+    } else {
+        order_moves(state, weights, &mut moves);
+    }
+    prefer_tt_move(&mut moves, tt_move);
+
+    let parent_ply = ctx.ply;
+    let (mut best, mut best_move_key, mut alpha, did_cutoff) = search_move_list(
+        state, weights, depth, alpha, beta, ctx, parent_ply, moves,
+    );
+
+    if !did_cutoff && !ctx.abort && !used_only_stage_b {
+        let mut stage_b = state.generate_legal_moves_mode(LegalMoveGen::QuietMultiLegOnly);
+        if !stage_b.is_empty() {
+            order_moves_quiescence(state, weights, &mut stage_b);
+            prefer_tt_move(&mut stage_b, tt_move);
+            let (b2, k2, a2, _cut2) = search_move_list(
+                state, weights, depth, alpha, beta, ctx, parent_ply, stage_b,
+            );
+            if b2 > best {
+                best = b2;
+                best_move_key = k2;
+            }
+            alpha = a2;
+        }
+    }
+
+    if best == i32::MIN + 1 {
         return evaluate_with_ply(state, weights, ctx.ply);
     }
 
-    order_moves(state, weights, &mut moves);
+    if !ctx.abort {
+        let bound = if best <= alpha_orig {
+            TtBound::Upper
+        } else if best >= beta {
+            TtBound::Lower
+        } else {
+            TtBound::Exact
+        };
+        ctx.tt.store(TtEntry {
+            key,
+            depth,
+            score: best,
+            bound,
+            best: best_move_key,
+        });
+    }
 
+    best
+}
+
+fn prefer_tt_move(moves: &mut [Move], tt_move: Option<(u8, u8, u8, u8, bool)>) {
+    if let Some(tm) = tt_move {
+        if let Some(idx) = moves.iter().position(|m| same_tt_move(m, tm)) {
+            moves.swap(0, idx);
+        }
+    }
+}
+
+fn search_move_list(
+    state: &mut GameState,
+    weights: &EvalWeights,
+    depth: u32,
+    mut alpha: i32,
+    beta: i32,
+    ctx: &mut SearchContext,
+    parent_ply: usize,
+    moves: Vec<Move>,
+) -> (i32, Option<(u8, u8, u8, u8, bool)>, i32, bool) {
     let mut best = i32::MIN + 1;
-    let parent_ply = ctx.ply;
-
+    let mut best_move_key = None;
+    let mut did_cutoff = false;
     for mv in moves {
         if ctx.timed_out() {
             break;
         }
-        let mut child_state = state.clone();
-        if !child_state.make_move_for_search(mv) {
+        let mv_key = move_tt_key(&mv);
+        let Some(undo) = state.make_move_for_search(mv) else {
             continue;
-        }
+        };
         ctx.ply = parent_ply + 1;
-        let score = -alphabeta(&mut child_state, weights, depth - 1, -beta, -alpha, ctx);
+        let score = -alphabeta(state, weights, depth - 1, -beta, -alpha, ctx);
+        state.unmake_move_for_search(undo);
         ctx.ply = parent_ply;
 
         if score > best {
             best = score;
+            best_move_key = Some(mv_key);
         }
         if score > alpha {
             alpha = score;
         }
         if alpha >= beta {
+            did_cutoff = true;
             break;
         }
     }
-
-    best
+    (best, best_move_key, alpha, did_cutoff)
 }
 
 fn leaf_or_quiesce(
@@ -648,6 +873,17 @@ fn quiesce(
     if stand_pat >= beta {
         return stand_pat;
     }
+    // Optimistic delta against the incoming alpha (before stand-pat raise).
+    let optimistic = weights
+        .piece_value_table
+        .iter()
+        .copied()
+        .max()
+        .unwrap_or(100)
+        .max(MIN_QUIESCENCE_ENEMY_MATERIAL);
+    if stand_pat.saturating_add(optimistic) <= alpha {
+        return stand_pat;
+    }
     if stand_pat > alpha {
         alpha = stand_pat;
     }
@@ -657,7 +893,16 @@ fn quiesce(
         return stand_pat;
     }
 
-    order_moves(state, weights, &mut moves);
+    // Delta prune: drop captures that cannot raise alpha even if the capture is free.
+    moves.retain(|mv| {
+        let (enemy, _) = capture_material_exchange(state, weights, mv);
+        stand_pat.saturating_add(enemy) > alpha
+    });
+    if moves.is_empty() {
+        return stand_pat;
+    }
+
+    order_moves_quiescence(state, weights, &mut moves);
 
     let mut best = stand_pat;
     let parent_ply = ctx.ply;
@@ -666,12 +911,12 @@ fn quiesce(
         if ctx.timed_out() {
             break;
         }
-        let mut child_state = state.clone();
-        if !child_state.make_move_for_search(mv) {
+        let Some(undo) = state.make_move_for_search(mv) else {
             continue;
-        }
+        };
         ctx.ply = parent_ply + 1;
-        let score = -quiesce(&mut child_state, weights, qdepth - 1, -beta, -alpha, ctx);
+        let score = -quiesce(state, weights, qdepth - 1, -beta, -alpha, ctx);
+        state.unmake_move_for_search(undo);
         ctx.ply = parent_ply;
 
         if score > best {
@@ -751,12 +996,12 @@ fn alphabeta_record(
             break;
         }
         let label = move_label(state, &mv);
-        let mut child_state = state.clone();
-        if !child_state.make_move_for_search(mv) {
+        let Some(undo) = state.make_move_for_search(mv) else {
             continue;
-        }
+        };
         ctx.ply = parent_ply + 1;
-        let score = -alphabeta(&mut child_state, weights, depth - 1, -beta, -alpha, ctx);
+        let score = -alphabeta(state, weights, depth - 1, -beta, -alpha, ctx);
+        state.unmake_move_for_search(undo);
         ctx.ply = parent_ply;
 
         if score > best {
@@ -876,6 +1121,11 @@ fn order_moves(state: &GameState, weights: &EvalWeights, moves: &mut [Move]) {
             &mut attack_cache,
         ))
     });
+}
+
+/// Quiescence ordering: MVV-LVA only (no attack scans).
+fn order_moves_quiescence(state: &GameState, weights: &EvalWeights, moves: &mut [Move]) {
+    moves.sort_by_key(|mv| std::cmp::Reverse(mvv_lva_score(state, weights, mv)));
 }
 
 /// Test/helper: ordering score with a fresh per-call attack cache.
@@ -1079,9 +1329,9 @@ mod tests {
         for mv in moves.iter().step_by(17).take(20) {
             let mut a = state.clone();
             let mut b = state.clone();
-            let ok_search = a.make_move_for_search(mv.clone());
+            let undo = a.make_move_for_search(mv.clone());
             let _ = b.make_move(mv.clone());
-            assert!(ok_search, "search apply failed for {:?}", mv);
+            assert!(undo.is_some(), "search apply failed for {:?}", mv);
             assert_eq!(a.get_current_turn(), b.get_current_turn());
             assert_eq!(
                 a.get_turns_without_capture_or_promotion(),
@@ -1098,6 +1348,23 @@ mod tests {
                     );
                 }
             }
+            a.unmake_move_for_search(undo.unwrap());
+            assert_eq!(a.get_current_turn(), state.get_current_turn());
+            assert_eq!(
+                a.get_turns_without_capture_or_promotion(),
+                state.get_turns_without_capture_or_promotion()
+            );
+            for file in 0..36u8 {
+                for rank in 0..36u8 {
+                    let pos = Position::new(file, rank).unwrap();
+                    assert_eq!(
+                        a.get_board().get_piece(pos),
+                        state.get_board().get_piece(pos),
+                        "unmake mismatch after {:?}",
+                        mv
+                    );
+                }
+            }
         }
     }
 
@@ -1107,8 +1374,15 @@ mod tests {
         let mut state = GameState::new();
         state.setup_initial_position();
         let t0 = Instant::now();
-        // Qsearch off here: opening capture fan-out makes q4 too slow for a smoke test.
-        // Depth 2 uses iterative deepening (d1 then d2).
+        // Release: d2/q2 target after capture-gen + staging + TT (allow small machine slack).
+        #[cfg(debug_assertions)]
+        let qdepth = 0u32;
+        #[cfg(not(debug_assertions))]
+        let qdepth = 2u32;
+        #[cfg(debug_assertions)]
+        let max_secs = 10u64;
+        #[cfg(not(debug_assertions))]
+        let max_secs_f = 2.5f64;
         let result = search(
             &state,
             &weights,
@@ -1116,27 +1390,125 @@ mod tests {
                 depth: 2,
                 max_time_ms: None,
                 collect_trace: false,
-                quiescence_depth: 0,
+                quiescence_depth: qdepth,
             },
         );
         let elapsed = t0.elapsed();
         assert!(result.best_move.is_some());
         assert!(result.nodes > 0);
+        #[cfg(debug_assertions)]
         assert!(
-            elapsed.as_secs() < 10,
-            "opening depth-2 ID took {:?}, nodes={}",
+            elapsed.as_secs() < max_secs,
+            "opening depth-2 q{qdepth} ID took {:?}, nodes={}",
             elapsed,
             result.nodes
         );
-        // Soft: ID + material should not settle on a catastrophic hanging-leap score.
+        #[cfg(not(debug_assertions))]
+        assert!(
+            elapsed.as_secs_f64() < max_secs_f,
+            "opening depth-2 q{qdepth} ID took {:?}, nodes={}",
+            elapsed,
+            result.nodes
+        );
         assert!(
             result.score > -500,
             "opening ID score unexpectedly bad: {}",
             result.score
         );
         eprintln!(
-            "opening depth-2 ID: {:?} nodes={} score={}",
+            "opening depth-2 q{qdepth} ID: {:?} nodes={} score={}",
             elapsed, result.nodes, result.score
+        );
+    }
+
+    #[test]
+    fn capture_gen_faster_than_full_on_opening() {
+        let mut state = GameState::new();
+        state.setup_initial_position();
+        let full_n = state.generate_legal_moves().len();
+        let caps_n = state
+            .generate_legal_moves_mode(LegalMoveGen::CapturesOnly)
+            .len();
+        assert!(caps_n < full_n, "captures_only={caps_n} full={full_n}");
+        // Timing is noisy in debug; only assert speedup in release.
+        #[cfg(not(debug_assertions))]
+        {
+            let t0 = Instant::now();
+            for _ in 0..50 {
+                let _ = state.generate_legal_moves();
+            }
+            let full = t0.elapsed();
+            let t1 = Instant::now();
+            for _ in 0..50 {
+                let _ = state.generate_legal_moves_mode(LegalMoveGen::CapturesOnly);
+            }
+            let caps = t1.elapsed();
+            eprintln!("opening gen x50: full={full:?} captures_only={caps:?}");
+            assert!(
+                caps <= full,
+                "captures_only should not be slower: {caps:?} vs {full:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn capture_gen_keeps_capturing_two_step_omits_quiet() {
+        // Lion: simple×simple two-step — easy to place a capture vs quiet legs.
+        let mut state = GameState::new();
+        state.place_piece(Piece::new(
+            PieceType::King,
+            Color::Black,
+            Position::new(0, 0).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::King,
+            Color::White,
+            Position::new(35, 35).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::Lion,
+            Color::Black,
+            Position::new(10, 10).unwrap(),
+        ));
+        // Enemy on a one-step square so first-leg / two-step can capture.
+        state.place_piece(Piece::new(
+            PieceType::Pawn,
+            Color::White,
+            Position::new(10, 11).unwrap(),
+        ));
+        state.set_current_turn(Color::Black);
+
+        let caps = state.generate_legal_moves_mode(LegalMoveGen::CapturesOnly);
+        let quiet_ml = state.generate_legal_moves_mode(LegalMoveGen::QuietMultiLegOnly);
+        let all = state.generate_legal_moves();
+
+        assert!(
+            caps.iter().any(|m| m.is_two_step() && move_captures_enemy(&state, m)),
+            "CapturesOnly should include a capturing two-step"
+        );
+        assert!(
+            caps.iter().all(|m| move_captures_enemy(&state, m)),
+            "CapturesOnly must not emit quiets"
+        );
+        assert!(
+            quiet_ml.iter().any(|m| m.is_two_step()),
+            "QuietMultiLegOnly should still find quiet two-steps on an open Lion"
+        );
+        assert!(
+            quiet_ml
+                .iter()
+                .all(|m| m.is_two_step() || m.is_free_eagle()),
+            "QuietMultiLegOnly should only be multi-leg"
+        );
+        assert!(
+            quiet_ml
+                .iter()
+                .all(|m| !move_captures_enemy(&state, m)),
+            "QuietMultiLegOnly must omit captures"
+        );
+        assert!(
+            all.len() > caps.len(),
+            "full gen should exceed capture-only"
         );
     }
 
@@ -1146,13 +1518,13 @@ mod tests {
         weights.noise_scale = 0.0;
         let mut state = GameState::new();
         state.setup_initial_position();
-        // Tiny budget: depth-1 may complete; depth-2 likely aborts mid-root.
+        // Small budget: depth-1 should complete at least one root move in debug.
         let result = search(
             &state,
             &weights,
             &SearchConfig {
                 depth: 2,
-                max_time_ms: Some(50),
+                max_time_ms: Some(250),
                 collect_trace: false,
                 quiescence_depth: 0,
             },
@@ -1292,7 +1664,12 @@ mod tests {
             .filter(|m| move_captures_enemy(&state, m))
             .count();
         let worth = generate_quiescence_captures(&state, &weights).len();
-        eprintln!("opening raw_captures={raw_caps} worthwhile_q={worth}");
+        let caps_only = state
+            .generate_legal_moves_mode(LegalMoveGen::CapturesOnly)
+            .len();
+        eprintln!(
+            "opening raw_captures={raw_caps} captures_only_gen={caps_only} worthwhile_q={worth}"
+        );
         assert!(raw_caps > 0);
         assert!(
             worth < raw_caps,

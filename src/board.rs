@@ -52,12 +52,11 @@ impl Board {
         }
     }
 
-    /// Remove piece from position
-    pub fn remove_piece(&mut self, pos: Position) {
+    /// Remove piece from position. Returns the removed piece, if any.
+    pub fn remove_piece(&mut self, pos: Position) -> Option<Piece> {
         let index = pos.to_index();
         if index < self.squares.len() {
-            if let Some(piece) = self.squares[index] {
-                // Remove from appropriate color list
+            if let Some(piece) = self.squares[index].take() {
                 match piece.color {
                     Color::Black => {
                         self.black_pieces.retain(|p| p.position != pos);
@@ -66,9 +65,10 @@ impl Board {
                         self.white_pieces.retain(|p| p.position != pos);
                     }
                 }
+                return Some(piece);
             }
-            self.squares[index] = None;
         }
+        None
     }
 
     /// Check if a square is empty

@@ -100,15 +100,17 @@ impl MoveDelta {
         paths
     }
     
-    /// Convert to UndoDelta for Approach 1 (Undo/Redo)
-    /// Future: Can be used to implement undo/redo pattern
-    /// This would reverse the changes represented by this delta
-    pub fn to_undo_delta(&self) -> UndoDelta {
-        // Placeholder for future implementation
-        // Would reverse piece_moved, restore pieces_removed, and reverse promotion
-        UndoDelta {
-            // Implementation would go here
-        }
+    /// Convert to UndoDelta for Approach 1 (Undo/Redo).
+    /// Reverses piece_moved, restores pieces_removed, and reverses promotion.
+    pub fn to_undo_delta(&self) -> Option<UndoDelta> {
+        let (from, to, original_mover) = self.piece_moved?;
+        let _ = self.piece_promoted;
+        Some(UndoDelta {
+            from,
+            to,
+            original_mover,
+            removed: self.pieces_removed.clone(),
+        })
     }
 }
 
@@ -121,11 +123,26 @@ pub struct AttackAffectedPieces {
     pub cleared_paths: Vec<(Position, Position)>,
 }
 
-/// Placeholder for undo delta (Approach 1: Undo/Redo)
-/// Future: Will represent the reverse of a MoveDelta
-#[allow(dead_code)] // Placeholder for future use
+/// Board-level undo for a single move (Approach 1: Undo/Redo).
+/// Game-level fields (turn, draw counter) are handled by [`crate::game_state::SearchUndo`].
 #[derive(Debug, Clone)]
-pub struct UndoDelta {}
+pub struct UndoDelta {
+    pub from: Position,
+    pub to: Position,
+    pub original_mover: Piece,
+    pub removed: Vec<(Position, Piece)>,
+}
+
+impl UndoDelta {
+    /// Apply this undo to a board (mover back to `from`, restore captures).
+    pub fn apply_to_board(&self, board: &mut Board) {
+        board.remove_piece(self.to);
+        board.place_piece(self.original_mover);
+        for (_pos, piece) in &self.removed {
+            board.place_piece(*piece);
+        }
+    }
+}
 
 /// Virtual board that applies a delta to a base board
 /// This allows simulating moves without cloning the entire board

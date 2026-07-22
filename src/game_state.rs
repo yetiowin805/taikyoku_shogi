@@ -64,6 +64,31 @@ impl Move {
     }
 }
 
+/// Undo token for [`GameState::make_move_for_search`] / [`GameState::unmake_move_for_search`].
+#[derive(Debug, Clone)]
+pub struct SearchUndo {
+    #[allow(dead_code)]
+    from: Position,
+    final_to: Position,
+    original_mover: Piece,
+    removed: Vec<(Position, Piece)>,
+    prev_turn: Color,
+    prev_draw: u32,
+}
+
+/// Filters for [`GameState::generate_legal_moves_mode`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LegalMoveGen {
+    /// Full pseudo-legal move list.
+    All,
+    /// Only moves that capture an enemy (for quiescence).
+    CapturesOnly,
+    /// All moves except quiet two-step / quiet FreeEagle multi-leg (main-search stage A).
+    WithoutQuietMultiLeg,
+    /// Only quiet two-step / quiet FreeEagle multi-leg (main-search stage B).
+    QuietMultiLegOnly,
+}
+
 #[derive(Clone)]
 pub struct GameState {
     board: Board,
@@ -74,7 +99,10 @@ pub struct GameState {
 
 enum ApplyOutcome {
     Failed,
-    Ok { intermediate: Option<Position> },
+    Ok {
+        intermediate: Option<Position>,
+        final_to: Position,
+    },
 }
 
 impl GameState {
@@ -620,154 +648,323 @@ impl GameState {
 
     /// Generate all legal moves for the current player
     pub fn generate_legal_moves(&self) -> Vec<Move> {
-        // Use iterator to avoid cloning pieces
+        self.generate_legal_moves_mode(LegalMoveGen::All)
+    }
+
+    /// Generate legal moves with a search-oriented filter (see [`LegalMoveGen`]).
+    pub fn generate_legal_moves_mode(&self, mode: LegalMoveGen) -> Vec<Move> {
         let pieces: Vec<Piece> = self.board.iter_pieces_by_color(self.current_turn).collect();
-        self.generate_legal_moves_for_pieces(&pieces)
+        self.generate_legal_moves_for_pieces_mode(&pieces, mode)
     }
 
     /// Generate legal moves only for the specified pieces
-    /// This allows filtering pieces before generating moves for performance optimization
     pub fn generate_legal_moves_for_pieces(&self, pieces: &[Piece]) -> Vec<Move> {
+        self.generate_legal_moves_for_pieces_mode(pieces, LegalMoveGen::All)
+    }
+
+    /// Generate legal moves for pieces under [`LegalMoveGen`] filtering.
+    pub fn generate_legal_moves_for_pieces_mode(
+        &self,
+        pieces: &[Piece],
+        mode: LegalMoveGen,
+    ) -> Vec<Move> {
         let mut moves = Vec::new();
+        let captures_only = matches!(mode, LegalMoveGen::CapturesOnly);
 
         for piece in pieces {
-            // Special handling for Free Eagle
             if piece.piece_type == PieceType::FreeEagle {
-                moves.extend(self.generate_free_eagle_moves(piece));
+                if matches!(mode, LegalMoveGen::QuietMultiLegOnly) {
+                    moves.extend(
+                        self.generate_free_eagle_moves_filtered(piece, false)
+                            .into_iter()
+                            .filter(|mv| !self.move_captures_enemy_piece(piece, mv)),
+                    );
+                } else {
+                    let fe = self.generate_free_eagle_moves_filtered(
+                        piece,
+                        captures_only || matches!(mode, LegalMoveGen::WithoutQuietMultiLeg),
+                    );
+                    // WithoutQuietMultiLeg still wants capturing FE; CapturesOnly already filtered.
+                    if matches!(mode, LegalMoveGen::WithoutQuietMultiLeg) {
+                        moves.extend(
+                            fe.into_iter()
+                                .filter(|mv| self.move_captures_enemy_piece(piece, mv)),
+                        );
+                    } else {
+                        moves.extend(fe);
+                    }
+                }
                 continue;
             }
-            
+
             let config = MovementConfig::for_piece(piece);
-            
-            // Check if this piece has two-step movement capabilities
             let has_two_step = config.capabilities.iter().any(|cap| {
                 matches!(cap, crate::movement::types::MovementCapability::TwoStep { .. })
             });
-            
+
             if has_two_step {
-                // Generate moves for two-step capabilities separately to track intermediates
+                let emit_two_step_quiets = matches!(
+                    mode,
+                    LegalMoveGen::All | LegalMoveGen::QuietMultiLegOnly
+                );
+                let emit_two_step_captures = !matches!(mode, LegalMoveGen::QuietMultiLegOnly);
+                let emit_first_leg_and_other = !matches!(mode, LegalMoveGen::QuietMultiLegOnly);
+
                 for capability in &config.capabilities {
-                    if let crate::movement::types::MovementCapability::TwoStep { first, second } = capability {
-                        // Generate first step targets
+                    if let crate::movement::types::MovementCapability::TwoStep { first, second } =
+                        capability
+                    {
                         let first_cap = vec![first.as_ref().clone()];
-                        let first_targets = crate::movement::MovementGenerator::generate_targets(piece, &self.board, &first_cap);
-                        
-                        // Generate single-step moves using just the first step
-                        for target in &first_targets {
-                            if self.is_legal_move_assuming_reachable(piece, piece.position, *target, false) {
-                                let can_promote = self.can_promote(piece, piece.position, *target);
-                                
-                                if !can_promote {
-                                    moves.push(Move::new_with_promotion(piece.position, *target, false));
-                                } else {
-                                    let must_promote = piece.piece_type.must_promote_on_rank(target.rank, piece.color);
-                                    if must_promote {
-                                        moves.push(Move::new_with_promotion(piece.position, *target, true));
-                                    } else {
-                                        moves.push(Move::new_with_promotion(piece.position, *target, true));
-                                        moves.push(Move::new_with_promotion(piece.position, *target, false));
-                                    }
-                                }
+                        // First-leg intermediates always need full first targets.
+                        let first_targets = crate::movement::MovementGenerator::generate_targets(
+                            piece,
+                            &self.board,
+                            &first_cap,
+                        );
+
+                        if emit_first_leg_and_other {
+                            let first_for_emit = if captures_only {
+                                first_targets
+                                    .iter()
+                                    .copied()
+                                    .filter(|t| {
+                                        self.board
+                                            .get_piece(*t)
+                                            .is_some_and(|p| p.color != piece.color)
+                                    })
+                                    .collect::<Vec<_>>()
+                            } else {
+                                first_targets.clone()
+                            };
+                            for target in &first_for_emit {
+                                self.push_standard_moves(&mut moves, piece, *target);
                             }
                         }
-                        
-                        // For each first step target, generate second moves from that position
-                        for intermediate in first_targets {
-                            // Use optimized check for first step: assumes intermediate is reachable
-                            if !self.is_legal_move_assuming_reachable(piece, piece.position, intermediate, false) {
-                                continue;
-                            }
-                            
-                            // Create a temporary piece at the intermediate position
-                            let mut temp_piece = *piece;
-                            temp_piece.position = intermediate;
-                            
-                            // Generate second step targets from intermediate position
-                            let second_cap = vec![second.as_ref().clone()];
-                            let second_targets = crate::movement::MovementGenerator::generate_targets(&temp_piece, &self.board, &second_cap);
-                            
-                            for target in second_targets {
-                                // Use optimized check for second step: assumes target is reachable (we generated it)
-                                if !self.is_legal_move_assuming_reachable(&temp_piece, intermediate, target, false) {
+
+                        if emit_two_step_captures || emit_two_step_quiets {
+                            for intermediate in first_targets {
+                                if !self.is_legal_move_assuming_reachable(
+                                    piece,
+                                    piece.position,
+                                    intermediate,
+                                    false,
+                                ) {
                                     continue;
                                 }
-                                
-                                // Check if this move can promote
-                                // For two-step moves, can promote if start, intermediate, OR end is in promotion zone
-                                let can_promote = self.can_promote(piece, piece.position, target) 
-                                    || self.can_promote(piece, piece.position, intermediate);
-                                
-                                if !can_promote {
-                                    moves.push(Move::new_two_step(piece.position, intermediate, target));
-                                } else {
-                                    // For two-step moves, check if promotion is mandatory based on final destination
-                                    let must_promote = piece.piece_type.must_promote_on_rank(target.rank, piece.color);
-                                    if must_promote {
-                                        moves.push(Move::new_two_step_with_promotion(piece.position, intermediate, target, true));
-                                    } else {
-                                        moves.push(Move::new_two_step_with_promotion(piece.position, intermediate, target, true));
-                                        moves.push(Move::new_two_step_with_promotion(piece.position, intermediate, target, false));
+                                let mut temp_piece = *piece;
+                                temp_piece.position = intermediate;
+                                let second_cap = vec![second.as_ref().clone()];
+                                let inter_cap = self
+                                    .board
+                                    .get_piece(intermediate)
+                                    .is_some_and(|p| p.color != piece.color);
+                                if matches!(mode, LegalMoveGen::QuietMultiLegOnly) && inter_cap {
+                                    continue;
+                                }
+                                // If intermediate already captures, every continuation is loud —
+                                // need full second-leg targets. Otherwise only capturing landings.
+                                let second_captures_only = !inter_cap
+                                    && (captures_only
+                                        || matches!(mode, LegalMoveGen::WithoutQuietMultiLeg));
+                                let second_targets =
+                                    crate::movement::MovementGenerator::generate_targets_filtered(
+                                        &temp_piece,
+                                        &self.board,
+                                        &second_cap,
+                                        second_captures_only,
+                                    );
+                                for target in second_targets {
+                                    if !self.is_legal_move_assuming_reachable(
+                                        &temp_piece,
+                                        intermediate,
+                                        target,
+                                        false,
+                                    ) {
+                                        continue;
                                     }
+                                    let dest_cap = self
+                                        .board
+                                        .get_piece(target)
+                                        .is_some_and(|p| p.color != piece.color);
+                                    let is_capture = inter_cap || dest_cap;
+                                    if is_capture && !emit_two_step_captures {
+                                        continue;
+                                    }
+                                    if !is_capture && !emit_two_step_quiets {
+                                        continue;
+                                    }
+                                    if matches!(mode, LegalMoveGen::CapturesOnly) && !is_capture {
+                                        continue;
+                                    }
+                                    if matches!(mode, LegalMoveGen::WithoutQuietMultiLeg)
+                                        && !is_capture
+                                    {
+                                        continue;
+                                    }
+                                    if matches!(mode, LegalMoveGen::QuietMultiLegOnly) && is_capture
+                                    {
+                                        continue;
+                                    }
+                                    self.push_two_step_moves(
+                                        &mut moves,
+                                        piece,
+                                        intermediate,
+                                        target,
+                                    );
                                 }
                             }
                         }
                     }
                 }
-                
-                // Generate moves for non-two-step capabilities
-                for capability in &config.capabilities {
-                    if !matches!(capability, crate::movement::types::MovementCapability::TwoStep { .. }) {
-                        let cap_vec = vec![capability.clone()];
-                        let potential_targets = crate::movement::MovementGenerator::generate_targets(piece, &self.board, &cap_vec);
-                        
-                        for target in potential_targets {
-                            // Use optimized check: assumes target is reachable (we generated it)
-                            // Skip check detection for now (can be added later if needed)
-                            if self.is_legal_move_assuming_reachable(piece, piece.position, target, false) {
-                                let can_promote = self.can_promote(piece, piece.position, target);
-                                
-                                if !can_promote {
-                                    moves.push(Move::new_with_promotion(piece.position, target, false));
-                                } else {
-                                    let must_promote = piece.piece_type.must_promote_on_rank(target.rank, piece.color);
-                                    if must_promote {
-                                        moves.push(Move::new_with_promotion(piece.position, target, true));
-                                    } else {
-                                        moves.push(Move::new_with_promotion(piece.position, target, true));
-                                        moves.push(Move::new_with_promotion(piece.position, target, false));
-                                    }
+
+                if emit_first_leg_and_other {
+                    for capability in &config.capabilities {
+                        if !matches!(
+                            capability,
+                            crate::movement::types::MovementCapability::TwoStep { .. }
+                        ) {
+                            let cap_vec = vec![capability.clone()];
+                            let potential_targets =
+                                crate::movement::MovementGenerator::generate_targets_filtered(
+                                    piece,
+                                    &self.board,
+                                    &cap_vec,
+                                    captures_only,
+                                );
+                            for target in potential_targets {
+                                if self.is_legal_move_assuming_reachable(
+                                    piece,
+                                    piece.position,
+                                    target,
+                                    false,
+                                ) {
+                                    self.push_standard_moves(&mut moves, piece, target);
                                 }
                             }
                         }
                     }
                 }
-            } else {
-                // No two-step capabilities - use the simple approach
-                let potential_targets = piece.get_potential_targets(&self.board);
-                
+            } else if !matches!(mode, LegalMoveGen::QuietMultiLegOnly) {
+                let potential_targets = if captures_only {
+                    let config = MovementConfig::for_piece(piece);
+                    crate::movement::MovementGenerator::generate_targets_filtered(
+                        piece,
+                        &self.board,
+                        &config.capabilities,
+                        true,
+                    )
+                } else {
+                    piece.get_potential_targets(&self.board)
+                };
                 for target in potential_targets {
-                    // Use optimized check: assumes target is reachable (we generated it)
-                    // Skip check detection for now (can be added later if needed)
-                    if self.is_legal_move_assuming_reachable(piece, piece.position, target, false) {
-                        let can_promote = self.can_promote(piece, piece.position, target);
-                        
-                        if !can_promote {
-                            moves.push(Move::new_with_promotion(piece.position, target, false));
-                        } else {
-                            let must_promote = piece.piece_type.must_promote_on_rank(target.rank, piece.color);
-                            if must_promote {
-                                moves.push(Move::new_with_promotion(piece.position, target, true));
-                            } else {
-                                moves.push(Move::new_with_promotion(piece.position, target, true));
-                                moves.push(Move::new_with_promotion(piece.position, target, false));
-                            }
-                        }
+                    if self.is_legal_move_assuming_reachable(piece, piece.position, target, false)
+                    {
+                        self.push_standard_moves(&mut moves, piece, target);
                     }
                 }
             }
         }
 
         moves
+    }
+
+    fn push_standard_moves(&self, moves: &mut Vec<Move>, piece: &Piece, target: Position) {
+        if !self.is_legal_move_assuming_reachable(piece, piece.position, target, false) {
+            return;
+        }
+        let can_promote = self.can_promote(piece, piece.position, target);
+        if !can_promote {
+            moves.push(Move::new_with_promotion(piece.position, target, false));
+        } else {
+            let must_promote = piece
+                .piece_type
+                .must_promote_on_rank(target.rank, piece.color);
+            if must_promote {
+                moves.push(Move::new_with_promotion(piece.position, target, true));
+            } else {
+                moves.push(Move::new_with_promotion(piece.position, target, true));
+                moves.push(Move::new_with_promotion(piece.position, target, false));
+            }
+        }
+    }
+
+    fn push_two_step_moves(
+        &self,
+        moves: &mut Vec<Move>,
+        piece: &Piece,
+        intermediate: Position,
+        target: Position,
+    ) {
+        let can_promote = self.can_promote(piece, piece.position, target)
+            || self.can_promote(piece, piece.position, intermediate);
+        if !can_promote {
+            moves.push(Move::new_two_step(piece.position, intermediate, target));
+        } else {
+            let must_promote = piece
+                .piece_type
+                .must_promote_on_rank(target.rank, piece.color);
+            if must_promote {
+                moves.push(Move::new_two_step_with_promotion(
+                    piece.position,
+                    intermediate,
+                    target,
+                    true,
+                ));
+            } else {
+                moves.push(Move::new_two_step_with_promotion(
+                    piece.position,
+                    intermediate,
+                    target,
+                    true,
+                ));
+                moves.push(Move::new_two_step_with_promotion(
+                    piece.position,
+                    intermediate,
+                    target,
+                    false,
+                ));
+            }
+        }
+    }
+
+    /// Lightweight enemy-capture check used during move generation filtering.
+    fn move_captures_enemy_piece(&self, piece: &Piece, mv: &Move) -> bool {
+        if mv.from == mv.to {
+            // Free Eagle in-place patterns still capture adjacent enemies.
+            if let Some(path) = mv.free_eagle_path() {
+                return path.iter().skip(1).any(|pos| {
+                    self.board
+                        .get_piece(*pos)
+                        .is_some_and(|p| p.color != piece.color)
+                });
+            }
+            return false;
+        }
+        let enemy = piece.color.opposite();
+        if self
+            .board
+            .get_piece(mv.to)
+            .is_some_and(|p| p.color == enemy)
+        {
+            return true;
+        }
+        if let Some(inter) = mv.intermediate() {
+            if self
+                .board
+                .get_piece(inter)
+                .is_some_and(|p| p.color == enemy)
+            {
+                return true;
+            }
+        }
+        if let Some(path) = mv.free_eagle_path() {
+            return path.iter().skip(1).any(|pos| {
+                self.board
+                    .get_piece(*pos)
+                    .is_some_and(|p| p.color == enemy)
+            });
+        }
+        false
     }
 
     /// Check if a move is legal
@@ -880,9 +1077,9 @@ impl GameState {
     /// Make a move (assumes move is legal - caller should validate)
     /// Executes a move and returns the intermediate position if this was a two-step move, None otherwise
     pub fn make_move(&mut self, mv: Move) -> Option<Position> {
-        match self.apply_move(mv, true, true) {
+        match self.apply_move(mv, true, true, None) {
             ApplyOutcome::Failed => None,
-            ApplyOutcome::Ok { intermediate } => intermediate,
+            ApplyOutcome::Ok { intermediate, .. } => intermediate,
         }
     }
 
@@ -891,8 +1088,37 @@ impl GameState {
     /// Skips reachability re-validation and does not append to `move_history`
     /// (eval noise should use an explicit ply). Board updates, captures,
     /// promotions, and turn flip match `make_move`.
-    pub fn make_move_for_search(&mut self, mv: Move) -> bool {
-        matches!(self.apply_move(mv, false, false), ApplyOutcome::Ok { .. })
+    ///
+    /// Returns a [`SearchUndo`] token for [`unmake_move_for_search`].
+    pub fn make_move_for_search(&mut self, mv: Move) -> Option<SearchUndo> {
+        let prev_turn = self.current_turn;
+        let prev_draw = self.turns_without_capture_or_promotion;
+        let original_mover = self.board.get_piece(mv.from)?;
+        let from = mv.from;
+        let mut removed = Vec::new();
+        let final_to = match self.apply_move(mv, false, false, Some(&mut removed)) {
+            ApplyOutcome::Failed => return None,
+            ApplyOutcome::Ok { final_to, .. } => final_to,
+        };
+        Some(SearchUndo {
+            from,
+            final_to,
+            original_mover,
+            removed,
+            prev_turn,
+            prev_draw,
+        })
+    }
+
+    /// Reverse a move applied by [`make_move_for_search`].
+    pub fn unmake_move_for_search(&mut self, undo: SearchUndo) {
+        self.board.remove_piece(undo.final_to);
+        self.board.place_piece(undo.original_mover);
+        for (_pos, piece) in undo.removed {
+            self.board.place_piece(piece);
+        }
+        self.current_turn = undo.prev_turn;
+        self.turns_without_capture_or_promotion = undo.prev_draw;
     }
 
     fn apply_move(
@@ -900,6 +1126,7 @@ impl GameState {
         mut mv: Move,
         validate: bool,
         record_history: bool,
+        mut removed_out: Option<&mut Vec<(Position, Piece)>>,
     ) -> ApplyOutcome {
         let Some(piece) = self.board.get_piece(mv.from) else {
             return ApplyOutcome::Failed;
@@ -937,14 +1164,14 @@ impl GameState {
 
             let first_move = Move::new(mv.from, intermediate);
             let (first_success, first_capture, _) =
-                self.execute_single_move(first_move, record_history);
+                self.execute_single_move(first_move, record_history, removed_out.as_deref_mut());
             if !first_success {
                 return ApplyOutcome::Failed;
             }
 
             let second_move = Move::new_with_promotion(intermediate, mv.to, mv.promoted);
             let (second_success, second_capture, second_promotion) =
-                self.execute_single_move(second_move, record_history);
+                self.execute_single_move(second_move, record_history, removed_out.as_deref_mut());
             if !second_success {
                 self.board.move_piece(intermediate, mv.from);
                 return ApplyOutcome::Failed;
@@ -959,6 +1186,7 @@ impl GameState {
             self.current_turn = self.current_turn.opposite();
             return ApplyOutcome::Ok {
                 intermediate: Some(intermediate),
+                final_to: mv.to,
             };
         }
 
@@ -979,6 +1207,9 @@ impl GameState {
                         return ApplyOutcome::Failed;
                     }
                     had_capture = true;
+                    if let Some(out) = removed_out.as_deref_mut() {
+                        out.push((to_pos, target_piece));
+                    }
                     self.board.remove_piece(to_pos);
                 }
 
@@ -1017,13 +1248,15 @@ impl GameState {
             }
 
             self.current_turn = self.current_turn.opposite();
+            let final_to = path.last().copied().unwrap_or(mv.to);
             return ApplyOutcome::Ok {
                 intermediate: None,
+                final_to,
             };
         }
 
         let (execute_result, had_capture, had_promotion) =
-            self.execute_single_move(mv, record_history);
+            self.execute_single_move(mv.clone(), record_history, removed_out.as_deref_mut());
 
         if !execute_result {
             return ApplyOutcome::Failed;
@@ -1037,13 +1270,19 @@ impl GameState {
         self.current_turn = self.current_turn.opposite();
         ApplyOutcome::Ok {
             intermediate: None,
+            final_to: mv.to,
         }
     }
     
     /// Execute a single move (helper for make_move)
     /// Does not change the turn
     /// Returns (success, had_capture, had_promotion)
-    fn execute_single_move(&mut self, mv: Move, record_history: bool) -> (bool, bool, bool) {
+    fn execute_single_move(
+        &mut self,
+        mv: Move,
+        record_history: bool,
+        mut removed_out: Option<&mut Vec<(Position, Piece)>>,
+    ) -> (bool, bool, bool) {
         // Get the piece making the move
         let Some(piece) = self.board.get_piece(mv.from) else {
             return (false, false, false);
@@ -1057,6 +1296,9 @@ impl GameState {
             if let Some(target_piece) = self.board.get_piece(mv.to) {
                 if target_piece.color == piece.color {
                     return (false, false, false); // Cannot capture friendly piece
+                }
+                if let Some(out) = removed_out.as_deref_mut() {
+                    out.push((mv.to, target_piece));
                 }
             }
         }
@@ -1082,15 +1324,17 @@ impl GameState {
             // Destination is excluded because move_piece will handle it
             for pos in path_positions {
                 if pos != mv.from && pos != mv.to {
-                    if self.board.get_piece(pos).is_some() {
+                    if let Some(removed) = self.board.remove_piece(pos) {
                         had_capture_path = true;
+                        if let Some(out) = removed_out.as_deref_mut() {
+                            out.push((pos, removed));
+                        }
                     }
-                    self.board.remove_piece(pos);
                 }
             }
         }
 
-        // Move the piece
+        // Move the piece (destination capture already recorded above)
         self.board.move_piece(mv.from, mv.to);
 
         // Verify the piece was actually moved
@@ -1202,6 +1446,23 @@ impl GameState {
     
     /// Generate Free Eagle moves with full paths
     pub fn generate_free_eagle_moves(&self, piece: &Piece) -> Vec<Move> {
+        self.generate_free_eagle_moves_filtered(piece, false)
+    }
+
+    /// Free Eagle moves; when `captures_only`, drop quiet (non-capturing) paths.
+    pub fn generate_free_eagle_moves_filtered(
+        &self,
+        piece: &Piece,
+        captures_only: bool,
+    ) -> Vec<Move> {
+        let mut moves = self.generate_free_eagle_moves_unfiltered(piece);
+        if captures_only {
+            moves.retain(|mv| self.move_captures_enemy_piece(piece, mv));
+        }
+        moves
+    }
+
+    fn generate_free_eagle_moves_unfiltered(&self, piece: &Piece) -> Vec<Move> {
         use crate::movement::direction::Direction;
         
         let mut moves = Vec::new();

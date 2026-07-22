@@ -19,7 +19,7 @@
   let models = $state(['ab-seed.json']);
   let abModel = $state('ab-seed.json');
   let abDepth = $state(2);
-  let abQDepth = $state(4);
+  let abQDepth = $state(2);
   let abTimeMs = $state(0); // 0 = unlimited
   let runActive = $state(false);
   let runLabel = $state('');
