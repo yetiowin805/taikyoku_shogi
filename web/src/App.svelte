@@ -17,7 +17,8 @@
   let busy = $state(false);
   let gotoPly = $state(0);
   let models = $state(['ab-seed.json']);
-  let abModel = $state('ab-seed.json');
+  let blackAbModel = $state('ab-seed.json');
+  let whiteAbModel = $state('ab-seed-noisy.json');
   let abDepth = $state(2);
   let abQDepth = $state(2);
   let abTimeMs = $state(0); // 0 = unlimited
@@ -28,19 +29,24 @@
   let blackSearchExpanded = $state(false);
   let whiteSearchExpanded = $state(false);
 
-  function abOpts() {
+  function abOpts(modelFile) {
     const opts = {
       depth: Number(abDepth) || 2,
       quiescence_depth: Number(abQDepth) || 0,
-      model: `models/${abModel}`,
+      model: `models/${modelFile}`,
     };
     const t = Number(abTimeMs);
     if (t > 0) opts.max_time_ms = t;
     return opts;
   }
 
-  function agentOptsFor(name) {
-    return name === 'ab' || name === 'search' ? abOpts() : {};
+  function modelForSide(side) {
+    return side === 'White' ? whiteAbModel : blackAbModel;
+  }
+
+  function agentOptsFor(name, side) {
+    if (name !== 'ab' && name !== 'search') return {};
+    return abOpts(modelForSide(side || snapshot?.turn || 'Black'));
   }
 
   function log(msg, kind = 'ok') {
@@ -98,7 +104,11 @@
       const res = await api.listModels();
       if (res.ok && res.models?.length) {
         models = res.models;
-        if (!models.includes(abModel)) abModel = models[0];
+        if (!models.includes(blackAbModel)) blackAbModel = models[0];
+        if (!models.includes(whiteAbModel)) {
+          whiteAbModel =
+            models.find((m) => m !== blackAbModel) || models[0];
+        }
       }
     } catch (e) {
       log(String(e), 'err');
@@ -128,9 +138,10 @@
   }
 
   async function onSuggest() {
-    const agent = snapshot?.turn === 'White' ? whiteController : blackController;
+    const side = snapshot?.turn || 'Black';
+    const agent = side === 'White' ? whiteController : blackController;
     const name = agent === 'human' ? 'mi' : agent;
-    const res = await api.suggest(name, agentOptsFor(name));
+    const res = await api.suggest(name, agentOptsFor(name, side));
     applyResult(res);
   }
 
@@ -149,7 +160,7 @@
     if (ctrl === 'human') return;
     busy = true;
     try {
-      const res = await api.playAgent(ctrl, agentOptsFor(ctrl));
+      const res = await api.playAgent(ctrl, agentOptsFor(ctrl, turn));
       applyResult(res);
       selected = null;
       highlights = [];
@@ -289,19 +300,23 @@
   }
 
   async function playOnce() {
-    const turn = snapshot?.turn;
+    const turn = snapshot?.turn || 'Black';
     const ctrl = turn === 'Black' ? blackController : whiteController;
     const agent = ctrl === 'human' ? 'mi' : ctrl;
-    const res = await api.playAgent(agent, agentOptsFor(agent));
+    const res = await api.playAgent(agent, agentOptsFor(agent, turn));
     selected = null;
     highlights = [];
     applyResult(res);
   }
 
-  async function startRun(black, white, label) {
+  async function startRun(black, white, label, modelsPair) {
     mode = 'play';
     blackController = black;
     whiteController = white;
+    if (modelsPair) {
+      blackAbModel = modelsPair[0];
+      whiteAbModel = modelsPair[1];
+    }
     runLabel = label;
     runActive = true;
     blackSearch = null;
@@ -315,7 +330,7 @@
     applyResult(res);
     autoPlay = true;
     log(
-      `Started run: ${label} (ab depth=${abDepth}, q=${abQDepth}, model=${abModel}${abTimeMs > 0 ? `, time=${abTimeMs}ms` : ''})`,
+      `Started run: ${label} (ab depth=${abDepth}, q=${abQDepth}, Black=${blackAbModel}, White=${whiteAbModel}${abTimeMs > 0 ? `, time=${abTimeMs}ms` : ''})`,
     );
   }
 
@@ -416,8 +431,16 @@
         <div class="panel">
           <h3>Alpha-beta (ab)</h3>
           <div class="row">
-            <label>Model</label>
-            <select bind:value={abModel}>
+            <label>Black model</label>
+            <select bind:value={blackAbModel}>
+              {#each models as m}
+                <option value={m}>{m}</option>
+              {/each}
+            </select>
+          </div>
+          <div class="row">
+            <label>White model</label>
+            <select bind:value={whiteAbModel}>
               {#each models as m}
                 <option value={m}>{m}</option>
               {/each}
@@ -466,6 +489,15 @@
             <p class="hint">Active: {runLabel || 'custom'} {busy ? '· thinking…' : ''}</p>
           {/if}
           <div class="row wrap">
+            <button
+              onclick={() =>
+                startRun('ab', 'ab', 'seed vs noisy', [
+                  'ab-seed.json',
+                  'ab-seed-noisy.json',
+                ])}
+              disabled={busy}
+              title="Black=ab-seed, White=ab-seed-noisy">seed vs noisy</button
+            >
             <button
               onclick={() => startRun('ab', 'ab', 'ab vs ab')}
               disabled={busy}>ab vs ab</button

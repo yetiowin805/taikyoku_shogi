@@ -417,14 +417,18 @@ pub struct EvalWeights {
     /// `min(20, min(0.9 * value, max(undeveloped_home, 0.2 * value)))` per non-royal.
     #[serde(default = "default_undeveloped_home")]
     pub undeveloped_home: i32,
-    /// Small forwardness bonus for non-royals: `advance * progress / 12`
-    /// (progress = ranks toward the enemy back rank). Separates quiet shuffles.
+    /// Legacy forwardness bonus for non-royals: `advance * progress / 12`.
+    /// Default 0 — rank PST covers development; keep for noisy/perturbed configs.
     #[serde(default = "default_advance")]
     pub advance: i32,
+    /// Rank factors indexed by progress toward the enemy (0 = own back rank, 35 = enemy back).
+    /// White uses the same table via mirrored progress. See [`seed_rank_factors`].
+    #[serde(default = "seed_rank_factors_vec")]
+    pub rank_factor: Vec<f32>,
     /// Max absolute noise contribution (deterministic).
     pub noise_scale: f64,
     pub mate_score: i32,
-    /// Mix into the position hash for reproducible noise.
+    /// Mix into the position hash for reproducible noise / weight perturbation.
     #[serde(default)]
     pub weight_seed: u64,
     /// Dense lookup rebuilt after load/seed (not serialized).
@@ -436,8 +440,90 @@ fn default_undeveloped_home() -> i32 {
     3
 }
 
+/// Rank PST replaces the old advance term in the seed; default off.
 fn default_advance() -> i32 {
-    2
+    0
+}
+
+/// Central progress rank for the 120% anchor (Black rank 17).
+pub const RANK_PST_MID: u8 = 17;
+/// First progress rank of the enemy home / promotion zone (Black rank 25).
+pub const RANK_PST_PROMO: u8 = 25;
+
+/// Seed rank factors: 50% back → 100% just outside camp → 120% mid/enemy-open → 150% promo.
+pub fn seed_rank_factors() -> [f32; 36] {
+    let home_edge = black_opening_home_edge();
+    let outside = home_edge.saturating_add(1); // 100% row
+    let mid = RANK_PST_MID;
+    let promo = RANK_PST_PROMO;
+    let mut factors = [1.0f32; 36];
+    for r in 0u8..36 {
+        factors[r as usize] = if r == 0 {
+            0.5
+        } else if r < outside {
+            0.5 + 0.5 * (r as f32) / (outside as f32)
+        } else if r <= mid {
+            let span = (mid - outside) as f32;
+            if span <= 0.0 {
+                1.2
+            } else {
+                1.0 + 0.2 * (r - outside) as f32 / span
+            }
+        } else if r < promo {
+            1.2
+        } else {
+            1.5
+        };
+    }
+    factors
+}
+
+fn seed_rank_factors_vec() -> Vec<f32> {
+    seed_rank_factors().to_vec()
+}
+
+fn black_opening_home_edge() -> u8 {
+    initial_non_royal_home_ranks()
+        .iter()
+        .filter(|((color, _), _)| *color == Color::Black)
+        .map(|(_, &rank)| rank)
+        .max()
+        .unwrap_or(11)
+}
+
+/// Cap on positional *bonus* above 100% (linear in factor between anchors).
+fn rank_bonus_cap(factor: f32) -> f32 {
+    if factor <= 1.0 {
+        0.0
+    } else if factor <= 1.2 {
+        20.0 * (factor - 1.0) / 0.2
+    } else if factor <= 1.5 {
+        20.0 + 30.0 * (factor - 1.2) / 0.3
+    } else {
+        50.0
+    }
+}
+
+/// Material contribution for one piece including rank PST (royals always factor 1).
+pub fn positional_piece_value(piece: &Piece, weights: &EvalWeights) -> f32 {
+    let v = weights.piece_value(piece.piece_type);
+    if piece.piece_type.is_royal() {
+        return v;
+    }
+    let progress = match piece.color {
+        Color::Black => piece.position.rank as usize,
+        Color::White => (35 - piece.position.rank) as usize,
+    };
+    let f = weights
+        .rank_factor
+        .get(progress)
+        .copied()
+        .unwrap_or(1.0);
+    if f <= 1.0 {
+        v * f
+    } else {
+        v + (v * (f - 1.0)).min(rank_bonus_cap(f))
+    }
 }
 
 impl Default for EvalWeights {
@@ -459,6 +545,7 @@ impl EvalWeights {
             de_advance: 5,
             undeveloped_home: default_undeveloped_home(),
             advance: default_advance(),
+            rank_factor: seed_rank_factors_vec(),
             noise_scale: 1.0,
             mate_score: 1_000_000,
             weight_seed: 0xA11B_E7A1,
@@ -495,10 +582,51 @@ impl EvalWeights {
         }
     }
 
-    /// Rounded material for integer search / MVV comparisons.
+    /// Rounded material for integer search / MVV comparisons (base value, not PST).
     pub fn piece_value_i32(&self, pt: PieceType) -> i32 {
         self.piece_value(pt).round() as i32
     }
+
+    /// Multiply every tunable weight by an independent `U(lo, hi)` draw (deterministic).
+    /// Skips [`Self::mate_score`]. Used to build the noisy training twin checkpoint.
+    pub fn perturb_multiplicative(&mut self, lo: f32, hi: f32) {
+        debug_assert!(lo > 0.0 && hi >= lo);
+        let mut state = self.weight_seed;
+        let mut next_u01 = || {
+            state = splitmix64(state);
+            // Map to (0, 1] excluding 0 for safety.
+            ((state >> 11) as f64 / ((1u64 << 53) as f64)).clamp(f64::MIN_POSITIVE, 1.0) as f32
+        };
+        let mut scale = || lo + (hi - lo) * next_u01();
+
+        for &pt in ALL_PIECE_TYPES {
+            if let Some(v) = self.piece.get_mut(&pt) {
+                *v *= scale();
+            }
+        }
+        for f in &mut self.rank_factor {
+            *f *= scale();
+        }
+        let mut scale_i32 = |x: i32| -> i32 {
+            let s = scale();
+            ((x as f32) * s).round() as i32
+        };
+        self.royal_alive = scale_i32(self.royal_alive);
+        self.sole_royal_factor = scale_i32(self.sole_royal_factor);
+        self.de_advance = scale_i32(self.de_advance);
+        self.undeveloped_home = scale_i32(self.undeveloped_home);
+        self.advance = scale_i32(self.advance);
+        self.noise_scale *= scale() as f64;
+        self.rebuild_piece_value_table();
+    }
+}
+
+fn splitmix64(mut x: u64) -> u64 {
+    x = x.wrapping_add(0x9E37_79B9_7F4A_7C15);
+    let mut z = x;
+    z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+    z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+    z ^ (z >> 31)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -519,6 +647,13 @@ impl EvalCheckpoint {
             search_defaults: SearchDefaults::default(),
             weights: EvalWeights::seed(),
         }
+    }
+
+    /// Config B: clone of [`Self::seed`] with multiplicative U(lo, hi) weight noise.
+    pub fn seed_noisy(name: &str, lo: f32, hi: f32) -> Self {
+        let mut cp = Self::seed(name);
+        cp.weights.perturb_multiplicative(lo, hi);
+        cp
     }
 
     pub fn load_path(path: impl AsRef<Path>) -> Result<Self, String> {
@@ -698,7 +833,7 @@ fn count_royals(pieces: &[Piece]) -> usize {
 fn material_of(pieces: &[Piece], weights: &EvalWeights) -> f32 {
     pieces
         .iter()
-        .map(|p| weights.piece_value(p.piece_type))
+        .map(|p| positional_piece_value(p, weights))
         .sum()
 }
 
@@ -754,8 +889,10 @@ fn noise_component(board: &Board, weights: &EvalWeights, ply: usize) -> i32 {
     n.round() as i32
 }
 
-/// Default on-disk seed path.
+/// Default on-disk seed path (config A).
 pub const DEFAULT_MODEL_PATH: &str = "models/ab-seed.json";
+/// Noisy twin of the seed (config B) for training/eval prototyping.
+pub const DEFAULT_NOISY_MODEL_PATH: &str = "models/ab-seed-noisy.json";
 
 /// List `*.json` checkpoint filenames under `dir` (e.g. `models`).
 pub fn list_model_files(dir: impl AsRef<Path>) -> Result<Vec<String>, String> {
@@ -813,6 +950,86 @@ mod tests {
         assert!((back.weights.piece_value(PieceType::Rook) - 16.0).abs() < 1e-3);
         assert_eq!(back.weights.piece.len(), ALL_PIECE_TYPES.len());
         assert!(!back.weights.piece_value_table.is_empty());
+        assert_eq!(back.weights.advance, 0);
+        assert!((back.weights.rank_factor[0] - 0.5).abs() < 1e-3);
+        assert!((back.weights.rank_factor[RANK_PST_MID as usize] - 1.2).abs() < 1e-3);
+        assert!((back.weights.rank_factor[RANK_PST_PROMO as usize] - 1.5).abs() < 1e-3);
+    }
+
+    #[test]
+    fn rank_pst_caps_large_piece_bonus() {
+        let weights = EvalWeights::seed();
+        // GreatGeneral has no opening home; use Tengu (1200) on mid / promo ranks.
+        let mid = Piece::new(
+            PieceType::Tengu,
+            Color::Black,
+            Position::new(6, RANK_PST_MID).unwrap(),
+        );
+        let promo = Piece::new(
+            PieceType::Tengu,
+            Color::Black,
+            Position::new(6, RANK_PST_PROMO).unwrap(),
+        );
+        let v = weights.piece_value(PieceType::Tengu);
+        let mid_val = positional_piece_value(&mid, &weights);
+        let promo_val = positional_piece_value(&promo, &weights);
+        assert!(
+            (mid_val - (v + 20.0)).abs() < 1e-2,
+            "mid should be v+20, got {mid_val} (v={v})"
+        );
+        assert!(
+            (promo_val - (v + 50.0)).abs() < 1e-2,
+            "promo should be v+50, got {promo_val} (v={v})"
+        );
+        let back = Piece::new(
+            PieceType::Tengu,
+            Color::Black,
+            Position::new(6, 0).unwrap(),
+        );
+        assert!((positional_piece_value(&back, &weights) - 0.5 * v).abs() < 1e-2);
+    }
+
+    #[test]
+    fn noisy_checkpoint_differs_reproducibly() {
+        let a = EvalCheckpoint::seed("ab-seed");
+        let b1 = EvalCheckpoint::seed_noisy("ab-seed-noisy", 0.8, 1.2);
+        let b2 = EvalCheckpoint::seed_noisy("ab-seed-noisy", 0.8, 1.2);
+        assert_eq!(b1.weights.mate_score, a.weights.mate_score);
+        assert_ne!(
+            b1.weights.piece_value(PieceType::Pawn),
+            a.weights.piece_value(PieceType::Pawn)
+        );
+        assert_eq!(
+            b1.weights.piece_value(PieceType::King),
+            b2.weights.piece_value(PieceType::King)
+        );
+        assert_eq!(b1.weights.rank_factor, b2.weights.rank_factor);
+        // Perturbed factors stay in a sane band around the seed curve.
+        for (i, &f) in b1.weights.rank_factor.iter().enumerate() {
+            assert!(
+                f > 0.3 && f < 2.0,
+                "noisy rank_factor[{i}]={f} out of band"
+            );
+        }
+    }
+
+    #[test]
+    fn export_seed_checkpoints_to_models() {
+        let a = EvalCheckpoint::seed("ab-seed");
+        a.save_path(DEFAULT_MODEL_PATH)
+            .expect("write ab-seed.json");
+        let b = EvalCheckpoint::seed_noisy("ab-seed-noisy", 0.8, 1.2);
+        b.save_path(DEFAULT_NOISY_MODEL_PATH)
+            .expect("write ab-seed-noisy.json");
+        let loaded_a = EvalCheckpoint::load_path(DEFAULT_MODEL_PATH).unwrap();
+        let loaded_b = EvalCheckpoint::load_path(DEFAULT_NOISY_MODEL_PATH).unwrap();
+        assert_eq!(loaded_a.weights.advance, 0);
+        assert_eq!(loaded_a.name, "ab-seed");
+        assert_eq!(loaded_b.name, "ab-seed-noisy");
+        assert_ne!(
+            loaded_a.weights.piece_value(PieceType::GoldGeneral),
+            loaded_b.weights.piece_value(PieceType::GoldGeneral)
+        );
     }
 
     #[test]
@@ -940,10 +1157,11 @@ mod tests {
         let before_fd = evaluate_absolute_black(&fd_board, &weights, 0);
         fd_board.move_piece(fd_from, fd_to);
         let after_fd = evaluate_absolute_black(&fd_board, &weights, 0);
-        assert_eq!(
-            after_fd - before_fd,
-            5,
-            "leaving FireDemon home rank should gain round(4.8) vs integer scores"
+        // Undeveloped ~4.8 plus a small rank-PST bump from progress 0 → 1.
+        assert!(
+            after_fd - before_fd >= 5,
+            "leaving FireDemon home rank should gain at least round(4.8); delta={}",
+            after_fd - before_fd
         );
 
         // Royals never count as undeveloped.
