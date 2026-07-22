@@ -64,6 +64,18 @@ impl Move {
     }
 }
 
+/// Undo token for [`GameState::make_move_for_search`] / [`GameState::unmake_move_for_search`].
+#[derive(Debug, Clone)]
+pub struct SearchUndo {
+    #[allow(dead_code)]
+    from: Position,
+    final_to: Position,
+    original_mover: Piece,
+    removed: Vec<(Position, Piece)>,
+    prev_turn: Color,
+    prev_draw: u32,
+}
+
 #[derive(Clone)]
 pub struct GameState {
     board: Board,
@@ -74,7 +86,10 @@ pub struct GameState {
 
 enum ApplyOutcome {
     Failed,
-    Ok { intermediate: Option<Position> },
+    Ok {
+        intermediate: Option<Position>,
+        final_to: Position,
+    },
 }
 
 impl GameState {
@@ -880,9 +895,9 @@ impl GameState {
     /// Make a move (assumes move is legal - caller should validate)
     /// Executes a move and returns the intermediate position if this was a two-step move, None otherwise
     pub fn make_move(&mut self, mv: Move) -> Option<Position> {
-        match self.apply_move(mv, true, true) {
+        match self.apply_move(mv, true, true, None) {
             ApplyOutcome::Failed => None,
-            ApplyOutcome::Ok { intermediate } => intermediate,
+            ApplyOutcome::Ok { intermediate, .. } => intermediate,
         }
     }
 
@@ -891,8 +906,37 @@ impl GameState {
     /// Skips reachability re-validation and does not append to `move_history`
     /// (eval noise should use an explicit ply). Board updates, captures,
     /// promotions, and turn flip match `make_move`.
-    pub fn make_move_for_search(&mut self, mv: Move) -> bool {
-        matches!(self.apply_move(mv, false, false), ApplyOutcome::Ok { .. })
+    ///
+    /// Returns a [`SearchUndo`] token for [`unmake_move_for_search`].
+    pub fn make_move_for_search(&mut self, mv: Move) -> Option<SearchUndo> {
+        let prev_turn = self.current_turn;
+        let prev_draw = self.turns_without_capture_or_promotion;
+        let original_mover = self.board.get_piece(mv.from)?;
+        let from = mv.from;
+        let mut removed = Vec::new();
+        let final_to = match self.apply_move(mv, false, false, Some(&mut removed)) {
+            ApplyOutcome::Failed => return None,
+            ApplyOutcome::Ok { final_to, .. } => final_to,
+        };
+        Some(SearchUndo {
+            from,
+            final_to,
+            original_mover,
+            removed,
+            prev_turn,
+            prev_draw,
+        })
+    }
+
+    /// Reverse a move applied by [`make_move_for_search`].
+    pub fn unmake_move_for_search(&mut self, undo: SearchUndo) {
+        self.board.remove_piece(undo.final_to);
+        self.board.place_piece(undo.original_mover);
+        for (_pos, piece) in undo.removed {
+            self.board.place_piece(piece);
+        }
+        self.current_turn = undo.prev_turn;
+        self.turns_without_capture_or_promotion = undo.prev_draw;
     }
 
     fn apply_move(
@@ -900,6 +944,7 @@ impl GameState {
         mut mv: Move,
         validate: bool,
         record_history: bool,
+        mut removed_out: Option<&mut Vec<(Position, Piece)>>,
     ) -> ApplyOutcome {
         let Some(piece) = self.board.get_piece(mv.from) else {
             return ApplyOutcome::Failed;
@@ -937,14 +982,14 @@ impl GameState {
 
             let first_move = Move::new(mv.from, intermediate);
             let (first_success, first_capture, _) =
-                self.execute_single_move(first_move, record_history);
+                self.execute_single_move(first_move, record_history, removed_out.as_deref_mut());
             if !first_success {
                 return ApplyOutcome::Failed;
             }
 
             let second_move = Move::new_with_promotion(intermediate, mv.to, mv.promoted);
             let (second_success, second_capture, second_promotion) =
-                self.execute_single_move(second_move, record_history);
+                self.execute_single_move(second_move, record_history, removed_out.as_deref_mut());
             if !second_success {
                 self.board.move_piece(intermediate, mv.from);
                 return ApplyOutcome::Failed;
@@ -959,6 +1004,7 @@ impl GameState {
             self.current_turn = self.current_turn.opposite();
             return ApplyOutcome::Ok {
                 intermediate: Some(intermediate),
+                final_to: mv.to,
             };
         }
 
@@ -979,6 +1025,9 @@ impl GameState {
                         return ApplyOutcome::Failed;
                     }
                     had_capture = true;
+                    if let Some(out) = removed_out.as_deref_mut() {
+                        out.push((to_pos, target_piece));
+                    }
                     self.board.remove_piece(to_pos);
                 }
 
@@ -1017,13 +1066,15 @@ impl GameState {
             }
 
             self.current_turn = self.current_turn.opposite();
+            let final_to = path.last().copied().unwrap_or(mv.to);
             return ApplyOutcome::Ok {
                 intermediate: None,
+                final_to,
             };
         }
 
         let (execute_result, had_capture, had_promotion) =
-            self.execute_single_move(mv, record_history);
+            self.execute_single_move(mv.clone(), record_history, removed_out.as_deref_mut());
 
         if !execute_result {
             return ApplyOutcome::Failed;
@@ -1037,13 +1088,19 @@ impl GameState {
         self.current_turn = self.current_turn.opposite();
         ApplyOutcome::Ok {
             intermediate: None,
+            final_to: mv.to,
         }
     }
     
     /// Execute a single move (helper for make_move)
     /// Does not change the turn
     /// Returns (success, had_capture, had_promotion)
-    fn execute_single_move(&mut self, mv: Move, record_history: bool) -> (bool, bool, bool) {
+    fn execute_single_move(
+        &mut self,
+        mv: Move,
+        record_history: bool,
+        mut removed_out: Option<&mut Vec<(Position, Piece)>>,
+    ) -> (bool, bool, bool) {
         // Get the piece making the move
         let Some(piece) = self.board.get_piece(mv.from) else {
             return (false, false, false);
@@ -1057,6 +1114,9 @@ impl GameState {
             if let Some(target_piece) = self.board.get_piece(mv.to) {
                 if target_piece.color == piece.color {
                     return (false, false, false); // Cannot capture friendly piece
+                }
+                if let Some(out) = removed_out.as_deref_mut() {
+                    out.push((mv.to, target_piece));
                 }
             }
         }
@@ -1082,15 +1142,17 @@ impl GameState {
             // Destination is excluded because move_piece will handle it
             for pos in path_positions {
                 if pos != mv.from && pos != mv.to {
-                    if self.board.get_piece(pos).is_some() {
+                    if let Some(removed) = self.board.remove_piece(pos) {
                         had_capture_path = true;
+                        if let Some(out) = removed_out.as_deref_mut() {
+                            out.push((pos, removed));
+                        }
                     }
-                    self.board.remove_piece(pos);
                 }
             }
         }
 
-        // Move the piece
+        // Move the piece (destination capture already recorded above)
         self.board.move_piece(mv.from, mv.to);
 
         // Verify the piece was actually moved

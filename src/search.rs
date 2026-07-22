@@ -1,4 +1,4 @@
-//! Shallow alpha-beta search over GameState clones, with compact search traces for the GUI.
+//! Alpha-beta search over GameState with make/unmake, compact traces for the GUI.
 
 use crate::eval::{evaluate_with_ply, EvalWeights};
 use crate::game_state::{GameState, Move};
@@ -32,7 +32,7 @@ impl Default for SearchConfig {
             depth: 2,
             max_time_ms: None,
             collect_trace: false,
-            quiescence_depth: 4,
+            quiescence_depth: 2,
         }
     }
 }
@@ -247,6 +247,22 @@ pub fn is_worthwhile_quiescence_capture(
     enemy >= MIN_QUIESCENCE_ENEMY_MATERIAL
 }
 
+/// MVV-LVA capture score without hang checks (for quiescence ordering).
+fn mvv_lva_score(state: &GameState, weights: &EvalWeights, mv: &Move) -> i32 {
+    let board = state.get_board();
+    let Some(mover) = board.get_piece(mv.from) else {
+        return i32::MIN / 4;
+    };
+    let mover_value = weights.piece_value(mover.piece_type);
+    let (enemy, own) = capture_material_exchange(state, weights, mv);
+    if enemy == 0 {
+        return i32::MIN / 4;
+    }
+    (enemy - own)
+        .saturating_mul(1000)
+        .saturating_sub(mover_value)
+}
+
 /// Move-ordering score (heuristic only — not search correctness).
 ///
 /// Captures: `gain = enemy - own`, then if the landing square looks attacked by
@@ -309,6 +325,16 @@ fn generate_quiescence_captures(state: &GameState, weights: &EvalWeights) -> Vec
 /// Uses iterative deepening from depth 1..=`config.depth`. On timeout mid-iteration,
 /// returns the last **completed** iteration's result.
 pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -> SearchResult {
+    // Search eval skips deterministic noise (hashes every piece when enabled).
+    let mut weights_buf;
+    let weights = if weights.noise_scale != 0.0 {
+        weights_buf = weights.clone();
+        weights_buf.noise_scale = 0.0;
+        &weights_buf
+    } else {
+        weights
+    };
+
     let root_ply = state.get_move_history().len();
     let static_eval = evaluate_with_ply(state, weights, root_ply);
     let deadline = config
@@ -361,6 +387,9 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
     let mut completed_lines: Vec<(Move, i32)> = Vec::new();
     let mut completed_depth = 0u32;
 
+    // One working copy for the whole ID loop; make/unmake instead of per-child clone.
+    let mut pos = state.clone();
+
     for d in 1..=max_depth {
         if ctx.timed_out() {
             break;
@@ -386,15 +415,17 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
             ctx.phase = "root";
             ctx.maybe_log_progress();
 
-            let mut child = state.clone();
-            if !child.make_move_for_search(mv.clone()) {
+            let Some(undo) = pos.make_move_for_search(mv.clone()) else {
                 continue;
-            }
+            };
             ctx.nodes += 1;
             ctx.ply = root_ply + 1;
             ctx.phase = "search";
 
-            let score = -alphabeta(&mut child, weights, d - 1, -beta, -alpha, &mut ctx);
+            let score = -alphabeta(&mut pos, weights, d - 1, -beta, -alpha, &mut ctx);
+            pos.unmake_move_for_search(undo);
+            ctx.ply = root_ply;
+
             if ctx.abort {
                 finished_iteration = false;
                 break;
@@ -536,11 +567,12 @@ fn build_trace_tree(
     if depth > 1 {
         if let Some(best_node) = children.iter_mut().find(|c| c.best) {
             let mut child = state.clone();
-            if child.make_move_for_search(best_move.clone()) {
+            if let Some(undo) = child.make_move_for_search(best_move.clone()) {
                 ctx.ply = root_ply + 1;
                 ctx.phase = "trace";
                 let (_score, subtree) =
                     alphabeta_record(&mut child, weights, depth - 1, &mut *ctx);
+                child.unmake_move_for_search(undo);
                 if let Some(sub) = subtree {
                     best_node.children = sub.children;
                 }
@@ -589,12 +621,12 @@ fn alphabeta(
         if ctx.timed_out() {
             break;
         }
-        let mut child_state = state.clone();
-        if !child_state.make_move_for_search(mv) {
+        let Some(undo) = state.make_move_for_search(mv) else {
             continue;
-        }
+        };
         ctx.ply = parent_ply + 1;
-        let score = -alphabeta(&mut child_state, weights, depth - 1, -beta, -alpha, ctx);
+        let score = -alphabeta(state, weights, depth - 1, -beta, -alpha, ctx);
+        state.unmake_move_for_search(undo);
         ctx.ply = parent_ply;
 
         if score > best {
@@ -657,7 +689,16 @@ fn quiesce(
         return stand_pat;
     }
 
-    order_moves(state, weights, &mut moves);
+    // Delta prune: drop captures that cannot raise alpha even if the capture is free.
+    moves.retain(|mv| {
+        let (enemy, _) = capture_material_exchange(state, weights, mv);
+        stand_pat.saturating_add(enemy) > alpha
+    });
+    if moves.is_empty() {
+        return stand_pat;
+    }
+
+    order_moves_quiescence(state, weights, &mut moves);
 
     let mut best = stand_pat;
     let parent_ply = ctx.ply;
@@ -666,12 +707,12 @@ fn quiesce(
         if ctx.timed_out() {
             break;
         }
-        let mut child_state = state.clone();
-        if !child_state.make_move_for_search(mv) {
+        let Some(undo) = state.make_move_for_search(mv) else {
             continue;
-        }
+        };
         ctx.ply = parent_ply + 1;
-        let score = -quiesce(&mut child_state, weights, qdepth - 1, -beta, -alpha, ctx);
+        let score = -quiesce(state, weights, qdepth - 1, -beta, -alpha, ctx);
+        state.unmake_move_for_search(undo);
         ctx.ply = parent_ply;
 
         if score > best {
@@ -751,12 +792,12 @@ fn alphabeta_record(
             break;
         }
         let label = move_label(state, &mv);
-        let mut child_state = state.clone();
-        if !child_state.make_move_for_search(mv) {
+        let Some(undo) = state.make_move_for_search(mv) else {
             continue;
-        }
+        };
         ctx.ply = parent_ply + 1;
-        let score = -alphabeta(&mut child_state, weights, depth - 1, -beta, -alpha, ctx);
+        let score = -alphabeta(state, weights, depth - 1, -beta, -alpha, ctx);
+        state.unmake_move_for_search(undo);
         ctx.ply = parent_ply;
 
         if score > best {
@@ -876,6 +917,11 @@ fn order_moves(state: &GameState, weights: &EvalWeights, moves: &mut [Move]) {
             &mut attack_cache,
         ))
     });
+}
+
+/// Quiescence ordering: MVV-LVA only (no attack scans).
+fn order_moves_quiescence(state: &GameState, weights: &EvalWeights, moves: &mut [Move]) {
+    moves.sort_by_key(|mv| std::cmp::Reverse(mvv_lva_score(state, weights, mv)));
 }
 
 /// Test/helper: ordering score with a fresh per-call attack cache.
@@ -1079,9 +1125,9 @@ mod tests {
         for mv in moves.iter().step_by(17).take(20) {
             let mut a = state.clone();
             let mut b = state.clone();
-            let ok_search = a.make_move_for_search(mv.clone());
+            let undo = a.make_move_for_search(mv.clone());
             let _ = b.make_move(mv.clone());
-            assert!(ok_search, "search apply failed for {:?}", mv);
+            assert!(undo.is_some(), "search apply failed for {:?}", mv);
             assert_eq!(a.get_current_turn(), b.get_current_turn());
             assert_eq!(
                 a.get_turns_without_capture_or_promotion(),
@@ -1098,6 +1144,23 @@ mod tests {
                     );
                 }
             }
+            a.unmake_move_for_search(undo.unwrap());
+            assert_eq!(a.get_current_turn(), state.get_current_turn());
+            assert_eq!(
+                a.get_turns_without_capture_or_promotion(),
+                state.get_turns_without_capture_or_promotion()
+            );
+            for file in 0..36u8 {
+                for rank in 0..36u8 {
+                    let pos = Position::new(file, rank).unwrap();
+                    assert_eq!(
+                        a.get_board().get_piece(pos),
+                        state.get_board().get_piece(pos),
+                        "unmake mismatch after {:?}",
+                        mv
+                    );
+                }
+            }
         }
     }
 
@@ -1107,8 +1170,16 @@ mod tests {
         let mut state = GameState::new();
         state.setup_initial_position();
         let t0 = Instant::now();
-        // Qsearch off here: opening capture fan-out makes q4 too slow for a smoke test.
-        // Depth 2 uses iterative deepening (d1 then d2).
+        // Debug: q=0 keeps the smoke fast (full legal gen in qsearch is still heavy).
+        // Release: d2/q2 is the real latency target after delta prune + make/unmake.
+        #[cfg(debug_assertions)]
+        let qdepth = 0u32;
+        #[cfg(not(debug_assertions))]
+        let qdepth = 2u32;
+        #[cfg(debug_assertions)]
+        let max_secs = 10u64;
+        #[cfg(not(debug_assertions))]
+        let max_secs = 8u64;
         let result = search(
             &state,
             &weights,
@@ -1116,26 +1187,25 @@ mod tests {
                 depth: 2,
                 max_time_ms: None,
                 collect_trace: false,
-                quiescence_depth: 0,
+                quiescence_depth: qdepth,
             },
         );
         let elapsed = t0.elapsed();
         assert!(result.best_move.is_some());
         assert!(result.nodes > 0);
         assert!(
-            elapsed.as_secs() < 10,
-            "opening depth-2 ID took {:?}, nodes={}",
+            elapsed.as_secs() < max_secs,
+            "opening depth-2 q{qdepth} ID took {:?}, nodes={}",
             elapsed,
             result.nodes
         );
-        // Soft: ID + material should not settle on a catastrophic hanging-leap score.
         assert!(
             result.score > -500,
             "opening ID score unexpectedly bad: {}",
             result.score
         );
         eprintln!(
-            "opening depth-2 ID: {:?} nodes={} score={}",
+            "opening depth-2 q{qdepth} ID: {:?} nodes={} score={}",
             elapsed, result.nodes, result.score
         );
     }

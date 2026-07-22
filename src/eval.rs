@@ -354,13 +354,13 @@ fn is_jump_capture_general(pt: PieceType) -> bool {
 pub struct SearchDefaults {
     pub depth: u32,
     pub max_time_ms: Option<u64>,
-    /// Capture-only quiescence depth (0 = off). Missing in old checkpoints → 4.
+    /// Capture-only quiescence depth (0 = off). Missing in old checkpoints → 2.
     #[serde(default = "default_quiescence_depth")]
     pub quiescence_depth: u32,
 }
 
 fn default_quiescence_depth() -> u32 {
-    4
+    2
 }
 
 impl Default for SearchDefaults {
@@ -368,7 +368,7 @@ impl Default for SearchDefaults {
         Self {
             depth: 2,
             max_time_ms: None,
-            quiescence_depth: 4,
+            quiescence_depth: 2,
         }
     }
 }
