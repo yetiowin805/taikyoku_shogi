@@ -22,8 +22,10 @@ pub const MAX_TREE_BRANCH: usize = 8;
 /// - **NetGain**: little leaf effect; fewer AB nodes on opening
 /// - **RecaptureOnly**: ~200× cut but score 90 vs 7 (over-prune) — not default
 /// - **StaleHang**: no meaningful cut on the GG blowup
+/// - **PathAware**: ~37× fewer q-nodes vs baseline on post-GG leaf (58 vs 2158),
+///   score 127 vs 126; ~3× fewer than A+B alone — shipped default
 ///
-/// Default: [`QPruneMode::NetGainAndTopN`].
+/// Default: [`QPruneMode::PathAware`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum QPruneMode {
     /// Existing: free-capture delta only (`stand_pat + enemy > α`).
@@ -36,15 +38,32 @@ pub enum QPruneMode {
     RecaptureOnly,
     /// D: drop captures where landing looks attacked and enemy < mover (stale).
     StaleHang,
-    /// A+B — shipped default after measurement.
-    #[default]
+    /// A+B — previous default after first measurement pass.
     NetGainAndTopN,
     /// B+C (kept for harness; recapture over-pruned alone).
     TopNAndRecapture,
+    /// Path-aware quietness: A+B + SimpleTake hang + deep loudness/fanout taper.
+    #[default]
+    PathAware,
 }
 
-/// Max captures expanded per q-node in TopN modes.
+/// Max captures expanded per q-node at the first quiescence ply.
 pub const QUIESCE_TOP_N: usize = 8;
+/// Max captures at deeper q-plies under [`QPruneMode::PathAware`].
+pub const QUIESCE_TOP_N_DEEP: usize = 4;
+/// Deeper-ply loudness floor (jump-general / high-piece class) unless SimpleTake recapture.
+pub const MIN_QUIESCENCE_DEEP_ENEMY: i32 = 90;
+
+/// How a capture removes material (drives PathAware hang / taper rules).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CaptureKind {
+    /// Single-square enemy take (no path clears / multi-leg).
+    SimpleTake,
+    /// Capturing-range path edit (may clear many squares).
+    PathClear,
+    /// Two-step or FreeEagle multi-leg.
+    MultiLeg,
+}
 
 #[derive(Debug, Clone)]
 pub struct SearchConfig {
@@ -66,10 +85,8 @@ impl Default for SearchConfig {
             max_time_ms: None,
             collect_trace: false,
             quiescence_depth: 2,
-            // Measurement (qprune_mode_matrix): TopN ~4× on GG leaves with
-            // near-stable score; net-gain is free and helps AB node counts.
-            // Recapture-only over-pruned (score 90 vs baseline 7) — not default.
-            q_prune_mode: QPruneMode::NetGainAndTopN,
+            // PathAware: net-gain + top-N with SimpleTake hang + deep taper.
+            q_prune_mode: QPruneMode::PathAware,
         }
     }
 }
@@ -166,13 +183,16 @@ struct SearchContext {
 
 impl QPruneMode {
     fn uses_net_gain(self) -> bool {
-        matches!(self, Self::NetGainDelta | Self::NetGainAndTopN)
+        matches!(
+            self,
+            Self::NetGainDelta | Self::NetGainAndTopN | Self::PathAware
+        )
     }
 
     fn uses_top_n(self) -> bool {
         matches!(
             self,
-            Self::TopN | Self::NetGainAndTopN | Self::TopNAndRecapture
+            Self::TopN | Self::NetGainAndTopN | Self::TopNAndRecapture | Self::PathAware
         )
     }
 
@@ -182,6 +202,10 @@ impl QPruneMode {
 
     fn uses_stale_hang(self) -> bool {
         matches!(self, Self::StaleHang)
+    }
+
+    fn uses_path_aware(self) -> bool {
+        matches!(self, Self::PathAware)
     }
 }
 
@@ -444,6 +468,36 @@ fn capture_material_exchange(
         }
     }
     (enemy, own)
+}
+
+/// Classify how a capture removes material (for PathAware hang / taper).
+fn classify_capture(state: &GameState, mv: &Move) -> CaptureKind {
+    if mv.is_two_step() || mv.is_free_eagle() {
+        return CaptureKind::MultiLeg;
+    }
+    let board = state.get_board();
+    let Some(piece) = board.get_piece(mv.from) else {
+        return CaptureKind::SimpleTake;
+    };
+    let config = MovementConfig::for_piece(&piece);
+    let uses_capturing = config.capabilities.iter().any(|cap| {
+        matches!(
+            cap,
+            MovementCapability::Range {
+                blocking: BlockingMode::Capturing,
+                ..
+            }
+        )
+    });
+    if uses_capturing {
+        let path_occupied = path_utils::get_path_positions(mv.from, mv.to)
+            .into_iter()
+            .any(|pos| pos != mv.from && pos != mv.to && board.get_piece(pos).is_some());
+        if path_occupied {
+            return CaptureKind::PathClear;
+        }
+    }
+    CaptureKind::SimpleTake
 }
 
 /// Minimum enemy material (eval points) for a capture to enter quiescence.
@@ -817,6 +871,7 @@ pub fn probe_quiescence(
             i32::MIN + 1,
             i32::MAX - 1,
             None,
+            false,
             &mut ctx,
         )
     };
@@ -1178,6 +1233,7 @@ fn leaf_or_quiesce(
             alpha,
             beta,
             None,
+            false,
             ctx,
         )
     }
@@ -1185,15 +1241,16 @@ fn leaf_or_quiesce(
 
 /// Capture-only quiescence (excludes pure self-captures via `move_captures_enemy`).
 ///
-/// `recapture_sq`: when set (deeper q-plies under RecaptureOnly modes), only
-/// expands captures that take on that square.
+/// `prev_to` / `prev_was_simple`: prior q-move landing and whether it was a
+/// [`CaptureKind::SimpleTake`] (PathAware recapture exception / RecaptureOnly).
 fn quiesce(
     state: &mut GameState,
     weights: &EvalWeights,
     qdepth: u32,
     mut alpha: i32,
     beta: i32,
-    recapture_sq: Option<Position>,
+    prev_to: Option<Position>,
+    prev_was_simple: bool,
     ctx: &mut SearchContext,
 ) -> i32 {
     ctx.nodes += 1;
@@ -1232,13 +1289,37 @@ fn quiesce(
         return stand_pat;
     }
 
+    let path_aware = ctx.q_prune_mode.uses_path_aware();
+    let deep_ply = qdepth < ctx.quiescence_depth;
+
     // Recapture-only after the first q-ply.
     if ctx.q_prune_mode.uses_recapture_only() {
-        if let Some(sq) = recapture_sq {
+        if let Some(sq) = prev_to {
             moves.retain(|mv| capture_hits_square(state, mv, sq));
             if moves.is_empty() {
                 return stand_pat;
             }
+        }
+    }
+
+    // PathAware deep taper: require jump-general-class victims unless SimpleTake
+    // recapture onto the previous simple landing.
+    if path_aware && deep_ply {
+        moves.retain(|mv| {
+            let (enemy, _) = capture_material_exchange(state, weights, mv);
+            if enemy >= MIN_QUIESCENCE_DEEP_ENEMY {
+                return true;
+            }
+            if prev_was_simple {
+                if let Some(sq) = prev_to {
+                    return classify_capture(state, mv) == CaptureKind::SimpleTake
+                        && mv.to == sq;
+                }
+            }
+            false
+        });
+        if moves.is_empty() {
+            return stand_pat;
         }
     }
 
@@ -1284,8 +1365,15 @@ fn quiesce(
         .q_caps_generated
         .saturating_add(moves.len() as u64);
 
-    if ctx.q_prune_mode.uses_top_n() && moves.len() > QUIESCE_TOP_N {
-        moves.truncate(QUIESCE_TOP_N);
+    if ctx.q_prune_mode.uses_top_n() {
+        let cap = if path_aware && deep_ply {
+            QUIESCE_TOP_N_DEEP
+        } else {
+            QUIESCE_TOP_N
+        };
+        if moves.len() > cap {
+            moves.truncate(cap);
+        }
     }
 
     let n_caps = moves.len();
@@ -1293,6 +1381,7 @@ fn quiesce(
 
     let mut best = stand_pat;
     let parent_ply = ctx.ply;
+    let opponent = state.get_current_turn().opposite();
 
     for (i, mv) in moves.into_iter().enumerate() {
         if ctx.timed_out() {
@@ -1306,15 +1395,37 @@ fn quiesce(
             ctx.maybe_log_progress();
         }
 
-        let next_recapture = if ctx.q_prune_mode.uses_recapture_only() {
-            Some(mv.to)
-        } else {
-            None
-        };
+        let kind = classify_capture(state, &mv);
+        let (enemy, _own) = capture_material_exchange(state, weights, &mv);
+        let mover_value = state
+            .get_board()
+            .get_piece(mv.from)
+            .map(|p| weights.piece_value(p.piece_type))
+            .unwrap_or(0);
+        let landing = mv.to;
 
         let Some(undo) = state.make_move_for_search(mv) else {
             continue;
         };
+
+        // PathAware: drop clearly hanging SimpleTakes (post-move attack).
+        if path_aware && kind == CaptureKind::SimpleTake && enemy < mover_value {
+            if state
+                .get_board()
+                .is_position_attacked_by_color(landing, opponent)
+            {
+                state.unmake_move_for_search(undo);
+                continue;
+            }
+        }
+
+        let next_prev_to = if ctx.q_prune_mode.uses_recapture_only() || path_aware {
+            Some(landing)
+        } else {
+            None
+        };
+        let next_was_simple = kind == CaptureKind::SimpleTake;
+
         ctx.q_caps_searched += 1;
         ctx.ply = parent_ply + 1;
         let score = -quiesce(
@@ -1323,7 +1434,8 @@ fn quiesce(
             qdepth - 1,
             -beta,
             -alpha,
-            next_recapture,
+            next_prev_to,
+            next_was_simple,
             ctx,
         );
         state.unmake_move_for_search(undo);
@@ -1765,7 +1877,7 @@ mod tests {
                 max_time_ms: None,
                 collect_trace: true,
                 quiescence_depth: 0,
-                q_prune_mode: QPruneMode::NetGainAndTopN,
+                q_prune_mode: QPruneMode::PathAware,
             },
         );
         let best = result.best_move.expect("expected a move");
@@ -1806,7 +1918,7 @@ mod tests {
             depth: 1,
             collect_trace: false,
             quiescence_depth: 4,
-            q_prune_mode: QPruneMode::NetGainAndTopN,
+            q_prune_mode: QPruneMode::PathAware,
             max_time_ms: None,
         };
         let mut cfg_trace = cfg_play.clone();
@@ -1888,7 +2000,7 @@ mod tests {
                 max_time_ms: None,
                 collect_trace: false,
                 quiescence_depth: qdepth,
-                q_prune_mode: QPruneMode::NetGainAndTopN,
+                q_prune_mode: QPruneMode::PathAware,
             },
         );
         let elapsed = t0.elapsed();
@@ -1940,7 +2052,7 @@ mod tests {
                     max_time_ms: None,
                     collect_trace: false,
                     quiescence_depth: 2,
-                q_prune_mode: QPruneMode::NetGainAndTopN,
+                q_prune_mode: QPruneMode::PathAware,
                 },
             );
             let elapsed = t0.elapsed();
@@ -1978,7 +2090,7 @@ mod tests {
                     max_time_ms: Some(8_000),
                     collect_trace: false,
                     quiescence_depth: 2,
-                q_prune_mode: QPruneMode::NetGainAndTopN,
+                q_prune_mode: QPruneMode::PathAware,
                 },
             );
             assert!(result.best_move.is_some());
@@ -2103,7 +2215,7 @@ mod tests {
                 max_time_ms: Some(250),
                 collect_trace: false,
                 quiescence_depth: 0,
-                q_prune_mode: QPruneMode::NetGainAndTopN,
+                q_prune_mode: QPruneMode::PathAware,
             },
         );
         assert!(result.best_move.is_some());
@@ -2303,7 +2415,7 @@ mod tests {
                 max_time_ms: None,
                 collect_trace: false,
                 quiescence_depth: 0,
-                q_prune_mode: QPruneMode::NetGainAndTopN,
+                q_prune_mode: QPruneMode::PathAware,
             },
         );
         assert_eq!(
@@ -2320,7 +2432,7 @@ mod tests {
                 max_time_ms: None,
                 collect_trace: false,
                 quiescence_depth: 4,
-                q_prune_mode: QPruneMode::NetGainAndTopN,
+                q_prune_mode: QPruneMode::PathAware,
             },
         );
         assert_ne!(
@@ -2477,6 +2589,7 @@ mod tests {
             ("D_stale_hang", QPruneMode::StaleHang),
             ("A+B", QPruneMode::NetGainAndTopN),
             ("B+C", QPruneMode::TopNAndRecapture),
+            ("PathAware", QPruneMode::PathAware),
         ];
 
         let mut opening = GameState::new();
