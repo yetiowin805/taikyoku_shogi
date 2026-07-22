@@ -319,6 +319,9 @@ pub const ALL_PIECE_TYPES: &[PieceType] = &[
 
 const DEFAULT_PIECE_VALUE: i32 = 1;
 const HIGH_PIECE_VALUE: i32 = 100;
+/// Capturing-range generals (opening long-range jump takes). High so hanging
+/// them after a cheap sweep is clearly refuted in search / quiescence.
+const JUMP_CAPTURE_GENERAL_VALUE: i32 = 90;
 
 fn is_high_value_piece(pt: PieceType) -> bool {
     matches!(
@@ -326,7 +329,6 @@ fn is_high_value_piece(pt: PieceType) -> bool {
         PieceType::King
             | PieceType::CrownPrince
             | PieceType::FreeKing
-            | PieceType::GreatGeneral
             | PieceType::Lion
             | PieceType::LionHawk
             | PieceType::Tengu
@@ -341,10 +343,24 @@ fn is_high_value_piece(pt: PieceType) -> bool {
     )
 }
 
+fn is_jump_capture_general(pt: PieceType) -> bool {
+    matches!(
+        pt,
+        PieceType::GreatGeneral | PieceType::BishopGeneral | PieceType::FlyingGeneral
+    )
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchDefaults {
     pub depth: u32,
     pub max_time_ms: Option<u64>,
+    /// Capture-only quiescence depth (0 = off). Missing in old checkpoints → 4.
+    #[serde(default = "default_quiescence_depth")]
+    pub quiescence_depth: u32,
+}
+
+fn default_quiescence_depth() -> u32 {
+    4
 }
 
 impl Default for SearchDefaults {
@@ -352,6 +368,7 @@ impl Default for SearchDefaults {
         Self {
             depth: 2,
             max_time_ms: None,
+            quiescence_depth: 4,
         }
     }
 }
@@ -387,7 +404,9 @@ impl EvalWeights {
     pub fn seed() -> Self {
         let mut piece = HashMap::with_capacity(ALL_PIECE_TYPES.len());
         for &pt in ALL_PIECE_TYPES {
-            let v = if is_high_value_piece(pt) {
+            let v = if is_jump_capture_general(pt) {
+                JUMP_CAPTURE_GENERAL_VALUE
+            } else if is_high_value_piece(pt) {
                 HIGH_PIECE_VALUE
             } else {
                 DEFAULT_PIECE_VALUE

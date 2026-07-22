@@ -61,6 +61,7 @@ pub struct AgentBody {
     pub depth: Option<u32>,
     pub model: Option<String>,
     pub max_time_ms: Option<u64>,
+    pub quiescence_depth: Option<u32>,
 }
 
 fn default_mi() -> String {
@@ -73,6 +74,7 @@ impl AgentBody {
             depth: self.depth,
             model: self.model.clone(),
             max_time_ms: self.max_time_ms,
+            quiescence_depth: self.quiescence_depth,
         }
     }
 }

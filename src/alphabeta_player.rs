@@ -72,6 +72,7 @@ impl AlphaBetaPlayer {
             depth: checkpoint_defaults.depth.max(1),
             max_time_ms: checkpoint_defaults.max_time_ms,
             collect_trace: false,
+            quiescence_depth: checkpoint_defaults.quiescence_depth,
         };
         if let Ok(d) = env::var("TAIKYOKU_AB_DEPTH") {
             if let Ok(v) = d.parse::<u32>() {
@@ -81,11 +82,19 @@ impl AlphaBetaPlayer {
         if let Ok(t) = env::var("TAIKYOKU_AB_TIME_MS") {
             config.max_time_ms = t.parse::<u64>().ok();
         }
+        if let Ok(q) = env::var("TAIKYOKU_AB_QDEPTH") {
+            if let Ok(v) = q.parse::<u32>() {
+                config.quiescence_depth = v;
+            }
+        }
         if let Some(d) = opts.depth {
             config.depth = d.max(1);
         }
         if let Some(t) = opts.max_time_ms {
             config.max_time_ms = Some(t);
+        }
+        if let Some(q) = opts.quiescence_depth {
+            config.quiescence_depth = q;
         }
         Self::new(weights, config)
     }
@@ -99,6 +108,7 @@ impl AlphaBetaPlayer {
             depth: checkpoint.search_defaults.depth.max(1),
             max_time_ms: checkpoint.search_defaults.max_time_ms,
             collect_trace: false,
+            quiescence_depth: checkpoint.search_defaults.quiescence_depth,
         };
         if let Ok(d) = env::var("TAIKYOKU_AB_DEPTH") {
             if let Ok(v) = d.parse::<u32>() {
@@ -108,12 +118,20 @@ impl AlphaBetaPlayer {
         if let Ok(t) = env::var("TAIKYOKU_AB_TIME_MS") {
             config.max_time_ms = t.parse::<u64>().ok();
         }
+        if let Ok(q) = env::var("TAIKYOKU_AB_QDEPTH") {
+            if let Ok(v) = q.parse::<u32>() {
+                config.quiescence_depth = v;
+            }
+        }
         // Explicit options win (GUI / API).
         if let Some(d) = opts.depth {
             config.depth = d.max(1);
         }
         if let Some(t) = opts.max_time_ms {
             config.max_time_ms = Some(t);
+        }
+        if let Some(q) = opts.quiescence_depth {
+            config.quiescence_depth = q;
         }
         Self::new(checkpoint.weights, config)
     }
