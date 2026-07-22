@@ -3,7 +3,7 @@
 use crate::eval::{load_checkpoint_or_seed, EvalCheckpoint, EvalWeights, DEFAULT_MODEL_PATH};
 use crate::game_state::{GameState, Move};
 use crate::player::AgentOptions;
-use crate::search::{search, SearchConfig};
+use crate::search::{search, QPruneMode, SearchConfig};
 use std::env;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
@@ -73,6 +73,7 @@ impl AlphaBetaPlayer {
             max_time_ms: checkpoint_defaults.max_time_ms,
             collect_trace: false,
             quiescence_depth: checkpoint_defaults.quiescence_depth,
+            q_prune_mode: QPruneMode::NetGainAndTopN,
         };
         if let Ok(d) = env::var("TAIKYOKU_AB_DEPTH") {
             if let Ok(v) = d.parse::<u32>() {
@@ -109,6 +110,7 @@ impl AlphaBetaPlayer {
             max_time_ms: checkpoint.search_defaults.max_time_ms,
             collect_trace: false,
             quiescence_depth: checkpoint.search_defaults.quiescence_depth,
+            q_prune_mode: QPruneMode::NetGainAndTopN,
         };
         if let Ok(d) = env::var("TAIKYOKU_AB_DEPTH") {
             if let Ok(v) = d.parse::<u32>() {

@@ -317,7 +317,12 @@ pub const ALL_PIECE_TYPES: &[PieceType] = &[
     PieceType::SwordGeneral,
 ];
 
-const DEFAULT_PIECE_VALUE: i32 = 1;
+const ORDINARY_PIECE_VALUE: i32 = 3;
+const PROMOTED_PIECE_VALUE: i32 = 5;
+/// Fallback for unknown / missing table entries.
+const DEFAULT_PIECE_VALUE: i32 = ORDINARY_PIECE_VALUE;
+const PAWN_VALUE: i32 = 1;
+const DOG_GO_BETWEEN_VALUE: i32 = 2;
 const HIGH_PIECE_VALUE: i32 = 100;
 /// Capturing-range generals (opening long-range jump takes). High so hanging
 /// them after a cheap sweep is clearly refuted in search / quiescence.
@@ -348,6 +353,29 @@ fn is_jump_capture_general(pt: PieceType) -> bool {
         pt,
         PieceType::GreatGeneral | PieceType::BishopGeneral | PieceType::FlyingGeneral
     )
+}
+
+/// True if some piece type promotes into `pt` (tokin-style and other promotes).
+fn is_promotion_result(pt: PieceType) -> bool {
+    ALL_PIECE_TYPES
+        .iter()
+        .any(|from| from.promotes_to() == Some(pt))
+}
+
+fn seed_piece_value(pt: PieceType) -> i32 {
+    if matches!(pt, PieceType::Pawn) {
+        PAWN_VALUE
+    } else if matches!(pt, PieceType::Dog | PieceType::GoBetween) {
+        DOG_GO_BETWEEN_VALUE
+    } else if is_jump_capture_general(pt) {
+        JUMP_CAPTURE_GENERAL_VALUE
+    } else if is_high_value_piece(pt) {
+        HIGH_PIECE_VALUE
+    } else if is_promotion_result(pt) {
+        PROMOTED_PIECE_VALUE
+    } else {
+        ORDINARY_PIECE_VALUE
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -404,14 +432,7 @@ impl EvalWeights {
     pub fn seed() -> Self {
         let mut piece = HashMap::with_capacity(ALL_PIECE_TYPES.len());
         for &pt in ALL_PIECE_TYPES {
-            let v = if is_jump_capture_general(pt) {
-                JUMP_CAPTURE_GENERAL_VALUE
-            } else if is_high_value_piece(pt) {
-                HIGH_PIECE_VALUE
-            } else {
-                DEFAULT_PIECE_VALUE
-            };
-            piece.insert(pt, v);
+            piece.insert(pt, seed_piece_value(pt));
         }
         let mut w = Self {
             piece,
@@ -666,6 +687,13 @@ mod tests {
         assert_eq!(back.format_version, 1);
         assert_eq!(back.weights.piece_value(PieceType::King), 100);
         assert_eq!(back.weights.piece_value(PieceType::Pawn), 1);
+        assert_eq!(back.weights.piece_value(PieceType::Dog), 2);
+        assert_eq!(back.weights.piece_value(PieceType::GoBetween), 2);
+        assert_eq!(back.weights.piece_value(PieceType::SilverGeneral), 3);
+        // Pawn → GoldGeneral; SilverGeneral → VerticalMover.
+        assert_eq!(back.weights.piece_value(PieceType::GoldGeneral), 5);
+        assert_eq!(back.weights.piece_value(PieceType::VerticalMover), 5);
+        assert_eq!(back.weights.piece_value(PieceType::GreatGeneral), 90);
         assert_eq!(back.weights.piece.len(), ALL_PIECE_TYPES.len());
         assert!(!back.weights.piece_value_table.is_empty());
     }
