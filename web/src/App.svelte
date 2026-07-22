@@ -19,6 +19,7 @@
   let models = $state(['ab-seed.json']);
   let abModel = $state('ab-seed.json');
   let abDepth = $state(2);
+  let abQDepth = $state(4);
   let abTimeMs = $state(0); // 0 = unlimited
   let runActive = $state(false);
   let runLabel = $state('');
@@ -30,6 +31,7 @@
   function abOpts() {
     const opts = {
       depth: Number(abDepth) || 2,
+      quiescence_depth: Number(abQDepth) || 0,
       model: `models/${abModel}`,
     };
     const t = Number(abTimeMs);
@@ -313,7 +315,7 @@
     applyResult(res);
     autoPlay = true;
     log(
-      `Started run: ${label} (ab depth=${abDepth}, model=${abModel}${abTimeMs > 0 ? `, time=${abTimeMs}ms` : ''})`,
+      `Started run: ${label} (ab depth=${abDepth}, q=${abQDepth}, model=${abModel}${abTimeMs > 0 ? `, time=${abTimeMs}ms` : ''})`,
     );
   }
 
@@ -431,6 +433,18 @@
               bind:value={abDepth}
               style="width:4rem"
             />
+          </div>
+          <div class="row">
+            <label>Q-depth</label>
+            <input
+              type="number"
+              min="0"
+              max="8"
+              bind:value={abQDepth}
+              style="width:4rem"
+              title="Capture-only quiescence depth (0 = off)"
+            />
+            <span class="hint">0=off</span>
           </div>
           <div class="row">
             <label>Time ms</label>

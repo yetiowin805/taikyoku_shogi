@@ -10,6 +10,7 @@ pub struct AgentOptions {
     pub depth: Option<u32>,
     pub model: Option<String>,
     pub max_time_ms: Option<u64>,
+    pub quiescence_depth: Option<u32>,
 }
 
 /// Common interface for selecting a move from a position.
