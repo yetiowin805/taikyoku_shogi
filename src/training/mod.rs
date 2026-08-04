@@ -7,5 +7,6 @@ pub mod mobility_seed;
 pub mod paths;
 pub mod pool;
 pub mod record;
+pub mod start_gen;
 pub mod texel;
 pub mod worker;

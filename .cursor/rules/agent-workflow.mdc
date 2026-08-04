@@ -1,0 +1,11 @@
+---
+description: NEVER use Cursor workspaces; always use a new git branch
+alwaysApply: true
+---
+
+# Agent workflow
+
+- **NEVER** use Cursor workspaces, multi-root setups, `move_agent_to_cloned_root`, or cloned/worktree agent checkouts. They hang in this environment. Stay in the open repo folder.
+- Do **not** call `move_agent_to_root` unless the user explicitly asks to retarget the open folder.
+- Always start new work on a **new branch** from updated `main` (e.g. `cursor/<topic>`). Do not pile features onto a branch that already shipped or has a PR unless the user says to.
+- Follow [AGENTS.md](../../AGENTS.md).

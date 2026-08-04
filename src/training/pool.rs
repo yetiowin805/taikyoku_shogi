@@ -3,9 +3,9 @@
 use crate::board_position::BoardPosition;
 use crate::player::{player_by_name_with_options, AgentOptions};
 use crate::training::paths::{self, ensure_data_dirs};
-use crate::training::record::AgentSpec;
+use crate::training::record::{AgentSpec, GameStart};
+use crate::training::start_gen::{generate_fischer_start, is_recipe_path};
 use crate::training::worker::{play_one_game, WorkerConfig};
-use crate::training::record::GameStart;
 use rand::Rng;
 use std::path::Path;
 
@@ -18,6 +18,9 @@ pub struct PoolGenerateConfig {
     pub outdir: String,
     /// Fraction of legal moves sampled uniformly instead of agent choice (0..1).
     pub noise: f64,
+    /// When false (default), emit Fischer-style openings. When true, play from
+    /// the fixed opening until `until_move` (legacy midgame snapshots).
+    pub from_play: bool,
 }
 
 impl Default for PoolGenerateConfig {
@@ -29,11 +32,12 @@ impl Default for PoolGenerateConfig {
             seed_base: 1,
             outdir: paths::RAW_STARTS.to_string(),
             noise: 0.0,
+            from_play: false,
         }
     }
 }
 
-/// Play from opening with optional noise until `until_move`, save BoardPositions.
+/// Generate start positions (Fischer openings by default).
 pub fn generate_pool(cfg: &PoolGenerateConfig) -> Result<Vec<String>, String> {
     ensure_data_dirs()?;
     std::fs::create_dir_all(&cfg.outdir)
@@ -42,19 +46,26 @@ pub fn generate_pool(cfg: &PoolGenerateConfig) -> Result<Vec<String>, String> {
     let mut ids = Vec::with_capacity(cfg.count);
     for i in 0..cfg.count {
         let seed = cfg.seed_base.wrapping_add(i as u64);
-        let pos = generate_one_start(cfg, seed)?;
         let id = format!("{:016x}-{:04}", seed, i);
         let path = Path::new(&cfg.outdir).join(format!("{}.json", id));
-        pos.save_path(&path)?;
+        if cfg.from_play {
+            let pos = generate_one_play_start(cfg, seed)?;
+            pos.save_path(&path)?;
+        } else {
+            let (pos, recipe) = generate_fischer_start(seed);
+            pos.save_path(&path)?;
+            let recipe_path = Path::new(&cfg.outdir).join(format!("{}.recipe.json", id));
+            recipe.save_path(&recipe_path)?;
+        }
         ids.push(id);
     }
     Ok(ids)
 }
 
-fn generate_one_start(cfg: &PoolGenerateConfig, seed: u64) -> Result<BoardPosition, String> {
+fn generate_one_play_start(cfg: &PoolGenerateConfig, seed: u64) -> Result<BoardPosition, String> {
     use crate::game_state::GameState;
-    use rand::SeedableRng;
     use rand::rngs::StdRng;
+    use rand::SeedableRng;
 
     let player = player_by_name_with_options(
         &cfg.agent.name,
@@ -104,10 +115,13 @@ fn generate_one_start(cfg: &PoolGenerateConfig, seed: u64) -> Result<BoardPositi
     Ok(BoardPosition::from_state(&state))
 }
 
-/// Load all starts from a directory (or empty if missing).
+/// Load all starts from a directory (or empty if missing). Skips `*.recipe.json`.
 pub fn load_starts_dir(dir: &Path) -> Result<Vec<(String, BoardPosition)>, String> {
     let mut out = Vec::new();
     for path in paths::list_json_files(dir)? {
+        if is_recipe_path(&path) {
+            continue;
+        }
         let id = path
             .file_stem()
             .and_then(|s| s.to_str())

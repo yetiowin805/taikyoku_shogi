@@ -17,8 +17,9 @@ pub fn print_training_usage() {
     println!("               [--start opening|PATH] [--seed S] [--out PATH] [--verbose]");
     println!("  worker batch --games N [--starts DIR|opening] [--outdir DIR] [--seed-base S]");
     println!("               [--black AGENT] [--white AGENT] [--model PATH] [--depth N] [--jobs J]");
-    println!("  pool generate [--agent AGENT] [--until-move N] [--count K] [--noise F]");
-    println!("                [--seed-base S] [--outdir DIR]");
+    println!("  pool generate [--count K] [--seed-base S] [--outdir DIR]");
+    println!("                [--from-play] [--agent AGENT] [--until-move N] [--noise F]");
+    println!("                (default: Fischer mirrored shuffle + ablations; --from-play = legacy)");
     println!("  featurize [--games-dir DIR] [--out DIR] [--stride N] [--all-positions]");
     println!("  mobility-seed [--samples N] [--seed S] [--starts DIR] [--out PATH]");
     println!("  texel-fit [--features DIR] [--out PATH] [--iters N] [--lr F]");
@@ -26,6 +27,7 @@ pub fn print_training_usage() {
     println!();
     println!("  Agents: mi, random, royal, ab");
     println!("  Data layout: {} / {} / {}", paths::RAW_GAMES, paths::RAW_STARTS, paths::DERIVED_POSITIONS);
+    println!("  Typical: pool generate --count 64 && worker batch --games 64 --starts {} --jobs 8 --black ab --white ab", paths::RAW_STARTS);
 }
 
 fn parse_agent_flag(args: &[String], i: &mut usize, flag: &str) -> Result<Option<String>, String> {
@@ -349,6 +351,11 @@ pub fn cmd_pool(args: &[String]) -> Result<(), String> {
     let mut cfg = PoolGenerateConfig::default();
     let mut i = 3;
     while i < args.len() {
+        if args[i] == "--from-play" {
+            cfg.from_play = true;
+            i += 1;
+            continue;
+        }
         if let Some(v) = take_flag_value(args, &mut i, "--agent")? {
             cfg.agent = AgentSpec::new(v);
             continue;
@@ -384,7 +391,15 @@ pub fn cmd_pool(args: &[String]) -> Result<(), String> {
         return Err(format!("Unknown flag {}", args[i]));
     }
     let ids = generate_pool(&cfg)?;
-    println!("Wrote {} starts to {}", ids.len(), cfg.outdir);
+    if cfg.from_play {
+        println!("Wrote {} from-play starts to {}", ids.len(), cfg.outdir);
+    } else {
+        println!(
+            "Wrote {} fischer starts (+ *.recipe.json) to {}",
+            ids.len(),
+            cfg.outdir
+        );
+    }
     Ok(())
 }
 

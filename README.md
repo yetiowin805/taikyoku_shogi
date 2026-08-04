@@ -100,6 +100,25 @@ Small-board REPL for experimenting with Free Eagle patterns.
 cargo test
 ```
 
+## Texel training (local)
+
+Fischer-style start pool (default) + parallel self-play:
+
+```bash
+# Mirrored 10% rank shuffles + powerful/royal ablations → data/raw/starts/
+cargo run --release -- pool generate --count 64 --seed-base 1
+
+# Play games from those starts (game time dominates; use --jobs)
+cargo run --release -- worker batch --games 64 --starts data/raw/starts \
+  --black ab --white ab --depth 2 --jobs 8 --outdir data/raw/games
+
+cargo run --release -- featurize
+cargo run --release -- texel-fit --out models/ab-texel.json
+```
+
+Legacy midgame snapshots: `pool generate --from-play --until-move 300 …`.  
+Each Fischer start also writes `{id}.recipe.json` (which ranks shuffled / pieces removed). See `src/training/start_gen.rs`.
+
 ## Coordinates
 
 - Internal storage is **0-indexed** (files/ranks `0..=35`).
