@@ -1048,17 +1048,14 @@ impl Piece {
     /// This doesn't check for blocking pieces or game rules
     /// Uses the movement system to determine if the target is reachable
     pub fn can_reach(&self, target: Position, board: &Board) -> bool {
-        let config = MovementConfig::for_piece(self);
-        let targets = MovementGenerator::generate_targets(self, board, &config.capabilities);
-        targets.contains(&target)
+        self.can_reach_boardlike(target, board)
     }
     
     /// Check if this piece can reach the target position using BoardLike trait
     /// This version works with both Board and VirtualBoard
     pub fn can_reach_boardlike<B: crate::move_simulation::BoardLike>(&self, target: Position, board: &B) -> bool {
         let config = MovementConfig::for_piece(self);
-        let targets = MovementGenerator::generate_targets(self, board, &config.capabilities);
-        targets.contains(&target)
+        MovementGenerator::can_reach_target(self, board, &config.capabilities, target)
     }
 
     /// Get all potential target squares for this piece (without checking for blocking or other pieces)

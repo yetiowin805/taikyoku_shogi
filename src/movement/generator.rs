@@ -39,6 +39,183 @@ impl MovementGenerator {
         targets
     }
 
+    /// Directed probe: can `piece` reach `target` without materializing full fan-out.
+    ///
+    /// Simple / Range / Jumping walk only the relevant ray or offset. TwoStep,
+    /// ConditionalDiagonalJump, and FreeEagle fall back to full generation.
+    pub fn can_reach_target<B: BoardLike>(
+        piece: &Piece,
+        board: &B,
+        capabilities: &[MovementCapability],
+        target: Position,
+    ) -> bool {
+        if piece.position == target {
+            return false;
+        }
+        for capability in capabilities {
+            if Self::capability_reaches(piece, board, capability, target) {
+                return true;
+            }
+        }
+        false
+    }
+
+    fn capability_reaches<B: BoardLike>(
+        piece: &Piece,
+        board: &B,
+        capability: &MovementCapability,
+        target: Position,
+    ) -> bool {
+        match capability {
+            MovementCapability::Simple {
+                directions,
+                max_distance,
+            } => {
+                let Some(dir) =
+                    crate::attack_utils::get_direction_toward(piece.position, target)
+                else {
+                    return false;
+                };
+                let adjusted = Self::adjust_directions_for_color(*directions, piece.color);
+                if !crate::movement::direction::direction_set_contains(adjusted, dir) {
+                    return false;
+                }
+                let (file_delta, rank_delta) = dir.to_offset();
+                let file_diff = target.file as i8 - piece.position.file as i8;
+                let rank_diff = target.rank as i8 - piece.position.rank as i8;
+                let dist = file_diff.abs().max(rank_diff.abs()) as u8;
+                if dist == 0 || dist > *max_distance {
+                    return false;
+                }
+                // Same landing rules as generate_simple along this ray only.
+                for distance in 1..=dist {
+                    let Some(pos) = piece.position.offset(
+                        file_delta * distance as i8,
+                        rank_delta * distance as i8,
+                    ) else {
+                        return false;
+                    };
+                    if *max_distance > 1 && distance > 1 {
+                        if !path_utils::is_path_clear_for_boardlike(board, piece.position, pos)
+                        {
+                            // Blocked before this square — only capturable if first blocker.
+                            let path_positions =
+                                path_utils::get_path_positions(piece.position, pos);
+                            for path_pos in path_positions {
+                                if let Some(blocking_piece) = board.get_piece(path_pos) {
+                                    return path_pos == target
+                                        && blocking_piece.color != piece.color;
+                                }
+                            }
+                            return false;
+                        }
+                    }
+                    if pos == target {
+                        if let Some(tp) = board.get_piece(pos) {
+                            return tp.color != piece.color;
+                        }
+                        return true;
+                    }
+                    if let Some(tp) = board.get_piece(pos) {
+                        // Occupied before target blocks further (enemy would have been target).
+                        let _ = tp;
+                        return false;
+                    }
+                }
+                false
+            }
+            MovementCapability::Range {
+                directions,
+                blocking,
+                cannot_jump_over,
+            } => {
+                if let Some(dir) = crate::attack_utils::get_direction_toward(piece.position, target)
+                {
+                    let adjusted =
+                        Self::adjust_directions_for_color(*directions, piece.color);
+                    if !crate::movement::direction::direction_set_contains(adjusted, dir) {
+                        return false;
+                    }
+                    // One-direction range walk (same rules as generate_range).
+                    let (file_delta, rank_delta) = dir.to_offset();
+                    let mut distance = 1u8;
+                    let mut ray_has_enemy_capture = false;
+                    loop {
+                        let Some(pos) = piece
+                            .position
+                            .offset(file_delta * distance as i8, rank_delta * distance as i8)
+                        else {
+                            return false;
+                        };
+                        let target_piece = board.get_piece(pos);
+                        let is_empty = target_piece.is_none();
+                        let is_friendly =
+                            target_piece.map(|p| p.color == piece.color).unwrap_or(false);
+                        let is_enemy =
+                            target_piece.map(|p| p.color != piece.color).unwrap_or(false);
+                        let mut lands = false;
+                        match blocking {
+                            BlockingMode::NoJump => {
+                                if is_enemy {
+                                    lands = true;
+                                } else if is_empty {
+                                    lands = true;
+                                }
+                                if pos == target {
+                                    return lands;
+                                }
+                                if !is_empty {
+                                    return false;
+                                }
+                            }
+                            BlockingMode::Jump => {
+                                if is_enemy {
+                                    lands = true;
+                                } else if !is_friendly {
+                                    lands = true;
+                                }
+                                if pos == target {
+                                    return lands;
+                                }
+                            }
+                            BlockingMode::Capturing => {
+                                if let Some(piece_in_path) = target_piece {
+                                    if cannot_jump_over.contains(&piece_in_path.piece_type) {
+                                        return false;
+                                    }
+                                }
+                                if is_enemy {
+                                    ray_has_enemy_capture = true;
+                                }
+                                if !is_friendly {
+                                    lands = true;
+                                }
+                                if pos == target {
+                                    return lands;
+                                }
+                            }
+                        }
+                        let _ = (lands, ray_has_enemy_capture);
+                        distance = distance.saturating_add(1);
+                        if distance > 64 {
+                            return false;
+                        }
+                    }
+                } else {
+                    false
+                }
+            }
+            MovementCapability::Jumping { offsets } => {
+                Self::generate_jumping(piece, board, offsets, false).contains(&target)
+            }
+            MovementCapability::TwoStep { .. }
+            | MovementCapability::ConditionalDiagonalJump { .. }
+            | MovementCapability::FreeEagleMultiMove { .. } => {
+                Self::generate_for_capability(piece, board, capability, false).contains(&target)
+            }
+        }
+    }
+
     /// Generate targets for a single movement capability
     fn generate_for_capability<B: BoardLike>(
         piece: &Piece,
