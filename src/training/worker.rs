@@ -8,6 +8,7 @@ use crate::player::{player_by_name_with_options, AgentOptions, Player};
 use crate::training::record::{
     move_to_record, AgentSpec, GameRecordV2, GameStart, GameStats, FORMAT_VERSION,
 };
+use std::path::Path;
 use std::time::Instant;
 
 pub const DEFAULT_MAX_MOVES: usize = 20_000;
@@ -239,4 +240,106 @@ impl BatchSummary {
             self.mean_length()
         );
     }
+}
+
+/// Shared config for a finite parallel batch (used by `worker batch` and `worker daemon`).
+#[derive(Debug, Clone)]
+pub struct BatchConfig {
+    pub games: usize,
+    pub starts: Vec<GameStart>,
+    pub outdir: String,
+    pub seed_base: u64,
+    pub black: AgentSpec,
+    pub white: AgentSpec,
+    pub jobs: usize,
+    pub max_moves: usize,
+    pub verbose: bool,
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct BatchOutcome {
+    pub summary: BatchSummary,
+    pub errors: Vec<String>,
+    pub last_game_id: Option<String>,
+    pub games_ok: usize,
+    pub games_failed: usize,
+}
+
+/// Play `cfg.games` self-play games in parallel into `cfg.outdir`.
+pub fn run_batch(cfg: &BatchConfig) -> Result<BatchOutcome, String> {
+    if cfg.games == 0 {
+        return Ok(BatchOutcome::default());
+    }
+    if cfg.starts.is_empty() {
+        return Err("run_batch: no starts".into());
+    }
+    std::fs::create_dir_all(&cfg.outdir).map_err(|e| format!("outdir: {}", e))?;
+
+    let jobs = cfg.jobs.max(1);
+    let summary_mu = std::sync::Mutex::new(BatchSummary::default());
+    let next = std::sync::Mutex::new(0usize);
+    let errors = std::sync::Mutex::new(Vec::<String>::new());
+    let last_id = std::sync::Mutex::new(None::<String>);
+    let failed = std::sync::Mutex::new(0usize);
+
+    std::thread::scope(|scope| {
+        for _ in 0..jobs {
+            let summary_mu = &summary_mu;
+            let next = &next;
+            let errors = &errors;
+            let last_id = &last_id;
+            let failed = &failed;
+            scope.spawn(move || loop {
+                let g = {
+                    let mut n = next.lock().unwrap();
+                    if *n >= cfg.games {
+                        return;
+                    }
+                    let g = *n;
+                    *n += 1;
+                    g
+                };
+                let start = cfg.starts[g % cfg.starts.len()].clone();
+                let worker_cfg = WorkerConfig {
+                    black: cfg.black.clone(),
+                    white: cfg.white.clone(),
+                    start,
+                    seed: cfg.seed_base.wrapping_add(g as u64),
+                    max_moves: cfg.max_moves,
+                    verbose: cfg.verbose && jobs == 1,
+                };
+                match play_one_game(&worker_cfg) {
+                    Ok(record) => {
+                        let path = Path::new(&cfg.outdir).join(format!("{}.json", record.game_id));
+                        if let Err(e) = record.save_path(&path) {
+                            *failed.lock().unwrap() += 1;
+                            errors.lock().unwrap().push(e);
+                            continue;
+                        }
+                        summary_mu
+                            .lock()
+                            .unwrap()
+                            .record(&record.result, record.stats.move_count);
+                        *last_id.lock().unwrap() = Some(record.game_id.clone());
+                        if cfg.verbose && jobs == 1 {
+                            println!("Game {} -> {}", g + 1, path.display());
+                        }
+                    }
+                    Err(e) => {
+                        *failed.lock().unwrap() += 1;
+                        errors.lock().unwrap().push(format!("game {}: {}", g, e));
+                    }
+                }
+            });
+        }
+    });
+
+    let summary = summary_mu.into_inner().unwrap();
+    Ok(BatchOutcome {
+        games_ok: summary.games,
+        games_failed: failed.into_inner().unwrap(),
+        last_game_id: last_id.into_inner().unwrap(),
+        errors: errors.into_inner().unwrap(),
+        summary,
+    })
 }

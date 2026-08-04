@@ -7,9 +7,16 @@ use crate::training::mobility_seed::{run_mobility_seed, MobilitySeedConfig};
 use crate::training::paths::{self, ensure_data_dirs};
 use crate::training::pool::{generate_pool, load_starts_dir, PoolGenerateConfig};
 use crate::training::record::{AgentSpec, GameStart};
+use crate::training::run_status::{
+    disk_free_gb, utc_now_iso, RunStatus, WorkerDaemonConfig,
+};
 use crate::training::texel::{fit_texel, TexelFitConfig};
-use crate::training::worker::{play_one_game, BatchSummary, WorkerConfig, DEFAULT_MAX_MOVES};
+use crate::training::worker::{
+    play_one_game, run_batch, BatchConfig, WorkerConfig, DEFAULT_MAX_MOVES,
+};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 pub fn print_training_usage() {
     println!("Training / Texel pipeline:");
@@ -17,6 +24,9 @@ pub fn print_training_usage() {
     println!("               [--start opening|PATH] [--seed S] [--out PATH] [--verbose]");
     println!("  worker batch --games N [--starts DIR|opening] [--outdir DIR] [--seed-base S]");
     println!("               [--black AGENT] [--white AGENT] [--model PATH] [--depth N] [--jobs J]");
+    println!("  worker daemon [--batch N] [--jobs J] [--starts DIR] [--outdir DIR] [--seed-base S]");
+    println!("                [--black AGENT] [--white AGENT] [--model PATH] [--depth N]");
+    println!("                [--status PATH] [--sleep-secs N]   (SIGTERM drains current batch)");
     println!("  pool generate [--agent AGENT] [--until-move N] [--count K] [--noise F]");
     println!("                [--seed-base S] [--outdir DIR]");
     println!("  featurize [--games-dir DIR] [--out DIR] [--stride N] [--all-positions]");
@@ -25,7 +35,14 @@ pub fn print_training_usage() {
     println!("  match --a AGENT --b AGENT [--starts DIR] [--games N] [--outdir DIR] [--seed-base S]");
     println!();
     println!("  Agents: mi, random, royal, ab");
-    println!("  Data layout: {} / {} / {}", paths::RAW_GAMES, paths::RAW_STARTS, paths::DERIVED_POSITIONS);
+    println!(
+        "  Data layout: {} / {} / {} / {}",
+        paths::RAW_GAMES,
+        paths::RAW_STARTS,
+        paths::DERIVED_POSITIONS,
+        paths::DATA_RUN
+    );
+    println!("  Daemon status: {}", paths::RUN_STATUS);
 }
 
 fn parse_agent_flag(args: &[String], i: &mut usize, flag: &str) -> Result<Option<String>, String> {
@@ -106,9 +123,10 @@ pub fn cmd_worker(args: &[String]) -> Result<(), String> {
     match sub {
         "run" => cmd_worker_run(args),
         "batch" => cmd_worker_batch(args),
+        "daemon" => cmd_worker_daemon(args),
         _ => {
             print_training_usage();
-            Err("Usage: worker run|batch ...".into())
+            Err("Usage: worker run|batch|daemon ...".into())
         }
     }
 }
@@ -261,83 +279,318 @@ fn cmd_worker_batch(args: &[String]) -> Result<(), String> {
         return Err(format!("Unknown flag {}", args[i]));
     }
 
-    std::fs::create_dir_all(&outdir).map_err(|e| format!("outdir: {}", e))?;
-
-    let starts: Vec<GameStart> = if starts_spec == "opening" {
-        vec![GameStart::Opening]
-    } else {
-        let loaded = load_starts_dir(Path::new(&starts_spec))?;
-        if loaded.is_empty() {
-            return Err(format!("No starts in {}", starts_spec));
-        }
-        loaded
-            .into_iter()
-            .map(|(_, p)| GameStart::Position { position: p })
-            .collect()
-    };
-
-    let black_spec = agent_spec(&black, depth, model.clone(), qdepth);
-    let white_spec = agent_spec(&white, depth, model, qdepth);
-
-    let summary_mu = std::sync::Mutex::new(BatchSummary::default());
-    let next = std::sync::Mutex::new(0usize);
-    let errors = std::sync::Mutex::new(Vec::<String>::new());
-
-    std::thread::scope(|scope| {
-        for _ in 0..jobs {
-            let summary_mu = &summary_mu;
-            let next = &next;
-            let errors = &errors;
-            let starts = &starts;
-            let outdir = &outdir;
-            let black_spec = &black_spec;
-            let white_spec = &white_spec;
-            scope.spawn(move || loop {
-                let g = {
-                    let mut n = next.lock().unwrap();
-                    if *n >= games {
-                        return;
-                    }
-                    let g = *n;
-                    *n += 1;
-                    g
-                };
-                let start = starts[g % starts.len()].clone();
-                let cfg = WorkerConfig {
-                    black: black_spec.clone(),
-                    white: white_spec.clone(),
-                    start,
-                    seed: seed_base.wrapping_add(g as u64),
-                    max_moves,
-                    verbose: verbose && jobs == 1,
-                };
-                match play_one_game(&cfg) {
-                    Ok(record) => {
-                        let path = Path::new(outdir).join(format!("{}.json", record.game_id));
-                        if let Err(e) = record.save_path(&path) {
-                            errors.lock().unwrap().push(e);
-                            continue;
-                        }
-                        summary_mu
-                            .lock()
-                            .unwrap()
-                            .record(&record.result, record.stats.move_count);
-                        if verbose && jobs == 1 {
-                            println!("Game {} -> {}", g + 1, path.display());
-                        }
-                    }
-                    Err(e) => errors.lock().unwrap().push(format!("game {}: {}", g, e)),
-                }
-            });
-        }
-    });
-
-    for e in errors.into_inner().unwrap() {
+    let starts = load_game_starts(&starts_spec)?;
+    let outcome = run_batch(&BatchConfig {
+        games,
+        starts,
+        outdir,
+        seed_base,
+        black: agent_spec(&black, depth, model.clone(), qdepth),
+        white: agent_spec(&white, depth, model, qdepth),
+        jobs,
+        max_moves,
+        verbose,
+    })?;
+    for e in &outcome.errors {
         eprintln!("{}", e);
     }
-    let summary = summary_mu.into_inner().unwrap();
+    outcome.summary.print();
+    Ok(())
+}
 
-    summary.print();
+fn load_game_starts(starts_spec: &str) -> Result<Vec<GameStart>, String> {
+    if starts_spec == "opening" {
+        return Ok(vec![GameStart::Opening]);
+    }
+    let loaded = load_starts_dir(Path::new(starts_spec))?;
+    if loaded.is_empty() {
+        return Err(format!("No starts in {}", starts_spec));
+    }
+    Ok(loaded
+        .into_iter()
+        .map(|(_, p)| GameStart::Position { position: p })
+        .collect())
+}
+
+fn env_or(name: &str, default: &str) -> String {
+    std::env::var(name).unwrap_or_else(|_| default.to_string())
+}
+
+fn env_usize(name: &str, default: usize) -> Result<usize, String> {
+    match std::env::var(name) {
+        Ok(s) => s
+            .parse()
+            .map_err(|_| format!("Invalid env {}={}", name, s)),
+        Err(_) => Ok(default),
+    }
+}
+
+fn env_u64(name: &str, default: u64) -> Result<u64, String> {
+    match std::env::var(name) {
+        Ok(s) => s
+            .parse()
+            .map_err(|_| format!("Invalid env {}={}", name, s)),
+        Err(_) => Ok(default),
+    }
+}
+
+fn env_u32_opt(name: &str) -> Result<Option<u32>, String> {
+    match std::env::var(name) {
+        Ok(s) if s.is_empty() => Ok(None),
+        Ok(s) => Ok(Some(
+            s.parse()
+                .map_err(|_| format!("Invalid env {}={}", name, s))?,
+        )),
+        Err(_) => Ok(None),
+    }
+}
+
+fn stop_requested(flag: &AtomicBool) -> bool {
+    if flag.load(Ordering::SeqCst) {
+        return true;
+    }
+    Path::new(paths::RUN_STOP_FLAG).exists()
+}
+
+fn cmd_worker_daemon(args: &[String]) -> Result<(), String> {
+    ensure_data_dirs()?;
+
+    // Env defaults (systemd /etc/taikyoku/worker.env), then CLI overrides.
+    let mut batch = env_usize("BATCH", 8)?;
+    let mut jobs = env_usize("JOBS", 4)?.max(1);
+    let mut starts_spec = env_or("STARTS", paths::RAW_STARTS);
+    let mut outdir = env_or("OUTDIR", paths::RAW_GAMES);
+    let mut seed_base = env_u64("SEED_BASE", 1)?;
+    let mut black = env_or("BLACK", "ab");
+    let mut white = env_or("WHITE", "ab");
+    let mut depth = env_u32_opt("DEPTH")?;
+    let mut model = std::env::var("MODEL").ok().filter(|s| !s.is_empty());
+    let mut qdepth = env_u32_opt("QDEPTH")?;
+    let mut max_moves = env_usize("MAX_MOVES", DEFAULT_MAX_MOVES)?;
+    let mut status_file = env_or("STATUS", paths::RUN_STATUS);
+    let mut sleep_secs = env_u64("SLEEP_SECS", 0)?;
+    let mut verbose = false;
+
+    let mut i = 3;
+    while i < args.len() {
+        if args[i] == "--verbose" {
+            verbose = true;
+            i += 1;
+            continue;
+        }
+        if let Some(v) = take_usize(args, &mut i, "--batch")? {
+            batch = v.max(1);
+            continue;
+        }
+        // Alias used in some docs / muscle memory.
+        if let Some(v) = take_usize(args, &mut i, "--games")? {
+            batch = v.max(1);
+            continue;
+        }
+        if let Some(v) = take_usize(args, &mut i, "--jobs")? {
+            jobs = v.max(1);
+            continue;
+        }
+        if let Some(v) = take_flag_value(args, &mut i, "--starts")? {
+            starts_spec = v;
+            continue;
+        }
+        if let Some(v) = take_flag_value(args, &mut i, "--outdir")? {
+            outdir = v;
+            continue;
+        }
+        if let Some(v) = take_u64(args, &mut i, "--seed-base")? {
+            seed_base = v;
+            continue;
+        }
+        if let Some(v) = take_flag_value(args, &mut i, "--black")? {
+            black = v;
+            continue;
+        }
+        if let Some(v) = take_flag_value(args, &mut i, "--white")? {
+            white = v;
+            continue;
+        }
+        if let Some(v) = take_u32(args, &mut i, "--depth")? {
+            depth = Some(v);
+            continue;
+        }
+        if let Some(v) = take_flag_value(args, &mut i, "--model")? {
+            model = Some(v);
+            continue;
+        }
+        if let Some(v) = take_u32(args, &mut i, "--qdepth")? {
+            qdepth = Some(v);
+            continue;
+        }
+        if let Some(v) = take_usize(args, &mut i, "--max-moves")? {
+            max_moves = v;
+            continue;
+        }
+        if let Some(v) = take_flag_value(args, &mut i, "--status")? {
+            status_file = v;
+            continue;
+        }
+        if let Some(v) = take_u64(args, &mut i, "--sleep-secs")? {
+            sleep_secs = v;
+            continue;
+        }
+        return Err(format!("Unknown flag {}", args[i]));
+    }
+
+    // Clear leftover STOP from a previous stop request.
+    let stop_path = Path::new(paths::RUN_STOP_FLAG);
+    if stop_path.exists() {
+        let _ = std::fs::remove_file(stop_path);
+    }
+
+    let stop = Arc::new(AtomicBool::new(false));
+    {
+        let stop = stop.clone();
+        ctrlc::set_handler(move || {
+            stop.store(true, Ordering::SeqCst);
+            eprintln!("worker daemon: stop requested; draining current batch…");
+        })
+        .map_err(|e| format!("signal handler: {}", e))?;
+    }
+
+    let starts = load_game_starts(&starts_spec)?;
+    let status_path = PathBuf::from(&status_file);
+    let daemon_cfg = WorkerDaemonConfig {
+        black: black.clone(),
+        white: white.clone(),
+        depth,
+        model: model.clone(),
+        qdepth,
+        jobs,
+        batch,
+        starts: starts_spec.clone(),
+        outdir: outdir.clone(),
+        seed_base,
+        max_moves,
+    };
+
+    let started_at = utc_now_iso();
+    let mut games_completed = 0usize;
+    let mut games_failed = 0usize;
+    let mut batches_completed = 0usize;
+    let mut last_game_id: Option<String> = None;
+    let mut last_error: Option<String> = None;
+    let mut next_seed = seed_base;
+
+    let write_status = |running: bool,
+                        stop_requested: bool,
+                        games_completed: usize,
+                        games_failed: usize,
+                        batches_completed: usize,
+                        last_game_id: &Option<String>,
+                        last_error: &Option<String>,
+                        next_seed: u64|
+     -> Result<(), String> {
+        let status = RunStatus {
+            running,
+            games_completed,
+            games_failed,
+            batches_completed,
+            started_at: started_at.clone(),
+            updated_at: utc_now_iso(),
+            last_game_id: last_game_id.clone(),
+            last_error: last_error.clone(),
+            config: daemon_cfg.clone(),
+            disk_free_gb: disk_free_gb(Path::new(&outdir)),
+            next_seed,
+            stop_requested,
+        };
+        status.write_path(&status_path)
+    };
+
+    write_status(
+        true,
+        false,
+        games_completed,
+        games_failed,
+        batches_completed,
+        &last_game_id,
+        &last_error,
+        next_seed,
+    )?;
+    println!(
+        "worker daemon: batch={} jobs={} starts={} outdir={} status={}",
+        batch,
+        jobs,
+        starts_spec,
+        outdir,
+        status_path.display()
+    );
+
+    loop {
+        if stop_requested(&stop) {
+            break;
+        }
+
+        let outcome = run_batch(&BatchConfig {
+            games: batch,
+            starts: starts.clone(),
+            outdir: outdir.clone(),
+            seed_base: next_seed,
+            black: agent_spec(&black, depth, model.clone(), qdepth),
+            white: agent_spec(&white, depth, model.clone(), qdepth),
+            jobs,
+            max_moves,
+            verbose,
+        })?;
+
+        for e in &outcome.errors {
+            eprintln!("{}", e);
+        }
+        if let Some(e) = outcome.errors.last() {
+            last_error = Some(e.clone());
+        }
+        games_completed += outcome.games_ok;
+        games_failed += outcome.games_failed;
+        batches_completed += 1;
+        if outcome.last_game_id.is_some() {
+            last_game_id = outcome.last_game_id;
+        }
+        next_seed = next_seed.wrapping_add(batch as u64);
+        outcome.summary.print();
+
+        write_status(
+            true,
+            stop_requested(&stop),
+            games_completed,
+            games_failed,
+            batches_completed,
+            &last_game_id,
+            &last_error,
+            next_seed,
+        )?;
+
+        if stop_requested(&stop) {
+            break;
+        }
+        if sleep_secs > 0 {
+            std::thread::sleep(std::time::Duration::from_secs(sleep_secs));
+        }
+    }
+
+    write_status(
+        false,
+        true,
+        games_completed,
+        games_failed,
+        batches_completed,
+        &last_game_id,
+        &last_error,
+        next_seed,
+    )?;
+    if stop_path.exists() {
+        let _ = std::fs::remove_file(stop_path);
+    }
+    println!(
+        "worker daemon: stopped after {} games ({} failed, {} batches)",
+        games_completed, games_failed, batches_completed
+    );
     Ok(())
 }
 
