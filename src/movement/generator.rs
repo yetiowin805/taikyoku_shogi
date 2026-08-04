@@ -60,6 +60,114 @@ impl MovementGenerator {
         false
     }
 
+    /// True when any capability needs full fan-out (two-step / FE / conditional jump).
+    pub fn needs_full_gen_for_victim_hits(capabilities: &[MovementCapability]) -> bool {
+        capabilities.iter().any(|cap| {
+            matches!(
+                cap,
+                MovementCapability::TwoStep { .. }
+                    | MovementCapability::ConditionalDiagonalJump { .. }
+                    | MovementCapability::FreeEagleMultiMove { .. }
+            )
+        })
+    }
+
+    /// Landing squares for standard (non-multi-leg) captures that take an enemy on `victim`.
+    ///
+    /// Dest captures plus Capturing-range path-clears through `victim`. Callers that need
+    /// TwoStep / FreeEagle / conditional-jump must fall back to full CapturesOnly.
+    pub fn capture_landings_hitting_target<B: BoardLike>(
+        piece: &Piece,
+        board: &B,
+        capabilities: &[MovementCapability],
+        victim: Position,
+    ) -> Vec<Position> {
+        let victim_is_enemy = board
+            .get_piece(victim)
+            .is_some_and(|p| p.color != piece.color);
+        if !victim_is_enemy || piece.position == victim {
+            return Vec::new();
+        }
+
+        let mut landings = Vec::new();
+        for capability in capabilities {
+            match capability {
+                MovementCapability::Simple { .. } | MovementCapability::Jumping { .. } => {
+                    if Self::capability_reaches(piece, board, capability, victim) {
+                        landings.push(victim);
+                    }
+                }
+                MovementCapability::Range {
+                    directions,
+                    blocking,
+                    cannot_jump_over,
+                } => match blocking {
+                    BlockingMode::NoJump | BlockingMode::Jump => {
+                        if Self::capability_reaches(piece, board, capability, victim) {
+                            landings.push(victim);
+                        }
+                    }
+                    BlockingMode::Capturing => {
+                        let Some(dir) =
+                            crate::attack_utils::get_direction_toward(piece.position, victim)
+                        else {
+                            continue;
+                        };
+                        let adjusted =
+                            Self::adjust_directions_for_color(*directions, piece.color);
+                        if !crate::movement::direction::direction_set_contains(adjusted, dir) {
+                            continue;
+                        }
+                        let (file_delta, rank_delta) = dir.to_offset();
+                        let mut distance = 1u8;
+                        let mut seen_victim = false;
+                        let mut ray_has_enemy_capture = false;
+                        loop {
+                            let Some(pos) = piece.position.offset(
+                                file_delta * distance as i8,
+                                rank_delta * distance as i8,
+                            ) else {
+                                break;
+                            };
+                            let target_piece = board.get_piece(pos);
+                            let is_empty = target_piece.is_none();
+                            let is_friendly =
+                                target_piece.map(|p| p.color == piece.color).unwrap_or(false);
+                            let is_enemy =
+                                target_piece.map(|p| p.color != piece.color).unwrap_or(false);
+                            if let Some(piece_in_path) = target_piece {
+                                if cannot_jump_over.contains(&piece_in_path.piece_type) {
+                                    break;
+                                }
+                            }
+                            if is_enemy {
+                                ray_has_enemy_capture = true;
+                                if pos == victim {
+                                    seen_victim = true;
+                                }
+                            }
+                            if !is_friendly && seen_victim {
+                                if is_enemy || (is_empty && ray_has_enemy_capture) {
+                                    landings.push(pos);
+                                }
+                            }
+                            distance = match distance.checked_add(1) {
+                                Some(d) => d,
+                                None => break,
+                            };
+                        }
+                    }
+                },
+                MovementCapability::TwoStep { .. }
+                | MovementCapability::ConditionalDiagonalJump { .. }
+                | MovementCapability::FreeEagleMultiMove { .. } => {}
+            }
+        }
+        landings.sort();
+        landings.dedup();
+        landings
+    }
+
     fn capability_reaches<B: BoardLike>(
         piece: &Piece,
         board: &B,

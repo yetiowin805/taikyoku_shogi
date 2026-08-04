@@ -2,7 +2,7 @@
 
 use crate::eval::{evaluate_with_ply, seed_loud_capture_floor, EvalWeights};
 use crate::game_state::{GameState, LegalMoveGen, Move};
-use crate::movement::{BlockingMode, MovementCapability, MovementConfig};
+use crate::movement::{BlockingMode, MovementCapability, MovementConfig, MovementGenerator};
 use crate::move_simulation::BoardLike;
 use crate::path_utils;
 use crate::piece::Color;
@@ -766,12 +766,10 @@ fn quiesce_move_looks_path_or_multileg(state: &GameState, mv: &Move) -> bool {
 /// Capturing-range corridor wipes / multi-leg snipes belong to main search unless
 /// they are a destination recapture onto `prev_to`.
 ///
-/// Uses capture-oriented generation (no quiet ray fan-out / quiet multi-leg).
-/// Includes last-move recaptures even below the loud floor.
-///
-/// When `victim_square_only` is set (PathAware deep plies), only generate captures
-/// that hit `prev_to` via a proximity-filtered piece subset — much cheaper than
-/// full-board CapturesOnly.
+/// - Deep PathAware (`victim_square_only`): only captures hitting `prev_to`.
+/// - Entry with `prev_to`: dest hits on `prev_to` plus loud SimpleTakes (no full-board
+///   CapturesOnly).
+/// - Entry without `prev_to`: full CapturesOnly fallback.
 fn generate_quiescence_captures(
     state: &GameState,
     weights: &EvalWeights,
@@ -784,6 +782,8 @@ fn generate_quiescence_captures(
         } else {
             state.generate_legal_moves_mode(LegalMoveGen::CapturesOnly)
         }
+    } else if let Some(victim) = prev_to {
+        generate_entry_quiescence_captures(state, weights, victim)
     } else {
         state.generate_legal_moves_mode(LegalMoveGen::CapturesOnly)
     };
@@ -801,21 +801,113 @@ fn generate_quiescence_captures(
         .collect()
 }
 
-/// CapturesOnly from pieces that might hit `victim`, then keep those that do.
+/// Q-entry without full-board CapturesOnly: dest hits on `prev_to` + loud SimpleTakes.
+fn generate_entry_quiescence_captures(
+    state: &GameState,
+    weights: &EvalWeights,
+    prev_to: Position,
+) -> Vec<Move> {
+    let mut out = generate_captures_hitting_square(state, prev_to);
+    let mut seen: HashSet<(u16, u16, bool)> = out
+        .iter()
+        .map(|mv| {
+            (
+                mv.from.to_index() as u16,
+                mv.to.to_index() as u16,
+                mv.promoted,
+            )
+        })
+        .collect();
+    for mv in generate_loud_simple_takes(state, weights) {
+        let key = (
+            mv.from.to_index() as u16,
+            mv.to.to_index() as u16,
+            mv.promoted,
+        );
+        if seen.insert(key) {
+            out.push(mv);
+        }
+    }
+    out
+}
+
+/// Loud SimpleTakes: dest-capture each enemy piece valued ≥ the loud floor.
+fn generate_loud_simple_takes(state: &GameState, weights: &EvalWeights) -> Vec<Move> {
+    let floor = min_quiescence_enemy_material();
+    let them = state.get_current_turn().opposite();
+    let mut out = Vec::new();
+    let mut seen: HashSet<(u16, u16, bool)> = HashSet::new();
+    for enemy in state.get_board().iter_pieces_by_color(them) {
+        if weights.piece_value(enemy.piece_type) < floor {
+            continue;
+        }
+        for mv in generate_captures_hitting_square(state, enemy.position) {
+            if mv.to != enemy.position {
+                continue;
+            }
+            if quiesce_move_looks_path_or_multileg(state, &mv) {
+                continue;
+            }
+            let key = (
+                mv.from.to_index() as u16,
+                mv.to.to_index() as u16,
+                mv.promoted,
+            );
+            if seen.insert(key) {
+                out.push(mv);
+            }
+        }
+    }
+    out
+}
+
+/// Captures that take an enemy on `victim` (dest, path-clear, multi-leg, FE).
+///
+/// Standard pieces use directed landing emit; TwoStep / FreeEagle / conditional-jump
+/// fall back to per-piece CapturesOnly + filter (parity-gated via [`crate::parity`]).
 pub(crate) fn generate_captures_hitting_square(state: &GameState, victim: Position) -> Vec<Move> {
     let us = state.get_current_turn();
     let board = state.get_board();
-    let pieces: Vec<_> = board
-        .iter_pieces_by_color(us)
-        .filter(|p| {
-            crate::attack_utils::should_check_piece_for_target_position(p, victim, false)
-        })
-        .collect();
-    state
-        .generate_legal_moves_for_pieces_mode(&pieces, LegalMoveGen::CapturesOnly)
-        .into_iter()
-        .filter(|mv| capture_hits_square(state, mv, victim))
-        .collect()
+    let mut out = Vec::new();
+    for piece in board.iter_pieces_by_color(us) {
+        if !crate::attack_utils::should_check_piece_for_target_position(&piece, victim, false) {
+            continue;
+        }
+        if piece.piece_type == crate::piece::PieceType::FreeEagle {
+            out.extend(
+                state
+                    .generate_legal_moves_for_pieces_mode(
+                        &[piece],
+                        LegalMoveGen::CapturesOnly,
+                    )
+                    .into_iter()
+                    .filter(|mv| capture_hits_square(state, mv, victim)),
+            );
+            continue;
+        }
+        let config = MovementConfig::for_piece(&piece);
+        if MovementGenerator::needs_full_gen_for_victim_hits(&config.capabilities) {
+            out.extend(
+                state
+                    .generate_legal_moves_for_pieces_mode(
+                        &[piece],
+                        LegalMoveGen::CapturesOnly,
+                    )
+                    .into_iter()
+                    .filter(|mv| capture_hits_square(state, mv, victim)),
+            );
+            continue;
+        }
+        for landing in MovementGenerator::capture_landings_hitting_target(
+            &piece,
+            board,
+            &config.capabilities,
+            victim,
+        ) {
+            state.emit_standard_moves_to(&piece, landing, &mut out);
+        }
+    }
+    out
 }
 
 /// Pick a move with alpha-beta (no GUI trace by default).
@@ -1671,6 +1763,8 @@ fn quiesce(
     }
 
     let key = position_hash(state);
+    // Unique-q tracking is diagnostic-only; skip the HashSet in release.
+    #[cfg(debug_assertions)]
     if !ctx.q_unique_saturated {
         if ctx.q_unique.len() < Q_UNIQUE_CAP {
             ctx.q_unique.insert(key);
@@ -1681,6 +1775,7 @@ fn quiesce(
 
     // Quiescence TT: depth is remaining q-plies.
     ctx.q_tt_probes += 1;
+    let mut tt_move: Option<MoveKey> = None;
     if let Some(e) = ctx.q_tt.probe(key) {
         if e.depth >= qdepth {
             ctx.q_tt_hits += 1;
@@ -1699,6 +1794,7 @@ fn quiesce(
                 }
             }
         }
+        tt_move = e.best;
     }
     let alpha_orig = alpha;
 
@@ -1831,6 +1927,11 @@ fn quiesce(
                 sb.cmp(&sa)
             })
     });
+    if let Some(tm) = tt_move {
+        if let Some(idx) = cands.iter().position(|c| same_tt_move(&c.mv, tm)) {
+            cands.swap(0, idx);
+        }
+    }
 
     ctx.q_caps_generated = ctx
         .q_caps_generated
@@ -1884,11 +1985,17 @@ fn quiesce(
     } else if top_n_cap != usize::MAX && cands.len() > top_n_cap {
         cands.truncate(top_n_cap);
     }
+    if let Some(tm) = tt_move {
+        if let Some(idx) = cands.iter().position(|c| same_tt_move(&c.mv, tm)) {
+            cands.swap(0, idx);
+        }
+    }
 
     let n_caps = cands.len();
     ctx.q_caps_at_node = n_caps;
 
     let mut best = stand_pat;
+    let mut best_move_key: Option<MoveKey> = None;
     let parent_ply = ctx.ply;
     let opponent = state.get_current_turn().opposite();
 
@@ -1914,12 +2021,17 @@ fn quiesce(
         let own = c.own;
         let mover_value = c.mover_value;
         let landing = c.mv.to;
+        let mv_key = move_tt_key(&c.mv);
         let mv = c.mv;
 
-        // Pre-make hang skip for PathClear/MultiLeg: avoid expensive ray makes when
-        // net is poor and the landing already looks attacked on the current board.
+        // Pre-make hang skip: poor net + landing already attacked — avoid make/unmake.
+        // SimpleTake is usually safe to judge pre-move; PathClear/MultiLeg too when
+        // defenders are not cleared by the capture itself (post-make still checks those).
         if path_aware
-            && matches!(kind, CaptureKind::PathClear | CaptureKind::MultiLeg)
+            && matches!(
+                kind,
+                CaptureKind::SimpleTake | CaptureKind::PathClear | CaptureKind::MultiLeg
+            )
             && net_below_hang_frac(enemy, own, mover_value)
             && state
                 .get_board()
@@ -1932,14 +2044,9 @@ fn quiesce(
             continue;
         };
 
-        // PathAware: drop clearly hanging captures using the post-fire board
-        // (PathClear can remove landing defenders / own cover).
-        // Net gain vs mover*HANG_NET_FRAC so multi-piece PathClears still hang-check.
+        // PathAware post-fire hang for PathClear/MultiLeg (may remove landing defenders).
         if path_aware
-            && matches!(
-                kind,
-                CaptureKind::SimpleTake | CaptureKind::PathClear | CaptureKind::MultiLeg
-            )
+            && matches!(kind, CaptureKind::PathClear | CaptureKind::MultiLeg)
             && net_below_hang_frac(enemy, own, mover_value)
         {
             if state
@@ -1982,6 +2089,7 @@ fn quiesce(
 
         if score > best {
             best = score;
+            best_move_key = Some(mv_key);
         }
         if score > alpha {
             alpha = score;
@@ -2003,7 +2111,7 @@ fn quiesce(
         depth: qdepth,
         score: best,
         bound,
-        best: None,
+        best: best_move_key,
     });
     best
 }

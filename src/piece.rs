@@ -959,7 +959,7 @@ impl PieceType {
     /// Get movement configuration for this piece type
     /// Note: For pieces that have different movement when promoted (like RainDragon),
     /// use Piece::movement_config() instead which takes promotion status into account
-    pub fn movement_config(&self) -> MovementConfig {
+    pub fn movement_config(&self) -> &'static MovementConfig {
         MovementConfig::for_piece_type(*self)
     }
     

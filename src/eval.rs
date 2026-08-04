@@ -537,7 +537,7 @@ pub struct EvalWeights {
     /// Seed: `[0, 0, 5000, 6000]` → 1→0, 2→5000, 3+→6000.
     #[serde(default = "default_royal_bonus_by_count")]
     pub royal_bonus_by_count: Vec<i32>,
-    /// Legacy DE/GoBetween advance scale (unused by seed; CP/DE use approach table).
+    /// Legacy DE/GoBetween advance scale (unused by seed).
     #[serde(default)]
     pub de_advance: i32,
     /// Floor for undeveloped penalty. Seed uses 0 (PST is the development signal).
@@ -818,9 +818,6 @@ pub fn evaluate_absolute_black(board: &Board, weights: &EvalWeights, ply: usize)
 
     score += weights.royal_bonus(black_royals) as f32 - weights.royal_bonus(white_royals) as f32;
 
-    score += cp_de_approach_bonus(black, Color::Black) as f32;
-    score -= cp_de_approach_bonus(white, Color::White) as f32;
-
     score -= undeveloped_home_penalty(black, weights);
     score += undeveloped_home_penalty(white, weights);
 
@@ -921,40 +918,6 @@ fn material_of(pieces: &[Piece], weights: &EvalWeights) -> f32 {
         .iter()
         .map(|p| positional_piece_value(p, weights))
         .sum()
-}
-
-/// Crown Prince / Drunken Elephant approach bonus toward promotion.
-fn cp_de_approach_bonus(pieces: &[Piece], color: Color) -> i32 {
-    let mut s = 0i32;
-    for p in pieces {
-        if !matches!(
-            p.piece_type,
-            PieceType::CrownPrince | PieceType::DrunkenElephant
-        ) {
-            continue;
-        }
-        let progress = match color {
-            Color::Black => p.position.rank as i32,
-            Color::White => 35 - p.position.rank as i32,
-        };
-        s += cp_de_approach_at_progress(progress);
-    }
-    s
-}
-
-fn cp_de_approach_at_progress(progress: i32) -> i32 {
-    if progress >= 24 {
-        500
-    } else if progress == 23 {
-        300
-    } else if progress == 22 {
-        200
-    } else if progress <= 0 {
-        0
-    } else {
-        // Linear 0 at back → 200 at progress 22.
-        ((200.0 * progress as f32) / 22.0).round() as i32
-    }
 }
 
 fn noise_component(board: &Board, weights: &EvalWeights, ply: usize) -> i32 {
@@ -1144,16 +1107,6 @@ mod tests {
                 "{pt:?} promo rank should be unscaled"
             );
         }
-    }
-
-    #[test]
-    fn cp_de_approach_schedule() {
-        assert_eq!(cp_de_approach_at_progress(0), 0);
-        assert_eq!(cp_de_approach_at_progress(22), 200);
-        assert_eq!(cp_de_approach_at_progress(23), 300);
-        assert_eq!(cp_de_approach_at_progress(24), 500);
-        assert_eq!(cp_de_approach_at_progress(25), 500);
-        assert_eq!(cp_de_approach_at_progress(11), ((200.0f32 * 11.0) / 22.0).round() as i32);
     }
 
     #[test]

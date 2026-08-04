@@ -72,51 +72,52 @@ impl MovementConfig {
     }
 
     /// Get movement config for a piece (handles special cases like promoted vs unpromoted RainDragon and Whale)
-    pub fn for_piece(piece: &crate::piece::Piece) -> MovementConfig {
+    pub fn for_piece(piece: &crate::piece::Piece) -> &'static MovementConfig {
+        use std::sync::OnceLock;
         // Special case: RainDragon has different movement if promoted (from EarthDragon) vs unpromoted (starting piece)
         if piece.piece_type == crate::piece::PieceType::RainDragon {
             if piece.is_promoted {
                 // Promoted RainDragon (from EarthDragon): has range backwards movement
-                return rain_dragon_promoted_movement();
+                static PROMOTED: OnceLock<MovementConfig> = OnceLock::new();
+                return PROMOTED.get_or_init(rain_dragon_promoted_movement);
             } else {
                 // Unpromoted RainDragon (starting piece): no range backwards movement
-                return rain_dragon_unpromoted_movement();
+                static UNPROMOTED: OnceLock<MovementConfig> = OnceLock::new();
+                return UNPROMOTED.get_or_init(rain_dragon_unpromoted_movement);
             }
         }
-        
+
         // Special case: Whale has different movement if promoted (from ReverseChariot) vs unpromoted (starting piece)
         if piece.piece_type == crate::piece::PieceType::Whale {
             if let Some(base_type) = piece.base_piece_type {
                 if base_type == crate::piece::PieceType::ReverseChariot {
                     // Promoted Whale (from ReverseChariot): simple 1 forwards, range backwards
-                    return whale_promoted_movement();
+                    static PROMOTED: OnceLock<MovementConfig> = OnceLock::new();
+                    return PROMOTED.get_or_init(whale_promoted_movement);
                 }
             }
             // Starting Whale (unpromoted): range forwards and backwards
-            return whale_starting_movement();
+            static STARTING: OnceLock<MovementConfig> = OnceLock::new();
+            return STARTING.get_or_init(whale_starting_movement);
         }
-        
+
         // For all other pieces, use the standard piece type lookup
         Self::for_piece_type(piece.piece_type)
     }
 
-    /// Get movement config for a piece type
-    pub fn for_piece_type(piece_type: crate::piece::PieceType) -> MovementConfig {
+    /// Get movement config for a piece type (lock-free, no clone).
+    pub fn for_piece_type(piece_type: crate::piece::PieceType) -> &'static MovementConfig {
         use std::sync::OnceLock;
-        static CACHE: OnceLock<std::sync::Mutex<std::collections::HashMap<u16, MovementConfig>>> =
-            OnceLock::new();
-        let cache = CACHE.get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()));
-        let key = piece_type as u16;
-        {
-            let guard = cache.lock().unwrap();
-            if let Some(cfg) = guard.get(&key) {
-                return cfg.clone();
-            }
-        }
-        let cfg = Self::for_piece_type_uncached(piece_type);
-        let mut guard = cache.lock().unwrap();
-        guard.entry(key).or_insert_with(|| cfg.clone());
-        cfg
+        // PieceType discriminant span (King=0 .. SwordGeneral=302).
+        const PIECE_TYPE_CACHE_LEN: usize = 303;
+        static CACHE: [OnceLock<MovementConfig>; PIECE_TYPE_CACHE_LEN] =
+            [const { OnceLock::new() }; PIECE_TYPE_CACHE_LEN];
+        let idx = piece_type as usize;
+        debug_assert!(
+            idx < PIECE_TYPE_CACHE_LEN,
+            "PieceType discriminant {idx} exceeds cache"
+        );
+        CACHE[idx].get_or_init(|| Self::for_piece_type_uncached(piece_type))
     }
 
     fn for_piece_type_uncached(piece_type: crate::piece::PieceType) -> MovementConfig {
