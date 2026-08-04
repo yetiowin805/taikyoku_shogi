@@ -17,6 +17,15 @@ Thumbs.db
 
 # data
 games/
+data/raw/games/*
+!data/raw/games/.gitkeep
+data/raw/starts/*
+!data/raw/starts/.gitkeep
+data/derived/**
+!data/derived/.gitkeep
+!data/derived/positions/
+!data/derived/positions/.gitkeep
+
 
 # Test files (if you want to exclude them)
 test_path

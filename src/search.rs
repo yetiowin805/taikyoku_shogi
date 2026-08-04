@@ -3,6 +3,7 @@
 use crate::eval::{evaluate_with_ply, EvalWeights};
 use crate::game_state::{GameState, LegalMoveGen, Move};
 use crate::movement::{BlockingMode, MovementCapability, MovementConfig};
+use crate::move_simulation::BoardLike;
 use crate::path_utils;
 use crate::piece::Color;
 use crate::position::Position;
@@ -558,10 +559,9 @@ fn mvv_lva_score(state: &GameState, weights: &EvalWeights, mv: &Move) -> i32 {
 
 /// Move-ordering score (heuristic only — not search correctness).
 ///
-/// Captures: `gain = enemy - own`, then if the landing square looks attacked by
-/// the opponent on the **current** (pre-move) board, subtract mover value
-/// (stale hang estimate; ignores path clears). LVA tie-break: `gain*1000 - mover`.
-/// Quiets sort below captures. `attack_cache` is per-`order_moves` call.
+/// Captures: `gain = enemy - own`. SimpleTake uses a pre-move landing-attack
+/// cache. PathClear / MultiLeg use a post-fire simulation so path clears that
+/// remove defenders are not treated as hanging. LVA: `gain*1000 - mover`.
 fn move_order_score(
     state: &GameState,
     weights: &EvalWeights,
@@ -580,7 +580,15 @@ fn move_order_score(
     }
 
     let mut gain = enemy - own;
-    if landing_attacked_cached(board, mv.to, opponent, attack_cache) {
+    let kind = classify_capture(state, mv);
+    let hanging = match kind {
+        CaptureKind::PathClear | CaptureKind::MultiLeg => {
+            let vb = crate::move_simulation::simulate_move(board, mv, &mover);
+            vb.is_position_attacked_by_color(mv.to, opponent)
+        }
+        CaptureKind::SimpleTake => landing_attacked_cached(board, mv.to, opponent, attack_cache),
+    };
+    if hanging {
         gain -= mover_value;
     }
     (gain * 1000.0 - mover_value).round() as i32
@@ -1671,8 +1679,15 @@ fn quiesce(
             continue;
         };
 
-        // PathAware: drop clearly hanging SimpleTakes (post-move attack).
-        if path_aware && kind == CaptureKind::SimpleTake && enemy < mover_value {
+        // PathAware: drop clearly hanging captures using the post-fire board
+        // (PathClear can remove landing defenders / own cover).
+        if path_aware
+            && matches!(
+                kind,
+                CaptureKind::SimpleTake | CaptureKind::PathClear | CaptureKind::MultiLeg
+            )
+            && enemy < mover_value
+        {
             if state
                 .get_board()
                 .is_position_attacked_by_color(landing, opponent)
@@ -2074,6 +2089,7 @@ fn order_moves_quiescence(state: &GameState, weights: &EvalWeights, moves: &mut 
 }
 
 /// Test/helper: ordering score with a fresh per-call attack cache.
+#[cfg(test)]
 fn move_order_score_fresh(state: &GameState, weights: &EvalWeights, mv: &Move) -> i32 {
     let opponent = state.get_current_turn().opposite();
     let mut cache = HashMap::new();
@@ -2687,13 +2703,14 @@ mod tests {
         weights.noise_scale = 0.0;
         let mut state = GameState::new();
         state.setup_initial_position();
-        // Small budget: depth-1 should complete at least one root move in debug.
+        // Budget must allow at least depth-1 root progress; PathClear ordering
+        // sims add cost on the opening.
         let result = search(
             &state,
             &weights,
             &SearchConfig {
                 depth: 2,
-                max_time_ms: Some(250),
+                max_time_ms: Some(2_000),
                 collect_trace: false,
                 quiescence_depth: 0,
                 q_prune_mode: QPruneMode::PathAware,
