@@ -206,11 +206,34 @@ impl GameHistory {
         })
     }
 
-    /// List all saved games
+    /// List JSON games under the primary directory (filenames only).
     pub fn list_games(&self) -> Result<Vec<String>, String> {
-        let entries = fs::read_dir(&self.games_dir)
-            .map_err(|e| format!("Failed to read games directory: {}", e))?;
-        
+        Self::list_json_filenames(&self.games_dir)
+    }
+
+    /// List games from `games/` and `data/raw/games/` with directory prefixes.
+    pub fn list_games_all(&self) -> Result<Vec<String>, String> {
+        let mut games = Vec::new();
+        for name in self.list_games()? {
+            games.push(format!("{}/{}", self.games_dir, name));
+        }
+        let training = "data/raw/games";
+        if Path::new(training).is_dir() {
+            for name in Self::list_json_filenames(training)? {
+                games.push(format!("{}/{}", training, name));
+            }
+        }
+        games.sort();
+        games.reverse();
+        Ok(games)
+    }
+
+    fn list_json_filenames(dir: &str) -> Result<Vec<String>, String> {
+        if !Path::new(dir).exists() {
+            return Ok(Vec::new());
+        }
+        let entries = fs::read_dir(dir)
+            .map_err(|e| format!("Failed to read games directory {}: {}", dir, e))?;
         let mut games = Vec::new();
         for entry in entries {
             let entry = entry.map_err(|e| format!("Failed to read directory entry: {}", e))?;
@@ -221,22 +244,42 @@ impl GameHistory {
                 }
             }
         }
-        
         games.sort();
-        games.reverse(); // Most recent first
+        games.reverse();
         Ok(games)
     }
 
-    /// Load a game by filename
+    /// Resolve a game path: absolute/relative with `/`, else under `games_dir`.
+    pub fn resolve_game_path(&self, filename: &str) -> std::path::PathBuf {
+        let filename = filename
+            .strip_prefix("games/")
+            .unwrap_or(filename);
+        let p = Path::new(filename);
+        if p.is_absolute() || filename.contains('/') {
+            p.to_path_buf()
+        } else {
+            Path::new(&self.games_dir).join(filename)
+        }
+    }
+
+    /// Load a legacy v1 game by filename (extra JSON fields ignored by serde).
     pub fn load_game(&self, filename: &str) -> Result<GameRecord, String> {
-        let path = Path::new(&self.games_dir).join(filename);
+        let path = self.resolve_game_path(filename);
         let contents = fs::read_to_string(&path)
-            .map_err(|e| format!("Failed to read game file: {}", e))?;
-        
+            .map_err(|e| format!("Failed to read game file {}: {}", path.display(), e))?;
+
         let game: GameRecord = serde_json::from_str(&contents)
             .map_err(|e| format!("Failed to parse game file: {}", e))?;
-        
+
         Ok(game)
+    }
+
+    /// Load raw JSON from a game path (v1 or v2).
+    pub fn read_game_file(&self, filename: &str) -> Result<(std::path::PathBuf, String), String> {
+        let path = self.resolve_game_path(filename);
+        let contents = fs::read_to_string(&path)
+            .map_err(|e| format!("Failed to read game file {}: {}", path.display(), e))?;
+        Ok((path, contents))
     }
 
     /// Format board as a visual string representation

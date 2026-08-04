@@ -83,8 +83,45 @@ Type `help` inside the REPL for full command syntax. Coordinates are shogi-style
 cargo run
 ```
 
-Responds to basic UCI commands (`uci`, `isready`, `ucinewgame`, `position startpos`, `go`, `quit`).  
-`go` returns the first legal move as `bestmove`. FEN and move-string parsing are not implemented.
+Responds to `uci`, `isready`, `ucinewgame`, `position startpos`, `position fen <TSFEN1…>`, `position … moves <TM1…>`, `go`, `quit`.  
+`go` returns the first legal move as `bestmove` in **TM1** form. See **TSFEN / TM1** below.
+
+### TSFEN / TM1 (position & move interchange)
+
+Portable strings for sharing positions/moves between the engine, UCI, CLI, and tools. **JSON remains the on-disk canonical form** (`BoardPosition`, `GameRecordV2`); TSFEN/TM1 is the clipboard / protocol layer.
+
+**Coordinates** are engine-native **0-based** `file,rank` (`0..=35`) — same as JSON. Shogi file/rank flip is display-only and is **not** used in TSFEN/TM1.
+
+**Piece ids** are unique PascalCase `PieceType` names (`Pawn`, `GreatGeneral`, …), not board display symbols (those collide).
+
+**TSFEN1** (one line):
+
+```text
+TSFEN1 <b|w> <draw> <n> <piece>…
+# piece = B|W: [+]<PieceType>[<Base>] @ <file>,<rank>
+# example piece: B:Pawn@5,2   W:+DragonKing<Rook>@18,30
+```
+
+Alias: `startpos` = opening setup.
+
+**TM1** move tokens:
+
+| Kind | Form |
+|------|------|
+| Standard | `12,3-15,6` or `12,3-15,6+` (promote) |
+| Two-step | `12,3-13,4-15,6[+]` |
+| Free Eagle | `12,3-13,4-14,5-15,6[+]` (from + path) |
+
+CLI:
+
+```bash
+cargo run --release -- position tsfen --start opening
+cargo run --release -- position tsfen --start data/raw/starts/SOME.json
+cargo run --release -- position load-tsfen 'TSFEN1 b 0 …' --out /tmp/pos.json
+cargo run --release -- game tsfen-moves data/raw/games/SOME.json
+```
+
+The GUI/`serve` game list includes `games/` and `data/raw/games/`; loading a v2 training game applies its embedded start position (not always the opening).
 
 ### Free Eagle sandbox
 
@@ -334,7 +371,8 @@ Captures use hang-aware MVV-LVA (`gain × 1000 − mover`, with hanging movers d
 | Alpha-beta + PathAware quiescence (`models/`) | Working (default depth 2, q 2; selective — see above) |
 | Debug + JSON history | Working (replay / edit / branch / agents) |
 | Local web GUI | Working (Play + Debug + log) |
-| UCI | Stub |
+| UCI | Stub (TSFEN1 / TM1 position+moves) |
+| TSFEN / TM1 interchange | Working (`src/notation.rs`) |
 | Continuous cloud self-play | Working (`worker daemon` + [`deploy/`](deploy/README.md)) |
 
 ## Continuous Texel workers (cloud)

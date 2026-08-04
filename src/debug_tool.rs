@@ -1,9 +1,13 @@
 use crate::board::Board;
+use crate::board_position::BoardPosition;
 use crate::game_history::{GameHistory, GameRecord, GameResult, MoveRecord};
 use crate::game_state::{GameState, Move};
 use crate::piece::{Color, Piece, PieceType};
 use crate::player::player_by_name;
 use crate::position::Position;
+use crate::training::record::{
+    load_game_json, AgentSpec, GameRecordV2, GameStart, GameStats, FORMAT_VERSION,
+};
 use std::io::{self, BufRead, Write};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -150,14 +154,38 @@ impl DebugTool {
     }
 
     pub fn load_game(&mut self, filename: &str) -> Result<(), String> {
-        let filename = filename.strip_prefix("games/").unwrap_or(filename);
-        let game_record = self.game_history.load_game(filename)?;
-        let len = game_record.moves.len();
+        let (_path, contents) = self.game_history.read_game_file(filename)?;
+        let v2 = load_game_json(&contents)?;
+        self.load_game_record_v2(v2)?;
+        Ok(())
+    }
 
-        self.trunk = Some(game_record);
-        self.branch_index = len;
-        self.setup = None;
-        self.branch.clear();
+    fn load_game_record_v2(&mut self, v2: GameRecordV2) -> Result<(), String> {
+        let moves = v2.moves;
+        let len = moves.len();
+        match v2.start {
+            GameStart::Opening => {
+                self.trunk = Some(GameRecord {
+                    timestamp: v2.timestamp,
+                    moves,
+                    result: v2.result,
+                });
+                self.branch_index = len;
+                self.setup = None;
+                self.branch.clear();
+            }
+            GameStart::Position { position } => {
+                let state = position.to_state();
+                self.setup = Some(SetupSnapshot {
+                    board: state.clone_board(),
+                    turn: state.get_current_turn(),
+                    draw_counter: state.get_turns_without_capture_or_promotion(),
+                });
+                self.trunk = None;
+                self.branch_index = 0;
+                self.branch = moves;
+            }
+        }
         self.rebuild_to(0)?;
         Ok(())
     }
@@ -436,17 +464,68 @@ impl DebugTool {
     }
 
     pub fn list_games_pub(&self) -> Result<Vec<String>, String> {
-        self.game_history.list_games()
+        self.game_history.list_games_all()
     }
 
     pub fn save_current(&self, filename: Option<&str>) -> Result<String, String> {
-        let mut warning = String::new();
-        if self.setup.is_some() {
-            warning = " (warning: edited setup — branch moves only)".to_string();
+        if let Some(setup) = &self.setup {
+            let mut state = GameState::new();
+            state.restore_position(setup.board.clone(), setup.turn, setup.draw_counter);
+            let position = BoardPosition::from_state(&state);
+            let mut moves = self.effective_moves();
+            for (i, mv) in moves.iter_mut().enumerate() {
+                mv.move_number = i + 1;
+            }
+            let result = match self.game_state.get_winner() {
+                Some(Color::Black) => Some(GameResult::BlackWins),
+                Some(Color::White) => Some(GameResult::WhiteWins),
+                None if self.game_state.is_draw_by_500_move_rule()
+                    || self.game_state.is_draw_by_insufficient_material() =>
+                {
+                    Some(GameResult::Draw)
+                }
+                None => None,
+            };
+            let timestamp = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs();
+            let v2 = GameRecordV2 {
+                format_version: FORMAT_VERSION,
+                game_id: GameRecordV2::new_id(timestamp),
+                seed: 0,
+                black: AgentSpec::new("unknown"),
+                white: AgentSpec::new("unknown"),
+                start: GameStart::Position { position },
+                moves,
+                result,
+                stats: GameStats {
+                    move_count: 0,
+                    elapsed_ms: None,
+                },
+                timestamp,
+            };
+            let path = match filename {
+                Some(name) => {
+                    let name = name.strip_prefix("games/").unwrap_or(name);
+                    if name.contains('/') {
+                        std::path::PathBuf::from(name)
+                    } else {
+                        std::path::PathBuf::from("games").join(name)
+                    }
+                }
+                None => std::path::PathBuf::from("games").join(format!(
+                    "game_{}.json",
+                    timestamp
+                )),
+            };
+            v2.save_path(&path)?;
+            Ok(format!("{} (saved as GameRecordV2 with start position)", path.display()))
+        } else {
+            let record = self.build_save_record();
+            let path = self.game_history.save_game(&record, filename)?;
+            Ok(path)
         }
-        let record = self.build_save_record();
-        let path = self.game_history.save_game(&record, filename)?;
-        Ok(format!("{}{}", path, warning))
     }
 
     /// Start a fresh game from the initial setup (clears trunk/branch).
