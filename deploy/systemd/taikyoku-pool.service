@@ -1,0 +1,14 @@
+# Optional: refresh start positions weekly (oneshot timer).
+# Install: copy to /etc/systemd/system/ and enable taikyoku-pool.timer
+
+[Unit]
+Description=Taikyoku Shogi generate start pool
+After=network.target
+
+[Service]
+Type=oneshot
+User=taikyoku
+Group=taikyoku
+WorkingDirectory=/opt/taikyoku_shogi
+EnvironmentFile=-/etc/taikyoku/worker.env
+ExecStart=/opt/taikyoku_shogi/target/release/taikyoku_shogi pool generate --count 128 --seed-base 1 --outdir data/raw/starts

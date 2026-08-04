@@ -335,3 +335,22 @@ Captures use hang-aware MVV-LVA (`gain × 1000 − mover`, with hanging movers d
 | Debug + JSON history | Working (replay / edit / branch / agents) |
 | Local web GUI | Working (Play + Debug + log) |
 | UCI | Stub |
+| Continuous cloud self-play | Working (`worker daemon` + [`deploy/`](deploy/README.md)) |
+
+## Continuous Texel workers (cloud)
+
+For overnight self-play on a ~$20/mo VPS (Hetzner first; Oracle Always Free optional later), see **[`deploy/README.md`](deploy/README.md)**.
+
+Summary:
+
+```bash
+# Generate starts, then run the continuous worker (writes data/run/status.json)
+cargo run --release -- pool generate --count 128
+cargo run --release -- worker daemon --batch 8 --jobs 4 --black ab --white ab --starts data/raw/starts
+
+# Inspect: cat data/run/status.json
+# Or: serve + SSH tunnel → GET /api/training/status
+# Stop: SIGTERM / systemctl stop / touch data/run/STOP
+```
+
+systemd unit and env example live under [`deploy/systemd/`](deploy/systemd/) and [`deploy/worker.env.example`](deploy/worker.env.example).

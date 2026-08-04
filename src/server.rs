@@ -236,6 +236,31 @@ async fn api_save(
     }
 }
 
+/// Read `data/run/status.json` written by `worker daemon` (or 404 if absent).
+async fn api_training_status() -> impl IntoResponse {
+    let path = crate::training::paths::status_path();
+    match crate::training::run_status::RunStatus::load_path(&path) {
+        Ok(status) => (StatusCode::OK, Json(serde_json::json!({ "ok": true, "status": status }))).into_response(),
+        Err(e) => {
+            let missing = !path.exists();
+            let code = if missing {
+                StatusCode::NOT_FOUND
+            } else {
+                StatusCode::INTERNAL_SERVER_ERROR
+            };
+            (
+                code,
+                Json(serde_json::json!({
+                    "ok": false,
+                    "message": e,
+                    "path": path.display().to_string(),
+                })),
+            )
+                .into_response()
+        }
+    }
+}
+
 pub fn app_router(state: AppState, static_dir: Option<PathBuf>) -> Router {
     let api = Router::new()
         .route("/state", get(api_state))
@@ -251,6 +276,7 @@ pub fn app_router(state: AppState, static_dir: Option<PathBuf>) -> Router {
         .route("/play", post(api_play_agent))
         .route("/save", post(api_save))
         .route("/models", get(api_list_models))
+        .route("/training/status", get(api_training_status))
         .with_state(state);
 
     let cors = CorsLayer::new()

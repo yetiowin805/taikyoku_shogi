@@ -1,0 +1,29 @@
+# Continuous Texel worker (systemd)
+
+[Unit]
+Description=Taikyoku Shogi continuous self-play worker
+Documentation=file:///opt/taikyoku_shogi/deploy/README.md
+After=network.target
+# Finish the current batch on stop; do not kill mid-game unless timeout elapses.
+# KillMode=control-group is default; TimeoutStopSec gives drain time.
+
+[Service]
+Type=simple
+User=taikyoku
+Group=taikyoku
+WorkingDirectory=/opt/taikyoku_shogi
+EnvironmentFile=-/etc/taikyoku/worker.env
+ExecStart=/opt/taikyoku_shogi/target/release/taikyoku_shogi worker daemon
+# Drain in-flight batch (ab games can be long); raise if needed.
+TimeoutStopSec=7200
+Restart=on-failure
+RestartSec=30
+# Only restart on crash, not after clean SIGTERM stop.
+SuccessExitStatus=0
+
+# Soft hardening (optional; comment out if bind mounts break)
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

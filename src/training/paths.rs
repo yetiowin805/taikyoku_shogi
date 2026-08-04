@@ -7,12 +7,27 @@ pub const DATA_ROOT: &str = "data";
 pub const RAW_GAMES: &str = "data/raw/games";
 pub const RAW_STARTS: &str = "data/raw/starts";
 pub const DERIVED_POSITIONS: &str = "data/derived/positions";
+pub const DATA_RUN: &str = "data/run";
+pub const RUN_STATUS: &str = "data/run/status.json";
+pub const RUN_STOP_FLAG: &str = "data/run/STOP";
 
 pub fn ensure_data_dirs() -> Result<(), String> {
-    for dir in [RAW_GAMES, RAW_STARTS, DERIVED_POSITIONS] {
+    for dir in [RAW_GAMES, RAW_STARTS, DERIVED_POSITIONS, DATA_RUN] {
         fs::create_dir_all(dir).map_err(|e| format!("Failed to create {}: {}", dir, e))?;
     }
     Ok(())
+}
+
+pub fn run_dir() -> PathBuf {
+    PathBuf::from(DATA_RUN)
+}
+
+pub fn status_path() -> PathBuf {
+    PathBuf::from(RUN_STATUS)
+}
+
+pub fn stop_flag_path() -> PathBuf {
+    PathBuf::from(RUN_STOP_FLAG)
 }
 
 pub fn raw_games_dir() -> PathBuf {
