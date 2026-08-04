@@ -18,7 +18,7 @@
   let gotoPly = $state(0);
   let models = $state(['ab-seed.json']);
   let blackAbModel = $state('ab-seed.json');
-  let whiteAbModel = $state('ab-seed-noisy.json');
+  let whiteAbModel = $state('ab-seed.json');
   let abDepth = $state(2);
   let abQDepth = $state(2);
   let abTimeMs = $state(0); // 0 = unlimited
@@ -489,15 +489,6 @@
             <p class="hint">Active: {runLabel || 'custom'} {busy ? '· thinking…' : ''}</p>
           {/if}
           <div class="row wrap">
-            <button
-              onclick={() =>
-                startRun('ab', 'ab', 'seed vs noisy', [
-                  'ab-seed.json',
-                  'ab-seed-noisy.json',
-                ])}
-              disabled={busy}
-              title="Black=ab-seed, White=ab-seed-noisy">seed vs noisy</button
-            >
             <button
               onclick={() => startRun('ab', 'ab', 'ab vs ab')}
               disabled={busy}>ab vs ab</button

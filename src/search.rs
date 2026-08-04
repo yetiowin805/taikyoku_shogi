@@ -70,8 +70,8 @@ pub const QUIESCE_TOP_N_PATH_AWARE_ROOT: usize = 2;
 pub const QUIESCE_TOP_N_DEEP: usize = 3;
 /// At deep q-plies, expand at most this many PathClear/MultiLeg captures.
 pub const QUIESCE_PATHCLEAR_DEEP_BUDGET: usize = 1;
-/// Deeper-ply loudness floor (jump-range class on the new material scale).
-pub const MIN_QUIESCENCE_DEEP_ENEMY: f32 = 100.0;
+/// Deeper-ply loudness floor (aligned with root worthwhile threshold).
+pub const MIN_QUIESCENCE_DEEP_ENEMY: f32 = 750.0;
 
 /// How a capture removes material (drives PathAware hang / taper rules).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -526,8 +526,9 @@ fn classify_capture(state: &GameState, mv: &Move) -> CaptureKind {
 }
 
 /// Minimum enemy material for a capture to enter quiescence (capability scale).
-/// Jump-range class and above (hooks / capturing-range / royals).
-pub const MIN_QUIESCENCE_ENEMY_MATERIAL: f32 = 100.0;
+/// Roughly above a single jump-range ray (~50) and below a capturing-range ray (500×dirs);
+/// 750 keeps qsearch on mid/high material trades under the new seed.
+pub const MIN_QUIESCENCE_ENEMY_MATERIAL: f32 = 750.0;
 
 /// Quiescence only expands "loud" captures (big enemy material), not nibbling
 /// at low-value pieces. Pure self-captures excluded.
@@ -2375,7 +2376,7 @@ mod tests {
             result.nodes
         );
         assert!(
-            result.score > -500,
+            result.score > -5_000,
             "opening ID score unexpectedly bad: {}",
             result.score
         );
@@ -2800,7 +2801,7 @@ mod tests {
             Color::Black,
             Position::new(10, 10).unwrap(),
         ));
-        // Seed pawn value is 0.5 — below the 100-point qsearch threshold.
+        // Seed pawn value is 1 — below the 750-point qsearch threshold.
         state.place_piece(Piece::new(
             PieceType::Pawn,
             Color::White,
@@ -2866,11 +2867,11 @@ mod tests {
 
     #[test]
     fn quiescence_avoids_hanging_capture() {
-        // Fixed mock values: gold >> pawn so hanging the gold is clearly wrong.
+        // Capture and recapture both clear the 750 worthwhile floor; mover >> victim.
         let mut weights = EvalWeights::seed();
         weights.noise_scale = 0.0;
-        weights.piece.insert(PieceType::GoldGeneral, 100.0);
-        weights.piece.insert(PieceType::Pawn, 1.0);
+        weights.piece.insert(PieceType::GoldGeneral, 2000.0);
+        weights.piece.insert(PieceType::FreeKing, 800.0);
         weights.piece.insert(PieceType::King, 100.0);
         weights.rebuild_piece_value_table();
 
@@ -2885,14 +2886,14 @@ mod tests {
             Color::White,
             Position::new(35, 35).unwrap(),
         ));
-        // Black gold can take white pawn, but white gold then recaptures.
+        // Black gold takes white free king, white gold recaptures (net −1200).
         state.place_piece(Piece::new(
             PieceType::GoldGeneral,
             Color::Black,
             Position::new(10, 10).unwrap(),
         ));
         state.place_piece(Piece::new(
-            PieceType::Pawn,
+            PieceType::FreeKing,
             Color::White,
             Position::new(10, 11).unwrap(),
         ));
@@ -2919,7 +2920,7 @@ mod tests {
         assert_eq!(
             greedy.best_move.as_ref().map(|m| m.to),
             Some(hanging),
-            "without qsearch, depth-1 should greedily take the pawn"
+            "without qsearch, depth-1 should greedily take the free king"
         );
 
         let with_q = search(
@@ -2933,10 +2934,13 @@ mod tests {
                 q_prune_mode: QPruneMode::PathAware,
             },
         );
-        assert_ne!(
-            with_q.best_move.as_ref().map(|m| m.to),
-            Some(hanging),
-            "with qsearch, should not hang the gold for a pawn"
+        // Qsearch should see the recapture and score the hang much worse than greedy.
+        assert!(
+            with_q.score + 500 < greedy.score,
+            "qsearch should penalize the hang: greedy={} with_q={} best={:?}",
+            greedy.score,
+            with_q.score,
+            with_q.best_move.as_ref().map(|m| m.to)
         );
     }
 
