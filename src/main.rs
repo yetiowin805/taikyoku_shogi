@@ -70,6 +70,9 @@ fn print_usage() {
     println!("  cargo run -- view <file>       - View a game");
     println!("  cargo run -- debug             - Start debug REPL");
     println!("  cargo run -- serve [port]      - Start local GUI/API server (default 3000)");
+    println!("  cargo run -- position tsfen [--start opening|PATH]");
+    println!("  cargo run -- position load-tsfen <TSFEN|startpos> [--out PATH]");
+    println!("  cargo run -- game tsfen-moves <game.json>");
     println!("  cargo run --                   - Start UCI interface (stub)");
     println!();
     println!("  Env for ab: TAIKYOKU_AB_MODEL, TAIKYOKU_AB_DEPTH, TAIKYOKU_AB_TIME_MS");
@@ -179,6 +182,18 @@ fn main() {
                     print_usage();
                 }
             }
+            "position" => {
+                if let Err(e) = cmd_position(&args) {
+                    eprintln!("{}", e);
+                    print_usage();
+                }
+            }
+            "game" => {
+                if let Err(e) = cmd_game(&args) {
+                    eprintln!("{}", e);
+                    print_usage();
+                }
+            }
             _ => {
                 print_usage();
             }
@@ -186,6 +201,106 @@ fn main() {
     } else {
         uci::run_uci_loop();
     }
+}
+
+fn cmd_position(args: &[String]) -> Result<(), String> {
+    use std::path::Path;
+    use taikyoku_shogi::board_position::BoardPosition;
+    use taikyoku_shogi::notation::{tsfen_decode, tsfen_encode};
+
+    let sub = args.get(2).map(|s| s.as_str()).unwrap_or("");
+    match sub {
+        "tsfen" => {
+            let mut start = "opening".to_string();
+            let mut i = 3;
+            while i < args.len() {
+                if args[i] == "--start" {
+                    i += 1;
+                    start = args
+                        .get(i)
+                        .ok_or("--start needs a value")?
+                        .clone();
+                    i += 1;
+                    continue;
+                }
+                return Err(format!("Unknown flag {}", args[i]));
+            }
+            let pos = if start == "opening" || start == "startpos" {
+                let mut state = GameState::new();
+                state.setup_initial_position();
+                BoardPosition::from_state(&state)
+            } else {
+                BoardPosition::load_path(Path::new(&start))?
+            };
+            println!("{}", tsfen_encode(&pos));
+            Ok(())
+        }
+        "load-tsfen" => {
+            let fen = args
+                .get(3)
+                .ok_or("Usage: position load-tsfen <TSFEN|startpos> [--out PATH]")?
+                .clone();
+            let mut out: Option<String> = None;
+            let mut i = 4;
+            while i < args.len() {
+                if args[i] == "--out" {
+                    i += 1;
+                    out = Some(
+                        args.get(i)
+                            .ok_or("--out needs a path")?
+                            .clone(),
+                    );
+                    i += 1;
+                    continue;
+                }
+                return Err(format!("Unknown flag {}", args[i]));
+            }
+            let pos = tsfen_decode(&fen)?;
+            if let Some(path) = out {
+                pos.save_path(Path::new(&path))?;
+                println!("Wrote {}", path);
+            } else {
+                println!("{}", serde_json::to_string_pretty(&pos).map_err(|e| e.to_string())?);
+            }
+            Ok(())
+        }
+        _ => Err("Usage: position tsfen|load-tsfen ...".into()),
+    }
+}
+
+fn cmd_game(args: &[String]) -> Result<(), String> {
+    use taikyoku_shogi::board_position::BoardPosition;
+    use taikyoku_shogi::game_history::GameHistory;
+    use taikyoku_shogi::notation::{move_encode, tsfen_encode};
+    use taikyoku_shogi::training::record::{load_game_json, GameStart};
+
+    let sub = args.get(2).map(|s| s.as_str()).unwrap_or("");
+    if sub != "tsfen-moves" {
+        return Err("Usage: game tsfen-moves <game.json>".into());
+    }
+    let path = args
+        .get(3)
+        .ok_or("Usage: game tsfen-moves <game.json>")?;
+    let contents = std::fs::read_to_string(path)
+        .map_err(|e| format!("read {}: {}", path, e))?;
+    let record = load_game_json(&contents)?;
+
+    let start_pos = match &record.start {
+        GameStart::Opening => {
+            let mut state = GameState::new();
+            state.setup_initial_position();
+            BoardPosition::from_state(&state)
+        }
+        GameStart::Position { position } => position.clone(),
+    };
+    println!("# start");
+    println!("{}", tsfen_encode(&start_pos));
+    println!("# moves ({})", record.moves.len());
+    for mv_rec in &record.moves {
+        let mv = GameHistory::record_to_move(mv_rec)?;
+        println!("{}", move_encode(&mv));
+    }
+    Ok(())
 }
 
 fn parse_play_args(args: &[String]) -> Result<(String, Option<u32>, Option<String>), String> {

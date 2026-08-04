@@ -1,4 +1,5 @@
 use crate::game_state::GameState;
+use crate::notation::{move_decode, move_encode, tsfen_decode};
 use std::io::{self, BufRead, Write};
 
 pub fn run_uci_loop() {
@@ -7,7 +8,7 @@ pub fn run_uci_loop() {
     let mut game_state = GameState::new();
 
     println!("id name Taikyoku Shogi Engine");
-    println!("id author Your Name");
+    println!("id author Taikyoku");
     println!("uciok");
 
     for line in stdin.lock().lines() {
@@ -24,7 +25,7 @@ pub fn run_uci_loop() {
         match parts[0] {
             "uci" => {
                 println!("id name Taikyoku Shogi Engine");
-                println!("id author Your Name");
+                println!("id author Taikyoku");
                 println!("uciok");
             }
             "isready" => {
@@ -38,43 +39,63 @@ pub fn run_uci_loop() {
                 if parts.len() < 2 {
                     continue;
                 }
-                
+
+                let moves_idx = parts.iter().position(|p| *p == "moves");
+
                 if parts[1] == "startpos" {
                     game_state = GameState::new();
                     game_state.setup_initial_position();
                 } else if parts[1] == "fen" {
-                    // TODO: Parse FEN string
-                    game_state = GameState::new();
+                    let fen_end = moves_idx.unwrap_or(parts.len());
+                    if fen_end <= 2 {
+                        eprintln!("info string missing TSFEN after position fen");
+                        continue;
+                    }
+                    let fen = parts[2..fen_end].join(" ");
+                    match tsfen_decode(&fen) {
+                        Ok(pos) => {
+                            game_state = pos.to_state();
+                        }
+                        Err(e) => {
+                            eprintln!("info string TSFEN error: {}", e);
+                            continue;
+                        }
+                    }
+                } else {
+                    continue;
                 }
 
-                // Apply moves if any
-                if parts.len() > 2 && parts[2] == "moves" {
-                    for move_str in parts.iter().skip(3) {
-                        // TODO: Parse move string (e.g., "a1b2" format)
-                        // For now, just acknowledge
+                if let Some(i) = moves_idx {
+                    for move_str in parts.iter().skip(i + 1) {
+                        match move_decode(move_str) {
+                            Ok(mv) => {
+                                let turn_before = game_state.get_current_turn();
+                                let result = game_state.make_move(mv);
+                                let turn_after = game_state.get_current_turn();
+                                if result.is_none() && turn_before == turn_after {
+                                    eprintln!("info string illegal move {}", move_str);
+                                    break;
+                                }
+                            }
+                            Err(e) => {
+                                eprintln!("info string move parse error ({}): {}", move_str, e);
+                                break;
+                            }
+                        }
                     }
                 }
             }
             "go" => {
-                // Generate and return legal moves
                 let legal_moves = game_state.generate_legal_moves();
-                
-                // Format: "info string legal moves: a1b2 a1c3 ..."
-                // Using 1-indexed coordinates for human display
+
                 print!("info string legal moves:");
                 for mv in &legal_moves {
-                    // Simple format: from_file_from_rank_to_file_to_rank (1-indexed)
-                    print!(" {}{}{}{}", 
-                        mv.from.file + 1, mv.from.rank + 1,
-                        mv.to.file + 1, mv.to.rank + 1);
+                    print!(" {}", move_encode(mv));
                 }
                 println!();
-                
-                // For now, just return the first move as "bestmove" if any exist
+
                 if let Some(first_move) = legal_moves.first() {
-                    println!("bestmove {}{}{}{}", 
-                        first_move.from.file + 1, first_move.from.rank + 1,
-                        first_move.to.file + 1, first_move.to.rank + 1);
+                    println!("bestmove {}", move_encode(first_move));
                 } else {
                     println!("bestmove (none)");
                 }
@@ -90,4 +111,3 @@ pub fn run_uci_loop() {
         stdout.flush().unwrap();
     }
 }
-
