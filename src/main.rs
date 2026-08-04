@@ -73,6 +73,8 @@ fn print_usage() {
     println!("  cargo run --                   - Start UCI interface (stub)");
     println!();
     println!("  Env for ab: TAIKYOKU_AB_MODEL, TAIKYOKU_AB_DEPTH, TAIKYOKU_AB_TIME_MS");
+    println!();
+    taikyoku_shogi::training::cli::print_training_usage();
 }
 
 fn main() {
@@ -139,6 +141,42 @@ fn main() {
                     },
                 )) {
                     eprintln!("{}", e);
+                }
+            }
+            "worker" => {
+                if let Err(e) = taikyoku_shogi::training::cli::cmd_worker(&args) {
+                    eprintln!("{}", e);
+                    print_usage();
+                }
+            }
+            "pool" => {
+                if let Err(e) = taikyoku_shogi::training::cli::cmd_pool(&args) {
+                    eprintln!("{}", e);
+                    print_usage();
+                }
+            }
+            "featurize" => {
+                if let Err(e) = taikyoku_shogi::training::cli::cmd_featurize(&args) {
+                    eprintln!("{}", e);
+                    print_usage();
+                }
+            }
+            "mobility-seed" => {
+                if let Err(e) = taikyoku_shogi::training::cli::cmd_mobility_seed(&args) {
+                    eprintln!("{}", e);
+                    print_usage();
+                }
+            }
+            "texel-fit" => {
+                if let Err(e) = taikyoku_shogi::training::cli::cmd_texel_fit(&args) {
+                    eprintln!("{}", e);
+                    print_usage();
+                }
+            }
+            "match" => {
+                if let Err(e) = taikyoku_shogi::training::cli::cmd_match(&args) {
+                    eprintln!("{}", e);
+                    print_usage();
                 }
             }
             _ => {
