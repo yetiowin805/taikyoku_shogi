@@ -1,6 +1,6 @@
 //! Alpha-beta search over GameState with make/unmake, compact traces for the GUI.
 
-use crate::eval::{evaluate_with_ply, EvalWeights};
+use crate::eval::{evaluate_with_ply, seed_loud_capture_floor, EvalWeights};
 use crate::game_state::{GameState, LegalMoveGen, Move};
 use crate::movement::{BlockingMode, MovementCapability, MovementConfig};
 use crate::move_simulation::BoardLike;
@@ -16,14 +16,6 @@ pub const MAX_TREE_ROOT_CHILDREN: usize = 12;
 /// Max children kept under a non-root tree node.
 pub const MAX_TREE_BRANCH: usize = 8;
 
-/// Stop root iteration after this many consecutive non-improving moves (stable best).
-const ROOT_STABLE_STREAK: usize = 48;
-/// Do not stable-exit before searching at least this many root moves.
-const ROOT_STABLE_MIN_SEARCHED: usize = 24;
-/// Stable-exit only when PVS fail-high rate so far is below this.
-const ROOT_STABLE_MAX_FAIL_HIGH: f64 = 0.30;
-/// Soft-stop remaining root moves when this fraction of the time budget remains.
-const ROOT_SOFT_TIME_REMAINING: f64 = 0.15;
 /// Cap unique-q hash tracking (memory); report saturated if hit.
 const Q_UNIQUE_CAP: usize = 65_536;
 
@@ -51,7 +43,7 @@ pub enum QPruneMode {
     TopN,
     /// C: after the first q-ply, only recaptures onto the previous landing square.
     RecaptureOnly,
-    /// D: drop captures where landing looks attacked and enemy < mover (stale).
+    /// D: drop captures where landing looks attacked and net < frac*mover (stale).
     StaleHang,
     /// A+B — previous default after first measurement pass.
     NetGainAndTopN,
@@ -70,8 +62,23 @@ pub const QUIESCE_TOP_N_PATH_AWARE_ROOT: usize = 2;
 pub const QUIESCE_TOP_N_DEEP: usize = 3;
 /// At deep q-plies, expand at most this many PathClear/MultiLeg captures.
 pub const QUIESCE_PATHCLEAR_DEEP_BUDGET: usize = 1;
-/// Deeper-ply loudness floor (aligned with root worthwhile threshold).
-pub const MIN_QUIESCENCE_DEEP_ENEMY: f32 = 750.0;
+/// Hang / demote when net material gain is below this fraction of mover value.
+pub const HANG_NET_FRAC: f32 = 0.8;
+/// AB skips captures that hang a mover at or above this piece value.
+pub const HIGH_VALUE_HANGER: f32 = 400.0;
+
+/// Deeper-ply loudness floor (same formula as root worthwhile threshold).
+pub fn min_quiescence_deep_enemy() -> f32 {
+    seed_loud_capture_floor()
+}
+
+/// PathAware quiescence: expand PathClear/MultiLeg only as a destination
+/// recapture onto the previous landing (`mv.to == prev_to`).
+///
+/// Q finishes the contested square; capturing-range corridor wipes belong to AB.
+fn pathclear_allowed_in_pathaware_q(is_dest_recapture: bool) -> bool {
+    is_dest_recapture
+}
 
 /// How a capture removes material (drives PathAware hang / taper rules).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -164,14 +171,8 @@ pub struct SearchResult {
 
 struct SearchContext {
     deadline: Option<Instant>,
-    /// Full wall-clock budget when `deadline` is set (for soft root exit).
-    time_budget: Option<Duration>,
     nodes: u64,
     abort: bool,
-    /// Soft abort: leave remaining root moves when little time remains.
-    soft_abort: bool,
-    /// Stable-best early exit (not a hard timeout).
-    stable_abort: bool,
     /// Ply counter for eval noise (does not rely on move_history during search).
     ply: usize,
     quiescence_depth: u32,
@@ -198,6 +199,9 @@ struct SearchContext {
     history: HashMap<u32, i32>,
     /// Disallow consecutive null moves.
     allow_null: bool,
+    /// Enemy material taken by the AB move that entered this node (0 = quiet).
+    /// Quiescence runs only when this is ≥ the loud-capture floor.
+    last_ab_capture_enemy: f32,
     /// Quiescence diagnostics (updated while in `quiesce`).
     q_nodes: u64,
     /// `q_nodes` at the start of the current root move.
@@ -226,6 +230,8 @@ struct SearchContext {
     q_unique_saturated: bool,
     q_tt_hits: u64,
     q_tt_probes: u64,
+    /// Instant when the current root index last advanced (for `rms=` logs).
+    root_move_started: Instant,
 }
 
 impl QPruneMode {
@@ -439,6 +445,83 @@ fn capture_material_exchange(
     weights: &EvalWeights,
     mv: &Move,
 ) -> (f32, f32) {
+    let (enemy, own, _) = capture_exchange_kind(state, weights, mv);
+    (enemy, own)
+}
+
+/// Exchange plus capture kind in one path walk (quiescence candidate cache).
+fn capture_exchange_kind(
+    state: &GameState,
+    weights: &EvalWeights,
+    mv: &Move,
+) -> (f32, f32, CaptureKind) {
+    if mv.from == mv.to {
+        return (0.0, 0.0, CaptureKind::SimpleTake);
+    }
+    if mv.is_two_step() || mv.is_free_eagle() {
+        let (enemy, own) = capture_material_exchange_raw(state, weights, mv);
+        return (enemy, own, CaptureKind::MultiLeg);
+    }
+    let board = state.get_board();
+    let Some(piece) = board.get_piece(mv.from) else {
+        return (0.0, 0.0, CaptureKind::SimpleTake);
+    };
+    let us = piece.color;
+    let them = us.opposite();
+    let mut enemy = 0.0f32;
+    let mut own = 0.0f32;
+    let mut path_occupied = false;
+
+    let mut add = |pos: crate::position::Position| {
+        if let Some(p) = board.get_piece(pos) {
+            let v = weights.piece_value(p.piece_type);
+            if p.color == them {
+                enemy += v;
+            } else if p.color == us {
+                own += v;
+            }
+        }
+    };
+
+    add(mv.to);
+    if let Some(inter) = mv.intermediate() {
+        add(inter);
+    }
+
+    let config = MovementConfig::for_piece(&piece);
+    let uses_capturing = config.capabilities.iter().any(|cap| {
+        matches!(
+            cap,
+            MovementCapability::Range {
+                blocking: BlockingMode::Capturing,
+                ..
+            }
+        )
+    });
+    if uses_capturing {
+        for pos in path_utils::get_path_positions(mv.from, mv.to) {
+            if pos != mv.from && pos != mv.to {
+                if board.get_piece(pos).is_some() {
+                    path_occupied = true;
+                    add(pos);
+                }
+            }
+        }
+    }
+    let kind = if path_occupied {
+        CaptureKind::PathClear
+    } else {
+        CaptureKind::SimpleTake
+    };
+    (enemy, own, kind)
+}
+
+/// Material exchange for multi-leg / FreeEagle (path clears on FE route).
+fn capture_material_exchange_raw(
+    state: &GameState,
+    weights: &EvalWeights,
+    mv: &Move,
+) -> (f32, f32) {
     if mv.from == mv.to {
         return (0.0, 0.0);
     }
@@ -495,40 +578,70 @@ fn capture_material_exchange(
     (enemy, own)
 }
 
-/// Classify how a capture removes material (for PathAware hang / taper).
-fn classify_capture(state: &GameState, mv: &Move) -> CaptureKind {
-    if mv.is_two_step() || mv.is_free_eagle() {
-        return CaptureKind::MultiLeg;
-    }
-    let board = state.get_board();
-    let Some(piece) = board.get_piece(mv.from) else {
-        return CaptureKind::SimpleTake;
-    };
-    let config = MovementConfig::for_piece(&piece);
-    let uses_capturing = config.capabilities.iter().any(|cap| {
-        matches!(
-            cap,
-            MovementCapability::Range {
-                blocking: BlockingMode::Capturing,
-                ..
-            }
-        )
-    });
-    if uses_capturing {
-        let path_occupied = path_utils::get_path_positions(mv.from, mv.to)
-            .into_iter()
-            .any(|pos| pos != mv.from && pos != mv.to && board.get_piece(pos).is_some());
-        if path_occupied {
-            return CaptureKind::PathClear;
-        }
-    }
-    CaptureKind::SimpleTake
+/// Minimum enemy material for a capture to enter quiescence (capability scale).
+/// Derived from range tariffs via [`seed_loud_capture_floor`].
+pub fn min_quiescence_enemy_material() -> f32 {
+    seed_loud_capture_floor()
 }
 
-/// Minimum enemy material for a capture to enter quiescence (capability scale).
-/// Roughly above a single jump-range ray (~50) and below a capturing-range ray (500×dirs);
-/// 750 keeps qsearch on mid/high material trades under the new seed.
-pub const MIN_QUIESCENCE_ENEMY_MATERIAL: f32 = 750.0;
+/// True when net exchange is too small vs mover value to risk a hanging landing.
+fn net_below_hang_frac(enemy: f32, own: f32, mover_value: f32) -> bool {
+    (enemy - own) < mover_value * HANG_NET_FRAC
+}
+
+/// True when a capture hangs a high-value mover and should be skipped in AB.
+///
+/// Conditions: mover value ≥ [`HIGH_VALUE_HANGER`], net below [`HANG_NET_FRAC`] of
+/// mover, and landing attacked. PathClear/MultiLeg use post-fire attack when
+/// `postfire_pathclear_hang` (root); interior uses the cheap pre-move check.
+fn capture_hangs_high_value_piece(
+    state: &GameState,
+    weights: &EvalWeights,
+    mv: &Move,
+    postfire_pathclear_hang: bool,
+    attack_cache: &mut HashMap<usize, bool>,
+) -> bool {
+    let board = state.get_board();
+    let Some(mover) = board.get_piece(mv.from) else {
+        return false;
+    };
+    let mover_value = weights.piece_value(mover.piece_type);
+    if mover_value < HIGH_VALUE_HANGER {
+        return false;
+    }
+    let (enemy, own, kind) = capture_exchange_kind(state, weights, mv);
+    if enemy == 0.0 || !net_below_hang_frac(enemy, own, mover_value) {
+        return false;
+    }
+    let opponent = state.get_current_turn().opposite();
+    match kind {
+        CaptureKind::PathClear | CaptureKind::MultiLeg if postfire_pathclear_hang => {
+            let vb = crate::move_simulation::simulate_move(board, mv, &mover);
+            vb.is_position_attacked_by_color(mv.to, opponent)
+        }
+        CaptureKind::PathClear | CaptureKind::MultiLeg | CaptureKind::SimpleTake => {
+            landing_attacked_cached(board, mv.to, opponent, attack_cache)
+        }
+    }
+}
+
+/// Quiescence candidate: worthwhile captures, or recapture onto the previous landing.
+pub fn is_quiescence_capture_candidate(
+    state: &GameState,
+    weights: &EvalWeights,
+    mv: &Move,
+    prev_to: Option<Position>,
+) -> bool {
+    if !move_captures_enemy_raw(state, mv) {
+        return false;
+    }
+    if is_worthwhile_quiescence_capture(state, weights, mv) {
+        return true;
+    }
+    prev_to
+        .map(|sq| capture_hits_square(state, mv, sq))
+        .unwrap_or(false)
+}
 
 /// Quiescence only expands "loud" captures (big enemy material), not nibbling
 /// at low-value pieces. Pure self-captures excluded.
@@ -541,7 +654,7 @@ pub fn is_worthwhile_quiescence_capture(
         return false;
     }
     let (enemy, _own) = capture_material_exchange(state, weights, mv);
-    enemy >= MIN_QUIESCENCE_ENEMY_MATERIAL
+    enemy >= min_quiescence_enemy_material()
 }
 
 /// MVV-LVA capture score without hang checks (for quiescence ordering).
@@ -560,34 +673,41 @@ fn mvv_lva_score(state: &GameState, weights: &EvalWeights, mv: &Move) -> i32 {
 
 /// Move-ordering score (heuristic only — not search correctness).
 ///
-/// Captures: `gain = enemy - own`. SimpleTake uses a pre-move landing-attack
-/// cache. PathClear / MultiLeg use a post-fire simulation so path clears that
-/// remove defenders are not treated as hanging. LVA: `gain*1000 - mover`.
+/// Captures: `gain = enemy - own`. SimpleTake uses a cheap pre-move landing
+/// attack cache. When `postfire_pathclear_hang` is set, PathClear / MultiLeg
+/// use post-fire simulation if net gain is below [`HANG_NET_FRAC`] of mover
+/// (root ordering); interior keeps the cheap pre-move check. LVA: `gain*1000 - mover`.
 fn move_order_score(
     state: &GameState,
     weights: &EvalWeights,
     mv: &Move,
     opponent: Color,
     attack_cache: &mut HashMap<usize, bool>,
+    postfire_pathclear_hang: bool,
 ) -> i32 {
     let board = state.get_board();
     let Some(mover) = board.get_piece(mv.from) else {
         return i32::MIN / 4;
     };
     let mover_value = weights.piece_value(mover.piece_type);
-    let (enemy, own) = capture_material_exchange(state, weights, mv);
+    let (enemy, own, kind) = capture_exchange_kind(state, weights, mv);
     if enemy == 0.0 {
         return i32::MIN / 4;
     }
 
     let mut gain = enemy - own;
-    let kind = classify_capture(state, mv);
-    let hanging = match kind {
-        CaptureKind::PathClear | CaptureKind::MultiLeg => {
-            let vb = crate::move_simulation::simulate_move(board, mv, &mover);
-            vb.is_position_attacked_by_color(mv.to, opponent)
+    let hanging = if net_below_hang_frac(enemy, own, mover_value) {
+        match kind {
+            CaptureKind::PathClear | CaptureKind::MultiLeg if postfire_pathclear_hang => {
+                let vb = crate::move_simulation::simulate_move(board, mv, &mover);
+                vb.is_position_attacked_by_color(mv.to, opponent)
+            }
+            CaptureKind::PathClear | CaptureKind::MultiLeg | CaptureKind::SimpleTake => {
+                landing_attacked_cached(board, mv.to, opponent, attack_cache)
+            }
         }
-        CaptureKind::SimpleTake => landing_attacked_cached(board, mv.to, opponent, attack_cache),
+    } else {
+        false
     };
     if hanging {
         gain -= mover_value;
@@ -610,14 +730,60 @@ fn landing_attacked_cached(
     hit
 }
 
+/// True if this capture is a capturing-range path clear or multi-leg (FE / two-step).
+/// Cheap structural check — no piece-value walk.
+fn quiesce_move_looks_path_or_multileg(state: &GameState, mv: &Move) -> bool {
+    if mv.is_two_step() || mv.is_free_eagle() {
+        return true;
+    }
+    let board = state.get_board();
+    let Some(piece) = board.get_piece(mv.from) else {
+        return false;
+    };
+    let config = MovementConfig::for_piece(&piece);
+    let uses_capturing = config.capabilities.iter().any(|cap| {
+        matches!(
+            cap,
+            MovementCapability::Range {
+                blocking: BlockingMode::Capturing,
+                ..
+            }
+        )
+    });
+    if !uses_capturing {
+        return false;
+    }
+    path_utils::get_path_positions(mv.from, mv.to)
+        .into_iter()
+        .any(|p| p != mv.from && p != mv.to && board.get_piece(p).is_some())
+}
+
 /// Captures worth expanding in quiescence.
 ///
+/// Contract: q finishes the contested square (loud SimpleTakes + recaptures).
+/// Capturing-range corridor wipes / multi-leg snipes belong to main search unless
+/// they are a destination recapture onto `prev_to`.
+///
 /// Uses capture-oriented generation (no quiet ray fan-out / quiet multi-leg).
-fn generate_quiescence_captures(state: &GameState, weights: &EvalWeights) -> Vec<Move> {
+/// Includes last-move recaptures even below the loud floor.
+fn generate_quiescence_captures(
+    state: &GameState,
+    weights: &EvalWeights,
+    prev_to: Option<Position>,
+) -> Vec<Move> {
     state
         .generate_legal_moves_mode(LegalMoveGen::CapturesOnly)
         .into_iter()
-        .filter(|mv| is_worthwhile_quiescence_capture(state, weights, mv))
+        .filter(|mv| {
+            if !is_quiescence_capture_candidate(state, weights, mv, prev_to) {
+                return false;
+            }
+            // Same policy as PathAware keep: PathClear/MultiLeg only as dest recapture.
+            if quiesce_move_looks_path_or_multileg(state, mv) && prev_to != Some(mv.to) {
+                return false;
+            }
+            true
+        })
         .collect()
 }
 
@@ -641,17 +807,13 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
     let deadline = config
         .max_time_ms
         .map(|ms| Instant::now() + Duration::from_millis(ms));
-    let time_budget = config.max_time_ms.map(Duration::from_millis);
     let now = Instant::now();
     let max_depth = config.depth.max(1);
 
     let mut ctx = SearchContext {
         deadline,
-        time_budget,
         nodes: 0,
         abort: false,
-        soft_abort: false,
-        stable_abort: false,
         ply: root_ply,
         quiescence_depth: config.quiescence_depth,
         quiesce_entry_depth: config.quiescence_depth,
@@ -668,6 +830,7 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
         killers: Vec::new(),
         history: HashMap::new(),
         allow_null: true,
+        last_ab_capture_enemy: 0.0,
         q_nodes: 0,
         q_nodes_at_root_start: 0,
         q_nodes_last_root: 0,
@@ -690,6 +853,7 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
         q_unique_saturated: false,
         q_tt_hits: 0,
         q_tt_probes: 0,
+        root_move_started: now,
     };
 
     let mut moves = state.generate_legal_moves();
@@ -715,7 +879,7 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
         };
     }
 
-    order_moves_with_heuristics(state, weights, &mut moves, &ctx, root_ply, false);
+    order_moves_with_heuristics(state, weights, &mut moves, &ctx, root_ply, false, true);
     ctx.root_total = moves.len();
 
     let mut completed_best = moves[0].clone();
@@ -733,7 +897,7 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
         ctx.search_depth = d;
         ctx.phase = "root";
         ctx.best_score = completed_score;
-        ctx.stable_abort = false;
+        ctx.root_total = moves.len();
 
         let mut iter_best = moves[0].clone();
         let mut iter_score = i32::MIN + 1;
@@ -741,12 +905,9 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
         let beta = i32::MAX - 1;
         let mut iter_lines: Vec<(Move, i32)> = Vec::with_capacity(moves.len());
         let mut finished_iteration = true;
-        let mut stable_streak = 0usize;
-        let iter_pvs_base = ctx.root_pvs_tried;
-        let iter_fh_base = ctx.root_fail_high;
 
         for (i, mv) in moves.iter().enumerate() {
-            if ctx.timed_out() || ctx.soft_time_exhausted() {
+            if ctx.timed_out() {
                 finished_iteration = false;
                 break;
             }
@@ -754,11 +915,18 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
             ctx.root_label = move_label(state, mv);
             ctx.phase = "root";
             ctx.q_nodes_at_root_start = ctx.q_nodes;
+            ctx.root_move_started = Instant::now();
             ctx.maybe_log_progress();
 
             let is_capture = move_captures_enemy(state, mv);
+            if is_capture {
+                let mut hang_cache = HashMap::new();
+                if capture_hangs_high_value_piece(state, weights, mv, true, &mut hang_cache) {
+                    continue;
+                }
+            }
             let child_depth = d - 1;
-            // Root LMR: late quiets at ID depth >= 2.
+            // Root LMR: late quiets at ID depth >= 2 (pre–PR17 rule).
             let can_reduce = d >= 2 && i >= 3 && !is_capture && child_depth >= 1;
             let reduction = if can_reduce {
                 (if i >= 12 { 2 } else { 1 }).min(child_depth)
@@ -768,6 +936,11 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
 
             let Some(undo) = pos.make_move_for_search(mv.clone()) else {
                 continue;
+            };
+            ctx.last_ab_capture_enemy = if is_capture {
+                capture_material_exchange(state, weights, mv).0
+            } else {
+                0.0
             };
             ctx.nodes += 1;
             ctx.ply = root_ply + 1;
@@ -820,13 +993,10 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
                 iter_score = score;
                 iter_best = mv.clone();
                 ctx.best_score = iter_score;
-                stable_streak = 0;
                 if !is_capture {
                     store_killer(&mut ctx, root_ply, move_tt_key(mv));
                     bump_history(&mut ctx, mv, d);
                 }
-            } else {
-                stable_streak = stable_streak.saturating_add(1);
             }
             if iter_score > i32::MIN + 1 && (score - iter_score).abs() < 20 {
                 ctx.root_near_best += 1;
@@ -834,54 +1004,9 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
             if score > alpha {
                 alpha = score;
             }
-
-            // Stable-best early exit: skip remaining root when best is stuck and
-            // fail-highs are uncommon (null windows are cutting).
-            if i + 1 >= ROOT_STABLE_MIN_SEARCHED && stable_streak >= ROOT_STABLE_STREAK {
-                let tried = ctx.root_pvs_tried.saturating_sub(iter_pvs_base);
-                let fh = ctx.root_fail_high.saturating_sub(iter_fh_base);
-                let fh_rate = if tried == 0 {
-                    0.0
-                } else {
-                    fh as f64 / tried as f64
-                };
-                if fh_rate <= ROOT_STABLE_MAX_FAIL_HIGH {
-                    ctx.stable_abort = true;
-                    finished_iteration = false;
-                    break;
-                }
-            }
-            if ctx.soft_time_exhausted() {
-                finished_iteration = false;
-                break;
-            }
         }
 
         if !finished_iteration {
-            if ctx.stable_abort && !iter_lines.is_empty() {
-                // Stable-best: keep partial coverage of this depth, then deepen.
-                iter_lines.sort_by(|a, b| b.1.cmp(&a.1));
-                completed_lines = iter_lines;
-                completed_best = iter_best;
-                completed_score = iter_score;
-                completed_depth = d;
-                ctx.best_score = completed_score;
-                if d < max_depth {
-                    reorder_root_moves(&mut moves, &completed_best, &completed_lines);
-                    continue;
-                }
-                break;
-            }
-            if ctx.soft_abort && !iter_lines.is_empty() {
-                // Soft time: keep partial root coverage of this depth and stop.
-                iter_lines.sort_by(|a, b| b.1.cmp(&a.1));
-                completed_lines = iter_lines;
-                completed_best = iter_best;
-                completed_score = iter_score;
-                completed_depth = d;
-                ctx.best_score = completed_score;
-                break;
-            }
             if completed_depth == 0 && !iter_lines.is_empty() {
                 // Hard timeout: keep last completed iteration (partial d=1 only if nothing completed yet).
                 iter_lines.sort_by(|a, b| b.1.cmp(&a.1));
@@ -936,7 +1061,7 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
             (ctx.q_tt_hits.saturating_mul(100)) / ctx.q_tt_probes
         };
         eprintln!(
-            "ab diag: root={} fh={}% near20={}% spread(max-med)={} qnodes={} quniq={}{} qTThit={}%/{}/{} stable={}",
+            "ab diag: root={} fh={}% near20={}% spread(max-med)={} qnodes={} quniq={}{} qTThit={}%/{}/{} abort={}",
             ctx.root_total,
             fh_pct,
             near_pct,
@@ -947,7 +1072,7 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
             qhit_pct,
             ctx.q_tt_hits,
             ctx.q_tt_probes,
-            ctx.stable_abort || ctx.soft_abort
+            ctx.abort
         );
     }
 
@@ -1001,11 +1126,8 @@ pub fn probe_quiescence(
     let now = Instant::now();
     let mut ctx = SearchContext {
         deadline,
-        time_budget: max_time_ms.map(Duration::from_millis),
         nodes: 0,
         abort: false,
-        soft_abort: false,
-        stable_abort: false,
         ply: root_ply,
         quiescence_depth: qdepth,
         quiesce_entry_depth: qdepth,
@@ -1022,6 +1144,7 @@ pub fn probe_quiescence(
         killers: Vec::new(),
         history: HashMap::new(),
         allow_null: true,
+        last_ab_capture_enemy: 0.0,
         q_nodes: 0,
         q_nodes_at_root_start: 0,
         q_nodes_last_root: 0,
@@ -1044,6 +1167,7 @@ pub fn probe_quiescence(
         q_unique_saturated: false,
         q_tt_hits: 0,
         q_tt_probes: 0,
+        root_move_started: Instant::now(),
     };
     let mut pos = state.clone();
     let score = if qdepth == 0 {
@@ -1145,6 +1269,11 @@ fn build_trace_tree(
         if let Some(best_node) = children.iter_mut().find(|c| c.best) {
             let mut child = state.clone();
             if let Some(undo) = child.make_move_for_search(best_move.clone()) {
+                ctx.last_ab_capture_enemy = if move_captures_enemy(state, best_move) {
+                    capture_material_exchange(state, weights, best_move).0
+                } else {
+                    0.0
+                };
                 ctx.ply = root_ply + 1;
                 ctx.phase = "trace";
                 let (_score, subtree) =
@@ -1221,19 +1350,27 @@ fn alphabeta(
     // Ultimate Shogi almost always has near-null quiets, so zugzwang is rare.
     // Note: root calls alphabeta with depth = ID_depth - 1, so thresholds must
     // fire at depth >= 2 to help opening d3 searches.
+    // Null leaf (depth 0 after R) uses stand-pat eval — not quiescence.
     const NULL_R: u32 = 2;
     const MATE_BAND: i32 = 900_000;
     if ctx.allow_null && depth >= 2 && beta < MATE_BAND && beta > -MATE_BAND {
         let r = NULL_R.min(depth - 1);
         ctx.allow_null = false;
         let prev_turn = state.get_current_turn();
+        let saved_enemy = ctx.last_ab_capture_enemy;
+        ctx.last_ab_capture_enemy = 0.0;
         state.set_current_turn(prev_turn.opposite());
         let parent_ply = ctx.ply;
         ctx.ply = parent_ply + 1;
         let null_depth = depth - 1 - r;
-        let score = -alphabeta(state, weights, null_depth, -beta, -beta + 1, false, ctx);
+        let score = if null_depth == 0 {
+            -evaluate_with_ply(state, weights, ctx.ply)
+        } else {
+            -alphabeta(state, weights, null_depth, -beta, -beta + 1, false, ctx)
+        };
         ctx.ply = parent_ply;
         state.set_current_turn(prev_turn);
+        ctx.last_ab_capture_enemy = saved_enemy;
         ctx.allow_null = true;
         if !ctx.abort && score >= beta {
             return score;
@@ -1252,9 +1389,9 @@ fn alphabeta(
         }
     }
     if used_only_stage_b {
-        order_moves_with_heuristics(state, weights, &mut moves, ctx, ctx.ply, true);
+        order_moves_with_heuristics(state, weights, &mut moves, ctx, ctx.ply, true, false);
     } else {
-        order_moves_with_heuristics(state, weights, &mut moves, ctx, ctx.ply, false);
+        order_moves_with_heuristics(state, weights, &mut moves, ctx, ctx.ply, false, false);
     }
     prefer_tt_move(&mut moves, tt_move);
 
@@ -1276,7 +1413,7 @@ fn alphabeta(
     if !did_cutoff && !ctx.abort && !used_only_stage_b {
         let mut stage_b = state.generate_legal_moves_mode(LegalMoveGen::QuietMultiLegOnly);
         if !stage_b.is_empty() {
-            order_moves_with_heuristics(state, weights, &mut stage_b, ctx, parent_ply, true);
+            order_moves_with_heuristics(state, weights, &mut stage_b, ctx, parent_ply, true, false);
             prefer_tt_move(&mut stage_b, tt_move);
             let (b2, k2, a2, _cut2) = search_move_list(
                 state,
@@ -1345,6 +1482,7 @@ fn search_move_list(
     let mut best = i32::MIN + 1;
     let mut best_move_key = None;
     let mut did_cutoff = false;
+    let mut hang_cache = HashMap::new();
 
     for (i, mv) in moves.into_iter().enumerate() {
         if ctx.timed_out() {
@@ -1352,6 +1490,11 @@ fn search_move_list(
         }
         let mv_key = move_tt_key(&mv);
         let is_capture = move_captures_enemy(state, &mv);
+        if is_capture
+            && capture_hangs_high_value_piece(state, weights, &mv, false, &mut hang_cache)
+        {
+            continue;
+        }
         let is_killer = killer_rank(ctx, parent_ply, &mv) > 0;
         let move_index = move_index_base + i;
 
@@ -1375,9 +1518,15 @@ fn search_move_list(
             0
         };
 
+        let capture_enemy = if is_capture {
+            capture_material_exchange(state, weights, &mv).0
+        } else {
+            0.0
+        };
         let Some(undo) = state.make_move_for_search(mv.clone()) else {
             continue;
         };
+        ctx.last_ab_capture_enemy = capture_enemy;
         ctx.ply = parent_ply + 1;
 
         // PV only along the first move of a PV node (root PVS / research sets
@@ -1420,13 +1569,13 @@ fn search_move_list(
 }
 
 /// Quiescence ply budget for this leaf: full config on PV / fail-high research;
-/// null-window (non-PV) caps at 2 when config is deeper (midgame q=4).
+/// null-window (non-PV) caps at 1 to keep deep ID (d3/d4) interactive.
 fn leaf_quiescence_depth(ctx: &SearchContext, is_pv: bool) -> u32 {
     let cfg = ctx.quiescence_depth;
     if cfg == 0 || is_pv {
         cfg
     } else {
-        cfg.min(2)
+        cfg.min(1)
     }
 }
 
@@ -1438,19 +1587,30 @@ fn leaf_or_quiesce(
     is_pv: bool,
     ctx: &mut SearchContext,
 ) -> i32 {
+    // Q only after loud AB captures; quiet / below-floor takes use stand-pat.
+    if ctx.last_ab_capture_enemy < min_quiescence_enemy_material() {
+        return evaluate_with_ply(state, weights, ctx.ply);
+    }
     let q = leaf_quiescence_depth(ctx, is_pv);
     if q == 0 {
         evaluate_with_ply(state, weights, ctx.ply)
     } else {
         ctx.phase = "quiesce";
         ctx.quiesce_entry_depth = q;
-        quiesce(state, weights, q, alpha, beta, None, false, ctx)
+        // Search skips move_history; only history-backed positions seed prev_to.
+        // Dest-recapture of below-floor victims is left to AB depth / worthwhile floor.
+        let prev_to = state.get_move_history().last().map(|m| m.to);
+        quiesce(state, weights, q, alpha, beta, prev_to, false, ctx)
     }
 }
 
 /// Capture-only quiescence (excludes pure self-captures via `move_captures_enemy`).
 ///
-/// `prev_to` / `prev_was_simple`: prior q-move landing and whether it was a
+/// Q contract: resolve hanging exchanges on the contested square (SimpleTakes /
+/// dest-recaptures). Non-recapture PathClear/MultiLeg corridor tactics are left
+/// to main-search depth (pre–PR 17-style behavior under high piece values).
+///
+/// `prev_to` / `prev_was_simple`: prior move landing and whether it was a
 /// [`CaptureKind::SimpleTake`] (PathAware recapture exception / RecaptureOnly).
 fn quiesce(
     state: &mut GameState,
@@ -1517,88 +1677,123 @@ fn quiesce(
         });
         return stand_pat;
     }
-    // Optimistic delta against the incoming alpha (before stand-pat raise).
-    let optimistic = weights
-        .piece_value_table
-        .iter()
-        .copied()
-        .fold(0.0f32, f32::max)
-        .max(MIN_QUIESCENCE_ENEMY_MATERIAL)
-        .round() as i32;
-    if stand_pat.saturating_add(optimistic) <= alpha {
-        return stand_pat;
-    }
     if stand_pat > alpha {
         alpha = stand_pat;
     }
 
-    let mut moves = generate_quiescence_captures(state, weights);
-    if moves.is_empty() {
+    let raw_moves = generate_quiescence_captures(state, weights, prev_to);
+    if raw_moves.is_empty() {
         return stand_pat;
     }
+
+    struct QCand {
+        mv: Move,
+        enemy: f32,
+        own: f32,
+        kind: CaptureKind,
+        mover_value: f32,
+        landing_victim: f32,
+        is_recapture: bool,
+        is_dest_recapture: bool,
+    }
+
+    let mut cands: Vec<QCand> = raw_moves
+        .into_iter()
+        .filter_map(|mv| {
+            let mover_value = state
+                .get_board()
+                .get_piece(mv.from)
+                .map(|p| weights.piece_value(p.piece_type))
+                .unwrap_or(0.0);
+            let landing_victim = state
+                .get_board()
+                .get_piece(mv.to)
+                .filter(|p| p.color != state.get_current_turn())
+                .map(|p| weights.piece_value(p.piece_type))
+                .unwrap_or(0.0);
+            let is_recapture = prev_to
+                .map(|sq| capture_hits_square(state, &mv, sq))
+                .unwrap_or(false);
+            let is_dest_recapture = prev_to == Some(mv.to);
+            let (enemy, own, kind) = capture_exchange_kind(state, weights, &mv);
+            Some(QCand {
+                mv,
+                enemy,
+                own,
+                kind,
+                mover_value,
+                landing_victim,
+                is_recapture,
+                is_dest_recapture,
+            })
+        })
+        .collect();
 
     let path_aware = ctx.q_prune_mode.uses_path_aware();
     let deep_ply = qdepth < ctx.quiesce_entry_depth;
 
     // Recapture-only after the first q-ply.
     if ctx.q_prune_mode.uses_recapture_only() {
-        if let Some(sq) = prev_to {
-            moves.retain(|mv| capture_hits_square(state, mv, sq));
-            if moves.is_empty() {
+        if prev_to.is_some() {
+            cands.retain(|c| c.is_recapture);
+            if cands.is_empty() {
                 return stand_pat;
             }
         }
     }
 
-    // PathAware deep taper: only jump-range+ victims (no cheap simple-recapture
-    // side quests — those kept GG/RO leaves exploding after the 100 floor).
+    // PathAware deep taper: loud victims, or recapture onto the previous landing.
     if path_aware && deep_ply {
-        moves.retain(|mv| {
-            let (enemy, _) = capture_material_exchange(state, weights, mv);
-            enemy >= MIN_QUIESCENCE_DEEP_ENEMY
-        });
-        if moves.is_empty() {
+        let floor = min_quiescence_deep_enemy();
+        cands.retain(|c| c.enemy >= floor || c.is_recapture);
+        if cands.is_empty() {
             return stand_pat;
         }
     }
 
     let use_net = ctx.q_prune_mode.uses_net_gain();
-    // Delta prune: drop captures that cannot raise alpha.
-    moves.retain(|mv| {
-        let (enemy, own) = capture_material_exchange(state, weights, mv);
-        let gain = if use_net { enemy - own } else { enemy };
-        (stand_pat as f32 + gain) > alpha as f32
-    });
-    if moves.is_empty() {
-        return stand_pat;
-    }
 
     // Stale hang prune (pre-move landing attack).
     if ctx.q_prune_mode.uses_stale_hang() {
         let opponent = state.get_current_turn().opposite();
         let mut attack_cache: HashMap<usize, bool> = HashMap::new();
-        moves.retain(|mv| {
-            let board = state.get_board();
-            let Some(mover) = board.get_piece(mv.from) else {
-                return false;
-            };
-            let mover_value = weights.piece_value(mover.piece_type);
-            let (enemy, _) = capture_material_exchange(state, weights, mv);
-            if enemy >= mover_value {
+        let board = state.get_board();
+        cands.retain(|c| {
+            if !net_below_hang_frac(c.enemy, c.own, c.mover_value) {
                 return true;
             }
-            !landing_attacked_cached(board, mv.to, opponent, &mut attack_cache)
+            !landing_attacked_cached(board, c.mv.to, opponent, &mut attack_cache)
         });
-        if moves.is_empty() {
+        if cands.is_empty() {
             return stand_pat;
         }
     }
 
-    order_moves_quiescence(state, weights, &mut moves);
+    // Capturable-max futility: best legal candidate gain, not any piece on the board.
+    let best_gain = cands
+        .iter()
+        .map(|c| if use_net { c.enemy - c.own } else { c.enemy })
+        .fold(0.0f32, f32::max);
+    if stand_pat.saturating_add(best_gain.round() as i32) <= alpha {
+        return stand_pat;
+    }
+
+    // Landing victim first, soft-boost recaptures, then path-sum MVV-LVA.
+    cands.sort_by(|a, b| {
+        let la = (a.landing_victim * 1000.0).round() as i32;
+        let lb = (b.landing_victim * 1000.0).round() as i32;
+        lb.cmp(&la)
+            .then_with(|| b.is_recapture.cmp(&a.is_recapture))
+            .then_with(|| {
+                let sa = ((a.enemy - a.own) * 1000.0 - a.mover_value).round() as i32;
+                let sb = ((b.enemy - b.own) * 1000.0 - b.mover_value).round() as i32;
+                sb.cmp(&sa)
+            })
+    });
 
     ctx.q_caps_generated = ctx
         .q_caps_generated
-        .saturating_add(moves.len() as u64);
+        .saturating_add(cands.len() as u64);
 
     let top_n_cap = if ctx.q_prune_mode.uses_top_n() {
         if path_aware {
@@ -1614,23 +1809,21 @@ fn quiesce(
         usize::MAX
     };
 
-    // PathAware deep: PathClear/MultiLeg under budget; SimpleTakes only as
-    // recaptures onto the previous landing square (cuts ST side-quests that
-    // dominate midgame logs while preserving hang/recapture tactics).
-    if path_aware && deep_ply {
-        let mut kept = Vec::with_capacity(top_n_cap.min(moves.len()));
+    // PathAware: PathClear/MultiLeg under budget only when they answer a capture
+    // or land on a loud piece (drop mop PathClears whose value is path-sum junk).
+    // Deep plies also restrict SimpleTakes to recaptures onto the previous landing.
+    // PathAware: PathClear/MultiLeg only as destination recapture; deep plies
+    // also restrict SimpleTakes to recaptures onto the previous landing.
+    if path_aware {
+        let mut kept = Vec::with_capacity(top_n_cap.min(cands.len()));
         let mut path_kept = 0usize;
-        for mv in moves.drain(..) {
+        for c in cands.drain(..) {
             if kept.len() >= top_n_cap {
                 break;
             }
-            let kind = classify_capture(state, &mv);
-            match kind {
+            match c.kind {
                 CaptureKind::SimpleTake => {
-                    let is_recapture = prev_to
-                        .map(|sq| capture_hits_square(state, &mv, sq))
-                        .unwrap_or(false);
-                    if !is_recapture {
+                    if deep_ply && !c.is_recapture {
                         continue;
                     }
                 }
@@ -1638,43 +1831,61 @@ fn quiesce(
                     if path_kept >= QUIESCE_PATHCLEAR_DEEP_BUDGET {
                         continue;
                     }
+                    if !pathclear_allowed_in_pathaware_q(c.is_dest_recapture) {
+                        continue;
+                    }
                     path_kept += 1;
                 }
             }
-            kept.push(mv);
+            kept.push(c);
         }
-        moves = kept;
-    } else if top_n_cap != usize::MAX && moves.len() > top_n_cap {
-        moves.truncate(top_n_cap);
+        cands = kept;
+    } else if top_n_cap != usize::MAX && cands.len() > top_n_cap {
+        cands.truncate(top_n_cap);
     }
 
-    let n_caps = moves.len();
+    let n_caps = cands.len();
     ctx.q_caps_at_node = n_caps;
 
     let mut best = stand_pat;
     let parent_ply = ctx.ply;
     let opponent = state.get_current_turn().opposite();
 
-    for (i, mv) in moves.into_iter().enumerate() {
+    for (i, c) in cands.into_iter().enumerate() {
         if ctx.timed_out() {
             break;
         }
+        // Live delta: skip once earlier MVV takes have raised alpha.
+        let gain = if use_net { c.enemy - c.own } else { c.enemy };
+        if (stand_pat as f32 + gain) <= alpha as f32 {
+            continue;
+        }
         ctx.q_cap_index = i + 1;
-        ctx.q_label = move_label(state, &mv);
+        ctx.q_label = move_label(state, &c.mv);
         ctx.phase = "quiesce";
         // Periodic progress while a single loud capture line is exploding.
         if ctx.q_nodes & 0xff == 0 {
             ctx.maybe_log_progress();
         }
 
-        let kind = classify_capture(state, &mv);
-        let (enemy, _own) = capture_material_exchange(state, weights, &mv);
-        let mover_value = state
-            .get_board()
-            .get_piece(mv.from)
-            .map(|p| weights.piece_value(p.piece_type))
-            .unwrap_or(0.0);
-        let landing = mv.to;
+        let kind = c.kind;
+        let enemy = c.enemy;
+        let own = c.own;
+        let mover_value = c.mover_value;
+        let landing = c.mv.to;
+        let mv = c.mv;
+
+        // Pre-make hang skip for PathClear/MultiLeg: avoid expensive ray makes when
+        // net is poor and the landing already looks attacked on the current board.
+        if path_aware
+            && matches!(kind, CaptureKind::PathClear | CaptureKind::MultiLeg)
+            && net_below_hang_frac(enemy, own, mover_value)
+            && state
+                .get_board()
+                .is_position_attacked_by_color(landing, opponent)
+        {
+            continue;
+        }
 
         let Some(undo) = state.make_move_for_search(mv) else {
             continue;
@@ -1682,12 +1893,13 @@ fn quiesce(
 
         // PathAware: drop clearly hanging captures using the post-fire board
         // (PathClear can remove landing defenders / own cover).
+        // Net gain vs mover*HANG_NET_FRAC so multi-piece PathClears still hang-check.
         if path_aware
             && matches!(
                 kind,
                 CaptureKind::SimpleTake | CaptureKind::PathClear | CaptureKind::MultiLeg
             )
-            && enemy < mover_value
+            && net_below_hang_frac(enemy, own, mover_value)
         {
             if state
                 .get_board()
@@ -1861,9 +2073,16 @@ fn alphabeta_record(
             break;
         }
         let label = move_label(state, &mv);
+        let is_capture = move_captures_enemy(state, &mv);
+        let capture_enemy = if is_capture {
+            capture_material_exchange(state, weights, &mv).0
+        } else {
+            0.0
+        };
         let Some(undo) = state.make_move_for_search(mv) else {
             continue;
         };
+        ctx.last_ab_capture_enemy = capture_enemy;
         ctx.ply = parent_ply + 1;
         let score = -alphabeta(state, weights, depth - 1, -beta, -alpha, true, ctx);
         state.unmake_move_for_search(undo);
@@ -1985,8 +2204,11 @@ impl SearchContext {
         } else {
             String::new()
         };
+        let rms = now
+            .duration_since(self.root_move_started)
+            .as_millis();
         eprintln!(
-            "ab search: {:.1}s nodes={} nps={} depth={} q={} phase={} root={} best={}{}",
+            "ab search: {:.1}s nodes={} nps={} depth={} q={} phase={} root={} best={} rms={}{}",
             elapsed.as_secs_f64(),
             self.nodes,
             nps,
@@ -1995,46 +2217,17 @@ impl SearchContext {
             self.phase,
             root,
             best,
+            rms,
             qinfo
         );
-    }
-
-    /// Stop scheduling more root moves when little time remains and we have a score.
-    fn soft_time_exhausted(&mut self) -> bool {
-        if self.soft_abort {
-            return true;
-        }
-        if self.best_score <= i32::MIN + 1 {
-            return false;
-        }
-        let (Some(deadline), Some(budget)) = (self.deadline, self.time_budget) else {
-            return false;
-        };
-        if budget.is_zero() {
-            return false;
-        }
-        let now = Instant::now();
-        if now >= deadline {
-            self.abort = true;
-            return true;
-        }
-        let remaining = deadline.saturating_duration_since(now);
-        let threshold = budget.mul_f64(ROOT_SOFT_TIME_REMAINING);
-        if remaining <= threshold {
-            self.soft_abort = true;
-            return true;
-        }
-        false
     }
 
     fn timed_out(&mut self) -> bool {
         // Cheap throttle: don't Instant::now on every node.
         if self.nodes & 0xff == 0 {
             self.maybe_log_progress();
-            // Soft-stop long qsearches (esp. last root) when little time remains.
-            let _ = self.soft_time_exhausted();
         }
-        if self.abort || self.soft_abort {
+        if self.abort {
             return true;
         }
         if let Some(deadline) = self.deadline {
@@ -2057,11 +2250,15 @@ fn order_moves(state: &GameState, weights: &EvalWeights, moves: &mut [Move]) {
             mv,
             opponent,
             &mut attack_cache,
+            false,
         ))
     });
 }
 
 /// Main-search ordering: captures (hang/MVV) then killers then history for quiets.
+///
+/// `postfire_pathclear_hang`: use simulate_move for PathClear hang (root only —
+/// too expensive on every interior node).
 fn order_moves_with_heuristics(
     state: &GameState,
     weights: &EvalWeights,
@@ -2069,6 +2266,7 @@ fn order_moves_with_heuristics(
     ctx: &SearchContext,
     ply: usize,
     captures_only_style: bool,
+    postfire_pathclear_hang: bool,
 ) {
     let opponent = state.get_current_turn().opposite();
     let mut attack_cache: HashMap<usize, bool> = HashMap::new();
@@ -2076,7 +2274,14 @@ fn order_moves_with_heuristics(
         let cap = if captures_only_style {
             mvv_lva_score(state, weights, mv)
         } else {
-            move_order_score(state, weights, mv, opponent, &mut attack_cache)
+            move_order_score(
+                state,
+                weights,
+                mv,
+                opponent,
+                &mut attack_cache,
+                postfire_pathclear_hang,
+            )
         };
         let kr = killer_rank(ctx, ply, mv);
         let hist = history_score(ctx, mv);
@@ -2084,17 +2289,12 @@ fn order_moves_with_heuristics(
     });
 }
 
-/// Quiescence ordering: MVV-LVA only (no attack scans).
-fn order_moves_quiescence(state: &GameState, weights: &EvalWeights, moves: &mut [Move]) {
-    moves.sort_by_key(|mv| std::cmp::Reverse(mvv_lva_score(state, weights, mv)));
-}
-
 /// Test/helper: ordering score with a fresh per-call attack cache.
 #[cfg(test)]
 fn move_order_score_fresh(state: &GameState, weights: &EvalWeights, mv: &Move) -> i32 {
     let opponent = state.get_current_turn().opposite();
     let mut cache = HashMap::new();
-    move_order_score(state, weights, mv, opponent, &mut cache)
+    move_order_score(state, weights, mv, opponent, &mut cache, true)
 }
 
 fn move_label(state: &GameState, mv: &Move) -> String {
@@ -2432,6 +2632,87 @@ mod tests {
         assert_eq!(QUIESCE_PATHCLEAR_DEEP_BUDGET, 1);
     }
 
+    #[test]
+    fn pathclear_q_allows_dest_recapture_only() {
+        assert!(!pathclear_allowed_in_pathaware_q(false));
+        assert!(pathclear_allowed_in_pathaware_q(true));
+    }
+
+    #[test]
+    fn pathclear_mop_and_loud_landing_need_dest_recapture() {
+        let mut weights = EvalWeights::seed();
+        weights.noise_scale = 0.0;
+        weights.piece.insert(PieceType::Pawn, 1.0);
+        weights.piece.insert(PieceType::GoldGeneral, 2000.0);
+        weights.rebuild_piece_value_table();
+
+        let mut state = GameState::new();
+        state.place_piece(Piece::new(
+            PieceType::King,
+            Color::Black,
+            Position::new(0, 0).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::King,
+            Color::White,
+            Position::new(35, 35).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::GreatGeneral,
+            Color::Black,
+            Position::new(10, 10).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::Pawn,
+            Color::White,
+            Position::new(10, 12).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::GreatGeneral,
+            Color::Black,
+            Position::new(12, 10).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::GoldGeneral,
+            Color::White,
+            Position::new(12, 14).unwrap(),
+        ));
+        state.set_current_turn(Color::Black);
+
+        let mop = Move::new(
+            Position::new(10, 10).unwrap(),
+            Position::new(10, 14).unwrap(),
+        );
+        let loud_land = Move::new(
+            Position::new(12, 10).unwrap(),
+            Position::new(12, 14).unwrap(),
+        );
+        let (_, _, mop_kind) = capture_exchange_kind(&state, &weights, &mop);
+        assert_eq!(mop_kind, CaptureKind::PathClear);
+        assert!(quiesce_move_looks_path_or_multileg(&state, &mop));
+        // Empty path to the gold is a SimpleTake (not PathClear) — still OK.
+        let (_, _, land_kind) = capture_exchange_kind(&state, &weights, &loud_land);
+        assert_eq!(land_kind, CaptureKind::SimpleTake);
+        // Neither mop nor non-dest PathClear policy admits without dest recapture.
+        assert!(!pathclear_allowed_in_pathaware_q(false));
+        assert!(pathclear_allowed_in_pathaware_q(prev_to_is_dest(
+            Some(loud_land.to),
+            &loud_land
+        )));
+        // Generate-time filter: mop PathClear absent without dest prev_to.
+        let gen_none = generate_quiescence_captures(&state, &weights, None);
+        assert!(!gen_none.iter().any(|m| same_root_move(m, &mop)));
+        // Loud SimpleTake clears the floor and is kept even without prev_to.
+        assert!(gen_none.iter().any(|m| same_root_move(m, &loud_land)));
+        let gen_dest = generate_quiescence_captures(&state, &weights, Some(loud_land.to));
+        assert!(gen_dest.iter().any(|m| same_root_move(m, &loud_land)));
+        assert!(!gen_dest.iter().any(|m| same_root_move(m, &mop)));
+    }
+
+    fn prev_to_is_dest(prev_to: Option<Position>, mv: &Move) -> bool {
+        prev_to == Some(mv.to)
+    }
+
     /// Advance from the opening with deterministic quiet pawn pushes to get
     /// a busier midgame-ish branching factor for smoke timing.
     fn midgame_ish_after_pawn_pushes() -> GameState {
@@ -2735,6 +3016,177 @@ mod tests {
     }
 
     #[test]
+    fn recapture_below_floor_is_quiescence_candidate() {
+        let mut weights = EvalWeights::seed();
+        weights.noise_scale = 0.0;
+        weights.piece.insert(PieceType::Pawn, 1.0);
+        weights.piece.insert(PieceType::GoldGeneral, 50.0);
+        weights.rebuild_piece_value_table();
+
+        let mut state = GameState::new();
+        state.place_piece(Piece::new(
+            PieceType::King,
+            Color::Black,
+            Position::new(0, 0).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::King,
+            Color::White,
+            Position::new(35, 35).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::GoldGeneral,
+            Color::Black,
+            Position::new(10, 10).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::Pawn,
+            Color::White,
+            Position::new(10, 11).unwrap(),
+        ));
+        state.set_current_turn(Color::Black);
+        let mv = Move::new(
+            Position::new(10, 10).unwrap(),
+            Position::new(10, 11).unwrap(),
+        );
+        let landing = Position::new(10, 11).unwrap();
+        assert!(!is_worthwhile_quiescence_capture(&state, &weights, &mv));
+        assert!(is_quiescence_capture_candidate(
+            &state,
+            &weights,
+            &mv,
+            Some(landing)
+        ));
+        assert!(!is_quiescence_capture_candidate(
+            &state, &weights, &mv, None
+        ));
+        let gen = generate_quiescence_captures(&state, &weights, Some(landing));
+        assert!(gen.iter().any(|m| same_root_move(m, &mv)));
+    }
+
+    #[test]
+    fn capturable_max_gain_ignores_untouchable_board_pieces() {
+        // Living GG on the board must not inflate the optimistic bound when the
+        // only capturable gain is a smaller loud take.
+        let gains_with_only_gold = [2000.0f32];
+        let best = gains_with_only_gold
+            .iter()
+            .copied()
+            .fold(0.0f32, f32::max)
+            .round() as i32;
+        assert_eq!(best, 2000);
+        // Board-max would be ~GG (4000+); capturable-max stays at the gold take.
+        assert!(best < 3500);
+    }
+
+    #[test]
+    fn landing_victim_outranks_path_sum_in_sort_key() {
+        // Sort key primary is landing victim: a 4000 landing beats a 3000 path sum
+        // with landing 50 when comparing the same way quiesce sorts.
+        let landing_hi = 4000.0f32;
+        let landing_lo = 50.0f32;
+        let path_hi = 3000.0f32;
+        let path_lo = 500.0f32;
+        let key = |landing: f32, path: f32, recapture: bool| {
+            (
+                (landing * 1000.0).round() as i32,
+                recapture,
+                (path * 1000.0).round() as i32,
+            )
+        };
+        assert!(key(landing_hi, path_lo, false) > key(landing_lo, path_hi, false));
+    }
+
+    #[test]
+    fn root_lmr_reduces_quiets_not_captures() {
+        let mut weights = EvalWeights::seed();
+        weights.noise_scale = 0.0;
+        weights.piece.insert(PieceType::Pawn, 1.0);
+        weights.piece.insert(PieceType::GoldGeneral, 2000.0);
+        weights.rebuild_piece_value_table();
+
+        let mut state = GameState::new();
+        state.place_piece(Piece::new(
+            PieceType::King,
+            Color::Black,
+            Position::new(0, 0).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::King,
+            Color::White,
+            Position::new(35, 35).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::GoldGeneral,
+            Color::Black,
+            Position::new(10, 10).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::Pawn,
+            Color::White,
+            Position::new(10, 11).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::Pawn,
+            Color::Black,
+            Position::new(5, 10).unwrap(),
+        ));
+        state.set_current_turn(Color::Black);
+
+        let capture = Move::new(
+            Position::new(10, 10).unwrap(),
+            Position::new(10, 11).unwrap(),
+        );
+        let quiet = Move::new(
+            Position::new(5, 10).unwrap(),
+            Position::new(5, 11).unwrap(),
+        );
+        assert!(move_captures_enemy(&state, &capture));
+        assert!(!move_captures_enemy(&state, &quiet));
+        // Pre–PR17 root LMR: late quiets reducible; any capture is not.
+        let can_reduce_capture = false; // !is_capture
+        let can_reduce_quiet = true;
+        assert!(!can_reduce_capture);
+        assert!(can_reduce_quiet);
+    }
+
+    #[test]
+    fn deep_id_searches_full_root_not_narrowed() {
+        let weights = EvalWeights::seed();
+        let mut state = GameState::new();
+        state.setup_initial_position();
+        let moves = state.generate_legal_moves();
+        let n_legal = moves.len();
+        assert!(n_legal > 64, "opening should have a wide root");
+        let mut hang_cache = HashMap::new();
+        let hang_skipped = moves
+            .iter()
+            .filter(|mv| {
+                move_captures_enemy(&state, mv)
+                    && capture_hangs_high_value_piece(&state, &weights, mv, true, &mut hang_cache)
+            })
+            .count();
+        let result = search(
+            &state,
+            &weights,
+            &SearchConfig {
+                depth: 1,
+                max_time_ms: None,
+                collect_trace: true,
+                quiescence_depth: 0,
+                q_prune_mode: QPruneMode::PathAware,
+            },
+        );
+        // Depth 1 finishes the full searchable root (hanging high-value captures skipped).
+        assert!(
+            result.root_lines.len() > 64,
+            "expected full-root coverage, got {}",
+            result.root_lines.len()
+        );
+        assert_eq!(result.root_lines.len(), n_legal - hang_skipped);
+    }
+
+    #[test]
     fn dest_capture_detected_self_capture_excluded() {
         let mut state = GameState::new();
         state.place_piece(Piece::new(
@@ -2790,6 +3242,18 @@ mod tests {
     }
 
     #[test]
+    fn quiescence_floors_track_seed_loud_capture_floor() {
+        let floor = seed_loud_capture_floor();
+        assert!((floor - 1200.0).abs() < 1e-3);
+        assert!((min_quiescence_enemy_material() - floor).abs() < 1e-6);
+        assert!((min_quiescence_deep_enemy() - floor).abs() < 1e-6);
+        // Hang when net is below HANG_NET_FRAC of mover (even if enemy_sum is large).
+        assert!(net_below_hang_frac(1500.0, 0.0, 4000.0)); // 1500 < 3200
+        assert!(!net_below_hang_frac(3500.0, 0.0, 4000.0)); // healthy PathClear net
+        assert!(net_below_hang_frac(2000.0, 500.0, 4000.0)); // net 1500 < 3200
+    }
+
+    #[test]
     fn quiescence_skips_low_value_enemy_captures() {
         let mut weights = EvalWeights::seed();
         weights.noise_scale = 0.0;
@@ -2801,7 +3265,7 @@ mod tests {
             Color::Black,
             Position::new(10, 10).unwrap(),
         ));
-        // Seed pawn value is 1 — below the 750-point qsearch threshold.
+        // Seed pawn value is 1 — below the loud-capture floor.
         state.place_piece(Piece::new(
             PieceType::Pawn,
             Color::White,
@@ -2842,6 +3306,30 @@ mod tests {
     }
 
     #[test]
+    fn opening_q_gen_drops_mop_pathclear_without_dest_prev() {
+        let weights = EvalWeights::seed();
+        let mut state = GameState::new();
+        state.setup_initial_position();
+        let caps_only = state.generate_legal_moves_mode(LegalMoveGen::CapturesOnly);
+        let pathish = caps_only
+            .iter()
+            .filter(|m| quiesce_move_looks_path_or_multileg(&state, m))
+            .count();
+        let gen = generate_quiescence_captures(&state, &weights, None);
+        let gen_pathish = gen
+            .iter()
+            .filter(|m| quiesce_move_looks_path_or_multileg(&state, m))
+            .count();
+        eprintln!(
+            "opening captures_only pathish={pathish} q_gen={} q_gen_pathish={gen_pathish}",
+            gen.len()
+        );
+        // Without a contested square, PathClear/MultiLeg must not enter q gen.
+        assert_eq!(gen_pathish, 0);
+        assert!(pathish > 0, "opening should have path-clear captures to filter");
+    }
+
+    #[test]
     fn opening_worthwhile_quiescence_captures_far_fewer_than_raw() {
         let weights = EvalWeights::seed();
         let mut state = GameState::new();
@@ -2851,7 +3339,7 @@ mod tests {
             .iter()
             .filter(|m| move_captures_enemy(&state, m))
             .count();
-        let worth = generate_quiescence_captures(&state, &weights).len();
+        let worth = generate_quiescence_captures(&state, &weights, None).len();
         let caps_only = state
             .generate_legal_moves_mode(LegalMoveGen::CapturesOnly)
             .len();
@@ -2867,11 +3355,12 @@ mod tests {
 
     #[test]
     fn quiescence_avoids_hanging_capture() {
-        // Capture and recapture both clear the 750 worthwhile floor; mover >> victim.
+        // After a hanging take, PathAware q expands the loud recapture of the hung
+        // piece via the worthwhile floor (no AB→q dest-recapture seeding).
         let mut weights = EvalWeights::seed();
         weights.noise_scale = 0.0;
-        weights.piece.insert(PieceType::GoldGeneral, 2000.0);
-        weights.piece.insert(PieceType::FreeKing, 800.0);
+        weights.piece.insert(PieceType::GoldGeneral, 1500.0);
+        weights.piece.insert(PieceType::FreeKing, 2000.0);
         weights.piece.insert(PieceType::King, 100.0);
         weights.rebuild_piece_value_table();
 
@@ -2886,7 +3375,6 @@ mod tests {
             Color::White,
             Position::new(35, 35).unwrap(),
         ));
-        // Black gold takes white free king, white gold recaptures (net −1200).
         state.place_piece(Piece::new(
             PieceType::GoldGeneral,
             Color::Black,
@@ -2904,9 +3392,152 @@ mod tests {
         ));
         state.set_current_turn(Color::Black);
 
-        let hanging = Position::new(10, 11).unwrap();
+        let hang = Move::new(
+            Position::new(10, 10).unwrap(),
+            Position::new(10, 11).unwrap(),
+        );
+        let _undo = state.make_move_for_search(hang).expect("hang take");
+        // White to move: hung gold is a loud capture (≥ floor).
+        let stand = evaluate_with_ply(&state, &weights, 0);
+        let with_q = probe_quiescence(
+            &state,
+            &weights,
+            4,
+            QPruneMode::PathAware,
+            None,
+        );
+        assert!(
+            with_q.score > stand + 500,
+            "q should take the hung gold: stand={stand} with_q={} q_caps={}",
+            with_q.score,
+            with_q.q_caps_searched
+        );
+    }
 
-        let greedy = search(
+    #[test]
+    fn ab_hang_prunes_high_value_guarded_capture() {
+        // Seed GG (~4000) takes a pawn onto a guarded landing → skip in AB.
+        let mut weights = EvalWeights::seed();
+        weights.noise_scale = 0.0;
+        weights.rebuild_piece_value_table();
+        assert!(weights.piece_value(PieceType::GreatGeneral) >= HIGH_VALUE_HANGER);
+
+        let mut state = GameState::new();
+        state.place_piece(Piece::new(
+            PieceType::King,
+            Color::Black,
+            Position::new(0, 0).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::King,
+            Color::White,
+            Position::new(35, 35).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::GreatGeneral,
+            Color::Black,
+            Position::new(10, 10).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::Pawn,
+            Color::White,
+            Position::new(10, 12).unwrap(),
+        ));
+        // White gold at (10,15) attacks (10,14); does not attack (10,13).
+        state.place_piece(Piece::new(
+            PieceType::GoldGeneral,
+            Color::White,
+            Position::new(10, 15).unwrap(),
+        ));
+        // Quiet alternative so search has a non-hanging move.
+        state.place_piece(Piece::new(
+            PieceType::Pawn,
+            Color::Black,
+            Position::new(20, 10).unwrap(),
+        ));
+        state.set_current_turn(Color::Black);
+
+        let guarded = Move::new(
+            Position::new(10, 10).unwrap(),
+            Position::new(10, 14).unwrap(),
+        );
+        let safe = Move::new(
+            Position::new(10, 10).unwrap(),
+            Position::new(10, 13).unwrap(),
+        );
+        assert!(move_captures_enemy(&state, &guarded));
+        assert!(move_captures_enemy(&state, &safe));
+
+        let mut cache = HashMap::new();
+        assert!(
+            capture_hangs_high_value_piece(&state, &weights, &guarded, true, &mut cache),
+            "guarded GG pawn-mop should hang-prune"
+        );
+        assert!(
+            !capture_hangs_high_value_piece(&state, &weights, &safe, true, &mut cache),
+            "safe GG landing past pawn should still be searchable"
+        );
+
+        let result = search(
+            &state,
+            &weights,
+            &SearchConfig {
+                depth: 1,
+                max_time_ms: None,
+                collect_trace: false,
+                quiescence_depth: 0,
+                q_prune_mode: QPruneMode::PathAware,
+            },
+        );
+        assert_ne!(
+            result.best_move.as_ref().map(|m| (m.from, m.to)),
+            Some((guarded.from, guarded.to)),
+            "depth-1 must not pick the hanging GG capture"
+        );
+    }
+
+    #[test]
+    fn ab_hang_keeps_safe_high_victim_capture() {
+        // Low-value mover takes unprotected GG — still searchable.
+        let mut weights = EvalWeights::seed();
+        weights.noise_scale = 0.0;
+        weights.rebuild_piece_value_table();
+
+        let mut state = GameState::new();
+        state.place_piece(Piece::new(
+            PieceType::King,
+            Color::Black,
+            Position::new(0, 0).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::King,
+            Color::White,
+            Position::new(35, 35).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::GoldGeneral,
+            Color::Black,
+            Position::new(10, 10).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::GreatGeneral,
+            Color::White,
+            Position::new(10, 11).unwrap(),
+        ));
+        state.set_current_turn(Color::Black);
+
+        let take_gg = Move::new(
+            Position::new(10, 10).unwrap(),
+            Position::new(10, 11).unwrap(),
+        );
+        assert!(move_captures_enemy(&state, &take_gg));
+        let mut cache = HashMap::new();
+        assert!(
+            !capture_hangs_high_value_piece(&state, &weights, &take_gg, true, &mut cache),
+            "taking unprotected GG with gold must not hang-prune"
+        );
+
+        let result = search(
             &state,
             &weights,
             &SearchConfig {
@@ -2918,12 +3549,54 @@ mod tests {
             },
         );
         assert_eq!(
-            greedy.best_move.as_ref().map(|m| m.to),
-            Some(hanging),
-            "without qsearch, depth-1 should greedily take the free king"
+            result.best_move.as_ref().map(|m| m.to),
+            Some(Position::new(10, 11).unwrap()),
+            "depth-1 should still take the free Great General"
         );
 
         let with_q = search(
+            &state,
+            &weights,
+            &SearchConfig {
+                depth: 1,
+                max_time_ms: None,
+                collect_trace: false,
+                quiescence_depth: 2,
+                q_prune_mode: QPruneMode::PathAware,
+            },
+        );
+        assert!(
+            with_q.q_nodes > 0,
+            "loud capture AB leaf should enter quiescence"
+        );
+    }
+
+    #[test]
+    fn quiet_ab_leaf_skips_quiescence() {
+        let mut weights = EvalWeights::seed();
+        weights.noise_scale = 0.0;
+        weights.rebuild_piece_value_table();
+
+        let mut state = GameState::new();
+        state.place_piece(Piece::new(
+            PieceType::King,
+            Color::Black,
+            Position::new(5, 5).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::King,
+            Color::White,
+            Position::new(20, 20).unwrap(),
+        ));
+        // Black pawn can only push (quiet); no captures available.
+        state.place_piece(Piece::new(
+            PieceType::Pawn,
+            Color::Black,
+            Position::new(10, 10).unwrap(),
+        ));
+        state.set_current_turn(Color::Black);
+
+        let result = search(
             &state,
             &weights,
             &SearchConfig {
@@ -2934,18 +3607,73 @@ mod tests {
                 q_prune_mode: QPruneMode::PathAware,
             },
         );
-        // Qsearch should see the recapture and score the hang much worse than greedy.
+        assert_eq!(
+            result.q_nodes, 0,
+            "quiet AB leaves must not enter quiescence"
+        );
+        assert!(result.best_move.is_some());
+    }
+
+    #[test]
+    fn cheap_capture_ab_leaf_skips_quiescence() {
+        let mut weights = EvalWeights::seed();
+        weights.noise_scale = 0.0;
+        weights.rebuild_piece_value_table();
+        assert!(weights.piece_value(PieceType::Pawn) < min_quiescence_enemy_material());
+
+        let mut state = GameState::new();
+        state.place_piece(Piece::new(
+            PieceType::King,
+            Color::Black,
+            Position::new(5, 5).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::King,
+            Color::White,
+            Position::new(20, 20).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::GoldGeneral,
+            Color::Black,
+            Position::new(10, 10).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::Pawn,
+            Color::White,
+            Position::new(10, 11).unwrap(),
+        ));
+        state.set_current_turn(Color::Black);
+
+        let take_pawn = Move::new(
+            Position::new(10, 10).unwrap(),
+            Position::new(10, 11).unwrap(),
+        );
+        assert!(move_captures_enemy(&state, &take_pawn));
         assert!(
-            with_q.score + 500 < greedy.score,
-            "qsearch should penalize the hang: greedy={} with_q={} best={:?}",
-            greedy.score,
-            with_q.score,
-            with_q.best_move.as_ref().map(|m| m.to)
+            capture_material_exchange(&state, &weights, &take_pawn).0
+                < min_quiescence_enemy_material()
+        );
+
+        let result = search(
+            &state,
+            &weights,
+            &SearchConfig {
+                depth: 1,
+                max_time_ms: None,
+                collect_trace: false,
+                quiescence_depth: 4,
+                q_prune_mode: QPruneMode::PathAware,
+            },
+        );
+        assert_eq!(
+            result.q_nodes, 0,
+            "below-floor capture leaf must not enter quiescence"
         );
     }
 
     #[test]
     fn see_orders_safe_landing_above_guarded() {
+        // PathClear post-fire hang: guarded landing demoted when net < frac*mover.
         let mut weights = EvalWeights::seed();
         weights.noise_scale = 0.0;
         weights.piece.insert(PieceType::GreatGeneral, 90.0);

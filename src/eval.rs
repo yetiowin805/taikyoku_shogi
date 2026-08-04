@@ -350,6 +350,21 @@ fn lerp(a: f32, b: f32, t: f32) -> f32 {
     a + (b - a) * t
 }
 
+/// Per-direction value for blocked sliding (NoJump).
+pub const TARIFF_RANGE_NO_JUMP: f32 = 10.0;
+/// Per-direction value for jump-range sliding.
+pub const TARIFF_RANGE_JUMP: f32 = 50.0;
+/// Per-direction value for capturing-range sliding (main strength dial for GG/VG/…).
+pub const TARIFF_RANGE_CAPTURING: f32 = 500.0;
+
+/// Quiescence / worthwhile-capture floor derived from range tariffs.
+///
+/// About 2.4 capturing-dirs (`500×2.4=1200`) so mid-heavy takes enter q; also at
+/// least a full 8-dir jump-ray.
+pub fn seed_loud_capture_floor() -> f32 {
+    (TARIFF_RANGE_CAPTURING * 2.4).max(TARIFF_RANGE_JUMP * 8.0)
+}
+
 fn capability_material_value(cap: &MovementCapability) -> f32 {
     match cap {
         MovementCapability::Simple {
@@ -362,9 +377,9 @@ fn capability_material_value(cap: &MovementCapability) -> f32 {
             ..
         } => {
             let per = match *blocking {
-                BlockingMode::NoJump => 10.0,
-                BlockingMode::Jump => 50.0,
-                BlockingMode::Capturing => 500.0,
+                BlockingMode::NoJump => TARIFF_RANGE_NO_JUMP,
+                BlockingMode::Jump => TARIFF_RANGE_JUMP,
+                BlockingMode::Capturing => TARIFF_RANGE_CAPTURING,
             };
             directions.count_ones() as f32 * per
         }
@@ -1028,6 +1043,13 @@ mod tests {
         // Limited 2 in 4 dirs: 4 * 1.5 = 6 (sanity for harmonic).
         assert!((harmonic(2) - 1.5).abs() < 1e-6);
         assert!((harmonic(3) - 11.0 / 6.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn loud_capture_floor_tracks_capturing_tariff() {
+        assert!((seed_loud_capture_floor() - 1200.0).abs() < 1e-3);
+        assert!((seed_loud_capture_floor() - (TARIFF_RANGE_CAPTURING * 2.4).max(TARIFF_RANGE_JUMP * 8.0)).abs() < 1e-6);
+        assert!(TARIFF_RANGE_CAPTURING * 2.4 >= TARIFF_RANGE_JUMP * 8.0);
     }
 
     #[test]
