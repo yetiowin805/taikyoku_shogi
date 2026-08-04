@@ -322,62 +322,167 @@ pub const ALL_PIECE_TYPES: &[PieceType] = &[
 /// Fallback for unknown / missing table entries.
 const DEFAULT_PIECE_VALUE: f32 = 1.0;
 
+/// Forward directions in black-relative configs: N | NE | NW.
+const FORWARD_DIRS: u8 = 0x01 | 0x02 | 0x80;
+
+/// Pawn opening rank (Black).
+pub const RANK_PAWN_START: u8 = 10;
+/// First rank of the opponent's half (Black progress).
+pub const RANK_OPPONENT_HALF: u8 = 18;
+/// First progress rank of the enemy home / promotion zone (Black rank 25).
+pub const RANK_PST_PROMO: u8 = 25;
+/// Legacy mid anchor (unused by new PST; kept for callers/tests that referenced it).
+pub const RANK_PST_MID: u8 = 17;
+
+/// Harmonic number H_n = 1 + 1/2 + ... + 1/n.
+fn harmonic(n: u8) -> f32 {
+    if n == 0 {
+        return 0.0;
+    }
+    let mut s = 0.0f32;
+    for k in 1..=n {
+        s += 1.0 / k as f32;
+    }
+    s
+}
+
+fn lerp(a: f32, b: f32, t: f32) -> f32 {
+    a + (b - a) * t
+}
+
 fn capability_material_value(cap: &MovementCapability) -> f32 {
     match cap {
         MovementCapability::Simple {
             directions,
             max_distance,
-        } => 0.5 * directions.count_ones() as f32 * (*max_distance as f32),
+        } => directions.count_ones() as f32 * harmonic(*max_distance),
         MovementCapability::Range {
             directions,
             blocking,
             ..
-        } => match *blocking {
-            BlockingMode::Capturing => 800.0,
-            BlockingMode::Jump => 100.0,
-            BlockingMode::NoJump => 4.0 * directions.count_ones() as f32,
-        },
-        MovementCapability::Jumping { offsets } => 2.0 * offsets.len() as f32,
-        MovementCapability::TwoStep { first, second } => capability_material_value(first)
-            .max(capability_material_value(second)),
-        // Only WoodenDove uses this; override usually wins, but keep a jump-class floor.
-        MovementCapability::ConditionalDiagonalJump { .. } => 40.0,
-        // FreeEagle multi-move is covered by the FreeEagle override.
+        } => {
+            let per = match *blocking {
+                BlockingMode::NoJump => 10.0,
+                BlockingMode::Jump => 50.0,
+                BlockingMode::Capturing => 500.0,
+            };
+            directions.count_ones() as f32 * per
+        }
+        MovementCapability::Jumping { offsets } => offsets.len() as f32,
+        MovementCapability::TwoStep { first, second } => {
+            capability_material_value(first) + capability_material_value(second)
+        }
+        // Covered by overrides (WoodenDove / FreeEagle).
+        MovementCapability::ConditionalDiagonalJump { .. } => 0.0,
         MovementCapability::FreeEagleMultiMove { .. } => 0.0,
     }
 }
 
 fn explicit_material_override(pt: PieceType) -> Option<f32> {
     match pt {
-        PieceType::King => Some(1800.0),
-        PieceType::CrownPrince => Some(1600.0),
-        PieceType::DrunkenElephant => Some(100.0),
-        PieceType::HookMover | PieceType::Tengu | PieceType::Capricorn => Some(1200.0),
-        PieceType::Peacock | PieceType::GreatGeneral => Some(1100.0),
-        PieceType::FreeEagle | PieceType::WoodenDove => Some(40.0),
-        PieceType::BuddhistSpirit => Some(40.0),
-        PieceType::LionHawk => Some(25.0),
-        PieceType::FuriousFiend => Some(24.0),
+        PieceType::King => Some(2000.0),
+        PieceType::CrownPrince => Some(8.0),
+        PieceType::Peacock => Some(800.0),
+        PieceType::Tengu => Some(1200.0),
+        PieceType::Capricorn => Some(1500.0),
+        PieceType::HookMover => Some(2000.0),
         PieceType::Lion => Some(15.0),
+        PieceType::FuriousFiend => Some(30.0),
+        PieceType::LionHawk => Some(50.0),
+        PieceType::BuddhistSpirit => Some(90.0),
+        PieceType::WoodenDove => Some(50.0),
+        PieceType::FreeEagle => Some(30.0),
         _ => None,
     }
 }
 
-/// Seed material from movement capabilities (+ explicit overrides).
+/// Additive bonus on top of the capability formula (not a full override).
+fn additive_material_bonus(pt: PieceType) -> f32 {
+    match pt {
+        PieceType::ViceGeneral => 500.0,
+        _ => 0.0,
+    }
+}
+
+fn formula_piece_value(pt: PieceType) -> f32 {
+    let cfg = MovementConfig::for_piece_type(pt);
+    let mut sum = 0.0f32;
+    for cap in &cfg.capabilities {
+        sum += capability_material_value(cap);
+    }
+    sum + additive_material_bonus(pt)
+}
+
+/// Seed material from movement capabilities (+ explicit overrides / additive bonuses).
 pub fn seed_piece_value(pt: PieceType) -> f32 {
     if let Some(v) = explicit_material_override(pt) {
         return v;
     }
-    // Other royals (if any are added later).
-    if pt.is_royal() {
-        return 1600.0;
-    }
-    let cfg = MovementConfig::for_piece_type(pt);
-    let mut best = 0.0f32;
-    for cap in &cfg.capabilities {
-        best = best.max(capability_material_value(cap));
-    }
-    best
+    formula_piece_value(pt)
+}
+
+/// True if the piece has range movement in at least one forward direction (black-relative).
+pub fn is_fast_piece(pt: PieceType) -> bool {
+    fast_piece_table()
+        .get(pt as usize)
+        .copied()
+        .unwrap_or(false)
+}
+
+fn fast_piece_table() -> &'static [bool] {
+    static TABLE: OnceLock<Vec<bool>> = OnceLock::new();
+    TABLE.get_or_init(|| {
+        let mut max_idx = 0usize;
+        for &pt in ALL_PIECE_TYPES {
+            max_idx = max_idx.max(pt as usize);
+        }
+        let mut t = vec![false; max_idx + 1];
+        for &pt in ALL_PIECE_TYPES {
+            let cfg = MovementConfig::for_piece_type(pt);
+            let fast = cfg.capabilities.iter().any(|cap| {
+                matches!(
+                    cap,
+                    MovementCapability::Range { directions, .. }
+                        if (*directions & FORWARD_DIRS) != 0
+                )
+            });
+            t[pt as usize] = fast;
+        }
+        t
+    })
+}
+
+/// Jump-range / capturing-range pieces skip rank PST (high material + board-wide reach).
+pub fn skips_rank_pst(pt: PieceType) -> bool {
+    skip_rank_pst_table()
+        .get(pt as usize)
+        .copied()
+        .unwrap_or(false)
+}
+
+fn skip_rank_pst_table() -> &'static [bool] {
+    static TABLE: OnceLock<Vec<bool>> = OnceLock::new();
+    TABLE.get_or_init(|| {
+        let mut max_idx = 0usize;
+        for &pt in ALL_PIECE_TYPES {
+            max_idx = max_idx.max(pt as usize);
+        }
+        let mut t = vec![false; max_idx + 1];
+        for &pt in ALL_PIECE_TYPES {
+            let cfg = MovementConfig::for_piece_type(pt);
+            let skip = cfg.capabilities.iter().any(|cap| {
+                matches!(
+                    cap,
+                    MovementCapability::Range {
+                        blocking: BlockingMode::Jump | BlockingMode::Capturing,
+                        ..
+                    }
+                )
+            });
+            t[pt as usize] = skip;
+        }
+        t
+    })
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -407,24 +512,34 @@ impl Default for SearchDefaults {
 pub struct EvalWeights {
     /// Material value keyed by current piece type (after promotion).
     pub piece: HashMap<PieceType, f32>,
-    /// Bonus per living royal (friendly positive / enemy negative via difference).
+    /// Legacy per-royal linear term (unused by seed; kept for old JSON).
+    #[serde(default)]
     pub royal_alive: i32,
-    /// Extra weight when a side is down to a single royal.
+    /// Legacy sole-royal term (unused by seed; kept for old JSON).
+    #[serde(default)]
     pub sole_royal_factor: i32,
-    /// Scale for Drunken Elephant / Go-Between advance toward promotion.
+    /// Royal bonus by living count: index = count (0 unused; mate short-circuits).
+    /// Seed: `[0, 0, 5000, 6000]` → 1→0, 2→5000, 3+→6000.
+    #[serde(default = "default_royal_bonus_by_count")]
+    pub royal_bonus_by_count: Vec<i32>,
+    /// Legacy DE/GoBetween advance scale (unused by seed; CP/DE use approach table).
+    #[serde(default)]
     pub de_advance: i32,
-    /// Floor for undeveloped penalty (on opening rank or behind):
-    /// `min(20, min(0.9 * value, max(undeveloped_home, 0.2 * value)))` per non-royal.
+    /// Floor for undeveloped penalty. Seed uses 0 (PST is the development signal).
     #[serde(default = "default_undeveloped_home")]
     pub undeveloped_home: i32,
     /// Legacy forwardness bonus for non-royals: `advance * progress / 12`.
-    /// Default 0 — rank PST covers development; keep for noisy/perturbed configs.
     #[serde(default = "default_advance")]
     pub advance: i32,
-    /// Rank factors indexed by progress toward the enemy (0 = own back rank, 35 = enemy back).
-    /// White uses the same table via mirrored progress. See [`seed_rank_factors`].
-    #[serde(default = "seed_rank_factors_vec")]
+    /// Legacy single rank table (kept for old JSON compatibility).
+    #[serde(default = "seed_rank_factors_fast_vec")]
     pub rank_factor: Vec<f32>,
+    /// Fast-piece rank multipliers (range in a forward direction).
+    #[serde(default = "seed_rank_factors_fast_vec")]
+    pub rank_factor_fast: Vec<f32>,
+    /// Slow-piece rank multipliers.
+    #[serde(default = "seed_rank_factors_slow_vec")]
+    pub rank_factor_slow: Vec<f32>,
     /// Max absolute noise contribution (deterministic).
     pub noise_scale: f64,
     pub mate_score: i32,
@@ -437,93 +552,88 @@ pub struct EvalWeights {
 }
 
 fn default_undeveloped_home() -> i32 {
-    3
+    0
 }
 
-/// Rank PST replaces the old advance term in the seed; default off.
 fn default_advance() -> i32 {
     0
 }
 
-/// Central progress rank for the 120% anchor (Black rank 17).
-pub const RANK_PST_MID: u8 = 17;
-/// First progress rank of the enemy home / promotion zone (Black rank 25).
-pub const RANK_PST_PROMO: u8 = 25;
+fn default_royal_bonus_by_count() -> Vec<i32> {
+    vec![0, 0, 5000, 6000]
+}
 
-/// Seed rank factors: 50% back → 100% just outside camp → 120% mid/enemy-open → 150% promo.
-pub fn seed_rank_factors() -> [f32; 36] {
-    let home_edge = black_opening_home_edge();
-    let outside = home_edge.saturating_add(1); // 100% row
-    let mid = RANK_PST_MID;
+/// Fast PST: 50% back → 100% pawn start → 100% to mid → 110% opponent half → 120% promo.
+pub fn seed_rank_factors_fast() -> [f32; 36] {
+    let pawn = RANK_PAWN_START;
+    let opp = RANK_OPPONENT_HALF;
     let promo = RANK_PST_PROMO;
     let mut factors = [1.0f32; 36];
     for r in 0u8..36 {
-        factors[r as usize] = if r == 0 {
-            0.5
-        } else if r < outside {
-            0.5 + 0.5 * (r as f32) / (outside as f32)
-        } else if r <= mid {
-            let span = (mid - outside) as f32;
-            if span <= 0.0 {
-                1.2
-            } else {
-                1.0 + 0.2 * (r - outside) as f32 / span
-            }
+        factors[r as usize] = if r <= pawn {
+            lerp(0.5, 1.0, r as f32 / pawn as f32)
+        } else if r < opp {
+            1.0
         } else if r < promo {
-            1.2
+            1.1
         } else {
-            1.5
+            1.2
         };
     }
     factors
 }
 
-fn seed_rank_factors_vec() -> Vec<f32> {
-    seed_rank_factors().to_vec()
-}
-
-fn black_opening_home_edge() -> u8 {
-    initial_non_royal_home_ranks()
-        .iter()
-        .filter(|((color, _), _)| *color == Color::Black)
-        .map(|(_, &rank)| rank)
-        .max()
-        .unwrap_or(11)
-}
-
-/// Cap on positional *bonus* above 100% (linear in factor between anchors).
-fn rank_bonus_cap(factor: f32) -> f32 {
-    if factor <= 1.0 {
-        0.0
-    } else if factor <= 1.2 {
-        20.0 * (factor - 1.0) / 0.2
-    } else if factor <= 1.5 {
-        20.0 + 30.0 * (factor - 1.2) / 0.3
-    } else {
-        50.0
+/// Slow PST: 10% back → 60% pawn start → 100% at opp half → 120% promo, then hold.
+pub fn seed_rank_factors_slow() -> [f32; 36] {
+    let pawn = RANK_PAWN_START;
+    let opp = RANK_OPPONENT_HALF;
+    let promo = RANK_PST_PROMO;
+    let mut factors = [1.0f32; 36];
+    for r in 0u8..36 {
+        factors[r as usize] = if r <= pawn {
+            lerp(0.1, 0.6, r as f32 / pawn as f32)
+        } else if r <= opp {
+            lerp(0.6, 1.0, (r - pawn) as f32 / (opp - pawn) as f32)
+        } else if r <= promo {
+            lerp(1.0, 1.2, (r - opp) as f32 / (promo - opp) as f32)
+        } else {
+            1.2
+        };
     }
+    factors
 }
 
-/// Material contribution for one piece including rank PST (royals always factor 1).
+fn seed_rank_factors_fast_vec() -> Vec<f32> {
+    seed_rank_factors_fast().to_vec()
+}
+
+fn seed_rank_factors_slow_vec() -> Vec<f32> {
+    seed_rank_factors_slow().to_vec()
+}
+
+/// Legacy alias used by older call sites / docs.
+pub fn seed_rank_factors() -> [f32; 36] {
+    seed_rank_factors_fast()
+}
+
+/// Material contribution for one piece including rank PST.
+/// Royals and jump/capturing-range pieces always use factor 1.
 pub fn positional_piece_value(piece: &Piece, weights: &EvalWeights) -> f32 {
     let v = weights.piece_value(piece.piece_type);
-    if piece.piece_type.is_royal() {
+    if piece.piece_type.is_royal() || skips_rank_pst(piece.piece_type) {
         return v;
     }
     let progress = match piece.color {
         Color::Black => piece.position.rank as usize,
         Color::White => (35 - piece.position.rank) as usize,
     };
-    let f = weights
-        .rank_factor
-        .get(progress)
-        .copied()
-        .unwrap_or(1.0);
-    if f <= 1.0 {
-        v * f
+    let table = if is_fast_piece(piece.piece_type) {
+        &weights.rank_factor_fast
     } else {
-        v + (v * (f - 1.0)).min(rank_bonus_cap(f))
-    }
+        &weights.rank_factor_slow
+    };
+    let f = table.get(progress).copied().unwrap_or(1.0);
+    v * f
 }
 
 impl Default for EvalWeights {
@@ -540,12 +650,15 @@ impl EvalWeights {
         }
         let mut w = Self {
             piece,
-            royal_alive: 50,
-            sole_royal_factor: 80,
-            de_advance: 5,
+            royal_alive: 0,
+            sole_royal_factor: 0,
+            royal_bonus_by_count: default_royal_bonus_by_count(),
+            de_advance: 0,
             undeveloped_home: default_undeveloped_home(),
             advance: default_advance(),
-            rank_factor: seed_rank_factors_vec(),
+            rank_factor: seed_rank_factors_fast_vec(),
+            rank_factor_fast: seed_rank_factors_fast_vec(),
+            rank_factor_slow: seed_rank_factors_slow_vec(),
             noise_scale: 1.0,
             mate_score: 1_000_000,
             weight_seed: 0xA11B_E7A1,
@@ -587,46 +700,17 @@ impl EvalWeights {
         self.piece_value(pt).round() as i32
     }
 
-    /// Multiply every tunable weight by an independent `U(lo, hi)` draw (deterministic).
-    /// Skips [`Self::mate_score`]. Used to build the noisy training twin checkpoint.
-    pub fn perturb_multiplicative(&mut self, lo: f32, hi: f32) {
-        debug_assert!(lo > 0.0 && hi >= lo);
-        let mut state = self.weight_seed;
-        let mut next_u01 = || {
-            state = splitmix64(state);
-            // Map to (0, 1] excluding 0 for safety.
-            ((state >> 11) as f64 / ((1u64 << 53) as f64)).clamp(f64::MIN_POSITIVE, 1.0) as f32
-        };
-        let mut scale = || lo + (hi - lo) * next_u01();
-
-        for &pt in ALL_PIECE_TYPES {
-            if let Some(v) = self.piece.get_mut(&pt) {
-                *v *= scale();
-            }
+    pub fn royal_bonus(&self, count: usize) -> i32 {
+        if count == 0 {
+            return 0;
         }
-        for f in &mut self.rank_factor {
-            *f *= scale();
+        let table = &self.royal_bonus_by_count;
+        if table.is_empty() {
+            return 0;
         }
-        let mut scale_i32 = |x: i32| -> i32 {
-            let s = scale();
-            ((x as f32) * s).round() as i32
-        };
-        self.royal_alive = scale_i32(self.royal_alive);
-        self.sole_royal_factor = scale_i32(self.sole_royal_factor);
-        self.de_advance = scale_i32(self.de_advance);
-        self.undeveloped_home = scale_i32(self.undeveloped_home);
-        self.advance = scale_i32(self.advance);
-        self.noise_scale *= scale() as f64;
-        self.rebuild_piece_value_table();
+        let idx = count.min(table.len() - 1);
+        table[idx]
     }
-}
-
-fn splitmix64(mut x: u64) -> u64 {
-    x = x.wrapping_add(0x9E37_79B9_7F4A_7C15);
-    let mut z = x;
-    z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
-    z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
-    z ^ (z >> 31)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -647,13 +731,6 @@ impl EvalCheckpoint {
             search_defaults: SearchDefaults::default(),
             weights: EvalWeights::seed(),
         }
-    }
-
-    /// Config B: clone of [`Self::seed`] with multiplicative U(lo, hi) weight noise.
-    pub fn seed_noisy(name: &str, lo: f32, hi: f32) -> Self {
-        let mut cp = Self::seed(name);
-        cp.weights.perturb_multiplicative(lo, hi);
-        cp
     }
 
     pub fn load_path(path: impl AsRef<Path>) -> Result<Self, String> {
@@ -724,16 +801,10 @@ pub fn evaluate_absolute_black(board: &Board, weights: &EvalWeights, ply: usize)
     let mut score = 0.0f32;
     score += material_of(black, weights) - material_of(white, weights);
 
-    score += weights.royal_alive as f32 * (black_royals as f32 - white_royals as f32);
-    if black_royals == 1 {
-        score -= weights.sole_royal_factor as f32;
-    }
-    if white_royals == 1 {
-        score += weights.sole_royal_factor as f32;
-    }
+    score += weights.royal_bonus(black_royals) as f32 - weights.royal_bonus(white_royals) as f32;
 
-    score += de_positional(black, Color::Black, weights) as f32;
-    score -= de_positional(white, Color::White, weights) as f32;
+    score += cp_de_approach_bonus(black, Color::Black) as f32;
+    score -= cp_de_approach_bonus(white, Color::White) as f32;
 
     score -= undeveloped_home_penalty(black, weights);
     score += undeveloped_home_penalty(white, weights);
@@ -782,7 +853,7 @@ fn on_home_rank_or_behind(piece: &Piece, home_rank: u8) -> bool {
 const UNDEVELOPED_PENALTY_CAP: f32 = 20.0;
 
 fn undeveloped_penalty_for_piece(piece: &Piece, weights: &EvalWeights) -> f32 {
-    if piece.piece_type.is_royal() {
+    if piece.piece_type.is_royal() || skips_rank_pst(piece.piece_type) {
         return 0.0;
     }
     let Some(&home_rank) = initial_non_royal_home_ranks().get(&(piece.color, piece.piece_type))
@@ -814,7 +885,7 @@ fn advance_positional(pieces: &[Piece], color: Color, weights: &EvalWeights) -> 
     }
     let mut s = 0i32;
     for p in pieces {
-        if p.piece_type.is_royal() {
+        if p.piece_type.is_royal() || skips_rank_pst(p.piece_type) {
             continue;
         }
         let progress = match color {
@@ -837,33 +908,37 @@ fn material_of(pieces: &[Piece], weights: &EvalWeights) -> f32 {
         .sum()
 }
 
-fn de_positional(pieces: &[Piece], color: Color, weights: &EvalWeights) -> i32 {
+/// Crown Prince / Drunken Elephant approach bonus toward promotion.
+fn cp_de_approach_bonus(pieces: &[Piece], color: Color) -> i32 {
     let mut s = 0i32;
     for p in pieces {
-        let is_de_path = matches!(
+        if !matches!(
             p.piece_type,
-            PieceType::DrunkenElephant | PieceType::GoBetween
-        );
-        if !is_de_path {
+            PieceType::CrownPrince | PieceType::DrunkenElephant
+        ) {
             continue;
         }
         let progress = match color {
             Color::Black => p.position.rank as i32,
             Color::White => 35 - p.position.rank as i32,
         };
-        // Scale so full-board advance is a few times de_advance.
-        s += weights.de_advance * progress / 7;
-        if in_promotion_zone(p.position, color) {
-            s += weights.de_advance * 2;
-        }
+        s += cp_de_approach_at_progress(progress);
     }
     s
 }
 
-fn in_promotion_zone(pos: Position, color: Color) -> bool {
-    match color {
-        Color::Black => pos.rank >= 25,
-        Color::White => pos.rank <= 10,
+fn cp_de_approach_at_progress(progress: i32) -> i32 {
+    if progress >= 24 {
+        500
+    } else if progress == 23 {
+        300
+    } else if progress == 22 {
+        200
+    } else if progress <= 0 {
+        0
+    } else {
+        // Linear 0 at back → 200 at progress 22.
+        ((200.0 * progress as f32) / 22.0).round() as i32
     }
 }
 
@@ -889,10 +964,8 @@ fn noise_component(board: &Board, weights: &EvalWeights, ply: usize) -> i32 {
     n.round() as i32
 }
 
-/// Default on-disk seed path (config A).
+/// Default on-disk seed path (canonical checkpoint).
 pub const DEFAULT_MODEL_PATH: &str = "models/ab-seed.json";
-/// Noisy twin of the seed (config B) for training/eval prototyping.
-pub const DEFAULT_NOISY_MODEL_PATH: &str = "models/ab-seed-noisy.json";
 
 /// List `*.json` checkpoint filenames under `dir` (e.g. `models`).
 pub fn list_model_files(dir: impl AsRef<Path>) -> Result<Vec<String>, String> {
@@ -931,105 +1004,147 @@ mod tests {
     use crate::position::Position;
 
     #[test]
+    fn seed_material_values_match_tariffs() {
+        let w = EvalWeights::seed();
+        assert!((w.piece_value(PieceType::Pawn) - 1.0).abs() < 1e-3);
+        assert!((w.piece_value(PieceType::CrownPrince) - 8.0).abs() < 1e-3);
+        assert!((w.piece_value(PieceType::King) - 2000.0).abs() < 1e-3);
+        assert!((w.piece_value(PieceType::FreeKing) - 80.0).abs() < 1e-3);
+        assert!((w.piece_value(PieceType::Shitennou) - 400.0).abs() < 1e-3);
+        assert!((w.piece_value(PieceType::GreatEagle) - 160.0).abs() < 1e-3);
+        assert!((w.piece_value(PieceType::GreatGeneral) - 4000.0).abs() < 1e-3);
+        assert!((w.piece_value(PieceType::FierceDragon) - 2006.0).abs() < 1e-3);
+        assert!((w.piece_value(PieceType::ViceGeneral) - 2504.0).abs() < 1e-3);
+        assert!((w.piece_value(PieceType::Peacock) - 800.0).abs() < 1e-3);
+        assert!((w.piece_value(PieceType::Tengu) - 1200.0).abs() < 1e-3);
+        assert!((w.piece_value(PieceType::Capricorn) - 1500.0).abs() < 1e-3);
+        assert!((w.piece_value(PieceType::HookMover) - 2000.0).abs() < 1e-3);
+        assert!((w.piece_value(PieceType::Lion) - 15.0).abs() < 1e-3);
+        assert!((w.piece_value(PieceType::FuriousFiend) - 30.0).abs() < 1e-3);
+        assert!((w.piece_value(PieceType::LionHawk) - 50.0).abs() < 1e-3);
+        assert!((w.piece_value(PieceType::BuddhistSpirit) - 90.0).abs() < 1e-3);
+        assert!((w.piece_value(PieceType::WoodenDove) - 50.0).abs() < 1e-3);
+        assert!((w.piece_value(PieceType::FreeEagle) - 30.0).abs() < 1e-3);
+        // Limited 2 in 4 dirs: 4 * 1.5 = 6 (sanity for harmonic).
+        assert!((harmonic(2) - 1.5).abs() < 1e-6);
+        assert!((harmonic(3) - 11.0 / 6.0).abs() < 1e-6);
+    }
+
+    #[test]
     fn seed_round_trip_json() {
         let cp = EvalCheckpoint::seed("ab-seed");
         let text = serde_json::to_string(&cp).unwrap();
         let mut back: EvalCheckpoint = serde_json::from_str(&text).unwrap();
         back.weights.rebuild_piece_value_table();
         assert_eq!(back.format_version, 1);
-        assert_eq!(back.weights.piece_value(PieceType::King), 1800.0);
-        assert_eq!(back.weights.piece_value(PieceType::CrownPrince), 1600.0);
-        assert_eq!(back.weights.piece_value(PieceType::GreatGeneral), 1100.0);
-        assert_eq!(back.weights.piece_value(PieceType::FreeEagle), 40.0);
-        assert_eq!(back.weights.piece_value(PieceType::WoodenDove), 40.0);
-        assert_eq!(back.weights.piece_value(PieceType::HookMover), 1200.0);
+        assert_eq!(back.weights.piece_value(PieceType::King), 2000.0);
+        assert_eq!(back.weights.piece_value(PieceType::CrownPrince), 8.0);
+        assert_eq!(back.weights.piece_value(PieceType::GreatGeneral), 4000.0);
+        assert_eq!(back.weights.piece_value(PieceType::FreeEagle), 30.0);
+        assert_eq!(back.weights.piece_value(PieceType::WoodenDove), 50.0);
+        assert_eq!(back.weights.piece_value(PieceType::HookMover), 2000.0);
         assert_eq!(back.weights.piece_value(PieceType::Lion), 15.0);
-        // Pawn: Simple 1 dir × 1 step × 0.5
-        assert!((back.weights.piece_value(PieceType::Pawn) - 0.5).abs() < 1e-3);
-        // Rook-like: 4 orthogonal NoJump → 16
-        assert!((back.weights.piece_value(PieceType::Rook) - 16.0).abs() < 1e-3);
+        assert!((back.weights.piece_value(PieceType::Pawn) - 1.0).abs() < 1e-3);
         assert_eq!(back.weights.piece.len(), ALL_PIECE_TYPES.len());
         assert!(!back.weights.piece_value_table.is_empty());
         assert_eq!(back.weights.advance, 0);
-        assert!((back.weights.rank_factor[0] - 0.5).abs() < 1e-3);
-        assert!((back.weights.rank_factor[RANK_PST_MID as usize] - 1.2).abs() < 1e-3);
-        assert!((back.weights.rank_factor[RANK_PST_PROMO as usize] - 1.5).abs() < 1e-3);
+        assert_eq!(back.weights.undeveloped_home, 0);
+        assert_eq!(back.weights.de_advance, 0);
+        assert!((back.weights.rank_factor_fast[0] - 0.5).abs() < 1e-3);
+        assert!((back.weights.rank_factor_fast[RANK_PAWN_START as usize] - 1.0).abs() < 1e-3);
+        assert!((back.weights.rank_factor_fast[RANK_OPPONENT_HALF as usize] - 1.1).abs() < 1e-3);
+        assert!((back.weights.rank_factor_fast[RANK_PST_PROMO as usize] - 1.2).abs() < 1e-3);
+        assert!((back.weights.rank_factor_slow[0] - 0.1).abs() < 1e-3);
+        assert!((back.weights.rank_factor_slow[RANK_PAWN_START as usize] - 0.6).abs() < 1e-3);
+        assert!((back.weights.rank_factor_slow[RANK_OPPONENT_HALF as usize] - 1.0).abs() < 1e-3);
+        assert!((back.weights.rank_factor_slow[RANK_PST_PROMO as usize] - 1.2).abs() < 1e-3);
+        assert_eq!(back.weights.royal_bonus(1), 0);
+        assert_eq!(back.weights.royal_bonus(2), 5000);
+        assert_eq!(back.weights.royal_bonus(3), 6000);
     }
 
     #[test]
-    fn rank_pst_caps_large_piece_bonus() {
+    fn fast_slow_pst_multiplies_purely() {
         let weights = EvalWeights::seed();
-        // GreatGeneral has no opening home; use Tengu (1200) on mid / promo ranks.
-        let mid = Piece::new(
-            PieceType::Tengu,
-            Color::Black,
-            Position::new(6, RANK_PST_MID).unwrap(),
-        );
-        let promo = Piece::new(
-            PieceType::Tengu,
-            Color::Black,
-            Position::new(6, RANK_PST_PROMO).unwrap(),
-        );
-        let v = weights.piece_value(PieceType::Tengu);
-        let mid_val = positional_piece_value(&mid, &weights);
-        let promo_val = positional_piece_value(&promo, &weights);
-        assert!(
-            (mid_val - (v + 20.0)).abs() < 1e-2,
-            "mid should be v+20, got {mid_val} (v={v})"
-        );
-        assert!(
-            (promo_val - (v + 50.0)).abs() < 1e-2,
-            "promo should be v+50, got {promo_val} (v={v})"
-        );
+        // FreeKing is fast (NoJump range all dirs including forward).
+        assert!(is_fast_piece(PieceType::FreeKing));
+        assert!(!is_fast_piece(PieceType::Pawn));
+        assert!(!skips_rank_pst(PieceType::FreeKing));
+        assert!(!skips_rank_pst(PieceType::Pawn));
+
+        let v = weights.piece_value(PieceType::FreeKing);
         let back = Piece::new(
-            PieceType::Tengu,
+            PieceType::FreeKing,
             Color::Black,
             Position::new(6, 0).unwrap(),
         );
+        let pawn_rank = Piece::new(
+            PieceType::FreeKing,
+            Color::Black,
+            Position::new(6, RANK_PAWN_START).unwrap(),
+        );
+        let promo = Piece::new(
+            PieceType::FreeKing,
+            Color::Black,
+            Position::new(6, RANK_PST_PROMO).unwrap(),
+        );
         assert!((positional_piece_value(&back, &weights) - 0.5 * v).abs() < 1e-2);
+        assert!((positional_piece_value(&pawn_rank, &weights) - v).abs() < 1e-2);
+        assert!((positional_piece_value(&promo, &weights) - 1.2 * v).abs() < 1e-2);
+
+        let pv = weights.piece_value(PieceType::Pawn);
+        let pawn_back = Piece::new(PieceType::Pawn, Color::Black, Position::new(6, 0).unwrap());
+        assert!((positional_piece_value(&pawn_back, &weights) - 0.1 * pv).abs() < 1e-2);
     }
 
     #[test]
-    fn noisy_checkpoint_differs_reproducibly() {
-        let a = EvalCheckpoint::seed("ab-seed");
-        let b1 = EvalCheckpoint::seed_noisy("ab-seed-noisy", 0.8, 1.2);
-        let b2 = EvalCheckpoint::seed_noisy("ab-seed-noisy", 0.8, 1.2);
-        assert_eq!(b1.weights.mate_score, a.weights.mate_score);
-        assert_ne!(
-            b1.weights.piece_value(PieceType::Pawn),
-            a.weights.piece_value(PieceType::Pawn)
-        );
-        assert_eq!(
-            b1.weights.piece_value(PieceType::King),
-            b2.weights.piece_value(PieceType::King)
-        );
-        assert_eq!(b1.weights.rank_factor, b2.weights.rank_factor);
-        // Perturbed factors stay in a sane band around the seed curve.
-        for (i, &f) in b1.weights.rank_factor.iter().enumerate() {
+    fn jump_and_capturing_range_skip_rank_pst() {
+        let weights = EvalWeights::seed();
+        assert!(skips_rank_pst(PieceType::GreatGeneral));
+        assert!(skips_rank_pst(PieceType::ViceGeneral));
+        // Shitennou: Jump-range in all dirs.
+        assert!(skips_rank_pst(PieceType::Shitennou));
+
+        for &pt in &[
+            PieceType::GreatGeneral,
+            PieceType::ViceGeneral,
+            PieceType::Shitennou,
+        ] {
+            let v = weights.piece_value(pt);
+            let back = Piece::new(pt, Color::Black, Position::new(6, 0).unwrap());
+            let promo = Piece::new(pt, Color::Black, Position::new(6, RANK_PST_PROMO).unwrap());
             assert!(
-                f > 0.3 && f < 2.0,
-                "noisy rank_factor[{i}]={f} out of band"
+                (positional_piece_value(&back, &weights) - v).abs() < 1e-2,
+                "{pt:?} back rank should be unscaled"
+            );
+            assert!(
+                (positional_piece_value(&promo, &weights) - v).abs() < 1e-2,
+                "{pt:?} promo rank should be unscaled"
             );
         }
     }
 
     #[test]
-    fn export_seed_checkpoints_to_models() {
+    fn cp_de_approach_schedule() {
+        assert_eq!(cp_de_approach_at_progress(0), 0);
+        assert_eq!(cp_de_approach_at_progress(22), 200);
+        assert_eq!(cp_de_approach_at_progress(23), 300);
+        assert_eq!(cp_de_approach_at_progress(24), 500);
+        assert_eq!(cp_de_approach_at_progress(25), 500);
+        assert_eq!(cp_de_approach_at_progress(11), ((200.0f32 * 11.0) / 22.0).round() as i32);
+    }
+
+    #[test]
+    fn export_seed_checkpoint_to_models() {
         let a = EvalCheckpoint::seed("ab-seed");
         a.save_path(DEFAULT_MODEL_PATH)
             .expect("write ab-seed.json");
-        let b = EvalCheckpoint::seed_noisy("ab-seed-noisy", 0.8, 1.2);
-        b.save_path(DEFAULT_NOISY_MODEL_PATH)
-            .expect("write ab-seed-noisy.json");
-        let loaded_a = EvalCheckpoint::load_path(DEFAULT_MODEL_PATH).unwrap();
-        let loaded_b = EvalCheckpoint::load_path(DEFAULT_NOISY_MODEL_PATH).unwrap();
-        assert_eq!(loaded_a.weights.advance, 0);
-        assert_eq!(loaded_a.name, "ab-seed");
-        assert_eq!(loaded_b.name, "ab-seed-noisy");
-        assert_ne!(
-            loaded_a.weights.piece_value(PieceType::GoldGeneral),
-            loaded_b.weights.piece_value(PieceType::GoldGeneral)
-        );
+        let loaded = EvalCheckpoint::load_path(DEFAULT_MODEL_PATH).unwrap();
+        assert_eq!(loaded.weights.advance, 0);
+        assert_eq!(loaded.name, "ab-seed");
+        assert_eq!(loaded.weights.piece_value(PieceType::King), 2000.0);
+        assert_eq!(loaded.weights.piece_value(PieceType::GreatGeneral), 4000.0);
+        assert_eq!(loaded.weights.royal_bonus(2), 5000);
     }
 
     #[test]
@@ -1053,7 +1168,8 @@ mod tests {
         ));
         state.set_current_turn(Color::Black);
         let score = evaluate(&state, &weights);
-        assert!(score > 0, "black with two royals vs one should be positive, got {score}");
+        // Two royals → +5000 royal bonus vs one (0), plus CP material 8.
+        assert!(score > 4000, "black with two royals vs one should be largely positive, got {score}");
     }
 
     #[test]
@@ -1077,7 +1193,6 @@ mod tests {
 
         let mut state = GameState::new();
         state.setup_initial_position();
-        let opening = evaluate_absolute_black(state.get_board(), &weights, 0);
 
         let black_pen =
             undeveloped_home_penalty(state.get_board().pieces_by_color(Color::Black), &weights);
@@ -1086,7 +1201,7 @@ mod tests {
         assert!((black_pen - white_pen).abs() < 1e-3);
         assert!(black_pen > 100.0, "expected full-army undeveloped penalty, got {black_pen}");
 
-        // Pawn: 20% floor would be 3, but cap at 90% of value (0.45).
+        // Pawn value is now 1.0 → 90% cap = 0.9.
         let from = Position::new(16, 10).unwrap();
         let to = Position::new(16, 11).unwrap();
         assert_eq!(
@@ -1096,22 +1211,17 @@ mod tests {
         let pawn = state.get_board().get_piece(from).unwrap();
         let pawn_pen = undeveloped_penalty_for_piece(&pawn, &weights);
         assert!(
-            (pawn_pen - 0.45).abs() < 1e-3,
-            "pawn undeveloped should be 0.9*0.5=0.45, got {pawn_pen}"
+            (pawn_pen - 0.9).abs() < 1e-3,
+            "pawn undeveloped should be 0.9*1.0=0.9, got {pawn_pen}"
         );
         state.get_board_mut().move_piece(from, to);
-        let after_pawn = evaluate_absolute_black(state.get_board(), &weights, 0);
-        // Total score is rounded; clearing 0.45 may or may not change the i32 by 1.
-        assert!(after_pawn >= opening);
 
-        // Still behind home rank (rank < 10 for Black) keeps the penalty.
         let behind = Position::new(16, 9).unwrap();
         state.get_board_mut().move_piece(to, behind);
         let retreated = state.get_board().get_piece(behind).unwrap();
-        assert!((undeveloped_penalty_for_piece(&retreated, &weights) - 0.45).abs() < 1e-3);
+        assert!((undeveloped_penalty_for_piece(&retreated, &weights) - 0.9).abs() < 1e-3);
 
-        // High-value piece: raw would be max(3, 20% * value), but capped at 20.
-        // Tengu = 1200 → uncapped 240, capped 20. Tengu's opening home is back rank.
+        // Tengu = 1200 → uncapped 240, capped 20.
         let mut hi_board = Board::new();
         hi_board.place_piece(Piece::new(
             PieceType::King,
@@ -1132,39 +1242,6 @@ mod tests {
             "expected undeveloped cap 20, got {hi_pen}"
         );
 
-        // FireDemon = 24 → 4.8 (under the cap).
-        let mut fd_board = Board::new();
-        fd_board.place_piece(Piece::new(
-            PieceType::King,
-            Color::Black,
-            Position::new(17, 0).unwrap(),
-        ));
-        fd_board.place_piece(Piece::new(
-            PieceType::King,
-            Color::White,
-            Position::new(17, 35).unwrap(),
-        ));
-        let fd_from = Position::new(4, 0).unwrap();
-        let fd_to = Position::new(4, 1).unwrap();
-        fd_board.place_piece(Piece::new(
-            PieceType::FireDemon,
-            Color::Black,
-            fd_from,
-        ));
-        let fd = fd_board.get_piece(fd_from).unwrap();
-        let fd_pen = undeveloped_penalty_for_piece(&fd, &weights);
-        assert!((fd_pen - 4.8).abs() < 1e-3, "expected 4.8, got {fd_pen}");
-        let before_fd = evaluate_absolute_black(&fd_board, &weights, 0);
-        fd_board.move_piece(fd_from, fd_to);
-        let after_fd = evaluate_absolute_black(&fd_board, &weights, 0);
-        // Undeveloped ~4.8 plus a small rank-PST bump from progress 0 → 1.
-        assert!(
-            after_fd - before_fd >= 5,
-            "leaving FireDemon home rank should gain at least round(4.8); delta={}",
-            after_fd - before_fd
-        );
-
-        // Royals never count as undeveloped.
         let king = Piece::new(PieceType::King, Color::Black, Position::new(17, 0).unwrap());
         assert_eq!(undeveloped_penalty_for_piece(&king, &weights), 0.0);
     }
