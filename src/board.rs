@@ -159,15 +159,15 @@ impl Board {
     /// Uses early termination and optimized functions for specialized pieces
     /// Returns true immediately when first attacker is found
     pub fn is_position_attacked_by_color(&self, position: Position, attacker_color: Color) -> bool {
-        is_position_attacked_by_color_impl(self, position, attacker_color, false)
+        is_position_attacked_by_pieces(self, position, self.pieces_by_color(attacker_color), false)
     }
-    
+
     /// Check if a position is attacked by pieces of a given color, optimized for check detection
     /// This treats pieces with only capturing range movement as short-range only
     /// Uses early termination and optimized functions for specialized pieces
     /// Returns true immediately when first attacker is found
     pub fn is_position_attacked_by_color_for_check(&self, position: Position, attacker_color: Color) -> bool {
-        is_position_attacked_by_color_impl(self, position, attacker_color, true)
+        is_position_attacked_by_pieces(self, position, self.pieces_by_color(attacker_color), true)
     }
 }
 
@@ -189,78 +189,60 @@ pub(crate) fn is_position_attacked_by_color_impl<B: move_simulation::BoardLike>(
     attacker_color: Color,
     for_check: bool,
 ) -> bool {
+    let pieces = board.get_pieces_by_color(attacker_color);
+    is_position_attacked_by_pieces(board, position, &pieces, for_check)
+}
+
+/// Attack scan over a borrowed attacker list (no extra clone of the army).
+pub(crate) fn is_position_attacked_by_pieces<B: move_simulation::BoardLike>(
+    board: &B,
+    position: Position,
+    attacker_pieces: &[Piece],
+    for_check: bool,
+) -> bool {
     use crate::attack_utils;
-    
-    // Get all pieces of attacker_color
-    let all_attacker_pieces = board.get_pieces_by_color(attacker_color);
-    
-    // Filter pieces based on proximity and movement capabilities
-    let filtered_pieces: Vec<Piece> = all_attacker_pieces
-        .into_iter()
-        .filter(|piece| attack_utils::should_check_piece_for_target_position(piece, position, for_check))
-        .collect();
-    
-    // Check specialized pieces first (most likely to attack, optimized functions)
-    // These functions now work with BoardLike, so they work with both Board and VirtualBoard
-    
-    for piece in &filtered_pieces {
-        // Check Tengu/promoted Peacock/Capricorn with optimized function
+
+    for piece in attacker_pieces {
+        if !attack_utils::should_check_piece_for_target_position(piece, position, for_check) {
+            continue;
+        }
+
         if attack_utils::is_tengu_or_promoted_peacock(piece) {
             if tengu_attack::can_tengu_attack_target(piece, position, board) {
                 return true;
             }
             continue;
         }
-        
-        // Check unpromoted Peacock with optimized function
         if attack_utils::is_unpromoted_peacock(piece) {
             if tengu_attack::can_peacock_attack_target(piece, position, board) {
                 return true;
             }
             continue;
         }
-        
-        // Check Hook Mover with optimized function
         if attack_utils::is_hook_mover_like_piece(piece) {
             if tengu_attack::can_hook_mover_attack_target(piece, position, board) {
                 return true;
             }
             continue;
         }
-        
-        // Check Lion Hawk with optimized function
         if attack_utils::is_lion_hawk(piece) {
             if tengu_attack::can_lion_hawk_attack_target(piece, position, board) {
                 return true;
             }
             continue;
         }
-        
-        // Check Cannon Soldier with optimized function
         if attack_utils::is_cannon_soldier(piece) {
             if tengu_attack::can_cannon_soldier_attack_target(piece, position, board) {
                 return true;
             }
             continue;
         }
-    }
-    
-    // For non-specialized pieces, use can_reach (more efficient than generating all moves)
-    for piece in &filtered_pieces {
-        // Skip pieces we already checked
-        if attack_utils::is_tengu_or_promoted_peacock(piece) ||
-           attack_utils::is_unpromoted_peacock(piece) ||
-           attack_utils::is_hook_mover_like_piece(piece) ||
-           attack_utils::is_lion_hawk(piece) ||
-           attack_utils::is_cannon_soldier(piece) {
-            continue;
-        }
-        
+
         if piece.can_reach_boardlike(position, board) {
-            return true; // Early termination
+            return true;
         }
     }
-    
+
     false
 }
 

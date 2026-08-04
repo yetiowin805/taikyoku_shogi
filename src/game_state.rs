@@ -900,6 +900,16 @@ impl GameState {
         moves
     }
 
+    /// Emit promotion variants of a standard move to `target` (assumes reachable).
+    pub(crate) fn emit_standard_moves_to(
+        &self,
+        piece: &Piece,
+        target: Position,
+        moves: &mut Vec<Move>,
+    ) {
+        self.push_standard_moves(moves, piece, target);
+    }
+
     fn push_standard_moves(&self, moves: &mut Vec<Move>, piece: &Piece, target: Position) {
         if !self.is_legal_move_assuming_reachable(piece, piece.position, target, false) {
             return;

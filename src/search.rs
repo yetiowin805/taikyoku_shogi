@@ -2,7 +2,7 @@
 
 use crate::eval::{evaluate_with_ply, seed_loud_capture_floor, EvalWeights};
 use crate::game_state::{GameState, LegalMoveGen, Move};
-use crate::movement::{BlockingMode, MovementCapability, MovementConfig};
+use crate::movement::{BlockingMode, MovementCapability, MovementConfig, MovementGenerator};
 use crate::move_simulation::BoardLike;
 use crate::path_utils;
 use crate::piece::Color;
@@ -202,6 +202,8 @@ struct SearchContext {
     /// Enemy material taken by the AB move that entered this node (0 = quiet).
     /// Quiescence runs only when this is ≥ the loud-capture floor.
     last_ab_capture_enemy: f32,
+    /// Landing of the last AB move (search skips move_history). Seeds q prev_to.
+    last_ab_to: Option<Position>,
     /// Quiescence diagnostics (updated while in `quiesce`).
     q_nodes: u64,
     /// `q_nodes` at the start of the current root move.
@@ -764,16 +766,28 @@ fn quiesce_move_looks_path_or_multileg(state: &GameState, mv: &Move) -> bool {
 /// Capturing-range corridor wipes / multi-leg snipes belong to main search unless
 /// they are a destination recapture onto `prev_to`.
 ///
-/// Uses capture-oriented generation (no quiet ray fan-out / quiet multi-leg).
-/// Includes last-move recaptures even below the loud floor.
+/// - Deep PathAware (`victim_square_only`): only captures hitting `prev_to`.
+/// - Entry with `prev_to`: dest hits on `prev_to` plus loud SimpleTakes (no full-board
+///   CapturesOnly).
+/// - Entry without `prev_to`: full CapturesOnly fallback.
 fn generate_quiescence_captures(
     state: &GameState,
     weights: &EvalWeights,
     prev_to: Option<Position>,
+    victim_square_only: bool,
 ) -> Vec<Move> {
-    state
-        .generate_legal_moves_mode(LegalMoveGen::CapturesOnly)
-        .into_iter()
+    let raw = if victim_square_only {
+        if let Some(victim) = prev_to {
+            generate_captures_hitting_square(state, victim)
+        } else {
+            state.generate_legal_moves_mode(LegalMoveGen::CapturesOnly)
+        }
+    } else if let Some(victim) = prev_to {
+        generate_entry_quiescence_captures(state, weights, victim)
+    } else {
+        state.generate_legal_moves_mode(LegalMoveGen::CapturesOnly)
+    };
+    raw.into_iter()
         .filter(|mv| {
             if !is_quiescence_capture_candidate(state, weights, mv, prev_to) {
                 return false;
@@ -785,6 +799,115 @@ fn generate_quiescence_captures(
             true
         })
         .collect()
+}
+
+/// Q-entry without full-board CapturesOnly: dest hits on `prev_to` + loud SimpleTakes.
+fn generate_entry_quiescence_captures(
+    state: &GameState,
+    weights: &EvalWeights,
+    prev_to: Position,
+) -> Vec<Move> {
+    let mut out = generate_captures_hitting_square(state, prev_to);
+    let mut seen: HashSet<(u16, u16, bool)> = out
+        .iter()
+        .map(|mv| {
+            (
+                mv.from.to_index() as u16,
+                mv.to.to_index() as u16,
+                mv.promoted,
+            )
+        })
+        .collect();
+    for mv in generate_loud_simple_takes(state, weights) {
+        let key = (
+            mv.from.to_index() as u16,
+            mv.to.to_index() as u16,
+            mv.promoted,
+        );
+        if seen.insert(key) {
+            out.push(mv);
+        }
+    }
+    out
+}
+
+/// Loud SimpleTakes: dest-capture each enemy piece valued ≥ the loud floor.
+fn generate_loud_simple_takes(state: &GameState, weights: &EvalWeights) -> Vec<Move> {
+    let floor = min_quiescence_enemy_material();
+    let them = state.get_current_turn().opposite();
+    let mut out = Vec::new();
+    let mut seen: HashSet<(u16, u16, bool)> = HashSet::new();
+    for enemy in state.get_board().iter_pieces_by_color(them) {
+        if weights.piece_value(enemy.piece_type) < floor {
+            continue;
+        }
+        for mv in generate_captures_hitting_square(state, enemy.position) {
+            if mv.to != enemy.position {
+                continue;
+            }
+            if quiesce_move_looks_path_or_multileg(state, &mv) {
+                continue;
+            }
+            let key = (
+                mv.from.to_index() as u16,
+                mv.to.to_index() as u16,
+                mv.promoted,
+            );
+            if seen.insert(key) {
+                out.push(mv);
+            }
+        }
+    }
+    out
+}
+
+/// Captures that take an enemy on `victim` (dest, path-clear, multi-leg, FE).
+///
+/// Standard pieces use directed landing emit; TwoStep / FreeEagle / conditional-jump
+/// fall back to per-piece CapturesOnly + filter (parity-gated via [`crate::parity`]).
+pub(crate) fn generate_captures_hitting_square(state: &GameState, victim: Position) -> Vec<Move> {
+    let us = state.get_current_turn();
+    let board = state.get_board();
+    let mut out = Vec::new();
+    for piece in board.iter_pieces_by_color(us) {
+        if !crate::attack_utils::should_check_piece_for_target_position(&piece, victim, false) {
+            continue;
+        }
+        if piece.piece_type == crate::piece::PieceType::FreeEagle {
+            out.extend(
+                state
+                    .generate_legal_moves_for_pieces_mode(
+                        &[piece],
+                        LegalMoveGen::CapturesOnly,
+                    )
+                    .into_iter()
+                    .filter(|mv| capture_hits_square(state, mv, victim)),
+            );
+            continue;
+        }
+        let config = MovementConfig::for_piece(&piece);
+        if MovementGenerator::needs_full_gen_for_victim_hits(&config.capabilities) {
+            out.extend(
+                state
+                    .generate_legal_moves_for_pieces_mode(
+                        &[piece],
+                        LegalMoveGen::CapturesOnly,
+                    )
+                    .into_iter()
+                    .filter(|mv| capture_hits_square(state, mv, victim)),
+            );
+            continue;
+        }
+        for landing in MovementGenerator::capture_landings_hitting_target(
+            &piece,
+            board,
+            &config.capabilities,
+            victim,
+        ) {
+            state.emit_standard_moves_to(&piece, landing, &mut out);
+        }
+    }
+    out
 }
 
 /// Pick a move with alpha-beta (no GUI trace by default).
@@ -831,6 +954,7 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
         history: HashMap::new(),
         allow_null: true,
         last_ab_capture_enemy: 0.0,
+        last_ab_to: None,
         q_nodes: 0,
         q_nodes_at_root_start: 0,
         q_nodes_last_root: 0,
@@ -942,6 +1066,7 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
             } else {
                 0.0
             };
+            ctx.last_ab_to = Some(mv.to);
             ctx.nodes += 1;
             ctx.ply = root_ply + 1;
             ctx.phase = "search";
@@ -1145,6 +1270,7 @@ pub fn probe_quiescence(
         history: HashMap::new(),
         allow_null: true,
         last_ab_capture_enemy: 0.0,
+        last_ab_to: None,
         q_nodes: 0,
         q_nodes_at_root_start: 0,
         q_nodes_last_root: 0,
@@ -1274,6 +1400,7 @@ fn build_trace_tree(
                 } else {
                     0.0
                 };
+                ctx.last_ab_to = Some(best_move.to);
                 ctx.ply = root_ply + 1;
                 ctx.phase = "trace";
                 let (_score, subtree) =
@@ -1358,7 +1485,9 @@ fn alphabeta(
         ctx.allow_null = false;
         let prev_turn = state.get_current_turn();
         let saved_enemy = ctx.last_ab_capture_enemy;
+        let saved_to = ctx.last_ab_to;
         ctx.last_ab_capture_enemy = 0.0;
+        ctx.last_ab_to = None;
         state.set_current_turn(prev_turn.opposite());
         let parent_ply = ctx.ply;
         ctx.ply = parent_ply + 1;
@@ -1371,6 +1500,7 @@ fn alphabeta(
         ctx.ply = parent_ply;
         state.set_current_turn(prev_turn);
         ctx.last_ab_capture_enemy = saved_enemy;
+        ctx.last_ab_to = saved_to;
         ctx.allow_null = true;
         if !ctx.abort && score >= beta {
             return score;
@@ -1527,6 +1657,7 @@ fn search_move_list(
             continue;
         };
         ctx.last_ab_capture_enemy = capture_enemy;
+        ctx.last_ab_to = Some(mv.to);
         ctx.ply = parent_ply + 1;
 
         // PV only along the first move of a PV node (root PVS / research sets
@@ -1597,9 +1728,10 @@ fn leaf_or_quiesce(
     } else {
         ctx.phase = "quiesce";
         ctx.quiesce_entry_depth = q;
-        // Search skips move_history; only history-backed positions seed prev_to.
-        // Dest-recapture of below-floor victims is left to AB depth / worthwhile floor.
-        let prev_to = state.get_move_history().last().map(|m| m.to);
+        // Prefer AB landing (search skips move_history); history as fallback.
+        let prev_to = ctx
+            .last_ab_to
+            .or_else(|| state.get_move_history().last().map(|m| m.to));
         quiesce(state, weights, q, alpha, beta, prev_to, false, ctx)
     }
 }
@@ -1631,6 +1763,8 @@ fn quiesce(
     }
 
     let key = position_hash(state);
+    // Unique-q tracking is diagnostic-only; skip the HashSet in release.
+    #[cfg(debug_assertions)]
     if !ctx.q_unique_saturated {
         if ctx.q_unique.len() < Q_UNIQUE_CAP {
             ctx.q_unique.insert(key);
@@ -1641,6 +1775,7 @@ fn quiesce(
 
     // Quiescence TT: depth is remaining q-plies.
     ctx.q_tt_probes += 1;
+    let mut tt_move: Option<MoveKey> = None;
     if let Some(e) = ctx.q_tt.probe(key) {
         if e.depth >= qdepth {
             ctx.q_tt_hits += 1;
@@ -1659,6 +1794,7 @@ fn quiesce(
                 }
             }
         }
+        tt_move = e.best;
     }
     let alpha_orig = alpha;
 
@@ -1681,7 +1817,11 @@ fn quiesce(
         alpha = stand_pat;
     }
 
-    let raw_moves = generate_quiescence_captures(state, weights, prev_to);
+    let path_aware = ctx.q_prune_mode.uses_path_aware();
+    let deep_ply = qdepth < ctx.quiesce_entry_depth;
+    // Deep PathAware plies only need recaptures onto prev_to — skip full-board gen.
+    let victim_only = path_aware && deep_ply && prev_to.is_some();
+    let raw_moves = generate_quiescence_captures(state, weights, prev_to, victim_only);
     if raw_moves.is_empty() {
         return stand_pat;
     }
@@ -1728,9 +1868,6 @@ fn quiesce(
             })
         })
         .collect();
-
-    let path_aware = ctx.q_prune_mode.uses_path_aware();
-    let deep_ply = qdepth < ctx.quiesce_entry_depth;
 
     // Recapture-only after the first q-ply.
     if ctx.q_prune_mode.uses_recapture_only() {
@@ -1790,6 +1927,11 @@ fn quiesce(
                 sb.cmp(&sa)
             })
     });
+    if let Some(tm) = tt_move {
+        if let Some(idx) = cands.iter().position(|c| same_tt_move(&c.mv, tm)) {
+            cands.swap(0, idx);
+        }
+    }
 
     ctx.q_caps_generated = ctx
         .q_caps_generated
@@ -1843,11 +1985,17 @@ fn quiesce(
     } else if top_n_cap != usize::MAX && cands.len() > top_n_cap {
         cands.truncate(top_n_cap);
     }
+    if let Some(tm) = tt_move {
+        if let Some(idx) = cands.iter().position(|c| same_tt_move(&c.mv, tm)) {
+            cands.swap(0, idx);
+        }
+    }
 
     let n_caps = cands.len();
     ctx.q_caps_at_node = n_caps;
 
     let mut best = stand_pat;
+    let mut best_move_key: Option<MoveKey> = None;
     let parent_ply = ctx.ply;
     let opponent = state.get_current_turn().opposite();
 
@@ -1873,12 +2021,17 @@ fn quiesce(
         let own = c.own;
         let mover_value = c.mover_value;
         let landing = c.mv.to;
+        let mv_key = move_tt_key(&c.mv);
         let mv = c.mv;
 
-        // Pre-make hang skip for PathClear/MultiLeg: avoid expensive ray makes when
-        // net is poor and the landing already looks attacked on the current board.
+        // Pre-make hang skip: poor net + landing already attacked — avoid make/unmake.
+        // SimpleTake is usually safe to judge pre-move; PathClear/MultiLeg too when
+        // defenders are not cleared by the capture itself (post-make still checks those).
         if path_aware
-            && matches!(kind, CaptureKind::PathClear | CaptureKind::MultiLeg)
+            && matches!(
+                kind,
+                CaptureKind::SimpleTake | CaptureKind::PathClear | CaptureKind::MultiLeg
+            )
             && net_below_hang_frac(enemy, own, mover_value)
             && state
                 .get_board()
@@ -1891,14 +2044,9 @@ fn quiesce(
             continue;
         };
 
-        // PathAware: drop clearly hanging captures using the post-fire board
-        // (PathClear can remove landing defenders / own cover).
-        // Net gain vs mover*HANG_NET_FRAC so multi-piece PathClears still hang-check.
+        // PathAware post-fire hang for PathClear/MultiLeg (may remove landing defenders).
         if path_aware
-            && matches!(
-                kind,
-                CaptureKind::SimpleTake | CaptureKind::PathClear | CaptureKind::MultiLeg
-            )
+            && matches!(kind, CaptureKind::PathClear | CaptureKind::MultiLeg)
             && net_below_hang_frac(enemy, own, mover_value)
         {
             if state
@@ -1941,6 +2089,7 @@ fn quiesce(
 
         if score > best {
             best = score;
+            best_move_key = Some(mv_key);
         }
         if score > alpha {
             alpha = score;
@@ -1962,13 +2111,13 @@ fn quiesce(
         depth: qdepth,
         score: best,
         bound,
-        best: None,
+        best: best_move_key,
     });
     best
 }
 
 /// True if this capture takes an enemy on `sq` (landing, intermediate, or path).
-fn capture_hits_square(state: &GameState, mv: &Move, sq: Position) -> bool {
+pub(crate) fn capture_hits_square(state: &GameState, mv: &Move, sq: Position) -> bool {
     if mv.to == sq {
         return move_captures_enemy_raw(state, mv);
     }
@@ -2079,10 +2228,11 @@ fn alphabeta_record(
         } else {
             0.0
         };
-        let Some(undo) = state.make_move_for_search(mv) else {
+        let Some(undo) = state.make_move_for_search(mv.clone()) else {
             continue;
         };
         ctx.last_ab_capture_enemy = capture_enemy;
+        ctx.last_ab_to = Some(mv.to);
         ctx.ply = parent_ply + 1;
         let score = -alphabeta(state, weights, depth - 1, -beta, -alpha, true, ctx);
         state.unmake_move_for_search(undo);
@@ -2700,11 +2850,11 @@ mod tests {
             &loud_land
         )));
         // Generate-time filter: mop PathClear absent without dest prev_to.
-        let gen_none = generate_quiescence_captures(&state, &weights, None);
+        let gen_none = generate_quiescence_captures(&state, &weights, None, false);
         assert!(!gen_none.iter().any(|m| same_root_move(m, &mop)));
         // Loud SimpleTake clears the floor and is kept even without prev_to.
         assert!(gen_none.iter().any(|m| same_root_move(m, &loud_land)));
-        let gen_dest = generate_quiescence_captures(&state, &weights, Some(loud_land.to));
+        let gen_dest = generate_quiescence_captures(&state, &weights, Some(loud_land.to), false);
         assert!(gen_dest.iter().any(|m| same_root_move(m, &loud_land)));
         assert!(!gen_dest.iter().any(|m| same_root_move(m, &mop)));
     }
@@ -3060,7 +3210,7 @@ mod tests {
         assert!(!is_quiescence_capture_candidate(
             &state, &weights, &mv, None
         ));
-        let gen = generate_quiescence_captures(&state, &weights, Some(landing));
+        let gen = generate_quiescence_captures(&state, &weights, Some(landing), false);
         assert!(gen.iter().any(|m| same_root_move(m, &mv)));
     }
 
@@ -3315,7 +3465,7 @@ mod tests {
             .iter()
             .filter(|m| quiesce_move_looks_path_or_multileg(&state, m))
             .count();
-        let gen = generate_quiescence_captures(&state, &weights, None);
+        let gen = generate_quiescence_captures(&state, &weights, None, false);
         let gen_pathish = gen
             .iter()
             .filter(|m| quiesce_move_looks_path_or_multileg(&state, m))
@@ -3339,7 +3489,7 @@ mod tests {
             .iter()
             .filter(|m| move_captures_enemy(&state, m))
             .count();
-        let worth = generate_quiescence_captures(&state, &weights, None).len();
+        let worth = generate_quiescence_captures(&state, &weights, None, false).len();
         let caps_only = state
             .generate_legal_moves_mode(LegalMoveGen::CapturesOnly)
             .len();

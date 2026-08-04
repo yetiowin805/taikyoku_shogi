@@ -9,6 +9,7 @@ pub mod game_state;
 pub mod movement;
 pub mod minimal_intelligence_player;
 pub mod move_simulation;
+pub mod parity;
 pub mod path_utils;
 pub mod piece;
 pub mod player;
