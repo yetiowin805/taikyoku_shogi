@@ -5,7 +5,7 @@ use crate::training::featurize::{featurize_dir, FeaturizeConfig};
 use crate::training::match_harness::{run_matches, MatchConfig};
 use crate::training::mobility_seed::{run_mobility_seed, MobilitySeedConfig};
 use crate::training::paths::{self, ensure_data_dirs};
-use crate::training::pool::{generate_pool, load_starts_dir, PoolGenerateConfig};
+use crate::training::pool::{generate_pool, load_starts_dir, parse_starts_spec, PoolGenerateConfig};
 use crate::training::record::{AgentSpec, GameStart};
 use crate::training::run_status::{
     disk_free_gb, utc_now_iso, RunStatus, WorkerDaemonConfig,
@@ -22,9 +22,9 @@ pub fn print_training_usage() {
     println!("Training / Texel pipeline:");
     println!("  worker run   --black AGENT --white AGENT [--model PATH] [--depth N]");
     println!("               [--start opening|PATH] [--seed S] [--out PATH] [--verbose]");
-    println!("  worker batch --games N [--starts DIR|opening] [--outdir DIR] [--seed-base S]");
+    println!("  worker batch --games N [--starts DIR|opening|random|random:N] [--outdir DIR] [--seed-base S]");
     println!("               [--black AGENT] [--white AGENT] [--model PATH] [--depth N] [--jobs J]");
-    println!("  worker daemon [--batch N] [--jobs J] [--starts DIR] [--outdir DIR] [--seed-base S]");
+    println!("  worker daemon [--batch N] [--jobs J] [--starts DIR|opening|random|…] [--outdir DIR] [--seed-base S]");
     println!("                [--black AGENT] [--white AGENT] [--model PATH] [--depth N]");
     println!("                [--status PATH] [--sleep-secs N]   (SIGTERM drains current batch)");
     println!("  pool generate [--agent AGENT] [--until-move N] [--count K] [--noise F]");
@@ -35,6 +35,7 @@ pub fn print_training_usage() {
     println!("  match --a AGENT --b AGENT [--starts DIR] [--games N] [--outdir DIR] [--seed-base S]");
     println!();
     println!("  Agents: mi, random, royal, ab");
+    println!("  Starts: opening | random[:plies[:noise]] | DIR of pool JSON");
     println!(
         "  Data layout: {} / {} / {} / {}",
         paths::RAW_GAMES,
@@ -279,7 +280,7 @@ fn cmd_worker_batch(args: &[String]) -> Result<(), String> {
         return Err(format!("Unknown flag {}", args[i]));
     }
 
-    let starts = load_game_starts(&starts_spec)?;
+    let starts = parse_starts_spec(&starts_spec)?;
     let outdir_label = outdir.clone();
     let outcome = run_batch(&BatchConfig {
         games,
@@ -303,20 +304,6 @@ fn cmd_worker_batch(args: &[String]) -> Result<(), String> {
         );
     }
     Ok(())
-}
-
-fn load_game_starts(starts_spec: &str) -> Result<Vec<GameStart>, String> {
-    if starts_spec == "opening" {
-        return Ok(vec![GameStart::Opening]);
-    }
-    let loaded = load_starts_dir(Path::new(starts_spec))?;
-    if loaded.is_empty() {
-        return Err(format!("No starts in {}", starts_spec));
-    }
-    Ok(loaded
-        .into_iter()
-        .map(|(_, p)| GameStart::Position { position: p })
-        .collect())
 }
 
 fn env_or(name: &str, default: &str) -> String {
@@ -461,7 +448,7 @@ fn cmd_worker_daemon(args: &[String]) -> Result<(), String> {
         .map_err(|e| format!("signal handler: {}", e))?;
     }
 
-    let starts = load_game_starts(&starts_spec)?;
+    let starts = parse_starts_spec(&starts_spec)?;
     let status_path = PathBuf::from(&status_file);
     let daemon_cfg = WorkerDaemonConfig {
         black: black.clone(),

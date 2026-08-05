@@ -1,4 +1,4 @@
-//! Start-position pool generation.
+//! Start-position pool generation and per-game random starts.
 
 use crate::board_position::BoardPosition;
 use crate::player::{player_by_name_with_options, AgentOptions};
@@ -8,6 +8,9 @@ use crate::training::worker::{play_one_game, WorkerConfig};
 use crate::training::record::GameStart;
 use rand::Rng;
 use std::path::Path;
+
+/// Default random-playout length when `--starts random` / `STARTS=random`.
+pub const DEFAULT_RANDOM_UNTIL_MOVE: usize = 300;
 
 #[derive(Debug, Clone)]
 pub struct PoolGenerateConfig {
@@ -24,13 +27,113 @@ impl Default for PoolGenerateConfig {
     fn default() -> Self {
         Self {
             agent: AgentSpec::new("random"),
-            until_move: 300,
+            until_move: DEFAULT_RANDOM_UNTIL_MOVE,
             count: 10,
             seed_base: 1,
             outdir: paths::RAW_STARTS.to_string(),
             noise: 0.0,
         }
     }
+}
+
+/// Where batch/daemon games get their start positions.
+#[derive(Debug, Clone)]
+pub enum StartsSource {
+    /// Cycle a fixed list (`opening` or loaded pool JSON).
+    Fixed(Vec<GameStart>),
+    /// Fresh random playout from opening for each game (seeded by game seed).
+    Random {
+        until_move: usize,
+        noise: f64,
+        agent: AgentSpec,
+    },
+}
+
+impl StartsSource {
+    /// Start position for game index `g` with `seed` (typically `seed_base + g`).
+    pub fn start_for_game(&self, g: usize, seed: u64) -> Result<GameStart, String> {
+        match self {
+            StartsSource::Fixed(starts) => {
+                if starts.is_empty() {
+                    return Err("run_batch: no starts".into());
+                }
+                Ok(starts[g % starts.len()].clone())
+            }
+            StartsSource::Random {
+                until_move,
+                noise,
+                agent,
+            } => {
+                let pos = generate_one_start(
+                    &PoolGenerateConfig {
+                        agent: agent.clone(),
+                        until_move: *until_move,
+                        count: 1,
+                        seed_base: seed,
+                        outdir: String::new(),
+                        noise: *noise,
+                    },
+                    seed,
+                )?;
+                Ok(GameStart::Position { position: pos })
+            }
+        }
+    }
+}
+
+/// Parse worker `--starts` / `STARTS` value.
+///
+/// - `opening` — standard initial position
+/// - `random` — per-game random playout (`until_move` = [`DEFAULT_RANDOM_UNTIL_MOVE`])
+/// - `random:N` — playout for N plies
+/// - `random:N:F` — N plies with noise fraction F in \[0,1\]
+/// - otherwise — directory of saved start JSON files
+pub fn parse_starts_spec(spec: &str) -> Result<StartsSource, String> {
+    if spec == "opening" {
+        return Ok(StartsSource::Fixed(vec![GameStart::Opening]));
+    }
+    if spec == "random" || spec.starts_with("random:") {
+        let mut until_move = DEFAULT_RANDOM_UNTIL_MOVE;
+        let mut noise = 0.0f64;
+        if let Some(rest) = spec.strip_prefix("random:") {
+            let parts: Vec<&str> = rest.split(':').collect();
+            if parts.is_empty() || parts[0].is_empty() {
+                return Err("Invalid starts spec: random: needs until-move".into());
+            }
+            until_move = parts[0]
+                .parse()
+                .map_err(|_| format!("Invalid random until-move in '{}'", spec))?;
+            if parts.len() >= 2 {
+                noise = parts[1]
+                    .parse()
+                    .map_err(|_| format!("Invalid random noise in '{}'", spec))?;
+                if !(0.0..=1.0).contains(&noise) {
+                    return Err(format!("random noise must be in [0,1], got {}", noise));
+                }
+            }
+            if parts.len() > 2 {
+                return Err(format!(
+                    "Invalid starts spec '{}'; use random, random:N, or random:N:F",
+                    spec
+                ));
+            }
+        }
+        return Ok(StartsSource::Random {
+            until_move,
+            noise,
+            agent: AgentSpec::new("random"),
+        });
+    }
+    let loaded = load_starts_dir(Path::new(spec))?;
+    if loaded.is_empty() {
+        return Err(format!("No starts in {}", spec));
+    }
+    Ok(StartsSource::Fixed(
+        loaded
+            .into_iter()
+            .map(|(_, p)| GameStart::Position { position: p })
+            .collect(),
+    ))
 }
 
 /// Play from opening with optional noise until `until_move`, save BoardPositions.
@@ -51,7 +154,8 @@ pub fn generate_pool(cfg: &PoolGenerateConfig) -> Result<Vec<String>, String> {
     Ok(ids)
 }
 
-fn generate_one_start(cfg: &PoolGenerateConfig, seed: u64) -> Result<BoardPosition, String> {
+/// Play from opening with `cfg.agent` / noise until `cfg.until_move`, return snapshot.
+pub fn generate_one_start(cfg: &PoolGenerateConfig, seed: u64) -> Result<BoardPosition, String> {
     use crate::game_state::GameState;
     use rand::SeedableRng;
     use rand::rngs::StdRng;
@@ -141,4 +245,61 @@ pub fn snapshot_via_worker(
     .map_err(|e| e.message)?;
     let state = crate::training::worker::replay_to_end(&record)?;
     Ok(BoardPosition::from_state(&state))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_starts_random_forms() {
+        match parse_starts_spec("random").unwrap() {
+            StartsSource::Random {
+                until_move,
+                noise,
+                agent,
+            } => {
+                assert_eq!(until_move, DEFAULT_RANDOM_UNTIL_MOVE);
+                assert_eq!(noise, 0.0);
+                assert_eq!(agent.name, "random");
+            }
+            other => panic!("expected Random, got {:?}", other),
+        }
+        match parse_starts_spec("random:120").unwrap() {
+            StartsSource::Random {
+                until_move, noise, ..
+            } => {
+                assert_eq!(until_move, 120);
+                assert_eq!(noise, 0.0);
+            }
+            other => panic!("expected Random, got {:?}", other),
+        }
+        match parse_starts_spec("random:50:0.25").unwrap() {
+            StartsSource::Random {
+                until_move, noise, ..
+            } => {
+                assert_eq!(until_move, 50);
+                assert!((noise - 0.25).abs() < 1e-9);
+            }
+            other => panic!("expected Random, got {:?}", other),
+        }
+        assert!(parse_starts_spec("random:").is_err());
+        assert!(parse_starts_spec("random:10:2.0").is_err());
+        assert!(parse_starts_spec("opening").is_ok());
+    }
+
+    #[test]
+    fn random_start_varies_by_seed() {
+        let src = parse_starts_spec("random:40").unwrap();
+        let a = src.start_for_game(0, 1).unwrap();
+        let b = src.start_for_game(1, 2).unwrap();
+        match (a, b) {
+            (GameStart::Position { position: pa }, GameStart::Position { position: pb }) => {
+                let ja = serde_json::to_string(&pa).unwrap();
+                let jb = serde_json::to_string(&pb).unwrap();
+                assert_ne!(ja, jb);
+            }
+            _ => panic!("expected Position starts"),
+        }
+    }
 }
