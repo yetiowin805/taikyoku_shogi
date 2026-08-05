@@ -500,6 +500,241 @@ fn skip_rank_pst_table() -> &'static [bool] {
     })
 }
 
+/// Tropism class scale: short=1, normal range≈0.25, capturing-range-only=0.
+pub fn tropism_class_scale(pt: PieceType) -> f32 {
+    match tropism_class_bucket(pt) {
+        TropismClass::None | TropismClass::CapturingRange => 0.0,
+        TropismClass::Short => 1.0,
+        TropismClass::Range => DEFAULT_EG_TROPISM_RANGE_SCALE,
+    }
+}
+
+fn chebyshev_distance(a: Position, b: Position) -> u8 {
+    let df = (a.file as i16 - b.file as i16).unsigned_abs() as u8;
+    let dr = (a.rank as i16 - b.rank as i16).unsigned_abs() as u8;
+    df.max(dr)
+}
+
+/// Opponent-density endgame gate in [0, 1]: high when enemy non-royals are few.
+pub fn eg_density_weight(enemy_non_royals: usize, density_n: f32) -> f32 {
+    if density_n <= 0.0 {
+        return 0.0;
+    }
+    ((density_n - enemy_non_royals as f32) / density_n).clamp(0.0, 1.0)
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum TropismClass {
+    None,
+    Short,
+    Range,
+    CapturingRange,
+}
+
+fn tropism_class_bucket(pt: PieceType) -> TropismClass {
+    if pt.is_royal() {
+        return TropismClass::None;
+    }
+    let cfg = MovementConfig::for_piece_type(pt);
+    let mut has_capturing_range = false;
+    let mut has_other_range = false;
+    for cap in &cfg.capabilities {
+        if let MovementCapability::Range { blocking, .. } = cap {
+            if *blocking == BlockingMode::Capturing {
+                has_capturing_range = true;
+            } else {
+                has_other_range = true;
+            }
+        }
+    }
+    if has_capturing_range && !has_other_range {
+        TropismClass::CapturingRange
+    } else if has_capturing_range || has_other_range {
+        TropismClass::Range
+    } else {
+        TropismClass::Short
+    }
+}
+
+fn piece_tropism_scale(pt: PieceType, weights: &EvalWeights) -> f32 {
+    match tropism_class_bucket(pt) {
+        TropismClass::None | TropismClass::CapturingRange => 0.0,
+        TropismClass::Short => weights.eg_tropism_short_scale,
+        TropismClass::Range => weights.eg_tropism_range_scale,
+    }
+}
+
+/// Linear top-k + tail tropism (not density-gated): `σ·T_top + σ_tail·T_tail`.
+///
+/// Per piece: `u = s·(d_ref − d)`. Closest `k` pieces (tie: larger s) get `σ`;
+/// the rest get `σ_tail` so conversion does not stall once k are close.
+fn linear_topk_tail_tropism(
+    our_pieces: &[Piece],
+    enemy_royals: &[Position],
+    weights: &EvalWeights,
+) -> f32 {
+    if enemy_royals.is_empty() {
+        return 0.0;
+    }
+    let d_ref = weights.eg_tropism_d_ref;
+    // (distance, -scale for reverse tie-break, u)
+    let mut entries: Vec<(u8, f32, f32)> = Vec::new();
+    for p in our_pieces {
+        // Royals never receive tropism (approaching with the king is not the goal).
+        if p.piece_type.is_royal() {
+            continue;
+        }
+        let s = piece_tropism_scale(p.piece_type, weights);
+        if s == 0.0 {
+            continue;
+        }
+        let mut best = u8::MAX;
+        for &r in enemy_royals {
+            best = best.min(chebyshev_distance(p.position, r));
+        }
+        let u = s * (d_ref - best as f32);
+        entries.push((best, -s, u));
+    }
+    if entries.is_empty() {
+        return 0.0;
+    }
+    entries.sort_by(|a, b| {
+        a.0.cmp(&b.0)
+            .then_with(|| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal))
+    });
+    let k = weights.eg_tropism_topk.max(0) as usize;
+    let mut t_top = 0.0f32;
+    let mut t_tail = 0.0f32;
+    for (i, (_d, _neg_s, u)) in entries.iter().enumerate() {
+        if i < k {
+            t_top += *u;
+        } else {
+            t_tail += *u;
+        }
+    }
+    weights.eg_tropism_scale * t_top + weights.eg_tropism_tail_scale * t_tail
+}
+
+fn apply_tropism_cap(trop: f32, weights: &EvalWeights) -> f32 {
+    let cap = weights.eg_tropism_cap.abs();
+    if cap > 0.0 {
+        trop.clamp(-cap, cap)
+    } else {
+        trop
+    }
+}
+
+fn count_non_royals(pieces: &[Piece]) -> usize {
+    pieces.iter().filter(|p| !p.piece_type.is_royal()).count()
+}
+
+fn raw_material_of(pieces: &[Piece], weights: &EvalWeights) -> f32 {
+    pieces
+        .iter()
+        .map(|p| weights.piece_value(p.piece_type))
+        .sum()
+}
+
+/// Rank-PST excess over base material: `positional - base` (0 for royals / skip-PST).
+pub fn rank_pst_excess(piece: &Piece, weights: &EvalWeights) -> f32 {
+    positional_piece_value(piece, weights) - weights.piece_value(piece.piece_type)
+}
+
+fn pst_excess_of(pieces: &[Piece], weights: &EvalWeights) -> f32 {
+    pieces.iter().map(|p| rank_pst_excess(p, weights)).sum()
+}
+
+fn enemy_royal_positions(pieces: &[Piece]) -> Vec<Position> {
+    pieces
+        .iter()
+        .filter(|p| p.piece_type.is_royal())
+        .map(|p| p.position)
+        .collect()
+}
+
+/// Phase weight in [0,1]: density gate, zero when behind on raw material.
+pub fn side_phase_weight(
+    our_raw_mat: f32,
+    enemy_raw_mat: f32,
+    enemy_non_royals: usize,
+    weights: &EvalWeights,
+) -> f32 {
+    if our_raw_mat - enemy_raw_mat < weights.eg_ahead_min {
+        return 0.0;
+    }
+    eg_density_weight(enemy_non_royals, weights.eg_density_n)
+}
+
+/// One side's blended positional: `(1-w)·PST_excess + w·trop` (linear top-k+tail).
+fn side_blended_positional(
+    our_pieces: &[Piece],
+    enemy_pieces: &[Piece],
+    our_raw_mat: f32,
+    enemy_raw_mat: f32,
+    weights: &EvalWeights,
+) -> f32 {
+    let w = side_phase_weight(
+        our_raw_mat,
+        enemy_raw_mat,
+        count_non_royals(enemy_pieces),
+        weights,
+    );
+    let pst = pst_excess_of(our_pieces, weights);
+    if w <= 0.0 {
+        return pst;
+    }
+    let royals = enemy_royal_positions(enemy_pieces);
+    let trop = if royals.is_empty() {
+        0.0
+    } else {
+        apply_tropism_cap(
+            linear_topk_tail_tropism(our_pieces, &royals, weights),
+            weights,
+        )
+    };
+    (1.0 - w) * pst + w * trop
+}
+
+/// Black-positive endgame tropism contribution only (`w·trop`), for tests / diagnostics.
+pub fn eg_tropism_term_black(black: &[Piece], white: &[Piece], weights: &EvalWeights) -> f32 {
+    if weights.eg_tropism_scale == 0.0 && weights.eg_tropism_tail_scale == 0.0 {
+        return 0.0;
+    }
+    let black_mat = raw_material_of(black, weights);
+    let white_mat = raw_material_of(white, weights);
+    let w_b = side_phase_weight(black_mat, white_mat, count_non_royals(white), weights);
+    let w_w = side_phase_weight(white_mat, black_mat, count_non_royals(black), weights);
+    let t_b = if w_b > 0.0 {
+        apply_tropism_cap(
+            linear_topk_tail_tropism(black, &enemy_royal_positions(white), weights),
+            weights,
+        )
+    } else {
+        0.0
+    };
+    let t_w = if w_w > 0.0 {
+        apply_tropism_cap(
+            linear_topk_tail_tropism(white, &enemy_royal_positions(black), weights),
+            weights,
+        )
+    } else {
+        0.0
+    };
+    w_b * t_b - w_w * t_w
+}
+
+/// Black-positive phase-blended positional (PST fade + tropism fade-in).
+pub fn eg_blended_positional_black(
+    black: &[Piece],
+    white: &[Piece],
+    weights: &EvalWeights,
+) -> f32 {
+    let black_mat = raw_material_of(black, weights);
+    let white_mat = raw_material_of(white, weights);
+    side_blended_positional(black, white, black_mat, white_mat, weights)
+        - side_blended_positional(white, black, white_mat, black_mat, weights)
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchDefaults {
     pub depth: u32,
@@ -521,6 +756,41 @@ impl Default for SearchDefaults {
             quiescence_depth: 2,
         }
     }
+}
+
+/// Default range-piece tropism multiplier (short movers use 1.0).
+pub const DEFAULT_EG_TROPISM_RANGE_SCALE: f32 = 0.25;
+/// Density ramp length: w=1 at 0 enemy non-royals, w=0 at ≥N.
+fn default_eg_density_n() -> f32 {
+    20.0
+}
+/// Neutral Chebyshev distance for centered tropism (~half board).
+fn default_eg_tropism_d_ref() -> f32 {
+    18.0
+}
+/// Top-k tropism scale: ~+σ eval per short Chebyshev step among the closest k.
+fn default_eg_tropism_scale() -> f32 {
+    1.5
+}
+/// Absolute clamp on tropism contribution (0 = uncapped).
+fn default_eg_tropism_cap() -> f32 {
+    0.0
+}
+/// Must be at least this far ahead on raw material to apply our tropism.
+fn default_eg_ahead_min() -> f32 {
+    10.0
+}
+fn default_eg_tropism_short_scale() -> f32 {
+    1.0
+}
+fn default_eg_tropism_range_scale() -> f32 {
+    DEFAULT_EG_TROPISM_RANGE_SCALE
+}
+fn default_eg_tropism_topk() -> u32 {
+    8
+}
+fn default_eg_tropism_tail_scale() -> f32 {
+    0.25
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -555,6 +825,33 @@ pub struct EvalWeights {
     /// Slow-piece rank multipliers.
     #[serde(default = "seed_rank_factors_slow_vec")]
     pub rank_factor_slow: Vec<f32>,
+    /// Endgame tropism scale for the closest `eg_tropism_topk` pieces.
+    #[serde(default = "default_eg_tropism_scale")]
+    pub eg_tropism_scale: f32,
+    /// Absolute cap on tropism term magnitude (0 = uncapped).
+    #[serde(default = "default_eg_tropism_cap")]
+    pub eg_tropism_cap: f32,
+    /// Density gate N: w = clamp((N - enemy_non_royals) / N, 0, 1).
+    #[serde(default = "default_eg_density_n")]
+    pub eg_density_n: f32,
+    /// Neutral Chebyshev distance for tropism centering (`u = s*(d_ref - d)`).
+    #[serde(default = "default_eg_tropism_d_ref")]
+    pub eg_tropism_d_ref: f32,
+    /// Raw-material lead required before our tropism applies.
+    #[serde(default = "default_eg_ahead_min")]
+    pub eg_ahead_min: f32,
+    /// Tropism class scale for short / no-range movers.
+    #[serde(default = "default_eg_tropism_short_scale")]
+    pub eg_tropism_short_scale: f32,
+    /// Tropism class scale for normal range movers.
+    #[serde(default = "default_eg_tropism_range_scale")]
+    pub eg_tropism_range_scale: f32,
+    /// Number of closest eligible pieces getting full tropism scale.
+    #[serde(default = "default_eg_tropism_topk")]
+    pub eg_tropism_topk: u32,
+    /// Tropism scale for pieces outside the top-k set.
+    #[serde(default = "default_eg_tropism_tail_scale")]
+    pub eg_tropism_tail_scale: f32,
     /// Max absolute noise contribution (deterministic).
     pub noise_scale: f64,
     pub mate_score: i32,
@@ -674,6 +971,15 @@ impl EvalWeights {
             rank_factor: seed_rank_factors_fast_vec(),
             rank_factor_fast: seed_rank_factors_fast_vec(),
             rank_factor_slow: seed_rank_factors_slow_vec(),
+            eg_tropism_scale: default_eg_tropism_scale(),
+            eg_tropism_cap: default_eg_tropism_cap(),
+            eg_density_n: default_eg_density_n(),
+            eg_tropism_d_ref: default_eg_tropism_d_ref(),
+            eg_ahead_min: default_eg_ahead_min(),
+            eg_tropism_short_scale: default_eg_tropism_short_scale(),
+            eg_tropism_range_scale: default_eg_tropism_range_scale(),
+            eg_tropism_topk: default_eg_tropism_topk(),
+            eg_tropism_tail_scale: default_eg_tropism_tail_scale(),
             noise_scale: 1.0,
             mate_score: 1_000_000,
             weight_seed: 0xA11B_E7A1,
@@ -814,7 +1120,9 @@ pub fn evaluate_absolute_black(board: &Board, weights: &EvalWeights, ply: usize)
     }
 
     let mut score = 0.0f32;
-    score += material_of(black, weights) - material_of(white, weights);
+    // Base material (no PST) + phase-blended positional (PST ↔ tropism).
+    score += raw_material_of(black, weights) - raw_material_of(white, weights);
+    score += eg_blended_positional_black(black, white, weights);
 
     score += weights.royal_bonus(black_royals) as f32 - weights.royal_bonus(white_royals) as f32;
 
@@ -911,13 +1219,6 @@ fn advance_positional(pieces: &[Piece], color: Color, weights: &EvalWeights) -> 
 
 fn count_royals(pieces: &[Piece]) -> usize {
     pieces.iter().filter(|p| p.piece_type.is_royal()).count()
-}
-
-fn material_of(pieces: &[Piece], weights: &EvalWeights) -> f32 {
-    pieces
-        .iter()
-        .map(|p| positional_piece_value(p, weights))
-        .sum()
 }
 
 fn noise_component(board: &Board, weights: &EvalWeights, ply: usize) -> i32 {
@@ -1046,6 +1347,13 @@ mod tests {
         assert_eq!(back.weights.royal_bonus(1), 0);
         assert_eq!(back.weights.royal_bonus(2), 5000);
         assert_eq!(back.weights.royal_bonus(3), 6000);
+        assert!((back.weights.eg_tropism_scale - 1.5).abs() < 1e-6);
+        assert!((back.weights.eg_tropism_cap - 0.0).abs() < 1e-6);
+        assert!((back.weights.eg_density_n - 20.0).abs() < 1e-6);
+        assert!((back.weights.eg_tropism_d_ref - 18.0).abs() < 1e-6);
+        assert_eq!(back.weights.eg_tropism_topk, 8);
+        assert!((back.weights.eg_tropism_tail_scale - 0.25).abs() < 1e-6);
+        assert!((back.weights.eg_tropism_range_scale - DEFAULT_EG_TROPISM_RANGE_SCALE).abs() < 1e-6);
     }
 
     #[test]
@@ -1249,6 +1557,402 @@ mod tests {
         assert!(
             b > a,
             "forward gold should score higher: back={a} fwd={b}"
+        );
+    }
+
+    fn quiet_weights() -> EvalWeights {
+        let mut w = EvalWeights::seed();
+        w.noise_scale = 0.0;
+        w
+    }
+
+    /// Flatten PST — used only where we want to isolate tropism arithmetic.
+    fn flat_pst_weights() -> EvalWeights {
+        let mut w = quiet_weights();
+        w.rank_factor_fast = vec![1.0; 36];
+        w.rank_factor_slow = vec![1.0; 36];
+        w.rank_factor = vec![1.0; 36];
+        w
+    }
+
+    #[test]
+    fn tropism_class_scales_short_range_capturing() {
+        assert!((tropism_class_scale(PieceType::GoldGeneral) - 1.0).abs() < 1e-6);
+        assert!((tropism_class_scale(PieceType::Pawn) - 1.0).abs() < 1e-6);
+        assert!((tropism_class_scale(PieceType::FreeKing) - DEFAULT_EG_TROPISM_RANGE_SCALE).abs() < 1e-6);
+        assert!((tropism_class_scale(PieceType::GreatGeneral) - 0.0).abs() < 1e-6);
+        assert!((tropism_class_scale(PieceType::King) - 0.0).abs() < 1e-6);
+        assert!((tropism_class_scale(PieceType::CrownPrince) - 0.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn eg_tropism_ignores_own_royals() {
+        let weights = flat_pst_weights();
+        let white_king = Position::new(20, 20).unwrap();
+        let mut far = Board::new();
+        far.place_piece(Piece::new(
+            PieceType::King,
+            Color::Black,
+            Position::new(10, 10).unwrap(),
+        ));
+        far.place_piece(Piece::new(PieceType::King, Color::White, white_king));
+        far.place_piece(Piece::new(
+            PieceType::GreatGeneral,
+            Color::Black,
+            Position::new(0, 0).unwrap(),
+        ));
+        let mut near = far.clone();
+        // Walk own king next to enemy royal — must not create tropism.
+        near.move_piece(Position::new(10, 10).unwrap(), Position::new(20, 21).unwrap());
+
+        let t_far = eg_tropism_term_black(
+            far.pieces_by_color(Color::Black),
+            far.pieces_by_color(Color::White),
+            &weights,
+        );
+        let t_near = eg_tropism_term_black(
+            near.pieces_by_color(Color::Black),
+            near.pieces_by_color(Color::White),
+            &weights,
+        );
+        assert!(
+            (t_far - t_near).abs() < 1e-4,
+            "own royal proximity must not affect tropism: far={t_far} near={t_near}"
+        );
+    }
+
+    fn lone_royal_boards() -> (Board, Board) {
+        let white_king = Position::new(20, 20).unwrap();
+        let mut near = Board::new();
+        near.place_piece(Piece::new(
+            PieceType::King,
+            Color::Black,
+            Position::new(5, 5).unwrap(),
+        ));
+        near.place_piece(Piece::new(PieceType::King, Color::White, white_king));
+        for (f, r) in [(19, 19), (21, 19), (19, 21), (18, 20)] {
+            near.place_piece(Piece::new(
+                PieceType::GoldGeneral,
+                Color::Black,
+                Position::new(f, r).unwrap(),
+            ));
+        }
+
+        let mut far = Board::new();
+        far.place_piece(Piece::new(
+            PieceType::King,
+            Color::Black,
+            Position::new(5, 5).unwrap(),
+        ));
+        far.place_piece(Piece::new(PieceType::King, Color::White, white_king));
+        for (f, r) in [(2, 33), (3, 33), (2, 34), (3, 34)] {
+            far.place_piece(Piece::new(
+                PieceType::GoldGeneral,
+                Color::Black,
+                Position::new(f, r).unwrap(),
+            ));
+        }
+        (near, far)
+    }
+
+    #[test]
+    fn eg_tropism_prefers_cluster_near_lone_royal() {
+        let weights = flat_pst_weights();
+        let (near, far) = lone_royal_boards();
+        let t_near = eg_tropism_term_black(
+            near.pieces_by_color(Color::Black),
+            near.pieces_by_color(Color::White),
+            &weights,
+        );
+        let t_far = eg_tropism_term_black(
+            far.pieces_by_color(Color::Black),
+            far.pieces_by_color(Color::White),
+            &weights,
+        );
+        assert!(
+            t_near > t_far + 0.01,
+            "near tropism should beat far: near={t_near} far={t_far}"
+        );
+        let s_near = evaluate_absolute_black(&near, &weights, 0);
+        let s_far = evaluate_absolute_black(&far, &weights, 0);
+        assert!(
+            s_near > s_far,
+            "near cluster should outscore far park: near={s_near} far={s_far}"
+        );
+    }
+
+    #[test]
+    fn phase_blend_near_beats_promo_park_with_real_pst() {
+        // Real seed PST: promo park gets +20% on golds. Phase blend must still prefer
+        // approaching the lone royal (PST fades when w→1).
+        let weights = quiet_weights();
+        let (near, far) = lone_royal_boards();
+
+        let pst_near = pst_excess_of(near.pieces_by_color(Color::Black), &weights);
+        let pst_far = pst_excess_of(far.pieces_by_color(Color::Black), &weights);
+        assert!(
+            pst_far > pst_near + 1.0,
+            "sanity: far promo park has more PST excess: near={pst_near} far={pst_far}"
+        );
+
+        let s_near = evaluate_absolute_black(&near, &weights, 0);
+        let s_far = evaluate_absolute_black(&far, &weights, 0);
+        assert!(
+            s_near > s_far,
+            "with real PST, near royal must beat promo park under gate: near={s_near} far={s_far}"
+        );
+    }
+
+    #[test]
+    fn eg_tropism_at_d_ref_is_near_zero_when_gated_on() {
+        let weights = flat_pst_weights();
+        let white_king = Position::new(18, 18).unwrap();
+        let mut board = Board::new();
+        board.place_piece(Piece::new(
+            PieceType::King,
+            Color::Black,
+            Position::new(0, 0).unwrap(),
+        ));
+        board.place_piece(Piece::new(PieceType::King, Color::White, white_king));
+        board.place_piece(Piece::new(
+            PieceType::GoldGeneral,
+            Color::Black,
+            Position::new(0, 18).unwrap(),
+        ));
+        // Stay ahead of eg_ahead_min without affecting tropism (capturing-range s=0).
+        board.place_piece(Piece::new(
+            PieceType::GreatGeneral,
+            Color::Black,
+            Position::new(1, 1).unwrap(),
+        ));
+
+        let term = eg_tropism_term_black(
+            board.pieces_by_color(Color::Black),
+            board.pieces_by_color(Color::White),
+            &weights,
+        );
+        assert!(
+            term.abs() < 1e-4,
+            "piece at d_ref should give ~0 linear tropism, got {term}"
+        );
+
+        let blended = eg_blended_positional_black(
+            board.pieces_by_color(Color::Black),
+            board.pieces_by_color(Color::White),
+            &weights,
+        );
+        assert!(
+            blended.abs() < 1e-4,
+            "gate-on at d_ref should not grant free positional lunch, got {blended}"
+        );
+    }
+
+    #[test]
+    fn eg_tropism_opening_density_gate_near_zero() {
+        let weights = quiet_weights();
+        let mut state = GameState::new();
+        state.setup_initial_position();
+        let board = state.get_board();
+        let black = board.pieces_by_color(Color::Black);
+        let white = board.pieces_by_color(Color::White);
+        assert!(count_non_royals(white) >= weights.eg_density_n as usize);
+        let w = eg_density_weight(count_non_royals(white), weights.eg_density_n);
+        assert!(w <= 0.0, "opening should have density weight 0, got {w}");
+        let term = eg_tropism_term_black(black, white, &weights);
+        assert!(
+            term.abs() < 1e-6,
+            "opening tropism term should be ~0, got {term}"
+        );
+        let blended = eg_blended_positional_black(black, white, &weights);
+        let pst = pst_excess_of(black, &weights) - pst_excess_of(white, &weights);
+        assert!(
+            (blended - pst).abs() < 1e-3,
+            "opening blend should equal PST excess: blended={blended} pst={pst}"
+        );
+    }
+
+    #[test]
+    fn eg_tropism_one_short_step_about_sigma() {
+        let mut weights = flat_pst_weights();
+        weights.eg_tropism_topk = 8;
+        let white_king = Position::new(20, 20).unwrap();
+        let mut far = Board::new();
+        far.place_piece(Piece::new(
+            PieceType::King,
+            Color::Black,
+            Position::new(0, 0).unwrap(),
+        ));
+        far.place_piece(Piece::new(PieceType::King, Color::White, white_king));
+        far.place_piece(Piece::new(
+            PieceType::GreatGeneral,
+            Color::Black,
+            Position::new(1, 1).unwrap(),
+        ));
+        far.place_piece(Piece::new(
+            PieceType::GoldGeneral,
+            Color::Black,
+            Position::new(20, 26).unwrap(), // d=6
+        ));
+        let mut near = far.clone();
+        near.move_piece(Position::new(20, 26).unwrap(), Position::new(20, 25).unwrap()); // d=5
+
+        let t_far = eg_tropism_term_black(
+            far.pieces_by_color(Color::Black),
+            far.pieces_by_color(Color::White),
+            &weights,
+        );
+        let t_near = eg_tropism_term_black(
+            near.pieces_by_color(Color::Black),
+            near.pieces_by_color(Color::White),
+            &weights,
+        );
+        let delta = t_near - t_far;
+        assert!(
+            (delta - weights.eg_tropism_scale).abs() < 0.05,
+            "one short top-k step should be ≈σ={}: delta={delta}",
+            weights.eg_tropism_scale
+        );
+    }
+
+    #[test]
+    fn eg_tropism_tail_step_uses_tail_scale() {
+        let mut weights = flat_pst_weights();
+        weights.eg_tropism_topk = 2;
+        let white_king = Position::new(20, 20).unwrap();
+        let mut far = Board::new();
+        far.place_piece(Piece::new(
+            PieceType::King,
+            Color::Black,
+            Position::new(0, 0).unwrap(),
+        ));
+        far.place_piece(Piece::new(PieceType::King, Color::White, white_king));
+        far.place_piece(Piece::new(
+            PieceType::GreatGeneral,
+            Color::Black,
+            Position::new(1, 1).unwrap(),
+        ));
+        // Two close (top-k) and one far (tail).
+        far.place_piece(Piece::new(
+            PieceType::GoldGeneral,
+            Color::Black,
+            Position::new(20, 22).unwrap(), // d=2
+        ));
+        far.place_piece(Piece::new(
+            PieceType::GoldGeneral,
+            Color::Black,
+            Position::new(21, 22).unwrap(), // d=2
+        ));
+        far.place_piece(Piece::new(
+            PieceType::GoldGeneral,
+            Color::Black,
+            Position::new(20, 30).unwrap(), // d=10 tail
+        ));
+        let mut closer = far.clone();
+        closer.move_piece(Position::new(20, 30).unwrap(), Position::new(20, 29).unwrap()); // d=9
+
+        let t0 = eg_tropism_term_black(
+            far.pieces_by_color(Color::Black),
+            far.pieces_by_color(Color::White),
+            &weights,
+        );
+        let t1 = eg_tropism_term_black(
+            closer.pieces_by_color(Color::Black),
+            closer.pieces_by_color(Color::White),
+            &weights,
+        );
+        let delta = t1 - t0;
+        assert!(
+            (delta - weights.eg_tropism_tail_scale).abs() < 0.05,
+            "tail step should be ≈σ_tail={}: delta={delta}",
+            weights.eg_tropism_tail_scale
+        );
+    }
+
+    #[test]
+    fn eg_tropism_losing_side_damped() {
+        let mut weights = quiet_weights();
+        weights.eg_ahead_min = 0.0;
+        let mut board = Board::new();
+        board.place_piece(Piece::new(
+            PieceType::King,
+            Color::Black,
+            Position::new(10, 10).unwrap(),
+        ));
+        board.place_piece(Piece::new(
+            PieceType::King,
+            Color::White,
+            Position::new(20, 20).unwrap(),
+        ));
+        board.place_piece(Piece::new(
+            PieceType::GoldGeneral,
+            Color::White,
+            Position::new(11, 10).unwrap(),
+        ));
+        board.place_piece(Piece::new(
+            PieceType::GoldGeneral,
+            Color::White,
+            Position::new(9, 10).unwrap(),
+        ));
+
+        let black = board.pieces_by_color(Color::Black);
+        let white = board.pieces_by_color(Color::White);
+        let black_mat = raw_material_of(black, &weights);
+        let white_mat = raw_material_of(white, &weights);
+        assert!(black_mat < white_mat);
+
+        let w_black = side_phase_weight(black_mat, white_mat, count_non_royals(white), &weights);
+        assert!(
+            w_black.abs() < 1e-6,
+            "losing side phase weight should be 0, got {w_black}"
+        );
+    }
+
+    #[test]
+    fn eg_tropism_density_delta_no_free_lunch_at_neutral() {
+        let weights = flat_pst_weights();
+        let white_king = Position::new(18, 18).unwrap();
+        let mut depleted = Board::new();
+        depleted.place_piece(Piece::new(
+            PieceType::King,
+            Color::Black,
+            Position::new(0, 0).unwrap(),
+        ));
+        depleted.place_piece(Piece::new(PieceType::King, Color::White, white_king));
+        depleted.place_piece(Piece::new(
+            PieceType::GoldGeneral,
+            Color::Black,
+            Position::new(0, 18).unwrap(),
+        ));
+        depleted.place_piece(Piece::new(
+            PieceType::GreatGeneral,
+            Color::Black,
+            Position::new(1, 1).unwrap(),
+        ));
+
+        let mut fat = depleted.clone();
+        for i in 0..20 {
+            let f = (25 + (i % 5)) as u8;
+            let r = (25 + (i / 5)) as u8;
+            fat.place_piece(Piece::new(
+                PieceType::Pawn,
+                Color::White,
+                Position::new(f, r).unwrap(),
+            ));
+        }
+
+        let t_depleted = eg_tropism_term_black(
+            depleted.pieces_by_color(Color::Black),
+            depleted.pieces_by_color(Color::White),
+            &weights,
+        );
+        let t_fat = eg_tropism_term_black(
+            fat.pieces_by_color(Color::Black),
+            fat.pieces_by_color(Color::White),
+            &weights,
+        );
+        assert!(
+            (t_depleted - t_fat).abs() < 1e-3,
+            "gate-on at d_ref must not create tropism windfall: depleted={t_depleted} fat={t_fat}"
         );
     }
 }
