@@ -1206,18 +1206,44 @@ impl GameState {
             } else {
                 return ApplyOutcome::Failed;
             }
-        } else if validate && !self.is_legal_move(mv.from, mv.to) {
+        } else if validate
+            // Multi-leg moves are validated per leg below; direct from→to is often unreachable.
+            && !mv.is_two_step()
+            && !mv.is_free_eagle()
+            && !self.is_legal_move(mv.from, mv.to)
+        {
             return ApplyOutcome::Failed;
         }
 
         if let Some(intermediate) = mv.intermediate() {
             if validate {
-                if !self.is_legal_move(mv.from, intermediate) {
-                    return ApplyOutcome::Failed;
-                }
-                let mut temp_piece = piece;
-                temp_piece.position = intermediate;
-                if !temp_piece.can_reach(mv.to, &self.board) {
+                // Validate each leg via the TwoStep capability pair. Full
+                // `can_reach` from the intermediate is wrong: it would require
+                // starting a fresh multi-leg move (e.g. Peacock cannot
+                // `can_reach` a pure second-leg diagonal landing).
+                let config = MovementConfig::for_piece(&piece);
+                let legs_ok = config.capabilities.iter().any(|cap| {
+                    if let crate::movement::types::MovementCapability::TwoStep { first, second } =
+                        cap
+                    {
+                        let mut at_mid = piece;
+                        at_mid.position = intermediate;
+                        crate::movement::MovementGenerator::can_reach_target(
+                            &piece,
+                            &self.board,
+                            std::slice::from_ref(first.as_ref()),
+                            intermediate,
+                        ) && crate::movement::MovementGenerator::can_reach_target(
+                            &at_mid,
+                            &self.board,
+                            std::slice::from_ref(second.as_ref()),
+                            mv.to,
+                        )
+                    } else {
+                        false
+                    }
+                });
+                if !legs_ok {
                     return ApplyOutcome::Failed;
                 }
                 if let Some(target_piece) = self.board.get_piece(mv.to) {
@@ -1955,6 +1981,45 @@ mod tests {
         
         // Verify the original position is now empty
         assert!(state.board.is_empty(Position::new(10, 10).unwrap()), "Original position should be empty");
+    }
+
+    #[test]
+    fn make_move_accepts_peacock_two_step_second_leg_only() {
+        // Peacock: first leg forward-diagonal range, second any-diagonal range.
+        // Block forward diagonals from the intermediate so a fresh full `can_reach`
+        // from there fails, while the recorded second-leg SE ray is still legal.
+        // Validated `make_move` used to reject this (search still accepted it).
+        let mut state = GameState::new();
+        let from = Position::new(10, 10).unwrap();
+        let mid = Position::new(12, 12).unwrap(); // NE 2 (Black forward diagonal)
+        let to = Position::new(17, 7).unwrap(); // SE 5 from mid (second leg only)
+        state.place_piece(Piece::new(PieceType::Peacock, Color::Black, from));
+        // Occupy adjacent forward-diagonal squares so Peacock cannot start a new
+        // TwoStep from `mid` (first leg is forward-diagonal only).
+        state.place_piece(Piece::new(PieceType::Pawn, Color::Black, Position::new(13, 13).unwrap()));
+        state.place_piece(Piece::new(PieceType::Pawn, Color::Black, Position::new(11, 13).unwrap()));
+
+        let mut at_mid = Piece::new(PieceType::Peacock, Color::Black, mid);
+        assert!(
+            !at_mid.can_reach(to, &state.board),
+            "precondition: full can_reach from intermediate must fail"
+        );
+
+        let mv = Move::new_two_step(from, mid, to);
+        assert!(
+            state.generate_legal_moves().iter().any(|m| {
+                m.from == from && m.to == to && m.intermediate() == Some(mid)
+            }),
+            "move must be in legal generation"
+        );
+
+        let intermediate = state.make_move(mv);
+        assert_eq!(intermediate, Some(mid));
+        assert_eq!(state.get_current_turn(), Color::White);
+        let piece = state.board.get_piece(to).expect("Peacock at destination");
+        assert_eq!(piece.piece_type, PieceType::Peacock);
+        assert!(state.board.is_empty(from));
+        assert!(state.board.is_empty(mid));
     }
 }
 

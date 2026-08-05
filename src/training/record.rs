@@ -65,6 +65,9 @@ pub struct GameRecordV2 {
     /// Wall-clock creation time (seconds since epoch).
     #[serde(default)]
     pub timestamp: u64,
+    /// Set when the game aborted mid-play (partial dump for inspection).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub abort_reason: Option<String>,
 }
 
 impl GameRecordV2 {
@@ -128,6 +131,7 @@ pub fn legacy_to_v2(legacy: GameRecord) -> GameRecordV2 {
             elapsed_ms: None,
         },
         timestamp: legacy.timestamp,
+        abort_reason: None,
     }
 }
 
@@ -155,6 +159,7 @@ mod tests {
                 elapsed_ms: Some(10),
             },
             timestamp: 1,
+            abort_reason: None,
         };
         let json = serde_json::to_string(&rec).unwrap();
         let back = load_game_json(&json).unwrap();

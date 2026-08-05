@@ -37,6 +37,19 @@ impl Default for WorkerConfig {
     }
 }
 
+/// Mid-game abort: includes moves played so far for inspection.
+#[derive(Debug, Clone)]
+pub struct PlayFailure {
+    pub message: String,
+    pub partial: GameRecordV2,
+}
+
+impl std::fmt::Display for PlayFailure {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.message)
+    }
+}
+
 fn agent_options(spec: &AgentSpec) -> AgentOptions {
     AgentOptions {
         depth: spec.depth,
@@ -61,10 +74,62 @@ fn initial_state(start: &GameStart) -> GameState {
     }
 }
 
+fn build_record(
+    config: &WorkerConfig,
+    game_id: String,
+    timestamp: u64,
+    started: Instant,
+    moves: Vec<crate::game_history::MoveRecord>,
+    result: Option<GameResult>,
+    abort_reason: Option<String>,
+) -> GameRecordV2 {
+    let move_count = moves.len();
+    GameRecordV2 {
+        format_version: FORMAT_VERSION,
+        game_id,
+        seed: config.seed,
+        black: config.black.clone(),
+        white: config.white.clone(),
+        start: config.start.clone(),
+        moves,
+        result,
+        stats: GameStats {
+            move_count,
+            elapsed_ms: Some(started.elapsed().as_millis() as u64),
+        },
+        timestamp,
+        abort_reason,
+    }
+}
+
 /// Play one game and return a complete record (not yet written to disk).
-pub fn play_one_game(config: &WorkerConfig) -> Result<GameRecordV2, String> {
-    let black = make_player(&config.black)?;
-    let white = make_player(&config.white)?;
+///
+/// On mid-game failure, returns [`PlayFailure`] with a partial record (moves so far).
+pub fn play_one_game(config: &WorkerConfig) -> Result<GameRecordV2, PlayFailure> {
+    let black = make_player(&config.black).map_err(|message| PlayFailure {
+        message,
+        partial: build_record(
+            config,
+            GameRecordV2::new_id(config.seed),
+            0,
+            Instant::now(),
+            Vec::new(),
+            None,
+            Some("failed before any moves".into()),
+        ),
+    })?;
+    let white = make_player(&config.white).map_err(|message| PlayFailure {
+        message,
+        partial: build_record(
+            config,
+            GameRecordV2::new_id(config.seed),
+            0,
+            Instant::now(),
+            Vec::new(),
+            None,
+            Some("failed before any moves".into()),
+        ),
+    })?;
     let mut state = initial_state(&config.start);
     let started = Instant::now();
     let game_id = GameRecordV2::new_id(config.seed);
@@ -76,6 +141,19 @@ pub fn play_one_game(config: &WorkerConfig) -> Result<GameRecordV2, String> {
     let mut moves = Vec::new();
     let mut move_number = 1usize;
     let mut result: Option<GameResult> = None;
+
+    let abort = |message: String, moves: Vec<_>| -> PlayFailure {
+        let partial = build_record(
+            config,
+            game_id.clone(),
+            timestamp,
+            started,
+            moves,
+            None,
+            Some(message.clone()),
+        );
+        PlayFailure { message, partial }
+    };
 
     while move_number <= config.max_moves {
         if state.is_draw_by_500_move_rule() {
@@ -109,19 +187,25 @@ pub fn play_one_game(config: &WorkerConfig) -> Result<GameRecordV2, String> {
             Color::White => white.as_ref(),
         };
         let Some(mv) = player.choose_move(&state) else {
-            return Err(format!(
-                "Player {} returned no move with {} legal moves",
-                player.name(),
-                legal.len()
+            return Err(abort(
+                format!(
+                    "Player {} returned no move with {} legal moves",
+                    player.name(),
+                    legal.len()
+                ),
+                moves,
             ));
         };
 
         let turn_before = state.get_current_turn();
         let _ = state.make_move(mv.clone());
         if state.get_current_turn() == turn_before {
-            return Err(format!(
-                "Move failed to change turn at move {} ({:?})",
-                move_number, mv
+            return Err(abort(
+                format!(
+                    "Move failed to change turn at move {} ({:?})",
+                    move_number, mv
+                ),
+                moves,
             ));
         }
 
@@ -146,22 +230,15 @@ pub fn play_one_game(config: &WorkerConfig) -> Result<GameRecordV2, String> {
         result = Some(GameResult::Draw);
     }
 
-    let move_count = moves.len();
-    Ok(GameRecordV2 {
-        format_version: FORMAT_VERSION,
+    Ok(build_record(
+        config,
         game_id,
-        seed: config.seed,
-        black: config.black.clone(),
-        white: config.white.clone(),
-        start: config.start.clone(),
+        timestamp,
+        started,
         moves,
         result,
-        stats: GameStats {
-            move_count,
-            elapsed_ms: Some(started.elapsed().as_millis() as u64),
-        },
-        timestamp,
-    })
+        None,
+    ))
 }
 
 /// Replay recorded moves onto a fresh start position (for featurization).
@@ -263,9 +340,12 @@ pub struct BatchOutcome {
     pub last_game_id: Option<String>,
     pub games_ok: usize,
     pub games_failed: usize,
+    pub partials_saved: usize,
 }
 
 /// Play `cfg.games` self-play games in parallel into `cfg.outdir`.
+///
+/// Failed mid-game runs write a partial [`GameRecordV2`] under `{outdir}/partial/`.
 pub fn run_batch(cfg: &BatchConfig) -> Result<BatchOutcome, String> {
     if cfg.games == 0 {
         return Ok(BatchOutcome::default());
@@ -274,6 +354,8 @@ pub fn run_batch(cfg: &BatchConfig) -> Result<BatchOutcome, String> {
         return Err("run_batch: no starts".into());
     }
     std::fs::create_dir_all(&cfg.outdir).map_err(|e| format!("outdir: {}", e))?;
+    let partial_dir = Path::new(&cfg.outdir).join("partial");
+    std::fs::create_dir_all(&partial_dir).map_err(|e| format!("partial dir: {}", e))?;
 
     let jobs = cfg.jobs.max(1);
     let summary_mu = std::sync::Mutex::new(BatchSummary::default());
@@ -281,6 +363,7 @@ pub fn run_batch(cfg: &BatchConfig) -> Result<BatchOutcome, String> {
     let errors = std::sync::Mutex::new(Vec::<String>::new());
     let last_id = std::sync::Mutex::new(None::<String>);
     let failed = std::sync::Mutex::new(0usize);
+    let partials = std::sync::Mutex::new(0usize);
 
     std::thread::scope(|scope| {
         for _ in 0..jobs {
@@ -289,6 +372,8 @@ pub fn run_batch(cfg: &BatchConfig) -> Result<BatchOutcome, String> {
             let errors = &errors;
             let last_id = &last_id;
             let failed = &failed;
+            let partials = &partials;
+            let partial_dir = &partial_dir;
             scope.spawn(move || loop {
                 let g = {
                     let mut n = next.lock().unwrap();
@@ -325,9 +410,26 @@ pub fn run_batch(cfg: &BatchConfig) -> Result<BatchOutcome, String> {
                             println!("Game {} -> {}", g + 1, path.display());
                         }
                     }
-                    Err(e) => {
+                    Err(fail) => {
                         *failed.lock().unwrap() += 1;
-                        errors.lock().unwrap().push(format!("game {}: {}", g, e));
+                        let path = partial_dir.join(format!("{}.json", fail.partial.game_id));
+                        match fail.partial.save_path(&path) {
+                            Ok(()) => {
+                                *partials.lock().unwrap() += 1;
+                                errors.lock().unwrap().push(format!(
+                                    "game {}: {} (partial -> {})",
+                                    g,
+                                    fail.message,
+                                    path.display()
+                                ));
+                            }
+                            Err(e) => {
+                                errors.lock().unwrap().push(format!(
+                                    "game {}: {}; also failed to save partial: {}",
+                                    g, fail.message, e
+                                ));
+                            }
+                        }
                     }
                 }
             });
@@ -341,5 +443,6 @@ pub fn run_batch(cfg: &BatchConfig) -> Result<BatchOutcome, String> {
         last_game_id: last_id.into_inner().unwrap(),
         errors: errors.into_inner().unwrap(),
         summary,
+        partials_saved: partials.into_inner().unwrap(),
     })
 }
