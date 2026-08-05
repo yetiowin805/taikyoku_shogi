@@ -43,6 +43,12 @@ pub fn draw_key(turns: u32) -> u64 {
     splitmix64(DRAW_SEED.wrapping_add(turns as u64))
 }
 
+/// Position key for repetition (pieces + side to move; excludes 500-move counter).
+#[inline]
+pub fn repetition_key(state: &GameState) -> u64 {
+    state.hash() ^ draw_key(state.get_turns_without_capture_or_promotion())
+}
+
 /// Full-board Zobrist (source of truth for init / tests).
 pub fn compute(state: &GameState) -> u64 {
     let mut h = side_key(state.get_current_turn());
@@ -126,5 +132,18 @@ mod tests {
         assert_eq!(state.hash(), compute(&state));
         state.set_current_turn(Color::Black);
         assert_eq!(state.hash(), h0);
+    }
+
+    #[test]
+    fn repetition_key_ignores_draw_counter() {
+        let mut state = GameState::new();
+        state.setup_initial_position();
+        let k0 = repetition_key(&state);
+        let h0 = state.hash();
+        state.set_turns_without_capture_or_promotion(42);
+        assert_eq!(repetition_key(&state), k0);
+        assert_ne!(state.hash(), h0);
+        state.set_current_turn(Color::White);
+        assert_ne!(repetition_key(&state), k0);
     }
 }

@@ -370,6 +370,17 @@ fn play_game(agent: &str) {
             }
             return;
         }
+
+        if game_state.is_draw_by_fivefold_repetition() {
+            if let Ok(filename) = history.end_game(GameResult::Draw) {
+                println!(
+                    "Game ended after {} moves. Draw by fivefold repetition. Saved to: {}",
+                    move_number - 1,
+                    filename
+                );
+            }
+            return;
+        }
         
         // Check if game is a draw by insufficient material (only Kings, Crown Princes, Great Generals remain)
         if game_state.is_draw_by_insufficient_material() {

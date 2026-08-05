@@ -161,6 +161,10 @@ pub fn play_one_game(config: &WorkerConfig) -> Result<GameRecordV2, PlayFailure>
             result = Some(GameResult::Draw);
             break;
         }
+        if state.is_draw_by_fivefold_repetition() {
+            result = Some(GameResult::Draw);
+            break;
+        }
         if state.is_draw_by_insufficient_material() {
             result = Some(GameResult::Draw);
             break;

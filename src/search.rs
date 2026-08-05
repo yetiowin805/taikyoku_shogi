@@ -1446,6 +1446,10 @@ fn alphabeta(
     if state.get_winner().is_some() || ctx.timed_out() {
         return evaluate_with_ply(state, weights, ctx.ply);
     }
+    // Revisit on the path → draw (do not probe/store TT).
+    if state.is_repetition_draw_for_search() {
+        return 0;
+    }
     if depth == 0 {
         return leaf_or_quiesce(state, weights, alpha, beta, is_pv, ctx);
     }
@@ -1489,6 +1493,7 @@ fn alphabeta(
         ctx.last_ab_capture_enemy = 0.0;
         ctx.last_ab_to = None;
         state.set_current_turn(prev_turn.opposite());
+        state.push_repetition_key();
         let parent_ply = ctx.ply;
         ctx.ply = parent_ply + 1;
         let null_depth = depth - 1 - r;
@@ -1498,6 +1503,7 @@ fn alphabeta(
             -alphabeta(state, weights, null_depth, -beta, -beta + 1, false, ctx)
         };
         ctx.ply = parent_ply;
+        state.pop_repetition_key();
         state.set_current_turn(prev_turn);
         ctx.last_ab_capture_enemy = saved_enemy;
         ctx.last_ab_to = saved_to;
@@ -1760,6 +1766,9 @@ fn quiesce(
 
     if state.get_winner().is_some() || ctx.timed_out() {
         return evaluate_with_ply(state, weights, ctx.ply);
+    }
+    if state.is_repetition_draw_for_search() {
+        return 0;
     }
 
     let key = position_hash(state);
@@ -4040,6 +4049,56 @@ mod tests {
                 mode_name, r.nodes, r.q_nodes, r.score, best
             );
         }
+    }
+
+    #[test]
+    fn search_prefers_capture_over_repeating_quiet() {
+        let mut state = GameState::new();
+        state.clear_board();
+        let b_from = Position::new(10, 10).unwrap();
+        let b_to = Position::new(10, 11).unwrap();
+        let capture_to = Position::new(11, 10).unwrap();
+        let w_from = Position::new(20, 20).unwrap();
+        let w_to = Position::new(20, 21).unwrap();
+        state.place_piece(Piece::new(PieceType::King, Color::Black, b_from));
+        state.place_piece(Piece::new(PieceType::King, Color::White, w_from));
+        state.place_piece(Piece::new(PieceType::Pawn, Color::White, capture_to));
+        state.set_current_turn(Color::Black);
+        state.reset_rep_history();
+
+        // One full cycle so returning to the quiet intermediate is a 2nd visit.
+        let _ = state.make_move(Move::new(b_from, b_to));
+        let _ = state.make_move(Move::new(w_from, w_to));
+        let _ = state.make_move(Move::new(b_to, b_from));
+        let _ = state.make_move(Move::new(w_to, w_from));
+        assert_eq!(state.get_current_turn(), Color::Black);
+        assert!(state.repetition_count() >= 2);
+
+        let weights = EvalWeights::seed();
+        let result = search(
+            &state,
+            &weights,
+            &SearchConfig {
+                depth: 1,
+                max_time_ms: None,
+                collect_trace: false,
+                quiescence_depth: 0,
+                q_prune_mode: QPruneMode::Baseline,
+            },
+        );
+        let best = result.best_move.expect("move");
+        assert_eq!(
+            best.to, capture_to,
+            "expected capture {:?}, got {:?}",
+            capture_to, best
+        );
+        // Looping quiet should score as draw from the child node.
+        let loop_line = result
+            .root_lines
+            .iter()
+            .find(|(m, _)| m.to == b_to)
+            .expect("loop candidate");
+        assert_eq!(loop_line.1, 0);
     }
 }
 

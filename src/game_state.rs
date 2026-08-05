@@ -75,7 +75,14 @@ pub struct SearchUndo {
     prev_turn: Color,
     prev_draw: u32,
     prev_hash: u64,
+    /// Length of `rep_history` before this move was pushed.
+    prev_rep_len: usize,
 }
+
+/// Occurrences of the same position (pieces + STM) that adjudicate a draw.
+pub const FIVEFOLD_REPETITION: usize = 5;
+/// In search, score as draw once a position has occurred this many times on the path.
+pub const SEARCH_REPETITION_DRAW: usize = 2;
 
 /// Filters for [`GameState::generate_legal_moves_mode`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -98,6 +105,8 @@ pub struct GameState {
     turns_without_capture_or_promotion: u32,  // Counter for draw by 500-move rule
     /// Incremental Zobrist key (see [`crate::zobrist`]).
     hash: u64,
+    /// Repetition keys after each position (including the current one).
+    rep_history: Vec<u64>,
 }
 
 enum ApplyOutcome {
@@ -116,8 +125,10 @@ impl GameState {
             move_history: Vec::new(),
             turns_without_capture_or_promotion: 0,
             hash: 0,
+            rep_history: Vec::new(),
         };
         state.recompute_hash();
+        state.reset_rep_history();
         state
     }
 
@@ -127,8 +138,46 @@ impl GameState {
         self.hash
     }
 
+    /// Pieces + side-to-move key used for fivefold / search repetition.
+    #[inline]
+    pub fn repetition_key(&self) -> u64 {
+        crate::zobrist::repetition_key(self)
+    }
+
     pub fn recompute_hash(&mut self) {
         self.hash = crate::zobrist::compute(self);
+    }
+
+    /// Clear and seed `rep_history` with the current position key.
+    pub fn reset_rep_history(&mut self) {
+        self.rep_history.clear();
+        self.rep_history.push(self.repetition_key());
+    }
+
+    /// Push the current repetition key (after a move or null-move side flip).
+    pub fn push_repetition_key(&mut self) {
+        self.rep_history.push(self.repetition_key());
+    }
+
+    /// Pop the last repetition key (search unmake / null-move undo).
+    pub fn pop_repetition_key(&mut self) {
+        self.rep_history.pop();
+    }
+
+    /// How many times the current position key appears in `rep_history`.
+    pub fn repetition_count(&self) -> usize {
+        let key = self.repetition_key();
+        self.rep_history.iter().filter(|&&k| k == key).count()
+    }
+
+    /// Draw when the same position (pieces + STM) has occurred five times.
+    pub fn is_draw_by_fivefold_repetition(&self) -> bool {
+        self.repetition_count() >= FIVEFOLD_REPETITION
+    }
+
+    /// Search: treat as draw once this position has occurred twice on the path.
+    pub fn is_repetition_draw_for_search(&self) -> bool {
+        self.repetition_count() >= SEARCH_REPETITION_DRAW
     }
 
     pub fn get_board(&self) -> &Board {
@@ -156,6 +205,7 @@ impl GameState {
     pub fn place_piece(&mut self, piece: Piece) {
         self.board.place_piece(piece);
         self.recompute_hash();
+        self.reset_rep_history();
     }
 
     /// Remove a piece from the board, if any
@@ -164,6 +214,7 @@ impl GameState {
         if piece.is_some() {
             self.board.remove_piece(pos);
             self.recompute_hash();
+            self.reset_rep_history();
         }
         piece
     }
@@ -172,6 +223,7 @@ impl GameState {
     pub fn clear_board(&mut self) {
         self.board = Board::new();
         self.recompute_hash();
+        self.reset_rep_history();
     }
 
     pub fn get_turns_without_capture_or_promotion(&self) -> u32 {
@@ -194,6 +246,7 @@ impl GameState {
         self.move_history.clear();
         self.turns_without_capture_or_promotion = draw_counter;
         self.recompute_hash();
+        self.reset_rep_history();
     }
 
     /// Mirror a position across both axes (for White setup)
@@ -676,6 +729,7 @@ impl GameState {
             self.place_piece_mirrored(PieceType::GoBetween, *file, 11);
         }
         self.recompute_hash();
+        self.reset_rep_history();
     }
 
     /// Generate all legal moves for the current player
@@ -1123,6 +1177,7 @@ impl GameState {
             ApplyOutcome::Failed => None,
             ApplyOutcome::Ok { intermediate, .. } => {
                 self.recompute_hash();
+                self.push_repetition_key();
                 intermediate
             }
         }
@@ -1139,6 +1194,7 @@ impl GameState {
         let prev_hash = self.hash;
         let prev_turn = self.current_turn;
         let prev_draw = self.turns_without_capture_or_promotion;
+        let prev_rep_len = self.rep_history.len();
         let original_mover = self.board.get_piece(mv.from)?;
         let from = mv.from;
         let mut removed = Vec::new();
@@ -1162,6 +1218,7 @@ impl GameState {
         h ^= crate::zobrist::side_key(self.current_turn);
         h ^= crate::zobrist::draw_key(self.turns_without_capture_or_promotion);
         self.hash = h;
+        self.push_repetition_key();
 
         Some(SearchUndo {
             from,
@@ -1171,6 +1228,7 @@ impl GameState {
             prev_turn,
             prev_draw,
             prev_hash,
+            prev_rep_len,
         })
     }
 
@@ -1184,6 +1242,7 @@ impl GameState {
         self.current_turn = undo.prev_turn;
         self.turns_without_capture_or_promotion = undo.prev_draw;
         self.hash = undo.prev_hash;
+        self.rep_history.truncate(undo.prev_rep_len);
     }
 
     fn apply_move(
@@ -1477,9 +1536,11 @@ impl GameState {
             move_history: Vec::new(), // Don't copy history for attack checking
             turns_without_capture_or_promotion: self.turns_without_capture_or_promotion, // Preserve counter
             hash: self.hash,
+            rep_history: Vec::new(),
         };
         state.hash ^= crate::zobrist::side_key(self.current_turn);
         state.hash ^= crate::zobrist::side_key(state.current_turn);
+        state.reset_rep_history();
         state
     }
 
@@ -2020,6 +2081,57 @@ mod tests {
         assert_eq!(piece.piece_type, PieceType::Peacock);
         assert!(state.board.is_empty(from));
         assert!(state.board.is_empty(mid));
+    }
+
+    #[test]
+    fn fivefold_repetition_draw_after_five_occurrences() {
+        let mut state = GameState::new();
+        state.clear_board();
+        let b_from = Position::new(10, 10).unwrap();
+        let b_to = Position::new(10, 11).unwrap();
+        let w_from = Position::new(20, 20).unwrap();
+        let w_to = Position::new(20, 21).unwrap();
+        state.place_piece(Piece::new(PieceType::King, Color::Black, b_from));
+        state.place_piece(Piece::new(PieceType::King, Color::White, w_from));
+        state.set_current_turn(Color::Black);
+        state.reset_rep_history();
+        assert_eq!(state.repetition_count(), 1);
+        assert!(!state.is_draw_by_fivefold_repetition());
+
+        let play_cycle = |state: &mut GameState| {
+            let t0 = state.get_current_turn();
+            let _ = state.make_move(Move::new(b_from, b_to));
+            assert_ne!(state.get_current_turn(), t0, "black out");
+            let _ = state.make_move(Move::new(w_from, w_to));
+            let _ = state.make_move(Move::new(b_to, b_from));
+            let _ = state.make_move(Move::new(w_to, w_from));
+            assert_eq!(state.get_current_turn(), Color::Black);
+        };
+
+        // After reset, count=1 at start. Each full cycle returns to start.
+        for n in 2..=4 {
+            play_cycle(&mut state);
+            assert_eq!(state.repetition_count(), n, "occurrence {}", n);
+            assert!(!state.is_draw_by_fivefold_repetition());
+        }
+        play_cycle(&mut state);
+        assert_eq!(state.repetition_count(), 5);
+        assert!(state.is_draw_by_fivefold_repetition());
+    }
+
+    #[test]
+    fn make_unmake_restores_rep_history() {
+        let mut state = GameState::new();
+        state.setup_initial_position();
+        let before_len = state.rep_history.len();
+        let before_key = state.repetition_key();
+        let mv = state.generate_legal_moves()[0].clone();
+        let undo = state.make_move_for_search(mv).expect("legal");
+        assert_eq!(state.rep_history.len(), before_len + 1);
+        state.unmake_move_for_search(undo);
+        assert_eq!(state.rep_history.len(), before_len);
+        assert_eq!(state.repetition_key(), before_key);
+        assert_eq!(state.repetition_count(), 1);
     }
 }
 
