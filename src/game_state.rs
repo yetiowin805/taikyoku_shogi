@@ -102,7 +102,7 @@ pub struct GameState {
     board: Board,
     current_turn: Color,
     move_history: Vec<Move>,
-    turns_without_capture_or_promotion: u32,  // Counter for draw by 500-move rule
+    turns_without_capture_or_promotion: u32, // 500-move: resets on capture/promo/irreversible
     /// Incremental Zobrist key (see [`crate::zobrist`]).
     hash: u64,
     /// Repetition keys after each position (including the current one).
@@ -1327,7 +1327,12 @@ impl GameState {
                 return ApplyOutcome::Failed;
             }
 
-            if first_capture || second_capture || second_promotion {
+            if first_capture
+                || second_capture
+                || second_promotion
+                || crate::movement::move_is_directionally_irreversible(&piece, mv.from, intermediate)
+                || crate::movement::move_is_directionally_irreversible(&piece, intermediate, mv.to)
+            {
                 self.turns_without_capture_or_promotion = 0;
             } else {
                 self.turns_without_capture_or_promotion += 1;
@@ -1391,7 +1396,10 @@ impl GameState {
                 }
             }
 
-            if had_capture || had_promotion {
+            if had_capture
+                || had_promotion
+                || crate::movement::path_has_irreversible_leg(&piece, path)
+            {
                 self.turns_without_capture_or_promotion = 0;
             } else {
                 self.turns_without_capture_or_promotion += 1;
@@ -1412,7 +1420,10 @@ impl GameState {
             return ApplyOutcome::Failed;
         }
 
-        if had_capture || had_promotion {
+        if had_capture
+            || had_promotion
+            || crate::movement::move_is_directionally_irreversible(&piece, mv.from, mv.to)
+        {
             self.turns_without_capture_or_promotion = 0;
         } else {
             self.turns_without_capture_or_promotion += 1;
@@ -1565,8 +1576,8 @@ impl GameState {
         )
     }
     
-    /// Check if the game should be adjudicated as a draw by 500-move rule
-    /// Draw occurs when no capture or promotion has happened for 500 consecutive turns
+    /// Draw when 500 consecutive turns had no irreversible progress
+    /// (capture, promotion, or a one-way directional / jump move).
     pub fn is_draw_by_500_move_rule(&self) -> bool {
         self.turns_without_capture_or_promotion >= 500
     }

@@ -16,6 +16,20 @@ pub enum Direction {
 pub type DirectionSet = u8;
 
 impl Direction {
+    /// Opposite direction on the board (N↔S, NE↔SW, E↔W, NW↔SE).
+    pub fn opposite(self) -> Direction {
+        match self {
+            Direction::N => Direction::S,
+            Direction::NE => Direction::SW,
+            Direction::E => Direction::W,
+            Direction::SE => Direction::NW,
+            Direction::S => Direction::N,
+            Direction::SW => Direction::NE,
+            Direction::W => Direction::E,
+            Direction::NW => Direction::SE,
+        }
+    }
+
     /// Convert direction to (file_delta, rank_delta) offset
     pub fn to_offset(&self) -> (i8, i8) {
         match self {

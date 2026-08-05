@@ -385,7 +385,7 @@ impl MovementGenerator {
 
     /// Adjust directions for piece color (for pawn and gold general)
     /// Black moves "up" (increasing rank), White moves "down" (decreasing rank)
-    fn adjust_directions_for_color(directions: DirectionSet, color: Color) -> DirectionSet {
+    pub(crate) fn adjust_directions_for_color(directions: DirectionSet, color: Color) -> DirectionSet {
         if color == Color::Black {
             // No adjustment needed for Black (N is forward)
             directions
