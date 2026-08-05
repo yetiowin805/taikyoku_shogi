@@ -5,6 +5,7 @@ use crate::game_history::GameResult;
 use crate::game_state::GameState;
 use crate::piece::Color;
 use crate::player::{player_by_name_with_options, AgentOptions, Player};
+use crate::training::pool::StartsSource;
 use crate::training::record::{
     move_to_record, AgentSpec, GameRecordV2, GameStart, GameStats, FORMAT_VERSION,
 };
@@ -323,7 +324,7 @@ impl BatchSummary {
 #[derive(Debug, Clone)]
 pub struct BatchConfig {
     pub games: usize,
-    pub starts: Vec<GameStart>,
+    pub starts: StartsSource,
     pub outdir: String,
     pub seed_base: u64,
     pub black: AgentSpec,
@@ -350,7 +351,7 @@ pub fn run_batch(cfg: &BatchConfig) -> Result<BatchOutcome, String> {
     if cfg.games == 0 {
         return Ok(BatchOutcome::default());
     }
-    if cfg.starts.is_empty() {
+    if matches!(&cfg.starts, StartsSource::Fixed(s) if s.is_empty()) {
         return Err("run_batch: no starts".into());
     }
     std::fs::create_dir_all(&cfg.outdir).map_err(|e| format!("outdir: {}", e))?;
@@ -384,12 +385,20 @@ pub fn run_batch(cfg: &BatchConfig) -> Result<BatchOutcome, String> {
                     *n += 1;
                     g
                 };
-                let start = cfg.starts[g % cfg.starts.len()].clone();
+                let seed = cfg.seed_base.wrapping_add(g as u64);
+                let start = match cfg.starts.start_for_game(g, seed) {
+                    Ok(s) => s,
+                    Err(e) => {
+                        errors.lock().unwrap().push(e);
+                        *failed.lock().unwrap() += 1;
+                        continue;
+                    }
+                };
                 let worker_cfg = WorkerConfig {
                     black: cfg.black.clone(),
                     white: cfg.white.clone(),
                     start,
-                    seed: cfg.seed_base.wrapping_add(g as u64),
+                    seed,
                     max_moves: cfg.max_moves,
                     verbose: cfg.verbose && jobs == 1,
                 };
