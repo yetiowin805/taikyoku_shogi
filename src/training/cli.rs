@@ -22,20 +22,21 @@ pub fn print_training_usage() {
     println!("Training / Texel pipeline:");
     println!("  worker run   --black AGENT --white AGENT [--model PATH] [--depth N]");
     println!("               [--start opening|PATH] [--seed S] [--out PATH] [--verbose]");
-    println!("  worker batch --games N [--starts DIR|opening|random|random:N] [--outdir DIR] [--seed-base S]");
+    println!("  worker batch --games N [--starts DIR|opening|random] [--outdir DIR] [--seed-base S]");
     println!("               [--black AGENT] [--white AGENT] [--model PATH] [--depth N] [--jobs J]");
-    println!("  worker daemon [--batch N] [--jobs J] [--starts DIR|opening|random|…] [--outdir DIR] [--seed-base S]");
+    println!("  worker daemon [--batch N] [--jobs J] [--starts DIR|opening|random] [--outdir DIR] [--seed-base S]");
     println!("                [--black AGENT] [--white AGENT] [--model PATH] [--depth N]");
     println!("                [--status PATH] [--sleep-secs N]   (SIGTERM drains current batch)");
-    println!("  pool generate [--agent AGENT] [--until-move N] [--count K] [--noise F]");
-    println!("                [--seed-base S] [--outdir DIR]");
+    println!("  pool generate [--count K] [--seed-base S] [--outdir DIR]");
+    println!("                [--from-play] [--agent AGENT] [--until-move N] [--noise F]");
+    println!("                (default: Fischer shuffle+ablations; --from-play = legacy midgame)");
     println!("  featurize [--games-dir DIR] [--out DIR] [--stride N] [--all-positions]");
     println!("  mobility-seed [--samples N] [--seed S] [--starts DIR] [--out PATH]");
     println!("  texel-fit [--features DIR] [--out PATH] [--iters N] [--lr F]");
     println!("  match --a AGENT --b AGENT [--starts DIR] [--games N] [--outdir DIR] [--seed-base S]");
     println!();
     println!("  Agents: mi, random, royal, ab");
-    println!("  Starts: opening | random[:plies[:noise]] | DIR of pool JSON");
+    println!("  Starts: opening | random (=fischer shuffle+ablations) | DIR of pool JSON");
     println!(
         "  Data layout: {} / {} / {} / {}",
         paths::RAW_GAMES,
@@ -602,6 +603,11 @@ pub fn cmd_pool(args: &[String]) -> Result<(), String> {
     let mut cfg = PoolGenerateConfig::default();
     let mut i = 3;
     while i < args.len() {
+        if args[i] == "--from-play" {
+            cfg.from_play = true;
+            i += 1;
+            continue;
+        }
         if let Some(v) = take_flag_value(args, &mut i, "--agent")? {
             cfg.agent = AgentSpec::new(v);
             continue;
@@ -637,7 +643,15 @@ pub fn cmd_pool(args: &[String]) -> Result<(), String> {
         return Err(format!("Unknown flag {}", args[i]));
     }
     let ids = generate_pool(&cfg)?;
-    println!("Wrote {} starts to {}", ids.len(), cfg.outdir);
+    if cfg.from_play {
+        println!("Wrote {} from-play starts to {}", ids.len(), cfg.outdir);
+    } else {
+        println!(
+            "Wrote {} fischer starts (+ *.recipe.json) to {}",
+            ids.len(),
+            cfg.outdir
+        );
+    }
     Ok(())
 }
 
