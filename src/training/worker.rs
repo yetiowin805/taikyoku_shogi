@@ -9,6 +9,8 @@ use crate::training::pool::StartsSource;
 use crate::training::record::{
     move_to_record, AgentSpec, GameRecordV2, GameStart, GameStats, FORMAT_VERSION,
 };
+use rand::rngs::OsRng;
+use rand::RngCore;
 use std::path::Path;
 use std::time::Instant;
 
@@ -330,6 +332,7 @@ pub struct BatchConfig {
     pub games: usize,
     pub starts: StartsSource,
     pub outdir: String,
+    /// When `0`, each game draws a fresh seed from OS entropy; otherwise `seed_base + g`.
     pub seed_base: u64,
     pub black: AgentSpec,
     pub white: AgentSpec,
@@ -346,6 +349,16 @@ pub struct BatchOutcome {
     pub games_ok: usize,
     pub games_failed: usize,
     pub partials_saved: usize,
+}
+
+/// Resolve the RNG seed for game index `g`.
+/// `seed_base == 0` → fresh OS entropy; otherwise `seed_base + g` (deterministic).
+pub fn game_seed(seed_base: u64, g: usize) -> u64 {
+    if seed_base == 0 {
+        OsRng.next_u64()
+    } else {
+        seed_base.wrapping_add(g as u64)
+    }
 }
 
 /// Play `cfg.games` self-play games in parallel into `cfg.outdir`.
@@ -389,7 +402,7 @@ pub fn run_batch(cfg: &BatchConfig) -> Result<BatchOutcome, String> {
                     *n += 1;
                     g
                 };
-                let seed = cfg.seed_base.wrapping_add(g as u64);
+                let seed = game_seed(cfg.seed_base, g);
                 let start = match cfg.starts.start_for_game(g, seed) {
                     Ok(s) => s,
                     Err(e) => {
@@ -458,4 +471,27 @@ pub fn run_batch(cfg: &BatchConfig) -> Result<BatchOutcome, String> {
         summary,
         partials_saved: partials.into_inner().unwrap(),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::game_seed;
+
+    #[test]
+    fn deterministic_seed_base_plus_index() {
+        assert_eq!(game_seed(100, 0), 100);
+        assert_eq!(game_seed(100, 7), 107);
+    }
+
+    #[test]
+    fn zero_seed_base_draws_os_entropy() {
+        let samples: Vec<u64> = (0..8).map(|g| game_seed(0, g)).collect();
+        // Not the old deterministic 0..7 sequence.
+        assert_ne!(samples, vec![0, 1, 2, 3, 4, 5, 6, 7]);
+        // Distinct draws (collision across 8 OS samples is negligible).
+        let mut uniq = samples.clone();
+        uniq.sort_unstable();
+        uniq.dedup();
+        assert_eq!(uniq.len(), samples.len());
+    }
 }

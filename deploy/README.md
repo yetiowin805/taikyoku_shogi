@@ -20,8 +20,9 @@ Run self-play on a cheap Linux VPS (Hetzner first), accumulate games under `data
 4. Clone this repo into `/opt/taikyoku_shogi`, `cargo build --release`.
 5. Ensure `models/ab-seed.json` (or your current model) is present; set `MODEL=` in the env file if needed.
 6. Set `STARTS=random` (Fischer mirrored rank shuffle + powerful/royal ablations, fresh each game). Or `pool generate --count 128` and `STARTS=data/raw/starts`.
-7. Install systemd unit + env (below); `systemctl enable --now taikyoku-worker`.
-8. Calibrate: one short batch with `--jobs` equal to vCPUs, note wall time → games/hour.
+7. Set `SEED_BASE=0` for per-game OS-random seeds (default in the example env). Use a positive `SEED_BASE` only when you need a reproducible `N+index` sequence.
+8. Install systemd unit + env (below); `systemctl enable --now taikyoku-worker`.
+9. Calibrate: one short batch with `--jobs` equal to vCPUs, note wall time → games/hour.
 
 ## Install systemd
 

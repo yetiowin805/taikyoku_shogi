@@ -27,6 +27,7 @@ pub fn print_training_usage() {
     println!("  worker daemon [--batch N] [--jobs J] [--starts DIR|opening|random] [--outdir DIR] [--seed-base S]");
     println!("                [--black AGENT] [--white AGENT] [--model PATH] [--depth N]");
     println!("                [--status PATH] [--sleep-secs N]   (SIGTERM drains current batch)");
+    println!("  (--seed-base 0 = per-game OS entropy; N>0 = deterministic N+index)");
     println!("  pool generate [--count K] [--seed-base S] [--outdir DIR]");
     println!("                [--from-play] [--agent AGENT] [--until-move N] [--noise F]");
     println!("                (default: Fischer shuffle+ablations; --from-play = legacy midgame)");
@@ -355,7 +356,7 @@ fn cmd_worker_daemon(args: &[String]) -> Result<(), String> {
     let mut jobs = env_usize("JOBS", 4)?.max(1);
     let mut starts_spec = env_or("STARTS", paths::RAW_STARTS);
     let mut outdir = env_or("OUTDIR", paths::RAW_GAMES);
-    let mut seed_base = env_u64("SEED_BASE", 1)?;
+    let mut seed_base = env_u64("SEED_BASE", 0)?;
     let mut black = env_or("BLACK", "ab");
     let mut white = env_or("WHITE", "ab");
     let mut depth = env_u32_opt("DEPTH")?;
@@ -510,12 +511,17 @@ fn cmd_worker_daemon(args: &[String]) -> Result<(), String> {
         next_seed,
     )?;
     println!(
-        "worker daemon: batch={} jobs={} starts={} outdir={} status={}",
+        "worker daemon: batch={} jobs={} starts={} outdir={} status={} seeds={}",
         batch,
         jobs,
         starts_spec,
         outdir,
-        status_path.display()
+        status_path.display(),
+        if seed_base == 0 {
+            "os-random".to_string()
+        } else {
+            format!("base={}", seed_base)
+        }
     );
 
     loop {
@@ -547,7 +553,11 @@ fn cmd_worker_daemon(args: &[String]) -> Result<(), String> {
         if outcome.last_game_id.is_some() {
             last_game_id = outcome.last_game_id;
         }
-        next_seed = next_seed.wrapping_add(batch as u64);
+        next_seed = if seed_base == 0 {
+            0
+        } else {
+            next_seed.wrapping_add(batch as u64)
+        };
         outcome.summary.print();
         if outcome.partials_saved > 0 {
             println!(
