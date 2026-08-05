@@ -19,7 +19,7 @@ Run self-play on a cheap Linux VPS (Hetzner first), accumulate games under `data
 3. Install a Rust toolchain (`rustup`) **or** copy a release binary built on matching arch.
 4. Clone this repo into `/opt/taikyoku_shogi`, `cargo build --release`.
 5. Ensure `models/ab-seed.json` (or your current model) is present; set `MODEL=` in the env file if needed.
-6. Set `STARTS=random` in the env file (fresh random playout per game; optional `random:300` / `random:300:0.1`). Or `pool generate --count 128` and `STARTS=data/raw/starts`.
+6. Set `STARTS=random` (Fischer mirrored rank shuffle + powerful/royal ablations, fresh each game). Or `pool generate --count 128` and `STARTS=data/raw/starts`.
 7. Install systemd unit + env (below); `systemctl enable --now taikyoku-worker`.
 8. Calibrate: one short batch with `--jobs` equal to vCPUs, note wall time → games/hour.
 
