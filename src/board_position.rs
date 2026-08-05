@@ -39,6 +39,7 @@ impl BoardPosition {
         state.set_current_turn(self.turn);
         state.set_turns_without_capture_or_promotion(self.draw_counter);
         state.recompute_hash();
+        state.reset_rep_history();
         state
     }
 

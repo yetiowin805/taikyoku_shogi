@@ -147,6 +147,7 @@ pub fn generate_one_play_start(
     while move_number <= cfg.until_move {
         if state.get_winner().is_some()
             || state.is_draw_by_500_move_rule()
+            || state.is_draw_by_fivefold_repetition()
             || state.is_draw_by_insufficient_material()
         {
             break;

@@ -323,6 +323,9 @@ impl DebugTool {
         if self.game_state.is_draw_by_500_move_rule() {
             lines.push("Draw: 500-move rule".to_string());
         }
+        if self.game_state.is_draw_by_fivefold_repetition() {
+            lines.push("Draw: fivefold repetition".to_string());
+        }
         if self.game_state.is_draw_by_insufficient_material() {
             lines.push("Draw: insufficient material".to_string());
         }
@@ -398,6 +401,7 @@ impl DebugTool {
             Some(Color::Black) => Some(GameResult::BlackWins),
             Some(Color::White) => Some(GameResult::WhiteWins),
             None if self.game_state.is_draw_by_500_move_rule()
+                || self.game_state.is_draw_by_fivefold_repetition()
                 || self.game_state.is_draw_by_insufficient_material() =>
             {
                 Some(GameResult::Draw)
@@ -480,6 +484,7 @@ impl DebugTool {
                 Some(Color::Black) => Some(GameResult::BlackWins),
                 Some(Color::White) => Some(GameResult::WhiteWins),
                 None if self.game_state.is_draw_by_500_move_rule()
+                    || self.game_state.is_draw_by_fivefold_repetition()
                     || self.game_state.is_draw_by_insufficient_material() =>
                 {
                     Some(GameResult::Draw)
