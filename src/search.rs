@@ -594,8 +594,16 @@ fn net_below_hang_frac(enemy: f32, own: f32, mover_value: f32) -> bool {
 /// True when a capture hangs a high-value mover and should be skipped in AB.
 ///
 /// Conditions: mover value ≥ [`HIGH_VALUE_HANGER`], net below [`HANG_NET_FRAC`] of
-/// mover, and landing attacked. PathClear/MultiLeg use post-fire attack when
-/// `postfire_pathclear_hang` (root); interior uses the cheap pre-move check.
+/// mover, and landing attacked.
+///
+/// `SimpleTake`: cheap pre-move landing attack.
+/// `PathClear` / `MultiLeg`: cheap pre-move first; only if that looks hanging,
+/// confirm with post-fire simulation. Captured path pieces often "defend" the
+/// landing pre-move and vanish after the clear — skipping the confirm false-prunes
+/// free takes (e.g. GG path-clearing a Hook Mover then landing safely).
+///
+/// `postfire_pathclear_hang`: when true, PathClear/MultiLeg go straight to post-fire
+/// (root). When false, use confirm-on-prune (interior).
 fn capture_hangs_high_value_piece(
     state: &GameState,
     weights: &EvalWeights,
@@ -617,12 +625,17 @@ fn capture_hangs_high_value_piece(
     }
     let opponent = state.get_current_turn().opposite();
     match kind {
-        CaptureKind::PathClear | CaptureKind::MultiLeg if postfire_pathclear_hang => {
+        CaptureKind::SimpleTake => {
+            landing_attacked_cached(board, mv.to, opponent, attack_cache)
+        }
+        CaptureKind::PathClear | CaptureKind::MultiLeg => {
+            if !postfire_pathclear_hang
+                && !landing_attacked_cached(board, mv.to, opponent, attack_cache)
+            {
+                return false;
+            }
             let vb = crate::move_simulation::simulate_move(board, mv, &mover);
             vb.is_position_attacked_by_color(mv.to, opponent)
-        }
-        CaptureKind::PathClear | CaptureKind::MultiLeg | CaptureKind::SimpleTake => {
-            landing_attacked_cached(board, mv.to, opponent, attack_cache)
         }
     }
 }
@@ -676,9 +689,9 @@ fn mvv_lva_score(state: &GameState, weights: &EvalWeights, mv: &Move) -> i32 {
 /// Move-ordering score (heuristic only — not search correctness).
 ///
 /// Captures: `gain = enemy - own`. SimpleTake uses a cheap pre-move landing
-/// attack cache. When `postfire_pathclear_hang` is set, PathClear / MultiLeg
-/// use post-fire simulation if net gain is below [`HANG_NET_FRAC`] of mover
-/// (root ordering); interior keeps the cheap pre-move check. LVA: `gain*1000 - mover`.
+/// attack cache. PathClear / MultiLeg use confirm-on-prune (cheap pre-move, then
+/// post-fire if that looks hanging). When `postfire_pathclear_hang` is set, those
+/// kinds go straight to post-fire (root). LVA: `gain*1000 - mover`.
 fn move_order_score(
     state: &GameState,
     weights: &EvalWeights,
@@ -700,12 +713,19 @@ fn move_order_score(
     let mut gain = enemy - own;
     let hanging = if net_below_hang_frac(enemy, own, mover_value) {
         match kind {
-            CaptureKind::PathClear | CaptureKind::MultiLeg if postfire_pathclear_hang => {
-                let vb = crate::move_simulation::simulate_move(board, mv, &mover);
-                vb.is_position_attacked_by_color(mv.to, opponent)
-            }
-            CaptureKind::PathClear | CaptureKind::MultiLeg | CaptureKind::SimpleTake => {
+            CaptureKind::SimpleTake => {
                 landing_attacked_cached(board, mv.to, opponent, attack_cache)
+            }
+            CaptureKind::PathClear | CaptureKind::MultiLeg => {
+                // Same confirm-on-prune as [`capture_hangs_high_value_piece`].
+                if !postfire_pathclear_hang
+                    && !landing_attacked_cached(board, mv.to, opponent, attack_cache)
+                {
+                    false
+                } else {
+                    let vb = crate::move_simulation::simulate_move(board, mv, &mover);
+                    vb.is_position_attacked_by_color(mv.to, opponent)
+                }
             }
         }
     } else {
@@ -2033,14 +2053,11 @@ fn quiesce(
         let mv_key = move_tt_key(&c.mv);
         let mv = c.mv;
 
-        // Pre-make hang skip: poor net + landing already attacked — avoid make/unmake.
-        // SimpleTake is usually safe to judge pre-move; PathClear/MultiLeg too when
-        // defenders are not cleared by the capture itself (post-make still checks those).
+        // Pre-make hang skip for SimpleTake only. PathClear/MultiLeg often look
+        // attacked pre-move only because a path victim "defends" the landing; those
+        // go through make + post-fire check below.
         if path_aware
-            && matches!(
-                kind,
-                CaptureKind::SimpleTake | CaptureKind::PathClear | CaptureKind::MultiLeg
-            )
+            && matches!(kind, CaptureKind::SimpleTake)
             && net_below_hang_frac(enemy, own, mover_value)
             && state
                 .get_board()
@@ -2416,8 +2433,8 @@ fn order_moves(state: &GameState, weights: &EvalWeights, moves: &mut [Move]) {
 
 /// Main-search ordering: captures (hang/MVV) then killers then history for quiets.
 ///
-/// `postfire_pathclear_hang`: use simulate_move for PathClear hang (root only —
-/// too expensive on every interior node).
+/// `postfire_pathclear_hang`: PathClear/MultiLeg hang uses post-fire directly when
+/// true (root); interior uses confirm-on-prune (cheap pre-move, sim only if needed).
 fn order_moves_with_heuristics(
     state: &GameState,
     weights: &EvalWeights,
@@ -3652,6 +3669,100 @@ mod tests {
             result.best_move.as_ref().map(|m| (m.from, m.to)),
             Some((guarded.from, guarded.to)),
             "depth-1 must not pick the hanging GG capture"
+        );
+    }
+
+    #[test]
+    fn ab_hang_interior_keeps_pathclear_when_victim_was_sole_defender() {
+        // GG path-clears a Hook Mover then lands past it. Pre-move the landing looks
+        // attacked by the HM; post-fire it is safe. Interior confirm-on-prune must
+        // not skip the take (the ply-71 false positive).
+        let mut weights = EvalWeights::seed();
+        weights.noise_scale = 0.0;
+        weights.rebuild_piece_value_table();
+        assert!(weights.piece_value(PieceType::GreatGeneral) >= HIGH_VALUE_HANGER);
+        assert!(weights.piece_value(PieceType::HookMover) >= HIGH_VALUE_HANGER);
+
+        let mut state = GameState::new();
+        state.place_piece(Piece::new(
+            PieceType::King,
+            Color::Black,
+            Position::new(0, 0).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::King,
+            Color::White,
+            Position::new(35, 35).unwrap(),
+        ));
+        // Black GG on file 10; White HM between GG and a farther empty landing.
+        state.place_piece(Piece::new(
+            PieceType::GreatGeneral,
+            Color::Black,
+            Position::new(10, 30).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::HookMover,
+            Color::White,
+            Position::new(10, 20).unwrap(),
+        ));
+        state.set_current_turn(Color::Black);
+
+        let past_hm = Move::new(
+            Position::new(10, 30).unwrap(),
+            Position::new(10, 15).unwrap(),
+        );
+        assert!(
+            move_captures_enemy(&state, &past_hm),
+            "GG must path-clear the HM"
+        );
+        let (enemy, _own, kind) = capture_exchange_kind(&state, &weights, &past_hm);
+        assert_eq!(kind, CaptureKind::PathClear);
+        assert!(enemy >= weights.piece_value(PieceType::HookMover) - 1.0);
+
+        let board = state.get_board();
+        assert!(
+            board.is_position_attacked_by_color(past_hm.to, Color::White),
+            "pre-move: HM attacks the landing"
+        );
+        let gg = board.get_piece(past_hm.from).unwrap();
+        let vb = crate::move_simulation::simulate_move(board, &past_hm, &gg);
+        assert!(
+            !vb.is_position_attacked_by_color(past_hm.to, Color::White),
+            "post-fire: landing safe once HM is gone"
+        );
+
+        let mut cache = HashMap::new();
+        assert!(
+            !capture_hangs_high_value_piece(&state, &weights, &past_hm, false, &mut cache),
+            "interior hang prune must not skip path-clear past a defending victim"
+        );
+        assert!(
+            !capture_hangs_high_value_piece(&state, &weights, &past_hm, true, &mut cache),
+            "root post-fire hang prune must also keep the safe path-clear"
+        );
+
+        // Depth-2 from White-to-move after hanging the HM on this file should prefer
+        // not leaving it there — at least score the take in Black's reply.
+        // Flip: White just moved HM onto the file; Black to move is covered above.
+        // From Black's seat at d1, the take should be chosen.
+        let result = search(
+            &state,
+            &weights,
+            &SearchConfig {
+                depth: 1,
+                max_time_ms: None,
+                collect_trace: false,
+                quiescence_depth: 0,
+                q_prune_mode: QPruneMode::PathAware,
+            },
+        );
+        let best = result.best_move.expect("GG should have a move");
+        assert_eq!(best.from, past_hm.from);
+        assert!(
+            move_captures_enemy(&state, &best),
+            "depth-1 should take the hung HM via path-clear, got {:?}→{:?}",
+            best.from,
+            best.to
         );
     }
 
