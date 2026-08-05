@@ -122,7 +122,8 @@ pub fn run_matches(cfg: &MatchConfig) -> Result<MatchScoreboard, String> {
             seed: seed1,
             max_moves: cfg.max_moves,
             verbose: cfg.verbose,
-        })?;
+        })
+        .map_err(|e| e.message)?;
         let path1 = Path::new(&cfg.outdir).join(format!("{}-a-black.json", rec1.game_id));
         rec1.save_path(&path1)?;
         summary.record(&rec1.result, rec1.stats.move_count);
@@ -142,7 +143,8 @@ pub fn run_matches(cfg: &MatchConfig) -> Result<MatchScoreboard, String> {
             seed: seed2,
             max_moves: cfg.max_moves,
             verbose: cfg.verbose,
-        })?;
+        })
+        .map_err(|e| e.message)?;
         let path2 = Path::new(&cfg.outdir).join(format!("{}-a-white.json", rec2.game_id));
         rec2.save_path(&path2)?;
         summary.record(&rec2.result, rec2.stats.move_count);

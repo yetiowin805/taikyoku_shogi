@@ -504,6 +504,7 @@ impl DebugTool {
                     elapsed_ms: None,
                 },
                 timestamp,
+                abort_reason: None,
             };
             let path = match filename {
                 Some(name) => {

@@ -59,7 +59,9 @@ cat data/run/status.json
 # games_completed, games_failed, last_game_id, disk_free_gb, config, running
 ```
 
-Count games: `ls data/raw/games/*.json 2>/dev/null | wc -l`
+Count finished games: `ls data/raw/games/*.json 2>/dev/null | wc -l`
+
+Aborted mid-game runs (e.g. illegal/`make_move` failures) are written under **`data/raw/games/partial/`** as the same `GameRecordV2` JSON with `abort_reason` set and moves played so far — useful for GUI/`game tsfen-moves` inspection.
 
 ### GUI via SSH tunnel (recommended)
 

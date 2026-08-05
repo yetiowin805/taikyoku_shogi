@@ -198,7 +198,7 @@ fn cmd_worker_run(args: &[String]) -> Result<(), String> {
         max_moves,
         verbose,
     };
-    let record = play_one_game(&cfg)?;
+    let record = play_one_game(&cfg).map_err(|e| e.message)?;
     let path = out.unwrap_or_else(|| paths::game_path(&record.game_id));
     record.save_path(&path)?;
     println!(
@@ -280,6 +280,7 @@ fn cmd_worker_batch(args: &[String]) -> Result<(), String> {
     }
 
     let starts = load_game_starts(&starts_spec)?;
+    let outdir_label = outdir.clone();
     let outcome = run_batch(&BatchConfig {
         games,
         starts,
@@ -295,6 +296,12 @@ fn cmd_worker_batch(args: &[String]) -> Result<(), String> {
         eprintln!("{}", e);
     }
     outcome.summary.print();
+    if outcome.partials_saved > 0 {
+        println!(
+            "Saved {} partial game(s) under {}/partial/",
+            outcome.partials_saved, outdir_label
+        );
+    }
     Ok(())
 }
 
@@ -554,6 +561,12 @@ fn cmd_worker_daemon(args: &[String]) -> Result<(), String> {
         }
         next_seed = next_seed.wrapping_add(batch as u64);
         outcome.summary.print();
+        if outcome.partials_saved > 0 {
+            println!(
+                "Saved {} partial(s) under {}/partial/",
+                outcome.partials_saved, outdir
+            );
+        }
 
         write_status(
             true,

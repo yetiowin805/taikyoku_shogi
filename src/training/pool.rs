@@ -137,7 +137,8 @@ pub fn snapshot_via_worker(
         seed,
         max_moves: until_move,
         verbose: false,
-    })?;
+    })
+    .map_err(|e| e.message)?;
     let state = crate::training::worker::replay_to_end(&record)?;
     Ok(BoardPosition::from_state(&state))
 }
