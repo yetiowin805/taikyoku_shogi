@@ -440,6 +440,15 @@
     ],
     "noise_scale": 1.0,
     "mate_score": 1000000,
-    "weight_seed": 2702960545
+    "weight_seed": 2702960545,
+    "eg_tropism_scale": 1.5,
+    "eg_tropism_cap": 0.0,
+    "eg_density_n": 20.0,
+    "eg_tropism_d_ref": 18.0,
+    "eg_ahead_min": 10.0,
+    "eg_tropism_short_scale": 1.0,
+    "eg_tropism_range_scale": 0.25,
+    "eg_tropism_topk": 8,
+    "eg_tropism_tail_scale": 0.25
   }
 }
