@@ -4,11 +4,14 @@ use crate::eval::{EvalCheckpoint, EvalWeights, ALL_PIECE_TYPES};
 use crate::game_history::GameResult;
 use crate::game_state::GameState;
 use crate::piece::{Color, PieceType};
+use crate::position::Position;
 use crate::search::{search, SearchConfig};
 use crate::training::featurize::move_was_capture;
 use crate::training::paths::{self, ensure_data_dirs};
 use crate::training::record::{AgentSpec, GameRecordV2, GameStart};
+use crate::training::scale_sample::is_big_piece;
 use crate::training::worker::replay_to_ply;
+use crate::game_history::MoveRecord;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -62,6 +65,11 @@ pub struct TracePoint {
     pub quiet: bool,
     pub capture_into: bool,
     pub royal_change: bool,
+    /// Promotion that created a two-mover / range-capturer (e.g. FreeKing→GG).
+    #[serde(default)]
+    pub loud_promotion: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub loud_promotion_to: Option<String>,
     pub turn: String,
     pub eval: f32,
     pub eval_clipped: f32,
@@ -83,6 +91,8 @@ pub struct JumpAttribution {
     pub white_royals: (usize, usize),
     pub top_piece_deltas: Vec<(String, i32)>,
     pub capture_plies_between: Vec<usize>,
+    #[serde(default)]
+    pub loud_promo_plies_between: Vec<usize>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -215,6 +225,8 @@ fn snapshot_point(
     quiet: bool,
     capture_into: bool,
     royal_change: bool,
+    loud_promotion: bool,
+    loud_promotion_to: Option<String>,
 ) -> TracePoint {
     let eval = crate::eval::evaluate_absolute_black(state.get_board(), weights, ply) as f32;
     TracePoint {
@@ -222,6 +234,8 @@ fn snapshot_point(
         quiet,
         capture_into,
         royal_change,
+        loud_promotion,
+        loud_promotion_to,
         turn: format!("{:?}", state.get_current_turn()),
         eval,
         eval_clipped: clip(eval, clip_cap),
@@ -233,10 +247,27 @@ fn snapshot_point(
     }
 }
 
-/// Select quiet sample plies from capture flags and royal-change flags (len = n_plies).
+/// True when this recorded move promotes into a two-mover / range-capturer.
+pub fn move_is_loud_promotion(state_before: &GameState, mr: &MoveRecord) -> Option<PieceType> {
+    if !mr.promoted {
+        return None;
+    }
+    let from = Position::new(mr.from_file, mr.from_rank)?;
+    let piece = state_before.get_board().get_piece(from)?;
+    let to = piece.piece_type.promotes_to()?;
+    if is_big_piece(to) {
+        Some(to)
+    } else {
+        None
+    }
+}
+
+/// Select sample plies: quiet stride + forced events (royals, loud promos).
+/// Captures are not primary samples (unless also a forced event).
 pub fn select_quiet_plies(
     capture_into: &[bool],
     royal_change: &[bool],
+    loud_promotion: &[bool],
     quiet_stride: usize,
 ) -> Vec<usize> {
     let n = capture_into.len();
@@ -248,11 +279,11 @@ pub fn select_quiet_plies(
     let mut last_quiet = 0usize;
     for ply in 0..n {
         let is_capture = capture_into[ply];
-        let is_royal = royal_change[ply];
+        let is_event = royal_change[ply] || loud_promotion.get(ply).copied().unwrap_or(false);
         let quiet_ok = !is_capture && (ply == 0 || ply - last_quiet >= stride);
-        if ply == 0 || ply + 1 == n || is_royal || quiet_ok {
+        if ply == 0 || ply + 1 == n || is_event || quiet_ok {
             out.push(ply);
-            if !is_capture {
+            if !is_capture || is_event {
                 last_quiet = ply;
             }
         }
@@ -439,6 +470,7 @@ fn attribute_jumps(
     quiet_idx: &[usize],
     points_by_ply: &[Option<TracePoint>],
     capture_into: &[bool],
+    loud_promotion: &[bool],
     counts_by_ply: &[Vec<i32>],
 ) -> Vec<JumpAttribution> {
     let mut jumps = Vec::new();
@@ -454,9 +486,13 @@ fn attribute_jumps(
         let delta = pb.eval_clipped - pa.eval_clipped;
         let delta_mat = pb.material_only - pa.material_only;
         let mut caps = Vec::new();
+        let mut promos = Vec::new();
         for ply in (a + 1)..=b {
             if ply < capture_into.len() && capture_into[ply] {
                 caps.push(ply);
+            }
+            if ply < loud_promotion.len() && loud_promotion[ply] {
+                promos.push(ply);
             }
         }
         jumps.push(JumpAttribution {
@@ -469,6 +505,7 @@ fn attribute_jumps(
             white_royals: (pa.white_royals, pb.white_royals),
             top_piece_deltas: top_piece_deltas(&counts_by_ply[a], &counts_by_ply[b], 5),
             capture_plies_between: caps,
+            loud_promo_plies_between: promos,
         });
     }
     jumps.sort_by(|x, y| {
@@ -495,6 +532,8 @@ pub fn trace_game(
 
     let mut capture_into = vec![false; n_plies];
     let mut royal_change = vec![false; n_plies];
+    let mut loud_promotion = vec![false; n_plies];
+    let mut loud_promo_to: Vec<Option<String>> = vec![None; n_plies];
     let mut counts_by_ply = vec![Vec::new(); n_plies];
     let mut points_by_ply: Vec<Option<TracePoint>> = vec![None; n_plies];
 
@@ -503,12 +542,13 @@ pub fn trace_game(
     let mut prev_wr = count_royals(&state, Color::White);
     counts_by_ply[0] = piece_counts(&state);
     points_by_ply[0] = Some(snapshot_point(
-        &state, 0, weights, cfg.eval_clip, true, false, false,
+        &state, 0, weights, cfg.eval_clip, true, false, false, false, None,
     ));
 
     for (i, mr) in record.moves.iter().enumerate() {
         let mv = crate::game_history::GameHistory::record_to_move(mr)?;
         let cap = move_was_capture(&state, &mv);
+        let loud_to = move_is_loud_promotion(&state, mr);
         let turn_before = state.get_current_turn();
         let _ = state.make_move(mv);
         if state.get_current_turn() == turn_before {
@@ -519,13 +559,16 @@ pub fn trace_game(
         }
         let ply = i + 1;
         capture_into[ply] = cap;
+        if let Some(pt) = loud_to {
+            loud_promotion[ply] = true;
+            loud_promo_to[ply] = Some(format!("{:?}", pt));
+        }
         let br = count_royals(&state, Color::Black);
         let wr = count_royals(&state, Color::White);
         royal_change[ply] = br != prev_br || wr != prev_wr;
         prev_br = br;
         prev_wr = wr;
         counts_by_ply[ply] = piece_counts(&state);
-        // Fill all plies for attribution; quiet flag set later
         points_by_ply[ply] = Some(snapshot_point(
             &state,
             ply,
@@ -534,10 +577,13 @@ pub fn trace_game(
             false,
             cap,
             royal_change[ply],
+            loud_promotion[ply],
+            loud_promo_to[ply].clone(),
         ));
     }
 
-    let quiet_plies = select_quiet_plies(&capture_into, &royal_change, cfg.quiet_stride);
+    let quiet_plies =
+        select_quiet_plies(&capture_into, &royal_change, &loud_promotion, cfg.quiet_stride);
     for &ply in &quiet_plies {
         if let Some(p) = points_by_ply[ply].as_mut() {
             p.quiet = true;
@@ -554,7 +600,13 @@ pub fn trace_game(
         .collect();
 
     let (mut metrics, _, _) = compute_metrics(&quiet_series, &record.result);
-    let jumps = attribute_jumps(&quiet_plies, &points_by_ply, &capture_into, &counts_by_ply);
+    let jumps = attribute_jumps(
+        &quiet_plies,
+        &points_by_ply,
+        &capture_into,
+        &loud_promotion,
+        &counts_by_ply,
+    );
 
     // Keep only quiet (+ markers already in select) points in output series
     let points: Vec<TracePoint> = quiet_plies
@@ -739,8 +791,13 @@ fn write_interesting_md(path: &Path, rows: &[SummaryRow], top_n: usize) -> Resul
             .top_jump
             .as_ref()
             .map(|j| {
+                let promo = if j.loud_promo_plies_between.is_empty() {
+                    String::new()
+                } else {
+                    format!(" loud@{:?}", j.loud_promo_plies_between)
+                };
                 format!(
-                    "ply {}→{} Δe={:.0} mat={:.0} {:?}",
+                    "ply {}→{} Δe={:.0} mat={:.0} {:?}{}",
                     j.from_ply,
                     j.to_ply,
                     j.delta_eval,
@@ -749,7 +806,8 @@ fn write_interesting_md(path: &Path, rows: &[SummaryRow], top_n: usize) -> Resul
                         .iter()
                         .take(2)
                         .map(|(n, d)| format!("{n}:{d}"))
-                        .collect::<Vec<_>>()
+                        .collect::<Vec<_>>(),
+                    promo
                 )
             })
             .unwrap_or_else(|| "—".into());
@@ -905,11 +963,77 @@ mod tests {
         // plies 0..8; captures into 2,3 then quiet
         let cap = vec![false, false, true, true, false, false, false, false, false];
         let royal = vec![false; 9];
-        let plies = select_quiet_plies(&cap, &royal, 3);
+        let loud = vec![false; 9];
+        let plies = select_quiet_plies(&cap, &royal, &loud, 3);
         assert!(plies.contains(&0));
         assert!(plies.contains(&8));
         assert!(!plies.contains(&2));
         assert!(!plies.contains(&3));
+    }
+
+    #[test]
+    fn select_quiet_keeps_loud_promotion() {
+        let cap = vec![false; 10];
+        let royal = vec![false; 10];
+        let mut loud = vec![false; 10];
+        loud[4] = true;
+        let plies = select_quiet_plies(&cap, &royal, &loud, 16);
+        assert!(plies.contains(&4));
+    }
+
+    #[test]
+    fn free_king_promotes_to_great_general_is_loud() {
+        assert!(is_big_piece(PieceType::GreatGeneral));
+        assert_eq!(
+            PieceType::FreeKing.promotes_to(),
+            Some(PieceType::GreatGeneral)
+        );
+        let non_big_into_big = [
+            PieceType::FreeKing,
+            PieceType::FireGeneral,
+            PieceType::WaterGeneral,
+            PieceType::PoisonousSerpent,
+            PieceType::EasternBarbarian,
+            PieceType::OldKite,
+            PieceType::DarkSpirit,
+        ];
+        for pt in non_big_into_big {
+            let to = pt.promotes_to().expect("promotes");
+            assert!(
+                is_big_piece(to),
+                "{pt:?} → {to:?} should be loud promotion target"
+            );
+            assert!(!is_big_piece(pt), "{pt:?} should not already be big");
+        }
+        // Any promote-into-big counts as loud (includes big→big upgrades).
+        let loud: Vec<_> = ALL_PIECE_TYPES
+            .iter()
+            .filter_map(|pt| {
+                let to = pt.promotes_to()?;
+                is_big_piece(to).then_some((*pt, to))
+            })
+            .collect();
+        assert!(
+            loud.iter().any(|(f, t)| *f == PieceType::FreeKing
+                && *t == PieceType::GreatGeneral)
+        );
+        assert!(!loud.is_empty());
+        // Keep this list in sync with scale_sample::is_big_piece for docs/debugging.
+        let expected_new_big = [
+            (PieceType::DarkSpirit, PieceType::BuddhistSpirit),
+            (PieceType::FireGeneral, PieceType::GreatGeneral),
+            (PieceType::FreeKing, PieceType::GreatGeneral),
+            (PieceType::PoisonousSerpent, PieceType::HookMover),
+            (PieceType::EasternBarbarian, PieceType::Lion),
+            (PieceType::OldKite, PieceType::Tengu),
+            (PieceType::WaterGeneral, PieceType::ViceGeneral),
+        ];
+        for (from, to) in expected_new_big {
+            assert!(
+                loud.contains(&(from, to)),
+                "missing loud promo {from:?}→{to:?} in {loud:?}"
+            );
+        }
     }
 
     #[test]
