@@ -1,6 +1,7 @@
-//! Texel-style logistic fit skeleton on derived features.
+//! Texel-style logistic fit on derived piece-count features.
 
 use crate::eval::{EvalCheckpoint, EvalWeights, ALL_PIECE_TYPES};
+use crate::piece::Color;
 use crate::training::featurize::{load_labeled_dir, LabeledPosition};
 use crate::training::paths;
 use std::path::Path;
@@ -11,9 +12,13 @@ pub struct TexelFitConfig {
     pub out_model: String,
     pub iterations: usize,
     pub learning_rate: f32,
-    /// Logistic scaling constant K (fit coarsely if `fit_k`).
+    /// Logistic scaling constant K (overridden by scale calibration when `fit_k`).
     pub k: f32,
+    /// If true, set K so mean(|K · eval|) ≈ [`Self::k_target_abs`] (avoids the
+    /// CE-minimizing collapse to K→0 that freezes gradients on self-play data).
     pub fit_k: bool,
+    /// Target mean |K · material_eval| when calibrating K.
+    pub k_target_abs: f32,
 }
 
 impl Default for TexelFitConfig {
@@ -21,12 +26,24 @@ impl Default for TexelFitConfig {
         Self {
             features_dir: paths::DERIVED_POSITIONS.to_string(),
             out_model: "models/ab-texel.json".to_string(),
-            iterations: 50,
-            learning_rate: 0.01,
-            k: 1.0 / 400.0,
+            // Piece values are ~pawn units (Pawn≈1), not centipawns — old defaults
+            // (k=1/400, lr=0.01, 50 iters) barely moved weights.
+            iterations: 300,
+            learning_rate: 0.5,
+            k: 0.1,
             fit_k: true,
+            k_target_abs: 1.0,
         }
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct TexelFitStats {
+    pub k: f32,
+    pub loss_before: f64,
+    pub loss_after: f64,
+    pub max_abs_delta: f32,
+    pub mean_abs_delta: f32,
 }
 
 fn sigmoid(x: f64) -> f64 {
@@ -40,6 +57,23 @@ fn eval_from_diff(weights: &[f32], diff: &[f32]) -> f32 {
         s += weights[i] * diff[i];
     }
     s
+}
+
+fn mean_abs_eval(rows: &[LabeledPosition], weights: &[f32]) -> f32 {
+    if rows.is_empty() {
+        return 1.0;
+    }
+    let mut sum = 0.0f32;
+    for row in rows {
+        sum += eval_from_diff(weights, &row.piece_diff).abs();
+    }
+    (sum / rows.len() as f32).max(1e-3)
+}
+
+/// Choose K so typical |K·e| is about `target` (order-1 logistic argument).
+fn calibrate_k(rows: &[LabeledPosition], weights: &[f32], target: f32) -> f32 {
+    let mean_abs = mean_abs_eval(rows, weights);
+    (target / mean_abs).clamp(0.01, 2.0)
 }
 
 fn mean_cross_entropy(rows: &[LabeledPosition], weights: &[f32], k: f32) -> f64 {
@@ -62,7 +96,7 @@ fn mean_cross_entropy(rows: &[LabeledPosition], weights: &[f32], k: f32) -> f64 
 /// capturers). Rank PST / development / `royal_bonus_by_count` stay at seed:
 /// featurize only emits piece-count diffs. Terminal 0-royals is not learned
 /// here — [`EvalWeights::mate_score`] / `get_winner` already treat that as ±∞.
-pub fn fit_texel(cfg: &TexelFitConfig) -> Result<(EvalCheckpoint, f64), String> {
+pub fn fit_texel(cfg: &TexelFitConfig) -> Result<(EvalCheckpoint, TexelFitStats), String> {
     let rows = load_labeled_dir(Path::new(&cfg.features_dir))?;
     if rows.is_empty() {
         return Err(format!(
@@ -70,33 +104,42 @@ pub fn fit_texel(cfg: &TexelFitConfig) -> Result<(EvalCheckpoint, f64), String> 
             cfg.features_dir
         ));
     }
+    fit_texel_on_rows(cfg, &rows)
+}
+
+/// Same as [`fit_texel`] but with an in-memory dataset (tests / callers).
+pub fn fit_texel_on_rows(
+    cfg: &TexelFitConfig,
+    rows: &[LabeledPosition],
+) -> Result<(EvalCheckpoint, TexelFitStats), String> {
+    if rows.is_empty() {
+        return Err("No labeled positions".into());
+    }
 
     let mut seed = EvalWeights::seed();
-    let mut w: Vec<f32> = ALL_PIECE_TYPES
+    let w0: Vec<f32> = ALL_PIECE_TYPES
         .iter()
         .map(|pt| seed.piece_value(*pt))
         .collect();
+    let mut w = w0.clone();
 
-    let mut k = cfg.k;
-    if cfg.fit_k {
-        // Coarse 1D search for K.
-        let mut best_k = k;
-        let mut best_loss = mean_cross_entropy(&rows, &w, best_k);
-        for scale in [0.25f32, 0.5, 1.0, 2.0, 4.0] {
-            let candidate = cfg.k * scale;
-            let loss = mean_cross_entropy(&rows, &w, candidate);
-            if loss < best_loss {
-                best_loss = loss;
-                best_k = candidate;
-            }
-        }
-        k = best_k;
-    }
+    let mut k = if cfg.fit_k {
+        calibrate_k(rows, &w, cfg.k_target_abs)
+    } else {
+        cfg.k
+    };
 
+    let loss_before = mean_cross_entropy(rows, &w, k);
     let lr = cfg.learning_rate;
-    for _ in 0..cfg.iterations {
+
+    for iter in 0..cfg.iterations {
+        // Re-scale K as weights move so the logistic stays in a useful regime.
+        if cfg.fit_k && iter > 0 && iter % 25 == 0 {
+            k = calibrate_k(rows, &w, cfg.k_target_abs);
+        }
+
         let mut grad = vec![0.0f32; w.len()];
-        for row in &rows {
+        for row in rows {
             let e = eval_from_diff(&w, &row.piece_diff);
             let p = sigmoid(k as f64 * e as f64) as f32;
             let err = p - row.result;
@@ -115,19 +158,29 @@ pub fn fit_texel(cfg: &TexelFitConfig) -> Result<(EvalCheckpoint, f64), String> 
         }
     }
 
+    let mut max_abs_delta = 0.0f32;
+    let mut sum_abs_delta = 0.0f32;
+    for i in 0..w.len() {
+        let d = (w[i] - w0[i]).abs();
+        max_abs_delta = max_abs_delta.max(d);
+        sum_abs_delta += d;
+    }
+    let mean_abs_delta = sum_abs_delta / w.len() as f32;
+
     for (i, &pt) in ALL_PIECE_TYPES.iter().enumerate() {
         seed.piece.insert(pt, w[i]);
     }
     seed.rebuild_piece_value_table();
 
-    let loss = mean_cross_entropy(
-        &rows,
-        &ALL_PIECE_TYPES
-            .iter()
-            .map(|pt| seed.piece_value(*pt))
-            .collect::<Vec<_>>(),
+    let loss_after = mean_cross_entropy(rows, &w, k);
+
+    let stats = TexelFitStats {
         k,
-    );
+        loss_before,
+        loss_after,
+        max_abs_delta,
+        mean_abs_delta,
+    };
 
     let mut cp = EvalCheckpoint::seed("ab-texel");
     cp.name = format!("ab-texel-k{:.6}", k);
@@ -138,5 +191,99 @@ pub fn fit_texel(cfg: &TexelFitConfig) -> Result<(EvalCheckpoint, f64), String> 
     }
     cp.save_path(&cfg.out_model)
         .map_err(|e| format!("save: {}", e))?;
-    Ok((cp, loss))
+    Ok((cp, stats))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::piece::PieceType;
+    use crate::training::featurize::FEATURE_FORMAT_VERSION;
+
+    fn pawn_idx() -> usize {
+        ALL_PIECE_TYPES
+            .iter()
+            .position(|p| *p == PieceType::Pawn)
+            .expect("Pawn in ALL_PIECE_TYPES")
+    }
+
+    fn synthetic_rows(n: usize) -> Vec<LabeledPosition> {
+        let pi = pawn_idx();
+        let mut rows = Vec::with_capacity(n);
+        for i in 0..n {
+            // Black pawn surplus → Black win; White surplus → White win.
+            let black_ahead = i % 2 == 0;
+            let mut diff = vec![0.0f32; ALL_PIECE_TYPES.len()];
+            diff[pi] = if black_ahead { 5.0 } else { -5.0 };
+            rows.push(LabeledPosition {
+                format_version: FEATURE_FORMAT_VERSION,
+                game_id: format!("syn-{i}"),
+                ply: 10,
+                result: if black_ahead { 1.0 } else { 0.0 },
+                turn: Color::Black,
+                piece_diff: diff,
+                seed_eval: 0.0,
+            });
+        }
+        rows
+    }
+
+    #[test]
+    fn calibrate_k_targets_unit_scale() {
+        let rows = synthetic_rows(20);
+        let w: Vec<f32> = ALL_PIECE_TYPES
+            .iter()
+            .map(|pt| EvalWeights::seed().piece_value(*pt))
+            .collect();
+        let k = calibrate_k(&rows, &w, 1.0);
+        let mean_abs = mean_abs_eval(&rows, &w);
+        let mean_arg = k * mean_abs;
+        assert!(
+            (mean_arg - 1.0).abs() < 0.05,
+            "expected |K·e|≈1, got {mean_arg} (k={k}, mean_abs={mean_abs})"
+        );
+    }
+
+    #[test]
+    fn fit_moves_weights_when_label_correlates_with_material() {
+        let dir = std::env::temp_dir().join(format!(
+            "taikyoku-texel-test-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+
+        let rows = synthetic_rows(64);
+        let cfg = TexelFitConfig {
+            features_dir: dir.to_string_lossy().into(),
+            out_model: dir.join("out.json").to_string_lossy().into(),
+            iterations: 120,
+            learning_rate: 0.5,
+            k: 0.1,
+            fit_k: true,
+            k_target_abs: 1.0,
+        };
+        let seed_pawn = EvalWeights::seed().piece_value(PieceType::Pawn);
+        let (cp, stats) = fit_texel_on_rows(&cfg, &rows).expect("fit");
+        assert!(
+            stats.max_abs_delta > 0.05,
+            "expected weights to move, max_abs_delta={}",
+            stats.max_abs_delta
+        );
+        // Synthetic data: more pawns ⇒ win. Pawn value should rise.
+        let fitted_pawn = cp.weights.piece_value(PieceType::Pawn);
+        assert!(
+            fitted_pawn > seed_pawn + 0.05,
+            "pawn {seed_pawn} → {fitted_pawn} (maxΔ={})",
+            stats.max_abs_delta
+        );
+        assert!(
+            stats.loss_after <= stats.loss_before,
+            "loss rose: before={} after={}",
+            stats.loss_before,
+            stats.loss_after
+        );
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }

@@ -12,6 +12,8 @@ use crate::training::record::{
 use rand::rngs::OsRng;
 use rand::RngCore;
 use std::path::Path;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::time::Instant;
 
 pub const DEFAULT_MAX_MOVES: usize = 20_000;
@@ -25,6 +27,8 @@ pub struct WorkerConfig {
     pub max_moves: usize,
     /// When true, print move progress to stdout.
     pub verbose: bool,
+    /// When set and true, abort the game between moves.
+    pub stop: Option<Arc<AtomicBool>>,
 }
 
 impl Default for WorkerConfig {
@@ -36,6 +40,7 @@ impl Default for WorkerConfig {
             seed: 0,
             max_moves: DEFAULT_MAX_MOVES,
             verbose: false,
+            stop: None,
         }
     }
 }
@@ -159,6 +164,13 @@ pub fn play_one_game(config: &WorkerConfig) -> Result<GameRecordV2, PlayFailure>
     };
 
     while move_number <= config.max_moves {
+        if config
+            .stop
+            .as_ref()
+            .is_some_and(|s| s.load(Ordering::Relaxed))
+        {
+            return Err(abort("stopped".into(), moves));
+        }
         if state.is_draw_by_500_move_rule() {
             result = Some(GameResult::Draw);
             break;
@@ -418,6 +430,7 @@ pub fn run_batch(cfg: &BatchConfig) -> Result<BatchOutcome, String> {
                     seed,
                     max_moves: cfg.max_moves,
                     verbose: cfg.verbose && jobs == 1,
+                    stop: None,
                 };
                 match play_one_game(&worker_cfg) {
                     Ok(record) => {

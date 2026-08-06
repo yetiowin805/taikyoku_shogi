@@ -105,7 +105,24 @@ pub fn apply_mirrored_rank_shuffles(
     p: f64,
     recipe: &mut StartRecipe,
 ) {
+    apply_mirrored_rank_shuffles_with_filter(state, rng, p, recipe, |_state, _rank| true);
+}
+
+/// Like [`apply_mirrored_rank_shuffles`], but only considers ranks where `eligible`
+/// returns true (still subject to probability `p`).
+pub fn apply_mirrored_rank_shuffles_with_filter<F>(
+    state: &mut GameState,
+    rng: &mut StdRng,
+    p: f64,
+    recipe: &mut StartRecipe,
+    mut eligible: F,
+) where
+    F: FnMut(&GameState, u8) -> bool,
+{
     for black_rank in 0u8..=11 {
+        if !eligible(state, black_rank) {
+            continue;
+        }
         if rng.gen::<f64>() >= p {
             continue;
         }
@@ -113,6 +130,56 @@ pub fn apply_mirrored_rank_shuffles(
             recipe.shuffled_black_ranks.push(black_rank);
         }
     }
+}
+
+/// True if Black rank `black_rank` or its White mirror has a powerful or royal piece.
+pub fn rank_pair_has_powerful_or_royal(state: &GameState, black_rank: u8) -> bool {
+    let white_rank = 35u8.saturating_sub(black_rank);
+    for rank in [black_rank, white_rank] {
+        for file in 0u8..36 {
+            let Some(pos) = Position::new(file, rank) else {
+                continue;
+            };
+            if let Some(p) = state.get_board().get_piece(pos) {
+                if is_powerful_opening_piece(p.piece_type) || p.piece_type.is_royal() {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
+/// Light Fischer: no ablations; only shuffle ranks without powerful/royals.
+pub fn light_fischer_options() -> FischerGenOptions {
+    FischerGenOptions {
+        rank_shuffle_p: RANK_SHUFFLE_P,
+        apply_powerful: false,
+        apply_royal: false,
+    }
+}
+
+/// Opening setup → light mirrored shuffles (no powerful/royal ranks, no ablations).
+pub fn generate_light_fischer_start(seed: u64) -> (BoardPosition, StartRecipe) {
+    let opts = light_fischer_options();
+    let mut rng = StdRng::seed_from_u64(seed);
+    let mut state = GameState::new();
+    state.setup_initial_position();
+    let mut recipe = StartRecipe {
+        seed,
+        shuffled_black_ranks: Vec::new(),
+        removed: Vec::new(),
+    };
+
+    apply_mirrored_rank_shuffles_with_filter(
+        &mut state,
+        &mut rng,
+        opts.rank_shuffle_p,
+        &mut recipe,
+        |st, rank| !rank_pair_has_powerful_or_royal(st, rank),
+    );
+
+    (BoardPosition::from_state(&state), recipe)
 }
 
 /// Shuffle free files on `black_rank` and conjugate White rank `35 - black_rank`.
@@ -433,6 +500,31 @@ mod tests {
             );
             assert_eq!(still.unwrap().position.rank, old_pos.rank);
         }
+    }
+
+    #[test]
+    fn light_fischer_no_ablation_and_skips_powerful_ranks() {
+        let mut opening = GameState::new();
+        opening.setup_initial_position();
+        let mut found_shuffle = false;
+        for seed in 0u64..200 {
+            let (_pos, recipe) = generate_light_fischer_start(seed);
+            assert!(
+                recipe.removed.is_empty(),
+                "light fischer must not ablate (seed={seed})"
+            );
+            for &rank in &recipe.shuffled_black_ranks {
+                assert!(
+                    !rank_pair_has_powerful_or_royal(&opening, rank),
+                    "seed={seed} shuffled ineligible rank {rank}"
+                );
+            }
+            if !recipe.shuffled_black_ranks.is_empty() {
+                found_shuffle = true;
+                break;
+            }
+        }
+        assert!(found_shuffle, "expected at least one light shuffle in 200 seeds");
     }
 
     #[test]

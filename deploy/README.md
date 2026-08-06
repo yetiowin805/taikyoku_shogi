@@ -95,6 +95,26 @@ ssh -L 3000:127.0.0.1:3000 user@vps
 
 No full `rsync` required to browse. Pull only what you need with e.g. `rsync -avz --include='*.json' --latest …` if you want a local copy.
 
+## Overnight multi-regimen tournament
+
+Fit several Texel hyperparameter settings on the same features, then round-robin them (plus seed) with Elo. Default `--games-per-pair 24` is intentionally large so it keeps going until you cancel; the schedule interleaves matchups so pairs stay roughly even. Stop anytime; resume later.
+
+```bash
+# one-shot (stops worker, fits, then tours)
+chmod +x deploy/*.sh
+cargo build --release
+nohup ./deploy/run_overnight_tourney.sh --jobs "$(nproc)" \
+  >data/run/tourney.log 2>&1 &
+
+# stop (aborts in-flight games, writes standings so far + ntfy)
+touch data/run/TOURNEY_STOP
+
+# resume
+./deploy/run_overnight_tourney.sh --resume --run-id tourney-YYYYMMDDTHHMMSSZ --skip-fit
+```
+
+Starts: `light` = shuffle-only ranks without powerful/royals (no ablations). Standings live under `data/raw/tourney/<run_id>/standings.md`.
+
 ### Notifications (email / ntfy)
 
 Install `msmtp` (or use [ntfy.sh](https://ntfy.sh)) and set `/etc/taikyoku/notify.env` from `deploy/notify.env.example` (`NOTIFY_TO=…` is prefilled in the example).

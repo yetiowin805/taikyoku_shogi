@@ -9,7 +9,7 @@ cd "$ROOT"
 GAMES_DIR=data/raw/games
 OUT_MODEL=models/ab-texel-v1.json
 FEATURES=data/derived/positions
-ITERS=50
+ITERS=300
 BIN="${BIN:-$ROOT/target/release/taikyoku_shogi}"
 NOTIFY="${NOTIFY:-$ROOT/deploy/notify.sh}"
 ACTIVITY_STAMP="${ACTIVITY_STAMP:-$ROOT/data/run/last_notify_activity}"
@@ -73,7 +73,7 @@ AVG_POS="n/a"
 if [[ "$N_GAMES" =~ ^[0-9]+$ && "$N_GAMES" -gt 0 && "$N_FEAT" =~ ^[0-9]+$ ]]; then
   AVG_POS="$(python3 -c "print(round($N_FEAT / $N_GAMES, 1))")"
 fi
-LOSS_LINE="$(grep -E 'Wrote .*mean CE loss' "$LOG" | tail -n 1 || true)"
+LOSS_LINE="$(grep -E 'Wrote .*CE ' "$LOG" | tail -n 1 || true)"
 
 if [[ "$RC" -eq 0 ]]; then
   SUBJECT="training OK — ${N_GAMES} games → ${N_FEAT} positions"
