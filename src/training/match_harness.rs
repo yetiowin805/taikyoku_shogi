@@ -91,8 +91,8 @@ enum MatchPoint {
     Draw,
 }
 
-fn resolve_start(starts: &StartsSource, pair_idx: usize, seed: u64) -> Result<GameStart, String> {
-    starts.start_for_game(pair_idx, seed)
+fn resolve_start(starts: &StartsSource, seed: u64) -> Result<GameStart, String> {
+    starts.start_for_seed(seed)
 }
 
 /// Play paired games (A as Black then A as White on same start).
@@ -144,13 +144,15 @@ pub fn run_matches(cfg: &MatchConfig) -> Result<MatchScoreboard, String> {
                 } else {
                     cfg.seed_base.wrapping_add(pair_idx as u64 * 2)
                 };
-                let start = match resolve_start(starts, pair_idx, start_seed) {
+                let start = match resolve_start(starts, start_seed) {
                     Ok(s) => s,
                     Err(e) => {
                         eprintln!("match start error: {e}");
                         return;
                     }
                 };
+
+                // Both colors share `start` (cloned) for a fair paired comparison.
 
                 let play = |black: &AgentSpec, white: &AgentSpec, seed: u64, a_black: bool| {
                     if stop.load(Ordering::Relaxed) {
