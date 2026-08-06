@@ -320,16 +320,13 @@ pub fn featurize_game(
     for (i, mr) in record.moves.iter().enumerate() {
         let mv = GameHistory::record_to_move(mr)?;
         was_capture_into[i + 1] = move_was_capture(&state, &mv);
+        // `make_move` returns Option<intermediate> for two-step moves — None on
+        // success for ordinary moves. Detect failure via turn not changing.
         let turn_before = state.get_current_turn();
-        if state.make_move(mv).is_none() {
-            return Err(format!(
-                "featurize replay failed at move {} in {}",
-                mr.move_number, record.game_id
-            ));
-        }
+        let _ = state.make_move(mv);
         if state.get_current_turn() == turn_before {
             return Err(format!(
-                "featurize replay stuck at move {} in {}",
+                "featurize replay failed at move {} in {}",
                 mr.move_number, record.game_id
             ));
         }
@@ -444,5 +441,20 @@ mod tests {
         assert!(cands.contains(&3)); // end of first burst
         assert!(cands.contains(&6)); // end of second burst
         assert!(!cands.contains(&2)); // mid-burst
+    }
+
+    #[test]
+    fn featurize_does_not_treat_standard_make_move_none_as_failure() {
+        // Regression: `GameState::make_move` returns None for successful non-two-step
+        // moves (Option is the intermediate square). Featurize must use turn-flip.
+        let path = Path::new("data/raw/games/18c8e85ae958c265-0629bd1295c47567.json");
+        if !path.exists() {
+            return;
+        }
+        let mut record = crate::training::record::GameRecordV2::load_path(path).expect("load");
+        record.moves.truncate(5);
+        let rows = featurize_game(&record, &FeaturizeConfig::default(), &EvalWeights::seed())
+            .expect("standard LionDog jump must replay");
+        assert!(!rows.is_empty());
     }
 }
