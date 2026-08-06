@@ -55,7 +55,7 @@ impl Default for TexelFitConfig {
             k: 0.1,
             fit_k: true,
             k_target_abs: 1.0,
-            init: TexelInit::Mobility,
+            init: TexelInit::Seed,
             drop_draws: true,
             late_frac: 0.75,
             log_space: true,
