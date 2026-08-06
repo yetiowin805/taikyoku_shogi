@@ -8,6 +8,7 @@ pub mod paths;
 pub mod pool;
 pub mod record;
 pub mod run_status;
+pub mod scale_sample;
 pub mod start_gen;
 pub mod texel;
 pub mod tournament;

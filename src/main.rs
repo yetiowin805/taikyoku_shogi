@@ -170,6 +170,12 @@ fn main() {
                     print_usage();
                 }
             }
+            "scale-sample" => {
+                if let Err(e) = taikyoku_shogi::training::cli::cmd_scale_sample(&args) {
+                    eprintln!("{}", e);
+                    print_usage();
+                }
+            }
             "texel-fit" => {
                 if let Err(e) = taikyoku_shogi::training::cli::cmd_texel_fit(&args) {
                     eprintln!("{}", e);
