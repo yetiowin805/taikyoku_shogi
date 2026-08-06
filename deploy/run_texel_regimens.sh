@@ -27,7 +27,10 @@ mkdir -p "$OUTDIR"
 cp -f "$SEED_MODEL" "$OUTDIR/seed.json"
 
 run_fit() {
-  local id="$1" iters="$2" lr="$3" out="$OUTDIR/${id}.json"
+  local id="$1"
+  local iters="$2"
+  local lr="$3"
+  local out="$OUTDIR/${id}.json"
   echo "=== fit $id (iters=$iters lr=$lr) → $out ==="
   "$BIN" texel-fit --features "$FEATURES" --out "$out" --iters "$iters" --lr "$lr" | tee "$OUTDIR/${id}.fit.log"
 }
