@@ -287,11 +287,11 @@ pub fn games_played(state: &TourneyState) -> BTreeMap<String, usize> {
     n
 }
 
-/// Simple variety pairing: prefer agents with fewer games, pair them with other
-/// low-game agents, and avoid rematches when easy.
+/// Simple variety pairing: prefer low-game agents, similar scores, avoid rematches.
 pub fn swiss_pairings(
     ids: &[String],
     games: &BTreeMap<String, usize>,
+    scores: &BTreeMap<String, f64>,
     prior: &HashSet<(String, String)>,
 ) -> Vec<(String, String)> {
     let mut remaining: Vec<String> = ids.to_vec();
@@ -303,17 +303,20 @@ pub fn swiss_pairings(
     let mut out = Vec::new();
     while remaining.len() >= 2 {
         let a = remaining.remove(0);
-        // Prefer: not yet played `a`, then fewest games, then id.
+        let score_a = scores.get(&a).copied().unwrap_or(0.0);
+        // Prefer: not rematch, closest score, fewer games, then id.
         let mut best = 0usize;
-        let mut best_key = (2u8, usize::MAX, String::new());
+        let mut best_key = (2u8, i64::MAX, usize::MAX, String::new());
         for (i, cand) in remaining.iter().enumerate() {
             let rematch = if prior.contains(&pair_key(&a, cand)) {
                 1u8
             } else {
                 0u8
             };
+            let score_c = scores.get(cand).copied().unwrap_or(0.0);
+            let score_diff = ((score_a - score_c).abs() * 1000.0).round() as i64;
             let g = games.get(cand).copied().unwrap_or(0);
-            let key = (rematch, g, cand.clone());
+            let key = (rematch, score_diff, g, cand.clone());
             if i == 0 || key < best_key {
                 best = i;
                 best_key = key;
@@ -328,8 +331,9 @@ pub fn swiss_pairings(
 fn append_swiss_round(state: &mut TourneyState, round: usize) {
     let ids: Vec<String> = state.entrants.iter().map(|e| e.id.clone()).collect();
     let games = games_played(state);
+    let scores = match_scores(state);
     let prior = prior_opponents(state);
-    let pairs = swiss_pairings(&ids, &games, &prior);
+    let pairs = swiss_pairings(&ids, &games, &scores, &prior);
     let mut id = state.slots.iter().map(|s| s.id).max().map(|x| x + 1).unwrap_or(0);
     for (pi, (model_a, model_b)) in pairs.iter().enumerate() {
         for g in 0..state.games_per_pair.max(1) {
@@ -786,14 +790,34 @@ mod tests {
         games.insert("p1".into(), 4);
         games.insert("p2".into(), 0);
         games.insert("p3".into(), 4);
+        let scores = BTreeMap::new(); // all 0
         let mut prior = HashSet::new();
         prior.insert(pair_key("p0", "p2"));
-        let pairs = swiss_pairings(&ids, &games, &prior);
+        let pairs = swiss_pairings(&ids, &games, &scores, &prior);
         assert_eq!(pairs.len(), 2);
         // Lowest-game agents p0 and p2 are picked first; rematch avoided → p0↔p1 or p0↔p3.
         assert_ne!(pair_key(&pairs[0].0, &pairs[0].1), pair_key("p0", "p2"));
         let first = pair_key(&pairs[0].0, &pairs[0].1);
         assert!(first == pair_key("p0", "p1") || first == pair_key("p0", "p3"));
+    }
+
+    #[test]
+    fn swiss_prefers_similar_score() {
+        let ids: Vec<String> = (0..4).map(|i| format!("p{i}")).collect();
+        let mut games = BTreeMap::new();
+        for id in &ids {
+            games.insert(id.clone(), 2);
+        }
+        let mut scores = BTreeMap::new();
+        scores.insert("p0".into(), 2.0);
+        scores.insert("p1".into(), 0.0);
+        scores.insert("p2".into(), 2.0);
+        scores.insert("p3".into(), 0.0);
+        let prior = HashSet::new();
+        let pairs = swiss_pairings(&ids, &games, &scores, &prior);
+        assert_eq!(pairs.len(), 2);
+        // p0 (2.0) should pair with p2 (2.0), not the 0.0 agents.
+        assert_eq!(pair_key(&pairs[0].0, &pairs[0].1), pair_key("p0", "p2"));
     }
 
     #[test]
