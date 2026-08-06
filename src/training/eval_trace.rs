@@ -9,7 +9,7 @@ use crate::search::{search, SearchConfig};
 use crate::training::featurize::move_was_capture;
 use crate::training::paths::{self, ensure_data_dirs};
 use crate::training::record::{AgentSpec, GameRecordV2, GameStart};
-use crate::training::scale_sample::is_big_piece;
+use crate::eval::is_big_piece;
 use crate::training::worker::replay_to_ply;
 use crate::game_history::MoveRecord;
 use serde::{Deserialize, Serialize};

@@ -365,6 +365,30 @@ pub fn seed_loud_capture_floor() -> f32 {
     (TARIFF_RANGE_CAPTURING * 2.4).max(TARIFF_RANGE_JUMP * 8.0)
 }
 
+/// Two-movers (TwoStep / FreeEagleMultiMove) or capturing-range pieces.
+///
+/// Used by scale-sample free params and by search for "loud" promotions into
+/// these types (e.g. FreeKing→GreatGeneral).
+pub fn is_big_piece(pt: PieceType) -> bool {
+    if pt == PieceType::King {
+        return false;
+    }
+    let cfg = MovementConfig::for_piece_type(pt);
+    cfg.capabilities.iter().any(|cap| match cap {
+        MovementCapability::TwoStep { .. } | MovementCapability::FreeEagleMultiMove { .. } => true,
+        MovementCapability::Range {
+            blocking: BlockingMode::Capturing,
+            ..
+        } => true,
+        _ => false,
+    })
+}
+
+/// True when promoting this type yields a [`is_big_piece`] result.
+pub fn promotes_into_big_piece(pt: PieceType) -> bool {
+    pt.promotes_to().is_some_and(is_big_piece)
+}
+
 fn capability_material_value(cap: &MovementCapability) -> f32 {
     match cap {
         MovementCapability::Simple {

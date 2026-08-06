@@ -1,7 +1,6 @@
 //! Sample ±10% perturbations of high-impact eval parameters for Swiss tourneys.
 
 use crate::eval::{EvalCheckpoint, EvalWeights, ALL_PIECE_TYPES};
-use crate::movement::{BlockingMode, MovementCapability, MovementConfig};
 use crate::piece::PieceType;
 use crate::training::tournament::{TourneyEntrant, TourneyManifest};
 use rand::rngs::StdRng;
@@ -19,25 +18,7 @@ pub const DEFAULT_SEED_MODEL: &str = "models/ab-seed.json";
 const MULTS: [f32; 3] = [0.9, 1.0, 1.1];
 const MAX_DRAW_ATTEMPTS: usize = 100_000;
 
-/// Piece types that are two-movers (TwoStep / FreeEagleMultiMove) or range capturers.
-pub fn is_big_piece(pt: PieceType) -> bool {
-    if pt == PieceType::King {
-        return false; // counted separately as a free param
-    }
-    let cfg = MovementConfig::for_piece_type(pt);
-    cfg.capabilities.iter().any(cap_is_big)
-}
-
-fn cap_is_big(cap: &MovementCapability) -> bool {
-    match cap {
-        MovementCapability::TwoStep { .. } | MovementCapability::FreeEagleMultiMove { .. } => true,
-        MovementCapability::Range {
-            blocking: BlockingMode::Capturing,
-            ..
-        } => true,
-        _ => false,
-    }
-}
+pub use crate::eval::is_big_piece;
 
 /// Ordered list of big piece types (stable for RNG / samples.json).
 pub fn big_piece_types() -> Vec<PieceType> {

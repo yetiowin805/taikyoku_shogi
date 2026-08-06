@@ -1,6 +1,8 @@
 //! Alpha-beta search over GameState with make/unmake, compact traces for the GUI.
 
-use crate::eval::{evaluate_with_ply, seed_loud_capture_floor, EvalWeights};
+use crate::eval::{
+    evaluate_with_ply, is_big_piece, promotes_into_big_piece, seed_loud_capture_floor, EvalWeights,
+};
 use crate::game_state::{GameState, LegalMoveGen, Move};
 use crate::movement::{BlockingMode, MovementCapability, MovementConfig, MovementGenerator};
 use crate::move_simulation::BoardLike;
@@ -672,6 +674,70 @@ pub fn is_worthwhile_quiescence_capture(
     enemy >= min_quiescence_enemy_material()
 }
 
+/// Promotion that creates a two-mover / range-capturer (e.g. FreeKing→GreatGeneral).
+pub fn is_loud_promotion_move(state: &GameState, mv: &Move) -> bool {
+    if !mv.promoted {
+        return false;
+    }
+    let Some(piece) = state.get_board().get_piece(mv.from) else {
+        return false;
+    };
+    if piece.is_promoted {
+        return false;
+    }
+    promotes_into_big_piece(piece.piece_type)
+}
+
+/// Material gain from the promotion itself (promoted type − base), else 0.
+pub fn loud_promotion_material_gain(state: &GameState, weights: &EvalWeights, mv: &Move) -> f32 {
+    if !mv.promoted {
+        return 0.0;
+    }
+    let Some(piece) = state.get_board().get_piece(mv.from) else {
+        return 0.0;
+    };
+    let Some(to_pt) = piece.piece_type.promotes_to() else {
+        return 0.0;
+    };
+    if !is_big_piece(to_pt) {
+        return 0.0;
+    }
+    weights.piece_value(to_pt) - weights.piece_value(piece.piece_type)
+}
+
+/// AB / leaf gate strength for a move: capture victim value or loud-promo gain.
+fn move_loudness(state: &GameState, weights: &EvalWeights, mv: &Move, is_capture: bool) -> f32 {
+    let cap = if is_capture {
+        capture_material_exchange(state, weights, mv).0
+    } else {
+        0.0
+    };
+    cap.max(loud_promotion_material_gain(state, weights, mv))
+}
+
+/// Legal promotions into two-movers / range capturers (quiet or capturing).
+pub fn generate_loud_promotions(state: &GameState) -> Vec<Move> {
+    let us = state.get_current_turn();
+    let mut movers = Vec::new();
+    for p in state.get_board().iter_pieces_by_color(us) {
+        if p.is_promoted {
+            continue;
+        }
+        if !promotes_into_big_piece(p.piece_type) {
+            continue;
+        }
+        movers.push(p);
+    }
+    if movers.is_empty() {
+        return Vec::new();
+    }
+    state
+        .generate_legal_moves_for_pieces_mode(&movers, LegalMoveGen::All)
+        .into_iter()
+        .filter(|mv| mv.promoted)
+        .collect()
+}
+
 /// MVV-LVA capture score without hang checks (for quiescence ordering).
 fn mvv_lva_score(state: &GameState, weights: &EvalWeights, mv: &Move) -> i32 {
     let board = state.get_board();
@@ -780,23 +846,29 @@ fn quiesce_move_looks_path_or_multileg(state: &GameState, mv: &Move) -> bool {
         .any(|p| p != mv.from && p != mv.to && board.get_piece(p).is_some())
 }
 
-/// Captures worth expanding in quiescence.
+/// Captures worth expanding in quiescence, plus promotions into big pieces.
 ///
-/// Contract: q finishes the contested square (loud SimpleTakes + recaptures).
+/// Contract: q finishes the contested square (loud SimpleTakes + recaptures),
+/// and also expands FreeKing→GG-style promotions that swing material massively.
 /// Capturing-range corridor wipes / multi-leg snipes belong to main search unless
 /// they are a destination recapture onto `prev_to`.
 ///
-/// - Deep PathAware (`victim_square_only`): only captures hitting `prev_to`.
+/// - Deep PathAware (`victim_square_only`): only captures hitting `prev_to`, plus
+///   loud promotions.
 /// - Entry with `prev_to`: dest hits on `prev_to` plus loud SimpleTakes (no full-board
-///   CapturesOnly).
-/// - Entry without `prev_to`: full CapturesOnly fallback.
+///   CapturesOnly), plus loud promotions.
+/// - Entry without `prev_to`: full CapturesOnly fallback + loud promotions.
+/// - `captures`: when false, only loud promotions (leaf entry after quiet AB).
 fn generate_quiescence_captures(
     state: &GameState,
     weights: &EvalWeights,
     prev_to: Option<Position>,
     victim_square_only: bool,
+    captures: bool,
 ) -> Vec<Move> {
-    let raw = if victim_square_only {
+    let mut raw = if !captures {
+        Vec::new()
+    } else if victim_square_only {
         if let Some(victim) = prev_to {
             generate_captures_hitting_square(state, victim)
         } else {
@@ -807,8 +879,34 @@ fn generate_quiescence_captures(
     } else {
         state.generate_legal_moves_mode(LegalMoveGen::CapturesOnly)
     };
+    let mut seen: HashSet<(u16, u16, bool)> = raw
+        .iter()
+        .map(|mv| {
+            (
+                mv.from.to_index() as u16,
+                mv.to.to_index() as u16,
+                mv.promoted,
+            )
+        })
+        .collect();
+    for mv in generate_loud_promotions(state) {
+        let key = (
+            mv.from.to_index() as u16,
+            mv.to.to_index() as u16,
+            mv.promoted,
+        );
+        if seen.insert(key) {
+            raw.push(mv);
+        }
+    }
+    if !captures {
+        return raw;
+    }
     raw.into_iter()
         .filter(|mv| {
+            if is_loud_promotion_move(state, mv) {
+                return true;
+            }
             if !is_quiescence_capture_candidate(state, weights, mv, prev_to) {
                 return false;
             }
@@ -1063,6 +1161,7 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
             ctx.maybe_log_progress();
 
             let is_capture = move_captures_enemy(state, mv);
+            let is_loud_promo = is_loud_promotion_move(state, mv);
             if is_capture {
                 let mut hang_cache = HashMap::new();
                 if capture_hangs_high_value_piece(state, weights, mv, true, &mut hang_cache) {
@@ -1071,7 +1170,9 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
             }
             let child_depth = d - 1;
             // Root LMR: late quiets at ID depth >= 2 (pre–PR17 rule).
-            let can_reduce = d >= 2 && i >= 3 && !is_capture && child_depth >= 1;
+            // Never reduce promotions into two-movers / range capturers.
+            let can_reduce =
+                d >= 2 && i >= 3 && !is_capture && !is_loud_promo && child_depth >= 1;
             let reduction = if can_reduce {
                 (if i >= 12 { 2 } else { 1 }).min(child_depth)
             } else {
@@ -1081,11 +1182,7 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
             let Some(undo) = pos.make_move_for_search(mv.clone()) else {
                 continue;
             };
-            ctx.last_ab_capture_enemy = if is_capture {
-                capture_material_exchange(state, weights, mv).0
-            } else {
-                0.0
-            };
+            ctx.last_ab_capture_enemy = move_loudness(state, weights, mv, is_capture);
             ctx.last_ab_to = Some(mv.to);
             ctx.nodes += 1;
             ctx.ply = root_ply + 1;
@@ -1328,6 +1425,7 @@ pub fn probe_quiescence(
             i32::MAX - 1,
             None,
             false,
+            true,
             &mut ctx,
         )
     };
@@ -1415,11 +1513,12 @@ fn build_trace_tree(
         if let Some(best_node) = children.iter_mut().find(|c| c.best) {
             let mut child = state.clone();
             if let Some(undo) = child.make_move_for_search(best_move.clone()) {
-                ctx.last_ab_capture_enemy = if move_captures_enemy(state, best_move) {
-                    capture_material_exchange(state, weights, best_move).0
-                } else {
-                    0.0
-                };
+                ctx.last_ab_capture_enemy = move_loudness(
+                    state,
+                    weights,
+                    best_move,
+                    move_captures_enemy(state, best_move),
+                );
                 ctx.last_ab_to = Some(best_move.to);
                 ctx.ply = root_ply + 1;
                 ctx.phase = "trace";
@@ -1646,6 +1745,7 @@ fn search_move_list(
         }
         let mv_key = move_tt_key(&mv);
         let is_capture = move_captures_enemy(state, &mv);
+        let is_loud_promo = is_loud_promotion_move(state, &mv);
         if is_capture
             && capture_hangs_high_value_piece(state, weights, &mv, false, &mut hang_cache)
         {
@@ -1662,6 +1762,7 @@ fn search_move_list(
         let can_reduce = depth >= LMR_MIN_DEPTH
             && move_index >= LMR_MOVE_THRESHOLD
             && !is_capture
+            && !is_loud_promo
             && !is_killer;
         let reduction = if can_reduce {
             if move_index >= 12 {
@@ -1674,11 +1775,7 @@ fn search_move_list(
             0
         };
 
-        let capture_enemy = if is_capture {
-            capture_material_exchange(state, weights, &mv).0
-        } else {
-            0.0
-        };
+        let capture_enemy = move_loudness(state, weights, &mv, is_capture);
         let Some(undo) = state.make_move_for_search(mv.clone()) else {
             continue;
         };
@@ -1744,8 +1841,10 @@ fn leaf_or_quiesce(
     is_pv: bool,
     ctx: &mut SearchContext,
 ) -> i32 {
-    // Q only after loud AB captures; quiet / below-floor takes use stand-pat.
-    if ctx.last_ab_capture_enemy < min_quiescence_enemy_material() {
+    // Q after loud AB captures/promos, or when STM can still promote into a big piece.
+    let loud_parent = ctx.last_ab_capture_enemy >= min_quiescence_enemy_material();
+    let loud_promos = generate_loud_promotions(state);
+    if !loud_parent && loud_promos.is_empty() {
         return evaluate_with_ply(state, weights, ctx.ply);
     }
     let q = leaf_quiescence_depth(ctx, is_pv);
@@ -1758,18 +1857,33 @@ fn leaf_or_quiesce(
         let prev_to = ctx
             .last_ab_to
             .or_else(|| state.get_move_history().last().map(|m| m.to));
-        quiesce(state, weights, q, alpha, beta, prev_to, false, ctx)
+        // Quiet leaf with only promo tactics: don't open full capture q.
+        quiesce(
+            state,
+            weights,
+            q,
+            alpha,
+            beta,
+            prev_to,
+            false,
+            loud_parent,
+            ctx,
+        )
     }
 }
 
-/// Capture-only quiescence (excludes pure self-captures via `move_captures_enemy`).
+/// Capture-only quiescence (excludes pure self-captures via `move_captures_enemy`),
+/// plus promotions into two-movers / range capturers.
 ///
 /// Q contract: resolve hanging exchanges on the contested square (SimpleTakes /
 /// dest-recaptures). Non-recapture PathClear/MultiLeg corridor tactics are left
 /// to main-search depth (pre–PR 17-style behavior under high piece values).
+/// Loud promotions (FreeKing→GG, etc.) are always eligible and skip PathAware
+/// top-N / delta / hang cuts.
 ///
 /// `prev_to` / `prev_was_simple`: prior move landing and whether it was a
 /// [`CaptureKind::SimpleTake`] (PathAware recapture exception / RecaptureOnly).
+/// `include_captures`: false = promo-only entry after a quiet AB leaf.
 fn quiesce(
     state: &mut GameState,
     weights: &EvalWeights,
@@ -1778,6 +1892,7 @@ fn quiesce(
     beta: i32,
     prev_to: Option<Position>,
     _prev_was_simple: bool,
+    include_captures: bool,
     ctx: &mut SearchContext,
 ) -> i32 {
     ctx.nodes += 1;
@@ -1849,8 +1964,11 @@ fn quiesce(
     let path_aware = ctx.q_prune_mode.uses_path_aware();
     let deep_ply = qdepth < ctx.quiesce_entry_depth;
     // Deep PathAware plies only need recaptures onto prev_to — skip full-board gen.
+    // Child plies always allow captures; promo-only is entry-only.
     let victim_only = path_aware && deep_ply && prev_to.is_some();
-    let raw_moves = generate_quiescence_captures(state, weights, prev_to, victim_only);
+    let gen_captures = include_captures || deep_ply;
+    let raw_moves =
+        generate_quiescence_captures(state, weights, prev_to, victim_only, gen_captures);
     if raw_moves.is_empty() {
         return stand_pat;
     }
@@ -1864,6 +1982,9 @@ fn quiesce(
         landing_victim: f32,
         is_recapture: bool,
         is_dest_recapture: bool,
+        is_loud_promo: bool,
+        /// Capture victim + promo material jump (for delta / ordering).
+        tactical_gain: f32,
     }
 
     let mut cands: Vec<QCand> = raw_moves
@@ -1885,6 +2006,12 @@ fn quiesce(
                 .unwrap_or(false);
             let is_dest_recapture = prev_to == Some(mv.to);
             let (enemy, own, kind) = capture_exchange_kind(state, weights, &mv);
+            let is_loud_promo = is_loud_promotion_move(state, &mv);
+            let promo_gain = if is_loud_promo {
+                loud_promotion_material_gain(state, weights, &mv)
+            } else {
+                0.0
+            };
             Some(QCand {
                 mv,
                 enemy,
@@ -1894,6 +2021,8 @@ fn quiesce(
                 landing_victim,
                 is_recapture,
                 is_dest_recapture,
+                is_loud_promo,
+                tactical_gain: enemy + promo_gain,
             })
         })
         .collect();
@@ -1901,7 +2030,7 @@ fn quiesce(
     // Recapture-only after the first q-ply.
     if ctx.q_prune_mode.uses_recapture_only() {
         if prev_to.is_some() {
-            cands.retain(|c| c.is_recapture);
+            cands.retain(|c| c.is_recapture || c.is_loud_promo);
             if cands.is_empty() {
                 return stand_pat;
             }
@@ -1911,7 +2040,7 @@ fn quiesce(
     // PathAware deep taper: loud victims, or recapture onto the previous landing.
     if path_aware && deep_ply {
         let floor = min_quiescence_deep_enemy();
-        cands.retain(|c| c.enemy >= floor || c.is_recapture);
+        cands.retain(|c| c.enemy >= floor || c.is_recapture || c.is_loud_promo);
         if cands.is_empty() {
             return stand_pat;
         }
@@ -1925,6 +2054,9 @@ fn quiesce(
         let mut attack_cache: HashMap<usize, bool> = HashMap::new();
         let board = state.get_board();
         cands.retain(|c| {
+            if c.is_loud_promo {
+                return true;
+            }
             if !net_below_hang_frac(c.enemy, c.own, c.mover_value) {
                 return true;
             }
@@ -1938,21 +2070,34 @@ fn quiesce(
     // Capturable-max futility: best legal candidate gain, not any piece on the board.
     let best_gain = cands
         .iter()
-        .map(|c| if use_net { c.enemy - c.own } else { c.enemy })
+        .map(|c| {
+            if c.is_loud_promo {
+                c.tactical_gain
+            } else if use_net {
+                c.enemy - c.own
+            } else {
+                c.enemy
+            }
+        })
         .fold(0.0f32, f32::max);
     if stand_pat.saturating_add(best_gain.round() as i32) <= alpha {
         return stand_pat;
     }
 
     // Landing victim first, soft-boost recaptures, then path-sum MVV-LVA.
+    // Loud promos sort by tactical (promo) gain so FreeKing→GG is not buried.
     cands.sort_by(|a, b| {
+        let promo_a = a.is_loud_promo.cmp(&b.is_loud_promo);
+        if promo_a != std::cmp::Ordering::Equal {
+            return promo_a.reverse();
+        }
         let la = (a.landing_victim * 1000.0).round() as i32;
         let lb = (b.landing_victim * 1000.0).round() as i32;
         lb.cmp(&la)
             .then_with(|| b.is_recapture.cmp(&a.is_recapture))
             .then_with(|| {
-                let sa = ((a.enemy - a.own) * 1000.0 - a.mover_value).round() as i32;
-                let sb = ((b.enemy - b.own) * 1000.0 - b.mover_value).round() as i32;
+                let sa = ((a.tactical_gain - a.own) * 1000.0 - a.mover_value).round() as i32;
+                let sb = ((b.tactical_gain - b.own) * 1000.0 - b.mover_value).round() as i32;
                 sb.cmp(&sa)
             })
     });
@@ -1983,14 +2128,18 @@ fn quiesce(
     // PathAware: PathClear/MultiLeg under budget only when they answer a capture
     // or land on a loud piece (drop mop PathClears whose value is path-sum junk).
     // Deep plies also restrict SimpleTakes to recaptures onto the previous landing.
-    // PathAware: PathClear/MultiLeg only as destination recapture; deep plies
-    // also restrict SimpleTakes to recaptures onto the previous landing.
+    // Loud promotions are always kept (outside the top-N budget).
     if path_aware {
-        let mut kept = Vec::with_capacity(top_n_cap.min(cands.len()));
+        let mut kept = Vec::with_capacity(top_n_cap.min(cands.len()) + 4);
         let mut path_kept = 0usize;
+        let mut non_promo = 0usize;
         for c in cands.drain(..) {
-            if kept.len() >= top_n_cap {
-                break;
+            if c.is_loud_promo {
+                kept.push(c);
+                continue;
+            }
+            if non_promo >= top_n_cap {
+                continue;
             }
             match c.kind {
                 CaptureKind::SimpleTake => {
@@ -2008,11 +2157,23 @@ fn quiesce(
                     path_kept += 1;
                 }
             }
+            non_promo += 1;
             kept.push(c);
         }
         cands = kept;
     } else if top_n_cap != usize::MAX && cands.len() > top_n_cap {
-        cands.truncate(top_n_cap);
+        // Keep all loud promos, truncate the rest.
+        let mut promos = Vec::new();
+        let mut rest = Vec::new();
+        for c in cands.drain(..) {
+            if c.is_loud_promo {
+                promos.push(c);
+            } else if rest.len() < top_n_cap {
+                rest.push(c);
+            }
+        }
+        promos.append(&mut rest);
+        cands = promos;
     }
     if let Some(tm) = tt_move {
         if let Some(idx) = cands.iter().position(|c| same_tt_move(&c.mv, tm)) {
@@ -2033,8 +2194,15 @@ fn quiesce(
             break;
         }
         // Live delta: skip once earlier MVV takes have raised alpha.
-        let gain = if use_net { c.enemy - c.own } else { c.enemy };
-        if (stand_pat as f32 + gain) <= alpha as f32 {
+        // Loud promos always expand (promo gain is the point of searching them).
+        let gain = if c.is_loud_promo {
+            c.tactical_gain
+        } else if use_net {
+            c.enemy - c.own
+        } else {
+            c.enemy
+        };
+        if !c.is_loud_promo && (stand_pat as f32 + gain) <= alpha as f32 {
             continue;
         }
         ctx.q_cap_index = i + 1;
@@ -2052,11 +2220,13 @@ fn quiesce(
         let landing = c.mv.to;
         let mv_key = move_tt_key(&c.mv);
         let mv = c.mv;
+        let is_loud_promo = c.is_loud_promo;
 
         // Pre-make hang skip for SimpleTake only. PathClear/MultiLeg often look
         // attacked pre-move only because a path victim "defends" the landing; those
         // go through make + post-fire check below.
         if path_aware
+            && !is_loud_promo
             && matches!(kind, CaptureKind::SimpleTake)
             && net_below_hang_frac(enemy, own, mover_value)
             && state
@@ -2072,6 +2242,7 @@ fn quiesce(
 
         // PathAware post-fire hang for PathClear/MultiLeg (may remove landing defenders).
         if path_aware
+            && !is_loud_promo
             && matches!(kind, CaptureKind::PathClear | CaptureKind::MultiLeg)
             && net_below_hang_frac(enemy, own, mover_value)
         {
@@ -2106,6 +2277,7 @@ fn quiesce(
             -alpha,
             next_prev_to,
             next_was_simple,
+            true,
             ctx,
         );
         state.unmake_move_for_search(undo);
@@ -2249,11 +2421,7 @@ fn alphabeta_record(
         }
         let label = move_label(state, &mv);
         let is_capture = move_captures_enemy(state, &mv);
-        let capture_enemy = if is_capture {
-            capture_material_exchange(state, weights, &mv).0
-        } else {
-            0.0
-        };
+        let capture_enemy = move_loudness(state, weights, &mv, is_capture);
         let Some(undo) = state.make_move_for_search(mv.clone()) else {
             continue;
         };
@@ -2876,11 +3044,11 @@ mod tests {
             &loud_land
         )));
         // Generate-time filter: mop PathClear absent without dest prev_to.
-        let gen_none = generate_quiescence_captures(&state, &weights, None, false);
+        let gen_none = generate_quiescence_captures(&state, &weights, None, false, true);
         assert!(!gen_none.iter().any(|m| same_root_move(m, &mop)));
         // Loud SimpleTake clears the floor and is kept even without prev_to.
         assert!(gen_none.iter().any(|m| same_root_move(m, &loud_land)));
-        let gen_dest = generate_quiescence_captures(&state, &weights, Some(loud_land.to), false);
+        let gen_dest = generate_quiescence_captures(&state, &weights, Some(loud_land.to), false, true);
         assert!(gen_dest.iter().any(|m| same_root_move(m, &loud_land)));
         assert!(!gen_dest.iter().any(|m| same_root_move(m, &mop)));
     }
@@ -3236,7 +3404,7 @@ mod tests {
         assert!(!is_quiescence_capture_candidate(
             &state, &weights, &mv, None
         ));
-        let gen = generate_quiescence_captures(&state, &weights, Some(landing), false);
+        let gen = generate_quiescence_captures(&state, &weights, Some(landing), false, true);
         assert!(gen.iter().any(|m| same_root_move(m, &mv)));
     }
 
@@ -3491,17 +3659,25 @@ mod tests {
             .iter()
             .filter(|m| quiesce_move_looks_path_or_multileg(&state, m))
             .count();
-        let gen = generate_quiescence_captures(&state, &weights, None, false);
+        let gen = generate_quiescence_captures(&state, &weights, None, false, true);
         let gen_pathish = gen
             .iter()
             .filter(|m| quiesce_move_looks_path_or_multileg(&state, m))
             .count();
+        let gen_pathish_non_promo = gen
+            .iter()
+            .filter(|m| {
+                quiesce_move_looks_path_or_multileg(&state, m)
+                    && !is_loud_promotion_move(&state, m)
+            })
+            .count();
         eprintln!(
-            "opening captures_only pathish={pathish} q_gen={} q_gen_pathish={gen_pathish}",
+            "opening captures_only pathish={pathish} q_gen={} q_gen_pathish={gen_pathish} non_promo_pathish={gen_pathish_non_promo}",
             gen.len()
         );
-        // Without a contested square, PathClear/MultiLeg must not enter q gen.
-        assert_eq!(gen_pathish, 0);
+        // Without a contested square, PathClear/MultiLeg must not enter q gen
+        // (loud promotions into big pieces are the intentional exception).
+        assert_eq!(gen_pathish_non_promo, 0);
         assert!(pathish > 0, "opening should have path-clear captures to filter");
     }
 
@@ -3515,7 +3691,7 @@ mod tests {
             .iter()
             .filter(|m| move_captures_enemy(&state, m))
             .count();
-        let worth = generate_quiescence_captures(&state, &weights, None, false).len();
+        let worth = generate_quiescence_captures(&state, &weights, None, false, true).len();
         let caps_only = state
             .generate_legal_moves_mode(LegalMoveGen::CapturesOnly)
             .len();
@@ -3526,6 +3702,45 @@ mod tests {
         assert!(
             worth < raw_caps,
             "50-point threshold should drop cheap opening jump-takes"
+        );
+    }
+
+    #[test]
+    fn free_king_promo_is_loud_and_enters_q_gen() {
+        let weights = EvalWeights::seed();
+        assert!(is_big_piece(PieceType::GreatGeneral));
+        assert!(promotes_into_big_piece(PieceType::FreeKing));
+
+        let mut state = GameState::new();
+        // Black FreeKing already in the promotion zone (rank >= 25).
+        state.place_piece(Piece::new(
+            PieceType::King,
+            Color::Black,
+            Position::new(0, 0).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::King,
+            Color::White,
+            Position::new(35, 35).unwrap(),
+        ));
+        let fk = Position::new(17, 26).unwrap();
+        state.place_piece(Piece::new(PieceType::FreeKing, Color::Black, fk));
+        // Empty one-step forward landing.
+        let to = Position::new(17, 27).unwrap();
+        let promo = Move::new_with_promotion(fk, to, true);
+        assert!(
+            is_loud_promotion_move(&state, &promo),
+            "FreeKing→GG should count as loud"
+        );
+        let gain = loud_promotion_material_gain(&state, &weights, &promo);
+        assert!(
+            gain >= min_quiescence_enemy_material(),
+            "promo gain {gain} should clear loud floor"
+        );
+        let gen = generate_quiescence_captures(&state, &weights, None, false, false);
+        assert!(
+            gen.iter().any(|m| m.promoted && m.from == fk),
+            "promo-only q gen must include FreeKing promotions: {gen:?}"
         );
     }
 
