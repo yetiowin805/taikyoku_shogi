@@ -10,7 +10,7 @@ use crate::training::record::{AgentSpec, GameStart};
 use crate::training::run_status::{
     disk_free_gb, utc_now_iso, RunStatus, WorkerDaemonConfig,
 };
-use crate::training::texel::{fit_texel, TexelFitConfig};
+use crate::training::texel::{fit_texel, TexelFitConfig, TexelInit};
 use crate::training::tournament::{
     load_manifest, new_run_id, run_tournament, standings_summary, TourneyConfig,
     DEFAULT_GAMES_PER_PAIR,
@@ -39,7 +39,10 @@ pub fn print_training_usage() {
     println!("            (event-driven sampling; default target 150/game)");
     println!("  mobility-seed [--samples N] [--seed S] [--starts DIR] [--out PATH]");
     println!("  texel-fit [--features DIR] [--out PATH] [--iters N] [--lr F] [--k F]");
-    println!("            (default: 300 iters, lr=0.5, K calibrated to |K·eval|≈1)");
+    println!("            [--init mobility|seed|PATH] [--late-frac F] [--keep-draws]");
+    println!("            [--no-log-space] [--no-lr-scale-k] [--no-renorm-pawn]");
+    println!("            (default: mobility init, log-space, late 0.75, drop draws,");
+    println!("             2500 iters, lr=0.05 scaled by 1/K, Pawn→1)");
     println!("  match --a AGENT --b AGENT [--starts SPEC] [--games N] [--jobs J] [--outdir DIR]");
     println!("  tournament --manifest PATH [--run-id ID] [--resume] [--games-per-pair N] [--jobs J]");
     println!("             [--starts light] [--depth N] [--outdir DIR]");
@@ -783,17 +786,54 @@ pub fn cmd_texel_fit(args: &[String]) -> Result<(), String> {
             cfg.fit_k = false;
             continue;
         }
+        if let Some(v) = take_flag_value(args, &mut i, "--init")? {
+            cfg.init = match v.as_str() {
+                "seed" => TexelInit::Seed,
+                "mobility" => TexelInit::Mobility,
+                path => TexelInit::Path(path.to_string()),
+            };
+            continue;
+        }
+        if let Some(v) = take_f32(args, &mut i, "--late-frac")? {
+            cfg.late_frac = v;
+            continue;
+        }
+        if args.get(i).map(|s| s.as_str()) == Some("--keep-draws") {
+            cfg.drop_draws = false;
+            i += 1;
+            continue;
+        }
+        if args.get(i).map(|s| s.as_str()) == Some("--no-log-space") {
+            cfg.log_space = false;
+            i += 1;
+            continue;
+        }
+        if args.get(i).map(|s| s.as_str()) == Some("--no-lr-scale-k") {
+            cfg.lr_scale_by_k = false;
+            i += 1;
+            continue;
+        }
+        if args.get(i).map(|s| s.as_str()) == Some("--no-renorm-pawn") {
+            cfg.renormalize_pawn = false;
+            i += 1;
+            continue;
+        }
         return Err(format!("Unknown flag {}", args[i]));
     }
     let (_cp, stats) = fit_texel(&cfg)?;
     println!(
-        "Wrote {} (CE {:.6} → {:.6}, k={:.4}, max|Δw|={:.4}, mean|Δw|={:.4})",
+        "Wrote {} (CE {:.6} → {:.6}, k={:.4}, max|Δw|={:.4}, mean|Δw|={:.4}, max%Δ={:.1}, mean%Δ={:.1}, used={}/{}, agree={:.3})",
         cfg.out_model,
         stats.loss_before,
         stats.loss_after,
         stats.k,
         stats.max_abs_delta,
-        stats.mean_abs_delta
+        stats.mean_abs_delta,
+        stats.max_pct_delta,
+        stats.mean_pct_delta,
+        stats.n_used,
+        stats.n_raw,
+        stats.sign_agreement
     );
     Ok(())
 }

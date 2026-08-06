@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
-# Fit several Texel regimens on the same features → models/tourney/ + manifest.json
+# Fit tourney entrants on the same features → models/tourney/ + manifest.json
+#
+# Grid (intentionally small — old seed-nudge regimens were ~seed):
+#   seed              hand eval (baseline)
+#   texel-hot-legacy  prior seed-init additive hot fit (tiny nudge control)
+#   fresh-base        mobility + log-space, 2500 iters, lr=0.05
+#   fresh-hot         mobility + log-space, 2500 iters, lr=0.15
+#   fresh-long        mobility + log-space, 5000 iters, lr=0.05
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -9,6 +16,8 @@ BIN="${BIN:-$ROOT/target/release/taikyoku_shogi}"
 FEATURES="${FEATURES:-data/derived/positions}"
 OUTDIR="${OUTDIR:-models/tourney}"
 SEED_MODEL="${SEED_MODEL:-models/ab-seed.json}"
+MOBILITY_MODEL="${MOBILITY_MODEL:-models/ab-mobility-seed.json}"
+LEGACY_HOT="${LEGACY_HOT:-models/texel-hot.json}"
 
 if [[ ! -x "$BIN" ]]; then
   echo "Missing binary: $BIN" >&2
@@ -26,37 +35,83 @@ fi
 mkdir -p "$OUTDIR"
 cp -f "$SEED_MODEL" "$OUTDIR/seed.json"
 
-run_fit() {
+# Mobility prior for fresh fits (generate once if missing).
+if [[ ! -f "$MOBILITY_MODEL" ]]; then
+  echo "=== mobility-seed → $MOBILITY_MODEL ==="
+  "$BIN" mobility-seed --out "$MOBILITY_MODEL" | tee "$OUTDIR/mobility-seed.log"
+fi
+cp -f "$MOBILITY_MODEL" "$OUTDIR/mobility-seed.json"
+
+# Keep the old hot fit as a near-seed control if present; else re-fit legacy style.
+if [[ -f "$LEGACY_HOT" ]]; then
+  echo "=== copy legacy hot $LEGACY_HOT → $OUTDIR/texel-hot-legacy.json ==="
+  cp -f "$LEGACY_HOT" "$OUTDIR/texel-hot-legacy.json"
+  echo "legacy copy (no refit)" | tee "$OUTDIR/texel-hot-legacy.fit.log"
+else
+  echo "=== fit texel-hot-legacy (seed init, additive, iters=300 lr=2) ==="
+  "$BIN" texel-fit \
+    --features "$FEATURES" \
+    --out "$OUTDIR/texel-hot-legacy.json" \
+    --init seed \
+    --iters 300 \
+    --lr 2.0 \
+    --late-frac 0 \
+    --keep-draws \
+    --no-log-space \
+    --no-lr-scale-k \
+    --no-renorm-pawn \
+    | tee "$OUTDIR/texel-hot-legacy.fit.log"
+fi
+
+run_fresh() {
   local id="$1"
   local iters="$2"
   local lr="$3"
   local out="$OUTDIR/${id}.json"
-  echo "=== fit $id (iters=$iters lr=$lr) → $out ==="
-  "$BIN" texel-fit --features "$FEATURES" --out "$out" --iters "$iters" --lr "$lr" | tee "$OUTDIR/${id}.fit.log"
+  echo "=== fit $id (mobility log-space iters=$iters lr=$lr) → $out ==="
+  "$BIN" texel-fit \
+    --features "$FEATURES" \
+    --out "$out" \
+    --init mobility \
+    --iters "$iters" \
+    --lr "$lr" \
+    --late-frac 0.75 \
+    | tee "$OUTDIR/${id}.fit.log"
 }
 
-run_fit texel-base 300 0.5
-run_fit texel-long 1000 0.5
-run_fit texel-hot 300 2.0
-run_fit texel-cool 300 0.1
+run_fresh fresh-base 2500 0.05
+run_fresh fresh-hot 2500 0.15
+run_fresh fresh-long 5000 0.05
 
 python3 - <<PY
 import json, re, pathlib
 outdir = pathlib.Path("$OUTDIR")
-entrants = [{"id": "seed", "model": str(outdir / "seed.json")}]
-for id in ["texel-base", "texel-long", "texel-hot", "texel-cool"]:
-    log = (outdir / f"{id}.fit.log").read_text()
-    m = re.search(r"max\|Δw\|=([0-9.]+)", log) or re.search(r"max\|\\\\u0394w\|=([0-9.]+)", log)
-    # Also match ASCII 'max|Δw|=' from Rust or 'max|Δw|='
-    m = re.search(r"max\|.w\|=([0-9.eE+-]+)", log)
-    delta = float(m.group(1)) if m else None
-    if delta is not None and delta < 1e-4:
-        print(f"WARNING: {id} barely moved weights (max|Δw|={delta})")
-    entrants.append({"id": id, "model": str(outdir / f"{id}.json")})
+ids = ["seed", "texel-hot-legacy", "fresh-base", "fresh-hot", "fresh-long"]
+entrants = []
+for id in ids:
+    path = outdir / f"{id}.json"
+    if not path.is_file():
+        raise SystemExit(f"missing {path}")
+    entry = {"id": id, "model": str(path)}
+    log = outdir / f"{id}.fit.log"
+    if log.is_file():
+        text = log.read_text()
+        m = re.search(r"max%Δ=([0-9.eE+-]+)", text) or re.search(r"max%.=([0-9.eE+-]+)", text)
+        if m:
+            pct = float(m.group(1))
+            entry["max_pct_delta"] = pct
+            if id.startswith("fresh") and pct < 5.0:
+                print(f"WARNING: {id} max%Δ={pct} looks small for a fresh fit")
+        m2 = re.search(r"max\|.w\|=([0-9.eE+-]+)", text)
+        if m2:
+            entry["max_abs_delta"] = float(m2.group(1))
+    entrants.append(entry)
 manifest = {"entrants": entrants}
 path = outdir / "manifest.json"
 path.write_text(json.dumps(manifest, indent=2) + "\n")
 print(f"Wrote {path} ({len(entrants)} entrants)")
+for e in entrants:
+    print(f"  - {e['id']}: {e['model']}")
 PY
 
 echo "Regimens ready under $OUTDIR"
