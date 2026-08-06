@@ -11,6 +11,10 @@ use crate::training::run_status::{
     disk_free_gb, utc_now_iso, RunStatus, WorkerDaemonConfig,
 };
 use crate::training::texel::{fit_texel, TexelFitConfig};
+use crate::training::tournament::{
+    load_manifest, new_run_id, run_tournament, standings_summary, TourneyConfig,
+    DEFAULT_GAMES_PER_PAIR,
+};
 use crate::training::worker::{
     play_one_game, run_batch, BatchConfig, WorkerConfig, DEFAULT_MAX_MOVES,
 };
@@ -34,11 +38,15 @@ pub fn print_training_usage() {
     println!("  featurize [--games-dir DIR] [--out DIR] [--target-per-game N] [--quiet-stride N]");
     println!("            (event-driven sampling; default target 150/game)");
     println!("  mobility-seed [--samples N] [--seed S] [--starts DIR] [--out PATH]");
-    println!("  texel-fit [--features DIR] [--out PATH] [--iters N] [--lr F]");
-    println!("  match --a AGENT --b AGENT [--starts DIR] [--games N] [--outdir DIR] [--seed-base S]");
+    println!("  texel-fit [--features DIR] [--out PATH] [--iters N] [--lr F] [--k F]");
+    println!("            (default: 300 iters, lr=0.5, K calibrated to |K·eval|≈1)");
+    println!("  match --a AGENT --b AGENT [--starts SPEC] [--games N] [--jobs J] [--outdir DIR]");
+    println!("  tournament --manifest PATH [--run-id ID] [--resume] [--games-per-pair N] [--jobs J]");
+    println!("             [--starts light] [--depth N] [--outdir DIR]");
+    println!("             (default games-per-pair=24, interleaved; stop: TOURNEY_STOP / Ctrl-C)");
     println!();
     println!("  Agents: mi, random, royal, ab");
-    println!("  Starts: opening | random (=fischer shuffle+ablations) | DIR of pool JSON");
+    println!("  Starts: opening | random | light | DIR of pool JSON");
     println!(
         "  Data layout: {} / {} / {} / {}",
         paths::RAW_GAMES,
@@ -201,6 +209,7 @@ fn cmd_worker_run(args: &[String]) -> Result<(), String> {
         seed,
         max_moves,
         verbose,
+        stop: None,
     };
     let record = play_one_game(&cfg).map_err(|e| e.message)?;
     let path = out.unwrap_or_else(|| paths::game_path(&record.game_id));
@@ -776,8 +785,16 @@ pub fn cmd_texel_fit(args: &[String]) -> Result<(), String> {
         }
         return Err(format!("Unknown flag {}", args[i]));
     }
-    let (_cp, loss) = fit_texel(&cfg)?;
-    println!("Wrote {} (mean CE loss {:.6})", cfg.out_model, loss);
+    let (_cp, stats) = fit_texel(&cfg)?;
+    println!(
+        "Wrote {} (CE {:.6} → {:.6}, k={:.4}, max|Δw|={:.4}, mean|Δw|={:.4})",
+        cfg.out_model,
+        stats.loss_before,
+        stats.loss_after,
+        stats.k,
+        stats.max_abs_delta,
+        stats.mean_abs_delta
+    );
     Ok(())
 }
 
@@ -799,7 +816,7 @@ pub fn cmd_match(args: &[String]) -> Result<(), String> {
             continue;
         }
         if let Some(v) = take_flag_value(args, &mut i, "--starts")? {
-            cfg.starts_dir = v;
+            cfg.starts_spec = v;
             continue;
         }
         if let Some(v) = take_flag_value(args, &mut i, "--outdir")? {
@@ -808,6 +825,10 @@ pub fn cmd_match(args: &[String]) -> Result<(), String> {
         }
         if let Some(v) = take_usize(args, &mut i, "--games")? {
             cfg.max_games = v;
+            continue;
+        }
+        if let Some(v) = take_usize(args, &mut i, "--jobs")? {
+            cfg.jobs = v;
             continue;
         }
         if let Some(v) = take_u64(args, &mut i, "--seed-base")? {
@@ -834,5 +855,76 @@ pub fn cmd_match(args: &[String]) -> Result<(), String> {
         return Err(format!("Unknown flag {}", args[i]));
     }
     let _ = run_matches(&cfg)?;
+    Ok(())
+}
+
+pub fn cmd_tournament(args: &[String]) -> Result<(), String> {
+    let mut cfg = TourneyConfig::default();
+    let mut manifest: Option<String> = None;
+    let mut i = 2;
+    while i < args.len() {
+        if args[i] == "--verbose" {
+            cfg.verbose = true;
+            i += 1;
+            continue;
+        }
+        if args[i] == "--resume" {
+            cfg.resume = true;
+            i += 1;
+            continue;
+        }
+        if let Some(v) = take_flag_value(args, &mut i, "--manifest")? {
+            manifest = Some(v);
+            continue;
+        }
+        if let Some(v) = take_flag_value(args, &mut i, "--run-id")? {
+            cfg.run_id = v;
+            continue;
+        }
+        if let Some(v) = take_flag_value(args, &mut i, "--outdir")? {
+            cfg.outdir = PathBuf::from(v);
+            continue;
+        }
+        if let Some(v) = take_flag_value(args, &mut i, "--starts")? {
+            cfg.starts_spec = v;
+            continue;
+        }
+        if let Some(v) = take_flag_value(args, &mut i, "--stop-file")? {
+            cfg.stop_file = PathBuf::from(v);
+            continue;
+        }
+        if let Some(v) = take_usize(args, &mut i, "--games-per-pair")? {
+            cfg.games_per_pair = v;
+            continue;
+        }
+        if let Some(v) = take_usize(args, &mut i, "--jobs")? {
+            cfg.jobs = v;
+            continue;
+        }
+        if let Some(v) = take_u64(args, &mut i, "--seed-base")? {
+            cfg.seed_base = v;
+            continue;
+        }
+        if let Some(v) = take_u32(args, &mut i, "--depth")? {
+            cfg.depth = v;
+            continue;
+        }
+        if let Some(v) = take_usize(args, &mut i, "--max-moves")? {
+            cfg.max_moves = v;
+            continue;
+        }
+        return Err(format!("Unknown flag {}", args[i]));
+    }
+    let manifest_path = manifest.ok_or("tournament requires --manifest PATH")?;
+    let man = load_manifest(Path::new(&manifest_path))?;
+    cfg.entrants = man.entrants;
+    if cfg.run_id.is_empty() {
+        cfg.run_id = new_run_id();
+    }
+    if cfg.games_per_pair == 0 {
+        cfg.games_per_pair = DEFAULT_GAMES_PER_PAIR;
+    }
+    let state = run_tournament(&cfg)?;
+    println!("{}", standings_summary(&state));
     Ok(())
 }

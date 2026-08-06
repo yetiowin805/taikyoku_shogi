@@ -4,7 +4,9 @@ use crate::board_position::BoardPosition;
 use crate::player::{player_by_name_with_options, AgentOptions};
 use crate::training::paths::{self, ensure_data_dirs};
 use crate::training::record::{AgentSpec, GameStart};
-use crate::training::start_gen::{generate_fischer_start, is_recipe_path};
+use crate::training::start_gen::{
+    generate_fischer_start, generate_light_fischer_start, is_recipe_path,
+};
 use crate::training::worker::{play_one_game, WorkerConfig};
 use rand::Rng;
 use std::path::Path;
@@ -44,6 +46,8 @@ pub enum StartsSource {
     Fixed(Vec<GameStart>),
     /// Fresh Fischer-style opening (mirrored rank shuffle + ablations) per game.
     Fischer,
+    /// Light Fischer: no ablations; shuffle only ranks without powerful/royals.
+    LightFischer,
 }
 
 impl StartsSource {
@@ -60,6 +64,10 @@ impl StartsSource {
                 let (pos, _recipe) = generate_fischer_start(seed);
                 Ok(GameStart::Position { position: pos })
             }
+            StartsSource::LightFischer => {
+                let (pos, _recipe) = generate_light_fischer_start(seed);
+                Ok(GameStart::Position { position: pos })
+            }
         }
     }
 }
@@ -68,6 +76,7 @@ impl StartsSource {
 ///
 /// - `opening` — standard initial position
 /// - `random` / `fischer` — per-game Fischer shuffle + powerful/royal ablations
+/// - `light` / `light-fischer` — shuffle-only ranks without powerful/royals (no ablation)
 /// - otherwise — directory of saved start JSON files
 pub fn parse_starts_spec(spec: &str) -> Result<StartsSource, String> {
     if spec == "opening" {
@@ -75,6 +84,9 @@ pub fn parse_starts_spec(spec: &str) -> Result<StartsSource, String> {
     }
     if spec == "random" || spec == "fischer" {
         return Ok(StartsSource::Fischer);
+    }
+    if spec == "light" || spec == "light-fischer" {
+        return Ok(StartsSource::LightFischer);
     }
     if spec.starts_with("random:") || spec.starts_with("fischer:") {
         return Err(format!(
@@ -214,6 +226,7 @@ pub fn snapshot_via_worker(
         seed,
         max_moves: until_move,
         verbose: false,
+        stop: None,
     })
     .map_err(|e| e.message)?;
     let state = crate::training::worker::replay_to_end(&record)?;
@@ -237,6 +250,14 @@ mod tests {
         assert!(matches!(
             parse_starts_spec("opening").unwrap(),
             StartsSource::Fixed(_)
+        ));
+        assert!(matches!(
+            parse_starts_spec("light").unwrap(),
+            StartsSource::LightFischer
+        ));
+        assert!(matches!(
+            parse_starts_spec("light-fischer").unwrap(),
+            StartsSource::LightFischer
         ));
         assert!(parse_starts_spec("random:300").is_err());
     }

@@ -13,9 +13,10 @@ MODEL_A=models/ab-seed.json
 MODEL_B=models/ab-texel-v1.json
 GAMES=16
 DEPTH=2
-STARTS=random
+STARTS=light
 OUTDIR=data/raw/match_seed_vs_texel_v1
 SEED_BASE=0
+JOBS="${JOBS:-1}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -26,6 +27,7 @@ while [[ $# -gt 0 ]]; do
     --starts) STARTS="$2"; shift 2 ;;
     --outdir) OUTDIR="$2"; shift 2 ;;
     --seed-base) SEED_BASE="$2"; shift 2 ;;
+    --jobs) JOBS="$2"; shift 2 ;;
     --bin) BIN="$2"; shift 2 ;;
     *) echo "Unknown arg: $1" >&2; exit 2 ;;
   esac
@@ -47,7 +49,7 @@ set +e
   --model-a "$MODEL_A" --model-b "$MODEL_B" \
   --games "$GAMES" --depth "$DEPTH" \
   --starts "$STARTS" --outdir "$OUTDIR" \
-  --seed-base "$SEED_BASE" \
+  --seed-base "$SEED_BASE" --jobs "$JOBS" \
   2>&1 | tee "$LOG"
 RC=${PIPESTATUS[0]}
 set -e

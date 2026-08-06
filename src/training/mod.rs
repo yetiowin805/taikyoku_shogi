@@ -10,4 +10,5 @@ pub mod record;
 pub mod run_status;
 pub mod start_gen;
 pub mod texel;
+pub mod tournament;
 pub mod worker;

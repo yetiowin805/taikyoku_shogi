@@ -182,6 +182,12 @@ fn main() {
                     print_usage();
                 }
             }
+            "tournament" => {
+                if let Err(e) = taikyoku_shogi::training::cli::cmd_tournament(&args) {
+                    eprintln!("{}", e);
+                    print_usage();
+                }
+            }
             "position" => {
                 if let Err(e) = cmd_position(&args) {
                     eprintln!("{}", e);

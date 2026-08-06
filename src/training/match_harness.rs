@@ -1,23 +1,29 @@
 //! Paired match harness: same start, colors reversed.
 
-use crate::board_position::BoardPosition;
 use crate::game_history::GameResult;
 use crate::training::paths::{self, ensure_data_dirs};
-use crate::training::pool::load_starts_dir;
+use crate::training::pool::{parse_starts_spec, StartsSource};
 use crate::training::record::{AgentSpec, GameStart};
 use crate::training::worker::{play_one_game, BatchSummary, WorkerConfig};
+use rand::rngs::OsRng;
+use rand::RngCore;
 use std::path::Path;
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex};
 
 #[derive(Debug, Clone)]
 pub struct MatchConfig {
     pub engine_a: AgentSpec,
     pub engine_b: AgentSpec,
-    pub starts_dir: String,
+    /// Same as worker: `opening` | `random` | `light` | DIR.
+    pub starts_spec: String,
     pub outdir: String,
     pub seed_base: u64,
     pub max_games: usize,
     pub max_moves: usize,
+    pub jobs: usize,
     pub verbose: bool,
+    pub stop: Option<Arc<AtomicBool>>,
 }
 
 impl Default for MatchConfig {
@@ -25,12 +31,14 @@ impl Default for MatchConfig {
         Self {
             engine_a: AgentSpec::new("ab"),
             engine_b: AgentSpec::new("ab"),
-            starts_dir: paths::RAW_STARTS.to_string(),
+            starts_spec: paths::RAW_STARTS.to_string(),
             outdir: paths::RAW_GAMES.to_string(),
             seed_base: 1,
             max_games: 10,
             max_moves: crate::training::worker::DEFAULT_MAX_MOVES,
+            jobs: 1,
             verbose: false,
+            stop: None,
         }
     }
 }
@@ -83,84 +91,118 @@ enum MatchPoint {
     Draw,
 }
 
-/// Play paired games from pool starts (A as Black then A as White on same start).
+fn resolve_start(starts: &StartsSource, pair_idx: usize, seed: u64) -> Result<GameStart, String> {
+    starts.start_for_game(pair_idx, seed)
+}
+
+/// Play paired games (A as Black then A as White on same start).
 pub fn run_matches(cfg: &MatchConfig) -> Result<MatchScoreboard, String> {
     ensure_data_dirs()?;
     std::fs::create_dir_all(&cfg.outdir)
         .map_err(|e| format!("create {}: {}", cfg.outdir, e))?;
 
-    let starts = load_starts_dir(Path::new(&cfg.starts_dir))?;
-    let starts: Vec<(String, BoardPosition)> = if starts.is_empty() {
-        // Fall back to opening if no pool yet.
-        vec![("opening".into(), {
-            let mut s = crate::game_state::GameState::new();
-            s.setup_initial_position();
-            BoardPosition::from_state(&s)
-        })]
-    } else {
-        starts
-    };
-
-    let mut board = MatchScoreboard::default();
-    let mut summary = BatchSummary::default();
-    let mut game_idx = 0usize;
-
-    for (start_id, pos) in starts.iter() {
-        if board.pairs >= cfg.max_games {
-            break;
+    let starts = parse_starts_spec(&cfg.starts_spec).or_else(|e| {
+        // Legacy: treat as opening fallback when path missing.
+        if cfg.starts_spec == "opening" {
+            Ok(StartsSource::Fixed(vec![GameStart::Opening]))
+        } else {
+            Err(e)
         }
-        let start = GameStart::Position {
-            position: pos.clone(),
-        };
+    })?;
 
-        // Game 1: A black, B white
-        let seed1 = cfg.seed_base.wrapping_add(game_idx as u64);
-        let rec1 = play_one_game(&WorkerConfig {
-            black: cfg.engine_a.clone(),
-            white: cfg.engine_b.clone(),
-            start: start.clone(),
-            seed: seed1,
-            max_moves: cfg.max_moves,
-            verbose: cfg.verbose,
-        })
-        .map_err(|e| e.message)?;
-        let path1 = Path::new(&cfg.outdir).join(format!("{}-a-black.json", rec1.game_id));
-        rec1.save_path(&path1)?;
-        summary.record(&rec1.result, rec1.stats.move_count);
-        match result_for_a(true, &rec1.result) {
-            MatchPoint::A => board.a_wins += 1,
-            MatchPoint::B => board.b_wins += 1,
-            MatchPoint::Draw => board.draws += 1,
+    let jobs = cfg.jobs.max(1);
+    let board = Mutex::new(MatchScoreboard::default());
+    let summary = Mutex::new(BatchSummary::default());
+    let next_pair = AtomicUsize::new(0);
+    let stop = cfg
+        .stop
+        .clone()
+        .unwrap_or_else(|| Arc::new(AtomicBool::new(false)));
+
+    std::thread::scope(|scope| {
+        for _ in 0..jobs {
+            let starts = &starts;
+            let board = &board;
+            let summary = &summary;
+            let next_pair = &next_pair;
+            let stop = &stop;
+            scope.spawn(move || loop {
+                if stop.load(Ordering::Relaxed) {
+                    return;
+                }
+                let pair_idx = {
+                    let n = next_pair.fetch_add(1, Ordering::Relaxed);
+                    if n >= cfg.max_games {
+                        return;
+                    }
+                    n
+                };
+                let start_seed = if cfg.seed_base == 0 {
+                    let mut b = [0u8; 8];
+                    OsRng.fill_bytes(&mut b);
+                    u64::from_le_bytes(b)
+                } else {
+                    cfg.seed_base.wrapping_add(pair_idx as u64 * 2)
+                };
+                let start = match resolve_start(starts, pair_idx, start_seed) {
+                    Ok(s) => s,
+                    Err(e) => {
+                        eprintln!("match start error: {e}");
+                        return;
+                    }
+                };
+
+                let play = |black: &AgentSpec, white: &AgentSpec, seed: u64, a_black: bool| {
+                    if stop.load(Ordering::Relaxed) {
+                        return;
+                    }
+                    match play_one_game(&WorkerConfig {
+                        black: black.clone(),
+                        white: white.clone(),
+                        start: start.clone(),
+                        seed,
+                        max_moves: cfg.max_moves,
+                        verbose: cfg.verbose && jobs == 1,
+                        stop: Some(stop.clone()),
+                    }) {
+                        Ok(rec) => {
+                            let tag = if a_black { "a-black" } else { "a-white" };
+                            let path =
+                                Path::new(&cfg.outdir).join(format!("{}-{}.json", rec.game_id, tag));
+                            let _ = rec.save_path(&path);
+                            summary.lock().unwrap().record(&rec.result, rec.stats.move_count);
+                            let mut b = board.lock().unwrap();
+                            match result_for_a(a_black, &rec.result) {
+                                MatchPoint::A => b.a_wins += 1,
+                                MatchPoint::B => b.b_wins += 1,
+                                MatchPoint::Draw => b.draws += 1,
+                            }
+                        }
+                        Err(e) => {
+                            if e.message != "stopped" {
+                                eprintln!("match game failed: {}", e.message);
+                            }
+                        }
+                    }
+                };
+
+                play(&cfg.engine_a, &cfg.engine_b, start_seed, true);
+                play(
+                    &cfg.engine_b,
+                    &cfg.engine_a,
+                    start_seed.wrapping_add(1),
+                    false,
+                );
+                board.lock().unwrap().pairs += 1;
+                if cfg.verbose {
+                    println!("Completed pair {pair_idx}");
+                }
+            });
         }
-        game_idx += 1;
+    });
 
-        // Game 2: B black, A white (colors reversed)
-        let seed2 = cfg.seed_base.wrapping_add(game_idx as u64);
-        let rec2 = play_one_game(&WorkerConfig {
-            black: cfg.engine_b.clone(),
-            white: cfg.engine_a.clone(),
-            start,
-            seed: seed2,
-            max_moves: cfg.max_moves,
-            verbose: cfg.verbose,
-        })
-        .map_err(|e| e.message)?;
-        let path2 = Path::new(&cfg.outdir).join(format!("{}-a-white.json", rec2.game_id));
-        rec2.save_path(&path2)?;
-        summary.record(&rec2.result, rec2.stats.move_count);
-        match result_for_a(false, &rec2.result) {
-            MatchPoint::A => board.a_wins += 1,
-            MatchPoint::B => board.b_wins += 1,
-            MatchPoint::Draw => board.draws += 1,
-        }
-        game_idx += 1;
-
-        board.pairs += 1;
-        if cfg.verbose {
-            println!("Completed pair on start {}", start_id);
-        }
-    }
-
+    let summary = summary.into_inner().unwrap();
+    let board = board.into_inner().unwrap();
     summary.print();
     board.print();
     Ok(board)
