@@ -32,13 +32,23 @@ sudo cp deploy/worker.env.example /etc/taikyoku/worker.env
 sudo $EDITOR /etc/taikyoku/worker.env
 
 sudo cp deploy/systemd/taikyoku-worker.service /etc/systemd/system/
+# Optional: browse games via SSH tunnel without rsync
+sudo cp deploy/systemd/taikyoku-serve.service /etc/systemd/system/
 # Optional weekly starts refresh:
 sudo cp deploy/systemd/taikyoku-pool.service deploy/systemd/taikyoku-pool.timer /etc/systemd/system/
+# Optional hourly game-count email/push:
+sudo cp deploy/systemd/taikyoku-notify-milestone.service deploy/systemd/taikyoku-notify-milestone.timer /etc/systemd/system/
+sudo cp deploy/notify.env.example /etc/taikyoku/notify.env
+# configure SMTP (msmtp) or NTFY_TOPIC in /etc/taikyoku/notify.env
 
 sudo systemctl daemon-reload
 sudo systemctl enable --now taikyoku-worker
+# sudo systemctl enable --now taikyoku-serve
 # sudo systemctl enable --now taikyoku-pool.timer
+# sudo systemctl enable --now taikyoku-notify-milestone.timer
 ```
+
+Make deploy scripts executable after clone: `chmod +x deploy/*.sh`.
 
 Control:
 
@@ -62,21 +72,50 @@ cat data/run/status.json
 
 Count finished games: `ls data/raw/games/*.json 2>/dev/null | wc -l`
 
-Aborted mid-game runs (e.g. illegal/`make_move` failures) are written under **`data/raw/games/partial/`** as the same `GameRecordV2` JSON with `abort_reason` set and moves played so far — useful for GUI/`game tsfen-moves` inspection.
+Aborted mid-game runs (e.g. illegal/`make_move` failures) are written under **`data/raw/games/partial/`** as the same `GameRecordV2` JSON with `abort_reason` set and moves played so far — listed in the GUI alongside finished games.
 
 ### GUI via SSH tunnel (recommended)
 
-On the VPS (as the `taikyoku` user, after `web` build if you want the UI):
+Enable the serve unit (binds **127.0.0.1:3000** only):
 
 ```bash
-./target/release/taikyoku_shogi serve 3000
+sudo systemctl enable --now taikyoku-serve
 ```
+
+Or run once: `./target/release/taikyoku_shogi serve 3000`
 
 On your laptop:
 
 ```bash
 ssh -L 3000:127.0.0.1:3000 user@vps
 # open http://127.0.0.1:3000 — load games from data/raw/games via the GUI
+```
+
+No full `rsync` required to browse. Pull only what you need with e.g. `rsync -avz --include='*.json' --latest …` if you want a local copy.
+
+### Notifications (email / ntfy)
+
+Install `msmtp` (or use [ntfy.sh](https://ntfy.sh)) and set `/etc/taikyoku/notify.env` from `deploy/notify.env.example` (`NOTIFY_TO=…` is prefilled in the example).
+
+Kick off a fit and walk away:
+
+```bash
+# worker can keep running during featurize/fit
+nohup ./deploy/run_texel_cycle.sh \
+  --games-dir data/raw/games \
+  --out-model models/ab-texel-v1.json \
+  >data/run/texel_cycle.log 2>&1 &
+# email/ntfy when done
+```
+
+Match (stop the worker first — CPU-heavy, long games):
+
+```bash
+sudo systemctl stop taikyoku-worker
+nohup ./deploy/run_match.sh \
+  --model-a models/ab-seed.json --model-b models/ab-texel-v1.json \
+  --games 16 --depth 2 \
+  >data/run/match.log 2>&1 &
 ```
 
 ### HTTP status without the full GUI
@@ -91,18 +130,29 @@ Returns the contents of `data/run/status.json` (404 if the daemon has never writ
 
 ## Texel cadence
 
-Stop workers (or wait for a quiet window) before a heavy fit on the same disk:
+Event-driven featurize (capture bursts + quiet stride, decided at ~1.5× piece lead, even subsample to **150**/game by default):
 
 ```bash
+# Optional: stop workers for a quiet disk window
 sudo systemctl stop taikyoku-worker
-./target/release/taikyoku_shogi featurize --games-dir data/raw/games --out data/derived/positions
-./target/release/taikyoku_shogi texel-fit --features data/derived/positions --out models/ab-texel.json
-# point MODEL= at the new checkpoint, then:
+
+./deploy/run_texel_cycle.sh \
+  --games-dir data/raw/games \
+  --out-model models/ab-texel-v1.json
+
+# After a good match vs seed, point MODEL= at the new checkpoint:
+#   sudo $EDITOR /etc/taikyoku/worker.env   # MODEL=models/ab-texel-v1.json
 sudo systemctl start taikyoku-worker
 ```
 
-Pull games/models to a laptop anytime with `rsync`/`scp`.
+Manual equivalent:
 
+```bash
+./target/release/taikyoku_shogi featurize --games-dir data/raw/games --out data/derived/positions
+./target/release/taikyoku_shogi texel-fit --features data/derived/positions --out models/ab-texel-v1.json
+```
+
+Pull games/models to a laptop anytime with `rsync`/`scp`.
 ## Throughput sketch
 
 Wall time for one batch ≈ `(BATCH / JOBS) * mean_game_seconds` when CPU-bound. Games/hour ≈ `JOBS * 3600 / mean_game_seconds` (minus overhead). Re-measure after changing depth or model.

@@ -223,6 +223,12 @@ impl GameHistory {
                 games.push(format!("{}/{}", training, name));
             }
         }
+        let partial = "data/raw/games/partial";
+        if Path::new(partial).is_dir() {
+            for name in Self::list_json_filenames(partial)? {
+                games.push(format!("{}/{}", partial, name));
+            }
+        }
         games.sort();
         games.reverse();
         Ok(games)
