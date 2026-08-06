@@ -247,22 +247,24 @@ Root PathClear / MultiLeg use a **post-fire** (simulate) attack check; interior 
 
 ---
 
-### Leaf quiescence gating (loud captures only)
+### Leaf quiescence gating (loud captures + big-piece promotions)
 
 **Loud floor.** `seed_loud_capture_floor()` ≈ `max(500×2.4, 50×8) = 1200` (from capturing-range / jump tariffs in [`src/eval.rs`](src/eval.rs)).
 
 **Mechanism.** At AB depth 0:
-- If the parent AB move’s captured enemy material `< 1200` (quiet move or cheap take) → **stand-pat eval**, no quiescence.
-- Otherwise enter quiescence with `prev_to` = the AB landing square.
+- If the parent AB move’s captured enemy material (or **loud-promotion material gain**) is ≥ 1200 → enter quiescence with `prev_to` = the AB landing square.
+- Else if the side to move has a legal promotion into a two-mover / range-capturer (e.g. FreeKing→GreatGeneral) → enter a **promo-only** quiescence (no full capture fanout).
+- Otherwise → **stand-pat eval**, no quiescence.
 - **Non-PV** (null-window) leaves use `qdepth = min(config, 1)`; PV / fail-high research uses the full configured q depth.
 - Null-move children clear the loud-capture flag, so they do not gate into q via that path.
+- Late-move reductions **skip** loud promotions (same as captures).
 
-**Rationale.** Full capture quiescence after every quiet leaf exploded wall time (especially SimpleTake trees). Q should only **resolve the exchange** after something loud already happened in AB.
+**Rationale.** Full capture quiescence after every quiet leaf exploded wall time (especially SimpleTake trees). Q should **resolve the exchange** after something loud already happened in AB, and must not miss promotions that create GG/Lion/HookMover-class pieces (~thousands of eval).
 
 **Speedup.** Primary reason deep ID stays interactive: most leaves never touch q. PathAware then thins the leaves that do.
 
 **Can miss (approximate).**
-- Quiet moves that leave a piece **hanging** (horizon effect; no capture search).
+- Quiet moves that leave a piece **hanging** (horizon effect; no capture search), unless a loud promo is available.
 - **Cheap takes** below 1200 that start a large exchange chain.
 - Non-PV nodes only get **one** q ply → shallow recapture fights on scout windows.
 
@@ -270,7 +272,7 @@ Root PathClear / MultiLeg use a **post-fire** (simulate) attack check; interior 
 
 ### Quiescence: PathAware capture search (default)
 
-Quiescence is capture-only. Experimental modes (`Baseline`, `TopN`, `RecaptureOnly`, …) remain for harnesses; production default is **`QPruneMode::PathAware`**.
+Quiescence is capture-only **plus** promotions into two-movers / range capturers. Experimental modes (`Baseline`, `TopN`, `RecaptureOnly`, …) remain for harnesses; production default is **`QPruneMode::PathAware`**.
 
 Harness note (post–Great General leaf, q=6): PathAware ~**37×** fewer q-nodes vs baseline (58 vs 2158) at nearly the same score; plain TopN ~**4.4×**; RecaptureOnly alone ~**200×** but over-pruned (score collapse) — not shipped alone.
 
@@ -281,9 +283,10 @@ Stand-pat raises α; if stand-pat ≥ β the node returns immediately. A separat
 #### Thin capture generation (victim square / cheap q-entry)
 
 **Mechanism.**
-- **Entry** into q with `prev_to`: generate captures **hitting** that square plus **loud SimpleTakes** (dest-captures of enemies ≥ loud floor) — **not** full-board `CapturesOnly`.
-- **Deep** PathAware plies: only captures hitting `prev_to` (directed landing emit for ordinary pieces; TwoStep / Free Eagle fall back to per-piece CapturesOnly + filter).
-- PathClear / MultiLeg candidates that do not land on `prev_to` are filtered out at generation time as well.
+- **Entry** into q with `prev_to`: generate captures **hitting** that square plus **loud SimpleTakes** (dest-captures of enemies ≥ loud floor) — **not** full-board `CapturesOnly` — plus any legal **loud promotions**.
+- **Deep** PathAware plies: only captures hitting `prev_to` (directed landing emit for ordinary pieces; TwoStep / Free Eagle fall back to per-piece CapturesOnly + filter), plus loud promotions.
+- PathClear / MultiLeg candidates that do not land on `prev_to` are filtered out at generation time as well (loud promotions exempt).
+- Loud promotions skip PathAware top-N / delta / hang cuts so FreeKing→GG is not discarded as a “quiet” move.
 
 **Rationale.** After a loud AB capture, the contested square is what matters; regenerating every capture on the board was the multi-second `rms` spike (`qST` blowups).
 
