@@ -4,9 +4,9 @@
 # Grid (intentionally small — old seed-nudge regimens were ~seed):
 #   seed              hand eval (baseline)
 #   texel-hot-legacy  prior seed-init additive hot fit (tiny nudge control)
-#   fresh-base        mobility + log-space, 2500 iters, lr=0.05
-#   fresh-hot         mobility + log-space, 2500 iters, lr=0.15
-#   fresh-long        mobility + log-space, 5000 iters, lr=0.05
+#   fresh-base        seed + log-space, 2500 iters, lr=0.05
+#   fresh-hot         seed + log-space, 2500 iters, lr=0.15
+#   fresh-long        seed + log-space, 5000 iters, lr=0.05
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -16,7 +16,6 @@ BIN="${BIN:-$ROOT/target/release/taikyoku_shogi}"
 FEATURES="${FEATURES:-data/derived/positions}"
 OUTDIR="${OUTDIR:-models/tourney}"
 SEED_MODEL="${SEED_MODEL:-models/ab-seed.json}"
-MOBILITY_MODEL="${MOBILITY_MODEL:-models/ab-mobility-seed.json}"
 LEGACY_HOT="${LEGACY_HOT:-models/texel-hot.json}"
 
 if [[ ! -x "$BIN" ]]; then
@@ -34,13 +33,6 @@ fi
 
 mkdir -p "$OUTDIR"
 cp -f "$SEED_MODEL" "$OUTDIR/seed.json"
-
-# Mobility prior for fresh fits (generate once if missing).
-if [[ ! -f "$MOBILITY_MODEL" ]]; then
-  echo "=== mobility-seed → $MOBILITY_MODEL ==="
-  "$BIN" mobility-seed --out "$MOBILITY_MODEL" | tee "$OUTDIR/mobility-seed.log"
-fi
-cp -f "$MOBILITY_MODEL" "$OUTDIR/mobility-seed.json"
 
 # Keep the old hot fit as a near-seed control if present; else re-fit legacy style.
 if [[ -f "$LEGACY_HOT" ]]; then
@@ -68,11 +60,11 @@ run_fresh() {
   local iters="$2"
   local lr="$3"
   local out="$OUTDIR/${id}.json"
-  echo "=== fit $id (mobility log-space iters=$iters lr=$lr) → $out ==="
+  echo "=== fit $id (seed log-space iters=$iters lr=$lr) → $out ==="
   "$BIN" texel-fit \
     --features "$FEATURES" \
     --out "$out" \
-    --init mobility \
+    --init seed \
     --iters "$iters" \
     --lr "$lr" \
     --late-frac 0.75 \

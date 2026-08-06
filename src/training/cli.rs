@@ -39,9 +39,9 @@ pub fn print_training_usage() {
     println!("            (event-driven sampling; default target 150/game)");
     println!("  mobility-seed [--samples N] [--seed S] [--starts DIR] [--out PATH]");
     println!("  texel-fit [--features DIR] [--out PATH] [--iters N] [--lr F] [--k F]");
-    println!("            [--init mobility|seed|PATH] [--late-frac F] [--keep-draws]");
+    println!("            [--init seed|mobility|PATH] [--late-frac F] [--keep-draws]");
     println!("            [--no-log-space] [--no-lr-scale-k] [--no-renorm-pawn]");
-    println!("            (default: mobility init, log-space, late 0.75, drop draws,");
+    println!("            (default: seed init, log-space, late 0.75, drop draws,");
     println!("             2500 iters, lr=0.05 scaled by 1/K, Pawn→1)");
     println!("  match --a AGENT --b AGENT [--starts SPEC] [--games N] [--jobs J] [--outdir DIR]");
     println!("  tournament --manifest PATH [--run-id ID] [--resume] [--games-per-pair N] [--jobs J]");
