@@ -56,7 +56,12 @@ fn mean_cross_entropy(rows: &[LabeledPosition], weights: &[f32], k: f32) -> f64 
     loss / rows.len() as f64
 }
 
-/// Fit piece values via logistic regression (gradient descent). Rank/development frozen.
+/// Fit piece values via logistic regression (gradient descent).
+///
+/// All piece material weights are trainable (including royals and high-value
+/// capturers). Rank PST / development / `royal_bonus_by_count` stay at seed:
+/// featurize only emits piece-count diffs. Terminal 0-royals is not learned
+/// here — [`EvalWeights::mate_score`] / `get_winner` already treat that as ±∞.
 pub fn fit_texel(cfg: &TexelFitConfig) -> Result<(EvalCheckpoint, f64), String> {
     let rows = load_labeled_dir(Path::new(&cfg.features_dir))?;
     if rows.is_empty() {
@@ -111,11 +116,6 @@ pub fn fit_texel(cfg: &TexelFitConfig) -> Result<(EvalCheckpoint, f64), String> 
     }
 
     for (i, &pt) in ALL_PIECE_TYPES.iter().enumerate() {
-        // Preserve royals / explicit high-value capturers from seed if still huge.
-        let prev = seed.piece_value(pt);
-        if pt.is_royal() || prev >= 800.0 {
-            continue;
-        }
         seed.piece.insert(pt, w[i]);
     }
     seed.rebuild_piece_value_table();

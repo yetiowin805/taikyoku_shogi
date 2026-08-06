@@ -24,7 +24,7 @@ pub struct LabeledPosition {
     pub turn: Color,
     /// Piece-count features: for each PieceType, (black_count - white_count).
     pub piece_diff: Vec<f32>,
-    /// Absolute black-perspective material eval under seed weights (frozen modifiers).
+    /// Absolute black-perspective material eval under seed weights (diagnostic).
     pub seed_eval: f32,
 }
 
