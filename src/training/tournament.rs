@@ -376,7 +376,7 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
                     return;
                 }
 
-                let start = match starts.start_for_game(slot_id, start_seed) {
+                let start = match starts.start_for_seed(start_seed) {
                     Ok(s) => s,
                     Err(e) => {
                         eprintln!("tourney start error: {e}");
@@ -546,7 +546,6 @@ mod tests {
             ..TourneyConfig::default()
         };
         let st = build_schedule(&cfg);
-        // First round (6 slots): a-b, a-b, a-c, a-c, b-c, b-c — not all a-b first.
         let first_round: Vec<_> = st
             .slots
             .iter()
@@ -559,5 +558,29 @@ mod tests {
         // Second round starts at index 6 with a-b again.
         assert_eq!(st.slots[6].model_a, "a");
         assert_eq!(st.slots[6].model_b, "b");
+        // Color-swapped pair shares start_seed.
+        assert_eq!(st.slots[0].start_seed, st.slots[1].start_seed);
+        assert_ne!(st.slots[0].a_is_black, st.slots[1].a_is_black);
+    }
+}
+
+#[cfg(test)]
+mod start_seed_tests {
+    use super::*;
+    use crate::training::pool::parse_starts_spec;
+    use crate::training::record::GameStart;
+
+    #[test]
+    fn color_pair_shares_identical_light_start() {
+        let src = parse_starts_spec("light").unwrap();
+        let seed = 42u64;
+        let a = src.start_for_seed(seed).unwrap();
+        let b = src.start_for_seed(seed).unwrap();
+        match (a, b) {
+            (GameStart::Position { position: pa }, GameStart::Position { position: pb }) => {
+                assert_eq!(pa, pb);
+            }
+            _ => panic!("expected Position"),
+        }
     }
 }

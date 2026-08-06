@@ -70,6 +70,20 @@ impl StartsSource {
             }
         }
     }
+
+    /// Deterministic start from `seed` only (ignore game index).
+    /// Used by color-swapped match/tournament pairs so both colors share one position.
+    pub fn start_for_seed(&self, seed: u64) -> Result<GameStart, String> {
+        match self {
+            StartsSource::Fixed(starts) => {
+                if starts.is_empty() {
+                    return Err("run_batch: no starts".into());
+                }
+                Ok(starts[(seed as usize) % starts.len()].clone())
+            }
+            StartsSource::Fischer | StartsSource::LightFischer => self.start_for_game(0, seed),
+        }
+    }
 }
 
 /// Parse worker `--starts` / `STARTS` value.
