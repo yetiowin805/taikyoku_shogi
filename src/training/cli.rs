@@ -1,6 +1,7 @@
 //! CLI handlers for the local training pipeline.
 
 use crate::board_position::BoardPosition;
+use crate::training::eval_trace::{run_eval_trace, EvalTraceConfig};
 use crate::training::featurize::{featurize_dir, FeaturizeConfig};
 use crate::training::match_harness::{run_matches, MatchConfig};
 use crate::training::mobility_seed::{run_mobility_seed, MobilitySeedConfig};
@@ -38,6 +39,9 @@ pub fn print_training_usage() {
     println!("                (default: Fischer shuffle+ablations; --from-play = legacy midgame)");
     println!("  featurize [--games-dir DIR] [--out DIR] [--target-per-game N] [--quiet-stride N]");
     println!("            (event-driven sampling; default target 150/game)");
+    println!("  eval-trace [--games-dir DIR] [--model PATH] [--out DIR] [--quiet-stride N]");
+    println!("             [--top K] [--max-games N] [--search-depth D] [--search-stride S]");
+    println!("             [--no-search]  (quiet swings → top-K depth probes every S plies)");
     println!("  mobility-seed [--samples N] [--seed S] [--starts DIR] [--out PATH]");
     println!("  scale-sample [--seed PATH] [--out DIR] [--n N] [--rng-seed S]");
     println!("            (copy seed + all_m10/all_p10 + random ±10% big-param models)");
@@ -721,6 +725,70 @@ pub fn cmd_featurize(args: &[String]) -> Result<(), String> {
     }
     let n = featurize_dir(&cfg)?;
     println!("Wrote {} labeled positions to {}", n, cfg.out_dir);
+    Ok(())
+}
+
+pub fn cmd_eval_trace(args: &[String]) -> Result<(), String> {
+    let mut cfg = EvalTraceConfig::default();
+    let mut i = 2;
+    while i < args.len() {
+        if let Some(v) = take_flag_value(args, &mut i, "--games-dir")? {
+            cfg.games_dir = PathBuf::from(v);
+            continue;
+        }
+        if let Some(v) = take_flag_value(args, &mut i, "--model")? {
+            cfg.model_path = PathBuf::from(v);
+            continue;
+        }
+        if let Some(v) = take_flag_value(args, &mut i, "--out")? {
+            cfg.out_dir = PathBuf::from(v);
+            continue;
+        }
+        if let Some(v) = take_usize(args, &mut i, "--quiet-stride")? {
+            cfg.quiet_stride = v.max(1);
+            continue;
+        }
+        if let Some(v) = take_usize(args, &mut i, "--top")? {
+            cfg.top_n = v.max(1);
+            continue;
+        }
+        if let Some(v) = take_usize(args, &mut i, "--max-games")? {
+            cfg.max_games = Some(v);
+            continue;
+        }
+        if let Some(v) = take_f32(args, &mut i, "--clip")? {
+            cfg.eval_clip = v;
+            continue;
+        }
+        if let Some(v) = take_u32(args, &mut i, "--search-depth")? {
+            cfg.search_depth = v;
+            continue;
+        }
+        if let Some(v) = take_usize(args, &mut i, "--search-stride")? {
+            cfg.search_stride = v.max(1);
+            continue;
+        }
+        if args.get(i).map(|s| s.as_str()) == Some("--no-search") {
+            cfg.skip_search = true;
+            i += 1;
+            continue;
+        }
+        if args.get(i).map(|s| s.as_str()) == Some("--keep-noise") {
+            cfg.zero_noise = false;
+            i += 1;
+            continue;
+        }
+        return Err(format!("Unknown flag {}", args[i]));
+    }
+    let (n, md) = run_eval_trace(&cfg)?;
+    println!(
+        "Traced {n} games → {} (ranked list: {}; search depth={} stride={} on top {})",
+        cfg.out_dir.display(),
+        md.display(),
+        cfg.search_depth,
+        cfg.search_stride,
+        if cfg.skip_search { 0 } else { cfg.top_n }
+    );
     Ok(())
 }
 

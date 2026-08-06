@@ -1,6 +1,7 @@
 //! Local Texel-style training pipeline (pre-cloud).
 
 pub mod cli;
+pub mod eval_trace;
 pub mod featurize;
 pub mod match_harness;
 pub mod mobility_seed;

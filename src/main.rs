@@ -164,6 +164,12 @@ fn main() {
                     print_usage();
                 }
             }
+            "eval-trace" => {
+                if let Err(e) = taikyoku_shogi::training::cli::cmd_eval_trace(&args) {
+                    eprintln!("{}", e);
+                    print_usage();
+                }
+            }
             "mobility-seed" => {
                 if let Err(e) = taikyoku_shogi::training::cli::cmd_mobility_seed(&args) {
                     eprintln!("{}", e);
