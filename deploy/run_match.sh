@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run ab vs ab match and notify when done.
+# Run ab vs ab match (strength test) and notify with scoreboard.
 # Usage: deploy/run_match.sh --model-a PATH --model-b PATH [--games N] [--depth N] ...
 set -euo pipefail
 
@@ -8,6 +8,7 @@ cd "$ROOT"
 
 BIN="${BIN:-$ROOT/target/release/taikyoku_shogi}"
 NOTIFY="${NOTIFY:-$ROOT/deploy/notify.sh}"
+ACTIVITY_STAMP="${ACTIVITY_STAMP:-$ROOT/data/run/last_notify_activity}"
 MODEL_A=models/ab-seed.json
 MODEL_B=models/ab-texel-v1.json
 GAMES=16
@@ -35,7 +36,7 @@ if [[ ! -x "$BIN" ]]; then
   exit 1
 fi
 chmod +x "$NOTIFY" 2>/dev/null || true
-mkdir -p "$OUTDIR"
+mkdir -p "$OUTDIR" data/run
 
 START="$(date +%s)"
 LOG="$(mktemp)"
@@ -53,21 +54,33 @@ set -e
 END="$(date +%s)"
 ELAPSED=$((END - START))
 
+SCORE="$(grep -E 'Match:|scoreboard|A |B |Draw|wins' "$LOG" | tail -n 20 || true)"
+N_MATCH_GAMES="$(ls -1 "$OUTDIR"/*.json 2>/dev/null | wc -l | tr -d ' ')"
+
 if [[ "$RC" -eq 0 ]]; then
-  SUBJECT="match OK (${ELAPSED}s)"
-  BODY="match finished
+  SUBJECT="strength test OK — $MODEL_B vs $MODEL_A"
+  BODY="Match (strength test) finished.
+
+Control (A):  $MODEL_A
+Challenger (B): $MODEL_B
+Pairs:        $GAMES
+Depth:        $DEPTH
+Starts:       $STARTS
+Outdir:       $OUTDIR ($N_MATCH_GAMES game files)
+Elapsed:      ${ELAPSED}s
+
+Scoreboard / summary:
+$SCORE
+
+Log tail:
+$(tail -n 40 "$LOG")"
+  date -u +%Y-%m-%dT%H:%M:%SZ >"$ACTIVITY_STAMP"
+else
+  SUBJECT="strength test FAILED (rc=$RC)"
+  BODY="Match failed (exit $RC).
 
 model_a=$MODEL_A
 model_b=$MODEL_B
-game_pairs=$GAMES depth=$DEPTH
-outdir=$OUTDIR
-elapsed_sec=$ELAPSED
-
-$(tail -n 60 "$LOG")"
-else
-  SUBJECT="match FAILED (rc=$RC)"
-  BODY="match failed (exit $RC)
-
 elapsed_sec=$ELAPSED
 
 $(tail -n 80 "$LOG")"

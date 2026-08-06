@@ -36,8 +36,10 @@ sudo cp deploy/systemd/taikyoku-worker.service /etc/systemd/system/
 sudo cp deploy/systemd/taikyoku-serve.service /etc/systemd/system/
 # Optional weekly starts refresh:
 sudo cp deploy/systemd/taikyoku-pool.service deploy/systemd/taikyoku-pool.timer /etc/systemd/system/
-# Optional hourly game-count email/push:
-sudo cp deploy/systemd/taikyoku-notify-milestone.service deploy/systemd/taikyoku-notify-milestone.timer /etc/systemd/system/
+# Daily game-count digest (skipped if training/match already notified ~same day):
+sudo cp deploy/systemd/taikyoku-daily-digest.service deploy/systemd/taikyoku-daily-digest.timer /etc/systemd/system/
+# Optional: every-N-games milestone instead/in addition:
+# sudo cp deploy/systemd/taikyoku-notify-milestone.service deploy/systemd/taikyoku-notify-milestone.timer /etc/systemd/system/
 sudo cp deploy/notify.env.example /etc/taikyoku/notify.env
 # configure SMTP (msmtp) or NTFY_TOPIC in /etc/taikyoku/notify.env
 
@@ -45,7 +47,7 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now taikyoku-worker
 # sudo systemctl enable --now taikyoku-serve
 # sudo systemctl enable --now taikyoku-pool.timer
-# sudo systemctl enable --now taikyoku-notify-milestone.timer
+# sudo systemctl enable --now taikyoku-daily-digest.timer
 ```
 
 Make deploy scripts executable after clone: `chmod +x deploy/*.sh`.
@@ -97,6 +99,12 @@ No full `rsync` required to browse. Pull only what you need with e.g. `rsync -av
 
 Install `msmtp` (or use [ntfy.sh](https://ntfy.sh)) and set `/etc/taikyoku/notify.env` from `deploy/notify.env.example` (`NOTIFY_TO=…` is prefilled in the example).
 
+Three kinds of mail/push:
+
+1. **Training** — `deploy/run_texel_cycle.sh` emails games count, ~mean moves, position count, avg pos/game, model path, loss line.
+2. **Strength test** — `deploy/run_match.sh` emails model A vs B, pairs/depth, and scoreboard from the match log.
+3. **Daily digest** — `taikyoku-daily-digest.timer` emails finished/partial game counts + worker status. Skipped if training or match already stamped `data/run/last_notify_activity` within ~20h (`FORCE=1` to send anyway).
+
 Kick off a fit and walk away:
 
 ```bash
@@ -105,7 +113,6 @@ nohup ./deploy/run_texel_cycle.sh \
   --games-dir data/raw/games \
   --out-model models/ab-texel-v1.json \
   >data/run/texel_cycle.log 2>&1 &
-# email/ntfy when done
 ```
 
 Match (stop the worker first — CPU-heavy, long games):
@@ -117,6 +124,8 @@ nohup ./deploy/run_match.sh \
   --games 16 --depth 2 \
   >data/run/match.log 2>&1 &
 ```
+
+Manual daily: `FORCE=1 ./deploy/daily_digest.sh`
 
 ### HTTP status without the full GUI
 

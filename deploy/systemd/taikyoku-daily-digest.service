@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily taikyoku game-count digest (email/ntfy)
+After=network.target
+
+[Service]
+Type=oneshot
+User=taikyoku
+Group=taikyoku
+WorkingDirectory=/opt/taikyoku_shogi
+EnvironmentFile=-/etc/taikyoku/notify.env
+ExecStart=/opt/taikyoku_shogi/deploy/daily_digest.sh
