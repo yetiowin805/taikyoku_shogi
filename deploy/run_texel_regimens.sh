@@ -4,7 +4,7 @@
 # Grid (intentionally small — old seed-nudge regimens were ~seed):
 #   seed              hand eval (baseline)
 #   texel-hot-legacy  prior seed-init additive hot fit (tiny nudge control)
-#   fresh-base        seed + log-space, 2500 iters, lr=0.05
+#   fresh-base        seed + log-space, 2500 iters, lr=0.05 (all labels)
 #   fresh-hot         seed + log-space, 2500 iters, lr=0.15
 #   fresh-long        seed + log-space, 5000 iters, lr=0.05
 set -euo pipefail
@@ -67,7 +67,8 @@ run_fresh() {
     --init seed \
     --iters "$iters" \
     --lr "$lr" \
-    --late-frac 0.75 \
+    --late-frac 0 \
+    --keep-draws \
     | tee "$OUTDIR/${id}.fit.log"
 }
 
