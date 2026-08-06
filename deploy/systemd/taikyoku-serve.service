@@ -1,0 +1,20 @@
+# Local GUI/API for browsing data/raw/games (SSH tunnel only — binds 127.0.0.1).
+
+[Unit]
+Description=Taikyoku Shogi local GUI/API (tunnel to view games)
+Documentation=file:///opt/taikyoku_shogi/deploy/README.md
+After=network.target
+
+[Service]
+Type=simple
+User=taikyoku
+Group=taikyoku
+WorkingDirectory=/opt/taikyoku_shogi
+ExecStart=/opt/taikyoku_shogi/target/release/taikyoku_shogi serve 3000
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

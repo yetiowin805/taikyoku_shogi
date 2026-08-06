@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily taikyoku game-count digest
+
+[Timer]
+# Late morning UTC-ish; adjust OnCalendar as you like.
+OnCalendar=*-*-* 14:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

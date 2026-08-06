@@ -31,7 +31,8 @@ pub fn print_training_usage() {
     println!("  pool generate [--count K] [--seed-base S] [--outdir DIR]");
     println!("                [--from-play] [--agent AGENT] [--until-move N] [--noise F]");
     println!("                (default: Fischer shuffle+ablations; --from-play = legacy midgame)");
-    println!("  featurize [--games-dir DIR] [--out DIR] [--stride N] [--all-positions]");
+    println!("  featurize [--games-dir DIR] [--out DIR] [--target-per-game N] [--quiet-stride N]");
+    println!("            (event-driven sampling; default target 150/game)");
     println!("  mobility-seed [--samples N] [--seed S] [--starts DIR] [--out PATH]");
     println!("  texel-fit [--features DIR] [--out PATH] [--iters N] [--lr F]");
     println!("  match --a AGENT --b AGENT [--starts DIR] [--games N] [--outdir DIR] [--seed-base S]");
@@ -669,11 +670,6 @@ pub fn cmd_featurize(args: &[String]) -> Result<(), String> {
     let mut cfg = FeaturizeConfig::default();
     let mut i = 2;
     while i < args.len() {
-        if args[i] == "--all-positions" {
-            cfg.quiet_only = false;
-            i += 1;
-            continue;
-        }
         if let Some(v) = take_flag_value(args, &mut i, "--games-dir")? {
             cfg.games_dir = v;
             continue;
@@ -682,12 +678,27 @@ pub fn cmd_featurize(args: &[String]) -> Result<(), String> {
             cfg.out_dir = v;
             continue;
         }
-        if let Some(v) = take_usize(args, &mut i, "--stride")? {
-            cfg.stride = v.max(1);
+        if let Some(v) = take_usize(args, &mut i, "--target-per-game")? {
+            cfg.target_per_game = v;
             continue;
         }
+        if let Some(v) = take_usize(args, &mut i, "--quiet-stride")? {
+            cfg.quiet_stride = v.max(1);
+            continue;
+        }
+        // Legacy aliases
         if let Some(v) = take_usize(args, &mut i, "--max-per-game")? {
-            cfg.max_per_game = v;
+            cfg.target_per_game = v;
+            continue;
+        }
+        if let Some(v) = take_usize(args, &mut i, "--stride")? {
+            cfg.quiet_stride = v.max(1);
+            continue;
+        }
+        if args[i] == "--all-positions" {
+            // Keep all event candidates (no even subsample).
+            cfg.target_per_game = 0;
+            i += 1;
             continue;
         }
         return Err(format!("Unknown flag {}", args[i]));
