@@ -375,6 +375,40 @@ fn round_fully_settled(state: &TourneyState, round: usize) -> bool {
     any
 }
 
+/// True when every scheduled slot is Done and Swiss has no further rounds to append.
+pub fn tournament_is_complete(state: &TourneyState) -> bool {
+    let unfinished = state.slots.iter().any(|s| {
+        matches!(
+            s.status,
+            SlotStatus::Pending | SlotStatus::Running | SlotStatus::Aborted
+        )
+    });
+    if unfinished || state.slots.is_empty() {
+        return false;
+    }
+    match state.format {
+        TourneyFormat::RoundRobin => true,
+        TourneyFormat::Swiss => state.swiss_next_round >= state.swiss_rounds.max(1),
+    }
+}
+
+/// Counts for notify / progress lines.
+pub fn slot_status_counts(state: &TourneyState) -> (usize, usize, usize, usize) {
+    let mut done = 0usize;
+    let mut pending = 0usize;
+    let mut running = 0usize;
+    let mut aborted = 0usize;
+    for s in &state.slots {
+        match s.status {
+            SlotStatus::Done => done += 1,
+            SlotStatus::Pending => pending += 1,
+            SlotStatus::Running => running += 1,
+            SlotStatus::Aborted => aborted += 1,
+        }
+    }
+    (done, pending, running, aborted)
+}
+
 fn run_dir(cfg: &TourneyConfig) -> PathBuf {
     cfg.outdir.join(&cfg.run_id)
 }
@@ -694,6 +728,22 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
     state.updated_at = now_secs();
     save_state(cfg, &state)?;
     println!("{}", format_standings(&state));
+    if !tournament_is_complete(&state) {
+        let (done, pending, running, aborted) = slot_status_counts(&state);
+        let stopped = cfg_stop.load(Ordering::Relaxed) || cfg.stop_file.exists();
+        let why = if stopped {
+            "stopped"
+        } else {
+            "incomplete"
+        };
+        return Err(format!(
+            "tournament {why}: done={done} pending={pending} running={running} aborted={aborted} slots={} swiss_next={}/{} — resume with --resume --run-id {}",
+            state.slots.len(),
+            state.swiss_next_round,
+            state.swiss_rounds,
+            state.run_id
+        ));
+    }
     Ok(state)
 }
 
@@ -858,6 +908,41 @@ mod tests {
             .map(|s| pair_key(&s.model_a, &s.model_b))
             .collect();
         assert!(r0.is_disjoint(&r1));
+    }
+
+    #[test]
+    fn tournament_complete_requires_all_done_and_swiss_rounds() {
+        let cfg = TourneyConfig {
+            entrants: (0..4)
+                .map(|i| TourneyEntrant {
+                    id: format!("p{i}"),
+                    model: format!("p{i}.json"),
+                })
+                .collect(),
+            format: TourneyFormat::Swiss,
+            swiss_rounds: 2,
+            games_per_pair: 1,
+            ..TourneyConfig::default()
+        };
+        let mut st = build_schedule(&cfg);
+        assert!(!tournament_is_complete(&st));
+        for s in &mut st.slots {
+            s.status = SlotStatus::Done;
+            s.score_a = Some(0.5);
+        }
+        // Round 0 done but swiss_next_round is still 1 < 2.
+        assert!(!tournament_is_complete(&st));
+        append_swiss_round(&mut st, 1);
+        for s in &mut st.slots {
+            if s.round == 1 {
+                s.status = SlotStatus::Done;
+                s.score_a = Some(0.5);
+            }
+        }
+        assert_eq!(st.swiss_next_round, 2);
+        assert!(tournament_is_complete(&st));
+        st.slots[0].status = SlotStatus::Aborted;
+        assert!(!tournament_is_complete(&st));
     }
 }
 

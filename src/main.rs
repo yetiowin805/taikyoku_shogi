@@ -197,7 +197,7 @@ fn main() {
             "tournament" => {
                 if let Err(e) = taikyoku_shogi::training::cli::cmd_tournament(&args) {
                     eprintln!("{}", e);
-                    print_usage();
+                    std::process::exit(1);
                 }
             }
             "position" => {

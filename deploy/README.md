@@ -110,10 +110,32 @@ nohup ./deploy/run_overnight_tourney.sh --jobs "$(nproc)" \
 touch data/run/TOURNEY_STOP
 
 # resume
-./deploy/run_overnight_tourney.sh --resume --run-id tourney-YYYYMMDDTHHMMSSZ --skip-fit
+nohup ./deploy/run_overnight_tourney.sh --resume --run-id tourney-YYYYMMDDTHHMMSSZ --skip-fit \
+  >data/run/tourney.log 2>&1 & disown
 ```
 
 Starts: `light` = shuffle-only ranks without powerful/royals (no ablations). Standings live under `data/raw/tourney/<run_id>/standings.md`.
+
+Incomplete exits (stop file / aborted slots) now fail the tournament binary with a non-zero status so notify says stopped/incomplete rather than “done”.
+
+### Scale-sample Swiss
+
+±10% big-piece param samples, then a multi-round Swiss. Prefer `--detach` so SSH logout cannot kill the job:
+
+```bash
+cargo build --release
+# fresh
+./deploy/run_scale_swiss.sh --detach --jobs "$(nproc)"
+
+# resume (incomplete / stopped runs)
+./deploy/run_scale_swiss.sh --detach --resume --run-id swiss-YYYYMMDDTHHMMSSZ --skip-gen
+
+# confirm before disconnecting
+pgrep -af tournament
+tail -f data/run/swiss.log
+```
+
+Stop with `touch data/run/TOURNEY_STOP`. Notify subjects distinguish **swiss done** vs **swiss incomplete** (non-zero exit when slots remain pending/aborted or Swiss rounds are unfinished). Overlapping tournament processes are refused (`exit 3`).
 
 ### Notifications (email / ntfy)
 
