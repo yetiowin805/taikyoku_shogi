@@ -227,8 +227,14 @@ fn snapshot_point(
     royal_change: bool,
     loud_promotion: bool,
     loud_promotion_to: Option<String>,
+    // When set (from AB game records), use instead of re-evaluating the board.
+    recorded_eval: Option<i32>,
 ) -> TracePoint {
-    let eval = crate::eval::evaluate_absolute_black(state.get_board(), weights, ply) as f32;
+    let eval = recorded_eval
+        .map(|e| e as f32)
+        .unwrap_or_else(|| {
+            crate::eval::evaluate_absolute_black(state.get_board(), weights, ply) as f32
+        });
     TracePoint {
         ply,
         quiet,
@@ -542,7 +548,7 @@ pub fn trace_game(
     let mut prev_wr = count_royals(&state, Color::White);
     counts_by_ply[0] = piece_counts(&state);
     points_by_ply[0] = Some(snapshot_point(
-        &state, 0, weights, cfg.eval_clip, true, false, false, false, None,
+        &state, 0, weights, cfg.eval_clip, true, false, false, false, None, None,
     ));
 
     for (i, mr) in record.moves.iter().enumerate() {
@@ -569,6 +575,7 @@ pub fn trace_game(
         prev_br = br;
         prev_wr = wr;
         counts_by_ply[ply] = piece_counts(&state);
+        // Prefer live AB search score stored on the move that led here.
         points_by_ply[ply] = Some(snapshot_point(
             &state,
             ply,
@@ -579,6 +586,7 @@ pub fn trace_game(
             royal_change[ply],
             loud_promotion[ply],
             loud_promo_to[ply].clone(),
+            mr.eval,
         ));
     }
 
@@ -1034,6 +1042,40 @@ mod tests {
                 "missing loud promo {from:?}→{to:?} in {loud:?}"
             );
         }
+    }
+
+    #[test]
+    fn snapshot_prefers_recorded_search_eval() {
+        let weights = EvalWeights::seed();
+        let mut state = GameState::new();
+        state.setup_initial_position();
+        let recorded = 12_345;
+        let pt = snapshot_point(
+            &state,
+            1,
+            &weights,
+            50_000.0,
+            true,
+            false,
+            false,
+            false,
+            None,
+            Some(recorded),
+        );
+        assert_eq!(pt.eval as i32, recorded);
+        let pt_board = snapshot_point(
+            &state,
+            1,
+            &weights,
+            50_000.0,
+            true,
+            false,
+            false,
+            false,
+            None,
+            None,
+        );
+        assert_ne!(pt_board.eval as i32, recorded);
     }
 
     #[test]

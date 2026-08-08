@@ -7,7 +7,7 @@ use crate::piece::Color;
 use crate::player::{player_by_name_with_options, AgentOptions, Player};
 use crate::training::pool::StartsSource;
 use crate::training::record::{
-    move_to_record, AgentSpec, GameRecordV2, GameStart, GameStats, FORMAT_VERSION,
+    move_to_record_with_eval, AgentSpec, GameRecordV2, GameStart, GameStats, FORMAT_VERSION,
 };
 use rand::rngs::OsRng;
 use rand::RngCore;
@@ -205,7 +205,7 @@ pub fn play_one_game(config: &WorkerConfig) -> Result<GameRecordV2, PlayFailure>
             Color::Black => black.as_ref(),
             Color::White => white.as_ref(),
         };
-        let Some(mv) = player.choose_move(&state) else {
+        let Some((mv, ann)) = player.choose_move_annotated(&state) else {
             return Err(abort(
                 format!(
                     "Player {} returned no move with {} legal moves",
@@ -228,7 +228,14 @@ pub fn play_one_game(config: &WorkerConfig) -> Result<GameRecordV2, PlayFailure>
             ));
         }
 
-        moves.push(move_to_record(&mv, color, move_number));
+        moves.push(move_to_record_with_eval(
+            &mv,
+            color,
+            move_number,
+            ann.eval,
+            ann.static_eval,
+            ann.nodes,
+        ));
         if config.verbose {
             println!(
                 "{}. {:?}: {}{}-{}{}",

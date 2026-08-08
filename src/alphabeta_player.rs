@@ -2,11 +2,20 @@
 
 use crate::eval::{load_checkpoint_or_seed, EvalCheckpoint, EvalWeights, DEFAULT_MODEL_PATH};
 use crate::game_state::{GameState, Move};
-use crate::player::AgentOptions;
+use crate::piece::Color;
+use crate::player::{AgentOptions, MoveAnnotation};
 use crate::search::{search, QPruneMode, SearchConfig};
 use std::env;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
+
+/// Convert STM-relative scores to black-absolute.
+fn stm_to_black_abs(stm: Color, score: i32) -> i32 {
+    match stm {
+        Color::Black => score,
+        Color::White => -score,
+    }
+}
 
 /// Cached default seed weights (avoids re-parsing JSON every request).
 fn cached_seed_weights() -> &'static EvalWeights {
@@ -153,9 +162,28 @@ impl AlphaBetaPlayer {
     }
 
     pub fn choose_move_inner(&self, game_state: &GameState) -> Option<Move> {
+        self.choose_move_annotated_inner(game_state)
+            .map(|(mv, _)| mv)
+    }
+
+    /// One search: best move plus black-absolute eval telemetry for game records.
+    pub fn choose_move_annotated_inner(
+        &self,
+        game_state: &GameState,
+    ) -> Option<(Move, MoveAnnotation)> {
         let mut cfg = self.config.clone();
         cfg.collect_trace = false;
-        search(game_state, &self.weights, &cfg).best_move
+        let result = search(game_state, &self.weights, &cfg);
+        let mv = result.best_move?;
+        let stm = game_state.get_current_turn();
+        Some((
+            mv,
+            MoveAnnotation {
+                eval: Some(stm_to_black_abs(stm, result.score)),
+                static_eval: Some(stm_to_black_abs(stm, result.static_eval)),
+                nodes: Some(result.nodes),
+            },
+        ))
     }
 
     /// Full search with eval / tree trace for the GUI.

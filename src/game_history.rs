@@ -30,6 +30,15 @@ pub struct MoveRecord {
     pub to_rank: u8,
     pub promoted: bool,
     pub data: MoveRecordData,
+    /// Black-absolute search score for the chosen line (AB games).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub eval: Option<i32>,
+    /// Black-absolute stand-pat at the root before the move (AB games).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub static_eval: Option<i32>,
+    /// Nodes searched when choosing this move (AB games).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub nodes: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -107,6 +116,9 @@ impl GameHistory {
                 to_rank: mv.to.rank,
                 promoted,
                 data,
+                eval: None,
+                static_eval: None,
+                nodes: None,
             });
         }
     }
@@ -173,7 +185,26 @@ impl GameHistory {
             to_rank: mv.to.rank,
             promoted: mv.promoted,
             data,
+            eval: None,
+            static_eval: None,
+            nodes: None,
         }
+    }
+
+    /// Like [`Self::move_to_record`], attaching optional AB search telemetry.
+    pub fn move_to_record_with_eval(
+        mv: &Move,
+        color: Color,
+        move_number: usize,
+        eval: Option<i32>,
+        static_eval: Option<i32>,
+        nodes: Option<u64>,
+    ) -> MoveRecord {
+        let mut rec = Self::move_to_record(mv, color, move_number);
+        rec.eval = eval;
+        rec.static_eval = static_eval;
+        rec.nodes = nodes;
+        rec
     }
 
     /// Convert a MoveRecord back into a live Move
