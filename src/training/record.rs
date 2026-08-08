@@ -139,6 +139,24 @@ pub fn move_to_record(mv: &Move, color: Color, move_number: usize) -> MoveRecord
     crate::game_history::GameHistory::move_to_record(mv, color, move_number)
 }
 
+pub fn move_to_record_with_eval(
+    mv: &Move,
+    color: Color,
+    move_number: usize,
+    eval: Option<i32>,
+    static_eval: Option<i32>,
+    nodes: Option<u64>,
+) -> MoveRecord {
+    crate::game_history::GameHistory::move_to_record_with_eval(
+        mv,
+        color,
+        move_number,
+        eval,
+        static_eval,
+        nodes,
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -173,5 +191,70 @@ mod tests {
         let v2 = load_game_json(legacy).unwrap();
         assert_eq!(v2.game_id, "legacy-123");
         assert!(matches!(v2.result, Some(GameResult::Draw)));
+    }
+
+    #[test]
+    fn move_record_without_eval_fields_deserializes() {
+        let json = r#"{
+            "format_version": 2,
+            "game_id": "g1",
+            "seed": 1,
+            "black": {"name": "ab"},
+            "white": {"name": "ab"},
+            "start": {"kind": "opening"},
+            "moves": [{
+                "move_number": 1,
+                "color": "Black",
+                "from_file": 0,
+                "from_rank": 0,
+                "to_file": 0,
+                "to_rank": 1,
+                "promoted": false,
+                "data": "Standard"
+            }],
+            "result": null,
+            "stats": {},
+            "timestamp": 1
+        }"#;
+        let v2 = load_game_json(json).unwrap();
+        assert_eq!(v2.moves.len(), 1);
+        assert!(v2.moves[0].eval.is_none());
+        assert!(v2.moves[0].static_eval.is_none());
+        assert!(v2.moves[0].nodes.is_none());
+    }
+
+    #[test]
+    fn move_record_with_eval_round_trips() {
+        let mut rec = GameRecordV2 {
+            format_version: FORMAT_VERSION,
+            game_id: "g-eval".into(),
+            seed: 1,
+            black: AgentSpec::new("ab"),
+            white: AgentSpec::new("ab"),
+            start: GameStart::Opening,
+            moves: vec![],
+            result: None,
+            stats: GameStats::default(),
+            timestamp: 1,
+            abort_reason: None,
+        };
+        let mv = crate::game_state::Move::new(
+            crate::position::Position::new(0, 0).unwrap(),
+            crate::position::Position::new(0, 1).unwrap(),
+        );
+        rec.moves.push(move_to_record_with_eval(
+            &mv,
+            Color::Black,
+            1,
+            Some(1234),
+            Some(100),
+            Some(99),
+        ));
+        let json = serde_json::to_string(&rec).unwrap();
+        assert!(json.contains("\"eval\":1234"));
+        let back = load_game_json(&json).unwrap();
+        assert_eq!(back.moves[0].eval, Some(1234));
+        assert_eq!(back.moves[0].static_eval, Some(100));
+        assert_eq!(back.moves[0].nodes, Some(99));
     }
 }

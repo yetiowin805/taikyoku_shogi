@@ -13,10 +13,27 @@ pub struct AgentOptions {
     pub quiescence_depth: Option<u32>,
 }
 
+/// Optional search telemetry attached to a chosen move (AB fills these).
+#[derive(Debug, Clone, Default)]
+pub struct MoveAnnotation {
+    /// Black-absolute search score for the chosen line.
+    pub eval: Option<i32>,
+    /// Black-absolute stand-pat at the root before the move.
+    pub static_eval: Option<i32>,
+    pub nodes: Option<u64>,
+}
+
 /// Common interface for selecting a move from a position.
 pub trait Player {
     fn name(&self) -> &'static str;
     fn choose_move(&self, state: &GameState) -> Option<Move>;
+
+    /// Choose a move, optionally attaching search eval telemetry.
+    /// Default: `choose_move` with an empty annotation (random / mi / royal).
+    fn choose_move_annotated(&self, state: &GameState) -> Option<(Move, MoveAnnotation)> {
+        self.choose_move(state)
+            .map(|mv| (mv, MoveAnnotation::default()))
+    }
 }
 
 impl Player for RandomPlayer {
@@ -55,7 +72,11 @@ impl Player for AlphaBetaPlayer {
     }
 
     fn choose_move(&self, state: &GameState) -> Option<Move> {
-        self.choose_move_inner(state)
+        self.choose_move_annotated(state).map(|(mv, _)| mv)
+    }
+
+    fn choose_move_annotated(&self, state: &GameState) -> Option<(Move, MoveAnnotation)> {
+        self.choose_move_annotated_inner(state)
     }
 }
 
@@ -112,5 +133,37 @@ mod tests {
         )
         .unwrap();
         assert!(player.choose_move(&state).is_some());
+    }
+
+    #[test]
+    fn ab_annotated_move_includes_black_abs_eval() {
+        let mut state = GameState::new();
+        state.setup_initial_position();
+        let player = player_by_name_with_options(
+            "ab",
+            &AgentOptions {
+                depth: Some(1),
+                ..AgentOptions::default()
+            },
+        )
+        .unwrap();
+        let (mv, ann) = player.choose_move_annotated(&state).expect("ab move");
+        assert!(state.generate_legal_moves().iter().any(|m| {
+            m.from == mv.from && m.to == mv.to && m.promoted == mv.promoted
+        }));
+        assert!(ann.eval.is_some(), "search score should be recorded");
+        assert!(ann.static_eval.is_some(), "static eval should be recorded");
+        assert!(ann.nodes.is_some_and(|n| n > 0));
+    }
+
+    #[test]
+    fn non_ab_annotated_has_empty_eval() {
+        let mut state = GameState::new();
+        state.setup_initial_position();
+        let player = player_by_name("mi").unwrap();
+        let (_mv, ann) = player.choose_move_annotated(&state).unwrap();
+        assert!(ann.eval.is_none());
+        assert!(ann.static_eval.is_none());
+        assert!(ann.nodes.is_none());
     }
 }
