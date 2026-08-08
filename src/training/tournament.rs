@@ -939,7 +939,10 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
 
                     let (model_a, model_b, start_seed, a_is_black, depth, start_mode, format, starts_spec) = {
                         let st = state_mu.lock().unwrap();
-                        let slot = &st.slots[slot_id];
+                        let Some(slot) = st.slots.iter().find(|s| s.id == slot_id) else {
+                            eprintln!("tournament: missing slot id {slot_id}");
+                            return;
+                        };
                         (
                             slot.model_a.clone(),
                             slot.model_b.clone(),
@@ -954,7 +957,9 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
 
                     if cfg_stop.load(Ordering::Relaxed) {
                         let mut st = state_mu.lock().unwrap();
-                        st.slots[slot_id].status = SlotStatus::Aborted;
+                        if let Some(slot) = st.slots.iter_mut().find(|s| s.id == slot_id) {
+                            slot.status = SlotStatus::Aborted;
+                        }
                         let _ = save_state(cfg, &st);
                         return;
                     }
@@ -970,7 +975,9 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
                         Err(e) => {
                             eprintln!("tourney start error: {e}");
                             let mut st = state_mu.lock().unwrap();
-                            st.slots[slot_id].status = SlotStatus::Aborted;
+                            if let Some(slot) = st.slots.iter_mut().find(|s| s.id == slot_id) {
+                                slot.status = SlotStatus::Aborted;
+                            }
                             let _ = save_state(cfg, &st);
                             return;
                         }
@@ -982,6 +989,13 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
                             Ok(a) => a,
                             Err(e) => {
                                 eprintln!("{e}");
+                                drop(st);
+                                let mut st = state_mu.lock().unwrap();
+                                if let Some(slot) = st.slots.iter_mut().find(|s| s.id == slot_id)
+                                {
+                                    slot.status = SlotStatus::Aborted;
+                                }
+                                let _ = save_state(cfg, &st);
                                 return;
                             }
                         };
@@ -989,6 +1003,13 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
                             Ok(b) => b,
                             Err(e) => {
                                 eprintln!("{e}");
+                                drop(st);
+                                let mut st = state_mu.lock().unwrap();
+                                if let Some(slot) = st.slots.iter_mut().find(|s| s.id == slot_id)
+                                {
+                                    slot.status = SlotStatus::Aborted;
+                                }
+                                let _ = save_state(cfg, &st);
                                 return;
                             }
                         };
@@ -1028,9 +1049,11 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
                             st.ratings.insert(model_b.clone(), nb);
                             st.elo.insert(model_a.clone(), na.r);
                             st.elo.insert(model_b.clone(), nb.r);
-                            st.slots[slot_id].status = SlotStatus::Done;
-                            st.slots[slot_id].score_a = Some(score_a);
-                            st.slots[slot_id].game_path = Some(path.display().to_string());
+                            if let Some(slot) = st.slots.iter_mut().find(|s| s.id == slot_id) {
+                                slot.status = SlotStatus::Done;
+                                slot.score_a = Some(score_a);
+                                slot.game_path = Some(path.display().to_string());
+                            }
                             st.updated_at = now_secs();
                             let _ = save_state(cfg, &st);
                             if cfg.verbose {
@@ -1042,7 +1065,9 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
                         }
                         Err(e) => {
                             let mut st = state_mu.lock().unwrap();
-                            st.slots[slot_id].status = SlotStatus::Aborted;
+                            if let Some(slot) = st.slots.iter_mut().find(|s| s.id == slot_id) {
+                                slot.status = SlotStatus::Aborted;
+                            }
                             st.updated_at = now_secs();
                             let _ = save_state(cfg, &st);
                             if e.message != "stopped" {
@@ -1061,23 +1086,17 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
             break;
         }
 
-        // RR drained; Swiss: if we can still schedule, respawn workers.
+        // RR drained; Swiss must never exit until cooperative stop.
         let mut st = state_mu.lock().unwrap();
         if st.format == TourneyFormat::Swiss {
             if inflight_count(&st) < jobs && schedule_one_swiss_game(&mut st) {
                 let _ = save_state(cfg, &st);
                 continue;
             }
-            // Transient: all free agents busy or none free — wait briefly for Running to finish.
-            if st
-                .slots
-                .iter()
-                .any(|s| s.status == SlotStatus::Running)
-            {
-                drop(st);
-                std::thread::sleep(std::time::Duration::from_millis(50));
-                continue;
-            }
+            // Wait for in-flight work, or idle-spin until stop / a free pair appears.
+            drop(st);
+            std::thread::sleep(std::time::Duration::from_millis(50));
+            continue;
         }
         break;
     }
@@ -1094,9 +1113,15 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
     println!("{}", format_standings(&state));
 
     let stopped = cfg_stop.load(Ordering::Relaxed) || cfg.stop_file.exists();
-    if state.format == TourneyFormat::Swiss && stopped {
-        // Continuous Swiss: cooperative stop is success.
-        return Ok(state);
+    if state.format == TourneyFormat::Swiss {
+        // Continuous Swiss only leaves the loop on cooperative stop.
+        if stopped {
+            return Ok(state);
+        }
+        return Err(format!(
+            "tournament swiss exited without stop — resume with --resume --run-id {}",
+            state.run_id
+        ));
     }
     if !tournament_is_complete(&state) {
         let (done, pending, running, aborted) = slot_status_counts(&state);
