@@ -118,26 +118,43 @@ Starts: `light` = shuffle-only ranks without powerful/royals (no ablations). Sta
 
 Incomplete exits (stop file / aborted slots) now fail the tournament binary with a non-zero status so notify says stopped/incomplete rather than “done”.
 
-### Scale-sample Swiss
+### Loud-grid continuous Glicko Swiss (preferred)
 
-±10% big-piece param samples, then a multi-round Swiss. Prefer `--detach` so SSH logout cannot kill the job:
+3×3 material grid (range two-movers × range capturers at 50/100/150%, FreeKing with capturers), then a **continuous** Swiss with Glicko-1 ratings until you stop it. Prefer `--detach` (or the systemd unit) so SSH logout cannot kill the job:
 
 ```bash
 cargo build --release
-# fresh
-./deploy/run_scale_swiss.sh --detach --jobs "$(nproc)"
+# fresh (detach from terminal)
+./deploy/run_loud_swiss.sh --detach --jobs "$(nproc)"
 
-# resume (incomplete / stopped runs)
-./deploy/run_scale_swiss.sh --detach --resume --run-id swiss-YYYYMMDDTHHMMSSZ --skip-gen
+# resume
+./deploy/run_loud_swiss.sh --detach --resume --run-id loud-swiss-YYYYMMDDTHHMMSSZ --skip-gen
 
-# confirm before disconnecting
 pgrep -af tournament
-tail -f data/run/swiss.log
+tail -f data/run/loud-swiss.log
 ```
 
-Stop with `touch data/run/TOURNEY_STOP`. Notify subjects distinguish **swiss done** vs **swiss incomplete** (non-zero exit when slots remain pending/aborted or Swiss rounds are unfinished). Overlapping tournament processes are refused (`exit 3`).
+Stop with `touch data/run/TOURNEY_STOP`. Cooperative stop exits 0 (continuous Swiss has no “done” round count). Overlapping tournament processes are refused (`exit 3`).
 
-After a run finishes, correlate multipliers vs match score / Elo:
+Optional systemd (survives reboot if enabled):
+
+```bash
+sudo cp deploy/tourney.env.example /etc/taikyoku/tourney.env
+sudo cp deploy/systemd/taikyoku-tourney.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now taikyoku-tourney
+# stop: sudo touch /opt/taikyoku_shogi/data/run/TOURNEY_STOP
+#   or: sudo systemctl stop taikyoku-tourney
+```
+
+### Scale-sample Swiss (legacy ±10% samples)
+
+```bash
+./deploy/run_scale_swiss.sh --detach --jobs "$(nproc)"
+# resume: --detach --resume --run-id swiss-… --skip-gen
+```
+
+Note: `tournament --format swiss` is now continuous Glicko (finite `--swiss-rounds` is ignored). Correlate multipliers vs score / rating:
 
 ```bash
 python3 deploy/scale_sample_corr.py \

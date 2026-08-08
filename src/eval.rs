@@ -431,7 +431,7 @@ fn is_range_capability(cap: &MovementCapability) -> bool {
 }
 
 /// True when the piece has a TwoStep whose both legs are range slides (Tengu family).
-fn is_range_two_mover(pt: PieceType) -> bool {
+pub fn is_range_two_mover(pt: PieceType) -> bool {
     MovementConfig::for_piece_type(pt)
         .capabilities
         .iter()
@@ -440,6 +440,25 @@ fn is_range_two_mover(pt: PieceType) -> bool {
                 is_range_capability(first) && is_range_capability(second)
             }
             _ => false,
+        })
+}
+
+/// Capturing-range pieces, plus FreeKing (regularly promotes to GreatGeneral).
+pub fn is_range_capturer(pt: PieceType) -> bool {
+    if pt == PieceType::FreeKing {
+        return true;
+    }
+    MovementConfig::for_piece_type(pt)
+        .capabilities
+        .iter()
+        .any(|cap| {
+            matches!(
+                cap,
+                MovementCapability::Range {
+                    blocking: BlockingMode::Capturing,
+                    ..
+                }
+            )
         })
 }
 
@@ -1338,6 +1357,24 @@ mod tests {
     use crate::game_state::GameState;
     use crate::piece::Piece;
     use crate::position::Position;
+
+    #[test]
+    fn range_two_mover_and_capturer_classes() {
+        assert!(is_range_two_mover(PieceType::Tengu));
+        assert!(is_range_two_mover(PieceType::Peacock));
+        assert!(is_range_two_mover(PieceType::Capricorn));
+        assert!(is_range_two_mover(PieceType::HookMover));
+        assert!(!is_range_two_mover(PieceType::Lion));
+        assert!(!is_range_two_mover(PieceType::GreatGeneral));
+
+        assert!(is_range_capturer(PieceType::GreatGeneral));
+        assert!(is_range_capturer(PieceType::ViceGeneral));
+        assert!(is_range_capturer(PieceType::FreeKing));
+        assert!(is_range_capturer(PieceType::FierceDragon));
+        assert!(!is_range_capturer(PieceType::Tengu));
+        assert!(!is_range_capturer(PieceType::Lion));
+        assert!(!is_range_capturer(PieceType::FreeEagle));
+    }
 
     #[test]
     fn seed_material_values_match_tariffs() {
