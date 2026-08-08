@@ -1,0 +1,34 @@
+# Continuous loud-grid Glicko Swiss (systemd)
+#
+# Configure /etc/taikyoku/tourney.env (see deploy/tourney.env.example), then:
+#   sudo systemctl enable --now taikyoku-tourney
+# Stop cooperatively:
+#   sudo touch /opt/taikyoku_shogi/data/run/TOURNEY_STOP
+#   # or: sudo systemctl stop taikyoku-tourney
+# Resume after stop: set RESUME=1 and RUN_ID=… in the env file, then start again.
+
+[Unit]
+Description=Taikyoku Shogi continuous loud-grid Swiss tournament
+Documentation=file:///opt/taikyoku_shogi/deploy/README.md
+After=network.target
+
+[Service]
+Type=simple
+User=taikyoku
+Group=taikyoku
+WorkingDirectory=/opt/taikyoku_shogi
+EnvironmentFile=-/etc/taikyoku/tourney.env
+# Wrapper handles loud-grid gen (unless SKIP_GEN), flock, and notify.
+ExecStart=/opt/taikyoku_shogi/deploy/run_loud_swiss.sh
+TimeoutStopSec=7200
+# Cooperative stop via TOURNEY_STOP / SIGINT; give games time to abort cleanly.
+KillSignal=SIGINT
+Restart=on-failure
+RestartSec=30
+SuccessExitStatus=0
+
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

@@ -11,11 +11,12 @@ use crate::training::record::{AgentSpec, GameStart};
 use crate::training::run_status::{
     disk_free_gb, utc_now_iso, RunStatus, WorkerDaemonConfig,
 };
+use crate::training::loud_grid::{run_loud_grid, LoudGridConfig};
 use crate::training::scale_sample::{run_scale_sample, ScaleSampleConfig};
 use crate::training::texel::{fit_texel, TexelFitConfig, TexelInit};
 use crate::training::tournament::{
     load_manifest, new_run_id, run_tournament, standings_summary, TourneyConfig, TourneyFormat,
-    DEFAULT_GAMES_PER_PAIR, DEFAULT_SWISS_ROUNDS,
+    DEFAULT_GAMES_PER_PAIR,
 };
 use crate::training::worker::{
     play_one_game, run_batch, BatchConfig, WorkerConfig, DEFAULT_MAX_MOVES,
@@ -45,6 +46,8 @@ pub fn print_training_usage() {
     println!("  mobility-seed [--samples N] [--seed S] [--starts DIR] [--out PATH]");
     println!("  scale-sample [--seed PATH] [--out DIR] [--n N] [--rng-seed S]");
     println!("            (copy seed + all_m10/all_p10 + random ±10% big-param models)");
+    println!("  loud-grid [--seed PATH] [--out DIR]");
+    println!("            (3×3 grid: range two-movers × range capturers at 50/100/150%)");
     println!("  texel-fit [--features DIR] [--out PATH] [--iters N] [--lr F] [--k F]");
     println!("            [--init seed|mobility|PATH] [--late-frac F] [--keep-draws]");
     println!("            [--no-log-space] [--no-lr-scale-k] [--no-renorm-pawn]");
@@ -53,8 +56,9 @@ pub fn print_training_usage() {
     println!("  match --a AGENT --b AGENT [--starts SPEC] [--games N] [--jobs J] [--outdir DIR]");
     println!("  tournament --manifest PATH [--run-id ID] [--resume] [--games-per-pair N] [--jobs J]");
     println!("             [--starts light] [--depth N] [--outdir DIR]");
-    println!("             [--format round_robin|swiss] [--swiss-rounds N]");
-    println!("             (default games-per-pair=24 RR / 1 Swiss; stop: TOURNEY_STOP / Ctrl-C)");
+    println!("             [--format round_robin|swiss]");
+    println!("             (Swiss = continuous Glicko until TOURNEY_STOP / Ctrl-C;");
+    println!("              RR default games-per-pair=24)");
     println!();
     println!("  Agents: mi, random, royal, ab");
     println!("  Starts: opening | random | light | DIR of pool JSON");
@@ -867,6 +871,31 @@ pub fn cmd_scale_sample(args: &[String]) -> Result<(), String> {
     Ok(())
 }
 
+pub fn cmd_loud_grid(args: &[String]) -> Result<(), String> {
+    let mut cfg = LoudGridConfig::default();
+    let mut i = 2;
+    while i < args.len() {
+        if let Some(v) = take_flag_value(args, &mut i, "--seed")? {
+            cfg.seed_model = PathBuf::from(v);
+            continue;
+        }
+        if let Some(v) = take_flag_value(args, &mut i, "--out")? {
+            cfg.out_dir = PathBuf::from(v);
+            continue;
+        }
+        return Err(format!("Unknown flag {}", args[i]));
+    }
+    let (man, grid) = run_loud_grid(&cfg)?;
+    println!(
+        "Wrote {} entrants under {} (two-movers={:?}, capturers={:?})",
+        man.entrants.len(),
+        cfg.out_dir.display(),
+        grid.two_mover_pieces,
+        grid.capturer_pieces
+    );
+    Ok(())
+}
+
 pub fn cmd_texel_fit(args: &[String]) -> Result<(), String> {
     let mut cfg = TexelFitConfig::default();
     let mut i = 2;
@@ -1067,8 +1096,8 @@ pub fn cmd_tournament(args: &[String]) -> Result<(), String> {
             };
             continue;
         }
-        if let Some(v) = take_usize(args, &mut i, "--swiss-rounds")? {
-            cfg.swiss_rounds = v;
+        if let Some(_v) = take_usize(args, &mut i, "--swiss-rounds")? {
+            // Legacy flag: Swiss is continuous until stop; ignore finite rounds.
             continue;
         }
         return Err(format!("Unknown flag {}", args[i]));
@@ -1080,11 +1109,7 @@ pub fn cmd_tournament(args: &[String]) -> Result<(), String> {
         cfg.run_id = new_run_id();
     }
     if cfg.format == TourneyFormat::Swiss {
-        if cfg.swiss_rounds == 0 {
-            cfg.swiss_rounds = DEFAULT_SWISS_ROUNDS;
-        }
-        // Default games-per-pair stays 24 from Default; for Swiss use 1 start unless set.
-        // Callers should pass --games-per-pair 1; if they left the RR default, soften it.
+        // Continuous until stop; games_per_pair unused for Swiss scheduling.
         if cfg.games_per_pair == DEFAULT_GAMES_PER_PAIR {
             cfg.games_per_pair = 1;
         }
