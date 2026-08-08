@@ -137,6 +137,15 @@ tail -f data/run/swiss.log
 
 Stop with `touch data/run/TOURNEY_STOP`. Notify subjects distinguish **swiss done** vs **swiss incomplete** (non-zero exit when slots remain pending/aborted or Swiss rounds are unfinished). Overlapping tournament processes are refused (`exit 3`).
 
+After a run finishes, correlate multipliers vs match score / Elo:
+
+```bash
+python3 deploy/scale_sample_corr.py \
+  --samples models/scale-sample/samples.json \
+  --state data/raw/tourney/swiss-YYYYMMDDTHHMMSSZ/state.json
+# optional: --metric elo   --include-controls
+```
+
 ### Notifications (email / ntfy)
 
 Install `msmtp` (or use [ntfy.sh](https://ntfy.sh)) and set `/etc/taikyoku/notify.env` from `deploy/notify.env.example` (`NOTIFY_TO=…` is prefilled in the example).
