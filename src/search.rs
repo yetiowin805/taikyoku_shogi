@@ -3588,7 +3588,7 @@ mod tests {
     #[test]
     fn quiescence_floors_track_seed_loud_capture_floor() {
         let floor = seed_loud_capture_floor();
-        assert!((floor - 1200.0).abs() < 1e-3);
+        assert!((floor - 1080.0).abs() < 1e-3);
         assert!((min_quiescence_enemy_material() - floor).abs() < 1e-6);
         assert!((min_quiescence_deep_enemy() - floor).abs() < 1e-6);
         // Hang when net is below HANG_NET_FRAC of mover (even if enemy_sum is large).

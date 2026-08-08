@@ -355,11 +355,15 @@ pub const TARIFF_RANGE_NO_JUMP: f32 = 10.0;
 /// Per-direction value for jump-range sliding.
 pub const TARIFF_RANGE_JUMP: f32 = 50.0;
 /// Per-direction value for capturing-range sliding (main strength dial for GG/VG/…).
-pub const TARIFF_RANGE_CAPTURING: f32 = 500.0;
+pub const TARIFF_RANGE_CAPTURING: f32 = 450.0;
+/// Seed buff for Tengu-style two-movers (both legs are range slides).
+pub const RANGE_TWO_MOVER_BUFF: f32 = 1.10;
+/// FreeKing seed material as a fraction of GreatGeneral (promo potential).
+pub const FREE_KING_GG_FRAC: f32 = 0.75;
 
 /// Quiescence / worthwhile-capture floor derived from range tariffs.
 ///
-/// About 2.4 capturing-dirs (`500×2.4=1200`) so mid-heavy takes enter q; also at
+/// About 2.4 capturing-dirs (`450×2.4=1080`) so mid-heavy takes enter q; also at
 /// least a full 8-dir jump-ray.
 pub fn seed_loud_capture_floor() -> f32 {
     (TARIFF_RANGE_CAPTURING * 2.4).max(TARIFF_RANGE_JUMP * 8.0)
@@ -409,7 +413,12 @@ fn capability_material_value(cap: &MovementCapability) -> f32 {
         }
         MovementCapability::Jumping { offsets } => offsets.len() as f32,
         MovementCapability::TwoStep { first, second } => {
-            capability_material_value(first) + capability_material_value(second)
+            let raw = capability_material_value(first) + capability_material_value(second);
+            if is_range_capability(first) && is_range_capability(second) {
+                raw * RANGE_TWO_MOVER_BUFF
+            } else {
+                raw
+            }
         }
         // Covered by overrides (WoodenDove / FreeEagle).
         MovementCapability::ConditionalDiagonalJump { .. } => 0.0,
@@ -417,9 +426,26 @@ fn capability_material_value(cap: &MovementCapability) -> f32 {
     }
 }
 
+fn is_range_capability(cap: &MovementCapability) -> bool {
+    matches!(cap, MovementCapability::Range { .. })
+}
+
+/// True when the piece has a TwoStep whose both legs are range slides (Tengu family).
+fn is_range_two_mover(pt: PieceType) -> bool {
+    MovementConfig::for_piece_type(pt)
+        .capabilities
+        .iter()
+        .any(|cap| match cap {
+            MovementCapability::TwoStep { first, second } => {
+                is_range_capability(first) && is_range_capability(second)
+            }
+            _ => false,
+        })
+}
+
 fn explicit_material_override(pt: PieceType) -> Option<f32> {
     match pt {
-        PieceType::King => Some(2000.0),
+        PieceType::King => Some(100.0),
         PieceType::CrownPrince => Some(8.0),
         PieceType::Peacock => Some(800.0),
         PieceType::Tengu => Some(1200.0),
@@ -454,10 +480,16 @@ fn formula_piece_value(pt: PieceType) -> f32 {
 
 /// Seed material from movement capabilities (+ explicit overrides / additive bonuses).
 pub fn seed_piece_value(pt: PieceType) -> f32 {
-    if let Some(v) = explicit_material_override(pt) {
-        return v;
+    // Queen: already very mobile; price in most of the GG it becomes.
+    if pt == PieceType::FreeKing {
+        return seed_piece_value(PieceType::GreatGeneral) * FREE_KING_GG_FRAC;
     }
-    formula_piece_value(pt)
+    match explicit_material_override(pt) {
+        // Overrides skip the TwoStep formula path — still apply the range-two-mover buff.
+        Some(v) if is_range_two_mover(pt) => v * RANGE_TWO_MOVER_BUFF,
+        Some(v) => v,
+        None => formula_piece_value(pt),
+    }
 }
 
 /// True if the piece has range movement in at least one forward direction (black-relative).
@@ -828,10 +860,11 @@ pub struct EvalWeights {
     #[serde(default)]
     pub sole_royal_factor: i32,
     /// Royal bonus by living count: index = count (0 unused; mate short-circuits).
-    /// Seed: `[0, 0, 5000, 6000]` → 1→0, 2→5000, 3+→6000.
+    /// Seed: `[0, 0, 100, 110]` → 1→0, 2→100, 3+→110.
+    /// Encourages keeping a spare royal (CP from DE) without the old huge promo push.
     #[serde(default = "default_royal_bonus_by_count")]
     pub royal_bonus_by_count: Vec<i32>,
-    /// Legacy DE/GoBetween advance scale (unused by seed).
+    /// Legacy DE/GoBetween advance scale (unused by seed; DE uses generic rank PST).
     #[serde(default)]
     pub de_advance: i32,
     /// Floor for undeveloped penalty. Seed uses 0 (PST is the development signal).
@@ -896,7 +929,7 @@ fn default_advance() -> i32 {
 }
 
 fn default_royal_bonus_by_count() -> Vec<i32> {
-    vec![0, 0, 5000, 6000]
+    vec![0, 0, 100, 110]
 }
 
 /// Fast PST: 50% back → 100% pawn start → 100% to mid → 110% opponent half → 120% promo.
@@ -1311,17 +1344,24 @@ mod tests {
         let w = EvalWeights::seed();
         assert!((w.piece_value(PieceType::Pawn) - 1.0).abs() < 1e-3);
         assert!((w.piece_value(PieceType::CrownPrince) - 8.0).abs() < 1e-3);
-        assert!((w.piece_value(PieceType::King) - 2000.0).abs() < 1e-3);
-        assert!((w.piece_value(PieceType::FreeKing) - 80.0).abs() < 1e-3);
+        assert!((w.piece_value(PieceType::King) - 100.0).abs() < 1e-3);
+        // FreeKing = ¾ GreatGeneral; GG = 8 × capturing tariff.
+        assert!((w.piece_value(PieceType::GreatGeneral) - 8.0 * TARIFF_RANGE_CAPTURING).abs() < 1e-3);
+        assert!(
+            (w.piece_value(PieceType::FreeKing)
+                - w.piece_value(PieceType::GreatGeneral) * FREE_KING_GG_FRAC)
+                .abs()
+                < 1e-3
+        );
         assert!((w.piece_value(PieceType::Shitennou) - 400.0).abs() < 1e-3);
         assert!((w.piece_value(PieceType::GreatEagle) - 160.0).abs() < 1e-3);
-        assert!((w.piece_value(PieceType::GreatGeneral) - 4000.0).abs() < 1e-3);
-        assert!((w.piece_value(PieceType::FierceDragon) - 2006.0).abs() < 1e-3);
-        assert!((w.piece_value(PieceType::ViceGeneral) - 2504.0).abs() < 1e-3);
-        assert!((w.piece_value(PieceType::Peacock) - 800.0).abs() < 1e-3);
-        assert!((w.piece_value(PieceType::Tengu) - 1200.0).abs() < 1e-3);
-        assert!((w.piece_value(PieceType::Capricorn) - 1500.0).abs() < 1e-3);
-        assert!((w.piece_value(PieceType::HookMover) - 2000.0).abs() < 1e-3);
+        assert!((w.piece_value(PieceType::FierceDragon) - 1806.0).abs() < 1e-3);
+        assert!((w.piece_value(PieceType::ViceGeneral) - 2304.0).abs() < 1e-3);
+        // Range two-movers: base override × 1.10.
+        assert!((w.piece_value(PieceType::Peacock) - 800.0 * RANGE_TWO_MOVER_BUFF).abs() < 1e-3);
+        assert!((w.piece_value(PieceType::Tengu) - 1200.0 * RANGE_TWO_MOVER_BUFF).abs() < 1e-3);
+        assert!((w.piece_value(PieceType::Capricorn) - 1500.0 * RANGE_TWO_MOVER_BUFF).abs() < 1e-3);
+        assert!((w.piece_value(PieceType::HookMover) - 2000.0 * RANGE_TWO_MOVER_BUFF).abs() < 1e-3);
         assert!((w.piece_value(PieceType::Lion) - 15.0).abs() < 1e-3);
         assert!((w.piece_value(PieceType::FuriousFiend) - 30.0).abs() < 1e-3);
         assert!((w.piece_value(PieceType::LionHawk) - 50.0).abs() < 1e-3);
@@ -1335,7 +1375,7 @@ mod tests {
 
     #[test]
     fn loud_capture_floor_tracks_capturing_tariff() {
-        assert!((seed_loud_capture_floor() - 1200.0).abs() < 1e-3);
+        assert!((seed_loud_capture_floor() - 1080.0).abs() < 1e-3);
         assert!((seed_loud_capture_floor() - (TARIFF_RANGE_CAPTURING * 2.4).max(TARIFF_RANGE_JUMP * 8.0)).abs() < 1e-6);
         assert!(TARIFF_RANGE_CAPTURING * 2.4 >= TARIFF_RANGE_JUMP * 8.0);
     }
@@ -1347,12 +1387,18 @@ mod tests {
         let mut back: EvalCheckpoint = serde_json::from_str(&text).unwrap();
         back.weights.rebuild_piece_value_table();
         assert_eq!(back.format_version, 1);
-        assert_eq!(back.weights.piece_value(PieceType::King), 2000.0);
+        assert_eq!(back.weights.piece_value(PieceType::King), 100.0);
         assert_eq!(back.weights.piece_value(PieceType::CrownPrince), 8.0);
-        assert_eq!(back.weights.piece_value(PieceType::GreatGeneral), 4000.0);
+        assert_eq!(
+            back.weights.piece_value(PieceType::GreatGeneral),
+            8.0 * TARIFF_RANGE_CAPTURING
+        );
         assert_eq!(back.weights.piece_value(PieceType::FreeEagle), 30.0);
         assert_eq!(back.weights.piece_value(PieceType::WoodenDove), 50.0);
-        assert_eq!(back.weights.piece_value(PieceType::HookMover), 2000.0);
+        assert!(
+            (back.weights.piece_value(PieceType::HookMover) - 2000.0 * RANGE_TWO_MOVER_BUFF).abs()
+                < 1e-3
+        );
         assert_eq!(back.weights.piece_value(PieceType::Lion), 15.0);
         assert!((back.weights.piece_value(PieceType::Pawn) - 1.0).abs() < 1e-3);
         assert_eq!(back.weights.piece.len(), ALL_PIECE_TYPES.len());
@@ -1369,8 +1415,8 @@ mod tests {
         assert!((back.weights.rank_factor_slow[RANK_OPPONENT_HALF as usize] - 1.0).abs() < 1e-3);
         assert!((back.weights.rank_factor_slow[RANK_PST_PROMO as usize] - 1.2).abs() < 1e-3);
         assert_eq!(back.weights.royal_bonus(1), 0);
-        assert_eq!(back.weights.royal_bonus(2), 5000);
-        assert_eq!(back.weights.royal_bonus(3), 6000);
+        assert_eq!(back.weights.royal_bonus(2), 100);
+        assert_eq!(back.weights.royal_bonus(3), 110);
         assert!((back.weights.eg_tropism_scale - 1.5).abs() < 1e-6);
         assert!((back.weights.eg_tropism_cap - 0.0).abs() < 1e-6);
         assert!((back.weights.eg_density_n - 20.0).abs() < 1e-6);
@@ -1449,9 +1495,12 @@ mod tests {
         let loaded = EvalCheckpoint::load_path(DEFAULT_MODEL_PATH).unwrap();
         assert_eq!(loaded.weights.advance, 0);
         assert_eq!(loaded.name, "ab-seed");
-        assert_eq!(loaded.weights.piece_value(PieceType::King), 2000.0);
-        assert_eq!(loaded.weights.piece_value(PieceType::GreatGeneral), 4000.0);
-        assert_eq!(loaded.weights.royal_bonus(2), 5000);
+        assert_eq!(loaded.weights.piece_value(PieceType::King), 100.0);
+        assert_eq!(
+            loaded.weights.piece_value(PieceType::GreatGeneral),
+            8.0 * TARIFF_RANGE_CAPTURING
+        );
+        assert_eq!(loaded.weights.royal_bonus(2), 100);
     }
 
     #[test]
@@ -1475,8 +1524,8 @@ mod tests {
         ));
         state.set_current_turn(Color::Black);
         let score = evaluate(&state, &weights);
-        // Two royals → +5000 royal bonus vs one (0), plus CP material 8.
-        assert!(score > 4000, "black with two royals vs one should be largely positive, got {score}");
+        // Two royals → +100 royal bonus vs one (0), plus CP material 8.
+        assert!(score > 100, "black with two royals vs one should be positive, got {score}");
     }
 
     #[test]
@@ -1528,7 +1577,7 @@ mod tests {
         let retreated = state.get_board().get_piece(behind).unwrap();
         assert!((undeveloped_penalty_for_piece(&retreated, &weights) - 0.9).abs() < 1e-3);
 
-        // Tengu = 1200 → uncapped 240, capped 20.
+        // Tengu seed (with range-two-mover buff) → uncapped/5, capped 20.
         let mut hi_board = Board::new();
         hi_board.place_piece(Piece::new(
             PieceType::King,
