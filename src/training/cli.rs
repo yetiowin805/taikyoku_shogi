@@ -40,8 +40,9 @@ pub fn print_training_usage() {
     println!("  featurize [--games-dir DIR] [--out DIR] [--target-per-game N] [--quiet-stride N]");
     println!("            (event-driven sampling; default target 150/game)");
     println!("  eval-trace [--games-dir DIR] [--model PATH] [--out DIR] [--quiet-stride N]");
-    println!("             [--top K] [--max-games N] [--search-depth D] [--search-stride S]");
-    println!("             [--no-search]  (quiet swings → top-K depth probes every S plies)");
+    println!("             [--top K] [--max-games N] [--clip F] [--exclude-tail N]");
+    println!("             [--search-depth D] [--search-stride S] [--no-search]");
+    println!("             (uses saved AB evals when present; clip±10000; drop last 8 plies)");
     println!("  mobility-seed [--samples N] [--seed S] [--starts DIR] [--out PATH]");
     println!("  scale-sample [--seed PATH] [--out DIR] [--n N] [--rng-seed S]");
     println!("            (copy seed + all_m10/all_p10 + random ±10% big-param models)");
@@ -758,6 +759,10 @@ pub fn cmd_eval_trace(args: &[String]) -> Result<(), String> {
         }
         if let Some(v) = take_f32(args, &mut i, "--clip")? {
             cfg.eval_clip = v;
+            continue;
+        }
+        if let Some(v) = take_usize(args, &mut i, "--exclude-tail")? {
+            cfg.exclude_tail_plies = v;
             continue;
         }
         if let Some(v) = take_u32(args, &mut i, "--search-depth")? {

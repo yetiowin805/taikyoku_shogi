@@ -18,7 +18,10 @@ use std::path::{Path, PathBuf};
 
 pub const DEFAULT_QUIET_STRIDE: usize = 16;
 pub const DEFAULT_TOP_N: usize = 30;
-pub const DEFAULT_EVAL_CLIP: f32 = 50_000.0;
+/// Cap for interestingness / swing metrics (mate scores otherwise dominate).
+pub const DEFAULT_EVAL_CLIP: f32 = 10_000.0;
+/// Drop the final N plies from quiet sampling (mate lead-in noise).
+pub const DEFAULT_EXCLUDE_TAIL_PLIES: usize = 8;
 pub const DEFAULT_OUT_DIR: &str = "data/derived/eval_traces";
 pub const DEFAULT_SEARCH_DEPTH: u32 = 2;
 pub const DEFAULT_SEARCH_STRIDE: usize = 5;
@@ -32,6 +35,8 @@ pub struct EvalTraceConfig {
     pub quiet_stride: usize,
     pub top_n: usize,
     pub eval_clip: f32,
+    /// Exclude this many trailing plies from interesting quiet sampling.
+    pub exclude_tail_plies: usize,
     /// Zero eval noise for stable traces.
     pub zero_noise: bool,
     pub max_games: Option<usize>,
@@ -50,6 +55,7 @@ impl Default for EvalTraceConfig {
             quiet_stride: DEFAULT_QUIET_STRIDE,
             top_n: DEFAULT_TOP_N,
             eval_clip: DEFAULT_EVAL_CLIP,
+            exclude_tail_plies: DEFAULT_EXCLUDE_TAIL_PLIES,
             zero_noise: true,
             max_games: None,
             search_depth: DEFAULT_SEARCH_DEPTH,
@@ -268,26 +274,60 @@ pub fn move_is_loud_promotion(state_before: &GameState, mr: &MoveRecord) -> Opti
     }
 }
 
+/// Prefer AB search score, then stand-pat, both black-absolute on the game record.
+pub fn recorded_eval_for_ply(moves: &[MoveRecord], ply: usize) -> Option<i32> {
+    if moves.is_empty() {
+        return None;
+    }
+    if ply == 0 {
+        // Stand-pat / root search at the initial position (first move's annotation).
+        return moves[0].static_eval.or(moves[0].eval);
+    }
+    if ply <= moves.len() {
+        // Search score of the move that led here ≈ value of this position.
+        let prev = &moves[ply - 1];
+        if let Some(e) = prev.eval {
+            return Some(e);
+        }
+        if let Some(s) = prev.static_eval {
+            return Some(s);
+        }
+        // Next player's stand-pat at this position, if they got to move.
+        if ply < moves.len() {
+            return moves[ply].static_eval.or(moves[ply].eval);
+        }
+    }
+    None
+}
+
 /// Select sample plies: quiet stride + forced events (royals, loud promos).
 /// Captures are not primary samples (unless also a forced event).
+/// Trailing `exclude_tail_plies` are omitted (mate lead-in).
 pub fn select_quiet_plies(
     capture_into: &[bool],
     royal_change: &[bool],
     loud_promotion: &[bool],
     quiet_stride: usize,
+    exclude_tail_plies: usize,
 ) -> Vec<usize> {
     let n = capture_into.len();
     if n == 0 {
         return Vec::new();
     }
+    let end = n.saturating_sub(exclude_tail_plies);
+    if end == 0 {
+        return Vec::new();
+    }
     let stride = quiet_stride.max(1);
     let mut out = Vec::new();
     let mut last_quiet = 0usize;
-    for ply in 0..n {
+    for ply in 0..end {
         let is_capture = capture_into[ply];
         let is_event = royal_change[ply] || loud_promotion.get(ply).copied().unwrap_or(false);
         let quiet_ok = !is_capture && (ply == 0 || ply - last_quiet >= stride);
-        if ply == 0 || ply + 1 == n || is_event || quiet_ok {
+        // Do not force-sample the absolute last kept ply just for being last;
+        // tail exclusion already drops the mate lead-in.
+        if ply == 0 || is_event || quiet_ok {
             out.push(ply);
             if !is_capture || is_event {
                 last_quiet = ply;
@@ -548,7 +588,16 @@ pub fn trace_game(
     let mut prev_wr = count_royals(&state, Color::White);
     counts_by_ply[0] = piece_counts(&state);
     points_by_ply[0] = Some(snapshot_point(
-        &state, 0, weights, cfg.eval_clip, true, false, false, false, None, None,
+        &state,
+        0,
+        weights,
+        cfg.eval_clip,
+        true,
+        false,
+        false,
+        false,
+        None,
+        recorded_eval_for_ply(&record.moves, 0),
     ));
 
     for (i, mr) in record.moves.iter().enumerate() {
@@ -575,7 +624,7 @@ pub fn trace_game(
         prev_br = br;
         prev_wr = wr;
         counts_by_ply[ply] = piece_counts(&state);
-        // Prefer live AB search score stored on the move that led here.
+        // Prefer AB annotations from the game record (search, then stand-pat).
         points_by_ply[ply] = Some(snapshot_point(
             &state,
             ply,
@@ -586,12 +635,17 @@ pub fn trace_game(
             royal_change[ply],
             loud_promotion[ply],
             loud_promo_to[ply].clone(),
-            mr.eval,
+            recorded_eval_for_ply(&record.moves, ply),
         ));
     }
 
-    let quiet_plies =
-        select_quiet_plies(&capture_into, &royal_change, &loud_promotion, cfg.quiet_stride);
+    let quiet_plies = select_quiet_plies(
+        &capture_into,
+        &royal_change,
+        &loud_promotion,
+        cfg.quiet_stride,
+        cfg.exclude_tail_plies,
+    );
     for &ply in &quiet_plies {
         if let Some(p) = points_by_ply[ply].as_mut() {
             p.quiet = true;
@@ -674,18 +728,14 @@ fn move_label(mv: &crate::game_state::Move) -> String {
     )
 }
 
-/// Depth-N probes every `stride` plies (0, stride, 2*stride, …, last).
-pub fn search_probe_plies(n_plies: usize, stride: usize) -> Vec<usize> {
+/// Depth-N probes every `stride` plies within `[0, n_plies - exclude_tail)`.
+pub fn search_probe_plies(n_plies: usize, stride: usize, exclude_tail_plies: usize) -> Vec<usize> {
     let stride = stride.max(1);
-    if n_plies == 0 {
+    let end = n_plies.saturating_sub(exclude_tail_plies);
+    if end == 0 {
         return Vec::new();
     }
-    let mut out: Vec<usize> = (0..n_plies).step_by(stride).collect();
-    let last = n_plies - 1;
-    if out.last() != Some(&last) {
-        out.push(last);
-    }
-    out
+    (0..end).step_by(stride).collect()
 }
 
 fn enrich_with_search(
@@ -708,7 +758,7 @@ fn enrich_with_search(
         ..SearchConfig::default()
     };
 
-    let plies = search_probe_plies(n_plies, cfg.search_stride);
+    let plies = search_probe_plies(n_plies, cfg.search_stride, cfg.exclude_tail_plies);
     let mut probes = Vec::with_capacity(plies.len());
     for &ply in &plies {
         let state = replay_to_ply(record, ply)?;
@@ -972,11 +1022,24 @@ mod tests {
         let cap = vec![false, false, true, true, false, false, false, false, false];
         let royal = vec![false; 9];
         let loud = vec![false; 9];
-        let plies = select_quiet_plies(&cap, &royal, &loud, 3);
+        let plies = select_quiet_plies(&cap, &royal, &loud, 3, 0);
         assert!(plies.contains(&0));
-        assert!(plies.contains(&8));
         assert!(!plies.contains(&2));
         assert!(!plies.contains(&3));
+        // With exclude_tail=0, stride keeps later quiets (not forced terminal).
+        assert!(plies.iter().any(|&p| p >= 4));
+    }
+
+    #[test]
+    fn select_quiet_excludes_tail_plies() {
+        let n = 20;
+        let cap = vec![false; n];
+        let royal = vec![false; n];
+        let loud = vec![false; n];
+        let plies = select_quiet_plies(&cap, &royal, &loud, 3, 8);
+        assert!(plies.iter().all(|&p| p < n - 8));
+        assert!(!plies.contains(&(n - 1)));
+        assert!(!plies.contains(&(n - 8)));
     }
 
     #[test]
@@ -985,8 +1048,31 @@ mod tests {
         let royal = vec![false; 10];
         let mut loud = vec![false; 10];
         loud[4] = true;
-        let plies = select_quiet_plies(&cap, &royal, &loud, 16);
+        let plies = select_quiet_plies(&cap, &royal, &loud, 16, 0);
         assert!(plies.contains(&4));
+    }
+
+    #[test]
+    fn recorded_eval_prefers_search_then_static() {
+        use crate::game_history::{MoveRecord, MoveRecordData};
+        use crate::piece::Color;
+        let mk = |eval: Option<i32>, static_eval: Option<i32>| MoveRecord {
+            move_number: 1,
+            color: Color::Black,
+            from_file: 0,
+            from_rank: 0,
+            to_file: 1,
+            to_rank: 1,
+            promoted: false,
+            data: MoveRecordData::Standard,
+            eval,
+            static_eval,
+            nodes: None,
+        };
+        let moves = vec![mk(Some(100), Some(50)), mk(None, Some(200))];
+        assert_eq!(recorded_eval_for_ply(&moves, 0), Some(50)); // start: static
+        assert_eq!(recorded_eval_for_ply(&moves, 1), Some(100)); // after m0: search
+        assert_eq!(recorded_eval_for_ply(&moves, 2), Some(200)); // after m1: static fallback
     }
 
     #[test]
@@ -1093,10 +1179,12 @@ mod tests {
         let series = vec![(0, 10.0), (10, 20.0), (20, 1_000_000.0)];
         let clipped: Vec<_> = series
             .iter()
-            .map(|(p, e)| (*p, clip(*e, 50_000.0)))
+            .map(|(p, e)| (*p, clip(*e, DEFAULT_EVAL_CLIP)))
             .collect();
         let (m, _, _) = compute_metrics(&clipped, &Some(GameResult::BlackWins));
-        assert!(m.max_runup <= 50_000.0 + 20.0);
+        assert!((DEFAULT_EVAL_CLIP - 10_000.0).abs() < 1e-3);
+        assert!(m.max_runup <= DEFAULT_EVAL_CLIP + 20.0);
+        assert!(clipped.last().unwrap().1.abs() <= DEFAULT_EVAL_CLIP);
     }
 
     #[test]
@@ -1143,9 +1231,11 @@ mod tests {
 
     #[test]
     fn search_probe_plies_every_five() {
-        assert_eq!(search_probe_plies(1, 5), vec![0]);
-        assert_eq!(search_probe_plies(11, 5), vec![0, 5, 10]);
-        assert_eq!(search_probe_plies(12, 5), vec![0, 5, 10, 11]);
+        assert_eq!(search_probe_plies(1, 5, 0), vec![0]);
+        assert_eq!(search_probe_plies(11, 5, 0), vec![0, 5, 10]);
+        assert_eq!(search_probe_plies(12, 5, 0), vec![0, 5, 10]);
+        // Tail exclusion drops mate lead-in.
+        assert_eq!(search_probe_plies(20, 5, 8), vec![0, 5, 10]);
     }
 
     #[test]
