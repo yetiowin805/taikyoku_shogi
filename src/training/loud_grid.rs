@@ -1,4 +1,7 @@
 //! 3×3 material grid over range two-movers × range capturers (incl. FreeKing).
+//!
+//! Default grid (percent of seed): two-movers T ∈ {80, 100, 150}, capturers C ∈ {50, 100, 120}.
+//! Center cell `T100C100` is a byte-copy of the seed checkpoint.
 
 use crate::eval::{
     is_range_capturer, is_range_two_mover, EvalCheckpoint, EvalWeights, ALL_PIECE_TYPES,
@@ -12,7 +15,10 @@ use std::path::{Path, PathBuf};
 pub const DEFAULT_OUT_DIR: &str = "models/loud-grid";
 pub const DEFAULT_SEED_MODEL: &str = "models/ab-seed.json";
 
-pub const MULTS: [f32; 3] = [0.5, 1.0, 1.5];
+/// Two-mover class multipliers (T80 / T100 / T150).
+pub const TWO_MOVER_MULTS: [f32; 3] = [0.80, 1.0, 1.50];
+/// Capturer class multipliers (C50 / C100 / C120), including FreeKing.
+pub const CAPTURER_MULTS: [f32; 3] = [0.50, 1.0, 1.20];
 
 #[derive(Debug, Clone)]
 pub struct LoudGridConfig {
@@ -115,8 +121,8 @@ pub fn run_loud_grid(cfg: &LoudGridConfig) -> Result<(TourneyManifest, GridFile)
 
     let mut cells = Vec::with_capacity(9);
     let mut entrants = Vec::with_capacity(9);
-    for &tm in &MULTS {
-        for &cm in &MULTS {
+    for &tm in &TWO_MOVER_MULTS {
+        for &cm in &CAPTURER_MULTS {
             let id = cell_id(pct(tm), pct(cm));
             let model_path = cfg.out_dir.join(format!("{id}.json"));
             if (tm - 1.0).abs() < 1e-6 && (cm - 1.0).abs() < 1e-6 {
@@ -213,14 +219,16 @@ mod tests {
     #[test]
     fn cell_ids_cover_grid() {
         let mut ids = Vec::new();
-        for &tm in &MULTS {
-            for &cm in &MULTS {
+        for &tm in &TWO_MOVER_MULTS {
+            for &cm in &CAPTURER_MULTS {
                 ids.push(cell_id(pct(tm), pct(cm)));
             }
         }
         assert_eq!(ids.len(), 9);
         assert!(ids.contains(&"T100C100".to_string()));
-        assert!(ids.contains(&"T50C150".to_string()));
-        assert!(ids.contains(&"T150C50".to_string()));
+        assert!(ids.contains(&"T80C50".to_string()));
+        assert!(ids.contains(&"T150C120".to_string()));
+        assert_eq!(pct(0.80), 80);
+        assert_eq!(pct(1.20), 120);
     }
 }

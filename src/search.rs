@@ -1,7 +1,8 @@
 //! Alpha-beta search over GameState with make/unmake, compact traces for the GUI.
 
 use crate::eval::{
-    evaluate_with_ply, is_big_piece, promotes_into_big_piece, seed_loud_capture_floor, EvalWeights,
+    evaluate_with_ply, is_big_piece, material_piece_value, promotes_into_big_piece,
+    seed_loud_capture_floor, EvalWeights,
 };
 use crate::game_state::{GameState, LegalMoveGen, Move};
 use crate::movement::{BlockingMode, MovementCapability, MovementConfig, MovementGenerator};
@@ -478,7 +479,7 @@ fn capture_exchange_kind(
 
     let mut add = |pos: crate::position::Position| {
         if let Some(p) = board.get_piece(pos) {
-            let v = weights.piece_value(p.piece_type);
+            let v = material_piece_value(&p, weights);
             if p.color == them {
                 enemy += v;
             } else if p.color == us {
@@ -540,7 +541,7 @@ fn capture_material_exchange_raw(
 
     let mut add = |pos: crate::position::Position| {
         if let Some(p) = board.get_piece(pos) {
-            let v = weights.piece_value(p.piece_type);
+            let v = material_piece_value(&p, weights);
             if p.color == them {
                 enemy += v;
             } else if p.color == us {
@@ -617,7 +618,7 @@ fn capture_hangs_high_value_piece(
     let Some(mover) = board.get_piece(mv.from) else {
         return false;
     };
-    let mover_value = weights.piece_value(mover.piece_type);
+    let mover_value = material_piece_value(&mover, weights);
     if mover_value < HIGH_VALUE_HANGER {
         return false;
     }
@@ -744,7 +745,7 @@ fn mvv_lva_score(state: &GameState, weights: &EvalWeights, mv: &Move) -> i32 {
     let Some(mover) = board.get_piece(mv.from) else {
         return i32::MIN / 4;
     };
-    let mover_value = weights.piece_value(mover.piece_type);
+    let mover_value = material_piece_value(&mover, weights);
     let (enemy, own) = capture_material_exchange(state, weights, mv);
     if enemy == 0.0 {
         return i32::MIN / 4;
@@ -770,7 +771,7 @@ fn move_order_score(
     let Some(mover) = board.get_piece(mv.from) else {
         return i32::MIN / 4;
     };
-    let mover_value = weights.piece_value(mover.piece_type);
+    let mover_value = material_piece_value(&mover, weights);
     let (enemy, own, kind) = capture_exchange_kind(state, weights, mv);
     if enemy == 0.0 {
         return i32::MIN / 4;
@@ -956,7 +957,7 @@ fn generate_loud_simple_takes(state: &GameState, weights: &EvalWeights) -> Vec<M
     let mut out = Vec::new();
     let mut seen: HashSet<(u16, u16, bool)> = HashSet::new();
     for enemy in state.get_board().iter_pieces_by_color(them) {
-        if weights.piece_value(enemy.piece_type) < floor {
+        if material_piece_value(&enemy, weights) < floor {
             continue;
         }
         for mv in generate_captures_hitting_square(state, enemy.position) {
@@ -1993,13 +1994,13 @@ fn quiesce(
             let mover_value = state
                 .get_board()
                 .get_piece(mv.from)
-                .map(|p| weights.piece_value(p.piece_type))
+                .map(|p| material_piece_value(&p, weights))
                 .unwrap_or(0.0);
             let landing_victim = state
                 .get_board()
                 .get_piece(mv.to)
                 .filter(|p| p.color != state.get_current_turn())
-                .map(|p| weights.piece_value(p.piece_type))
+                .map(|p| material_piece_value(&p, weights))
                 .unwrap_or(0.0);
             let is_recapture = prev_to
                 .map(|sq| capture_hits_square(state, &mv, sq))
@@ -3588,7 +3589,7 @@ mod tests {
     #[test]
     fn quiescence_floors_track_seed_loud_capture_floor() {
         let floor = seed_loud_capture_floor();
-        assert!((floor - 1080.0).abs() < 1e-3);
+        assert!((floor - 540.0).abs() < 1e-3);
         assert!((min_quiescence_enemy_material() - floor).abs() < 1e-6);
         assert!((min_quiescence_deep_enemy() - floor).abs() < 1e-6);
         // Hang when net is below HANG_NET_FRAC of mover (even if enemy_sum is large).
