@@ -203,7 +203,8 @@ struct SearchContext {
     /// Disallow consecutive null moves.
     allow_null: bool,
     /// Enemy material taken by the AB move that entered this node (0 = quiet).
-    /// Quiescence runs only when this is ≥ the loud-capture floor.
+    /// Loud parents (≥ floor) open capture q; quiet parents may still open q for
+    /// loud promos or lesser-valued SimpleTakes of hanging large pieces.
     last_ab_capture_enemy: f32,
     /// Landing of the last AB move (search skips move_history). Seeds q prev_to.
     last_ab_to: Option<Position>,
@@ -980,6 +981,66 @@ fn generate_loud_simple_takes(state: &GameState, weights: &EvalWeights) -> Vec<M
     out
 }
 
+/// Large enemy piece eligible for hanging-take quiescence (big type or ≥ loud floor).
+fn is_large_hang_victim(piece: &crate::piece::Piece, weights: &EvalWeights) -> bool {
+    is_big_piece(piece.piece_type)
+        || material_piece_value(piece, weights) >= min_quiescence_enemy_material()
+}
+
+/// True when `mv` is a SimpleTake of a large enemy by a strictly cheaper mover.
+pub(crate) fn is_large_hang_simple_take(
+    state: &GameState,
+    weights: &EvalWeights,
+    mv: &Move,
+) -> bool {
+    if quiesce_move_looks_path_or_multileg(state, mv) {
+        return false;
+    }
+    let board = state.get_board();
+    let Some(mover) = board.get_piece(mv.from) else {
+        return false;
+    };
+    let Some(victim) = board.get_piece(mv.to) else {
+        return false;
+    };
+    if victim.color == mover.color || !is_large_hang_victim(&victim, weights) {
+        return false;
+    }
+    material_piece_value(&mover, weights) < material_piece_value(&victim, weights)
+}
+
+/// STM can SimpleTake a large hanging enemy with a lesser-valued piece.
+///
+/// Used to open quiescence after quiet AB parents (classical engines resolve
+/// free hanging heavies in q; we previously stand-pat and missed them).
+pub(crate) fn stm_has_large_hang_simple_take(
+    state: &GameState,
+    weights: &EvalWeights,
+) -> bool {
+    let them = state.get_current_turn().opposite();
+    for enemy in state.get_board().iter_pieces_by_color(them) {
+        if !is_large_hang_victim(&enemy, weights) {
+            continue;
+        }
+        let victim_val = material_piece_value(&enemy, weights);
+        for mv in generate_captures_hitting_square(state, enemy.position) {
+            if mv.to != enemy.position {
+                continue;
+            }
+            if quiesce_move_looks_path_or_multileg(state, &mv) {
+                continue;
+            }
+            let Some(mover) = state.get_board().get_piece(mv.from) else {
+                continue;
+            };
+            if material_piece_value(&mover, weights) < victim_val {
+                return true;
+            }
+        }
+    }
+    false
+}
+
 /// Captures that take an enemy on `victim` (dest, path-clear, multi-leg, FE).
 ///
 /// Standard pieces use directed landing emit; TwoStep / FreeEagle / conditional-jump
@@ -1450,6 +1511,73 @@ pub fn probe_quiescence(
     }
 }
 
+/// Test harness: quiet-parent leaf path (`last_ab_capture_enemy = 0`).
+#[cfg(test)]
+fn probe_quiet_parent_leaf_or_quiesce(
+    state: &GameState,
+    weights: &EvalWeights,
+    qdepth: u32,
+) -> (i32, u64) {
+    let root_ply = state.get_move_history().len();
+    let now = Instant::now();
+    let mut ctx = SearchContext {
+        deadline: None,
+        nodes: 0,
+        abort: false,
+        ply: root_ply,
+        quiescence_depth: qdepth,
+        quiesce_entry_depth: qdepth,
+        search_started: now,
+        last_progress_log: now,
+        search_depth: 0,
+        root_index: 0,
+        root_total: 0,
+        root_label: String::new(),
+        best_score: i32::MIN + 1,
+        phase: "leaf",
+        tt: TranspositionTable::new(1024),
+        q_tt: TranspositionTable::new(1 << 16),
+        killers: Vec::new(),
+        history: HashMap::new(),
+        allow_null: true,
+        last_ab_capture_enemy: 0.0,
+        last_ab_to: None,
+        q_nodes: 0,
+        q_nodes_at_root_start: 0,
+        q_nodes_last_root: 0,
+        q_depth_left: 0,
+        q_caps_at_node: 0,
+        q_cap_index: 0,
+        q_label: String::new(),
+        q_stand_pat: 0,
+        q_prune_mode: QPruneMode::PathAware,
+        q_caps_generated: 0,
+        q_caps_searched: 0,
+        q_kind_simple: 0,
+        q_kind_path: 0,
+        q_kind_multi: 0,
+        root_pvs_tried: 0,
+        root_fail_high: 0,
+        root_near_best: 0,
+        root_moves_scored: 0,
+        q_unique: HashSet::new(),
+        q_unique_saturated: false,
+        q_tt_hits: 0,
+        q_tt_probes: 0,
+        root_move_started: Instant::now(),
+    };
+    let mut pos = state.clone();
+    let score = leaf_or_quiesce(
+        &mut pos,
+        weights,
+        i32::MIN + 1,
+        i32::MAX - 1,
+        true,
+        &mut ctx,
+    );
+    (score, ctx.q_nodes)
+}
+
 fn same_root_move(a: &Move, b: &Move) -> bool {
     a.from == b.from && a.to == b.to && a.promoted == b.promoted
 }
@@ -1842,10 +1970,12 @@ fn leaf_or_quiesce(
     is_pv: bool,
     ctx: &mut SearchContext,
 ) -> i32 {
-    // Q after loud AB captures/promos, or when STM can still promote into a big piece.
+    // Q after loud AB captures/promos, loud promos, or a free take of a hanging
+    // large enemy (lesser-valued SimpleTake) even when the parent AB move was quiet.
     let loud_parent = ctx.last_ab_capture_enemy >= min_quiescence_enemy_material();
     let loud_promos = generate_loud_promotions(state);
-    if !loud_parent && loud_promos.is_empty() {
+    let hang_caps = !loud_parent && stm_has_large_hang_simple_take(state, weights);
+    if !loud_parent && loud_promos.is_empty() && !hang_caps {
         return evaluate_with_ply(state, weights, ctx.ply);
     }
     let q = leaf_quiescence_depth(ctx, is_pv);
@@ -1859,6 +1989,7 @@ fn leaf_or_quiesce(
             .last_ab_to
             .or_else(|| state.get_move_history().last().map(|m| m.to));
         // Quiet leaf with only promo tactics: don't open full capture q.
+        // Hang-caps open capture q so free large SimpleTakes get resolved.
         quiesce(
             state,
             weights,
@@ -1867,7 +1998,7 @@ fn leaf_or_quiesce(
             beta,
             prev_to,
             false,
-            loud_parent,
+            loud_parent || hang_caps,
             ctx,
         )
     }
@@ -1884,7 +2015,8 @@ fn leaf_or_quiesce(
 ///
 /// `prev_to` / `prev_was_simple`: prior move landing and whether it was a
 /// [`CaptureKind::SimpleTake`] (PathAware recapture exception / RecaptureOnly).
-/// `include_captures`: false = promo-only entry after a quiet AB leaf.
+/// `include_captures`: false = promo-only entry after a quiet AB leaf without
+/// hanging large SimpleTakes; true for loud parents or hang-cap quiet leaves.
 fn quiesce(
     state: &mut GameState,
     weights: &EvalWeights,
@@ -3648,6 +3780,137 @@ mod tests {
             Position::new(10, 11).unwrap(),
         );
         assert!(is_worthwhile_quiescence_capture(&state, &weights, &mv));
+    }
+
+    /// Cheap attacker vs adjacent GG on a file — Gold steps one orthogonally.
+    fn hung_gg_by_gold() -> (GameState, EvalWeights, Move) {
+        let mut weights = EvalWeights::seed();
+        weights.noise_scale = 0.0;
+        weights.rebuild_piece_value_table();
+        let mut state = GameState::new();
+        state.place_piece(Piece::new(
+            PieceType::King,
+            Color::Black,
+            Position::new(0, 0).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::King,
+            Color::White,
+            Position::new(35, 35).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::GoldGeneral,
+            Color::Black,
+            Position::new(10, 10).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::GreatGeneral,
+            Color::White,
+            Position::new(10, 11).unwrap(),
+        ));
+        state.set_current_turn(Color::Black);
+        let mv = Move::new(
+            Position::new(10, 10).unwrap(),
+            Position::new(10, 11).unwrap(),
+        );
+        (state, weights, mv)
+    }
+
+    #[test]
+    fn large_hang_simple_take_detects_lesser_attacker() {
+        let (state, weights, mv) = hung_gg_by_gold();
+        assert!(is_large_hang_simple_take(&state, &weights, &mv));
+        assert!(stm_has_large_hang_simple_take(&state, &weights));
+        let gen = generate_quiescence_captures(&state, &weights, None, false, true);
+        assert!(
+            gen.iter().any(|m| m.from == mv.from && m.to == mv.to),
+            "q gen must include Gold×GG hang take: {gen:?}"
+        );
+    }
+
+    #[test]
+    fn large_hang_ignores_equal_or_higher_attacker() {
+        let mut weights = EvalWeights::seed();
+        weights.noise_scale = 0.0;
+        weights.rebuild_piece_value_table();
+        let mut state = GameState::new();
+        state.place_piece(Piece::new(
+            PieceType::King,
+            Color::Black,
+            Position::new(0, 0).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::King,
+            Color::White,
+            Position::new(35, 35).unwrap(),
+        ));
+        // Two GreatGenerals facing — equal trade, not a "hang" under lesser-attacker rule.
+        state.place_piece(Piece::new(
+            PieceType::GreatGeneral,
+            Color::Black,
+            Position::new(10, 10).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::GreatGeneral,
+            Color::White,
+            Position::new(10, 11).unwrap(),
+        ));
+        state.set_current_turn(Color::Black);
+        let mv = Move::new(
+            Position::new(10, 10).unwrap(),
+            Position::new(10, 11).unwrap(),
+        );
+        assert!(!is_large_hang_simple_take(&state, &weights, &mv));
+        assert!(!stm_has_large_hang_simple_take(&state, &weights));
+    }
+
+    #[test]
+    fn quiet_parent_leaf_enters_q_for_large_hang_take() {
+        let (state, weights, _mv) = hung_gg_by_gold();
+        let stand = evaluate_with_ply(&state, &weights, 0);
+        let (score, q_nodes) = probe_quiet_parent_leaf_or_quiesce(&state, &weights, 2);
+        assert!(
+            q_nodes > 0,
+            "quiet parent must open q when a large hang take exists"
+        );
+        assert!(
+            score > stand,
+            "taking hung GG in q should beat stand-pat: stand={stand} q={score}"
+        );
+    }
+
+    #[test]
+    fn quiet_parent_leaf_stand_pats_without_large_hang() {
+        let mut weights = EvalWeights::seed();
+        weights.noise_scale = 0.0;
+        weights.rebuild_piece_value_table();
+        let mut state = GameState::new();
+        state.place_piece(Piece::new(
+            PieceType::King,
+            Color::Black,
+            Position::new(0, 0).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::King,
+            Color::White,
+            Position::new(35, 35).unwrap(),
+        ));
+        // Equal GG trade available — must not force quiet-parent q entry.
+        state.place_piece(Piece::new(
+            PieceType::GreatGeneral,
+            Color::Black,
+            Position::new(10, 10).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::GreatGeneral,
+            Color::White,
+            Position::new(10, 11).unwrap(),
+        ));
+        state.set_current_turn(Color::Black);
+        let stand = evaluate_with_ply(&state, &weights, 0);
+        let (score, q_nodes) = probe_quiet_parent_leaf_or_quiesce(&state, &weights, 2);
+        assert_eq!(q_nodes, 0, "no lesser-valued large hang → no q");
+        assert_eq!(score, stand);
     }
 
     #[test]
