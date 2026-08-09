@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build the 3×3 loud-piece material grid, then run a continuous Glicko Swiss.
+# Build the 3×3 HookMover × other-two-mover material grid, then run a continuous Glicko Swiss.
 #
 # Stop anytime:  touch data/run/TOURNEY_STOP   (or Ctrl-C)
 # Resume:        ./deploy/run_loud_swiss.sh --detach --resume --run-id ID --skip-gen
