@@ -237,53 +237,98 @@ impl GameHistory {
         })
     }
 
-    /// List JSON games under the primary directory (filenames only).
+    /// List JSON games under the primary directory (relative paths, recursive).
     pub fn list_games(&self) -> Result<Vec<String>, String> {
-        Self::list_json_filenames(&self.games_dir)
+        Self::list_game_rel_paths(&self.games_dir, false)
     }
 
-    /// List games from `games/` and `data/raw/games/` with directory prefixes.
+    /// List loadable games with directory prefixes (recursive under known roots).
+    ///
+    /// Roots: legacy `games/`, `data/raw/games/` (all nested `.json` except metadata),
+    /// and `data/raw/tourney/` (`slot*.json` only).
     pub fn list_games_all(&self) -> Result<Vec<String>, String> {
         let mut games = Vec::new();
-        for name in self.list_games()? {
-            games.push(format!("{}/{}", self.games_dir, name));
+        for rel in Self::list_game_rel_paths(&self.games_dir, false)? {
+            games.push(format!("{}/{}", self.games_dir.trim_end_matches('/'), rel));
         }
-        let training = "data/raw/games";
-        if Path::new(training).is_dir() {
-            for name in Self::list_json_filenames(training)? {
-                games.push(format!("{}/{}", training, name));
-            }
+        for rel in Self::list_game_rel_paths("data/raw/games", false)? {
+            games.push(format!("data/raw/games/{rel}"));
         }
-        let partial = "data/raw/games/partial";
-        if Path::new(partial).is_dir() {
-            for name in Self::list_json_filenames(partial)? {
-                games.push(format!("{}/{}", partial, name));
-            }
+        for rel in Self::list_game_rel_paths("data/raw/tourney", true)? {
+            games.push(format!("data/raw/tourney/{rel}"));
         }
         games.sort();
         games.reverse();
         Ok(games)
     }
 
-    fn list_json_filenames(dir: &str) -> Result<Vec<String>, String> {
-        if !Path::new(dir).exists() {
+    /// Relative paths of game JSON files under `dir` (recursive).
+    ///
+    /// When `tourney_slots_only`, only `slot*.json` are included (skips state/elo/…).
+    pub fn list_game_rel_paths(dir: &str, tourney_slots_only: bool) -> Result<Vec<String>, String> {
+        let root = Path::new(dir);
+        if !root.is_dir() {
             return Ok(Vec::new());
         }
+        let mut out = Vec::new();
+        Self::walk_game_json(root, root, tourney_slots_only, &mut out)?;
+        out.sort();
+        out.reverse();
+        Ok(out)
+    }
+
+    fn walk_game_json(
+        root: &Path,
+        dir: &Path,
+        tourney_slots_only: bool,
+        out: &mut Vec<String>,
+    ) -> Result<(), String> {
         let entries = fs::read_dir(dir)
-            .map_err(|e| format!("Failed to read games directory {}: {}", dir, e))?;
-        let mut games = Vec::new();
+            .map_err(|e| format!("Failed to read games directory {}: {}", dir.display(), e))?;
         for entry in entries {
             let entry = entry.map_err(|e| format!("Failed to read directory entry: {}", e))?;
             let path = entry.path();
-            if path.extension().and_then(|s| s.to_str()) == Some("json") {
-                if let Some(filename) = path.file_name().and_then(|n| n.to_str()) {
-                    games.push(filename.to_string());
-                }
+            if path.is_dir() {
+                Self::walk_game_json(root, &path, tourney_slots_only, out)?;
+                continue;
             }
+            if !Self::is_listable_game_json(&path, tourney_slots_only) {
+                continue;
+            }
+            let rel = path
+                .strip_prefix(root)
+                .unwrap_or(&path)
+                .to_string_lossy()
+                .replace('\\', "/");
+            out.push(rel);
         }
-        games.sort();
-        games.reverse();
-        Ok(games)
+        Ok(())
+    }
+
+    fn is_listable_game_json(path: &Path, tourney_slots_only: bool) -> bool {
+        if path.extension().and_then(|s| s.to_str()) != Some("json") {
+            return false;
+        }
+        let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+            return false;
+        };
+        // Tourney / training metadata that is not a GameRecord.
+        const SKIP: &[&str] = &[
+            "state.json",
+            "elo.json",
+            "ratings.json",
+            "manifest.json",
+            "grid.json",
+            "samples.json",
+            "status.json",
+        ];
+        if SKIP.iter().any(|s| name.eq_ignore_ascii_case(s)) {
+            return false;
+        }
+        if tourney_slots_only {
+            return name.starts_with("slot") && name.ends_with(".json");
+        }
+        true
     }
 
     /// Resolve a game path: absolute/relative with `/`, else under `games_dir`.
@@ -833,6 +878,56 @@ impl GameHistory {
         }
         
         result
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn tmp_root(label: &str) -> std::path::PathBuf {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        let p = std::env::temp_dir().join(format!("taikyoku-games-{label}-{nanos}"));
+        let _ = fs::remove_dir_all(&p);
+        fs::create_dir_all(&p).unwrap();
+        p
+    }
+
+    #[test]
+    fn list_game_rel_paths_recurses_and_skips_metadata() {
+        let root = tmp_root("recurse");
+        fs::create_dir_all(root.join("nested/deep")).unwrap();
+        fs::write(root.join("top.json"), "{}").unwrap();
+        fs::write(root.join("nested/deep/leaf.json"), "{}").unwrap();
+        fs::write(root.join("nested/state.json"), "{}").unwrap();
+        fs::write(root.join("nested/elo.json"), "{}").unwrap();
+
+        let paths = GameHistory::list_game_rel_paths(root.to_str().unwrap(), false).unwrap();
+        assert!(paths.iter().any(|p| p == "top.json"));
+        assert!(paths.iter().any(|p| p == "nested/deep/leaf.json"));
+        assert!(!paths.iter().any(|p| p.contains("state.json")));
+        assert!(!paths.iter().any(|p| p.contains("elo.json")));
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn list_tourney_paths_only_slot_json() {
+        let root = tmp_root("tourney");
+        fs::create_dir_all(root.join("run-a")).unwrap();
+        fs::write(root.join("run-a/slot0001-a-vs-b-a-black.json"), "{}").unwrap();
+        fs::write(root.join("run-a/state.json"), "{}").unwrap();
+        fs::write(root.join("run-a/ratings.json"), "{}").unwrap();
+        fs::write(root.join("run-a/other.json"), "{}").unwrap();
+
+        let paths = GameHistory::list_game_rel_paths(root.to_str().unwrap(), true).unwrap();
+        assert_eq!(paths.len(), 1);
+        assert!(paths[0].ends_with("slot0001-a-vs-b-a-black.json"));
+        let _ = fs::remove_dir_all(&root);
     }
 }
 

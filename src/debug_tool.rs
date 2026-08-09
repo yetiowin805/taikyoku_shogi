@@ -5,6 +5,7 @@ use crate::game_state::{GameState, Move};
 use crate::piece::{Color, Piece, PieceType};
 use crate::player::player_by_name;
 use crate::position::Position;
+use crate::session_api::EvalSeriesDto;
 use crate::training::record::{
     load_game_json, AgentSpec, GameRecordV2, GameStart, GameStats, FORMAT_VERSION,
 };
@@ -33,6 +34,8 @@ pub struct DebugTool {
     cursor: usize,
     game_state: GameState,
     game_history: GameHistory,
+    /// Eval chart for the last loaded game (recorded AB or eval-trace).
+    eval_series: Option<EvalSeriesDto>,
 }
 
 impl DebugTool {
@@ -48,11 +51,16 @@ impl DebugTool {
             cursor: 0,
             game_state,
             game_history: GameHistory::new("games"),
+            eval_series: None,
         }
     }
 
+    pub fn eval_series(&self) -> Option<EvalSeriesDto> {
+        self.eval_series.clone()
+    }
+
     /// Effective timeline: trunk prefix + branch, or only branch when a setup exists.
-    fn effective_moves(&self) -> Vec<MoveRecord> {
+    pub(crate) fn effective_moves(&self) -> Vec<MoveRecord> {
         if self.setup.is_some() {
             return self.branch.clone();
         }
@@ -160,9 +168,11 @@ impl DebugTool {
         Ok(())
     }
 
-    fn load_game_record_v2(&mut self, v2: GameRecordV2) -> Result<(), String> {
+    pub(crate) fn load_game_record_v2(&mut self, v2: GameRecordV2) -> Result<(), String> {
+        let game_id = v2.game_id.clone();
         let moves = v2.moves;
         let len = moves.len();
+        self.eval_series = EvalSeriesDto::resolve_for_game(&moves, &game_id);
         match v2.start {
             GameStart::Opening => {
                 self.trunk = Some(GameRecord {
