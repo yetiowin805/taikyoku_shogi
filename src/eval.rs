@@ -363,14 +363,15 @@ pub const FREE_KING_GG_FRAC: f32 = 0.75;
 /// Material for a *promoted* FreeKing (FreeBaku / FreeDemon / FlyingHorse / … → FK).
 /// Matches queen-range NoJump formula (`8 × 10`), not the unpromoted FK table value.
 pub const PROMOTED_FREE_KING_VALUE: f32 = 8.0 * TARIFF_RANGE_NO_JUMP;
-/// Loud-grid Swiss winner T150C50: scale range two-movers ×1.5 on top of seed formula.
-pub const SEED_TWO_MOVER_SCALE: f32 = 1.5;
-/// Loud-grid Swiss winner T150C50: scale range capturers (incl. FreeKing via GG) ×0.5.
-pub const SEED_CAPTURER_SCALE: f32 = 0.5;
+/// Cumulative loud-grid retune vs raw formula: prior T150C50 (×1.5) then
+/// loud-swiss-20260809 winner T150C120 (×1.5 again) → ×2.25.
+pub const SEED_TWO_MOVER_SCALE: f32 = 1.5 * 1.5;
+/// Cumulative capturer retune: prior T150C50 (×0.5) then T150C120 (×1.2) → ×0.6.
+pub const SEED_CAPTURER_SCALE: f32 = 0.5 * 1.2;
 
 /// Quiescence / worthwhile-capture floor derived from range tariffs.
 ///
-/// About 2.4 capturing-dirs after capturer scale (`450×0.5×2.4=540`) so mid-heavy
+/// About 2.4 capturing-dirs after capturer scale (`450×0.6×2.4=648`) so mid-heavy
 /// takes enter q; also at least a full 8-dir jump-ray.
 pub fn seed_loud_capture_floor() -> f32 {
     (TARIFF_RANGE_CAPTURING * SEED_CAPTURER_SCALE * 2.4).max(TARIFF_RANGE_JUMP * 8.0)
@@ -506,10 +507,11 @@ fn formula_piece_value(pt: PieceType) -> f32 {
 
 /// Seed material from movement capabilities (+ explicit overrides / additive bonuses).
 ///
-/// After the capability formula, applies the loud-grid Swiss retune: range two-movers
-/// ×[`SEED_TWO_MOVER_SCALE`], range capturers ×[`SEED_CAPTURER_SCALE`]. Unpromoted
-/// FreeKing is priced off scaled GreatGeneral (inherits capturer scale once). Pieces
-/// that *promote into* FreeKing use [`PROMOTED_FREE_KING_VALUE`] via [`material_piece_value`].
+/// After the capability formula, applies cumulative loud-grid retunes (currently
+/// T150C50 then T150C120): range two-movers ×[`SEED_TWO_MOVER_SCALE`], range
+/// capturers ×[`SEED_CAPTURER_SCALE`]. Unpromoted FreeKing is priced off scaled
+/// GreatGeneral (inherits capturer scale once). Pieces that *promote into*
+/// FreeKing use [`PROMOTED_FREE_KING_VALUE`] via [`material_piece_value`].
 pub fn seed_piece_value(pt: PieceType) -> f32 {
     // Starting queen: already very mobile; price in most of the GG it becomes.
     if pt == PieceType::FreeKing {
@@ -1409,8 +1411,10 @@ mod tests {
         assert!((w.piece_value(PieceType::Pawn) - 1.0).abs() < 1e-3);
         assert!((w.piece_value(PieceType::CrownPrince) - 8.0).abs() < 1e-3);
         assert!((w.piece_value(PieceType::King) - 100.0).abs() < 1e-3);
-        // T150C50 retune: capturers ×0.5, two-movers ×1.5 after formula/buff.
-        // Unpromoted FK = ¾ scaled GG (1350); promoted FK stays queen-range 80.
+        // T150C120 on prior T150C50 seed: capturers ×0.6, two-movers ×2.25.
+        // Unpromoted FK = ¾ scaled GG (1620); promoted FK stays queen-range 80.
+        assert!((SEED_TWO_MOVER_SCALE - 2.25).abs() < 1e-6);
+        assert!((SEED_CAPTURER_SCALE - 0.6).abs() < 1e-6);
         assert!(
             (w.piece_value(PieceType::GreatGeneral)
                 - 8.0 * TARIFF_RANGE_CAPTURING * SEED_CAPTURER_SCALE)
@@ -1423,7 +1427,7 @@ mod tests {
                 .abs()
                 < 1e-3
         );
-        assert!((w.piece_value(PieceType::FreeKing) - 1350.0).abs() < 1e-3);
+        assert!((w.piece_value(PieceType::FreeKing) - 1620.0).abs() < 1e-3);
         assert!((PROMOTED_FREE_KING_VALUE - 8.0 * TARIFF_RANGE_NO_JUMP).abs() < 1e-3);
         let mut promo_fk = Piece::new(
             PieceType::FreeBaku,
@@ -1491,7 +1495,7 @@ mod tests {
 
     #[test]
     fn loud_capture_floor_tracks_capturing_tariff() {
-        assert!((seed_loud_capture_floor() - 540.0).abs() < 1e-3);
+        assert!((seed_loud_capture_floor() - 648.0).abs() < 1e-3);
         assert!(
             (seed_loud_capture_floor()
                 - (TARIFF_RANGE_CAPTURING * SEED_CAPTURER_SCALE * 2.4).max(TARIFF_RANGE_JUMP * 8.0))

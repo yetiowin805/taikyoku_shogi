@@ -120,7 +120,7 @@ Incomplete exits (stop file / aborted slots) now fail the tournament binary with
 
 ### Loud-grid continuous Glicko Swiss (preferred)
 
-3×3 material grid (two-movers T ∈ {80,100,150}% × capturers C ∈ {50,100,120}%, FreeKing with capturers; center `T100C100` = seed), then a **continuous** Swiss with Glicko-1 ratings until you stop it. Prefer `--detach` (or the systemd unit) so SSH logout cannot kill the job:
+3×3 material grid (two-movers T ∈ {80,100,150}% × capturers C ∈ {50,100,120}%, FreeKing with capturers; center `T100C100` = seed, currently the prior T150C120 bake-in), then a **continuous** Swiss with Glicko-1 ratings until you stop it. Prefer `--detach` (or the systemd unit) so SSH logout cannot kill the job:
 
 ```bash
 cargo build --release
