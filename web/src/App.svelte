@@ -1,5 +1,6 @@
 <script>
   import Board from './lib/Board.svelte';
+  import EvalSparkline from './lib/EvalSparkline.svelte';
   import SearchPanel from './lib/SearchPanel.svelte';
   import * as api from './lib/api.js';
 
@@ -7,6 +8,7 @@
   let snapshot = $state(null);
   let games = $state([]);
   let selectedGame = $state('');
+  let gameFilter = $state('');
   let logLines = $state([]);
   let selected = $state(null);
   let highlights = $state([]);
@@ -16,6 +18,7 @@
   let autoPlay = $state(false);
   let busy = $state(false);
   let gotoPly = $state(0);
+  let evalSeries = $state(null);
   let models = $state(['ab-seed.json']);
   let blackAbModel = $state('ab-seed.json');
   let whiteAbModel = $state('ab-seed.json');
@@ -58,10 +61,18 @@
     }
   }
 
-  function applyResult(res, silent = false) {
+  function applyResult(res, silent = false, { clearSearch = false } = {}) {
     if (!res) return;
     snapshot = res.snapshot;
     gotoPly = res.snapshot?.cursor ?? 0;
+    // Always take the field when present (including null) so New/Load clear the chart.
+    if ('eval_series' in res) {
+      evalSeries = res.eval_series || null;
+    }
+    if (clearSearch) {
+      blackSearch = null;
+      whiteSearch = null;
+    }
     if (res.search) {
       const side = res.search.side || snapshot?.turn;
       if (side === 'White') whiteSearch = res.search;
@@ -76,6 +87,30 @@
     if (res.moves) pendingMoves = res.moves;
   }
 
+  /** Black-absolute score → B+/W+ label. */
+  function formatBlackAbs(v) {
+    if (v == null) return '—';
+    if (v > 0) return `B+${v}`;
+    if (v < 0) return `W+${Math.abs(v)}`;
+    return '0';
+  }
+
+  function scoreClass(s) {
+    if (s == null) return '';
+    if (s > 50) return 'pos';
+    if (s < -50) return 'neg';
+    return 'neu';
+  }
+
+  function hasRecordedEval(rec) {
+    return rec && (rec.eval != null || rec.static_eval != null);
+  }
+
+  let recordedHasData = $derived.by(() => {
+    const r = snapshot?.recorded;
+    return hasRecordedEval(r?.last) || hasRecordedEval(r?.next);
+  });
+
   async function refresh() {
     try {
       const res = await api.getState();
@@ -85,11 +120,42 @@
     }
   }
 
+  function gameLabel(path) {
+    const parts = String(path).replace(/\\/g, '/').split('/');
+    return parts[parts.length - 1] || path;
+  }
+
+  function gameGroup(path) {
+    const parts = String(path).replace(/\\/g, '/').split('/');
+    if (parts.length <= 1) return '(root)';
+    return parts.slice(0, -1).join('/');
+  }
+
+  let filteredGames = $derived.by(() => {
+    const q = gameFilter.trim().toLowerCase();
+    if (!q) return games;
+    return games.filter((g) => g.toLowerCase().includes(q));
+  });
+
+  let gameGroups = $derived.by(() => {
+    /** @type {Map<string, string[]>} */
+    const map = new Map();
+    for (const g of filteredGames) {
+      const key = gameGroup(g);
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(g);
+    }
+    return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  });
+
   async function refreshGames() {
     try {
       const res = await api.listGames();
       if (res.ok) {
         games = res.games || [];
+        if (selectedGame && !games.includes(selectedGame)) {
+          selectedGame = '';
+        }
         if (!selectedGame && games.length) selectedGame = games[0];
       } else {
         log(res.message || 'list failed', 'err');
@@ -129,7 +195,15 @@
     selected = null;
     highlights = [];
     pendingMoves = [];
-    applyResult(res);
+    applyResult(res, false, { clearSearch: true });
+    if (res.ok && res.eval_series) {
+      log(
+        `Eval chart: ${res.eval_series.source} (${res.eval_series.points?.length || 0} pts)`,
+        'ok',
+      );
+    } else if (res.ok) {
+      log('No eval chart for this game (no recorded scores / eval-trace)', 'ok');
+    }
   }
 
   async function onSave() {
@@ -282,21 +356,23 @@
     const res = await api.back(1);
     selected = null;
     highlights = [];
-    applyResult(res);
+    applyResult(res, false, { clearSearch: true });
   }
 
   async function stepForward() {
     const res = await api.forward(1);
     selected = null;
     highlights = [];
-    applyResult(res);
+    applyResult(res, false, { clearSearch: true });
   }
 
-  async function doGoto() {
-    const res = await api.gotoPly(Number(gotoPly) || 0);
+  async function doGoto(ply) {
+    const p = ply != null && ply !== '' ? Number(ply) : Number(gotoPly) || 0;
+    gotoPly = p;
+    const res = await api.gotoPly(p);
     selected = null;
     highlights = [];
-    applyResult(res);
+    applyResult(res, false, { clearSearch: true });
   }
 
   async function playOnce() {
@@ -366,14 +442,7 @@
       onclick={() => (mode = 'debug')}>Debug</button
     >
     <button onclick={onNew}>New game</button>
-    <select bind:value={selectedGame}>
-      {#each games as g}
-        <option value={g}>{g}</option>
-      {/each}
-    </select>
-    <button onclick={onLoad}>Load</button>
     <button onclick={onSave}>Save</button>
-    <button onclick={refreshGames}>Refresh list</button>
     <span class="spacer"></span>
     {#if snapshot}
       <span
@@ -390,9 +459,152 @@
         {highlights}
         {onCellClick}
       />
+      <EvalSparkline
+        series={evalSeries}
+        cursor={snapshot?.cursor ?? 0}
+        onGoto={doGoto}
+      />
     </div>
 
     <div class="side">
+      <div class="panel games-panel">
+        <h3>
+          Games
+          <span class="count">{filteredGames.length}/{games.length}</span>
+        </h3>
+        <p class="hint">Includes nested folders and tourney <code>slot*.json</code>.</p>
+        <div class="row">
+          <input
+            class="game-filter"
+            type="search"
+            placeholder="Filter path…"
+            bind:value={gameFilter}
+          />
+          <button type="button" onclick={refreshGames} title="Refresh list">↻</button>
+        </div>
+        <select
+          class="game-list"
+          size="10"
+          bind:value={selectedGame}
+          ondblclick={onLoad}
+        >
+          {#each gameGroups as [folder, items]}
+            <optgroup label={folder}>
+              {#each items as g}
+                <option value={g}>{gameLabel(g)}</option>
+              {/each}
+            </optgroup>
+          {/each}
+        </select>
+        <div class="row">
+          <button type="button" onclick={onLoad} disabled={!selectedGame}>Load</button>
+        </div>
+        {#if selectedGame}
+          <p class="hint path-hint" title={selectedGame}>{selectedGame}</p>
+        {/if}
+      </div>
+
+      <div class="panel review-panel">
+        <h3>
+          Review
+          <span class="count"
+            >ply {snapshot?.cursor ?? 0}/{snapshot?.timeline_len ?? 0}</span
+          >
+        </h3>
+        <div class="row">
+          <button type="button" onclick={stepBack} disabled={!snapshot?.cursor}
+            >◀ Back</button
+          >
+          <button
+            type="button"
+            onclick={stepForward}
+            disabled={(snapshot?.cursor ?? 0) >= (snapshot?.timeline_len ?? 0)}
+            >Forward ▶</button
+          >
+        </div>
+        <div class="row">
+          <input
+            type="range"
+            min="0"
+            max={snapshot?.timeline_len || 0}
+            bind:value={gotoPly}
+            onchange={doGoto}
+            disabled={!snapshot?.timeline_len}
+          />
+        </div>
+        <div class="row">
+          <input type="number" min="0" bind:value={gotoPly} style="width:5rem" />
+          <button type="button" onclick={doGoto}>Goto ply</button>
+        </div>
+
+        {#if recordedHasData}
+          <p class="hint">Scores are black-absolute (B+ / W+).</p>
+          {#if hasRecordedEval(snapshot.recorded?.last)}
+            {@const last = snapshot.recorded.last}
+            <div class="recorded-block">
+              <div class="recorded-head">
+                Played · ply {last.ply} · {last.side}
+              </div>
+              <div class="recorded-move">{last.label}</div>
+              <div class="eval-row">
+                <span
+                  >static
+                  <strong class={scoreClass(last.static_eval)}
+                    >{formatBlackAbs(last.static_eval)}</strong
+                  ></span
+                >
+                <span>→</span>
+                <span
+                  >search
+                  <strong class={scoreClass(last.eval)}
+                    >{formatBlackAbs(last.eval)}</strong
+                  ></span
+                >
+                {#if last.nodes != null}
+                  <span class="meta">{last.nodes} nodes</span>
+                {/if}
+              </div>
+            </div>
+          {/if}
+          {#if hasRecordedEval(snapshot.recorded?.next)}
+            {@const next = snapshot.recorded.next}
+            <div class="recorded-block next">
+              <div class="recorded-head">
+                Next · ply {next.ply} · {next.side}
+              </div>
+              <div class="recorded-move">{next.label}</div>
+              <div class="eval-row">
+                <span
+                  >static
+                  <strong class={scoreClass(next.static_eval)}
+                    >{formatBlackAbs(next.static_eval)}</strong
+                  ></span
+                >
+                <span>→</span>
+                <span
+                  >search
+                  <strong class={scoreClass(next.eval)}
+                    >{formatBlackAbs(next.eval)}</strong
+                  ></span
+                >
+                {#if next.nodes != null}
+                  <span class="meta">{next.nodes} nodes</span>
+                {/if}
+              </div>
+            </div>
+          {/if}
+        {:else if (snapshot?.timeline_len ?? 0) > 0}
+          <p class="hint">No recorded evals on this game’s moves.</p>
+        {/if}
+
+        {#if mode === 'debug'}
+          <div class="row">
+            <button type="button" onclick={onSuggest}>Suggest mi</button>
+            <button type="button" onclick={playOnce}>Play mi here</button>
+          </div>
+        {/if}
+      </div>
+
       {#if mode === 'play'}
         <div class="panel">
           <h3>Controllers</h3>
@@ -513,31 +725,6 @@
             <button onclick={() => stopRun(true)} disabled={!autoPlay && !runActive}
               >Stop + save</button
             >
-          </div>
-        </div>
-      {:else}
-        <div class="panel">
-          <h3>Scrubber</h3>
-          <div class="row">
-            <button onclick={stepBack}>◀ Back</button>
-            <button onclick={stepForward}>Forward ▶</button>
-          </div>
-          <div class="row">
-            <input
-              type="range"
-              min="0"
-              max={snapshot?.timeline_len || 0}
-              bind:value={gotoPly}
-              onchange={doGoto}
-            />
-          </div>
-          <div class="row">
-            <input type="number" min="0" bind:value={gotoPly} style="width:5rem" />
-            <button onclick={doGoto}>Goto ply</button>
-          </div>
-          <div class="row">
-            <button onclick={onSuggest}>Suggest mi</button>
-            <button onclick={playOnce}>Play mi here</button>
           </div>
         </div>
       {/if}

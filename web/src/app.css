@@ -75,8 +75,12 @@ button {
   padding: 0.5rem;
   overflow: auto;
   display: flex;
-  justify-content: center;
-  align-items: flex-start;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.board-wrap > :first-child {
+  align-self: center;
 }
 
 .side {
@@ -113,6 +117,83 @@ button {
   font-size: 0.8rem;
   color: #5a5346;
   margin: 0 0 0.35rem;
+}
+
+.games-panel .count {
+  font-weight: normal;
+  color: #5a5346;
+  font-size: 0.85rem;
+}
+
+.games-panel .game-filter {
+  flex: 1;
+  min-width: 0;
+}
+
+.games-panel .game-list {
+  width: 100%;
+  margin: 0.25rem 0 0.35rem;
+  font-size: 0.8rem;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+.games-panel .path-hint {
+  margin: 0.25rem 0 0;
+  word-break: break-all;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.7rem;
+}
+
+.review-panel .count {
+  font-weight: normal;
+  color: #5a5346;
+  font-size: 0.85rem;
+}
+
+.review-panel .recorded-block {
+  margin: 0.45rem 0 0.25rem;
+  padding: 0.35rem 0.45rem;
+  background: #fffdf7;
+  border: 1px solid #d4cdb8;
+}
+
+.review-panel .recorded-block.next {
+  border-style: dashed;
+}
+
+.review-panel .recorded-head {
+  font-size: 0.75rem;
+  color: #5a5346;
+}
+
+.review-panel .recorded-move {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.78rem;
+  margin: 0.15rem 0;
+}
+
+.review-panel .eval-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: baseline;
+  font-size: 0.8rem;
+}
+
+.review-panel .eval-row .meta {
+  color: #6a6356;
+}
+
+.review-panel .pos {
+  color: #1a6b3c;
+}
+
+.review-panel .neg {
+  color: #9b2c2c;
+}
+
+.review-panel .neu {
+  color: #444;
 }
 
 .status pre {
