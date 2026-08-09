@@ -197,10 +197,10 @@ fn material_only_black(state: &GameState, weights: &EvalWeights) -> f32 {
     let board = state.get_board();
     let mut s = 0.0f32;
     for p in board.get_pieces_by_color(Color::Black) {
-        s += weights.piece_value(p.piece_type);
+        s += crate::eval::material_piece_value(&p, weights);
     }
     for p in board.get_pieces_by_color(Color::White) {
-        s -= weights.piece_value(p.piece_type);
+        s -= crate::eval::material_piece_value(&p, weights);
     }
     s
 }

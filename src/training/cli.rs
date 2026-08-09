@@ -48,7 +48,7 @@ pub fn print_training_usage() {
     println!("  scale-sample [--seed PATH] [--out DIR] [--n N] [--rng-seed S]");
     println!("            (copy seed + all_m10/all_p10 + random ±10% big-param models)");
     println!("  loud-grid [--seed PATH] [--out DIR]");
-    println!("            (3×3 grid: range two-movers × range capturers at 50/100/150%)");
+    println!("            (3×3 grid: two-movers T80/100/150 × capturers C50/100/120)");
     println!("  texel-fit [--features DIR] [--out PATH] [--iters N] [--lr F] [--k F]");
     println!("            [--init seed|mobility|PATH] [--late-frac F] [--keep-draws]");
     println!("            [--no-log-space] [--no-lr-scale-k] [--no-renorm-pawn]");
