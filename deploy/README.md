@@ -120,12 +120,22 @@ Incomplete exits (stop file / aborted slots) now fail the tournament binary with
 
 ### Loud-grid continuous Glicko Swiss (preferred)
 
-3×3 material grid (HookMover H ∈ {80,100,120}% × other range two-movers O ∈ {80,100,120}%; capturers stay at seed; center `H100O100` = seed), then a **continuous** Swiss with Glicko-1 ratings until you stop it. Prefer `--detach` (or the systemd unit) so SSH logout cannot kill the job:
+3×3 material grid (HookMover H ∈ {80,100,120}% × other range two-movers O ∈ {80,100,120}%; capturers stay at seed; center `H100O100` = seed), then a **continuous** Swiss with Glicko-1 ratings until you stop it. Prefer `--detach` (or the systemd unit) so SSH logout cannot kill the job.
+
+**One-shot as root** (pulls `main`, builds with the `taikyoku` user’s cargo PATH, regenerates grid, starts 1s/move Swiss):
 
 ```bash
-cargo build --release
-# fresh (detach from terminal)
-./deploy/run_loud_swiss.sh --detach --jobs "$(nproc)"
+cd /opt/taikyoku_shogi
+./deploy/pull_build_loud_swiss.sh
+# defaults: --time-ms 1000 --depth 8 --detach --jobs $(nproc)
+tail -f data/run/loud-swiss.log
+```
+
+Or after a local `cargo build --release`:
+
+```bash
+# fresh (detach from terminal); soft 1s budget + depth ceiling 8
+./deploy/run_loud_swiss.sh --detach --jobs "$(nproc)" --time-ms 1000 --depth 8
 
 # resume
 ./deploy/run_loud_swiss.sh --detach --resume --run-id loud-swiss-YYYYMMDDTHHMMSSZ --skip-gen
