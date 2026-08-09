@@ -12,6 +12,8 @@ pub struct WorkerDaemonConfig {
     pub depth: Option<u32>,
     pub model: Option<String>,
     pub qdepth: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_time_ms: Option<u64>,
     pub jobs: usize,
     pub batch: usize,
     pub starts: String,
@@ -152,6 +154,7 @@ mod tests {
                 depth: Some(2),
                 model: None,
                 qdepth: None,
+                max_time_ms: None,
                 jobs: 2,
                 batch: 4,
                 starts: "opening".into(),

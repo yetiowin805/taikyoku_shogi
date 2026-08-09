@@ -95,6 +95,9 @@ pub struct TourneySlot {
 pub struct TourneyState {
     pub run_id: String,
     pub depth: u32,
+    /// Soft AB time budget (ms). On expiry, search returns the last completed ID depth.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_time_ms: Option<u64>,
     pub starts_spec: String,
     pub seed_base: u64,
     pub games_per_pair: usize,
@@ -125,6 +128,8 @@ pub struct TourneyConfig {
     pub entrants: Vec<TourneyEntrant>,
     pub starts_spec: String,
     pub depth: u32,
+    /// Soft AB time budget (ms); `None` = fixed-depth search.
+    pub max_time_ms: Option<u64>,
     pub games_per_pair: usize,
     pub jobs: usize,
     pub seed_base: u64,
@@ -145,6 +150,7 @@ impl Default for TourneyConfig {
             entrants: Vec::new(),
             starts_spec: "light".into(),
             depth: 2,
+            max_time_ms: None,
             games_per_pair: DEFAULT_GAMES_PER_PAIR,
             jobs: 1,
             seed_base: 1,
@@ -257,6 +263,7 @@ fn build_schedule(cfg: &TourneyConfig) -> TourneyState {
     let mut state = TourneyState {
         run_id: cfg.run_id.clone(),
         depth: cfg.depth,
+        max_time_ms: cfg.max_time_ms,
         starts_spec: cfg.starts_spec.clone(),
         seed_base: cfg.seed_base,
         games_per_pair: cfg.games_per_pair,
@@ -822,6 +829,7 @@ fn model_path_for<'a>(state: &'a TourneyState, id: &str) -> Result<&'a str, Stri
 fn agent_for(state: &TourneyState, id: &str, depth: u32) -> Result<AgentSpec, String> {
     let mut a = AgentSpec::new("ab");
     a.depth = Some(depth);
+    a.max_time_ms = state.max_time_ms;
     a.model = Some(model_path_for(state, id)?.to_string());
     Ok(a)
 }
@@ -1202,6 +1210,21 @@ mod tests {
     }
 
     #[test]
+    fn agent_for_sets_max_time_ms() {
+        let st = build_schedule(&TourneyConfig {
+            entrants: entrants(2),
+            depth: 8,
+            max_time_ms: Some(1000),
+            ..TourneyConfig::default()
+        });
+        assert_eq!(st.max_time_ms, Some(1000));
+        let a = agent_for(&st, "p0", st.depth).unwrap();
+        assert_eq!(a.depth, Some(8));
+        assert_eq!(a.max_time_ms, Some(1000));
+        assert_eq!(a.model.as_deref(), Some("p0.json"));
+    }
+
+    #[test]
     fn schedule_interleaves_matchups_each_round() {
         let cfg = TourneyConfig {
             entrants: entrants(3),
@@ -1410,6 +1433,7 @@ mod tests {
         let mut st = TourneyState {
             run_id: "x".into(),
             depth: 2,
+            max_time_ms: None,
             starts_spec: "light".into(),
             seed_base: 1,
             games_per_pair: 1,

@@ -3480,6 +3480,26 @@ mod tests {
     }
 
     #[test]
+    fn id_tiny_budget_high_ceiling_returns_a_move() {
+        let mut weights = EvalWeights::seed();
+        weights.noise_scale = 0.0;
+        let mut state = GameState::new();
+        state.setup_initial_position();
+        let result = search(
+            &state,
+            &weights,
+            &SearchConfig {
+                depth: 8,
+                max_time_ms: Some(5),
+                collect_trace: false,
+                quiescence_depth: 0,
+                q_prune_mode: QPruneMode::PathAware,
+            },
+        );
+        assert!(result.best_move.is_some());
+    }
+
+    #[test]
     fn reorder_root_moves_puts_best_first() {
         let a = Move::new(Position::new(1, 1).unwrap(), Position::new(1, 2).unwrap());
         let b = Move::new(Position::new(2, 1).unwrap(), Position::new(2, 2).unwrap());
