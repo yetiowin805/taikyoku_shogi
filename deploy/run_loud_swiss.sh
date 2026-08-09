@@ -18,6 +18,8 @@ BIN="${BIN:-$ROOT/target/release/taikyoku_shogi}"
 NOTIFY="${NOTIFY:-$ROOT/deploy/notify.sh}"
 JOBS="${JOBS:-$(nproc 2>/dev/null || echo 2)}"
 DEPTH="${DEPTH:-2}"
+# Soft AB budget (ms). Empty = fixed depth only. When set, omit DEPTH to default ceiling 8 in CLI.
+TIME_MS="${TIME_MS:-}"
 MANIFEST="${MANIFEST:-models/loud-grid/manifest.json}"
 OUTDIR="${OUTDIR:-data/raw/tourney}"
 SEED_MODEL="${SEED_MODEL:-models/ab-seed.json}"
@@ -38,6 +40,7 @@ while [[ $# -gt 0 ]]; do
     --run-id) RUN_ID="$2"; shift 2 ;;
     --jobs) JOBS="$2"; shift 2 ;;
     --depth) DEPTH="$2"; shift 2 ;;
+    --time-ms) TIME_MS="$2"; shift 2 ;;
     --manifest) MANIFEST="$2"; shift 2 ;;
     --outdir) OUTDIR="$2"; shift 2 ;;
     --seed) SEED_MODEL="$2"; shift 2 ;;
@@ -57,6 +60,7 @@ if [[ "$DETACH" == "1" ]]; then
   [[ -n "$RUN_ID" ]] && args+=(--run-id "$RUN_ID")
   args+=(--jobs "$JOBS" --depth "$DEPTH" --manifest "$MANIFEST" --outdir "$OUTDIR"
     --seed "$SEED_MODEL" --grid-out "$GRID_OUT" --bin "$BIN")
+  [[ -n "$TIME_MS" ]] && args+=(--time-ms "$TIME_MS")
   log="${LOUD_SWISS_LOG:-data/run/loud-swiss.log}"
   echo "Detaching loud Swiss → $log (pid file $PID_FILE)"
   nohup "$0" "${args[@]}" >>"$log" 2>&1 &
@@ -124,11 +128,14 @@ fi
 
 ARGS=(tournament --manifest "$MANIFEST" --run-id "$RUN_ID" --outdir "$OUTDIR"
   --depth "$DEPTH" --jobs "$JOBS" --format swiss --seed-base 1)
+if [[ -n "$TIME_MS" ]]; then
+  ARGS+=(--time-ms "$TIME_MS")
+fi
 if [[ "$RESUME" == "1" ]]; then
   ARGS+=(--resume)
 fi
 
-echo "Starting continuous Glicko Swiss run_id=$RUN_ID jobs=$JOBS"
+echo "Starting continuous Glicko Swiss run_id=$RUN_ID jobs=$JOBS depth=$DEPTH${TIME_MS:+ time_ms=$TIME_MS}"
 echo "Stop: touch data/run/TOURNEY_STOP   or Ctrl-C"
 echo "Detach-safe launch: $0 --detach --resume --run-id $RUN_ID --skip-gen"
 
