@@ -25,16 +25,36 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
+/// Depth ceiling when `--time-ms` is set but `--depth` is omitted.
+const DEFAULT_TIMED_DEPTH_CEILING: u32 = 8;
+
+/// Resolve AB depth / time from CLI flags.
+/// Time is a soft budget (ID returns the last completed depth); depth is a hard ceiling.
+/// When `time_ms` is set and depth was not explicit, use [`DEFAULT_TIMED_DEPTH_CEILING`].
+fn resolve_ab_depth(
+    depth: Option<u32>,
+    depth_explicit: bool,
+    time_ms: Option<u64>,
+) -> Option<u32> {
+    if time_ms.is_some() && !depth_explicit {
+        Some(DEFAULT_TIMED_DEPTH_CEILING)
+    } else {
+        depth
+    }
+}
+
 pub fn print_training_usage() {
     println!("Training / Texel pipeline:");
-    println!("  worker run   --black AGENT --white AGENT [--model PATH] [--depth N]");
+    println!("  worker run   --black AGENT --white AGENT [--model PATH] [--depth N] [--time-ms MS]");
     println!("               [--start opening|PATH] [--seed S] [--out PATH] [--verbose]");
     println!("  worker batch --games N [--starts DIR|opening|random] [--outdir DIR] [--seed-base S]");
-    println!("               [--black AGENT] [--white AGENT] [--model PATH] [--depth N] [--jobs J]");
+    println!("               [--black AGENT] [--white AGENT] [--model PATH] [--depth N] [--time-ms MS]");
+    println!("               [--jobs J]");
     println!("  worker daemon [--batch N] [--jobs J] [--starts DIR|opening|random] [--outdir DIR] [--seed-base S]");
-    println!("                [--black AGENT] [--white AGENT] [--model PATH] [--depth N]");
+    println!("                [--black AGENT] [--white AGENT] [--model PATH] [--depth N] [--time-ms MS]");
     println!("                [--status PATH] [--sleep-secs N]   (SIGTERM drains current batch)");
     println!("  (--seed-base 0 = per-game OS entropy; N>0 = deterministic N+index)");
+    println!("  (--time-ms = soft AB budget; ID keeps last completed depth. Omit --depth → ceiling 8)");
     println!("  pool generate [--count K] [--seed-base S] [--outdir DIR]");
     println!("                [--from-play] [--agent AGENT] [--until-move N] [--noise F]");
     println!("                (default: Fischer shuffle+ablations; --from-play = legacy midgame)");
@@ -56,10 +76,11 @@ pub fn print_training_usage() {
     println!("             2500 iters, lr=0.05 scaled by 1/K, Pawn→1)");
     println!("  match --a AGENT --b AGENT [--starts SPEC] [--games N] [--jobs J] [--outdir DIR]");
     println!("  tournament --manifest PATH [--run-id ID] [--resume] [--games-per-pair N] [--jobs J]");
-    println!("             [--starts light] [--depth N] [--outdir DIR]");
+    println!("             [--starts light] [--depth N] [--time-ms MS] [--outdir DIR]");
     println!("             [--format round_robin|swiss]");
     println!("             (Swiss = continuous Glicko until TOURNEY_STOP / Ctrl-C;");
-    println!("              RR default games-per-pair=24)");
+    println!("              RR default games-per-pair=24;");
+    println!("              --time-ms soft budget, last completed ID depth; omit --depth → 8)");
     println!();
     println!("  Agents: mi, random, royal, ab");
     println!("  Starts: opening | random | light | DIR of pool JSON");
@@ -130,11 +151,18 @@ fn take_f32(args: &[String], i: &mut usize, flag: &str) -> Result<Option<f32>, S
     }
 }
 
-fn agent_spec(name: &str, depth: Option<u32>, model: Option<String>, qdepth: Option<u32>) -> AgentSpec {
+fn agent_spec(
+    name: &str,
+    depth: Option<u32>,
+    model: Option<String>,
+    qdepth: Option<u32>,
+    max_time_ms: Option<u64>,
+) -> AgentSpec {
     let mut a = AgentSpec::new(name);
     a.depth = depth;
     a.model = model;
     a.quiescence_depth = qdepth;
+    a.max_time_ms = max_time_ms;
     a
 }
 
@@ -164,6 +192,8 @@ fn cmd_worker_run(args: &[String]) -> Result<(), String> {
     let mut black = "ab".to_string();
     let mut white = "ab".to_string();
     let mut depth = None;
+    let mut depth_explicit = false;
+    let mut time_ms = None;
     let mut model = None;
     let mut qdepth = None;
     let mut start = GameStart::Opening;
@@ -189,6 +219,11 @@ fn cmd_worker_run(args: &[String]) -> Result<(), String> {
         }
         if let Some(v) = take_u32(args, &mut i, "--depth")? {
             depth = Some(v);
+            depth_explicit = true;
+            continue;
+        }
+        if let Some(v) = take_u64(args, &mut i, "--time-ms")? {
+            time_ms = Some(v);
             continue;
         }
         if let Some(v) = take_flag_value(args, &mut i, "--model")? {
@@ -218,9 +253,10 @@ fn cmd_worker_run(args: &[String]) -> Result<(), String> {
         return Err(format!("Unknown flag {}", args[i]));
     }
 
+    let depth = resolve_ab_depth(depth, depth_explicit, time_ms);
     let cfg = WorkerConfig {
-        black: agent_spec(&black, depth, model.clone(), qdepth),
-        white: agent_spec(&white, depth, model, qdepth),
+        black: agent_spec(&black, depth, model.clone(), qdepth, time_ms),
+        white: agent_spec(&white, depth, model, qdepth, time_ms),
         start,
         seed,
         max_moves,
@@ -248,6 +284,8 @@ fn cmd_worker_batch(args: &[String]) -> Result<(), String> {
     let mut black = "random".to_string();
     let mut white = "random".to_string();
     let mut depth = None;
+    let mut depth_explicit = false;
+    let mut time_ms = None;
     let mut model = None;
     let mut qdepth = None;
     let mut jobs = 1usize;
@@ -287,6 +325,11 @@ fn cmd_worker_batch(args: &[String]) -> Result<(), String> {
         }
         if let Some(v) = take_u32(args, &mut i, "--depth")? {
             depth = Some(v);
+            depth_explicit = true;
+            continue;
+        }
+        if let Some(v) = take_u64(args, &mut i, "--time-ms")? {
+            time_ms = Some(v);
             continue;
         }
         if let Some(v) = take_flag_value(args, &mut i, "--model")? {
@@ -308,6 +351,7 @@ fn cmd_worker_batch(args: &[String]) -> Result<(), String> {
         return Err(format!("Unknown flag {}", args[i]));
     }
 
+    let depth = resolve_ab_depth(depth, depth_explicit, time_ms);
     let starts = parse_starts_spec(&starts_spec)?;
     let outdir_label = outdir.clone();
     let outcome = run_batch(&BatchConfig {
@@ -315,8 +359,8 @@ fn cmd_worker_batch(args: &[String]) -> Result<(), String> {
         starts,
         outdir,
         seed_base,
-        black: agent_spec(&black, depth, model.clone(), qdepth),
-        white: agent_spec(&white, depth, model, qdepth),
+        black: agent_spec(&black, depth, model.clone(), qdepth, time_ms),
+        white: agent_spec(&white, depth, model, qdepth, time_ms),
         jobs,
         max_moves,
         verbose,
@@ -367,6 +411,17 @@ fn env_u32_opt(name: &str) -> Result<Option<u32>, String> {
     }
 }
 
+fn env_u64_opt(name: &str) -> Result<Option<u64>, String> {
+    match std::env::var(name) {
+        Ok(s) if s.is_empty() => Ok(None),
+        Ok(s) => Ok(Some(
+            s.parse()
+                .map_err(|_| format!("Invalid env {}={}", name, s))?,
+        )),
+        Err(_) => Ok(None),
+    }
+}
+
 fn stop_requested(flag: &AtomicBool) -> bool {
     if flag.load(Ordering::SeqCst) {
         return true;
@@ -386,6 +441,8 @@ fn cmd_worker_daemon(args: &[String]) -> Result<(), String> {
     let mut black = env_or("BLACK", "ab");
     let mut white = env_or("WHITE", "ab");
     let mut depth = env_u32_opt("DEPTH")?;
+    let mut depth_explicit = depth.is_some();
+    let mut time_ms = env_u64_opt("TIME_MS")?;
     let mut model = std::env::var("MODEL").ok().filter(|s| !s.is_empty());
     let mut qdepth = env_u32_opt("QDEPTH")?;
     let mut max_moves = env_usize("MAX_MOVES", DEFAULT_MAX_MOVES)?;
@@ -435,6 +492,11 @@ fn cmd_worker_daemon(args: &[String]) -> Result<(), String> {
         }
         if let Some(v) = take_u32(args, &mut i, "--depth")? {
             depth = Some(v);
+            depth_explicit = true;
+            continue;
+        }
+        if let Some(v) = take_u64(args, &mut i, "--time-ms")? {
+            time_ms = Some(v);
             continue;
         }
         if let Some(v) = take_flag_value(args, &mut i, "--model")? {
@@ -460,6 +522,8 @@ fn cmd_worker_daemon(args: &[String]) -> Result<(), String> {
         return Err(format!("Unknown flag {}", args[i]));
     }
 
+    let depth = resolve_ab_depth(depth, depth_explicit, time_ms);
+
     // Clear leftover STOP from a previous stop request.
     let stop_path = Path::new(paths::RUN_STOP_FLAG);
     if stop_path.exists() {
@@ -484,6 +548,7 @@ fn cmd_worker_daemon(args: &[String]) -> Result<(), String> {
         depth,
         model: model.clone(),
         qdepth,
+        max_time_ms: time_ms,
         jobs,
         batch,
         starts: starts_spec.clone(),
@@ -560,8 +625,8 @@ fn cmd_worker_daemon(args: &[String]) -> Result<(), String> {
             starts: starts.clone(),
             outdir: outdir.clone(),
             seed_base: next_seed,
-            black: agent_spec(&black, depth, model.clone(), qdepth),
-            white: agent_spec(&white, depth, model.clone(), qdepth),
+            black: agent_spec(&black, depth, model.clone(), qdepth, time_ms),
+            white: agent_spec(&white, depth, model.clone(), qdepth, time_ms),
             jobs,
             max_moves,
             verbose,
@@ -1041,6 +1106,7 @@ pub fn cmd_match(args: &[String]) -> Result<(), String> {
 pub fn cmd_tournament(args: &[String]) -> Result<(), String> {
     let mut cfg = TourneyConfig::default();
     let mut manifest: Option<String> = None;
+    let mut depth_explicit = false;
     let mut i = 2;
     while i < args.len() {
         if args[i] == "--verbose" {
@@ -1087,6 +1153,11 @@ pub fn cmd_tournament(args: &[String]) -> Result<(), String> {
         }
         if let Some(v) = take_u32(args, &mut i, "--depth")? {
             cfg.depth = v;
+            depth_explicit = true;
+            continue;
+        }
+        if let Some(v) = take_u64(args, &mut i, "--time-ms")? {
+            cfg.max_time_ms = Some(v);
             continue;
         }
         if let Some(v) = take_usize(args, &mut i, "--max-moves")? {
@@ -1107,6 +1178,9 @@ pub fn cmd_tournament(args: &[String]) -> Result<(), String> {
         }
         return Err(format!("Unknown flag {}", args[i]));
     }
+    if let Some(d) = resolve_ab_depth(Some(cfg.depth), depth_explicit, cfg.max_time_ms) {
+        cfg.depth = d;
+    }
     let manifest_path = manifest.ok_or("tournament requires --manifest PATH")?;
     let man = load_manifest(Path::new(&manifest_path))?;
     cfg.entrants = man.entrants;
@@ -1124,4 +1198,39 @@ pub fn cmd_tournament(args: &[String]) -> Result<(), String> {
     let state = run_tournament(&cfg)?;
     println!("{}", standings_summary(&state));
     Ok(())
+}
+
+#[cfg(test)]
+mod timed_id_cli_tests {
+    use super::*;
+
+    #[test]
+    fn time_without_depth_defaults_ceiling_8() {
+        assert_eq!(
+            resolve_ab_depth(None, false, Some(1000)),
+            Some(DEFAULT_TIMED_DEPTH_CEILING)
+        );
+        assert_eq!(
+            resolve_ab_depth(Some(2), false, Some(1000)),
+            Some(DEFAULT_TIMED_DEPTH_CEILING)
+        );
+    }
+
+    #[test]
+    fn explicit_depth_kept_with_time() {
+        assert_eq!(resolve_ab_depth(Some(4), true, Some(1000)), Some(4));
+    }
+
+    #[test]
+    fn depth_only_leaves_time_none_and_depth() {
+        assert_eq!(resolve_ab_depth(Some(2), true, None), Some(2));
+        assert_eq!(resolve_ab_depth(None, false, None), None);
+    }
+
+    #[test]
+    fn agent_spec_carries_time_ms() {
+        let a = agent_spec("ab", Some(8), None, None, Some(1000));
+        assert_eq!(a.depth, Some(8));
+        assert_eq!(a.max_time_ms, Some(1000));
+    }
 }
