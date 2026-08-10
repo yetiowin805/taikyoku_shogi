@@ -68,7 +68,7 @@ pub fn print_training_usage() {
     println!("  scale-sample [--seed PATH] [--out DIR] [--n N] [--rng-seed S]");
     println!("            (copy seed + all_m10/all_p10 + random ±10% big-param models)");
     println!("  loud-grid [--seed PATH] [--out DIR]");
-    println!("            (3×3 grid: HookMover H80/100/120 × other two-movers O80/100/120)");
+    println!("            (3×3×3: Hook H90/100/110 × Capricorn C80/100/120 × other O80/100/110)");
     println!("  texel-fit [--features DIR] [--out PATH] [--iters N] [--lr F] [--k F]");
     println!("            [--init seed|mobility|PATH] [--late-frac F] [--keep-draws]");
     println!("            [--no-log-space] [--no-lr-scale-k] [--no-renorm-pawn]");
@@ -957,10 +957,11 @@ pub fn cmd_loud_grid(args: &[String]) -> Result<(), String> {
     }
     let (man, grid) = run_loud_grid(&cfg)?;
     println!(
-        "Wrote {} entrants under {} (hook={:?}, other-two-movers={:?})",
+        "Wrote {} entrants under {} (hook={:?}, capricorn={:?}, other={:?})",
         man.entrants.len(),
         cfg.out_dir.display(),
         grid.hook_mover_pieces,
+        grid.capricorn_pieces,
         grid.other_two_mover_pieces
     );
     Ok(())

@@ -120,7 +120,7 @@ Incomplete exits (stop file / aborted slots) now fail the tournament binary with
 
 ### Loud-grid continuous Glicko Swiss (preferred)
 
-3×3 material grid (HookMover H ∈ {80,100,120}% × other range two-movers O ∈ {80,100,120}%; capturers stay at seed; center `H100O100` = seed), then a **continuous** Swiss with Glicko-1 ratings until you stop it. Prefer `--detach` (or the systemd unit) so SSH logout cannot kill the job.
+3×3×3 material grid (Hook H ∈ {90,100,110}% × Capricorn C ∈ {80,100,120}% × other two-movers O ∈ {80,100,110}%; capturers stay at seed; center `H100C100O100` = seed). Continuous Swiss uses an elite pool (`r + 2·RD >` current max `r`) and inflates sit-out RD every 10 finished games. Prefer `--detach` (or the systemd unit) so SSH logout cannot kill the job.
 
 **One-shot as root** (pulls `main`, builds with the `taikyoku` user’s cargo PATH, regenerates grid, starts 1s/move Swiss):
 
