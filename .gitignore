@@ -21,12 +21,21 @@ data/raw/games/*
 !data/raw/games/.gitkeep
 data/raw/starts/*
 !data/raw/starts/.gitkeep
+data/raw/tourney/*
+!data/raw/tourney/.gitkeep
 data/derived/**
 !data/derived/.gitkeep
 !data/derived/positions/
 !data/derived/positions/.gitkeep
 data/run/**
 !data/run/.gitkeep
+
+# Regenerable / local experiment checkpoints (keep models/ab-seed.json tracked)
+models/loud-grid/
+models/scale-sample/
+models/tourney/
+models/seed.json
+models/texel-*.json
 
 # Test files (if you want to exclude them)
 test_path
