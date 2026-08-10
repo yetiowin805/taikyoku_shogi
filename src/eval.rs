@@ -363,9 +363,12 @@ pub const FREE_KING_GG_FRAC: f32 = 0.75;
 /// Material for a *promoted* FreeKing (FreeBaku / FreeDemon / FlyingHorse / … → FK).
 /// Matches queen-range NoJump formula (`8 × 10`), not the unpromoted FK table value.
 pub const PROMOTED_FREE_KING_VALUE: f32 = 8.0 * TARIFF_RANGE_NO_JUMP;
-/// Cumulative loud-grid retune vs raw formula: prior T150C50 (×1.5) then
-/// loud-swiss-20260809 winner T150C120 (×1.5 again) → ×2.25.
-pub const SEED_TWO_MOVER_SCALE: f32 = 1.5 * 1.5;
+/// Prior all-two-mover retune (T150C50×T150C120) before H120O80 split.
+const SEED_TWO_MOVER_BASE: f32 = 1.5 * 1.5;
+/// Cumulative HookMover retune: prior ×2.25 then H120O80 (×1.2) → ×2.7.
+pub const SEED_HOOK_MOVER_SCALE: f32 = SEED_TWO_MOVER_BASE * 1.2;
+/// Cumulative other range two-movers (Tengu/Peacock/Capricorn/…): prior ×2.25 then O80 → ×1.8.
+pub const SEED_OTHER_TWO_MOVER_SCALE: f32 = SEED_TWO_MOVER_BASE * 0.8;
 /// Cumulative capturer retune: prior T150C50 (×0.5) then T150C120 (×1.2) → ×0.6.
 pub const SEED_CAPTURER_SCALE: f32 = 0.5 * 1.2;
 
@@ -507,11 +510,12 @@ fn formula_piece_value(pt: PieceType) -> f32 {
 
 /// Seed material from movement capabilities (+ explicit overrides / additive bonuses).
 ///
-/// After the capability formula, applies cumulative loud-grid retunes (currently
-/// T150C50 then T150C120): range two-movers ×[`SEED_TWO_MOVER_SCALE`], range
-/// capturers ×[`SEED_CAPTURER_SCALE`]. Unpromoted FreeKing is priced off scaled
-/// GreatGeneral (inherits capturer scale once). Pieces that *promote into*
-/// FreeKing use [`PROMOTED_FREE_KING_VALUE`] via [`material_piece_value`].
+/// After the capability formula, applies cumulative loud-grid retunes (T150C50,
+/// T150C120, then H120O80): HookMover ×[`SEED_HOOK_MOVER_SCALE`], other range
+/// two-movers ×[`SEED_OTHER_TWO_MOVER_SCALE`], capturers ×[`SEED_CAPTURER_SCALE`].
+/// Unpromoted FreeKing is priced off scaled GreatGeneral (inherits capturer
+/// scale once). Pieces that *promote into* FreeKing use
+/// [`PROMOTED_FREE_KING_VALUE`] via [`material_piece_value`].
 pub fn seed_piece_value(pt: PieceType) -> f32 {
     // Starting queen: already very mobile; price in most of the GG it becomes.
     if pt == PieceType::FreeKing {
@@ -523,8 +527,10 @@ pub fn seed_piece_value(pt: PieceType) -> f32 {
         Some(v) => v,
         None => formula_piece_value(pt),
     };
-    if is_range_two_mover(pt) {
-        raw * SEED_TWO_MOVER_SCALE
+    if pt == PieceType::HookMover {
+        raw * SEED_HOOK_MOVER_SCALE
+    } else if is_range_two_mover(pt) {
+        raw * SEED_OTHER_TWO_MOVER_SCALE
     } else if is_range_capturer(pt) {
         raw * SEED_CAPTURER_SCALE
     } else {
@@ -1411,9 +1417,10 @@ mod tests {
         assert!((w.piece_value(PieceType::Pawn) - 1.0).abs() < 1e-3);
         assert!((w.piece_value(PieceType::CrownPrince) - 8.0).abs() < 1e-3);
         assert!((w.piece_value(PieceType::King) - 100.0).abs() < 1e-3);
-        // T150C120 on prior T150C50 seed: capturers ×0.6, two-movers ×2.25.
+        // H120O80 on prior T150C120 seed: hook ×2.7, other two-movers ×1.8, capturers ×0.6.
         // Unpromoted FK = ¾ scaled GG (1620); promoted FK stays queen-range 80.
-        assert!((SEED_TWO_MOVER_SCALE - 2.25).abs() < 1e-6);
+        assert!((SEED_HOOK_MOVER_SCALE - 2.7).abs() < 1e-6);
+        assert!((SEED_OTHER_TWO_MOVER_SCALE - 1.8).abs() < 1e-6);
         assert!((SEED_CAPTURER_SCALE - 0.6).abs() < 1e-6);
         assert!(
             (w.piece_value(PieceType::GreatGeneral)
@@ -1457,31 +1464,32 @@ mod tests {
         assert!(
             (w.piece_value(PieceType::ViceGeneral) - 2304.0 * SEED_CAPTURER_SCALE).abs() < 1e-3
         );
-        // Range two-movers: base override × 1.10 × 1.5.
+        // Range two-movers: base override × buff × class scale (H120O80 split).
         assert!(
             (w.piece_value(PieceType::Peacock)
-                - 800.0 * RANGE_TWO_MOVER_BUFF * SEED_TWO_MOVER_SCALE)
+                - 800.0 * RANGE_TWO_MOVER_BUFF * SEED_OTHER_TWO_MOVER_SCALE)
                 .abs()
                 < 1e-3
         );
         assert!(
             (w.piece_value(PieceType::Tengu)
-                - 1200.0 * RANGE_TWO_MOVER_BUFF * SEED_TWO_MOVER_SCALE)
+                - 1200.0 * RANGE_TWO_MOVER_BUFF * SEED_OTHER_TWO_MOVER_SCALE)
                 .abs()
                 < 1e-3
         );
         assert!(
             (w.piece_value(PieceType::Capricorn)
-                - 1500.0 * RANGE_TWO_MOVER_BUFF * SEED_TWO_MOVER_SCALE)
+                - 1500.0 * RANGE_TWO_MOVER_BUFF * SEED_OTHER_TWO_MOVER_SCALE)
                 .abs()
                 < 1e-3
         );
         assert!(
             (w.piece_value(PieceType::HookMover)
-                - 2000.0 * RANGE_TWO_MOVER_BUFF * SEED_TWO_MOVER_SCALE)
+                - 2000.0 * RANGE_TWO_MOVER_BUFF * SEED_HOOK_MOVER_SCALE)
                 .abs()
                 < 1e-3
         );
+        assert!((w.piece_value(PieceType::HookMover) - 5940.0).abs() < 1e-2);
         assert!((w.piece_value(PieceType::Lion) - 15.0).abs() < 1e-3);
         assert!((w.piece_value(PieceType::FuriousFiend) - 30.0).abs() < 1e-3);
         assert!((w.piece_value(PieceType::LionHawk) - 50.0).abs() < 1e-3);
@@ -1522,7 +1530,7 @@ mod tests {
         assert_eq!(back.weights.piece_value(PieceType::WoodenDove), 50.0);
         assert!(
             (back.weights.piece_value(PieceType::HookMover)
-                - 2000.0 * RANGE_TWO_MOVER_BUFF * SEED_TWO_MOVER_SCALE)
+                - 2000.0 * RANGE_TWO_MOVER_BUFF * SEED_HOOK_MOVER_SCALE)
                 .abs()
                 < 1e-3
         );

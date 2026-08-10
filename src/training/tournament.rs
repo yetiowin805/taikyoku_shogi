@@ -6,7 +6,7 @@ use crate::training::pool::parse_starts_spec;
 use crate::training::record::{AgentSpec, GameStart};
 use crate::training::worker::{play_one_game, WorkerConfig};
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -16,6 +16,10 @@ use std::time::{SystemTime, UNIX_EPOCH};
 pub const DEFAULT_RATING: f64 = 1500.0;
 pub const DEFAULT_RD: f64 = 350.0;
 pub const RD_MIN: f64 = 30.0;
+/// Glicko-style passive RD growth per sit-out tick: rd' = min(DEFAULT_RD, sqrt(rd² + c²)).
+pub const RD_PASSIVE_C: f64 = 15.0;
+/// Finished games between passive RD ticks for agents who sat those games out.
+pub const RD_PASSIVE_EVERY_N_GAMES: usize = 10;
 pub const PAIRING_WINDOW: f64 = 200.0;
 pub const DEFAULT_GAMES_PER_PAIR: usize = 24;
 /// Legacy constant (Swiss is continuous; kept for CLI/script compat).
@@ -119,6 +123,12 @@ pub struct TourneyState {
     pub swiss_rounds: usize,
     #[serde(default)]
     pub swiss_next_round: usize,
+    /// Finished games since the last passive RD tick.
+    #[serde(default)]
+    pub rd_tick_done_counter: usize,
+    /// Agents who played in a finished game since the last passive RD tick.
+    #[serde(default)]
+    pub rd_tick_participants: BTreeSet<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -276,6 +286,8 @@ fn build_schedule(cfg: &TourneyConfig) -> TourneyState {
         format: cfg.format,
         swiss_rounds: cfg.swiss_rounds,
         swiss_next_round: 0,
+        rd_tick_done_counter: 0,
+        rd_tick_participants: BTreeSet::new(),
     };
     match cfg.format {
         TourneyFormat::RoundRobin => {
@@ -586,6 +598,50 @@ fn assign_a_is_black(state: &TourneyState, a: &str, b: &str, slot_id: usize) -> 
 }
 
 /// Schedule one continuous Swiss game. Returns false if no pair available.
+/// Upper-confidence elite: `r + 2·rd` strictly greater than the field's max `r`.
+pub fn elite_eligible(state: &TourneyState, id: &str, r_max: f64) -> bool {
+    let g = rating_of(state, id);
+    g.r + 2.0 * g.rd > r_max
+}
+
+pub fn field_max_rating(state: &TourneyState) -> f64 {
+    state
+        .entrants
+        .iter()
+        .map(|e| rating_of(state, &e.id).r)
+        .fold(f64::NEG_INFINITY, f64::max)
+}
+
+/// Passive RD inflation for sit-outs (Glicko period decay shape).
+pub fn apply_passive_rd_tick(rating: GlickoRating) -> GlickoRating {
+    let rd = (rating.rd * rating.rd + RD_PASSIVE_C * RD_PASSIVE_C)
+        .sqrt()
+        .min(DEFAULT_RD)
+        .max(RD_MIN);
+    GlickoRating { r: rating.r, rd }
+}
+
+/// Record a finished game toward the every-N passive RD tick.
+pub fn note_finished_game_for_rd_tick(state: &mut TourneyState, a: &str, b: &str) {
+    state.rd_tick_participants.insert(a.to_string());
+    state.rd_tick_participants.insert(b.to_string());
+    state.rd_tick_done_counter += 1;
+    if state.rd_tick_done_counter < RD_PASSIVE_EVERY_N_GAMES {
+        return;
+    }
+    let played = std::mem::take(&mut state.rd_tick_participants);
+    state.rd_tick_done_counter = 0;
+    for e in state.entrants.clone() {
+        if played.contains(&e.id) {
+            continue;
+        }
+        let g = rating_of(state, &e.id);
+        let ng = apply_passive_rd_tick(g);
+        state.ratings.insert(e.id.clone(), ng);
+        state.elo.insert(e.id, ng.r);
+    }
+}
+
 pub fn schedule_one_swiss_game(state: &mut TourneyState) -> bool {
     ensure_ratings(state);
     let busy = busy_agents(state);
@@ -600,8 +656,17 @@ pub fn schedule_one_swiss_game(state: &mut TourneyState) -> bool {
         return false;
     }
 
+    let r_max = field_max_rating(state);
+    let elite: Vec<String> = free
+        .iter()
+        .filter(|id| elite_eligible(state, id, r_max))
+        .cloned()
+        .collect();
+    // Prefer the elite upper-confidence pool; fall back so Swiss never stalls.
+    let pool_free = if elite.len() >= 2 { elite } else { free };
+
     // Pick A: least games, then highest r, then id.
-    let a = free
+    let a = pool_free
         .iter()
         .min_by(|x, y| {
             let gx = games.get(*x).copied().unwrap_or(0);
@@ -615,9 +680,9 @@ pub fn schedule_one_swiss_game(state: &mut TourneyState) -> bool {
             })
         })
         .cloned()
-        .expect("free >= 2");
+        .expect("pool_free >= 2");
 
-    let candidates: Vec<String> = free.into_iter().filter(|id| id != &a).collect();
+    let candidates: Vec<String> = pool_free.into_iter().filter(|id| id != &a).collect();
     let pool = opponent_pool(&a, &candidates, &state.ratings);
     if pool.is_empty() {
         return false;
@@ -1062,6 +1127,7 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
                                 slot.score_a = Some(score_a);
                                 slot.game_path = Some(path.display().to_string());
                             }
+                            note_finished_game_for_rd_tick(&mut st, &model_a, &model_b);
                             st.updated_at = now_secs();
                             let _ = save_state(cfg, &st);
                             if cfg.verbose {
@@ -1446,10 +1512,115 @@ mod tests {
             format: TourneyFormat::Swiss,
             swiss_rounds: 0,
             swiss_next_round: 0,
+            rd_tick_done_counter: 0,
+            rd_tick_participants: BTreeSet::new(),
         };
         ensure_ratings(&mut st);
         assert!((st.ratings["p0"].r - 1600.0).abs() < 1e-9);
         assert!((st.ratings["p0"].rd - DEFAULT_RD).abs() < 1e-9);
+    }
+
+    #[test]
+    fn elite_pool_excludes_low_uci_agents() {
+        let mut st = build_schedule(&TourneyConfig {
+            entrants: entrants(4),
+            format: TourneyFormat::Swiss,
+            seed_base: 1,
+            ..TourneyConfig::default()
+        });
+        // Leader firmly ahead; weak agents with tight RD fall out of r+2rd > r_max.
+        st.ratings.insert(
+            "p0".into(),
+            GlickoRating {
+                r: 1900.0,
+                rd: 40.0,
+            },
+        );
+        st.ratings.insert(
+            "p1".into(),
+            GlickoRating {
+                r: 1850.0,
+                rd: 40.0,
+            },
+        );
+        st.ratings.insert(
+            "p2".into(),
+            GlickoRating {
+                r: 1500.0,
+                rd: 50.0,
+            },
+        );
+        st.ratings.insert(
+            "p3".into(),
+            GlickoRating {
+                r: 1700.0,
+                rd: 120.0,
+            },
+        );
+        // Give p0/p1 many games so A is chosen among elite with fewest games.
+        for _ in 0..3 {
+            st.slots.push(TourneySlot {
+                id: next_slot_id(&st),
+                model_a: "p0".into(),
+                model_b: "p1".into(),
+                start_seed: 0,
+                a_is_black: true,
+                status: SlotStatus::Done,
+                game_path: None,
+                score_a: Some(1.0),
+                round: 0,
+                start_mode: SlotStartMode::Opening,
+            });
+        }
+        let r_max = field_max_rating(&st);
+        assert!(elite_eligible(&st, "p0", r_max));
+        assert!(elite_eligible(&st, "p1", r_max));
+        assert!(!elite_eligible(&st, "p2", r_max)); // 1500+100 = 1600 ≤ 1900
+        assert!(elite_eligible(&st, "p3", r_max)); // 1700+240 = 1940 > 1900
+        assert!(schedule_one_swiss_game(&mut st));
+        let last = st.slots.last().unwrap();
+        let pair = [&last.model_a, &last.model_b];
+        assert!(pair.contains(&&"p3".to_string()));
+        assert!(!pair.contains(&&"p2".to_string()));
+    }
+
+    #[test]
+    fn passive_rd_tick_inflates_sitouts_every_n() {
+        let mut st = build_schedule(&TourneyConfig {
+            entrants: entrants(3),
+            format: TourneyFormat::Swiss,
+            ..TourneyConfig::default()
+        });
+        st.ratings.insert(
+            "p0".into(),
+            GlickoRating {
+                r: 1600.0,
+                rd: 100.0,
+            },
+        );
+        st.ratings.insert(
+            "p1".into(),
+            GlickoRating {
+                r: 1550.0,
+                rd: 100.0,
+            },
+        );
+        st.ratings.insert(
+            "p2".into(),
+            GlickoRating {
+                r: 1500.0,
+                rd: 100.0,
+            },
+        );
+        for _ in 0..RD_PASSIVE_EVERY_N_GAMES {
+            note_finished_game_for_rd_tick(&mut st, "p0", "p1");
+        }
+        assert_eq!(st.rd_tick_done_counter, 0);
+        assert!(st.rd_tick_participants.is_empty());
+        let expect = (100.0f64 * 100.0 + RD_PASSIVE_C * RD_PASSIVE_C).sqrt();
+        assert!((st.ratings["p2"].rd - expect).abs() < 1e-9);
+        assert!((st.ratings["p0"].rd - 100.0).abs() < 1e-9);
+        assert!((st.ratings["p1"].rd - 100.0).abs() < 1e-9);
     }
 }
 
