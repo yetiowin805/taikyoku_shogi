@@ -20,6 +20,8 @@ pub const RD_MIN: f64 = 30.0;
 pub const RD_PASSIVE_C: f64 = 15.0;
 /// Finished games between passive RD ticks for agents who sat those games out.
 pub const RD_PASSIVE_EVERY_N_GAMES: usize = 10;
+/// Prefer scheduling agents below this counted-game floor before elite pairing.
+pub const MINIMUM_GAMES: usize = 6;
 pub const PAIRING_WINDOW: f64 = 200.0;
 pub const DEFAULT_GAMES_PER_PAIR: usize = 24;
 /// Legacy constant (Swiss is continuous; kept for CLI/script compat).
@@ -642,6 +644,23 @@ pub fn note_finished_game_for_rd_tick(state: &mut TourneyState, a: &str, b: &str
     }
 }
 
+fn pick_swiss_a(pool: &[String], state: &TourneyState, games: &BTreeMap<String, usize>) -> String {
+    pool.iter()
+        .min_by(|x, y| {
+            let gx = games.get(*x).copied().unwrap_or(0);
+            let gy = games.get(*y).copied().unwrap_or(0);
+            gx.cmp(&gy).then_with(|| {
+                let rx = rating_of(state, x).r;
+                let ry = rating_of(state, y).r;
+                ry.partial_cmp(&rx)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+                    .then_with(|| x.cmp(y))
+            })
+        })
+        .cloned()
+        .expect("non-empty pool")
+}
+
 pub fn schedule_one_swiss_game(state: &mut TourneyState) -> bool {
     ensure_ratings(state);
     let busy = busy_agents(state);
@@ -656,6 +675,12 @@ pub fn schedule_one_swiss_game(state: &mut TourneyState) -> bool {
         return false;
     }
 
+    let under: Vec<String> = free
+        .iter()
+        .filter(|id| games.get(*id).copied().unwrap_or(0) < MINIMUM_GAMES)
+        .cloned()
+        .collect();
+
     let r_max = field_max_rating(state);
     let elite: Vec<String> = free
         .iter()
@@ -663,27 +688,33 @@ pub fn schedule_one_swiss_game(state: &mut TourneyState) -> bool {
         .cloned()
         .collect();
     // Prefer the elite upper-confidence pool; fall back so Swiss never stalls.
-    let pool_free = if elite.len() >= 2 { elite } else { free };
+    let elite_or_free = if elite.len() >= 2 {
+        elite
+    } else {
+        free.clone()
+    };
 
-    // Pick A: least games, then highest r, then id.
-    let a = pool_free
-        .iter()
-        .min_by(|x, y| {
-            let gx = games.get(*x).copied().unwrap_or(0);
-            let gy = games.get(*y).copied().unwrap_or(0);
-            gx.cmp(&gy).then_with(|| {
-                let rx = rating_of(state, x).r;
-                let ry = rating_of(state, y).r;
-                ry.partial_cmp(&rx)
-                    .unwrap_or(std::cmp::Ordering::Equal)
-                    .then_with(|| x.cmp(y))
-            })
-        })
-        .cloned()
-        .expect("pool_free >= 2");
+    // Catch-up: get every agent to MINIMUM_GAMES before elite gating.
+    let (a, b_candidates) = if under.len() >= 2 {
+        let a = pick_swiss_a(&under, state, &games);
+        let rest: Vec<String> = under.into_iter().filter(|id| id != &a).collect();
+        (a, rest)
+    } else if under.len() == 1 {
+        let a = under[0].clone();
+        let rest: Vec<String> = elite_or_free.into_iter().filter(|id| id != &a).collect();
+        let rest = if rest.is_empty() {
+            free.iter().filter(|id| *id != &a).cloned().collect()
+        } else {
+            rest
+        };
+        (a, rest)
+    } else {
+        let a = pick_swiss_a(&elite_or_free, state, &games);
+        let rest: Vec<String> = elite_or_free.into_iter().filter(|id| id != &a).collect();
+        (a, rest)
+    };
 
-    let candidates: Vec<String> = pool_free.into_iter().filter(|id| id != &a).collect();
-    let pool = opponent_pool(&a, &candidates, &state.ratings);
+    let pool = opponent_pool(&a, &b_candidates, &state.ratings);
     if pool.is_empty() {
         return false;
     }
@@ -1557,8 +1588,25 @@ mod tests {
                 rd: 120.0,
             },
         );
-        // Give p0/p1 many games so A is chosen among elite with fewest games.
-        for _ in 0..3 {
+        // Clear MINIMUM_GAMES catch-up so elite gating is what we test.
+        for (a, b) in [("p0", "p1"), ("p2", "p3")] {
+            for _ in 0..MINIMUM_GAMES {
+                st.slots.push(TourneySlot {
+                    id: next_slot_id(&st),
+                    model_a: a.into(),
+                    model_b: b.into(),
+                    start_seed: 0,
+                    a_is_black: true,
+                    status: SlotStatus::Done,
+                    game_path: None,
+                    score_a: Some(1.0),
+                    round: 0,
+                    start_mode: SlotStartMode::Opening,
+                });
+            }
+        }
+        // Extra games for p0/p1 so A is the least-played elite (p3).
+        for _ in 0..2 {
             st.slots.push(TourneySlot {
                 id: next_slot_id(&st),
                 model_a: "p0".into(),
@@ -1582,6 +1630,64 @@ mod tests {
         let pair = [&last.model_a, &last.model_b];
         assert!(pair.contains(&&"p3".to_string()));
         assert!(!pair.contains(&&"p2".to_string()));
+    }
+
+    #[test]
+    fn minimum_games_catchup_overrides_elite() {
+        let mut st = build_schedule(&TourneyConfig {
+            entrants: entrants(4),
+            format: TourneyFormat::Swiss,
+            seed_base: 1,
+            ..TourneyConfig::default()
+        });
+        st.ratings.insert(
+            "p0".into(),
+            GlickoRating {
+                r: 1900.0,
+                rd: 40.0,
+            },
+        );
+        st.ratings.insert(
+            "p1".into(),
+            GlickoRating {
+                r: 1850.0,
+                rd: 40.0,
+            },
+        );
+        st.ratings.insert(
+            "p2".into(),
+            GlickoRating {
+                r: 1500.0,
+                rd: 50.0,
+            },
+        );
+        st.ratings.insert(
+            "p3".into(),
+            GlickoRating {
+                r: 1490.0,
+                rd: 50.0,
+            },
+        );
+        for _ in 0..MINIMUM_GAMES {
+            st.slots.push(TourneySlot {
+                id: next_slot_id(&st),
+                model_a: "p0".into(),
+                model_b: "p1".into(),
+                start_seed: 0,
+                a_is_black: true,
+                status: SlotStatus::Done,
+                game_path: None,
+                score_a: Some(1.0),
+                round: 0,
+                start_mode: SlotStartMode::Opening,
+            });
+        }
+        // p2/p3 have 0 games and are outside elite; catch-up must still pair them.
+        assert!(schedule_one_swiss_game(&mut st));
+        let last = st.slots.last().unwrap();
+        let pair = [&last.model_a, &last.model_b];
+        assert!(pair.contains(&&"p2".to_string()));
+        assert!(pair.contains(&&"p3".to_string()));
     }
 
     #[test]

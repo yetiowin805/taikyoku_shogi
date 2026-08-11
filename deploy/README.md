@@ -120,7 +120,7 @@ Incomplete exits (stop file / aborted slots) now fail the tournament binary with
 
 ### Loud-grid continuous Glicko Swiss (preferred)
 
-3×3×3 material grid (Hook H ∈ {90,100,110}% × Capricorn C ∈ {80,100,120}% × other two-movers O ∈ {80,100,110}%; capturers stay at seed; center `H100C100O100` = seed). Continuous Swiss uses an elite pool (`r + 2·RD >` current max `r`) and inflates sit-out RD every 10 finished games. Prefer `--detach` (or the systemd unit) so SSH logout cannot kill the job.
+3×3×3 material grid (Hook H ∈ {90,100,110}% × Capricorn C ∈ {80,100,120}% × other two-movers O ∈ {80,100,110}%; capturers stay at seed; center `H100C100O100` = seed). Continuous Swiss uses an elite pool (`r + 2·RD >` current max `r`), prioritizes agents below 6 counted games before elite gating, and inflates sit-out RD every 10 finished games. Prefer `--detach` (or the systemd unit) so SSH logout cannot kill the job.
 
 **One-shot as root** (pulls `main`, builds with the `taikyoku` user’s cargo PATH, regenerates grid, starts 1s/move Swiss):
 
@@ -155,6 +155,23 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now taikyoku-tourney
 # stop: sudo touch /opt/taikyoku_shogi/data/run/TOURNEY_STOP
 #   or: sudo systemctl stop taikyoku-tourney
+```
+
+### PST-grid continuous Glicko Swiss
+
+3×3×3 fast rank-PST grid (promo P ∈ {110,120,130}% × opp-half H ∈ {25,50,75}% of mid→promo gap × back B ∈ {25,50,75}%; slow PST / material unchanged; center `P120H50B50` = seed):
+
+```bash
+cd /opt/taikyoku_shogi
+./deploy/pull_build_pst_swiss.sh
+# defaults: --time-ms 1000 --depth 8 --detach --jobs $(nproc)
+tail -f data/run/pst-swiss.log
+```
+
+Or after a local release build:
+
+```bash
+./deploy/run_pst_swiss.sh --detach --jobs "$(nproc)" --time-ms 1000 --depth 8
 ```
 
 ### Scale-sample Swiss (legacy ±10% samples)
