@@ -12,6 +12,7 @@ use crate::training::run_status::{
     disk_free_gb, utc_now_iso, RunStatus, WorkerDaemonConfig,
 };
 use crate::training::loud_grid::{run_loud_grid, LoudGridConfig};
+use crate::training::pst_grid::{run_pst_grid, PstGridConfig};
 use crate::training::scale_sample::{run_scale_sample, ScaleSampleConfig};
 use crate::training::texel::{fit_texel, TexelFitConfig, TexelInit};
 use crate::training::tournament::{
@@ -69,6 +70,8 @@ pub fn print_training_usage() {
     println!("            (copy seed + all_m10/all_p10 + random ±10% big-param models)");
     println!("  loud-grid [--seed PATH] [--out DIR]");
     println!("            (3×3×3: Hook H90/100/110 × Capricorn C80/100/120 × other O80/100/110)");
+    println!("  pst-grid [--seed PATH] [--out DIR]");
+    println!("            (3×3×3 fast PST: promo P110/120/130 × opp-half H25/50/75 × back B25/50/75)");
     println!("  texel-fit [--features DIR] [--out PATH] [--iters N] [--lr F] [--k F]");
     println!("            [--init seed|mobility|PATH] [--late-frac F] [--keep-draws]");
     println!("            [--no-log-space] [--no-lr-scale-k] [--no-renorm-pawn]");
@@ -963,6 +966,34 @@ pub fn cmd_loud_grid(args: &[String]) -> Result<(), String> {
         grid.hook_mover_pieces,
         grid.capricorn_pieces,
         grid.other_two_mover_pieces
+    );
+    Ok(())
+}
+
+pub fn cmd_pst_grid(args: &[String]) -> Result<(), String> {
+    let mut cfg = PstGridConfig::default();
+    let mut i = 2;
+    while i < args.len() {
+        if let Some(v) = take_flag_value(args, &mut i, "--seed")? {
+            cfg.seed_model = PathBuf::from(v);
+            continue;
+        }
+        if let Some(v) = take_flag_value(args, &mut i, "--out")? {
+            cfg.out_dir = PathBuf::from(v);
+            continue;
+        }
+        return Err(format!("Unknown flag {}", args[i]));
+    }
+    let (man, grid) = run_pst_grid(&cfg)?;
+    println!(
+        "Wrote {} entrants under {} (center P120H50B50; sample opp_half={:.4})",
+        man.entrants.len(),
+        cfg.out_dir.display(),
+        grid.cells
+            .iter()
+            .find(|c| c.id == "P130H25B50")
+            .map(|c| c.opp_half_factor)
+            .unwrap_or(0.0)
     );
     Ok(())
 }

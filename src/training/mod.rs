@@ -10,6 +10,7 @@ pub mod pool;
 pub mod record;
 pub mod run_status;
 pub mod loud_grid;
+pub mod pst_grid;
 pub mod scale_sample;
 pub mod start_gen;
 pub mod texel;

@@ -365,10 +365,12 @@ pub const FREE_KING_GG_FRAC: f32 = 0.75;
 pub const PROMOTED_FREE_KING_VALUE: f32 = 8.0 * TARIFF_RANGE_NO_JUMP;
 /// Prior all-two-mover retune (T150C50×T150C120) before H120O80 split.
 const SEED_TWO_MOVER_BASE: f32 = 1.5 * 1.5;
-/// Cumulative HookMover retune: prior ×2.25 then H120O80 (×1.2) → ×2.7.
-pub const SEED_HOOK_MOVER_SCALE: f32 = SEED_TWO_MOVER_BASE * 1.2;
-/// Cumulative other range two-movers (Tengu/Peacock/Capricorn/…): prior ×2.25 then O80 → ×1.8.
-pub const SEED_OTHER_TWO_MOVER_SCALE: f32 = SEED_TWO_MOVER_BASE * 0.8;
+/// Cumulative HookMover: ×2.25 → H120 (×1.2) → elite-swiss nudge (×1.05) → ×2.835.
+pub const SEED_HOOK_MOVER_SCALE: f32 = SEED_TWO_MOVER_BASE * 1.2 * 1.05;
+/// Capricorn held at H120O80 other-scale (elite C axis looked noisy).
+pub const SEED_CAPRICORN_SCALE: f32 = SEED_TWO_MOVER_BASE * 0.8;
+/// Other range two-movers excl. Hook/Capricorn: ×1.8 then elite nudge (×1.05) → ×1.89.
+pub const SEED_OTHER_TWO_MOVER_SCALE: f32 = SEED_TWO_MOVER_BASE * 0.8 * 1.05;
 /// Cumulative capturer retune: prior T150C50 (×0.5) then T150C120 (×1.2) → ×0.6.
 pub const SEED_CAPTURER_SCALE: f32 = 0.5 * 1.2;
 
@@ -510,8 +512,8 @@ fn formula_piece_value(pt: PieceType) -> f32 {
 
 /// Seed material from movement capabilities (+ explicit overrides / additive bonuses).
 ///
-/// After the capability formula, applies cumulative loud-grid retunes (T150C50,
-/// T150C120, then H120O80): HookMover ×[`SEED_HOOK_MOVER_SCALE`], other range
+/// After the capability formula, applies cumulative loud-grid retunes: HookMover
+/// ×[`SEED_HOOK_MOVER_SCALE`], Capricorn ×[`SEED_CAPRICORN_SCALE`], other range
 /// two-movers ×[`SEED_OTHER_TWO_MOVER_SCALE`], capturers ×[`SEED_CAPTURER_SCALE`].
 /// Unpromoted FreeKing is priced off scaled GreatGeneral (inherits capturer
 /// scale once). Pieces that *promote into* FreeKing use
@@ -529,6 +531,8 @@ pub fn seed_piece_value(pt: PieceType) -> f32 {
     };
     if pt == PieceType::HookMover {
         raw * SEED_HOOK_MOVER_SCALE
+    } else if pt == PieceType::Capricorn {
+        raw * SEED_CAPRICORN_SCALE
     } else if is_range_two_mover(pt) {
         raw * SEED_OTHER_TWO_MOVER_SCALE
     } else if is_range_capturer(pt) {
@@ -986,24 +990,38 @@ fn default_royal_bonus_by_count() -> Vec<i32> {
     vec![0, 0, 100, 110]
 }
 
-/// Fast PST: 50% back → 100% pawn start → 100% to mid → 110% opponent half → 120% promo.
-pub fn seed_rank_factors_fast() -> [f32; 36] {
+/// Fast PST shape with tunable anchors.
+///
+/// - ranks `[0, pawn]`: linear `back → 1.0`
+/// - ranks `(pawn, opp)`: flat `1.0` (mid)
+/// - ranks `[opp, promo)`: flat `1.0 + opp_half_frac·(promo_factor − 1.0)`
+/// - ranks `[promo, 35]`: flat `promo_factor`
+///
+/// Seed defaults: `back=0.5`, `opp_half_frac=0.5` (→ 110% when promo is 120%), `promo_factor=1.2`.
+pub fn seed_rank_factors_fast_params(back: f32, opp_half_frac: f32, promo_factor: f32) -> [f32; 36] {
     let pawn = RANK_PAWN_START;
     let opp = RANK_OPPONENT_HALF;
     let promo = RANK_PST_PROMO;
+    let mid = 1.0f32;
+    let opp_half = mid + opp_half_frac * (promo_factor - mid);
     let mut factors = [1.0f32; 36];
     for r in 0u8..36 {
         factors[r as usize] = if r <= pawn {
-            lerp(0.5, 1.0, r as f32 / pawn as f32)
+            lerp(back, mid, r as f32 / pawn as f32)
         } else if r < opp {
-            1.0
+            mid
         } else if r < promo {
-            1.1
+            opp_half
         } else {
-            1.2
+            promo_factor
         };
     }
     factors
+}
+
+/// Fast PST: 50% back → 100% pawn start → 100% to mid → 110% opponent half → 120% promo.
+pub fn seed_rank_factors_fast() -> [f32; 36] {
+    seed_rank_factors_fast_params(0.5, 0.5, 1.2)
 }
 
 /// Slow PST: 10% back → 60% pawn start → 100% at opp half → 120% promo, then hold.
@@ -1417,10 +1435,11 @@ mod tests {
         assert!((w.piece_value(PieceType::Pawn) - 1.0).abs() < 1e-3);
         assert!((w.piece_value(PieceType::CrownPrince) - 8.0).abs() < 1e-3);
         assert!((w.piece_value(PieceType::King) - 100.0).abs() < 1e-3);
-        // H120O80 on prior T150C120 seed: hook ×2.7, other two-movers ×1.8, capturers ×0.6.
+        // Elite nudge on H120O80: hook ×2.835, Capricorn held ×1.8, other ×1.89, capturers ×0.6.
         // Unpromoted FK = ¾ scaled GG (1620); promoted FK stays queen-range 80.
-        assert!((SEED_HOOK_MOVER_SCALE - 2.7).abs() < 1e-6);
-        assert!((SEED_OTHER_TWO_MOVER_SCALE - 1.8).abs() < 1e-6);
+        assert!((SEED_HOOK_MOVER_SCALE - 2.835).abs() < 1e-6);
+        assert!((SEED_CAPRICORN_SCALE - 1.8).abs() < 1e-6);
+        assert!((SEED_OTHER_TWO_MOVER_SCALE - 1.89).abs() < 1e-6);
         assert!((SEED_CAPTURER_SCALE - 0.6).abs() < 1e-6);
         assert!(
             (w.piece_value(PieceType::GreatGeneral)
@@ -1464,7 +1483,7 @@ mod tests {
         assert!(
             (w.piece_value(PieceType::ViceGeneral) - 2304.0 * SEED_CAPTURER_SCALE).abs() < 1e-3
         );
-        // Range two-movers: base override × buff × class scale (H120O80 split).
+        // Range two-movers: base override × buff × class scale (H/C/O split).
         assert!(
             (w.piece_value(PieceType::Peacock)
                 - 800.0 * RANGE_TWO_MOVER_BUFF * SEED_OTHER_TWO_MOVER_SCALE)
@@ -1479,7 +1498,7 @@ mod tests {
         );
         assert!(
             (w.piece_value(PieceType::Capricorn)
-                - 1500.0 * RANGE_TWO_MOVER_BUFF * SEED_OTHER_TWO_MOVER_SCALE)
+                - 1500.0 * RANGE_TWO_MOVER_BUFF * SEED_CAPRICORN_SCALE)
                 .abs()
                 < 1e-3
         );
@@ -1489,7 +1508,8 @@ mod tests {
                 .abs()
                 < 1e-3
         );
-        assert!((w.piece_value(PieceType::HookMover) - 5940.0).abs() < 1e-2);
+        assert!((w.piece_value(PieceType::HookMover) - 6237.0).abs() < 1e-2);
+        assert!((w.piece_value(PieceType::Capricorn) - 2970.0).abs() < 1e-2);
         assert!((w.piece_value(PieceType::Lion) - 15.0).abs() < 1e-3);
         assert!((w.piece_value(PieceType::FuriousFiend) - 30.0).abs() < 1e-3);
         assert!((w.piece_value(PieceType::LionHawk) - 50.0).abs() < 1e-3);
