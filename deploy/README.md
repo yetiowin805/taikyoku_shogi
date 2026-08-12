@@ -159,7 +159,7 @@ sudo systemctl enable --now taikyoku-tourney
 
 ### PST-grid continuous Glicko Swiss
 
-3×3×3 fast rank-PST grid (promo P ∈ {110,120,130}% × opp-half H ∈ {25,50,75}% of mid→promo gap × back B ∈ {25,50,75}%; slow PST / material unchanged; center `P120H50B50` = seed):
+3×3×3 fast rank-PST grid (promo P ∈ {110,120,130}% × opp-half H ∈ {25,50,75}% of mid→promo gap × back B ∈ {25,50,75}%; slow PST / material unchanged; seed cell `P120H50B75` = seed copy):
 
 ```bash
 cd /opt/taikyoku_shogi
@@ -172,6 +172,16 @@ Or after a local release build:
 
 ```bash
 ./deploy/run_pst_swiss.sh --detach --jobs "$(nproc)" --time-ms 1000 --depth 8
+```
+
+### File-PST continuous Glicko Swiss
+
+5×3×3 grid (45 agents): file F{edge}C{center} ∈ {100/100, 90/110, 80/120, 70/150, 50/200} × back B ∈ {60,75,90}% × tropism T ∈ {10,15,20} (`eg_tropism_scale` 1.0/1.5/2.0). Seed cell `F100C100B75T15` = seed copy. File PST applies to pieces with both wing dirs except royals and an enumerated asymmetric denylist.
+
+```bash
+cd /opt/taikyoku_shogi
+./deploy/pull_build_file_pst_swiss.sh
+tail -f data/run/file-pst-swiss.log
 ```
 
 ### Scale-sample Swiss (legacy ±10% samples)

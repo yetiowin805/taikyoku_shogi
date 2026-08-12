@@ -6,7 +6,7 @@
 //!   (e.g. P130 H25 → opp plateau 107.5%)
 //! - Back B ∈ {25, 50, 75}% (linear to 100% at pawn start)
 //!
-//! Center `P120H50B50` matches the seed fast PST and is a byte-copy of the seed.
+//! Seed cell `P120H50B75` matches the baked fast PST and is a byte-copy of the seed.
 
 use crate::eval::{seed_rank_factors_fast_params, EvalCheckpoint, EvalWeights};
 use crate::training::tournament::{TourneyEntrant, TourneyManifest};
@@ -104,7 +104,7 @@ pub fn run_pst_grid(cfg: &PstGridConfig) -> Result<(TourneyManifest, GridFile), 
                 let model_path = cfg.out_dir.join(format!("{id}.json"));
                 let is_center = (promo - 1.2).abs() < 1e-6
                     && (h_frac - 0.5).abs() < 1e-6
-                    && (back - 0.5).abs() < 1e-6;
+                    && (back - 0.75).abs() < 1e-6;
                 if is_center {
                     fs::copy(&cfg.seed_model, &model_path).map_err(|e| {
                         format!(
@@ -163,7 +163,7 @@ mod tests {
 
     #[test]
     fn center_params_match_seed_fast_pst() {
-        let built = seed_rank_factors_fast_params(0.5, 0.5, 1.2);
+        let built = seed_rank_factors_fast_params(0.75, 0.5, 1.2);
         let seed = seed_rank_factors_fast();
         for i in 0..36 {
             assert!(
@@ -210,7 +210,7 @@ mod tests {
             }
         }
         assert_eq!(ids.len(), 27);
-        assert!(ids.contains(&"P120H50B50".to_string()));
+        assert!(ids.contains(&"P120H50B75".to_string()));
         assert!(ids.contains(&"P110H25B25".to_string()));
         assert!(ids.contains(&"P130H75B75".to_string()));
     }

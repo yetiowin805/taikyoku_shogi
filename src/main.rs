@@ -194,6 +194,12 @@ fn main() {
                     print_usage();
                 }
             }
+            "file-pst-grid" => {
+                if let Err(e) = taikyoku_shogi::training::cli::cmd_file_pst_grid(&args) {
+                    eprintln!("{}", e);
+                    print_usage();
+                }
+            }
             "texel-fit" => {
                 if let Err(e) = taikyoku_shogi::training::cli::cmd_texel_fit(&args) {
                     eprintln!("{}", e);

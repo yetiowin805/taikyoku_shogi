@@ -940,6 +940,9 @@ pub struct EvalWeights {
     /// Slow-piece rank multipliers.
     #[serde(default = "seed_rank_factors_slow_vec")]
     pub rank_factor_slow: Vec<f32>,
+    /// Horizontally symmetric file multipliers (absolute file 0..35). Seed: all 1.0.
+    #[serde(default = "seed_file_factors_vec")]
+    pub file_factor: Vec<f32>,
     /// Endgame tropism scale for the closest `eg_tropism_topk` pieces.
     #[serde(default = "default_eg_tropism_scale")]
     pub eg_tropism_scale: f32,
@@ -997,7 +1000,8 @@ fn default_royal_bonus_by_count() -> Vec<i32> {
 /// - ranks `[opp, promo)`: flat `1.0 + opp_half_frac·(promo_factor − 1.0)`
 /// - ranks `[promo, 35]`: flat `promo_factor`
 ///
-/// Seed defaults: `back=0.5`, `opp_half_frac=0.5` (→ 110% when promo is 120%), `promo_factor=1.2`.
+/// Seed defaults after pst-swiss winner P120H50B75: `back=0.75`, `opp_half_frac=0.5`
+/// (→ 110% when promo is 120%), `promo_factor=1.2`.
 pub fn seed_rank_factors_fast_params(back: f32, opp_half_frac: f32, promo_factor: f32) -> [f32; 36] {
     let pawn = RANK_PAWN_START;
     let opp = RANK_OPPONENT_HALF;
@@ -1019,9 +1023,9 @@ pub fn seed_rank_factors_fast_params(back: f32, opp_half_frac: f32, promo_factor
     factors
 }
 
-/// Fast PST: 50% back → 100% pawn start → 100% to mid → 110% opponent half → 120% promo.
+/// Fast PST: 75% back → 100% pawn start → 100% to mid → 110% opponent half → 120% promo.
 pub fn seed_rank_factors_fast() -> [f32; 36] {
-    seed_rank_factors_fast_params(0.5, 0.5, 1.2)
+    seed_rank_factors_fast_params(0.75, 0.5, 1.2)
 }
 
 /// Slow PST: 10% back → 60% pawn start → 100% at opp half → 120% promo, then hold.
@@ -1057,24 +1061,106 @@ pub fn seed_rank_factors() -> [f32; 36] {
     seed_rank_factors_fast()
 }
 
-/// Material contribution for one piece including rank PST.
-/// Royals and jump/capturing-range pieces always use factor 1.
-pub fn positional_piece_value(piece: &Piece, weights: &EvalWeights) -> f32 {
-    let v = material_piece_value(piece, weights);
-    if piece.piece_type.is_royal() || skips_rank_pst(piece.piece_type) {
-        return v;
+/// Left-wing dirs (file−): W|NW|SW.
+const FILE_PST_LEFT_DIRS: u8 = 0xE0;
+/// Right-wing dirs (file+): E|NE|SE.
+const FILE_PST_RIGHT_DIRS: u8 = 0x0E;
+
+/// Strongly one-sided / Left–Right family pieces excluded from file PST.
+pub fn is_file_pst_asymmetric(pt: PieceType) -> bool {
+    matches!(
+        pt,
+        PieceType::LeftArmy
+            | PieceType::RightArmy
+            | PieceType::LeftDog
+            | PieceType::RightDog
+            | PieceType::LeftDragon
+            | PieceType::RightDragon
+            | PieceType::LeftGeneral
+            | PieceType::RightGeneral
+            | PieceType::LeftHowlingDog
+            | PieceType::RightHowlingDog
+            | PieceType::LeftTiger
+            | PieceType::RightTiger
+            | PieceType::BlueDragon
+            | PieceType::DivineDragon
+    )
+}
+
+fn capability_wing_dirs(cap: &MovementCapability) -> u8 {
+    match cap {
+        MovementCapability::Simple { directions, .. }
+        | MovementCapability::Range { directions, .. }
+        | MovementCapability::ConditionalDiagonalJump { directions, .. } => *directions,
+        MovementCapability::TwoStep { first, second } => {
+            capability_wing_dirs(first) | capability_wing_dirs(second)
+        }
+        MovementCapability::FreeEagleMultiMove { .. } => 0xFF,
+        MovementCapability::Jumping { offsets } => {
+            let mut d = 0u8;
+            for &(df, _) in offsets {
+                if df > 0 {
+                    d |= FILE_PST_RIGHT_DIRS;
+                }
+                if df < 0 {
+                    d |= FILE_PST_LEFT_DIRS;
+                }
+            }
+            d
+        }
     }
-    let progress = match piece.color {
-        Color::Black => piece.position.rank as usize,
-        Color::White => (35 - piece.position.rank) as usize,
-    };
-    let table = if is_fast_piece(piece.piece_type) {
-        &weights.rank_factor_fast
-    } else {
-        &weights.rank_factor_slow
-    };
-    let f = table.get(progress).copied().unwrap_or(1.0);
-    v * f
+}
+
+/// True when the piece has at least one left-wing and one right-wing direction.
+pub fn has_both_wing_dirs(pt: PieceType) -> bool {
+    let cfg = MovementConfig::for_piece_type(pt);
+    let mut dirs = 0u8;
+    for cap in &cfg.capabilities {
+        dirs |= capability_wing_dirs(cap);
+    }
+    (dirs & FILE_PST_LEFT_DIRS) != 0 && (dirs & FILE_PST_RIGHT_DIRS) != 0
+}
+
+/// File-PST eligibility: not royal, not enumerated asymmetric, both wings present.
+pub fn uses_file_pst(pt: PieceType) -> bool {
+    !pt.is_royal() && !is_file_pst_asymmetric(pt) && has_both_wing_dirs(pt)
+}
+
+/// Horizontally symmetric file table: `lerp(center, edge, |file-17.5|/17.5)`.
+pub fn seed_file_factors(edge: f32, center: f32) -> [f32; 36] {
+    let mut factors = [1.0f32; 36];
+    for f in 0u8..36 {
+        let t = ((f as f32) - 17.5).abs() / 17.5;
+        factors[f as usize] = lerp(center, edge, t);
+    }
+    factors
+}
+
+fn seed_file_factors_vec() -> Vec<f32> {
+    seed_file_factors(1.0, 1.0).to_vec()
+}
+
+/// Material contribution for one piece including rank (+ optional file) PST.
+/// Royals and jump/capturing-range pieces skip rank PST (factor 1); file PST is separate.
+pub fn positional_piece_value(piece: &Piece, weights: &EvalWeights) -> f32 {
+    let mut score = material_piece_value(piece, weights);
+    if !piece.piece_type.is_royal() && !skips_rank_pst(piece.piece_type) {
+        let progress = match piece.color {
+            Color::Black => piece.position.rank as usize,
+            Color::White => (35 - piece.position.rank) as usize,
+        };
+        let table = if is_fast_piece(piece.piece_type) {
+            &weights.rank_factor_fast
+        } else {
+            &weights.rank_factor_slow
+        };
+        score *= table.get(progress).copied().unwrap_or(1.0);
+    }
+    if uses_file_pst(piece.piece_type) {
+        let file = piece.position.file as usize;
+        score *= weights.file_factor.get(file).copied().unwrap_or(1.0);
+    }
+    score
 }
 
 impl Default for EvalWeights {
@@ -1100,6 +1186,7 @@ impl EvalWeights {
             rank_factor: seed_rank_factors_fast_vec(),
             rank_factor_fast: seed_rank_factors_fast_vec(),
             rank_factor_slow: seed_rank_factors_slow_vec(),
+            file_factor: seed_file_factors_vec(),
             eg_tropism_scale: default_eg_tropism_scale(),
             eg_tropism_cap: default_eg_tropism_cap(),
             eg_density_n: default_eg_density_n(),
@@ -1561,7 +1648,7 @@ mod tests {
         assert_eq!(back.weights.advance, 0);
         assert_eq!(back.weights.undeveloped_home, 0);
         assert_eq!(back.weights.de_advance, 0);
-        assert!((back.weights.rank_factor_fast[0] - 0.5).abs() < 1e-3);
+        assert!((back.weights.rank_factor_fast[0] - 0.75).abs() < 1e-3);
         assert!((back.weights.rank_factor_fast[RANK_PAWN_START as usize] - 1.0).abs() < 1e-3);
         assert!((back.weights.rank_factor_fast[RANK_OPPONENT_HALF as usize] - 1.1).abs() < 1e-3);
         assert!((back.weights.rank_factor_fast[RANK_PST_PROMO as usize] - 1.2).abs() < 1e-3);
@@ -1606,13 +1693,65 @@ mod tests {
             Color::Black,
             Position::new(6, RANK_PST_PROMO).unwrap(),
         );
-        assert!((positional_piece_value(&back, &weights) - 0.5 * v).abs() < 1e-2);
+        assert!((positional_piece_value(&back, &weights) - 0.75 * v).abs() < 1e-2);
         assert!((positional_piece_value(&pawn_rank, &weights) - v).abs() < 1e-2);
         assert!((positional_piece_value(&promo, &weights) - 1.2 * v).abs() < 1e-2);
 
         let pv = weights.piece_value(PieceType::Pawn);
         let pawn_back = Piece::new(PieceType::Pawn, Color::Black, Position::new(6, 0).unwrap());
         assert!((positional_piece_value(&pawn_back, &weights) - 0.1 * pv).abs() < 1e-2);
+    }
+
+    #[test]
+    fn file_pst_eligibility_and_symmetry() {
+        assert!(!uses_file_pst(PieceType::King));
+        assert!(!uses_file_pst(PieceType::Pawn));
+        assert!(!uses_file_pst(PieceType::LeftDragon));
+        assert!(!uses_file_pst(PieceType::BlueDragon));
+        assert!(uses_file_pst(PieceType::GoldGeneral));
+        assert!(uses_file_pst(PieceType::Bishop));
+        assert!(uses_file_pst(PieceType::FreeKing));
+        assert!(uses_file_pst(PieceType::WindDragon));
+        assert!(uses_file_pst(PieceType::WhiteTiger));
+        assert!(uses_file_pst(PieceType::LeftChariot));
+        assert!(uses_file_pst(PieceType::LeftMountainEagle));
+        assert!(uses_file_pst(PieceType::RightMountainEagle));
+        assert!(is_file_pst_asymmetric(PieceType::LeftTiger));
+        assert!(!is_file_pst_asymmetric(PieceType::WindDragon));
+        assert!(!is_file_pst_asymmetric(PieceType::LeftMountainEagle));
+
+        let f = seed_file_factors(0.7, 1.5);
+        assert!((f[0] - 0.7).abs() < 1e-5);
+        assert!((f[35] - 0.7).abs() < 1e-5);
+        let mid_t = 0.5f32 / 17.5;
+        let mid_expect = 1.5 + mid_t * (0.7 - 1.5);
+        assert!((f[17] - mid_expect).abs() < 1e-5);
+        assert!((f[18] - mid_expect).abs() < 1e-5);
+        for i in 0..36 {
+            assert!((f[i] - f[35 - i]).abs() < 1e-6, "asymmetry at {i}");
+        }
+    }
+
+    #[test]
+    fn file_pst_multiplies_positional() {
+        let mut weights = EvalWeights::seed();
+        weights.file_factor = seed_file_factors(0.5, 2.0).to_vec();
+        let edge = Piece::new(
+            PieceType::GoldGeneral,
+            Color::Black,
+            Position::new(0, RANK_PAWN_START).unwrap(),
+        );
+        let near_center = Piece::new(
+            PieceType::GoldGeneral,
+            Color::Black,
+            Position::new(18, RANK_PAWN_START).unwrap(),
+        );
+        let base = weights.piece_value(PieceType::GoldGeneral);
+        let rank_f = weights.rank_factor_slow[RANK_PAWN_START as usize];
+        assert!((positional_piece_value(&edge, &weights) - base * rank_f * 0.5).abs() < 1e-2);
+        let expect_c = base * rank_f * weights.file_factor[18];
+        assert!((positional_piece_value(&near_center, &weights) - expect_c).abs() < 1e-2);
+        assert!(weights.file_factor[18] > 1.9);
     }
 
     #[test]

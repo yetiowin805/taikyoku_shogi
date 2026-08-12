@@ -33,6 +33,7 @@ data/run/**
 # Regenerable / local experiment checkpoints (keep models/ab-seed.json tracked)
 models/loud-grid/
 models/pst-grid/
+models/file-pst-grid/
 models/scale-sample/
 models/tourney/
 models/seed.json
