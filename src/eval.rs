@@ -1000,8 +1000,8 @@ fn default_royal_bonus_by_count() -> Vec<i32> {
 /// - ranks `[opp, promo)`: flat `1.0 + opp_half_frac·(promo_factor − 1.0)`
 /// - ranks `[promo, 35]`: flat `promo_factor`
 ///
-/// Seed defaults after pst-swiss winner P120H50B75: `back=0.75`, `opp_half_frac=0.5`
-/// (→ 110% when promo is 120%), `promo_factor=1.2`.
+/// Seed defaults after pst-swiss rerun nudge: `back=0.60`, `opp_half_frac=0.75`
+/// (→ 115% when promo is 120%), `promo_factor=1.2`.
 pub fn seed_rank_factors_fast_params(back: f32, opp_half_frac: f32, promo_factor: f32) -> [f32; 36] {
     let pawn = RANK_PAWN_START;
     let opp = RANK_OPPONENT_HALF;
@@ -1023,9 +1023,9 @@ pub fn seed_rank_factors_fast_params(back: f32, opp_half_frac: f32, promo_factor
     factors
 }
 
-/// Fast PST: 75% back → 100% pawn start → 100% to mid → 110% opponent half → 120% promo.
+/// Fast PST: 60% back → 100% pawn start → 100% to mid → 115% opponent half → 120% promo.
 pub fn seed_rank_factors_fast() -> [f32; 36] {
-    seed_rank_factors_fast_params(0.75, 0.5, 1.2)
+    seed_rank_factors_fast_params(0.60, 0.75, 1.2)
 }
 
 /// Slow PST: 10% back → 60% pawn start → 100% at opp half → 120% promo, then hold.
@@ -1648,9 +1648,9 @@ mod tests {
         assert_eq!(back.weights.advance, 0);
         assert_eq!(back.weights.undeveloped_home, 0);
         assert_eq!(back.weights.de_advance, 0);
-        assert!((back.weights.rank_factor_fast[0] - 0.75).abs() < 1e-3);
+        assert!((back.weights.rank_factor_fast[0] - 0.60).abs() < 1e-3);
         assert!((back.weights.rank_factor_fast[RANK_PAWN_START as usize] - 1.0).abs() < 1e-3);
-        assert!((back.weights.rank_factor_fast[RANK_OPPONENT_HALF as usize] - 1.1).abs() < 1e-3);
+        assert!((back.weights.rank_factor_fast[RANK_OPPONENT_HALF as usize] - 1.15).abs() < 1e-3);
         assert!((back.weights.rank_factor_fast[RANK_PST_PROMO as usize] - 1.2).abs() < 1e-3);
         assert!((back.weights.rank_factor_slow[0] - 0.1).abs() < 1e-3);
         assert!((back.weights.rank_factor_slow[RANK_PAWN_START as usize] - 0.6).abs() < 1e-3);
@@ -1693,7 +1693,7 @@ mod tests {
             Color::Black,
             Position::new(6, RANK_PST_PROMO).unwrap(),
         );
-        assert!((positional_piece_value(&back, &weights) - 0.75 * v).abs() < 1e-2);
+        assert!((positional_piece_value(&back, &weights) - 0.60 * v).abs() < 1e-2);
         assert!((positional_piece_value(&pawn_rank, &weights) - v).abs() < 1e-2);
         assert!((positional_piece_value(&promo, &weights) - 1.2 * v).abs() < 1e-2);
 
