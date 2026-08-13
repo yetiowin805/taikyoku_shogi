@@ -74,7 +74,7 @@ pub fn print_training_usage() {
     println!("  pst-grid [--seed PATH] [--out DIR]");
     println!("            (3×3×3 fast PST: promo P110/120/130 × opp-half H25/50/75 × back B25/50/75)");
     println!("  file-pst-grid [--seed PATH] [--out DIR]");
-    println!("            (5×3×3: file F×C × back B60/75/90 × tropism T10/15/20)");
+    println!("            (5×3×3: file F×C × back B50/60/75 × tropism T10/15/20)");
     println!("  texel-fit [--features DIR] [--out PATH] [--iters N] [--lr F] [--k F]");
     println!("            [--init seed|mobility|PATH] [--late-frac F] [--keep-draws]");
     println!("            [--no-log-space] [--no-lr-scale-k] [--no-renorm-pawn]");
@@ -989,7 +989,7 @@ pub fn cmd_pst_grid(args: &[String]) -> Result<(), String> {
     }
     let (man, grid) = run_pst_grid(&cfg)?;
     println!(
-        "Wrote {} entrants under {} (seed cell P120H50B75; sample opp_half={:.4})",
+        "Wrote {} entrants under {} (27 cells; sample opp_half={:.4})",
         man.entrants.len(),
         cfg.out_dir.display(),
         grid.cells
@@ -1017,7 +1017,7 @@ pub fn cmd_file_pst_grid(args: &[String]) -> Result<(), String> {
     }
     let (man, _grid) = run_file_pst_grid(&cfg)?;
     println!(
-        "Wrote {} entrants under {} (seed cell F100C100B75T15)",
+        "Wrote {} entrants under {} (seed cell F100C100B60T15)",
         man.entrants.len(),
         cfg.out_dir.display()
     );

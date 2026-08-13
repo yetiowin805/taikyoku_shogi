@@ -2,10 +2,10 @@
 //!
 //! Axes:
 //! - File F{edge}C{center}: even, 0.9↔1.1, 0.8↔1.2, 0.7↔1.5, 0.5↔2.0
-//! - Back B ∈ {60, 75, 90}% (fast rank PST back only; promo/opp-half stay seed)
+//! - Back B ∈ {50, 60, 75}% (fast rank PST back only; promo/opp-half stay seed)
 //! - Tropism T ∈ {10, 15, 20} → `eg_tropism_scale` 1.0 / 1.5 / 2.0
 //!
-//! Seed cell `F100C100B75T15` is a byte-copy of the seed.
+//! Seed cell `F100C100B60T15` is a byte-copy of the seed.
 
 use crate::eval::{
     seed_file_factors, seed_rank_factors_fast_params, EvalCheckpoint, EvalWeights,
@@ -26,8 +26,8 @@ pub const FILE_REGIMES: [(f32, f32); 5] = [
     (0.7, 1.5),
     (0.5, 2.0),
 ];
-/// Fast rank-PST back anchors (B60 / B75 / B90).
-pub const BACK_FACTORS: [f32; 3] = [0.60, 0.75, 0.90];
+/// Fast rank-PST back anchors (B50 / B60 / B75).
+pub const BACK_FACTORS: [f32; 3] = [0.50, 0.60, 0.75];
 /// `eg_tropism_scale` values (T10 / T15 / T20).
 pub const TROPISM_SCALES: [f32; 3] = [1.0, 1.5, 2.0];
 
@@ -90,7 +90,7 @@ pub fn apply_file_pst_cell(
 ) -> EvalWeights {
     let mut w = base.clone();
     w.file_factor = seed_file_factors(edge, center).to_vec();
-    let fast = seed_rank_factors_fast_params(back, 0.5, 1.2).to_vec();
+    let fast = seed_rank_factors_fast_params(back, 0.75, 1.2).to_vec();
     w.rank_factor_fast = fast.clone();
     w.rank_factor = fast;
     w.eg_tropism_scale = tropism_scale;
@@ -120,7 +120,7 @@ pub fn run_file_pst_grid(cfg: &FilePstGridConfig) -> Result<(TourneyManifest, Gr
                 let model_path = cfg.out_dir.join(format!("{id}.json"));
                 let is_seed_cell = (edge - 1.0).abs() < 1e-6
                     && (center - 1.0).abs() < 1e-6
-                    && (back - 0.75).abs() < 1e-6
+                    && (back - 0.60).abs() < 1e-6
                     && (trop - 1.5).abs() < 1e-6;
                 if is_seed_cell {
                     fs::copy(&cfg.seed_model, &model_path).map_err(|e| {
@@ -189,9 +189,9 @@ mod tests {
             }
         }
         assert_eq!(ids.len(), 45);
-        assert!(ids.contains(&"F100C100B75T15".to_string()));
-        assert!(ids.contains(&"F50C200B60T10".to_string()));
-        assert!(ids.contains(&"F70C150B90T20".to_string()));
+        assert!(ids.contains(&"F100C100B60T15".to_string()));
+        assert!(ids.contains(&"F50C200B50T10".to_string()));
+        assert!(ids.contains(&"F70C150B75T20".to_string()));
         assert_eq!(trop_tag(2.0), 20);
     }
 

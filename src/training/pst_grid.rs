@@ -6,7 +6,8 @@
 //!   (e.g. P130 H25 → opp plateau 107.5%)
 //! - Back B ∈ {25, 50, 75}% (linear to 100% at pawn start)
 //!
-//! Seed cell `P120H50B75` matches the baked fast PST and is a byte-copy of the seed.
+//! Seed cell is a byte-copy only when promo/H/B match the baked seed (currently
+//! P120H75B60, which is not a vertex of this 25/50/75 back grid).
 
 use crate::eval::{seed_rank_factors_fast_params, EvalCheckpoint, EvalWeights};
 use crate::training::tournament::{TourneyEntrant, TourneyManifest};
@@ -103,8 +104,8 @@ pub fn run_pst_grid(cfg: &PstGridConfig) -> Result<(TourneyManifest, GridFile), 
                 let id = cell_id(pct(promo), pct(h_frac), pct(back));
                 let model_path = cfg.out_dir.join(format!("{id}.json"));
                 let is_center = (promo - 1.2).abs() < 1e-6
-                    && (h_frac - 0.5).abs() < 1e-6
-                    && (back - 0.75).abs() < 1e-6;
+                    && (h_frac - 0.75).abs() < 1e-6
+                    && (back - 0.60).abs() < 1e-6;
                 if is_center {
                     fs::copy(&cfg.seed_model, &model_path).map_err(|e| {
                         format!(
@@ -163,7 +164,7 @@ mod tests {
 
     #[test]
     fn center_params_match_seed_fast_pst() {
-        let built = seed_rank_factors_fast_params(0.75, 0.5, 1.2);
+        let built = seed_rank_factors_fast_params(0.60, 0.75, 1.2);
         let seed = seed_rank_factors_fast();
         for i in 0..36 {
             assert!(
