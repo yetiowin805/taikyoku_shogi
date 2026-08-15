@@ -146,7 +146,11 @@ pub fn run_file_pst_grid(cfg: &FilePstGridConfig) -> Result<(TourneyManifest, Gr
                     back_factor: back,
                     eg_tropism_scale: trop,
                 });
-                entrants.push(TourneyEntrant { id, model });
+                entrants.push(TourneyEntrant {
+                    id,
+                    model,
+                    engine: None,
+                });
             }
         }
     }

@@ -34,6 +34,10 @@ data/run/**
 models/loud-grid/
 models/pst-grid/
 models/file-pst-grid/
+models/two-mob-grid/
+models/history/bin/
+models/history/models/
+.history-worktrees/
 models/scale-sample/
 models/tourney/
 models/seed.json

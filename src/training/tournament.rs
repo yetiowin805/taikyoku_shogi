@@ -21,7 +21,11 @@ pub const RD_PASSIVE_C: f64 = 15.0;
 /// Finished games between passive RD ticks for agents who sat those games out.
 pub const RD_PASSIVE_EVERY_N_GAMES: usize = 10;
 /// Prefer scheduling agents below this counted-game floor before elite pairing.
-pub const MINIMUM_GAMES: usize = 6;
+pub const MINIMUM_GAMES: usize = 4;
+/// After catch-up, always keep at least the top 2 by `r` in the pool
+/// (plus anyone still UCI-elite). Avoids falling back to the whole field when
+/// a runaway leader is the only agent with `r + RD + RD_leader > r_max`.
+pub const ELITE_POOL_MIN: usize = 2;
 pub const PAIRING_WINDOW: f64 = 200.0;
 pub const DEFAULT_GAMES_PER_PAIR: usize = 24;
 /// Legacy constant (Swiss is continuous; kept for CLI/script compat).
@@ -74,6 +78,9 @@ pub enum SlotStatus {
 pub struct TourneyEntrant {
     pub id: String,
     pub model: String,
+    /// Pinned historical binary; `None` = in-process current `ab`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub engine: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -470,7 +477,31 @@ fn next_slot_id(state: &TourneyState) -> usize {
     state.slots.iter().map(|s| s.id).max().map(|x| x + 1).unwrap_or(0)
 }
 
+fn rating_of_map(ratings: &BTreeMap<String, GlickoRating>, id: &str) -> f64 {
+    ratings.get(id).map(|g| g.r).unwrap_or(DEFAULT_RATING)
+}
+
+/// True when `agent` already has more than half its counted games vs `opponent`
+/// and has more than 4 games. Soft rematch cap.
+pub fn already_over_half_rematch(
+    state: &TourneyState,
+    games: &BTreeMap<String, usize>,
+    agent: &str,
+    opponent: &str,
+) -> bool {
+    let n = games.get(agent).copied().unwrap_or(0);
+    if n <= 4 {
+        return false;
+    }
+    let m = matchup_games(state, agent, opponent);
+    m * 2 > n
+}
+
 /// Pick continuous Swiss opponent pool for `a` among `candidates` (non-busy others).
+///
+/// Starts with the 200-point window. If that has fewer than 2 names and at least
+/// 2 candidates exist, expands by alternating the next unused higher/lower,
+/// starting with the closer side.
 pub fn opponent_pool(
     a: &str,
     candidates: &[String],
@@ -479,99 +510,60 @@ pub fn opponent_pool(
     if candidates.is_empty() {
         return Vec::new();
     }
-    let ra = ratings.get(a).map(|g| g.r).unwrap_or(DEFAULT_RATING);
-    let mut all_r: Vec<(String, f64)> = ratings
-        .iter()
-        .map(|(id, g)| (id.clone(), g.r))
-        .collect();
-    // Include candidates even if missing from ratings map.
-    for c in candidates {
-        if !all_r.iter().any(|(id, _)| id == c) {
-            all_r.push((c.clone(), DEFAULT_RATING));
-        }
-    }
-    let global_max = all_r
-        .iter()
-        .map(|(_, r)| *r)
-        .fold(f64::NEG_INFINITY, f64::max);
-    let global_min = all_r
-        .iter()
-        .map(|(_, r)| *r)
-        .fold(f64::INFINITY, f64::min);
-    let a_is_extreme = (ra - global_max).abs() < 1e-9 || (ra - global_min).abs() < 1e-9;
-
+    let ra = rating_of_map(ratings, a);
     let mut within: Vec<String> = candidates
         .iter()
-        .filter(|c| {
-            let rc = ratings.get(*c).map(|g| g.r).unwrap_or(DEFAULT_RATING);
-            (rc - ra).abs() <= PAIRING_WINDOW
-        })
+        .filter(|c| (rating_of_map(ratings, c) - ra).abs() <= PAIRING_WINDOW)
         .cloned()
         .collect();
-
-    if a_is_extreme {
-        if within.len() > 2 {
-            return within;
-        }
-        // Two closest by |r| (then id).
-        let mut ranked: Vec<(f64, String)> = candidates
-            .iter()
-            .map(|c| {
-                let rc = ratings.get(c).map(|g| g.r).unwrap_or(DEFAULT_RATING);
-                ((rc - ra).abs(), c.clone())
-            })
-            .collect();
-        ranked.sort_by(|x, y| {
-            x.0.partial_cmp(&y.0)
-                .unwrap_or(std::cmp::Ordering::Equal)
-                .then_with(|| x.1.cmp(&y.1))
-        });
-        return ranked.into_iter().take(2).map(|(_, id)| id).collect();
+    if within.len() >= 2 || candidates.len() < 2 {
+        return within;
     }
 
-    let has_stronger = within.iter().any(|c| {
-        ratings.get(c).map(|g| g.r).unwrap_or(DEFAULT_RATING) > ra + 1e-9
-    });
-    let has_weaker = within.iter().any(|c| {
-        ratings.get(c).map(|g| g.r).unwrap_or(DEFAULT_RATING) < ra - 1e-9
-    });
-    if !has_stronger {
-        if let Some(best) = candidates
-            .iter()
-            .filter(|c| ratings.get(*c).map(|g| g.r).unwrap_or(DEFAULT_RATING) > ra + 1e-9)
-            .min_by(|x, y| {
-                let rx = ratings.get(*x).map(|g| g.r).unwrap_or(DEFAULT_RATING);
-                let ry = ratings.get(*y).map(|g| g.r).unwrap_or(DEFAULT_RATING);
-                (rx - ra)
-                    .abs()
-                    .partial_cmp(&(ry - ra).abs())
-                    .unwrap_or(std::cmp::Ordering::Equal)
-                    .then_with(|| x.cmp(y))
-            })
-        {
-            if !within.contains(best) {
-                within.push(best.clone());
-            }
+    let used: HashSet<String> = within.iter().cloned().collect();
+    let mut higher: Vec<(f64, String)> = candidates
+        .iter()
+        .filter(|c| !used.contains(*c) && rating_of_map(ratings, c) > ra + 1e-9)
+        .map(|c| ((rating_of_map(ratings, c) - ra).abs(), c.clone()))
+        .collect();
+    let mut lower: Vec<(f64, String)> = candidates
+        .iter()
+        .filter(|c| !used.contains(*c) && rating_of_map(ratings, c) < ra - 1e-9)
+        .map(|c| ((rating_of_map(ratings, c) - ra).abs(), c.clone()))
+        .collect();
+    let by_dist = |x: &(f64, String), y: &(f64, String)| {
+        x.0.partial_cmp(&y.0)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| x.1.cmp(&y.1))
+    };
+    higher.sort_by(by_dist);
+    lower.sort_by(by_dist);
+
+    let mut hi = 0usize;
+    let mut lo = 0usize;
+    let mut take_higher = match (higher.first(), lower.first()) {
+        (Some(h), Some(l)) => {
+            h.0 < l.0 - 1e-12 || ((h.0 - l.0).abs() <= 1e-12 && h.1 <= l.1)
         }
-    }
-    if !has_weaker {
-        if let Some(best) = candidates
-            .iter()
-            .filter(|c| ratings.get(*c).map(|g| g.r).unwrap_or(DEFAULT_RATING) < ra - 1e-9)
-            .min_by(|x, y| {
-                let rx = ratings.get(*x).map(|g| g.r).unwrap_or(DEFAULT_RATING);
-                let ry = ratings.get(*y).map(|g| g.r).unwrap_or(DEFAULT_RATING);
-                (rx - ra)
-                    .abs()
-                    .partial_cmp(&(ry - ra).abs())
-                    .unwrap_or(std::cmp::Ordering::Equal)
-                    .then_with(|| x.cmp(y))
-            })
-        {
-            if !within.contains(best) {
-                within.push(best.clone());
-            }
+        (Some(_), None) => true,
+        (None, Some(_)) => false,
+        (None, None) => return within,
+    };
+    while within.len() < 2 && (hi < higher.len() || lo < lower.len()) {
+        if take_higher && hi < higher.len() {
+            within.push(higher[hi].1.clone());
+            hi += 1;
+        } else if !take_higher && lo < lower.len() {
+            within.push(lower[lo].1.clone());
+            lo += 1;
+        } else if hi < higher.len() {
+            within.push(higher[hi].1.clone());
+            hi += 1;
+        } else if lo < lower.len() {
+            within.push(lower[lo].1.clone());
+            lo += 1;
         }
+        take_higher = !take_higher;
     }
     within
 }
@@ -599,19 +591,63 @@ fn assign_a_is_black(state: &TourneyState, a: &str, b: &str, slot_id: usize) -> 
     (x >> 63) == 0
 }
 
-/// Schedule one continuous Swiss game. Returns false if no pair available.
-/// Upper-confidence elite: `r + 2·rd` strictly greater than the field's max `r`.
-pub fn elite_eligible(state: &TourneyState, id: &str, r_max: f64) -> bool {
-    let g = rating_of(state, id);
-    g.r + 2.0 * g.rd > r_max
-}
-
-pub fn field_max_rating(state: &TourneyState) -> f64 {
+/// Highest-`r` rating in the field (ties: lowest id).
+pub fn field_leader(state: &TourneyState) -> GlickoRating {
     state
         .entrants
         .iter()
-        .map(|e| rating_of(state, &e.id).r)
-        .fold(f64::NEG_INFINITY, f64::max)
+        .map(|e| (rating_of(state, &e.id), &e.id))
+        .max_by(|a, b| {
+            a.0.r
+                .partial_cmp(&b.0.r)
+                .unwrap_or(std::cmp::Ordering::Equal)
+                .then_with(|| b.1.cmp(a.1))
+        })
+        .map(|(g, _)| g)
+        .unwrap_or_default()
+}
+
+pub fn field_max_rating(state: &TourneyState) -> f64 {
+    field_leader(state).r
+}
+
+/// Upper-confidence elite vs the leader: `r + rd + rd_leader > r_leader`.
+/// Uses the sum of both RDs, not `2 · rd` of the candidate alone.
+pub fn elite_eligible(state: &TourneyState, id: &str) -> bool {
+    let g = rating_of(state, id);
+    let lead = field_leader(state);
+    g.r + g.rd + lead.rd > lead.r
+}
+
+/// Highest-`r` entrant ids, ties broken by id. `n` is clamped to the field size.
+pub fn top_rated_ids(state: &TourneyState, n: usize) -> BTreeSet<String> {
+    let mut rows: Vec<(f64, String)> = state
+        .entrants
+        .iter()
+        .map(|e| (rating_of(state, &e.id).r, e.id.clone()))
+        .collect();
+    rows.sort_by(|a, b| {
+        b.0.partial_cmp(&a.0)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| a.1.cmp(&b.1))
+    });
+    rows.into_iter().take(n).map(|(_, id)| id).collect()
+}
+
+/// Free agents who are UCI-elite or in the global top [`ELITE_POOL_MIN`] by `r`.
+/// Falls back to all `free` only if that set has fewer than 2 (avoids deadlock).
+pub fn swiss_pair_pool(state: &TourneyState, free: &[String]) -> Vec<String> {
+    let top = top_rated_ids(state, ELITE_POOL_MIN);
+    let pool: Vec<String> = free
+        .iter()
+        .filter(|id| elite_eligible(state, id) || top.contains(*id))
+        .cloned()
+        .collect();
+    if pool.len() >= 2 {
+        pool
+    } else {
+        free.to_vec()
+    }
 }
 
 /// Passive RD inflation for sit-outs (Glicko period decay shape).
@@ -681,18 +717,7 @@ pub fn schedule_one_swiss_game(state: &mut TourneyState) -> bool {
         .cloned()
         .collect();
 
-    let r_max = field_max_rating(state);
-    let elite: Vec<String> = free
-        .iter()
-        .filter(|id| elite_eligible(state, id, r_max))
-        .cloned()
-        .collect();
-    // Prefer the elite upper-confidence pool; fall back so Swiss never stalls.
-    let elite_or_free = if elite.len() >= 2 {
-        elite
-    } else {
-        free.clone()
-    };
+    let elite_or_free = swiss_pair_pool(state, &free);
 
     // Catch-up: get every agent to MINIMUM_GAMES before elite gating.
     let (a, b_candidates) = if under.len() >= 2 {
@@ -719,8 +744,18 @@ pub fn schedule_one_swiss_game(state: &mut TourneyState) -> bool {
         return false;
     }
 
+    let preferred: Vec<String> = pool
+        .iter()
+        .filter(|b| {
+            !already_over_half_rematch(state, &games, &a, b)
+                && !already_over_half_rematch(state, &games, b, &a)
+        })
+        .cloned()
+        .collect();
+    let pick_from = if preferred.is_empty() { &pool } else { &preferred };
+
     let ra = rating_of(state, &a).r;
-    let b = pool
+    let b = pick_from
         .iter()
         .min_by(|x, y| {
             let mx = matchup_games(state, &a, x);
@@ -913,20 +948,17 @@ pub fn standings_summary(state: &TourneyState) -> String {
     lines.join("\n")
 }
 
-fn model_path_for<'a>(state: &'a TourneyState, id: &str) -> Result<&'a str, String> {
-    state
+fn agent_for(state: &TourneyState, id: &str, depth: u32) -> Result<AgentSpec, String> {
+    let e = state
         .entrants
         .iter()
         .find(|e| e.id == id)
-        .map(|e| e.model.as_str())
-        .ok_or_else(|| format!("unknown entrant {id}"))
-}
-
-fn agent_for(state: &TourneyState, id: &str, depth: u32) -> Result<AgentSpec, String> {
+        .ok_or_else(|| format!("unknown entrant {id}"))?;
     let mut a = AgentSpec::new("ab");
     a.depth = Some(depth);
     a.max_time_ms = state.max_time_ms;
-    a.model = Some(model_path_for(state, id)?.to_string());
+    a.model = Some(e.model.clone());
+    a.engine = e.engine.clone();
     Ok(a)
 }
 
@@ -1260,6 +1292,7 @@ mod tests {
             .map(|i| TourneyEntrant {
                 id: format!("p{i}"),
                 model: format!("p{i}.json"),
+                engine: None,
             })
             .collect()
     }
@@ -1466,7 +1499,7 @@ mod tests {
     }
 
     #[test]
-    fn opponent_pool_pads_missing_direction() {
+    fn opponent_pool_expands_to_two_closer_side_first() {
         let mut ratings = BTreeMap::new();
         ratings.insert("a".into(), GlickoRating { r: 1500.0, rd: 100.0 });
         ratings.insert("strong".into(), GlickoRating { r: 1800.0, rd: 100.0 });
@@ -1474,32 +1507,92 @@ mod tests {
         ratings.insert("near".into(), GlickoRating { r: 1510.0, rd: 100.0 });
         let cands = vec!["strong".into(), "weak".into(), "near".into()];
         let pool = opponent_pool("a", &cands, &ratings);
-        // ±200 has near (stronger); no weaker inside window → pad closest weaker.
+        // Window has only `near`; expand with closer unused side (tie 300 → id `strong`).
+        assert_eq!(pool.len(), 2);
         assert!(pool.contains(&"near".to_string()));
-        assert!(pool.contains(&"weak".to_string()));
-        assert!(!pool.contains(&"strong".to_string()));
+        assert!(pool.contains(&"strong".to_string()));
+        assert!(!pool.contains(&"weak".to_string()));
 
-        // Only peers below A inside the window → pad closest stronger.
         let cands2 = vec!["strong".into(), "weak_near".into()];
         ratings.insert("weak_near".into(), GlickoRating { r: 1490.0, rd: 100.0 });
         let pool2 = opponent_pool("a", &cands2, &ratings);
+        assert_eq!(pool2.len(), 2);
         assert!(pool2.contains(&"weak_near".to_string()));
         assert!(pool2.contains(&"strong".to_string()));
     }
 
     #[test]
-    fn opponent_pool_extreme_uses_two_closest_when_sparse() {
+    fn opponent_pool_empty_window_still_has_two() {
+        let mut ratings = BTreeMap::new();
+        ratings.insert("a".into(), GlickoRating { r: 1500.0, rd: 80.0 });
+        ratings.insert("hi".into(), GlickoRating { r: 1900.0, rd: 80.0 });
+        ratings.insert("lo".into(), GlickoRating { r: 1100.0, rd: 80.0 });
+        let cands = vec!["hi".into(), "lo".into()];
+        let pool = opponent_pool("a", &cands, &ratings);
+        assert_eq!(pool.len(), 2);
+        assert!(pool.contains(&"hi".to_string()));
+        assert!(pool.contains(&"lo".to_string()));
+    }
+
+    #[test]
+    fn opponent_pool_leader_takes_next_two_lower() {
         let mut ratings = BTreeMap::new();
         ratings.insert("top".into(), GlickoRating { r: 2000.0, rd: 80.0 });
         ratings.insert("b".into(), GlickoRating { r: 1700.0, rd: 80.0 });
         ratings.insert("c".into(), GlickoRating { r: 1600.0, rd: 80.0 });
         ratings.insert("d".into(), GlickoRating { r: 1000.0, rd: 80.0 });
         let cands = vec!["b".into(), "c".into(), "d".into()];
-        // Only b within 200 of top; extreme → two closest = b, c.
         let pool = opponent_pool("top", &cands, &ratings);
         assert_eq!(pool.len(), 2);
         assert!(pool.contains(&"b".to_string()));
         assert!(pool.contains(&"c".to_string()));
+    }
+
+    #[test]
+    fn tourney_entrant_engine_field_round_trips() {
+        let e = TourneyEntrant {
+            id: "LOGIC_H105".into(),
+            model: "models/history/models/LOGIC_H105.json".into(),
+            engine: Some("models/history/bin/LOGIC_H105".into()),
+        };
+        let text = serde_json::to_string(&e).unwrap();
+        let back: TourneyEntrant = serde_json::from_str(&text).unwrap();
+        assert_eq!(back.engine.as_deref(), Some("models/history/bin/LOGIC_H105"));
+        let plain: TourneyEntrant = serde_json::from_str(r#"{"id":"SEED","model":"x.json"}"#).unwrap();
+        assert!(plain.engine.is_none());
+    }
+
+    #[test]
+    fn rematch_cap_skips_over_half_after_four_games() {
+        let mut st = build_schedule(&TourneyConfig {
+            entrants: entrants(3),
+            format: TourneyFormat::Swiss,
+            seed_base: 1,
+            ..TourneyConfig::default()
+        });
+        for id in ["p0", "p1", "p2"] {
+            st.ratings.insert(
+                id.into(),
+                GlickoRating {
+                    r: 1600.0,
+                    rd: 40.0,
+                },
+            );
+        }
+        give_min_games(&mut st, "p0", "p1", 5);
+        give_min_games(&mut st, "p2", "p1", MINIMUM_GAMES);
+        assert!(already_over_half_rematch(
+            &st,
+            &games_counted(&st),
+            "p0",
+            "p1"
+        ));
+        assert!(schedule_one_swiss_game(&mut st));
+        let last = st.slots.last().unwrap();
+        let pair = [&last.model_a, &last.model_b];
+        assert!(pair.contains(&&"p0".to_string()));
+        assert!(pair.contains(&&"p2".to_string()));
+        assert!(!pair.contains(&&"p1".to_string()));
     }
 
     #[test]
@@ -1551,66 +1644,12 @@ mod tests {
         assert!((st.ratings["p0"].rd - DEFAULT_RD).abs() < 1e-9);
     }
 
-    #[test]
-    fn elite_pool_excludes_low_uci_agents() {
-        let mut st = build_schedule(&TourneyConfig {
-            entrants: entrants(4),
-            format: TourneyFormat::Swiss,
-            seed_base: 1,
-            ..TourneyConfig::default()
-        });
-        // Leader firmly ahead; weak agents with tight RD fall out of r+2rd > r_max.
-        st.ratings.insert(
-            "p0".into(),
-            GlickoRating {
-                r: 1900.0,
-                rd: 40.0,
-            },
-        );
-        st.ratings.insert(
-            "p1".into(),
-            GlickoRating {
-                r: 1850.0,
-                rd: 40.0,
-            },
-        );
-        st.ratings.insert(
-            "p2".into(),
-            GlickoRating {
-                r: 1500.0,
-                rd: 50.0,
-            },
-        );
-        st.ratings.insert(
-            "p3".into(),
-            GlickoRating {
-                r: 1700.0,
-                rd: 120.0,
-            },
-        );
-        // Clear MINIMUM_GAMES catch-up so elite gating is what we test.
-        for (a, b) in [("p0", "p1"), ("p2", "p3")] {
-            for _ in 0..MINIMUM_GAMES {
-                st.slots.push(TourneySlot {
-                    id: next_slot_id(&st),
-                    model_a: a.into(),
-                    model_b: b.into(),
-                    start_seed: 0,
-                    a_is_black: true,
-                    status: SlotStatus::Done,
-                    game_path: None,
-                    score_a: Some(1.0),
-                    round: 0,
-                    start_mode: SlotStartMode::Opening,
-                });
-            }
-        }
-        // Extra games for p0/p1 so A is the least-played elite (p3).
-        for _ in 0..2 {
+    fn give_min_games(st: &mut TourneyState, a: &str, b: &str, n: usize) {
+        for _ in 0..n {
             st.slots.push(TourneySlot {
-                id: next_slot_id(&st),
-                model_a: "p0".into(),
-                model_b: "p1".into(),
+                id: next_slot_id(st),
+                model_a: a.into(),
+                model_b: b.into(),
                 start_seed: 0,
                 a_is_black: true,
                 status: SlotStatus::Done,
@@ -1620,16 +1659,84 @@ mod tests {
                 start_mode: SlotStartMode::Opening,
             });
         }
-        let r_max = field_max_rating(&st);
-        assert!(elite_eligible(&st, "p0", r_max));
-        assert!(elite_eligible(&st, "p1", r_max));
-        assert!(!elite_eligible(&st, "p2", r_max)); // 1500+100 = 1600 ≤ 1900
-        assert!(elite_eligible(&st, "p3", r_max)); // 1700+240 = 1940 > 1900
+    }
+
+    #[test]
+    fn elite_pool_excludes_low_uci_agents() {
+        let mut st = build_schedule(&TourneyConfig {
+            entrants: entrants(10),
+            format: TourneyFormat::Swiss,
+            seed_base: 1,
+            ..TourneyConfig::default()
+        });
+        // p0 leader; p2/p9 are 9th/10th by r and fail UCI; p3 is UCI via large RD.
+        let rs = [
+            1900.0, 1850.0, 1500.0, 1700.0, 1650.0, 1640.0, 1630.0, 1620.0, 1610.0, 1400.0,
+        ];
+        let rds = [40.0, 40.0, 50.0, 220.0, 40.0, 40.0, 40.0, 40.0, 40.0, 40.0];
+        for i in 0..10 {
+            st.ratings.insert(
+                format!("p{i}"),
+                GlickoRating {
+                    r: rs[i],
+                    rd: rds[i],
+                },
+            );
+        }
+        for i in 0..5 {
+            give_min_games(&mut st, &format!("p{}", i * 2), &format!("p{}", i * 2 + 1), MINIMUM_GAMES);
+        }
+        give_min_games(&mut st, "p0", "p1", 2);
+        assert!(elite_eligible(&st, "p0"));
+        assert!(elite_eligible(&st, "p1")); // 1850+40+40 > 1900
+        assert!(!elite_eligible(&st, "p2")); // 1500+50+40 ≤ 1900
+        assert!(elite_eligible(&st, "p3")); // 1700+220+40 > 1900
+        let top = top_rated_ids(&st, ELITE_POOL_MIN);
+        assert!(top.contains("p0") && top.contains("p1"));
+        assert!(!top.contains("p2") && !top.contains("p8"));
         assert!(schedule_one_swiss_game(&mut st));
         let last = st.slots.last().unwrap();
         let pair = [&last.model_a, &last.model_b];
-        assert!(pair.contains(&&"p3".to_string()));
         assert!(!pair.contains(&&"p2".to_string()));
+        assert!(!pair.contains(&&"p9".to_string()));
+    }
+
+    #[test]
+    fn top2_floor_used_when_uci_elite_is_singleton() {
+        let mut st = build_schedule(&TourneyConfig {
+            entrants: entrants(10),
+            format: TourneyFormat::Swiss,
+            seed_base: 1,
+            ..TourneyConfig::default()
+        });
+        // Runaway leader: only p0 is UCI-elite. Pool must still be the top 2 by r.
+        let rs = [
+            2400.0, 2200.0, 2150.0, 2100.0, 2050.0, 2000.0, 1950.0, 1900.0, 1700.0, 1600.0,
+        ];
+        for i in 0..10 {
+            st.ratings.insert(
+                format!("p{i}"),
+                GlickoRating {
+                    r: rs[i],
+                    rd: 40.0,
+                },
+            );
+        }
+        for i in 0..5 {
+            give_min_games(&mut st, &format!("p{}", i * 2), &format!("p{}", i * 2 + 1), MINIMUM_GAMES);
+        }
+        assert!(elite_eligible(&st, "p0"));
+        assert!(!elite_eligible(&st, "p1")); // 2200+40+40 ≤ 2400
+        let free: Vec<String> = (0..10).map(|i| format!("p{i}")).collect();
+        let pool = swiss_pair_pool(&st, &free);
+        assert_eq!(pool.len(), ELITE_POOL_MIN);
+        assert!(pool.contains(&"p0".to_string()) && pool.contains(&"p1".to_string()));
+        assert!(!pool.contains(&"p2".to_string()) && !pool.contains(&"p9".to_string()));
+        assert!(schedule_one_swiss_game(&mut st));
+        let last = st.slots.last().unwrap();
+        let pair = [&last.model_a, &last.model_b];
+        assert!(!pair.contains(&&"p2".to_string()));
+        assert!(!pair.contains(&&"p9".to_string()));
     }
 
     #[test]

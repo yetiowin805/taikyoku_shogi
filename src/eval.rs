@@ -2,7 +2,9 @@
 
 use crate::board::Board;
 use crate::game_state::GameState;
-use crate::movement::{BlockingMode, MovementCapability, MovementConfig};
+use crate::movement::{
+    BlockingMode, MovementCapability, MovementConfig, MovementGenerator,
+};
 use crate::piece::{Color, Piece, PieceType};
 use crate::position::Position;
 use serde::{Deserialize, Serialize};
@@ -441,6 +443,68 @@ fn capability_material_value(cap: &MovementCapability) -> f32 {
 
 fn is_range_capability(cap: &MovementCapability) -> bool {
     matches!(cap, MovementCapability::Range { .. })
+}
+
+/// First-leg empty+enemy landings for a range two-mover (0 otherwise).
+pub fn first_leg_landing_count(piece: &Piece, board: &Board) -> u32 {
+    if !is_range_two_mover(piece.piece_type) {
+        return 0;
+    }
+    let cfg = MovementConfig::for_piece_type(piece.piece_type);
+    for cap in &cfg.capabilities {
+        if let MovementCapability::TwoStep { first, second } = cap {
+            if is_range_capability(first) && is_range_capability(second) {
+                return MovementGenerator::capability_landings(piece, board, first).len() as u32;
+            }
+        }
+    }
+    0
+}
+
+fn two_mover_mob_curve(m: f32, curve: u8) -> f32 {
+    match curve {
+        1 => m.sqrt(),
+        2 => m / (m + 10.0),
+        _ => m,
+    }
+}
+
+fn two_mover_mob_apply(piece: &Piece, weights: &EvalWeights) -> f32 {
+    match weights.two_mover_mob_apply {
+        1 => {
+            let progress = match piece.color {
+                Color::Black => piece.position.rank as usize,
+                Color::White => (35 - piece.position.rank) as usize,
+            };
+            weights
+                .rank_factor_fast
+                .get(progress)
+                .copied()
+                .unwrap_or(1.0)
+        }
+        2 => weights
+            .file_factor
+            .get(piece.position.file as usize)
+            .copied()
+            .unwrap_or(1.0),
+        _ => 1.0,
+    }
+}
+
+fn two_mover_mobility_of(pieces: &[Piece], board: &Board, weights: &EvalWeights) -> f32 {
+    if weights.two_mover_mob_k == 0.0 {
+        return 0.0;
+    }
+    let mut s = 0.0f32;
+    for p in pieces {
+        if !is_range_two_mover(p.piece_type) {
+            continue;
+        }
+        let m = first_leg_landing_count(p, board) as f32;
+        s += weights.two_mover_mob_k * two_mover_mob_curve(m, weights.two_mover_mob_curve)
+            * two_mover_mob_apply(p, weights);
+    }
+    s
 }
 
 /// True when the piece has a TwoStep whose both legs are range slides (Tengu family).
@@ -884,7 +948,7 @@ fn default_eg_tropism_d_ref() -> f32 {
 }
 /// Top-k tropism scale: ~+σ eval per short Chebyshev step among the closest k.
 fn default_eg_tropism_scale() -> f32 {
-    1.5
+    1.2
 }
 /// Absolute clamp on tropism contribution (0 = uncapped).
 fn default_eg_tropism_cap() -> f32 {
@@ -970,6 +1034,15 @@ pub struct EvalWeights {
     /// Tropism scale for pieces outside the top-k set.
     #[serde(default = "default_eg_tropism_tail_scale")]
     pub eg_tropism_tail_scale: f32,
+    /// First-leg mobility scale for range two-movers (0 = off).
+    #[serde(default)]
+    pub two_mover_mob_k: f32,
+    /// 0 linear `m`, 1 `sqrt(m)`, 2 `m/(m+10)`.
+    #[serde(default)]
+    pub two_mover_mob_curve: u8,
+    /// 0 raw, 1 `× rank_factor_fast[progress]`, 2 `× file_factor[file]`.
+    #[serde(default)]
+    pub two_mover_mob_apply: u8,
     /// Max absolute noise contribution (deterministic).
     pub noise_scale: f64,
     pub mate_score: i32,
@@ -1000,7 +1073,7 @@ fn default_royal_bonus_by_count() -> Vec<i32> {
 /// - ranks `[opp, promo)`: flat `1.0 + opp_half_frac·(promo_factor − 1.0)`
 /// - ranks `[promo, 35]`: flat `promo_factor`
 ///
-/// Seed defaults after pst-swiss rerun nudge: `back=0.60`, `opp_half_frac=0.75`
+/// Seed defaults after file-PST Swiss: `back=0.65`, `opp_half_frac=0.75`
 /// (→ 115% when promo is 120%), `promo_factor=1.2`.
 pub fn seed_rank_factors_fast_params(back: f32, opp_half_frac: f32, promo_factor: f32) -> [f32; 36] {
     let pawn = RANK_PAWN_START;
@@ -1023,9 +1096,9 @@ pub fn seed_rank_factors_fast_params(back: f32, opp_half_frac: f32, promo_factor
     factors
 }
 
-/// Fast PST: 60% back → 100% pawn start → 100% to mid → 115% opponent half → 120% promo.
+/// Fast PST: 65% back → 100% pawn start → 100% to mid → 115% opponent half → 120% promo.
 pub fn seed_rank_factors_fast() -> [f32; 36] {
-    seed_rank_factors_fast_params(0.60, 0.75, 1.2)
+    seed_rank_factors_fast_params(0.65, 0.75, 1.2)
 }
 
 /// Slow PST: 10% back → 60% pawn start → 100% at opp half → 120% promo, then hold.
@@ -1196,6 +1269,9 @@ impl EvalWeights {
             eg_tropism_range_scale: default_eg_tropism_range_scale(),
             eg_tropism_topk: default_eg_tropism_topk(),
             eg_tropism_tail_scale: default_eg_tropism_tail_scale(),
+            two_mover_mob_k: 0.0,
+            two_mover_mob_curve: 0,
+            two_mover_mob_apply: 0,
             noise_scale: 1.0,
             mate_score: 1_000_000,
             weight_seed: 0xA11B_E7A1,
@@ -1347,6 +1423,9 @@ pub fn evaluate_absolute_black(board: &Board, weights: &EvalWeights, ply: usize)
 
     score += advance_positional(black, Color::Black, weights) as f32;
     score -= advance_positional(white, Color::White, weights) as f32;
+
+    score += two_mover_mobility_of(black, board, weights);
+    score -= two_mover_mobility_of(white, board, weights);
 
     score.round() as i32 + noise_component(board, weights, ply)
 }
@@ -1648,7 +1727,7 @@ mod tests {
         assert_eq!(back.weights.advance, 0);
         assert_eq!(back.weights.undeveloped_home, 0);
         assert_eq!(back.weights.de_advance, 0);
-        assert!((back.weights.rank_factor_fast[0] - 0.60).abs() < 1e-3);
+        assert!((back.weights.rank_factor_fast[0] - 0.65).abs() < 1e-3);
         assert!((back.weights.rank_factor_fast[RANK_PAWN_START as usize] - 1.0).abs() < 1e-3);
         assert!((back.weights.rank_factor_fast[RANK_OPPONENT_HALF as usize] - 1.15).abs() < 1e-3);
         assert!((back.weights.rank_factor_fast[RANK_PST_PROMO as usize] - 1.2).abs() < 1e-3);
@@ -1659,7 +1738,8 @@ mod tests {
         assert_eq!(back.weights.royal_bonus(1), 0);
         assert_eq!(back.weights.royal_bonus(2), 100);
         assert_eq!(back.weights.royal_bonus(3), 110);
-        assert!((back.weights.eg_tropism_scale - 1.5).abs() < 1e-6);
+        assert!((back.weights.eg_tropism_scale - 1.2).abs() < 1e-6);
+        assert!((back.weights.two_mover_mob_k - 0.0).abs() < 1e-6);
         assert!((back.weights.eg_tropism_cap - 0.0).abs() < 1e-6);
         assert!((back.weights.eg_density_n - 20.0).abs() < 1e-6);
         assert!((back.weights.eg_tropism_d_ref - 18.0).abs() < 1e-6);
@@ -1693,7 +1773,7 @@ mod tests {
             Color::Black,
             Position::new(6, RANK_PST_PROMO).unwrap(),
         );
-        assert!((positional_piece_value(&back, &weights) - 0.60 * v).abs() < 1e-2);
+        assert!((positional_piece_value(&back, &weights) - 0.65 * v).abs() < 1e-2);
         assert!((positional_piece_value(&pawn_rank, &weights) - v).abs() < 1e-2);
         assert!((positional_piece_value(&promo, &weights) - 1.2 * v).abs() < 1e-2);
 
@@ -2321,5 +2401,116 @@ mod tests {
             (t_depleted - t_fat).abs() < 1e-3,
             "gate-on at d_ref must not create tropism windfall: depleted={t_depleted} fat={t_fat}"
         );
+    }
+
+    fn kings_and(piece: Piece) -> Board {
+        let mut b = Board::new();
+        b.place_piece(Piece::new(
+            PieceType::King,
+            Color::Black,
+            Position::new(0, 0).unwrap(),
+        ));
+        b.place_piece(Piece::new(
+            PieceType::King,
+            Color::White,
+            Position::new(35, 35).unwrap(),
+        ));
+        b.place_piece(piece);
+        b
+    }
+
+    #[test]
+    fn first_leg_count_hook_tengu_not_gold() {
+        let open_hook = kings_and(Piece::new(
+            PieceType::HookMover,
+            Color::Black,
+            Position::new(18, 18).unwrap(),
+        ));
+        let hook = open_hook
+            .pieces_by_color(Color::Black)
+            .iter()
+            .find(|p| p.piece_type == PieceType::HookMover)
+            .copied()
+            .unwrap();
+        let open_n = first_leg_landing_count(&hook, &open_hook);
+        assert!(open_n > 10, "open Hook first-leg should be many, got {open_n}");
+
+        let mut boxed = open_hook.clone();
+        for (df, dr) in [(0i8, 1), (0, -1), (1, 0), (-1, 0)] {
+            let pos = Position::new((18 + df) as u8, (18 + dr) as u8).unwrap();
+            boxed.place_piece(Piece::new(PieceType::Pawn, Color::Black, pos));
+        }
+        let boxed_n = first_leg_landing_count(&hook, &boxed);
+        assert!(boxed_n <= 2, "boxed Hook first-leg should be 0–2, got {boxed_n}");
+
+        let tengu_board = kings_and(Piece::new(
+            PieceType::Tengu,
+            Color::Black,
+            Position::new(18, 18).unwrap(),
+        ));
+        let tengu = tengu_board
+            .pieces_by_color(Color::Black)
+            .iter()
+            .find(|p| p.piece_type == PieceType::Tengu)
+            .copied()
+            .unwrap();
+        assert!(first_leg_landing_count(&tengu, &tengu_board) > 0);
+
+        let gold_board = kings_and(Piece::new(
+            PieceType::GoldGeneral,
+            Color::Black,
+            Position::new(18, 18).unwrap(),
+        ));
+        let gold = gold_board
+            .pieces_by_color(Color::Black)
+            .iter()
+            .find(|p| p.piece_type == PieceType::GoldGeneral)
+            .copied()
+            .unwrap();
+        assert_eq!(first_leg_landing_count(&gold, &gold_board), 0);
+    }
+
+    #[test]
+    fn two_mover_mob_k0_matches_seed() {
+        let board = kings_and(Piece::new(
+            PieceType::HookMover,
+            Color::Black,
+            Position::new(18, 18).unwrap(),
+        ));
+        let seed = EvalWeights::seed();
+        let mut off = seed.clone();
+        off.two_mover_mob_k = 0.0;
+        off.two_mover_mob_curve = 1;
+        off.two_mover_mob_apply = 2;
+        assert_eq!(
+            evaluate_absolute_black(&board, &seed, 0),
+            evaluate_absolute_black(&board, &off, 0)
+        );
+    }
+
+    #[test]
+    fn two_mover_mob_linear_k100_per_landing() {
+        let open = kings_and(Piece::new(
+            PieceType::HookMover,
+            Color::Black,
+            Position::new(18, 18).unwrap(),
+        ));
+        let hook = open
+            .pieces_by_color(Color::Black)
+            .iter()
+            .find(|p| p.piece_type == PieceType::HookMover)
+            .copied()
+            .unwrap();
+        let m_open = first_leg_landing_count(&hook, &open) as i32;
+        assert!(m_open > 0);
+
+        let mut off = EvalWeights::seed();
+        off.noise_scale = 0.0;
+        let mut on = off.clone();
+        on.two_mover_mob_k = 100.0;
+        on.two_mover_mob_curve = 0;
+        on.two_mover_mob_apply = 0;
+        let d = evaluate_absolute_black(&open, &on, 0) - evaluate_absolute_black(&open, &off, 0);
+        assert_eq!(d, 100 * m_open);
     }
 }

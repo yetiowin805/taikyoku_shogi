@@ -1,0 +1,25 @@
+{
+  "weights": [
+    { "id": "BASE_PRELOUD", "git": "e08a736", "kind": "weights" },
+    { "id": "BASE_T150C50", "git": "0c0444d", "kind": "weights" },
+    { "id": "BASE_T150C120", "git": "080ab56", "kind": "weights" },
+    { "id": "BASE_H120O80", "git": "fae5573", "kind": "weights" },
+    { "id": "BASE_H105O105", "git": "12791cb", "kind": "weights" },
+    { "id": "BASE_P120H50B75", "git": "ef2e8a9", "kind": "weights" },
+    { "id": "BASE_P120H75B60", "git": "a439080", "kind": "weights" }
+  ],
+  "engines": [
+    {
+      "id": "LOGIC_TROPISM",
+      "git": "3a40f9b",
+      "kind": "logic",
+      "summary": "first tropism / king-pressure eval"
+    },
+    {
+      "id": "LOGIC_H105",
+      "git": "12791cb",
+      "kind": "logic",
+      "summary": "H105/O105 bake; last eval before file-PST code"
+    }
+  ]
+}

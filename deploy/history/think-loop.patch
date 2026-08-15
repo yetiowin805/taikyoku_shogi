@@ -1,0 +1,3 @@
+# I/O-only think-loop splice applied by deploy/freeze_history.sh.
+# The script copies src/think_loop.rs from the current tree and inserts
+# `pub mod think_loop;` plus a `think-loop` CLI arm. Do not change eval/search.
