@@ -22,6 +22,9 @@ pub struct AgentSpec {
     pub max_time_ms: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub quiescence_depth: Option<u32>,
+    /// Path to a pinned historical binary (`think-loop`). None = in-process.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub engine: Option<String>,
 }
 
 impl AgentSpec {
@@ -32,6 +35,7 @@ impl AgentSpec {
             model: None,
             max_time_ms: None,
             quiescence_depth: None,
+            engine: None,
         }
     }
 }

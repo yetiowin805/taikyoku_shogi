@@ -39,6 +39,16 @@ impl MovementGenerator {
         targets
     }
 
+    /// Landing squares for a single capability (empty + enemy). Used by eval
+    /// to count a two-mover's first-leg Range walk without the second scan.
+    pub fn capability_landings<B: BoardLike>(
+        piece: &Piece,
+        board: &B,
+        capability: &MovementCapability,
+    ) -> Vec<Position> {
+        Self::generate_for_capability(piece, board, capability, false)
+    }
+
     /// Directed probe: can `piece` reach `target` without materializing full fan-out.
     ///
     /// Simple / Range / Jumping walk only the relevant ray or offset. TwoStep,

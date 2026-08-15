@@ -73,6 +73,7 @@ fn print_usage() {
     println!("  cargo run -- position tsfen [--start opening|PATH]");
     println!("  cargo run -- position load-tsfen <TSFEN|startpos> [--out PATH]");
     println!("  cargo run -- game tsfen-moves <game.json>");
+    println!("  cargo run -- think-loop        - Persistent search I/O (position/go/bestmove)");
     println!("  cargo run --                   - Start UCI interface (stub)");
     println!();
     println!("  Env for ab: TAIKYOKU_AB_MODEL, TAIKYOKU_AB_DEPTH, TAIKYOKU_AB_TIME_MS");
@@ -200,6 +201,12 @@ fn main() {
                     print_usage();
                 }
             }
+            "two-mob-grid" => {
+                if let Err(e) = taikyoku_shogi::training::cli::cmd_two_mob_grid(&args) {
+                    eprintln!("{}", e);
+                    print_usage();
+                }
+            }
             "texel-fit" => {
                 if let Err(e) = taikyoku_shogi::training::cli::cmd_texel_fit(&args) {
                     eprintln!("{}", e);
@@ -217,6 +224,9 @@ fn main() {
                     eprintln!("{}", e);
                     std::process::exit(1);
                 }
+            }
+            "think-loop" => {
+                taikyoku_shogi::think_loop::run_think_loop();
             }
             "position" => {
                 if let Err(e) = cmd_position(&args) {

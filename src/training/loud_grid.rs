@@ -173,7 +173,11 @@ pub fn run_loud_grid(cfg: &LoudGridConfig) -> Result<(TourneyManifest, GridFile)
                     capricorn_mult: cm,
                     other_two_mover_mult: om,
                 });
-                entrants.push(TourneyEntrant { id, model });
+                entrants.push(TourneyEntrant {
+                    id,
+                    model,
+                    engine: None,
+                });
             }
         }
     }

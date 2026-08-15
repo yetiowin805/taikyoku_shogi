@@ -258,11 +258,13 @@ pub fn run_scale_sample(cfg: &ScaleSampleConfig) -> Result<(TourneyManifest, Sam
     let mut entrants = vec![TourneyEntrant {
         id: "seed".into(),
         model: seed_out.display().to_string(),
+        engine: None,
     }];
     for s in &samples {
         entrants.push(TourneyEntrant {
             id: s.id.clone(),
             model: s.model.clone(),
+            engine: None,
         });
     }
     let manifest = TourneyManifest { entrants };

@@ -68,6 +68,11 @@ fn agent_options(spec: &AgentSpec) -> AgentOptions {
 }
 
 fn make_player(spec: &AgentSpec) -> Result<Box<dyn Player>, String> {
+    if let Some(engine) = spec.engine.as_deref() {
+        return Ok(Box::new(crate::external_player::ExternalAbPlayer::spawn(
+            engine, spec,
+        )?));
+    }
     player_by_name_with_options(&spec.name, &agent_options(spec))
 }
 

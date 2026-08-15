@@ -120,7 +120,7 @@ Incomplete exits (stop file / aborted slots) now fail the tournament binary with
 
 ### Loud-grid continuous Glicko Swiss (preferred)
 
-3×3×3 material grid (Hook H ∈ {90,100,110}% × Capricorn C ∈ {80,100,120}% × other two-movers O ∈ {80,100,110}%; capturers stay at seed; center `H100C100O100` = seed). Continuous Swiss uses an elite pool (`r + 2·RD >` current max `r`), prioritizes agents below 6 counted games before elite gating, and inflates sit-out RD every 10 finished games. Prefer `--detach` (or the systemd unit) so SSH logout cannot kill the job.
+3×3×3 material grid (Hook H ∈ {90,100,110}% × Capricorn C ∈ {80,100,120}% × other two-movers O ∈ {80,100,110}%; capturers stay at seed; center `H100C100O100` = seed). Continuous Swiss uses an elite pool (`r + RD + RD_leader >` current max `r`, always including the top 2 by `r`), prioritizes agents below 4 counted games before elite gating, inflates sit-out RD every 10 finished games, keeps at least 2 rating-window opponents (expand by alternating higher/lower from the closer side), and after 4 games prefers not to rematch someone who already has more than half of an agent's games. Prefer `--detach` (or the systemd unit) so SSH logout cannot kill the job.
 
 **One-shot as root** (pulls `main`, builds with the `taikyoku` user’s cargo PATH, regenerates grid, starts 1s/move Swiss):
 
@@ -182,6 +182,16 @@ Or after a local release build:
 cd /opt/taikyoku_shogi
 ./deploy/pull_build_file_pst_swiss.sh
 tail -f data/run/file-pst-swiss.log
+```
+
+### Two-mover mobility Swiss
+
+27 C×K×A cells (curve Lin/Sqrt/Logi × k 40/100/200 × apply raw/rank/file) plus `SEED` (mobility off, B65/T12) and history `BASE_*` / `LOGIC_*` from [`models/history/manifest.json`](../models/history/manifest.json). Freeze pinned binaries first (`./deploy/freeze_history.sh`).
+
+```bash
+cd /opt/taikyoku_shogi
+./deploy/pull_build_two_mob_swiss.sh
+tail -f data/run/two-mob-swiss.log
 ```
 
 ### Scale-sample Swiss (legacy ±10% samples)

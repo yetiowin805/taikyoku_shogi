@@ -3,6 +3,7 @@
 pub mod cli;
 pub mod eval_trace;
 pub mod featurize;
+pub mod history;
 pub mod match_harness;
 pub mod mobility_seed;
 pub mod paths;
@@ -16,4 +17,5 @@ pub mod scale_sample;
 pub mod start_gen;
 pub mod texel;
 pub mod tournament;
+pub mod two_mob_grid;
 pub mod worker;
