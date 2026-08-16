@@ -12,6 +12,7 @@ thread_local! {
     static ATK_NS: Cell<u128> = const { Cell::new(0) };
     static MAKE_NS: Cell<u128> = const { Cell::new(0) };
     static ORDER_NS: Cell<u128> = const { Cell::new(0) };
+    static FILTER_NS: Cell<u128> = const { Cell::new(0) };
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -24,6 +25,7 @@ pub struct Report {
     pub atk_ns: u128,
     pub make_ns: u128,
     pub order_ns: u128,
+    pub filter_ns: u128,
 }
 
 pub fn reset() {
@@ -35,6 +37,7 @@ pub fn reset() {
     ATK_NS.with(|c| c.set(0));
     MAKE_NS.with(|c| c.set(0));
     ORDER_NS.with(|c| c.set(0));
+    FILTER_NS.with(|c| c.set(0));
 }
 
 pub fn report() -> Report {
@@ -47,6 +50,7 @@ pub fn report() -> Report {
         atk_ns: ATK_NS.with(|c| c.get()),
         make_ns: MAKE_NS.with(|c| c.get()),
         order_ns: ORDER_NS.with(|c| c.get()),
+        filter_ns: FILTER_NS.with(|c| c.get()),
     }
 }
 
@@ -84,6 +88,9 @@ fn add_make(ns: u128) {
 }
 fn add_order(ns: u128) {
     ORDER_NS.with(|c| c.set(c.get().saturating_add(ns)));
+}
+fn add_filter(ns: u128) {
+    FILTER_NS.with(|c| c.set(c.get().saturating_add(ns)));
 }
 
 pub fn eval_scope() -> Scope {
@@ -132,5 +139,11 @@ pub fn order_scope() -> Scope {
     Scope {
         start: Instant::now(),
         dest: add_order,
+    }
+}
+pub fn filter_scope() -> Scope {
+    Scope {
+        start: Instant::now(),
+        dest: add_filter,
     }
 }

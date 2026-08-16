@@ -1141,7 +1141,12 @@ pub(crate) fn generate_captures_hitting_square(state: &GameState, victim: Positi
     let board = state.get_board();
     let mut out = Vec::new();
     for piece in board.iter_pieces_by_color(us) {
-        if !crate::attack_utils::should_check_piece_for_target_position(&piece, victim, false) {
+        let consider = {
+            #[cfg(feature = "search-profile")]
+            let _filt = crate::profile_timers::filter_scope();
+            crate::attack_utils::should_check_piece_for_target_position(&piece, victim, false)
+        };
+        if !consider {
             continue;
         }
         if piece.piece_type == crate::piece::PieceType::FreeEagle {

@@ -1,6 +1,11 @@
 use crate::piece::{Piece, PieceType, Color};
 use crate::position::Position;
-use crate::movement::{MovementConfig, direction::{Direction, direction_set_contains}};
+use crate::movement::{
+    MovementConfig,
+    direction::{Direction, direction_set_contains},
+    types::MovementCapability,
+};
+use std::sync::OnceLock;
 
 /// Check if a piece is Tengu, promoted Peacock, promoted Capricorn, or promoted Old Kite
 pub fn is_tengu_or_promoted_peacock(piece: &Piece) -> bool {
@@ -178,6 +183,80 @@ pub fn has_only_capturing_range_movement(piece: &Piece) -> bool {
     has_capturing_range && !has_other_range
 }
 
+#[derive(Clone, Copy)]
+enum ReachClass {
+    /// Two-step / FE / jumps-plus-range / unknown: use the legacy 9x9 + ray tail.
+    Always,
+    /// No range caps; skip if Chebyshev > max Simple/Jumping reach.
+    Short(u8),
+    /// Has range; skip if not orthogonally/diagonally aligned.
+    Range,
+}
+
+const PIECE_TYPE_CACHE_LEN: usize = 303;
+
+fn reach_class_table() -> &'static [[ReachClass; 2]] {
+    static TABLE: OnceLock<Vec<[ReachClass; 2]>> = OnceLock::new();
+    TABLE.get_or_init(|| {
+        let mut t = vec![[ReachClass::Always; 2]; PIECE_TYPE_CACHE_LEN];
+        for &pt in crate::eval::ALL_PIECE_TYPES {
+            let idx = pt as usize;
+            if idx >= PIECE_TYPE_CACHE_LEN {
+                continue;
+            }
+            t[idx][0] = classify_capabilities(&MovementConfig::for_piece_type(pt).capabilities);
+            let promo = Piece::new(pt, Color::Black, Position::new(0, 0).unwrap());
+            let mut promo = promo;
+            promo.is_promoted = true;
+            t[idx][1] = classify_capabilities(&MovementConfig::for_piece(&promo).capabilities);
+        }
+        t
+    })
+}
+
+fn classify_capabilities(caps: &[MovementCapability]) -> ReachClass {
+    let mut always = false;
+    let mut has_range = false;
+    let mut has_jumping = false;
+    let mut short_max = 0u8;
+    for cap in caps {
+        match cap {
+            MovementCapability::TwoStep { .. }
+            | MovementCapability::ConditionalDiagonalJump { .. }
+            | MovementCapability::FreeEagleMultiMove { .. } => always = true,
+            MovementCapability::Range { .. } => has_range = true,
+            MovementCapability::Simple { max_distance, .. } => {
+                short_max = short_max.max(*max_distance);
+            }
+            MovementCapability::Jumping { offsets } => {
+                has_jumping = true;
+                for &(df, dr) in offsets {
+                    short_max = short_max.max(df.unsigned_abs().max(dr.unsigned_abs()));
+                }
+            }
+        }
+    }
+    if always || (has_range && has_jumping) {
+        ReachClass::Always
+    } else if has_range {
+        ReachClass::Range
+    } else {
+        ReachClass::Short(short_max)
+    }
+}
+
+fn reach_class_of(piece: &Piece) -> ReachClass {
+    // Whale / RainDragon promo variants and any base_type rewrite: don't guess.
+    if piece.base_piece_type.is_some() {
+        return ReachClass::Always;
+    }
+    let idx = piece.piece_type as usize;
+    reach_class_table()
+        .get(idx)
+        .map(|row| row[piece.is_promoted as usize])
+        .unwrap_or(ReachClass::Always)
+}
+
 /// Returns true if piece should be checked for attacking a specific target position
 /// Filters based on proximity to target position and movement capabilities
 /// 
@@ -219,6 +298,23 @@ pub fn should_check_piece_for_target_position(
         if is_cannon_soldier_in_forward_path(piece, target_position) {
             return true;
         }
+    }
+
+    let file_diff = (target_position.file as i8 - piece.position.file as i8).unsigned_abs();
+    let rank_diff = (target_position.rank as i8 - piece.position.rank as i8).unsigned_abs();
+    if file_diff == 0 && rank_diff == 0 {
+        return false;
+    }
+    let cheb = file_diff.max(rank_diff);
+
+    match reach_class_of(piece) {
+        ReachClass::Short(max) => return cheb <= max,
+        ReachClass::Range => {
+            if get_direction_toward(piece.position, target_position).is_none() {
+                return false;
+            }
+        }
+        ReachClass::Always => {}
     }
     
     // Check if piece is within 9x9 square of target position

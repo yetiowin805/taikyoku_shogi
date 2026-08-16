@@ -220,6 +220,30 @@ mod tests {
     }
 
     #[test]
+    fn should_check_covers_all_generated_landings_opening() {
+        let state = opening();
+        let board = state.get_board();
+        let mut n = 0u32;
+        for piece in board.iter_pieces_by_color(Color::Black) {
+            let config = MovementConfig::for_piece(&piece);
+            for target in MovementGenerator::generate_targets(&piece, board, &config.capabilities)
+            {
+                assert!(
+                    crate::attack_utils::should_check_piece_for_target_position(
+                        &piece, target, false
+                    ),
+                    "{:?} at {:?} can land on {:?} but should_check is false",
+                    piece.piece_type,
+                    piece.position,
+                    target
+                );
+                n += 1;
+            }
+        }
+        assert!(n > 100, "expected many landings, got {n}");
+    }
+
+    #[test]
     fn staged_gen_union_matches_all_on_opening() {
         let state = opening();
         let all = state.generate_legal_moves_mode(LegalMoveGen::All);

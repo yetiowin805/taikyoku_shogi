@@ -64,12 +64,13 @@ fn run(name: &str, state: &GameState, weights: &EvalWeights, depth: u32, time_ms
         };
         let accounted = p.eval_ns + p.gen_ns + p.atk_ns + p.make_ns + p.order_ns;
         println!(
-            "  profile eval={}% gen={}% (two_step={} std={} fe={}) attack={}% make={}% order={}% other≈{}%",
+            "  profile eval={}% gen={}% (two_step={} std={} fe={} filter={}) attack={}% make={}% order={}% other≈{}%",
             pct(p.eval_ns),
             pct(p.gen_ns),
             pct(p.two_step_ns),
             pct(p.standard_gen_ns),
             pct(p.fe_gen_ns),
+            pct(p.filter_ns),
             pct(p.atk_ns),
             pct(p.make_ns),
             pct(p.order_ns),
