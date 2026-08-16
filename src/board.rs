@@ -159,6 +159,8 @@ impl Board {
     /// Uses early termination and optimized functions for specialized pieces
     /// Returns true immediately when first attacker is found
     pub fn is_position_attacked_by_color(&self, position: Position, attacker_color: Color) -> bool {
+        #[cfg(feature = "search-profile")]
+        let _prof = crate::profile_timers::atk_scope();
         is_position_attacked_by_pieces(self, position, self.pieces_by_color(attacker_color), false)
     }
 

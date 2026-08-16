@@ -49,6 +49,17 @@ impl MovementGenerator {
         Self::generate_for_capability(piece, board, capability, false)
     }
 
+    /// Like [`capability_landings`], optionally restricted to capturing landings.
+    /// Does not sort/dedup (single capability).
+    pub fn capability_landings_filtered<B: BoardLike>(
+        piece: &Piece,
+        board: &B,
+        capability: &MovementCapability,
+        captures_only: bool,
+    ) -> Vec<Position> {
+        Self::generate_for_capability(piece, board, capability, captures_only)
+    }
+
     /// Directed probe: can `piece` reach `target` without materializing full fan-out.
     ///
     /// Simple / Range / Jumping walk only the relevant ray or offset. TwoStep,

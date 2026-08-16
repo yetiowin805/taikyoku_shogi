@@ -13,6 +13,8 @@ pub mod move_simulation;
 pub mod notation;
 pub mod parity;
 pub mod path_utils;
+#[cfg(feature = "search-profile")]
+pub mod profile_timers;
 pub mod piece;
 pub mod player;
 pub mod position;

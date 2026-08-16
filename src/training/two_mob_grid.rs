@@ -1,4 +1,7 @@
-//! 3×3×3 two-mover mobility grid (27 cells) plus SEED and history baselines.
+//! 3×3×2 two-mover mobility grid (18 cells) plus SEED and history baselines.
+//!
+//! File apply (A2) is omitted: the current seed's `file_factor` is flat 1.0, so
+//! A2 was a no-op vs A0.
 
 use crate::eval::{EvalCheckpoint, EvalWeights};
 use crate::training::history::{append_history_entrants, DEFAULT_MANIFEST};
@@ -12,7 +15,7 @@ pub const DEFAULT_SEED_MODEL: &str = "models/ab-seed.json";
 
 pub const CURVES: [u8; 3] = [0, 1, 2];
 pub const KS: [f32; 3] = [40.0, 100.0, 200.0];
-pub const APPLIES: [u8; 3] = [0, 1, 2];
+pub const APPLIES: [u8; 2] = [0, 1];
 
 #[derive(Debug, Clone)]
 pub struct TwoMobGridConfig {
@@ -71,8 +74,8 @@ pub fn run_two_mob_grid(cfg: &TwoMobGridConfig) -> Result<(TourneyManifest, Grid
     fs::create_dir_all(&cfg.out_dir)
         .map_err(|e| format!("create {}: {e}", cfg.out_dir.display()))?;
 
-    let mut cells = Vec::with_capacity(28);
-    let mut entrants = Vec::with_capacity(37);
+    let mut cells = Vec::with_capacity(19);
+    let mut entrants = Vec::with_capacity(29);
 
     let seed_id = "SEED";
     let seed_path = cfg.out_dir.join("SEED.json");
@@ -153,7 +156,7 @@ mod tests {
     use crate::eval::EvalWeights;
 
     #[test]
-    fn cell_ids_cover_27_plus_seed() {
+    fn cell_ids_cover_18_plus_seed() {
         let mut ids = vec!["SEED".to_string()];
         for &c in &CURVES {
             for &k in &KS {
@@ -162,10 +165,11 @@ mod tests {
                 }
             }
         }
-        assert_eq!(ids.len(), 28);
+        assert_eq!(ids.len(), 19);
         assert!(ids.contains(&"C0K100A0".to_string()));
-        assert!(ids.contains(&"C2K200A2".to_string()));
+        assert!(ids.contains(&"C2K200A1".to_string()));
         assert!(ids.contains(&"C1K40A1".to_string()));
+        assert!(!ids.iter().any(|id| id.ends_with("A2")));
     }
 
     #[test]
@@ -193,18 +197,20 @@ mod tests {
                 .unwrap();
         }
         let (man, grid) = run_two_mob_grid(&cfg).expect("grid");
-        assert_eq!(grid.cells.len(), 28);
+        assert_eq!(grid.cells.len(), 19);
         assert!(man.entrants.iter().any(|e| e.id == "SEED"));
         assert!(man.entrants.iter().any(|e| e.id == "C0K100A0"));
         assert!(man.entrants.iter().any(|e| e.id == "BASE_P120H75B60"));
         assert!(man.entrants.iter().any(|e| e.id == "BASE_H105O105"));
+        assert!(!man.entrants.iter().any(|e| e.id.ends_with("A2")));
         let logic = man
             .entrants
             .iter()
             .find(|e| e.id == "LOGIC_H105")
             .expect("LOGIC_H105");
         assert!(logic.engine.as_ref().unwrap().contains("LOGIC_H105"));
-        assert_eq!(man.entrants.len(), 37);
+        assert!(man.entrants.iter().any(|e| e.id == "LOGIC_B65T12"));
+        assert_eq!(man.entrants.len(), 29);
         let _ = fs::remove_dir_all(&tmp);
     }
 }

@@ -8,6 +8,7 @@ use crate::movement::{
 use crate::piece::{Color, Piece, PieceType};
 use crate::position::Position;
 use serde::{Deserialize, Serialize};
+use std::cell::Cell;
 use std::collections::HashMap;
 use std::fs;
 use std::hash::{Hash, Hasher};
@@ -389,23 +390,60 @@ pub fn seed_loud_capture_floor() -> f32 {
 /// Used by scale-sample free params and by search for "loud" promotions into
 /// these types (e.g. FreeKing→GreatGeneral).
 pub fn is_big_piece(pt: PieceType) -> bool {
-    if pt == PieceType::King {
-        return false;
-    }
-    let cfg = MovementConfig::for_piece_type(pt);
-    cfg.capabilities.iter().any(|cap| match cap {
-        MovementCapability::TwoStep { .. } | MovementCapability::FreeEagleMultiMove { .. } => true,
-        MovementCapability::Range {
-            blocking: BlockingMode::Capturing,
-            ..
-        } => true,
-        _ => false,
+    big_piece_table()
+        .get(pt as usize)
+        .copied()
+        .unwrap_or(false)
+}
+
+fn big_piece_table() -> &'static [bool] {
+    static TABLE: OnceLock<Vec<bool>> = OnceLock::new();
+    TABLE.get_or_init(|| {
+        let mut max_idx = 0usize;
+        for &pt in ALL_PIECE_TYPES {
+            max_idx = max_idx.max(pt as usize);
+        }
+        let mut t = vec![false; max_idx + 1];
+        for &pt in ALL_PIECE_TYPES {
+            if pt == PieceType::King {
+                continue;
+            }
+            let cfg = MovementConfig::for_piece_type(pt);
+            t[pt as usize] = cfg.capabilities.iter().any(|cap| match cap {
+                MovementCapability::TwoStep { .. }
+                | MovementCapability::FreeEagleMultiMove { .. } => true,
+                MovementCapability::Range {
+                    blocking: BlockingMode::Capturing,
+                    ..
+                } => true,
+                _ => false,
+            });
+        }
+        t
     })
 }
 
 /// True when promoting this type yields a [`is_big_piece`] result.
 pub fn promotes_into_big_piece(pt: PieceType) -> bool {
-    pt.promotes_to().is_some_and(is_big_piece)
+    promotes_into_big_piece_table()
+        .get(pt as usize)
+        .copied()
+        .unwrap_or(false)
+}
+
+fn promotes_into_big_piece_table() -> &'static [bool] {
+    static TABLE: OnceLock<Vec<bool>> = OnceLock::new();
+    TABLE.get_or_init(|| {
+        let mut max_idx = 0usize;
+        for &pt in ALL_PIECE_TYPES {
+            max_idx = max_idx.max(pt as usize);
+        }
+        let mut t = vec![false; max_idx + 1];
+        for &pt in ALL_PIECE_TYPES {
+            t[pt as usize] = pt.promotes_to().is_some_and(is_big_piece);
+        }
+        t
+    })
 }
 
 fn capability_material_value(cap: &MovementCapability) -> f32 {
@@ -1372,6 +1410,127 @@ fn chrono_like_now() -> String {
     format!("unix:{secs}")
 }
 
+thread_local! {
+    static SEARCH_WEIGHTS: Cell<*const EvalWeights> = const { Cell::new(std::ptr::null()) };
+}
+
+/// Restores the previous search-weight bind when dropped.
+pub struct SearchWeightsBind {
+    prev: *const EvalWeights,
+}
+
+impl Drop for SearchWeightsBind {
+    fn drop(&mut self) {
+        SEARCH_WEIGHTS.with(|c| c.set(self.prev));
+    }
+}
+
+/// Bind `weights` for search make/unmake incremental eval (TLS).
+pub fn bind_search_weights(weights: &EvalWeights) -> SearchWeightsBind {
+    SEARCH_WEIGHTS.with(|c| {
+        let prev = c.get();
+        c.set(weights as *const EvalWeights);
+        SearchWeightsBind { prev }
+    })
+}
+
+fn current_search_weights<'a>() -> Option<&'a EvalWeights> {
+    SEARCH_WEIGHTS.with(|c| {
+        let p = c.get();
+        if p.is_null() {
+            None
+        } else {
+            // Bound by [`bind_search_weights`]; only used inside that scope.
+            Some(unsafe { &*p })
+        }
+    })
+}
+
+fn color_idx(color: Color) -> usize {
+    match color {
+        Color::Black => 0,
+        Color::White => 1,
+    }
+}
+
+/// Running material + rank-PST + undeveloped + royal counts for search eval.
+#[derive(Debug, Clone, PartialEq)]
+pub struct EvalInc {
+    weight_seed: u64,
+    mat: [f32; 2],
+    pst: [f32; 2],
+    undev: [f32; 2],
+    royals: [u16; 2],
+    non_royals: [u16; 2],
+}
+
+impl EvalInc {
+    pub fn from_board(board: &Board, weights: &EvalWeights) -> Self {
+        let mut inc = Self {
+            weight_seed: weights.weight_seed,
+            mat: [0.0; 2],
+            pst: [0.0; 2],
+            undev: [0.0; 2],
+            royals: [0; 2],
+            non_royals: [0; 2],
+        };
+        for color in [Color::Black, Color::White] {
+            for p in board.pieces_by_color(color) {
+                inc.add(p, weights);
+            }
+        }
+        inc
+    }
+
+    pub fn matches(&self, weights: &EvalWeights) -> bool {
+        self.weight_seed == weights.weight_seed
+    }
+
+    fn add(&mut self, piece: &Piece, weights: &EvalWeights) {
+        let i = color_idx(piece.color);
+        self.mat[i] += material_piece_value(piece, weights);
+        self.pst[i] += rank_pst_excess(piece, weights);
+        self.undev[i] += undeveloped_penalty_for_piece(piece, weights);
+        if piece.piece_type.is_royal() {
+            self.royals[i] = self.royals[i].saturating_add(1);
+        } else {
+            self.non_royals[i] = self.non_royals[i].saturating_add(1);
+        }
+    }
+
+    fn sub(&mut self, piece: &Piece, weights: &EvalWeights) {
+        let i = color_idx(piece.color);
+        self.mat[i] -= material_piece_value(piece, weights);
+        self.pst[i] -= rank_pst_excess(piece, weights);
+        self.undev[i] -= undeveloped_penalty_for_piece(piece, weights);
+        if piece.piece_type.is_royal() {
+            self.royals[i] = self.royals[i].saturating_sub(1);
+        } else {
+            self.non_royals[i] = self.non_royals[i].saturating_sub(1);
+        }
+    }
+}
+
+/// Apply make-move deltas using the TLS search weights. Returns false if unbound.
+pub(crate) fn apply_search_make_eval_inc(
+    inc: &mut EvalInc,
+    original_mover: &Piece,
+    removed: &[(crate::position::Position, Piece)],
+    final_piece: Option<&Piece>,
+) -> bool {
+    let Some(weights) = current_search_weights() else {
+        return false;
+    };
+    inc.sub(original_mover, weights);
+    for (_pos, piece) in removed {
+        inc.sub(piece, weights);
+    }
+    if let Some(piece) = final_piece {
+        inc.add(piece, weights);
+    }
+    true
+}
+
 /// Evaluate `state` from the side-to-move's perspective (positive = good for STM).
 pub fn evaluate(state: &GameState, weights: &EvalWeights) -> i32 {
     evaluate_with_ply(state, weights, state.get_move_history().len())
@@ -1388,7 +1547,17 @@ pub fn evaluate_with_ply(state: &GameState, weights: &EvalWeights, ply: usize) -
         };
     }
 
-    let absolute_black = evaluate_absolute_black(state.get_board(), weights, ply);
+    #[cfg(feature = "search-profile")]
+    let _prof = crate::profile_timers::eval_scope();
+    let absolute_black = if let Some(inc) = state.eval_inc() {
+        if inc.matches(weights) {
+            evaluate_absolute_black_from_inc(state.get_board(), inc, weights, ply)
+        } else {
+            evaluate_absolute_black(state.get_board(), weights, ply)
+        }
+    } else {
+        evaluate_absolute_black(state.get_board(), weights, ply)
+    };
     if stm == Color::Black {
         absolute_black
     } else {
@@ -1426,6 +1595,89 @@ pub fn evaluate_absolute_black(board: &Board, weights: &EvalWeights, ply: usize)
 
     score += two_mover_mobility_of(black, board, weights);
     score -= two_mover_mobility_of(white, board, weights);
+
+    score.round() as i32 + noise_component(board, weights, ply)
+}
+
+fn blended_positional_from_inc(
+    our_pieces: &[Piece],
+    enemy_pieces: &[Piece],
+    pst: f32,
+    w: f32,
+    weights: &EvalWeights,
+) -> f32 {
+    if w <= 0.0 {
+        return pst;
+    }
+    let royals = enemy_royal_positions(enemy_pieces);
+    let trop = if royals.is_empty() {
+        0.0
+    } else {
+        apply_tropism_cap(
+            linear_topk_tail_tropism(our_pieces, &royals, weights),
+            weights,
+        )
+    };
+    (1.0 - w) * pst + w * trop
+}
+
+/// Same as [`evaluate_absolute_black`] using incremental material/PST/undeveloped.
+fn evaluate_absolute_black_from_inc(
+    board: &Board,
+    inc: &EvalInc,
+    weights: &EvalWeights,
+    ply: usize,
+) -> i32 {
+    let black_royals = inc.royals[0] as usize;
+    let white_royals = inc.royals[1] as usize;
+    if black_royals == 0 {
+        return -weights.mate_score;
+    }
+    if white_royals == 0 {
+        return weights.mate_score;
+    }
+
+    let black_mat = inc.mat[0];
+    let white_mat = inc.mat[1];
+    let mut score = black_mat - white_mat;
+
+    let w_b = side_phase_weight(
+        black_mat,
+        white_mat,
+        inc.non_royals[1] as usize,
+        weights,
+    );
+    let w_w = side_phase_weight(
+        white_mat,
+        black_mat,
+        inc.non_royals[0] as usize,
+        weights,
+    );
+    if w_b <= 0.0 && w_w <= 0.0 {
+        score += inc.pst[0] - inc.pst[1];
+    } else {
+        let black = board.pieces_by_color(Color::Black);
+        let white = board.pieces_by_color(Color::White);
+        score += blended_positional_from_inc(black, white, inc.pst[0], w_b, weights)
+            - blended_positional_from_inc(white, black, inc.pst[1], w_w, weights);
+    }
+
+    score += weights.royal_bonus(black_royals) as f32 - weights.royal_bonus(white_royals) as f32;
+    score -= inc.undev[0];
+    score += inc.undev[1];
+
+    if weights.advance != 0 || weights.two_mover_mob_k != 0.0 {
+        let black = board.pieces_by_color(Color::Black);
+        let white = board.pieces_by_color(Color::White);
+        if weights.advance != 0 {
+            score += advance_positional(black, Color::Black, weights) as f32;
+            score -= advance_positional(white, Color::White, weights) as f32;
+        }
+        if weights.two_mover_mob_k != 0.0 {
+            score += two_mover_mobility_of(black, board, weights);
+            score -= two_mover_mobility_of(white, board, weights);
+        }
+    }
 
     score.round() as i32 + noise_component(board, weights, ply)
 }
@@ -2512,5 +2764,77 @@ mod tests {
         on.two_mover_mob_apply = 0;
         let d = evaluate_absolute_black(&open, &on, 0) - evaluate_absolute_black(&open, &off, 0);
         assert_eq!(d, 100 * m_open);
+    }
+
+    fn assert_inc_matches_full(state: &GameState, weights: &EvalWeights, ply: usize) {
+        let full = evaluate_absolute_black(state.get_board(), weights, ply);
+        let inc = state
+            .eval_inc()
+            .expect("eval_inc should be populated for this check");
+        let fast = evaluate_absolute_black_from_inc(state.get_board(), inc, weights, ply);
+        assert_eq!(
+            fast, full,
+            "incremental eval diverged from full walk at ply {ply}"
+        );
+    }
+
+    #[test]
+    fn incremental_eval_matches_full_opening_and_pawn_pushes() {
+        let weights = EvalWeights::seed();
+        let mut state = GameState::new();
+        state.setup_initial_position();
+        state.ensure_eval_inc(&weights);
+        assert_inc_matches_full(&state, &weights, 0);
+
+        let _bind = bind_search_weights(&weights);
+        for file in [4u8, 8, 12, 16, 20, 24, 28] {
+            for &(from_rank, to_rank, color) in &[
+                (10u8, 11u8, Color::Black),
+                (25u8, 24u8, Color::White),
+            ] {
+                state.set_current_turn(color);
+                let from = Position::new(file, from_rank).unwrap();
+                let to = Position::new(file, to_rank).unwrap();
+                if state.get_board().get_piece(from).map(|p| p.piece_type) != Some(PieceType::Pawn)
+                {
+                    continue;
+                }
+                if state.get_board().get_piece(to).is_some() {
+                    continue;
+                }
+                let Some(undo) = state.make_move_for_search(crate::game_state::Move::new(from, to))
+                else {
+                    continue;
+                };
+                assert_inc_matches_full(&state, &weights, 1);
+                state.unmake_move_for_search(undo);
+                assert_inc_matches_full(&state, &weights, 0);
+                let _ = state.make_move_for_search(crate::game_state::Move::new(from, to));
+            }
+        }
+        state.set_current_turn(Color::Black);
+        assert_inc_matches_full(&state, &weights, 14);
+    }
+
+    #[test]
+    fn incremental_eval_matches_full_when_tropism_gated_on() {
+        let mut weights = EvalWeights::seed();
+        weights.noise_scale = 0.0;
+        // Opening has ~100 non-royals/side; N=200 turns the density gate on.
+        weights.eg_density_n = 200.0;
+        let mut state = GameState::new();
+        state.setup_initial_position();
+        state.ensure_eval_inc(&weights);
+        assert_inc_matches_full(&state, &weights, 0);
+
+        let _bind = bind_search_weights(&weights);
+        let from = Position::new(4, 10).unwrap();
+        let to = Position::new(4, 11).unwrap();
+        let undo = state
+            .make_move_for_search(crate::game_state::Move::new(from, to))
+            .expect("pawn push");
+        assert_inc_matches_full(&state, &weights, 1);
+        state.unmake_move_for_search(undo);
+        assert_inc_matches_full(&state, &weights, 0);
     }
 }

@@ -77,7 +77,7 @@ pub fn print_training_usage() {
     println!("  file-pst-grid [--seed PATH] [--out DIR]");
     println!("            (5×3×3: file F×C × back B50/60/75 × tropism T10/15/20)");
     println!("  two-mob-grid [--seed PATH] [--out DIR]");
-    println!("            (27 C×K×A mobility cells + SEED + history BASE_/LOGIC_)");
+    println!("            (18 C×K×A mobility cells + SEED + history BASE_/LOGIC_)");
     println!("  texel-fit [--features DIR] [--out PATH] [--iters N] [--lr F] [--k F]");
     println!("            [--init seed|mobility|PATH] [--late-frac F] [--keep-draws]");
     println!("            [--no-log-space] [--no-lr-scale-k] [--no-renorm-pawn]");
@@ -1043,7 +1043,7 @@ pub fn cmd_two_mob_grid(args: &[String]) -> Result<(), String> {
     }
     let (man, _grid) = run_two_mob_grid(&cfg)?;
     println!(
-        "Wrote {} entrants under {} (27 cells + SEED + history)",
+        "Wrote {} entrants under {} (18 cells + SEED + history)",
         man.entrants.len(),
         cfg.out_dir.display()
     );

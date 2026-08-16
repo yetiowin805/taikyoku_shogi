@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build the 27-cell two-mover mobility grid + SEED + history baselines, then run continuous elite Glicko Swiss.
+# Build the 18-cell two-mover mobility grid + SEED + history baselines, then run continuous elite Glicko Swiss.
 #
 # Stop anytime:  touch data/run/TOURNEY_STOP   (or Ctrl-C)
 # Resume:        ./deploy/run_two_mob_swiss.sh --detach --resume --run-id ID --skip-gen

@@ -186,7 +186,7 @@ tail -f data/run/file-pst-swiss.log
 
 ### Two-mover mobility Swiss
 
-27 C×K×A cells (curve Lin/Sqrt/Logi × k 40/100/200 × apply raw/rank/file) plus `SEED` (mobility off, B65/T12) and history `BASE_*` / `LOGIC_*` from [`models/history/manifest.json`](../models/history/manifest.json). Freeze pinned binaries first (`./deploy/freeze_history.sh`).
+18 C×K×A cells (curve Lin/Sqrt/Logi × k 40/100/200 × apply raw/rank; file apply omitted — seed `file_factor` is flat) plus `SEED` (mobility off, B65/T12) and history `BASE_*` / `LOGIC_*` from [`models/history/manifest.json`](../models/history/manifest.json). Freeze pinned binaries first (`./deploy/freeze_history.sh`).
 
 ```bash
 cd /opt/taikyoku_shogi

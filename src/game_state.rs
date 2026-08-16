@@ -77,6 +77,7 @@ pub struct SearchUndo {
     prev_hash: u64,
     /// Length of `rep_history` before this move was pushed.
     prev_rep_len: usize,
+    prev_eval_inc: Option<crate::eval::EvalInc>,
 }
 
 /// Occurrences of the same position (pieces + STM) that adjudicate a draw.
@@ -107,6 +108,8 @@ pub struct GameState {
     hash: u64,
     /// Repetition keys after each position (including the current one).
     rep_history: Vec<u64>,
+    /// Search-only incremental material/PST; `None` outside a bound search.
+    eval_inc: Option<crate::eval::EvalInc>,
 }
 
 enum ApplyOutcome {
@@ -126,6 +129,7 @@ impl GameState {
             turns_without_capture_or_promotion: 0,
             hash: 0,
             rep_history: Vec::new(),
+            eval_inc: None,
         };
         state.recompute_hash();
         state.reset_rep_history();
@@ -185,7 +189,25 @@ impl GameState {
     }
 
     pub fn get_board_mut(&mut self) -> &mut Board {
+        self.eval_inc = None;
         &mut self.board
+    }
+
+    /// Incremental eval cache used by search make/unmake.
+    pub fn eval_inc(&self) -> Option<&crate::eval::EvalInc> {
+        self.eval_inc.as_ref()
+    }
+
+    /// Rebuild incremental eval if missing or built for a different weight seed.
+    pub fn ensure_eval_inc(&mut self, weights: &crate::eval::EvalWeights) {
+        if self
+            .eval_inc
+            .as_ref()
+            .is_some_and(|inc| inc.matches(weights))
+        {
+            return;
+        }
+        self.eval_inc = Some(crate::eval::EvalInc::from_board(&self.board, weights));
     }
 
     pub fn get_current_turn(&self) -> Color {
@@ -204,6 +226,7 @@ impl GameState {
     /// Place a piece on the board (for initial setup)
     pub fn place_piece(&mut self, piece: Piece) {
         self.board.place_piece(piece);
+        self.eval_inc = None;
         self.recompute_hash();
         self.reset_rep_history();
     }
@@ -213,6 +236,7 @@ impl GameState {
         let piece = self.board.get_piece(pos);
         if piece.is_some() {
             self.board.remove_piece(pos);
+            self.eval_inc = None;
             self.recompute_hash();
             self.reset_rep_history();
         }
@@ -222,6 +246,7 @@ impl GameState {
     /// Clear all pieces from the board (keeps turn / history / draw counter)
     pub fn clear_board(&mut self) {
         self.board = Board::new();
+        self.eval_inc = None;
         self.recompute_hash();
         self.reset_rep_history();
     }
@@ -739,13 +764,26 @@ impl GameState {
 
     /// Generate legal moves with a search-oriented filter (see [`LegalMoveGen`]).
     pub fn generate_legal_moves_mode(&self, mode: LegalMoveGen) -> Vec<Move> {
-        let pieces: Vec<Piece> = self.board.iter_pieces_by_color(self.current_turn).collect();
-        self.generate_legal_moves_for_pieces_mode(&pieces, mode)
+        let mut moves = Vec::new();
+        self.generate_legal_moves_mode_into(mode, &mut moves);
+        moves
+    }
+
+    /// Fill `out` with legal moves (clears first). Reuses `out`'s allocation.
+    pub fn generate_legal_moves_mode_into(&self, mode: LegalMoveGen, out: &mut Vec<Move>) {
+        out.clear();
+        self.generate_legal_moves_for_pieces_mode(
+            self.board.pieces_by_color(self.current_turn),
+            mode,
+            out,
+        );
     }
 
     /// Generate legal moves only for the specified pieces
     pub fn generate_legal_moves_for_pieces(&self, pieces: &[Piece]) -> Vec<Move> {
-        self.generate_legal_moves_for_pieces_mode(pieces, LegalMoveGen::All)
+        let mut moves = Vec::new();
+        self.generate_legal_moves_for_pieces_mode(pieces, LegalMoveGen::All, &mut moves);
+        moves
     }
 
     /// Generate legal moves for pieces under [`LegalMoveGen`] filtering.
@@ -753,12 +791,16 @@ impl GameState {
         &self,
         pieces: &[Piece],
         mode: LegalMoveGen,
-    ) -> Vec<Move> {
-        let mut moves = Vec::new();
+        moves: &mut Vec<Move>,
+    ) {
+        #[cfg(feature = "search-profile")]
+        let _prof = crate::profile_timers::gen_scope();
         let captures_only = matches!(mode, LegalMoveGen::CapturesOnly);
 
         for piece in pieces {
             if piece.piece_type == PieceType::FreeEagle {
+                #[cfg(feature = "search-profile")]
+                let _fe = crate::profile_timers::fe_gen_scope();
                 if matches!(mode, LegalMoveGen::QuietMultiLegOnly) {
                     moves.extend(
                         self.generate_free_eagle_moves_filtered(piece, false)
@@ -789,6 +831,8 @@ impl GameState {
             });
 
             if has_two_step {
+                #[cfg(feature = "search-profile")]
+                let _ts = crate::profile_timers::two_step_scope();
                 let emit_two_step_quiets = matches!(
                     mode,
                     LegalMoveGen::All | LegalMoveGen::QuietMultiLegOnly
@@ -800,46 +844,31 @@ impl GameState {
                     if let crate::movement::types::MovementCapability::TwoStep { first, second } =
                         capability
                     {
-                        let first_cap = vec![first.as_ref().clone()];
-                        // First-leg intermediates always need full first targets.
-                        let first_targets = crate::movement::MovementGenerator::generate_targets(
-                            piece,
-                            &self.board,
-                            &first_cap,
-                        );
+                        let first_targets =
+                            crate::movement::MovementGenerator::capability_landings(
+                                piece,
+                                &self.board,
+                                first.as_ref(),
+                            );
 
                         if emit_first_leg_and_other {
-                            let first_for_emit = if captures_only {
-                                first_targets
-                                    .iter()
-                                    .copied()
-                                    .filter(|t| {
-                                        self.board
-                                            .get_piece(*t)
-                                            .is_some_and(|p| p.color != piece.color)
-                                    })
-                                    .collect::<Vec<_>>()
-                            } else {
-                                first_targets.clone()
-                            };
-                            for target in &first_for_emit {
-                                self.push_standard_moves(&mut moves, piece, *target);
+                            for target in &first_targets {
+                                if captures_only
+                                    && !self
+                                        .board
+                                        .get_piece(*target)
+                                        .is_some_and(|p| p.color != piece.color)
+                                {
+                                    continue;
+                                }
+                                self.push_standard_moves(moves, piece, *target);
                             }
                         }
 
                         if emit_two_step_captures || emit_two_step_quiets {
                             for intermediate in first_targets {
-                                if !self.is_legal_move_assuming_reachable(
-                                    piece,
-                                    piece.position,
-                                    intermediate,
-                                    false,
-                                ) {
-                                    continue;
-                                }
                                 let mut temp_piece = *piece;
                                 temp_piece.position = intermediate;
-                                let second_cap = vec![second.as_ref().clone()];
                                 let inter_cap = self
                                     .board
                                     .get_piece(intermediate)
@@ -853,21 +882,13 @@ impl GameState {
                                     && (captures_only
                                         || matches!(mode, LegalMoveGen::WithoutQuietMultiLeg));
                                 let second_targets =
-                                    crate::movement::MovementGenerator::generate_targets_filtered(
+                                    crate::movement::MovementGenerator::capability_landings_filtered(
                                         &temp_piece,
                                         &self.board,
-                                        &second_cap,
+                                        second.as_ref(),
                                         second_captures_only,
                                     );
                                 for target in second_targets {
-                                    if !self.is_legal_move_assuming_reachable(
-                                        &temp_piece,
-                                        intermediate,
-                                        target,
-                                        false,
-                                    ) {
-                                        continue;
-                                    }
                                     let dest_cap = self
                                         .board
                                         .get_piece(target)
@@ -892,7 +913,7 @@ impl GameState {
                                         continue;
                                     }
                                     self.push_two_step_moves(
-                                        &mut moves,
+                                        moves,
                                         piece,
                                         intermediate,
                                         target,
@@ -909,28 +930,22 @@ impl GameState {
                             capability,
                             crate::movement::types::MovementCapability::TwoStep { .. }
                         ) {
-                            let cap_vec = vec![capability.clone()];
                             let potential_targets =
-                                crate::movement::MovementGenerator::generate_targets_filtered(
+                                crate::movement::MovementGenerator::capability_landings_filtered(
                                     piece,
                                     &self.board,
-                                    &cap_vec,
+                                    capability,
                                     captures_only,
                                 );
                             for target in potential_targets {
-                                if self.is_legal_move_assuming_reachable(
-                                    piece,
-                                    piece.position,
-                                    target,
-                                    false,
-                                ) {
-                                    self.push_standard_moves(&mut moves, piece, target);
-                                }
+                                self.push_standard_moves(moves, piece, target);
                             }
                         }
                     }
                 }
             } else if !matches!(mode, LegalMoveGen::QuietMultiLegOnly) {
+                #[cfg(feature = "search-profile")]
+                let _std = crate::profile_timers::standard_gen_scope();
                 let potential_targets = if captures_only {
                     let config = MovementConfig::for_piece(piece);
                     crate::movement::MovementGenerator::generate_targets_filtered(
@@ -943,15 +958,10 @@ impl GameState {
                     piece.get_potential_targets(&self.board)
                 };
                 for target in potential_targets {
-                    if self.is_legal_move_assuming_reachable(piece, piece.position, target, false)
-                    {
-                        self.push_standard_moves(&mut moves, piece, target);
-                    }
+                    self.push_standard_moves(moves, piece, target);
                 }
             }
         }
-
-        moves
     }
 
     /// Emit promotion variants of a standard move to `target` (assumes reachable).
@@ -964,10 +974,25 @@ impl GameState {
         self.push_standard_moves(moves, piece, target);
     }
 
-    fn push_standard_moves(&self, moves: &mut Vec<Move>, piece: &Piece, target: Position) {
-        if !self.is_legal_move_assuming_reachable(piece, piece.position, target, false) {
+    pub(crate) fn emit_two_step_moves_to(
+        &self,
+        piece: &Piece,
+        intermediate: Position,
+        target: Position,
+        moves: &mut Vec<Move>,
+    ) {
+        if !self.is_legal_move_assuming_reachable(piece, piece.position, intermediate, false) {
             return;
         }
+        let mut temp = *piece;
+        temp.position = intermediate;
+        if !self.is_legal_move_assuming_reachable(&temp, intermediate, target, false) {
+            return;
+        }
+        self.push_two_step_moves(moves, piece, intermediate, target);
+    }
+
+    fn push_standard_moves(&self, moves: &mut Vec<Move>, piece: &Piece, target: Position) {
         let can_promote = self.can_promote(piece, piece.position, target);
         if !can_promote {
             moves.push(Move::new_with_promotion(piece.position, target, false));
@@ -1176,6 +1201,7 @@ impl GameState {
         match self.apply_move(mv, true, true, None) {
             ApplyOutcome::Failed => None,
             ApplyOutcome::Ok { intermediate, .. } => {
+                self.eval_inc = None;
                 self.recompute_hash();
                 self.push_repetition_key();
                 intermediate
@@ -1191,10 +1217,13 @@ impl GameState {
     ///
     /// Returns a [`SearchUndo`] token for [`unmake_move_for_search`].
     pub fn make_move_for_search(&mut self, mv: Move) -> Option<SearchUndo> {
+        #[cfg(feature = "search-profile")]
+        let _make = crate::profile_timers::make_scope();
         let prev_hash = self.hash;
         let prev_turn = self.current_turn;
         let prev_draw = self.turns_without_capture_or_promotion;
         let prev_rep_len = self.rep_history.len();
+        let prev_eval_inc = self.eval_inc.clone();
         let original_mover = self.board.get_piece(mv.from)?;
         let from = mv.from;
         let mut removed = Vec::new();
@@ -1220,6 +1249,18 @@ impl GameState {
         self.hash = h;
         self.push_repetition_key();
 
+        if let Some(inc) = self.eval_inc.as_mut() {
+            let final_piece = self.board.get_piece(final_to);
+            if !crate::eval::apply_search_make_eval_inc(
+                inc,
+                &original_mover,
+                &removed,
+                final_piece.as_ref(),
+            ) {
+                self.eval_inc = None;
+            }
+        }
+
         Some(SearchUndo {
             from,
             final_to,
@@ -1229,11 +1270,14 @@ impl GameState {
             prev_draw,
             prev_hash,
             prev_rep_len,
+            prev_eval_inc,
         })
     }
 
     /// Reverse a move applied by [`make_move_for_search`].
     pub fn unmake_move_for_search(&mut self, undo: SearchUndo) {
+        #[cfg(feature = "search-profile")]
+        let _make = crate::profile_timers::make_scope();
         self.board.remove_piece(undo.final_to);
         self.board.place_piece(undo.original_mover);
         for (_pos, piece) in undo.removed {
@@ -1243,6 +1287,7 @@ impl GameState {
         self.turns_without_capture_or_promotion = undo.prev_draw;
         self.hash = undo.prev_hash;
         self.rep_history.truncate(undo.prev_rep_len);
+        self.eval_inc = undo.prev_eval_inc;
     }
 
     fn apply_move(
@@ -1548,6 +1593,7 @@ impl GameState {
             turns_without_capture_or_promotion: self.turns_without_capture_or_promotion, // Preserve counter
             hash: self.hash,
             rep_history: Vec::new(),
+            eval_inc: None,
         };
         state.hash ^= crate::zobrist::side_key(self.current_turn);
         state.hash ^= crate::zobrist::side_key(state.current_turn);

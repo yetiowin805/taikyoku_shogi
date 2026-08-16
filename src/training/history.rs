@@ -117,6 +117,7 @@ mod tests {
         let e: Vec<_> = man.engines.iter().map(|e| e.id.as_str()).collect();
         assert!(e.contains(&"LOGIC_TROPISM"));
         assert!(e.contains(&"LOGIC_H105"));
+        assert!(e.contains(&"LOGIC_B65T12"));
     }
 
     #[test]
