@@ -8,10 +8,11 @@ use crate::game_state::{GameState, LegalMoveGen, Move};
 use crate::movement::{BlockingMode, MovementCapability, MovementConfig, MovementGenerator};
 use crate::move_simulation::BoardLike;
 use crate::path_utils;
-use crate::piece::Color;
+use crate::piece::{Color, Piece};
 use crate::position::Position;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
+use std::sync::OnceLock;
 use std::time::{Duration, Instant};
 
 /// Max root moves kept in the GUI tree (best + alternatives).
@@ -494,24 +495,13 @@ fn capture_exchange_kind(
         add(inter);
     }
 
-    let config = MovementConfig::for_piece(&piece);
-    let uses_capturing = config.capabilities.iter().any(|cap| {
-        matches!(
-            cap,
-            MovementCapability::Range {
-                blocking: BlockingMode::Capturing,
-                ..
-            }
-        )
-    });
-    if uses_capturing {
-        for pos in path_utils::get_path_positions(mv.from, mv.to) {
-            if pos != mv.from && pos != mv.to {
-                if board.get_piece(pos).is_some() {
-                    path_occupied = true;
-                    add(pos);
-                }
-            }
+    if !piece_has_capturing_range(&piece) {
+        return (enemy, own, CaptureKind::SimpleTake);
+    }
+    for pos in path_utils::get_path_positions(mv.from, mv.to) {
+        if pos != mv.from && pos != mv.to && board.get_piece(pos).is_some() {
+            path_occupied = true;
+            add(pos);
         }
     }
     let kind = if path_occupied {
@@ -564,17 +554,7 @@ fn capture_material_exchange_raw(
         return (enemy, own);
     }
 
-    let config = MovementConfig::for_piece(&piece);
-    let uses_capturing = config.capabilities.iter().any(|cap| {
-        matches!(
-            cap,
-            MovementCapability::Range {
-                blocking: BlockingMode::Capturing,
-                ..
-            }
-        )
-    });
-    if uses_capturing {
+    if piece_has_capturing_range(&piece) {
         for pos in path_utils::get_path_positions(mv.from, mv.to) {
             if pos != mv.from && pos != mv.to {
                 add(pos);
@@ -613,7 +593,7 @@ fn capture_hangs_high_value_piece(
     weights: &EvalWeights,
     mv: &Move,
     postfire_pathclear_hang: bool,
-    attack_cache: &mut HashMap<usize, bool>,
+    attack_cache: &mut LandingAttackCache,
 ) -> bool {
     let board = state.get_board();
     let Some(mover) = board.get_piece(mv.from) else {
@@ -722,10 +702,7 @@ pub fn generate_loud_promotions(state: &GameState) -> Vec<Move> {
     let us = state.get_current_turn();
     let mut movers = Vec::new();
     for p in state.get_board().iter_pieces_by_color(us) {
-        if p.is_promoted {
-            continue;
-        }
-        if !promotes_into_big_piece(p.piece_type) {
+        if !piece_might_loud_promote(&p) {
             continue;
         }
         movers.push(p);
@@ -736,6 +713,43 @@ pub fn generate_loud_promotions(state: &GameState) -> Vec<Move> {
     let mut generated = Vec::new();
     state.generate_legal_moves_for_pieces_mode(&movers, LegalMoveGen::All, &mut generated);
     generated.into_iter().filter(|mv| mv.promoted).collect()
+}
+
+/// Conservative: true if this piece can legally promote into a big type this turn.
+fn piece_might_loud_promote(piece: &Piece) -> bool {
+    if piece.is_promoted || !promotes_into_big_piece(piece.piece_type) {
+        return false;
+    }
+    let reach = max_rank_delta_toward_promo(piece);
+    match piece.color {
+        Color::Black => {
+            piece.position.rank >= 25 || 25u8.saturating_sub(piece.position.rank) <= reach
+        }
+        Color::White => {
+            piece.position.rank <= 10 || piece.position.rank.saturating_sub(10) <= reach
+        }
+    }
+}
+
+fn max_rank_delta_toward_promo(piece: &Piece) -> u8 {
+    let mut max = 0u8;
+    for cap in &MovementConfig::for_piece(piece).capabilities {
+        match cap {
+            MovementCapability::Range { .. }
+            | MovementCapability::TwoStep { .. }
+            | MovementCapability::FreeEagleMultiMove { .. }
+            | MovementCapability::ConditionalDiagonalJump { .. } => return 36,
+            MovementCapability::Simple { max_distance, .. } => {
+                max = max.max(*max_distance);
+            }
+            MovementCapability::Jumping { offsets } => {
+                for &(_, dr) in offsets {
+                    max = max.max(dr.unsigned_abs());
+                }
+            }
+        }
+    }
+    max
 }
 
 /// MVV-LVA capture score without hang checks (for quiescence ordering).
@@ -763,7 +777,7 @@ fn move_order_score(
     weights: &EvalWeights,
     mv: &Move,
     opponent: Color,
-    attack_cache: &mut HashMap<usize, bool>,
+    attack_cache: &mut LandingAttackCache,
     postfire_pathclear_hang: bool,
 ) -> i32 {
     let board = state.get_board();
@@ -803,19 +817,77 @@ fn move_order_score(
     (gain * 1000.0 - mover_value).round() as i32
 }
 
+/// Per-node landing-attack memo (36×36). Avoids a HashMap alloc on every order.
+struct LandingAttackCache {
+    /// 0 = unknown, 1 = safe, 2 = attacked.
+    state: [u8; 1296],
+}
+
+impl LandingAttackCache {
+    fn new() -> Self {
+        Self { state: [0; 1296] }
+    }
+}
+
 fn landing_attacked_cached(
     board: &crate::board::Board,
     to: Position,
     opponent: Color,
-    cache: &mut HashMap<usize, bool>,
+    cache: &mut LandingAttackCache,
 ) -> bool {
     let idx = to.to_index();
-    if let Some(&hit) = cache.get(&idx) {
-        return hit;
+    match cache.state[idx] {
+        1 => return false,
+        2 => return true,
+        _ => {}
     }
     let hit = board.is_position_attacked_by_color(to, opponent);
-    cache.insert(idx, hit);
+    cache.state[idx] = if hit { 2 } else { 1 };
     hit
+}
+
+fn config_has_capturing_range(caps: &[MovementCapability]) -> bool {
+    caps.iter().any(|cap| {
+        matches!(
+            cap,
+            MovementCapability::Range {
+                blocking: BlockingMode::Capturing,
+                ..
+            }
+        )
+    })
+}
+
+fn capturing_range_table() -> &'static [[bool; 2]] {
+    static TABLE: OnceLock<Vec<[bool; 2]>> = OnceLock::new();
+    TABLE.get_or_init(|| {
+        let mut max_idx = 0usize;
+        for &pt in crate::eval::ALL_PIECE_TYPES {
+            max_idx = max_idx.max(pt as usize);
+        }
+        let mut t = vec![[false; 2]; max_idx + 1];
+        for &pt in crate::eval::ALL_PIECE_TYPES {
+            t[pt as usize][0] =
+                config_has_capturing_range(&MovementConfig::for_piece_type(pt).capabilities);
+            let mut promo = Piece::new(pt, Color::Black, Position::new(0, 0).unwrap());
+            promo.is_promoted = true;
+            t[pt as usize][1] =
+                config_has_capturing_range(&MovementConfig::for_piece(&promo).capabilities);
+        }
+        t
+    })
+}
+
+fn piece_has_capturing_range(piece: &Piece) -> bool {
+    if piece.base_piece_type.is_some() {
+        return config_has_capturing_range(&MovementConfig::for_piece(piece).capabilities);
+    }
+    capturing_range_table()
+        .get(piece.piece_type as usize)
+        .map(|row| row[piece.is_promoted as usize])
+        .unwrap_or_else(|| {
+            config_has_capturing_range(&MovementConfig::for_piece(piece).capabilities)
+        })
 }
 
 /// True if this capture is a capturing-range path clear or multi-leg (FE / two-step).
@@ -828,17 +900,7 @@ fn quiesce_move_looks_path_or_multileg(state: &GameState, mv: &Move) -> bool {
     let Some(piece) = board.get_piece(mv.from) else {
         return false;
     };
-    let config = MovementConfig::for_piece(&piece);
-    let uses_capturing = config.capabilities.iter().any(|cap| {
-        matches!(
-            cap,
-            MovementCapability::Range {
-                blocking: BlockingMode::Capturing,
-                ..
-            }
-        )
-    });
-    if !uses_capturing {
+    if !piece_has_capturing_range(&piece) {
         return false;
     }
     path_utils::get_path_positions(mv.from, mv.to)
@@ -879,24 +941,27 @@ fn generate_quiescence_captures(
     } else {
         state.generate_legal_moves_mode(LegalMoveGen::CapturesOnly)
     };
-    let mut seen: HashSet<(u16, u16, bool)> = raw
-        .iter()
-        .map(|mv| {
-            (
+    let promos = generate_loud_promotions(state);
+    if !promos.is_empty() {
+        let mut seen: HashSet<(u16, u16, bool)> = raw
+            .iter()
+            .map(|mv| {
+                (
+                    mv.from.to_index() as u16,
+                    mv.to.to_index() as u16,
+                    mv.promoted,
+                )
+            })
+            .collect();
+        for mv in promos {
+            let key = (
                 mv.from.to_index() as u16,
                 mv.to.to_index() as u16,
                 mv.promoted,
-            )
-        })
-        .collect();
-    for mv in generate_loud_promotions(state) {
-        let key = (
-            mv.from.to_index() as u16,
-            mv.to.to_index() as u16,
-            mv.promoted,
-        );
-        if seen.insert(key) {
-            raw.push(mv);
+            );
+            if seen.insert(key) {
+                raw.push(mv);
+            }
         }
     }
     if !captures {
@@ -1129,6 +1194,28 @@ fn emit_directed_two_step_captures_hitting(
     }
 }
 
+fn append_full_gen_hits(
+    state: &GameState,
+    piece: Piece,
+    victim: Position,
+    out: &mut Vec<Move>,
+) {
+    let start = out.len();
+    state.generate_legal_moves_for_pieces_mode(
+        &[piece],
+        LegalMoveGen::CapturesOnly,
+        out,
+    );
+    let mut w = start;
+    for r in start..out.len() {
+        if capture_hits_square(state, &out[r], victim) {
+            out.swap(w, r);
+            w += 1;
+        }
+    }
+    out.truncate(w);
+}
+
 /// Captures that take an enemy on `victim` (dest, path-clear, multi-leg, FE).
 ///
 /// Standard pieces use directed landing emit; TwoStep uses directed first/second
@@ -1141,26 +1228,11 @@ pub(crate) fn generate_captures_hitting_square(state: &GameState, victim: Positi
     let board = state.get_board();
     let mut out = Vec::new();
     for piece in board.iter_pieces_by_color(us) {
-        let consider = {
-            #[cfg(feature = "search-profile")]
-            let _filt = crate::profile_timers::filter_scope();
-            crate::attack_utils::should_check_piece_for_target_position(&piece, victim, false)
-        };
-        if !consider {
+        if !crate::attack_utils::should_check_piece_for_target_position(&piece, victim, false) {
             continue;
         }
         if piece.piece_type == crate::piece::PieceType::FreeEagle {
-            let mut generated = Vec::new();
-            state.generate_legal_moves_for_pieces_mode(
-                &[piece],
-                LegalMoveGen::CapturesOnly,
-                &mut generated,
-            );
-            out.extend(
-                generated
-                    .into_iter()
-                    .filter(|mv| capture_hits_square(state, mv, victim)),
-            );
+            append_full_gen_hits(state, piece, victim, &mut out);
             continue;
         }
         let config = MovementConfig::for_piece(&piece);
@@ -1176,17 +1248,7 @@ pub(crate) fn generate_captures_hitting_square(state: &GameState, victim: Positi
                     &mut out,
                 );
             } else {
-                let mut generated = Vec::new();
-                state.generate_legal_moves_for_pieces_mode(
-                    &[piece],
-                    LegalMoveGen::CapturesOnly,
-                    &mut generated,
-                );
-                out.extend(
-                    generated
-                        .into_iter()
-                        .filter(|mv| capture_hits_square(state, mv, victim)),
-                );
+                append_full_gen_hits(state, piece, victim, &mut out);
             }
             continue;
         }
@@ -1343,7 +1405,7 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
             let is_capture = move_captures_enemy(state, mv);
             let is_loud_promo = is_loud_promotion_move(state, mv);
             if is_capture {
-                let mut hang_cache = HashMap::new();
+                let mut hang_cache = LandingAttackCache::new();
                 if capture_hangs_high_value_piece(state, weights, mv, true, &mut hang_cache) {
                     continue;
                 }
@@ -1988,7 +2050,7 @@ fn search_move_list(
     let mut best = i32::MIN + 1;
     let mut best_move_key = None;
     let mut did_cutoff = false;
-    let mut hang_cache = HashMap::new();
+    let mut hang_cache = LandingAttackCache::new();
 
     for (i, mv) in moves.iter().enumerate() {
         if ctx.timed_out() {
@@ -2306,7 +2368,7 @@ fn quiesce(
     // Stale hang prune (pre-move landing attack).
     if ctx.q_prune_mode.uses_stale_hang() {
         let opponent = state.get_current_turn().opposite();
-        let mut attack_cache: HashMap<usize, bool> = HashMap::new();
+        let mut attack_cache = LandingAttackCache::new();
         let board = state.get_board();
         cands.retain(|c| {
             if c.is_loud_promo {
@@ -2841,7 +2903,7 @@ impl SearchContext {
 
 fn order_moves(state: &GameState, weights: &EvalWeights, moves: &mut [Move]) {
     let opponent = state.get_current_turn().opposite();
-    let mut attack_cache: HashMap<usize, bool> = HashMap::new();
+    let mut attack_cache = LandingAttackCache::new();
     moves.sort_by_key(|mv| {
         std::cmp::Reverse(move_order_score(
             state,
@@ -2870,20 +2932,25 @@ fn order_moves_with_heuristics(
     #[cfg(feature = "search-profile")]
     let _ord = crate::profile_timers::order_scope();
     let opponent = state.get_current_turn().opposite();
-    let mut attack_cache: HashMap<usize, bool> = HashMap::new();
+    if captures_only_style {
+        moves.sort_by_key(|mv| {
+            let cap = mvv_lva_score(state, weights, mv);
+            let kr = killer_rank(ctx, ply, mv);
+            let hist = history_score(ctx, mv);
+            std::cmp::Reverse((cap, kr, hist))
+        });
+        return;
+    }
+    let mut attack_cache = LandingAttackCache::new();
     moves.sort_by_key(|mv| {
-        let cap = if captures_only_style {
-            mvv_lva_score(state, weights, mv)
-        } else {
-            move_order_score(
-                state,
-                weights,
-                mv,
-                opponent,
-                &mut attack_cache,
-                postfire_pathclear_hang,
-            )
-        };
+        let cap = move_order_score(
+            state,
+            weights,
+            mv,
+            opponent,
+            &mut attack_cache,
+            postfire_pathclear_hang,
+        );
         let kr = killer_rank(ctx, ply, mv);
         let hist = history_score(ctx, mv);
         std::cmp::Reverse((cap, kr, hist))
@@ -2894,7 +2961,7 @@ fn order_moves_with_heuristics(
 #[cfg(test)]
 fn move_order_score_fresh(state: &GameState, weights: &EvalWeights, mv: &Move) -> i32 {
     let opponent = state.get_current_turn().opposite();
-    let mut cache = HashMap::new();
+    let mut cache = LandingAttackCache::new();
     move_order_score(state, weights, mv, opponent, &mut cache, true)
 }
 
@@ -3779,7 +3846,7 @@ mod tests {
         let moves = state.generate_legal_moves();
         let n_legal = moves.len();
         assert!(n_legal > 64, "opening should have a wide root");
-        let mut hang_cache = HashMap::new();
+        let mut hang_cache = LandingAttackCache::new();
         let hang_skipped = moves
             .iter()
             .filter(|mv| {
@@ -4267,7 +4334,7 @@ mod tests {
         assert!(move_captures_enemy(&state, &guarded));
         assert!(move_captures_enemy(&state, &safe));
 
-        let mut cache = HashMap::new();
+        let mut cache = LandingAttackCache::new();
         assert!(
             capture_hangs_high_value_piece(&state, &weights, &guarded, true, &mut cache),
             "guarded GG pawn-mop should hang-prune"
@@ -4354,7 +4421,7 @@ mod tests {
             "post-fire: landing safe once HM is gone"
         );
 
-        let mut cache = HashMap::new();
+        let mut cache = LandingAttackCache::new();
         assert!(
             !capture_hangs_high_value_piece(&state, &weights, &past_hm, false, &mut cache),
             "interior hang prune must not skip path-clear past a defending victim"
@@ -4424,7 +4491,7 @@ mod tests {
             Position::new(10, 11).unwrap(),
         );
         assert!(move_captures_enemy(&state, &take_gg));
-        let mut cache = HashMap::new();
+        let mut cache = LandingAttackCache::new();
         assert!(
             !capture_hangs_high_value_piece(&state, &weights, &take_gg, true, &mut cache),
             "taking unprotected GG with gold must not hang-prune"

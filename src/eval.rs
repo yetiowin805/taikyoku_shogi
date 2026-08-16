@@ -390,23 +390,60 @@ pub fn seed_loud_capture_floor() -> f32 {
 /// Used by scale-sample free params and by search for "loud" promotions into
 /// these types (e.g. FreeKing→GreatGeneral).
 pub fn is_big_piece(pt: PieceType) -> bool {
-    if pt == PieceType::King {
-        return false;
-    }
-    let cfg = MovementConfig::for_piece_type(pt);
-    cfg.capabilities.iter().any(|cap| match cap {
-        MovementCapability::TwoStep { .. } | MovementCapability::FreeEagleMultiMove { .. } => true,
-        MovementCapability::Range {
-            blocking: BlockingMode::Capturing,
-            ..
-        } => true,
-        _ => false,
+    big_piece_table()
+        .get(pt as usize)
+        .copied()
+        .unwrap_or(false)
+}
+
+fn big_piece_table() -> &'static [bool] {
+    static TABLE: OnceLock<Vec<bool>> = OnceLock::new();
+    TABLE.get_or_init(|| {
+        let mut max_idx = 0usize;
+        for &pt in ALL_PIECE_TYPES {
+            max_idx = max_idx.max(pt as usize);
+        }
+        let mut t = vec![false; max_idx + 1];
+        for &pt in ALL_PIECE_TYPES {
+            if pt == PieceType::King {
+                continue;
+            }
+            let cfg = MovementConfig::for_piece_type(pt);
+            t[pt as usize] = cfg.capabilities.iter().any(|cap| match cap {
+                MovementCapability::TwoStep { .. }
+                | MovementCapability::FreeEagleMultiMove { .. } => true,
+                MovementCapability::Range {
+                    blocking: BlockingMode::Capturing,
+                    ..
+                } => true,
+                _ => false,
+            });
+        }
+        t
     })
 }
 
 /// True when promoting this type yields a [`is_big_piece`] result.
 pub fn promotes_into_big_piece(pt: PieceType) -> bool {
-    pt.promotes_to().is_some_and(is_big_piece)
+    promotes_into_big_piece_table()
+        .get(pt as usize)
+        .copied()
+        .unwrap_or(false)
+}
+
+fn promotes_into_big_piece_table() -> &'static [bool] {
+    static TABLE: OnceLock<Vec<bool>> = OnceLock::new();
+    TABLE.get_or_init(|| {
+        let mut max_idx = 0usize;
+        for &pt in ALL_PIECE_TYPES {
+            max_idx = max_idx.max(pt as usize);
+        }
+        let mut t = vec![false; max_idx + 1];
+        for &pt in ALL_PIECE_TYPES {
+            t[pt as usize] = pt.promotes_to().is_some_and(is_big_piece);
+        }
+        t
+    })
 }
 
 fn capability_material_value(cap: &MovementCapability) -> f32 {
