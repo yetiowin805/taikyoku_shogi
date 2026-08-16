@@ -18,4 +18,5 @@ pub mod start_gen;
 pub mod texel;
 pub mod tournament;
 pub mod two_mob_grid;
+pub mod two_mob_q_grid;
 pub mod worker;
