@@ -20,6 +20,12 @@
       "git": "12791cb",
       "kind": "logic",
       "summary": "H105/O105 bake; last eval before file-PST code"
+    },
+    {
+      "id": "LOGIC_B65T12",
+      "git": "4089e88",
+      "kind": "logic",
+      "summary": "B65/T12 bake; last search before LTO / incremental eval / reach-table nps opts"
     }
   ]
 }
