@@ -74,24 +74,48 @@ mod tests {
         s
     }
 
-    #[test]
-    fn victim_square_gen_matches_oracle_opening_samples() {
-        let state = opening();
+    fn assert_victim_hits_match(label: &str, state: &GameState) {
         let board = state.get_board();
         let victims: Vec<Position> = board
-            .iter_pieces_by_color(Color::White)
-            .take(12)
+            .iter_pieces_by_color(state.get_current_turn().opposite())
             .map(|p| p.position)
             .collect();
         for victim in victims {
-            let oracle = oracle_captures_hitting_square(&state, victim);
-            let fast = generate_captures_hitting_square(&state, victim);
+            let oracle = oracle_captures_hitting_square(state, victim);
+            let fast = generate_captures_hitting_square(state, victim);
             assert_same_moves(
-                &format!("opening victim {}", victim.to_index()),
+                &format!("{label} victim {}", victim.to_index()),
                 &oracle,
                 &fast,
             );
         }
+    }
+
+    #[test]
+    fn victim_square_gen_matches_oracle_opening_samples() {
+        assert_victim_hits_match("opening", &opening());
+    }
+
+    #[test]
+    fn victim_square_gen_matches_oracle_midgame_pawn_pushes() {
+        let mut state = opening();
+        for file in [4u8, 8, 12, 16, 20, 24, 28] {
+            for &(from_rank, to_rank, color) in &[
+                (10u8, 11u8, Color::Black),
+                (25u8, 24u8, Color::White),
+            ] {
+                state.set_current_turn(color);
+                let from = Position::new(file, from_rank).unwrap();
+                let to = Position::new(file, to_rank).unwrap();
+                if state.get_board().get_piece(from).is_some()
+                    && state.get_board().get_piece(to).is_none()
+                {
+                    let _ = state.make_move_for_search(Move::new(from, to));
+                }
+            }
+        }
+        state.set_current_turn(Color::Black);
+        assert_victim_hits_match("midgame", &state);
     }
 
     #[test]
@@ -193,5 +217,16 @@ mod tests {
             .count();
         assert!(filtered <= all);
         assert!(filtered < all, "proximity should drop some opening pieces");
+    }
+
+    #[test]
+    fn staged_gen_union_matches_all_on_opening() {
+        let state = opening();
+        let all = state.generate_legal_moves_mode(LegalMoveGen::All);
+        let a = state.generate_legal_moves_mode(LegalMoveGen::WithoutQuietMultiLeg);
+        let b = state.generate_legal_moves_mode(LegalMoveGen::QuietMultiLegOnly);
+        let mut union = a;
+        union.extend(b);
+        assert_same_moves("opening staged vs All", &all, &union);
     }
 }

@@ -16,3 +16,11 @@ axum = "0.8"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net"] }
 tower-http = { version = "0.6", features = ["cors", "fs"] }
 ctrlc = { version = "3", features = ["termination"] }
+
+[features]
+search-profile = []
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+

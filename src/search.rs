@@ -1,8 +1,8 @@
 //! Alpha-beta search over GameState with make/unmake, compact traces for the GUI.
 
 use crate::eval::{
-    evaluate_with_ply, is_big_piece, material_piece_value, promotes_into_big_piece,
-    seed_loud_capture_floor, EvalWeights,
+    bind_search_weights, evaluate_with_ply, is_big_piece, material_piece_value,
+    promotes_into_big_piece, seed_loud_capture_floor, EvalWeights,
 };
 use crate::game_state::{GameState, LegalMoveGen, Move};
 use crate::movement::{BlockingMode, MovementCapability, MovementConfig, MovementGenerator};
@@ -733,11 +733,9 @@ pub fn generate_loud_promotions(state: &GameState) -> Vec<Move> {
     if movers.is_empty() {
         return Vec::new();
     }
-    state
-        .generate_legal_moves_for_pieces_mode(&movers, LegalMoveGen::All)
-        .into_iter()
-        .filter(|mv| mv.promoted)
-        .collect()
+    let mut generated = Vec::new();
+    state.generate_legal_moves_for_pieces_mode(&movers, LegalMoveGen::All, &mut generated);
+    generated.into_iter().filter(|mv| mv.promoted).collect()
 }
 
 /// MVV-LVA capture score without hang checks (for quiescence ordering).
@@ -1041,11 +1039,104 @@ pub(crate) fn stm_has_large_hang_simple_take(
     false
 }
 
+fn capability_is_directed_ok(cap: &MovementCapability) -> bool {
+    matches!(
+        cap,
+        MovementCapability::Simple { .. }
+            | MovementCapability::Range { .. }
+            | MovementCapability::Jumping { .. }
+    )
+}
+
+/// TwoStep pieces whose legs are Simple/Range/Jumping can emit victim-directed captures.
+fn can_directed_two_step_victim_hits(capabilities: &[MovementCapability]) -> bool {
+    let mut has_two_step = false;
+    for cap in capabilities {
+        match cap {
+            MovementCapability::FreeEagleMultiMove { .. }
+            | MovementCapability::ConditionalDiagonalJump { .. } => return false,
+            MovementCapability::TwoStep { first, second } => {
+                has_two_step = true;
+                if !capability_is_directed_ok(first) || !capability_is_directed_ok(second) {
+                    return false;
+                }
+            }
+            _ => {}
+        }
+    }
+    has_two_step
+}
+
+fn emit_directed_two_step_captures_hitting(
+    state: &GameState,
+    piece: &crate::piece::Piece,
+    victim: Position,
+    capabilities: &[MovementCapability],
+    out: &mut Vec<Move>,
+) {
+    let board = state.get_board();
+    let victim_is_enemy = board
+        .get_piece(victim)
+        .is_some_and(|p| p.color != piece.color);
+    for cap in capabilities {
+        match cap {
+            MovementCapability::TwoStep { first, second } => {
+                for landing in MovementGenerator::capture_landings_hitting_target(
+                    piece,
+                    board,
+                    std::slice::from_ref(first.as_ref()),
+                    victim,
+                ) {
+                    state.emit_standard_moves_to(piece, landing, out);
+                }
+                let first_targets =
+                    MovementGenerator::capability_landings(piece, board, first.as_ref());
+                for intermediate in first_targets {
+                    let mut temp = *piece;
+                    temp.position = intermediate;
+                    if victim_is_enemy && intermediate == victim {
+                        for target in MovementGenerator::generate_targets_filtered(
+                            &temp,
+                            board,
+                            std::slice::from_ref(second.as_ref()),
+                            false,
+                        ) {
+                            state.emit_two_step_moves_to(piece, intermediate, target, out);
+                        }
+                    } else {
+                        for landing in MovementGenerator::capture_landings_hitting_target(
+                            &temp,
+                            board,
+                            std::slice::from_ref(second.as_ref()),
+                            victim,
+                        ) {
+                            state.emit_two_step_moves_to(piece, intermediate, landing, out);
+                        }
+                    }
+                }
+            }
+            _ => {
+                for landing in MovementGenerator::capture_landings_hitting_target(
+                    piece,
+                    board,
+                    std::slice::from_ref(cap),
+                    victim,
+                ) {
+                    state.emit_standard_moves_to(piece, landing, out);
+                }
+            }
+        }
+    }
+}
+
 /// Captures that take an enemy on `victim` (dest, path-clear, multi-leg, FE).
 ///
-/// Standard pieces use directed landing emit; TwoStep / FreeEagle / conditional-jump
-/// fall back to per-piece CapturesOnly + filter (parity-gated via [`crate::parity`]).
+/// Standard pieces use directed landing emit; TwoStep uses directed first/second
+/// legs when both are Simple/Range/Jumping. FreeEagle / conditional-jump fall
+/// back to per-piece CapturesOnly + filter (parity-gated via [`crate::parity`]).
 pub(crate) fn generate_captures_hitting_square(state: &GameState, victim: Position) -> Vec<Move> {
+    #[cfg(feature = "search-profile")]
+    let _prof = crate::profile_timers::gen_scope();
     let us = state.get_current_turn();
     let board = state.get_board();
     let mut out = Vec::new();
@@ -1054,12 +1145,14 @@ pub(crate) fn generate_captures_hitting_square(state: &GameState, victim: Positi
             continue;
         }
         if piece.piece_type == crate::piece::PieceType::FreeEagle {
+            let mut generated = Vec::new();
+            state.generate_legal_moves_for_pieces_mode(
+                &[piece],
+                LegalMoveGen::CapturesOnly,
+                &mut generated,
+            );
             out.extend(
-                state
-                    .generate_legal_moves_for_pieces_mode(
-                        &[piece],
-                        LegalMoveGen::CapturesOnly,
-                    )
+                generated
                     .into_iter()
                     .filter(|mv| capture_hits_square(state, mv, victim)),
             );
@@ -1067,24 +1160,42 @@ pub(crate) fn generate_captures_hitting_square(state: &GameState, victim: Positi
         }
         let config = MovementConfig::for_piece(&piece);
         if MovementGenerator::needs_full_gen_for_victim_hits(&config.capabilities) {
-            out.extend(
-                state
-                    .generate_legal_moves_for_pieces_mode(
-                        &[piece],
-                        LegalMoveGen::CapturesOnly,
-                    )
-                    .into_iter()
-                    .filter(|mv| capture_hits_square(state, mv, victim)),
-            );
+            if can_directed_two_step_victim_hits(&config.capabilities) {
+                #[cfg(feature = "search-profile")]
+                let _ts = crate::profile_timers::two_step_scope();
+                emit_directed_two_step_captures_hitting(
+                    state,
+                    &piece,
+                    victim,
+                    &config.capabilities,
+                    &mut out,
+                );
+            } else {
+                let mut generated = Vec::new();
+                state.generate_legal_moves_for_pieces_mode(
+                    &[piece],
+                    LegalMoveGen::CapturesOnly,
+                    &mut generated,
+                );
+                out.extend(
+                    generated
+                        .into_iter()
+                        .filter(|mv| capture_hits_square(state, mv, victim)),
+                );
+            }
             continue;
         }
-        for landing in MovementGenerator::capture_landings_hitting_target(
-            &piece,
-            board,
-            &config.capabilities,
-            victim,
-        ) {
-            state.emit_standard_moves_to(&piece, landing, &mut out);
+        {
+            #[cfg(feature = "search-profile")]
+            let _std = crate::profile_timers::standard_gen_scope();
+            for landing in MovementGenerator::capture_landings_hitting_target(
+                &piece,
+                board,
+                &config.capabilities,
+                victim,
+            ) {
+                state.emit_standard_moves_to(&piece, landing, &mut out);
+            }
         }
     }
     out
@@ -1104,6 +1215,7 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
     } else {
         weights
     };
+    let _wbind = bind_search_weights(weights);
 
     let root_ply = state.get_move_history().len();
     let static_eval = evaluate_with_ply(state, weights, root_ply);
@@ -1193,6 +1305,7 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
 
     // One working copy for the whole ID loop; make/unmake instead of per-child clone.
     let mut pos = state.clone();
+    pos.ensure_eval_inc(weights);
 
     for d in 1..=max_depth {
         if ctx.timed_out() {
@@ -1424,6 +1537,7 @@ pub fn probe_quiescence(
     mode: QPruneMode,
     max_time_ms: Option<u64>,
 ) -> SearchResult {
+    let _wbind = bind_search_weights(weights);
     let root_ply = state.get_move_history().len();
     let static_eval = evaluate_with_ply(state, weights, root_ply);
     let deadline = max_time_ms.map(|ms| Instant::now() + Duration::from_millis(ms));
@@ -1475,6 +1589,7 @@ pub fn probe_quiescence(
         root_move_started: Instant::now(),
     };
     let mut pos = state.clone();
+    pos.ensure_eval_inc(weights);
     let score = if qdepth == 0 {
         static_eval
     } else {
@@ -1518,6 +1633,7 @@ fn probe_quiet_parent_leaf_or_quiesce(
     weights: &EvalWeights,
     qdepth: u32,
 ) -> (i32, u64) {
+    let _wbind = bind_search_weights(weights);
     let root_ply = state.get_move_history().len();
     let now = Instant::now();
     let mut ctx = SearchContext {
@@ -1567,6 +1683,7 @@ fn probe_quiet_parent_leaf_or_quiesce(
         root_move_started: Instant::now(),
     };
     let mut pos = state.clone();
+    pos.ensure_eval_inc(weights);
     let score = leaf_or_quiesce(
         &mut pos,
         weights,
@@ -1790,7 +1907,7 @@ fn alphabeta(
         is_pv,
         ctx,
         parent_ply,
-        moves,
+        &moves,
         0,
     );
 
@@ -1808,7 +1925,7 @@ fn alphabeta(
                 is_pv,
                 ctx,
                 parent_ply,
-                stage_b,
+                &stage_b,
                 stage_a_len,
             );
             if b2 > best {
@@ -1860,7 +1977,7 @@ fn search_move_list(
     is_pv: bool,
     ctx: &mut SearchContext,
     parent_ply: usize,
-    moves: Vec<Move>,
+    moves: &[Move],
     move_index_base: usize,
 ) -> (i32, Option<MoveKey>, i32, bool) {
     let mut best = i32::MIN + 1;
@@ -1868,7 +1985,7 @@ fn search_move_list(
     let mut did_cutoff = false;
     let mut hang_cache = HashMap::new();
 
-    for (i, mv) in moves.into_iter().enumerate() {
+    for (i, mv) in moves.iter().enumerate() {
         if ctx.timed_out() {
             break;
         }
@@ -2745,6 +2862,8 @@ fn order_moves_with_heuristics(
     captures_only_style: bool,
     postfire_pathclear_hang: bool,
 ) {
+    #[cfg(feature = "search-profile")]
+    let _ord = crate::profile_timers::order_scope();
     let opponent = state.get_current_turn().opposite();
     let mut attack_cache: HashMap<usize, bool> = HashMap::new();
     moves.sort_by_key(|mv| {
