@@ -45,6 +45,7 @@ fn run(name: &str, state: &GameState, weights: &EvalWeights, depth: u32, time_ms
         collect_trace: false,
         quiescence_depth: 2,
         q_prune_mode: QPruneMode::PathAware,
+        ..Default::default()
     };
     #[cfg(feature = "search-profile")]
     taikyoku_shogi::profile_timers::reset();

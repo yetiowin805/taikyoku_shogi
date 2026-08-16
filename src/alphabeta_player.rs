@@ -83,6 +83,7 @@ impl AlphaBetaPlayer {
             collect_trace: false,
             quiescence_depth: checkpoint_defaults.quiescence_depth,
             q_prune_mode: QPruneMode::PathAware,
+            ..Default::default()
         };
         if let Ok(d) = env::var("TAIKYOKU_AB_DEPTH") {
             if let Ok(v) = d.parse::<u32>() {
@@ -120,6 +121,7 @@ impl AlphaBetaPlayer {
             collect_trace: false,
             quiescence_depth: checkpoint.search_defaults.quiescence_depth,
             q_prune_mode: QPruneMode::PathAware,
+            ..Default::default()
         };
         if let Ok(d) = env::var("TAIKYOKU_AB_DEPTH") {
             if let Ok(v) = d.parse::<u32>() {
