@@ -8,6 +8,7 @@ use crate::training::worker::{play_one_game, WorkerConfig};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::fs;
+use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -409,17 +410,6 @@ pub fn games_played(state: &TourneyState) -> BTreeMap<String, usize> {
     n
 }
 
-fn busy_agents(state: &TourneyState) -> HashSet<String> {
-    let mut busy = HashSet::new();
-    for slot in &state.slots {
-        if matches!(slot.status, SlotStatus::Pending | SlotStatus::Running) {
-            busy.insert(slot.model_a.clone());
-            busy.insert(slot.model_b.clone());
-        }
-    }
-    busy
-}
-
 fn matchup_games(state: &TourneyState, a: &str, b: &str) -> usize {
     let mut n = 0usize;
     for slot in &state.slots {
@@ -501,7 +491,7 @@ pub fn already_over_half_rematch(
     m * 2 > n
 }
 
-/// Pick continuous Swiss opponent pool for `a` among `candidates` (non-busy others).
+/// Pick continuous Swiss opponent pool for `a` among `candidates`.
 ///
 /// Starts with the 200-point window. If that has fewer than 2 names and at least
 /// 2 candidates exist, expands by alternating the next unused higher/lower,
@@ -514,13 +504,19 @@ pub fn opponent_pool(
     if candidates.is_empty() {
         return Vec::new();
     }
+    // A singleton field must still be pairable, even outside the 200-point window.
+    // Returning `within` here used to drop the only opponent and abort scheduling,
+    // which made Swiss worker threads exit (`None => return`) and pin jobs at 1.
+    if candidates.len() == 1 {
+        return candidates.to_vec();
+    }
     let ra = rating_of_map(ratings, a);
     let mut within: Vec<String> = candidates
         .iter()
         .filter(|c| (rating_of_map(ratings, c) - ra).abs() <= PAIRING_WINDOW)
         .cloned()
         .collect();
-    if within.len() >= 2 || candidates.len() < 2 {
+    if within.len() >= 2 {
         return within;
     }
 
@@ -638,11 +634,11 @@ pub fn top_rated_ids(state: &TourneyState, n: usize) -> BTreeSet<String> {
     rows.into_iter().take(n).map(|(_, id)| id).collect()
 }
 
-/// Free agents who are UCI-elite or in the global top [`ELITE_POOL_MIN`] by `r`.
-/// Falls back to all `free` only if that set has fewer than 2 (avoids deadlock).
-pub fn swiss_pair_pool(state: &TourneyState, free: &[String]) -> Vec<String> {
+/// UCI-elite agents or the global top [`ELITE_POOL_MIN`] by `r`.
+/// Falls back to all `names` only if that set has fewer than 2 (avoids deadlock).
+pub fn swiss_pair_pool(state: &TourneyState, names: &[String]) -> Vec<String> {
     let top = top_rated_ids(state, ELITE_POOL_MIN);
-    let pool: Vec<String> = free
+    let pool: Vec<String> = names
         .iter()
         .filter(|id| elite_eligible(state, id) || top.contains(*id))
         .cloned()
@@ -650,7 +646,7 @@ pub fn swiss_pair_pool(state: &TourneyState, free: &[String]) -> Vec<String> {
     if pool.len() >= 2 {
         pool
     } else {
-        free.to_vec()
+        names.to_vec()
     }
 }
 
@@ -679,9 +675,9 @@ fn all_have_minimum_games(state: &TourneyState, games: &BTreeMap<String, usize>)
             .all(|e| games.get(&e.id).copied().unwrap_or(0) >= MINIMUM_GAMES)
 }
 
-/// Free agents who fail `r + RD + RD_leader > r_leader` (sorted for a stable pick).
-pub fn out_of_range_opponents(state: &TourneyState, leader: &str, free: &[String]) -> Vec<String> {
-    let mut out: Vec<String> = free
+/// Agents who fail `r + RD + RD_leader > r_leader` (sorted for a stable pick).
+pub fn out_of_range_opponents(state: &TourneyState, leader: &str, names: &[String]) -> Vec<String> {
+    let mut out: Vec<String> = names
         .iter()
         .filter(|id| id.as_str() != leader && !elite_eligible(state, id))
         .cloned()
@@ -695,18 +691,18 @@ fn pick_uniform(ids: &[String], seed_base: u64, slot_id: usize) -> String {
     ids[i].clone()
 }
 
-/// Highest-`r` agent (tie: lowest id) vs a random UCI-ineligible free opponent.
-/// `None` if the roll misses, the leader is busy, or nobody is out of range.
-fn try_informational_pair(state: &TourneyState, free: &[String]) -> Option<(String, String)> {
+/// Highest-`r` agent (tie: lowest id) vs a random UCI-ineligible opponent.
+/// `None` if the roll misses or nobody is out of range.
+fn try_informational_pair(state: &TourneyState, names: &[String]) -> Option<(String, String)> {
     let slot_id = next_slot_id(state);
     if !informational_pair_due(state.seed_base, slot_id) {
         return None;
     }
     let leader = top_rated_ids(state, 1).into_iter().next()?;
-    if !free.iter().any(|id| id == &leader) {
+    if !names.iter().any(|id| id == &leader) {
         return None;
     }
-    let outs = out_of_range_opponents(state, &leader, free);
+    let outs = out_of_range_opponents(state, &leader, names);
     if outs.is_empty() {
         return None;
     }
@@ -791,19 +787,16 @@ fn enqueue_swiss_slot(state: &mut TourneyState, a: String, b: String) {
 
 pub fn schedule_one_swiss_game(state: &mut TourneyState) -> bool {
     ensure_ratings(state);
-    let busy = busy_agents(state);
     let games = games_counted(state);
-    let free: Vec<String> = state
-        .entrants
-        .iter()
-        .map(|e| e.id.clone())
-        .filter(|id| !busy.contains(id))
-        .collect();
-    if free.len() < 2 {
+    // Engines are copies of weights, not humans: the same id may sit in many
+    // in-flight games. Occupancy does not shrink the pairing pool; `jobs` is
+    // the only concurrency cap.
+    let names: Vec<String> = state.entrants.iter().map(|e| e.id.clone()).collect();
+    if names.len() < 2 {
         return false;
     }
 
-    let under: Vec<String> = free
+    let under: Vec<String> = names
         .iter()
         .filter(|id| games.get(*id).copied().unwrap_or(0) < MINIMUM_GAMES)
         .cloned()
@@ -811,13 +804,13 @@ pub fn schedule_one_swiss_game(state: &mut TourneyState) -> bool {
 
     // Informational: only once the whole field has the game floor.
     if under.is_empty() && all_have_minimum_games(state, &games) {
-        if let Some((a, b)) = try_informational_pair(state, &free) {
+        if let Some((a, b)) = try_informational_pair(state, &names) {
             enqueue_swiss_slot(state, a, b);
             return true;
         }
     }
 
-    let elite_or_free = swiss_pair_pool(state, &free);
+    let elite_or_field = swiss_pair_pool(state, &names);
 
     // Catch-up: get every agent to MINIMUM_GAMES before elite gating.
     let (a, b_candidates) = if under.len() >= 2 {
@@ -826,20 +819,26 @@ pub fn schedule_one_swiss_game(state: &mut TourneyState) -> bool {
         (a, rest)
     } else if under.len() == 1 {
         let a = under[0].clone();
-        let rest: Vec<String> = elite_or_free.into_iter().filter(|id| id != &a).collect();
+        let rest: Vec<String> = elite_or_field.into_iter().filter(|id| id != &a).collect();
         let rest = if rest.is_empty() {
-            free.iter().filter(|id| *id != &a).cloned().collect()
+            names.iter().filter(|id| *id != &a).cloned().collect()
         } else {
             rest
         };
         (a, rest)
     } else {
-        let a = pick_swiss_a(&elite_or_free, state, &games);
-        let rest: Vec<String> = elite_or_free.into_iter().filter(|id| id != &a).collect();
+        let a = pick_swiss_a(&elite_or_field, state, &games);
+        let rest: Vec<String> = elite_or_field.into_iter().filter(|id| id != &a).collect();
         (a, rest)
     };
 
-    let pool = opponent_pool(&a, &b_candidates, &state.ratings);
+    let mut pool = opponent_pool(&a, &b_candidates, &state.ratings);
+    if pool.is_empty() {
+        let rest: Vec<String> = names.iter().filter(|id| *id != &a).cloned().collect();
+        if rest != b_candidates {
+            pool = opponent_pool(&a, &rest, &state.ratings);
+        }
+    }
     if pool.is_empty() {
         return false;
     }
@@ -1063,28 +1062,33 @@ fn resolve_start(
     }
 }
 
-/// Claim or schedule a Pending slot. Returns None when the worker should exit.
+/// Claim a Pending slot, first topping the Swiss queue up to `jobs`.
+/// Returns None when this worker has nothing to do right now (Swiss idle
+/// threads must wait and retry — they must not exit, or jobs collapse to 1).
 fn claim_or_schedule_slot(
     st: &mut TourneyState,
     cfg: &TourneyConfig,
 ) -> Option<usize> {
+    if st.format == TourneyFormat::Swiss {
+        let cap = cfg.jobs.max(1);
+        while inflight_count(st) < cap && schedule_one_swiss_game(st) {}
+    }
     if let Some(idx) = st.slots.iter().position(|s| s.status == SlotStatus::Pending) {
         st.slots[idx].status = SlotStatus::Running;
         st.updated_at = now_secs();
         return Some(st.slots[idx].id);
     }
-    if st.format == TourneyFormat::Swiss
-        && inflight_count(st) < cfg.jobs.max(1)
-        && schedule_one_swiss_game(st)
-    {
-        // Newly scheduled slot is Pending; claim it.
-        if let Some(idx) = st.slots.iter().position(|s| s.status == SlotStatus::Pending) {
-            st.slots[idx].status = SlotStatus::Running;
-            st.updated_at = now_secs();
-            return Some(st.slots[idx].id);
+    None
+}
+
+fn abort_claimed_slot(cfg: &TourneyConfig, st: &mut TourneyState, slot_id: usize) {
+    if let Some(slot) = st.slots.iter_mut().find(|s| s.id == slot_id) {
+        if slot.status != SlotStatus::Done {
+            slot.status = SlotStatus::Aborted;
         }
     }
-    None
+    st.updated_at = now_secs();
+    let _ = save_state(cfg, st);
 }
 
 /// Run or resume a tournament. Returns final state (possibly partial on stop).
@@ -1133,17 +1137,20 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
                 let light_starts = &light_starts;
                 let games_dir = &games_dir;
                 scope.spawn(move || loop {
-                    poll_stop_file(cfg);
-                    if cfg_stop.load(Ordering::Relaxed) {
-                        return;
-                    }
-
-                    let slot_id = {
+                    let slot_id = loop {
+                        poll_stop_file(cfg);
+                        if cfg_stop.load(Ordering::Relaxed) {
+                            return;
+                        }
                         let mut st = state_mu.lock().unwrap();
                         match claim_or_schedule_slot(&mut st, cfg) {
                             Some(id) => {
                                 let _ = save_state(cfg, &st);
-                                id
+                                break id;
+                            }
+                            None if st.format == TourneyFormat::Swiss => {
+                                drop(st);
+                                std::thread::sleep(std::time::Duration::from_millis(50));
                             }
                             None => return,
                         }
@@ -1153,7 +1160,7 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
                         let st = state_mu.lock().unwrap();
                         let Some(slot) = st.slots.iter().find(|s| s.id == slot_id) else {
                             eprintln!("tournament: missing slot id {slot_id}");
-                            return;
+                            continue;
                         };
                         (
                             slot.model_a.clone(),
@@ -1169,10 +1176,7 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
 
                     if cfg_stop.load(Ordering::Relaxed) {
                         let mut st = state_mu.lock().unwrap();
-                        if let Some(slot) = st.slots.iter_mut().find(|s| s.id == slot_id) {
-                            slot.status = SlotStatus::Aborted;
-                        }
-                        let _ = save_state(cfg, &st);
+                        abort_claimed_slot(cfg, &mut st, slot_id);
                         return;
                     }
 
@@ -1187,11 +1191,8 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
                         Err(e) => {
                             eprintln!("tourney start error: {e}");
                             let mut st = state_mu.lock().unwrap();
-                            if let Some(slot) = st.slots.iter_mut().find(|s| s.id == slot_id) {
-                                slot.status = SlotStatus::Aborted;
-                            }
-                            let _ = save_state(cfg, &st);
-                            return;
+                            abort_claimed_slot(cfg, &mut st, slot_id);
+                            continue;
                         }
                     };
 
@@ -1203,12 +1204,8 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
                                 eprintln!("{e}");
                                 drop(st);
                                 let mut st = state_mu.lock().unwrap();
-                                if let Some(slot) = st.slots.iter_mut().find(|s| s.id == slot_id)
-                                {
-                                    slot.status = SlotStatus::Aborted;
-                                }
-                                let _ = save_state(cfg, &st);
-                                return;
+                                abort_claimed_slot(cfg, &mut st, slot_id);
+                                continue;
                             }
                         };
                         let b = match agent_for(&st, &model_b, depth) {
@@ -1217,12 +1214,8 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
                                 eprintln!("{e}");
                                 drop(st);
                                 let mut st = state_mu.lock().unwrap();
-                                if let Some(slot) = st.slots.iter_mut().find(|s| s.id == slot_id)
-                                {
-                                    slot.status = SlotStatus::Aborted;
-                                }
-                                let _ = save_state(cfg, &st);
-                                return;
+                                abort_claimed_slot(cfg, &mut st, slot_id);
+                                continue;
                             }
                         };
                         if a_is_black {
@@ -1233,7 +1226,7 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
                     };
 
                     let play_seed = start_seed.wrapping_add(if a_is_black { 0 } else { 1 });
-                    match play_one_game(&WorkerConfig {
+                    let play_cfg = WorkerConfig {
                         black,
                         white,
                         start,
@@ -1241,8 +1234,10 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
                         max_moves: cfg.max_moves,
                         verbose: cfg.verbose && jobs == 1,
                         stop: Some(Arc::clone(&cfg_stop)),
-                    }) {
-                        Ok(rec) => {
+                    };
+                    let play = catch_unwind(AssertUnwindSafe(|| play_one_game(&play_cfg)));
+                    match play {
+                        Ok(Ok(rec)) => {
                             let path = games_dir.join(format!(
                                 "slot{:04}-{}-vs-{}-{}.json",
                                 slot_id,
@@ -1276,16 +1271,20 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
                                 );
                             }
                         }
-                        Err(e) => {
+                        Ok(Err(e)) => {
                             let mut st = state_mu.lock().unwrap();
-                            if let Some(slot) = st.slots.iter_mut().find(|s| s.id == slot_id) {
-                                slot.status = SlotStatus::Aborted;
-                            }
-                            st.updated_at = now_secs();
-                            let _ = save_state(cfg, &st);
+                            abort_claimed_slot(cfg, &mut st, slot_id);
                             if e.message != "stopped" {
                                 eprintln!("slot {slot_id} failed: {}", e.message);
                             }
+                            if cfg_stop.load(Ordering::Relaxed) {
+                                return;
+                            }
+                        }
+                        Err(_) => {
+                            eprintln!("slot {slot_id} panicked; restarting worker immediately");
+                            let mut st = state_mu.lock().unwrap();
+                            abort_claimed_slot(cfg, &mut st, slot_id);
                             if cfg_stop.load(Ordering::Relaxed) {
                                 return;
                             }
@@ -1549,29 +1548,47 @@ mod tests {
     }
 
     #[test]
-    fn swiss_busy_agents_excluded() {
+    fn inflight_game_does_not_lock_agents() {
         let mut st = build_schedule(&TourneyConfig {
-            entrants: entrants(4),
+            entrants: entrants(6),
             format: TourneyFormat::Swiss,
+            seed_base: 1,
             ..TourneyConfig::default()
         });
-        st.slots.push(TourneySlot {
-            id: 0,
-            model_a: "p0".into(),
-            model_b: "p1".into(),
-            start_seed: 0,
-            a_is_black: true,
-            status: SlotStatus::Running,
-            game_path: None,
-            score_a: None,
-            round: 0,
-            start_mode: SlotStartMode::Opening,
-        });
+        let rs = [1900.0, 1880.0, 1860.0, 1500.0, 1490.0, 1480.0];
+        for i in 0..6 {
+            st.ratings.insert(
+                format!("p{i}"),
+                GlickoRating {
+                    r: rs[i],
+                    rd: 40.0,
+                },
+            );
+        }
+        for i in 0..3 {
+            give_min_games(&mut st, &format!("p{}", i * 2), &format!("p{}", i * 2 + 1), MINIMUM_GAMES);
+        }
+        st.seed_base = seed_for_info_pair(next_slot_id(&st), false);
+        assert!(elite_eligible(&st, "p0"));
+        assert!(elite_eligible(&st, "p1"));
+        assert!(elite_eligible(&st, "p2"));
+        assert!(!elite_eligible(&st, "p3"));
+
         assert!(schedule_one_swiss_game(&mut st));
-        let last = st.slots.last().unwrap();
-        assert!(last.model_a == "p2" || last.model_a == "p3");
-        assert!(last.model_b == "p2" || last.model_b == "p3");
-        assert_ne!(last.model_a, last.model_b);
+        st.slots.last_mut().unwrap().status = SlotStatus::Running;
+        let first = st.slots.last().unwrap();
+        let first_pair = [first.model_a.clone(), first.model_b.clone()];
+
+        st.seed_base = seed_for_info_pair(next_slot_id(&st), false);
+        assert!(schedule_one_swiss_game(&mut st));
+        let second = st.slots.last().unwrap();
+        let reused = first_pair.iter().any(|id| id == &second.model_a || id == &second.model_b);
+        assert!(
+            reused,
+            "expected a second in-flight game to reuse an engine copy, got {} vs {} after {} vs {}",
+            second.model_a, second.model_b, first_pair[0], first_pair[1]
+        );
+        assert_ne!(second.model_a, second.model_b);
     }
 
     #[test]
@@ -1595,6 +1612,58 @@ mod tests {
         assert_eq!(pool2.len(), 2);
         assert!(pool2.contains(&"weak_near".to_string()));
         assert!(pool2.contains(&"strong".to_string()));
+    }
+
+    #[test]
+    fn opponent_pool_singleton_outside_window_is_kept() {
+        let mut ratings = BTreeMap::new();
+        ratings.insert("a".into(), GlickoRating { r: 2000.0, rd: 80.0 });
+        ratings.insert("far".into(), GlickoRating { r: 1700.0, rd: 80.0 });
+        let cands = vec!["far".into()];
+        let pool = opponent_pool("a", &cands, &ratings);
+        assert_eq!(pool, vec!["far".to_string()]);
+    }
+
+    #[test]
+    fn elite_blowout_still_schedules_then_fills_field() {
+        let mut st = build_schedule(&TourneyConfig {
+            entrants: entrants(8),
+            format: TourneyFormat::Swiss,
+            seed_base: 1,
+            ..TourneyConfig::default()
+        });
+        let rs = [2400.0, 2100.0, 1600.0, 1580.0, 1560.0, 1540.0, 1520.0, 1500.0];
+        for i in 0..8 {
+            st.ratings.insert(
+                format!("p{i}"),
+                GlickoRating {
+                    r: rs[i],
+                    rd: 40.0,
+                },
+            );
+        }
+        for i in 0..4 {
+            give_min_games(&mut st, &format!("p{}", i * 2), &format!("p{}", i * 2 + 1), MINIMUM_GAMES);
+        }
+        st.seed_base = seed_for_info_pair(next_slot_id(&st), false);
+        assert!(elite_eligible(&st, "p0"));
+        assert!(!elite_eligible(&st, "p1")); // 2100+40+40 ≤ 2400
+        assert_eq!((rs[0] - rs[1]).abs() > PAIRING_WINDOW, true);
+
+        assert!(schedule_one_swiss_game(&mut st));
+        let first = st.slots.last().unwrap();
+        let pair = [&first.model_a, &first.model_b];
+        assert!(pair.contains(&&"p0".to_string()));
+        assert!(pair.contains(&&"p1".to_string()));
+        st.slots.last_mut().unwrap().status = SlotStatus::Running;
+
+        st.seed_base = seed_for_info_pair(next_slot_id(&st), false);
+        assert!(schedule_one_swiss_game(&mut st));
+        let second = st.slots.last().unwrap();
+        let pair2 = [&second.model_a, &second.model_b];
+        // Top 2 are not locked by the in-flight game; another copy can play.
+        assert!(pair2.contains(&&"p0".to_string()));
+        assert!(pair2.contains(&&"p1".to_string()));
     }
 
     #[test]
