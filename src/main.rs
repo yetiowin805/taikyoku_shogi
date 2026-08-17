@@ -207,6 +207,12 @@ fn main() {
                     print_usage();
                 }
             }
+            "two-mob-q-grid" => {
+                if let Err(e) = taikyoku_shogi::training::cli::cmd_two_mob_q_grid(&args) {
+                    eprintln!("{}", e);
+                    print_usage();
+                }
+            }
             "texel-fit" => {
                 if let Err(e) = taikyoku_shogi::training::cli::cmd_texel_fit(&args) {
                     eprintln!("{}", e);

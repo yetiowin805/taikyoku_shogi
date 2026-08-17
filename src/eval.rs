@@ -958,6 +958,12 @@ pub struct SearchDefaults {
     /// Capture-only quiescence depth (0 = off). Missing in old checkpoints → 2.
     #[serde(default = "default_quiescence_depth")]
     pub quiescence_depth: u32,
+    /// Same-wipe PathClear sibling search (0 = off). Missing in old checkpoints → 0.
+    #[serde(default)]
+    pub sibling_mode: u8,
+    /// Skip PathClear/MultiLeg loud-promo injection in q. Missing → false.
+    #[serde(default)]
+    pub q_loud_promo_simple_only: bool,
 }
 
 fn default_quiescence_depth() -> u32 {
@@ -970,6 +976,8 @@ impl Default for SearchDefaults {
             depth: 2,
             max_time_ms: None,
             quiescence_depth: 2,
+            sibling_mode: 0,
+            q_loud_promo_simple_only: false,
         }
     }
 }
@@ -1845,6 +1853,16 @@ mod tests {
         assert!(!is_range_capturer(PieceType::Tengu));
         assert!(!is_range_capturer(PieceType::Lion));
         assert!(!is_range_capturer(PieceType::FreeEagle));
+    }
+
+    #[test]
+    fn search_defaults_old_json_defaults_q_blowup_off() {
+        let s: SearchDefaults = serde_json::from_str(
+            r#"{"depth":2,"max_time_ms":null,"quiescence_depth":2}"#,
+        )
+        .unwrap();
+        assert_eq!(s.sibling_mode, 0);
+        assert!(!s.q_loud_promo_simple_only);
     }
 
     #[test]
