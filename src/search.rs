@@ -12,7 +12,8 @@ use crate::piece::{Color, Piece};
 use crate::position::Position;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
-use std::sync::OnceLock;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, OnceLock};
 use std::time::{Duration, Instant};
 
 /// Max root moves kept in the GUI tree (best + alternatives).
@@ -209,6 +210,8 @@ enum CaptureKind {
 pub struct SearchConfig {
     pub depth: u32,
     pub max_time_ms: Option<u64>,
+    /// Cooperative abort (GUI stop). Checked in `timed_out`.
+    pub stop: Option<Arc<AtomicBool>>,
     /// When true, build multipv root lines + reply trees for the GUI.
     /// Does not change which move is selected as best.
     pub collect_trace: bool,
@@ -240,6 +243,7 @@ impl Default for SearchConfig {
         Self {
             depth: 2,
             max_time_ms: None,
+            stop: None,
             collect_trace: false,
             quiescence_depth: 2,
             // PathAware: net-gain + top-N with SimpleTake hang + deep taper.
@@ -290,6 +294,9 @@ pub struct SearchInfo {
     /// Root candidates, best first, capped for display.
     pub root_moves: Vec<RootMoveInfo>,
     pub tree: SearchTreeNode,
+    /// True when search stopped early (time limit or external stop flag).
+    #[serde(default)]
+    pub aborted: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -321,6 +328,7 @@ struct SearchContext {
     deadline: Option<Instant>,
     nodes: u64,
     abort: bool,
+    stop: Option<Arc<AtomicBool>>,
     /// Ply counter for eval noise (does not rely on move_history during search).
     ply: usize,
     quiescence_depth: u32,
@@ -1513,6 +1521,7 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
         deadline,
         nodes: 0,
         abort: false,
+        stop: config.stop.clone(),
         ply: root_ply,
         quiescence_depth: config.quiescence_depth,
         quiesce_entry_depth: config.quiescence_depth,
@@ -1903,6 +1912,7 @@ pub fn probe_quiescence(
         deadline,
         nodes: 0,
         abort: false,
+        stop: None,
         ply: root_ply,
         quiescence_depth: qdepth,
         quiesce_entry_depth: qdepth,
@@ -2016,6 +2026,7 @@ fn probe_quiet_parent_leaf_or_quiesce(
         deadline: None,
         nodes: 0,
         abort: false,
+        stop: None,
         ply: root_ply,
         quiescence_depth: qdepth,
         quiesce_entry_depth: qdepth,
@@ -3285,6 +3296,14 @@ impl SearchContext {
         if self.abort {
             return true;
         }
+        if self
+            .stop
+            .as_ref()
+            .is_some_and(|s| s.load(Ordering::Relaxed))
+        {
+            self.abort = true;
+            return true;
+        }
         if let Some(deadline) = self.deadline {
             if Instant::now() >= deadline {
                 self.abort = true;
@@ -3450,6 +3469,7 @@ pub fn search_info_from_result(
         best_move,
         root_moves,
         tree: result.tree.clone(),
+        aborted: result.aborted,
     }
 }
 
@@ -3459,6 +3479,23 @@ mod tests {
     use crate::eval::EvalWeights;
     use crate::piece::{Color, Piece, PieceType};
     use crate::position::Position;
+
+    #[test]
+    fn search_stop_flag_aborts_promptly() {
+        let mut state = GameState::new();
+        state.setup_initial_position();
+        let stop = Arc::new(AtomicBool::new(true));
+        let result = search(
+            &state,
+            &EvalWeights::seed(),
+            &SearchConfig {
+                depth: 8,
+                stop: Some(Arc::clone(&stop)),
+                ..Default::default()
+            },
+        );
+        assert!(result.aborted);
+    }
 
     #[test]
     fn wipe_group_key_empty_beyond_shares_occupied_set() {

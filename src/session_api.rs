@@ -26,6 +26,11 @@ pub struct MoveDto {
     pub to_rank: u8,
     pub promoted: bool,
     pub label: String,
+    /// Two-step via square (shogi coords). Absent for standard / Free Eagle.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub intermediate_file: Option<u8>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub intermediate_rank: Option<u8>,
 }
 
 /// One ply's recorded AB telemetry from a saved game (black-absolute scores).
@@ -261,14 +266,25 @@ impl DebugTool {
         Ok(moves
             .into_iter()
             .enumerate()
-            .map(|(index, mv)| MoveDto {
-                index,
-                from_file: Self::to_shogi_file(mv.from.file),
-                from_rank: Self::to_shogi_rank(mv.from.rank),
-                to_file: Self::to_shogi_file(mv.to.file),
-                to_rank: Self::to_shogi_rank(mv.to.rank),
-                promoted: mv.promoted,
-                label: Self::format_move_public(&mv),
+            .map(|(index, mv)| {
+                let (intermediate_file, intermediate_rank) = match mv.intermediate() {
+                    Some(p) => (
+                        Some(Self::to_shogi_file(p.file)),
+                        Some(Self::to_shogi_rank(p.rank)),
+                    ),
+                    None => (None, None),
+                };
+                MoveDto {
+                    index,
+                    from_file: Self::to_shogi_file(mv.from.file),
+                    from_rank: Self::to_shogi_rank(mv.from.rank),
+                    to_file: Self::to_shogi_file(mv.to.file),
+                    to_rank: Self::to_shogi_rank(mv.to.rank),
+                    promoted: mv.promoted,
+                    label: Self::format_move_public(&mv),
+                    intermediate_file,
+                    intermediate_rank,
+                }
             })
             .collect())
     }
@@ -281,10 +297,26 @@ impl DebugTool {
         to_rank: u8,
         promote: Option<bool>,
         path_index: Option<usize>,
+        intermediate_file: Option<u8>,
+        intermediate_rank: Option<u8>,
     ) -> Result<String, String> {
         let from = self.parse_shogi_position(from_file, from_rank)?;
         let to = self.parse_shogi_position(to_file, to_rank)?;
-        let matches = self.find_matching_moves_pub(from, to, promote);
+        let mut matches = self.find_matching_moves_pub(from, to, promote);
+        if let (Some(inf), Some(inr)) = (intermediate_file, intermediate_rank) {
+            let mid = self.parse_shogi_position(inf, inr)?;
+            matches.retain(|mv| mv.intermediate() == Some(mid));
+        } else {
+            // No via: prefer a one-step stop over two-step paths that end on `to`.
+            let direct: Vec<_> = matches
+                .iter()
+                .filter(|mv| mv.intermediate().is_none())
+                .cloned()
+                .collect();
+            if !direct.is_empty() {
+                matches = direct;
+            }
+        }
         if matches.is_empty() {
             return Err("No legal move matches those squares".to_string());
         }
@@ -444,7 +476,31 @@ impl DebugTool {
 mod tests {
     use super::*;
     use crate::game_history::{MoveRecord, MoveRecordData};
+    use crate::game_state::GameState;
+    use crate::piece::Piece;
+    use crate::piece::PieceType;
+    use crate::position::Position;
     use crate::training::record::{AgentSpec, GameRecordV2, GameStart, GameStats, FORMAT_VERSION};
+
+    fn peacock_session() -> DebugTool {
+        let mut state = GameState::new();
+        let from = Position::new(10, 10).unwrap();
+        state.place_piece(Piece::new(PieceType::Peacock, Color::Black, from));
+        state.place_piece(Piece::new(
+            PieceType::King,
+            Color::Black,
+            Position::new(0, 0).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::King,
+            Color::White,
+            Position::new(35, 35).unwrap(),
+        ));
+        state.set_current_turn(Color::Black);
+        let mut tool = DebugTool::new();
+        tool.reset_to_state_for_test(state);
+        tool
+    }
 
     #[test]
     fn snapshot_exposes_recorded_evals_at_cursor() {
@@ -489,6 +545,84 @@ mod tests {
         assert_eq!(series.source, "recorded");
         assert_eq!(series.points.len(), 1);
         assert_eq!(series.points[0].eval, 42.0);
+    }
+
+    #[test]
+    fn apply_human_move_uses_intermediate_to_pick_two_step() {
+        let mut tool = peacock_session();
+        let two = tool
+            .game_state_ref()
+            .generate_legal_moves()
+            .into_iter()
+            .find(|m| m.is_two_step())
+            .expect("peacock has a two-step move");
+        let mid = two.intermediate().expect("two-step via");
+        let from_f = DebugTool::to_shogi_file(two.from.file);
+        let from_r = DebugTool::to_shogi_rank(two.from.rank);
+        let to_f = DebugTool::to_shogi_file(two.to.file);
+        let to_r = DebugTool::to_shogi_rank(two.to.rank);
+        let mid_f = DebugTool::to_shogi_file(mid.file);
+        let mid_r = DebugTool::to_shogi_rank(mid.rank);
+        tool.apply_human_move(
+            from_f,
+            from_r,
+            to_f,
+            to_r,
+            Some(two.promoted),
+            None,
+            Some(mid_f),
+            Some(mid_r),
+        )
+        .unwrap();
+        assert_eq!(tool.cursor_ply(), 1);
+        let board = tool.game_state_ref().get_board();
+        assert!(board.get_piece(two.to).is_some());
+        assert!(board.is_empty(two.from));
+        assert!(board.is_empty(mid));
+    }
+
+    #[test]
+    fn apply_human_move_first_leg_stop_omits_intermediate() {
+        let mut tool = peacock_session();
+        let moves = tool.game_state_ref().generate_legal_moves();
+        let two = moves
+            .iter()
+            .find(|m| m.is_two_step())
+            .expect("peacock has a two-step move");
+        let mid = two.intermediate().expect("two-step via");
+        let stop = moves
+            .iter()
+            .find(|m| !m.is_two_step() && m.from == two.from && m.to == mid)
+            .expect("first-leg stop at the via square");
+        let from_f = DebugTool::to_shogi_file(stop.from.file);
+        let from_r = DebugTool::to_shogi_rank(stop.from.rank);
+        let to_f = DebugTool::to_shogi_file(stop.to.file);
+        let to_r = DebugTool::to_shogi_rank(stop.to.rank);
+        tool.apply_human_move(from_f, from_r, to_f, to_r, Some(stop.promoted), None, None, None)
+            .unwrap();
+        assert_eq!(tool.cursor_ply(), 1);
+        let board = tool.game_state_ref().get_board();
+        assert!(board.get_piece(mid).is_some());
+        assert!(board.is_empty(stop.from));
+    }
+
+    #[test]
+    fn legal_moves_dto_exposes_two_step_intermediate() {
+        let tool = peacock_session();
+        let two = tool
+            .game_state_ref()
+            .generate_legal_moves()
+            .into_iter()
+            .find(|m| m.is_two_step())
+            .expect("peacock has a two-step move");
+        let from_f = DebugTool::to_shogi_file(two.from.file);
+        let from_r = DebugTool::to_shogi_rank(two.from.rank);
+        let dtos = tool.legal_moves_dto(Some((from_f, from_r))).unwrap();
+        assert!(dtos.iter().any(|d| {
+            d.intermediate_file
+                == Some(DebugTool::to_shogi_file(two.intermediate().unwrap().file))
+                && d.to_file == DebugTool::to_shogi_file(two.to.file)
+        }));
     }
 
     #[test]

@@ -53,6 +53,10 @@ export async function applyMove(body) {
   return req('/move', { method: 'POST', body: JSON.stringify(body) });
 }
 
+export async function stopSearch() {
+  return req('/stop-search', { method: 'POST', body: '{}' });
+}
+
 /** @param {string} agent @param {{ depth?: number, model?: string, max_time_ms?: number, quiescence_depth?: number }} [opts] */
 export async function suggest(agent = 'mi', opts = {}) {
   return req('/suggest', {

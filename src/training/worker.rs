@@ -64,6 +64,7 @@ fn agent_options(spec: &AgentSpec) -> AgentOptions {
         model: spec.model.clone(),
         max_time_ms: spec.max_time_ms,
         quiescence_depth: spec.quiescence_depth,
+        engine: None,
     }
 }
 

@@ -104,6 +104,7 @@ pub fn search_bestmove(
         model: model.map(|s| s.to_string()),
         max_time_ms: time_ms,
         quiescence_depth: None,
+        engine: None,
     };
     let player = AlphaBetaPlayer::from_options(&opts);
     match player.choose_move_inner(state) {

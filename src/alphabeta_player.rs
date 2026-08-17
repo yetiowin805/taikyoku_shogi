@@ -158,6 +158,11 @@ impl AlphaBetaPlayer {
         self
     }
 
+    pub fn with_stop(mut self, stop: std::sync::Arc<std::sync::atomic::AtomicBool>) -> Self {
+        self.config.stop = Some(stop);
+        self
+    }
+
     pub fn with_model_path(path: impl AsRef<Path>) -> Self {
         let checkpoint = load_checkpoint_or_seed(path.as_ref());
         Self::from_checkpoint(checkpoint)

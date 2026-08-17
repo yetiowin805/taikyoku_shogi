@@ -162,6 +162,7 @@ pub fn generate_one_play_start(
             model: cfg.agent.model.clone(),
             max_time_ms: cfg.agent.max_time_ms,
             quiescence_depth: cfg.agent.quiescence_depth,
+            engine: None,
         },
     )?;
 

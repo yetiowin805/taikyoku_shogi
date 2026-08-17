@@ -51,6 +51,10 @@ impl ExternalAbPlayer {
         })
     }
 
+    pub fn pid(&self) -> Option<u32> {
+        self.inner.lock().ok().map(|g| g.child.id())
+    }
+
     fn ask_locked(child: &mut ThinkChild, state: &GameState, spec: &Self) -> Result<Move, String> {
         let fen = tsfen_encode(&BoardPosition::from_state(state));
         writeln!(child.stdin, "position fen {fen}")

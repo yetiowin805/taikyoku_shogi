@@ -161,6 +161,13 @@ impl DebugTool {
         self.cursor = 0;
     }
 
+    #[cfg(test)]
+    pub fn reset_to_state_for_test(&mut self, state: GameState) {
+        self.game_state = state;
+        self.diverge_via_edit();
+        self.cursor = 0;
+    }
+
     pub fn load_game(&mut self, filename: &str) -> Result<(), String> {
         let (_path, contents) = self.game_history.read_game_file(filename)?;
         let v2 = load_game_json(&contents)?;

@@ -11,6 +11,8 @@ pub struct AgentOptions {
     pub model: Option<String>,
     pub max_time_ms: Option<u64>,
     pub quiescence_depth: Option<u32>,
+    /// Pinned historical `think-loop` binary. None = in-process AB.
+    pub engine: Option<String>,
 }
 
 /// Optional search telemetry attached to a chosen move (AB fills these).

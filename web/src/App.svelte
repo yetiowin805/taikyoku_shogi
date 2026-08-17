@@ -13,6 +13,7 @@
   let selected = $state(null);
   let highlights = $state([]);
   let pendingMoves = $state([]);
+  let twoMoveVia = $state(null);
   let blackController = $state('human');
   let whiteController = $state('mi');
   let autoPlay = $state(false);
@@ -20,6 +21,7 @@
   let gotoPly = $state(0);
   let evalSeries = $state(null);
   let models = $state(['ab-seed.json']);
+  let agents = $state([]);
   let blackAbModel = $state('ab-seed.json');
   let whiteAbModel = $state('ab-seed.json');
   let abDepth = $state(2);
@@ -32,12 +34,25 @@
   let blackSearchExpanded = $state(false);
   let whiteSearchExpanded = $state(false);
 
-  function abOpts(modelFile) {
+  function agentById(id) {
+    return (
+      agents.find((a) => a.id === id) || {
+        id,
+        label: id,
+        path: id.includes('/') ? id : `models/${id}`,
+        kind: 'current',
+      }
+    );
+  }
+
+  function abOpts(modelId) {
+    const a = agentById(modelId);
     const opts = {
       depth: Number(abDepth) || 2,
       quiescence_depth: Number(abQDepth) || 0,
-      model: `models/${modelFile}`,
+      model: a.path,
     };
+    if (a.engine) opts.engine = a.engine;
     const t = Number(abTimeMs);
     if (t > 0) opts.max_time_ms = t;
     return opts;
@@ -77,6 +92,9 @@
       const side = res.search.side || snapshot?.turn;
       if (side === 'White') whiteSearch = res.search;
       else blackSearch = res.search;
+      if (res.search.aborted) {
+        log('search aborted');
+      }
     }
     if (!silent) {
       if (res.ok) log(res.message, 'ok');
@@ -148,6 +166,29 @@
     return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
   });
 
+  const KIND_LABEL = {
+    current: 'Current',
+    weights: 'History (weights)',
+    logic: 'History (logic)',
+  };
+
+  let agentGroups = $derived.by(() => {
+    /** @type {Map<string, any[]>} */
+    const map = new Map();
+    for (const a of agents) {
+      const key = KIND_LABEL[a.kind] || a.kind || 'Current';
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(a);
+    }
+    if (!agents.length && models.length) {
+      map.set(
+        'Current',
+        models.map((id) => ({ id, label: id })),
+      );
+    }
+    return [...map.entries()];
+  });
+
   async function refreshGames() {
     try {
       const res = await api.listGames();
@@ -168,8 +209,14 @@
   async function refreshModels() {
     try {
       const res = await api.listModels();
-      if (res.ok && res.models?.length) {
-        models = res.models;
+      if (res.ok && (res.agents?.length || res.models?.length)) {
+        agents = res.agents || (res.models || []).map((id) => ({
+          id,
+          label: id,
+          path: `models/${id}`,
+          kind: 'current',
+        }));
+        models = agents.map((a) => a.id);
         if (!models.includes(blackAbModel)) blackAbModel = models[0];
         if (!models.includes(whiteAbModel)) {
           whiteAbModel =
@@ -183,18 +230,14 @@
 
   async function onNew() {
     const res = await api.newGame();
-    selected = null;
-    highlights = [];
-    pendingMoves = [];
+    clearSelection();
     applyResult(res);
   }
 
   async function onLoad() {
     if (!selectedGame) return;
     const res = await api.loadGame(selectedGame);
-    selected = null;
-    highlights = [];
-    pendingMoves = [];
+    clearSelection();
     applyResult(res, false, { clearSearch: true });
     if (res.ok && res.eval_series) {
       log(
@@ -215,8 +258,13 @@
     const side = snapshot?.turn || 'Black';
     const agent = side === 'White' ? whiteController : blackController;
     const name = agent === 'human' ? 'mi' : agent;
-    const res = await api.suggest(name, agentOptsFor(name, side));
-    applyResult(res);
+    busy = true;
+    try {
+      const res = await api.suggest(name, agentOptsFor(name, side));
+      applyResult(res);
+    } finally {
+      busy = false;
+    }
   }
 
   async function runAgentIfNeeded() {
@@ -236,8 +284,7 @@
     try {
       const res = await api.playAgent(ctrl, agentOptsFor(ctrl, turn));
       applyResult(res);
-      selected = null;
-      highlights = [];
+      clearSelection();
     } finally {
       busy = false;
     }
@@ -255,6 +302,105 @@
       return () => clearTimeout(id);
     }
   });
+
+  function occSet() {
+    return new Set((snapshot?.pieces || []).map((p) => `${p.file},${p.rank}`));
+  }
+
+  function isTwoStep(m) {
+    return m.intermediate_file != null && m.intermediate_rank != null;
+  }
+
+  function firstLegHighlights(moves) {
+    const occ = occSet();
+    const seen = new Set();
+    const out = [];
+    function add(file, rank) {
+      const k = `${file},${rank}`;
+      if (seen.has(k)) return;
+      seen.add(k);
+      out.push({ file, rank, capture: occ.has(k) });
+    }
+    for (const m of moves) {
+      if (isTwoStep(m)) add(m.intermediate_file, m.intermediate_rank);
+      else add(m.to_file, m.to_rank);
+    }
+    return out;
+  }
+
+  function secondLegHighlights(moves, via) {
+    const occ = occSet();
+    const seen = new Set();
+    const out = [{ file: via.file, rank: via.rank, capture: false, via: true }];
+    seen.add(`${via.file},${via.rank}`);
+    for (const m of moves) {
+      if (!isTwoStep(m)) continue;
+      if (m.intermediate_file !== via.file || m.intermediate_rank !== via.rank) continue;
+      const k = `${m.to_file},${m.to_rank}`;
+      if (seen.has(k)) continue;
+      seen.add(k);
+      out.push({
+        file: m.to_file,
+        rank: m.to_rank,
+        capture: occ.has(k),
+      });
+    }
+    return out;
+  }
+
+  function clearSelection() {
+    selected = null;
+    highlights = [];
+    pendingMoves = [];
+    twoMoveVia = null;
+  }
+
+  async function commitMove({
+    to_file,
+    to_rank,
+    intermediate_file = null,
+    intermediate_rank = null,
+    matches = [],
+  }) {
+    let path_index = null;
+    let promote = null;
+    if (matches.length > 1) {
+      path_index = 0;
+      log(`Ambiguous (${matches.length} paths); using path_index 0`, 'ok');
+    } else if (matches[0]?.promoted) {
+      promote = true;
+    }
+    const body = {
+      from_file: selected.file,
+      from_rank: selected.rank,
+      to_file,
+      to_rank,
+      promote,
+      path_index,
+    };
+    if (intermediate_file != null && intermediate_rank != null) {
+      body.intermediate_file = intermediate_file;
+      body.intermediate_rank = intermediate_rank;
+    }
+    const res = await api.applyMove(body);
+    applyResult(res);
+    clearSelection();
+  }
+
+  async function selectPiece(file, rank, piece) {
+    selected = { file, rank };
+    twoMoveVia = null;
+    const res = await api.getMoves(file, rank);
+    applyResult(res, true);
+    if (!res.ok) {
+      log(res.message, 'err');
+      clearSelection();
+      return;
+    }
+    pendingMoves = res.moves || [];
+    highlights = firstLegHighlights(pendingMoves);
+    log(`Selected ${piece.symbol} at ${file},${rank} — ${pendingMoves.length} moves`);
+  }
 
   async function onCellClick({ file, rank }) {
     if (!snapshot) return;
@@ -275,94 +421,86 @@
         log('Select one of your pieces', 'err');
         return;
       }
-      selected = { file, rank };
-      const res = await api.getMoves(file, rank);
-      applyResult(res, true);
-      if (!res.ok) {
-        log(res.message, 'err');
-        selected = null;
-        return;
-      }
-      const occ = new Set(
-        (snapshot.pieces || []).map((p) => `${p.file},${p.rank}`),
-      );
-      highlights = (res.moves || []).map((m) => ({
-        file: m.to_file,
-        rank: m.to_rank,
-        capture: occ.has(`${m.to_file},${m.to_rank}`),
-      }));
-      pendingMoves = res.moves || [];
-      log(`Selected ${piece.symbol} at ${file},${rank} — ${pendingMoves.length} moves`);
+      await selectPiece(file, rank, piece);
       return;
     }
 
-    // second click: try move or reselect
     if (selected.file === file && selected.rank === rank) {
-      selected = null;
-      highlights = [];
-      pendingMoves = [];
+      clearSelection();
       return;
     }
 
     if (piece && piece.color === snapshot.turn) {
-      selected = { file, rank };
-      const res = await api.getMoves(file, rank);
-      applyResult(res, true);
-      const occ = new Set(
-        (snapshot.pieces || []).map((p) => `${p.file},${p.rank}`),
+      await selectPiece(file, rank, piece);
+      return;
+    }
+
+    if (twoMoveVia) {
+      if (file === twoMoveVia.file && rank === twoMoveVia.rank) {
+        const matches = pendingMoves.filter(
+          (m) => !isTwoStep(m) && m.to_file === file && m.to_rank === rank,
+        );
+        if (!matches.length) {
+          log('Not a legal one-step stop', 'err');
+          return;
+        }
+        await commitMove({ to_file: file, to_rank: rank, matches });
+        return;
+      }
+      const matches = pendingMoves.filter(
+        (m) =>
+          isTwoStep(m) &&
+          m.intermediate_file === twoMoveVia.file &&
+          m.intermediate_rank === twoMoveVia.rank &&
+          m.to_file === file &&
+          m.to_rank === rank,
       );
-      highlights = (res.moves || []).map((m) => ({
-        file: m.to_file,
-        rank: m.to_rank,
-        capture: occ.has(`${m.to_file},${m.to_rank}`),
-      }));
-      pendingMoves = res.moves || [];
+      if (!matches.length) {
+        log('Not a legal second-leg destination', 'err');
+        return;
+      }
+      await commitMove({
+        to_file: file,
+        to_rank: rank,
+        intermediate_file: twoMoveVia.file,
+        intermediate_rank: twoMoveVia.rank,
+        matches,
+      });
+      return;
+    }
+
+    const continuations = pendingMoves.filter(
+      (m) =>
+        isTwoStep(m) &&
+        m.intermediate_file === file &&
+        m.intermediate_rank === rank,
+    );
+    if (continuations.length) {
+      twoMoveVia = { file, rank };
+      highlights = secondLegHighlights(pendingMoves, twoMoveVia);
+      log(`Two-move via ${file},${rank} — click destination or via again to stop`);
       return;
     }
 
     const matches = pendingMoves.filter(
-      (m) => m.to_file === file && m.to_rank === rank,
+      (m) => !isTwoStep(m) && m.to_file === file && m.to_rank === rank,
     );
     if (!matches.length) {
       log('Not a legal destination', 'err');
       return;
     }
-    let pathIndex = null;
-    let promote = null;
-    if (matches.length > 1) {
-      // path_index is into the matching from→to list (0-based)
-      pathIndex = 0;
-      log(`Ambiguous (${matches.length} paths); using path_index 0`, 'ok');
-    } else if (matches[0].promoted) {
-      promote = true;
-    }
-
-    const body = {
-      from_file: selected.file,
-      from_rank: selected.rank,
-      to_file: file,
-      to_rank: rank,
-      promote,
-      path_index: pathIndex,
-    };
-    const res = await api.applyMove(body);
-    applyResult(res);
-    selected = null;
-    highlights = [];
-    pendingMoves = [];
+    await commitMove({ to_file: file, to_rank: rank, matches });
   }
 
   async function stepBack() {
     const res = await api.back(1);
-    selected = null;
-    highlights = [];
+    clearSelection();
     applyResult(res, false, { clearSearch: true });
   }
 
   async function stepForward() {
     const res = await api.forward(1);
-    selected = null;
-    highlights = [];
+    clearSelection();
     applyResult(res, false, { clearSearch: true });
   }
 
@@ -370,8 +508,7 @@
     const p = ply != null && ply !== '' ? Number(ply) : Number(gotoPly) || 0;
     gotoPly = p;
     const res = await api.gotoPly(p);
-    selected = null;
-    highlights = [];
+    clearSelection();
     applyResult(res, false, { clearSearch: true });
   }
 
@@ -379,10 +516,14 @@
     const turn = snapshot?.turn || 'Black';
     const ctrl = turn === 'Black' ? blackController : whiteController;
     const agent = ctrl === 'human' ? 'mi' : ctrl;
-    const res = await api.playAgent(agent, agentOptsFor(agent, turn));
-    selected = null;
-    highlights = [];
-    applyResult(res);
+    busy = true;
+    try {
+      const res = await api.playAgent(agent, agentOptsFor(agent, turn));
+      clearSelection();
+      applyResult(res);
+    } finally {
+      busy = false;
+    }
   }
 
   async function startRun(black, white, label, modelsPair) {
@@ -399,9 +540,7 @@
     whiteSearch = null;
     blackSearchExpanded = false;
     whiteSearchExpanded = false;
-    selected = null;
-    highlights = [];
-    pendingMoves = [];
+    clearSelection();
     const res = await api.newGame();
     applyResult(res);
     autoPlay = true;
@@ -413,6 +552,11 @@
   async function stopRun(save = false) {
     autoPlay = false;
     runActive = false;
+    try {
+      await api.stopSearch();
+    } catch (e) {
+      log(String(e), 'err');
+    }
     log(`Stopped run${runLabel ? `: ${runLabel}` : ''}`);
     runLabel = '';
     if (save) {
@@ -645,16 +789,24 @@
           <div class="row">
             <label>Black model</label>
             <select bind:value={blackAbModel}>
-              {#each models as m}
-                <option value={m}>{m}</option>
+              {#each agentGroups as [kind, items]}
+                <optgroup label={kind}>
+                  {#each items as a}
+                    <option value={a.id}>{a.label}</option>
+                  {/each}
+                </optgroup>
               {/each}
             </select>
           </div>
           <div class="row">
             <label>White model</label>
             <select bind:value={whiteAbModel}>
-              {#each models as m}
-                <option value={m}>{m}</option>
+              {#each agentGroups as [kind, items]}
+                <optgroup label={kind}>
+                  {#each items as a}
+                    <option value={a.id}>{a.label}</option>
+                  {/each}
+                </optgroup>
               {/each}
             </select>
             <button onclick={refreshModels} title="Refresh models">↻</button>
@@ -719,10 +871,10 @@
               onclick={() => startRun(blackController === 'human' ? 'ab' : blackController, whiteController === 'human' ? 'ab' : whiteController, `${blackController} vs ${whiteController}`)}
               disabled={busy}>Start with controllers</button
             >
-            <button onclick={() => stopRun(false)} disabled={!autoPlay && !runActive}
+            <button onclick={() => stopRun(false)} disabled={!busy && !autoPlay && !runActive}
               >Stop</button
             >
-            <button onclick={() => stopRun(true)} disabled={!autoPlay && !runActive}
+            <button onclick={() => stopRun(true)} disabled={!busy && !autoPlay && !runActive}
               >Stop + save</button
             >
           </div>

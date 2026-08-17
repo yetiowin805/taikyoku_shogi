@@ -44,9 +44,13 @@
           ctx.fillStyle = 'rgba(47, 93, 80, 0.45)';
           ctx.fillRect(x, y, CELL, CELL);
         } else if (hi) {
-          ctx.fillStyle = hi.capture
-            ? 'rgba(180, 60, 40, 0.4)'
-            : 'rgba(60, 120, 200, 0.35)';
+          if (hi.via) {
+            ctx.fillStyle = 'rgba(200, 140, 30, 0.5)';
+          } else if (hi.capture) {
+            ctx.fillStyle = 'rgba(180, 60, 40, 0.4)';
+          } else {
+            ctx.fillStyle = 'rgba(60, 120, 200, 0.35)';
+          }
           ctx.fillRect(x, y, CELL, CELL);
         }
 

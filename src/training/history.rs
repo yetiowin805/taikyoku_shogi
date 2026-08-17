@@ -9,6 +9,7 @@ use std::process::Command;
 
 pub const DEFAULT_MANIFEST: &str = "models/history/manifest.json";
 pub const DEFAULT_BIN_DIR: &str = "models/history/bin";
+pub const DEFAULT_MODEL_DIR: &str = "models/history/models";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HistoryEntry {
@@ -68,6 +69,81 @@ pub fn logic_binary_path(id: &str) -> PathBuf {
     PathBuf::from(DEFAULT_BIN_DIR).join(id)
 }
 
+pub fn history_model_path(id: &str) -> PathBuf {
+    PathBuf::from(DEFAULT_MODEL_DIR).join(format!("{id}.json"))
+}
+
+fn ensure_history_model(entry: &HistoryEntry) -> Result<PathBuf, String> {
+    let dest = history_model_path(&entry.id);
+    if !dest.is_file() {
+        extract_seed_at(&entry.git, &entry.id, &dest)?;
+    }
+    Ok(dest)
+}
+
+/// One selectable GUI agent (current checkpoint or history BASE_/LOGIC_).
+#[derive(Debug, Clone, Serialize)]
+pub struct GuiAgent {
+    pub id: String,
+    pub label: String,
+    pub path: String,
+    /// `current`, `weights`, or `logic`.
+    pub kind: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub engine: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub summary: Option<String>,
+}
+
+/// Current `models/*.json` plus history manifest entries (extracting missing seeds).
+pub fn list_gui_agents() -> Result<Vec<GuiAgent>, String> {
+    let mut out = Vec::new();
+    for name in crate::eval::list_model_files("models")? {
+        out.push(GuiAgent {
+            id: name.clone(),
+            label: name.clone(),
+            path: format!("models/{name}"),
+            kind: "current".into(),
+            engine: None,
+            summary: None,
+        });
+    }
+    let man = match HistoryManifest::load_path(DEFAULT_MANIFEST) {
+        Ok(m) => m,
+        Err(_) => return Ok(out),
+    };
+    for w in &man.weights {
+        let dest = match ensure_history_model(w) {
+            Ok(p) => p,
+            Err(_) => continue,
+        };
+        out.push(GuiAgent {
+            id: w.id.clone(),
+            label: w.id.clone(),
+            path: dest.display().to_string(),
+            kind: "weights".into(),
+            engine: None,
+            summary: w.summary.clone(),
+        });
+    }
+    for e in &man.engines {
+        let dest = match ensure_history_model(e) {
+            Ok(p) => p,
+            Err(_) => continue,
+        };
+        let bin = logic_binary_path(&e.id);
+        out.push(GuiAgent {
+            id: e.id.clone(),
+            label: e.id.clone(),
+            path: dest.display().to_string(),
+            kind: "logic".into(),
+            engine: Some(bin.display().to_string()),
+            summary: e.summary.clone(),
+        });
+    }
+    Ok(out)
+}
+
 /// Append BASE_* weight and LOGIC_* engine entrants under `out_dir`.
 pub fn append_history_entrants(
     manifest_path: &Path,
@@ -118,6 +194,21 @@ mod tests {
         assert!(e.contains(&"LOGIC_TROPISM"));
         assert!(e.contains(&"LOGIC_H105"));
         assert!(e.contains(&"LOGIC_B65T12"));
+    }
+
+    #[test]
+    fn list_gui_agents_includes_current_and_history_ids() {
+        let agents = list_gui_agents().expect("gui agents");
+        let ids: Vec<_> = agents.iter().map(|a| a.id.as_str()).collect();
+        assert!(ids.iter().any(|id| id.ends_with(".json")));
+        assert!(ids.contains(&"BASE_H105O105"));
+        assert!(ids.contains(&"LOGIC_H105"));
+        let logic = agents.iter().find(|a| a.id == "LOGIC_H105").unwrap();
+        assert_eq!(logic.kind, "logic");
+        assert!(logic.engine.as_ref().unwrap().contains("LOGIC_H105"));
+        let base = agents.iter().find(|a| a.id == "BASE_H105O105").unwrap();
+        assert_eq!(base.kind, "weights");
+        assert!(base.engine.is_none());
     }
 
     #[test]
