@@ -26,6 +26,10 @@ pub const MINIMUM_GAMES: usize = 4;
 /// (plus anyone still UCI-elite). Avoids falling back to the whole field when
 /// a runaway leader is the only agent with `r + RD + RD_leader > r_max`.
 pub const ELITE_POOL_MIN: usize = 2;
+/// After every agent has [`MINIMUM_GAMES`], 1 in N pairings is the current
+/// leader vs a uniform-random opponent who fails the UCI elite bar
+/// (`r + RD + RD_leader ≤ r_leader`).
+pub const INFORMATIONAL_PAIR_DENOM: u64 = 10;
 pub const PAIRING_WINDOW: f64 = 200.0;
 pub const DEFAULT_GAMES_PER_PAIR: usize = 24;
 /// Legacy constant (Swiss is continuous; kept for CLI/script compat).
@@ -650,6 +654,66 @@ pub fn swiss_pair_pool(state: &TourneyState, free: &[String]) -> Vec<String> {
     }
 }
 
+/// Deterministic 1-in-[`INFORMATIONAL_PAIR_DENOM`] roll for the next slot.
+pub fn informational_pair_due(seed_base: u64, slot_id: usize) -> bool {
+    pairing_u64(seed_base, slot_id, 0xA11C_E11E) % INFORMATIONAL_PAIR_DENOM == 0
+}
+
+fn pairing_u64(seed_base: u64, slot_id: usize, salt: u64) -> u64 {
+    let mut x = seed_base
+        .wrapping_add(slot_id as u64)
+        .wrapping_mul(0x9E37_79B9_7F4A_7C15)
+        .wrapping_add(salt);
+    x ^= x >> 30;
+    x = x.wrapping_mul(0xBF58_476D_1CE4_E5B9);
+    x ^= x >> 27;
+    x = x.wrapping_mul(0x94D0_49BB_1331_11EB);
+    x ^ (x >> 31)
+}
+
+fn all_have_minimum_games(state: &TourneyState, games: &BTreeMap<String, usize>) -> bool {
+    !state.entrants.is_empty()
+        && state
+            .entrants
+            .iter()
+            .all(|e| games.get(&e.id).copied().unwrap_or(0) >= MINIMUM_GAMES)
+}
+
+/// Free agents who fail `r + RD + RD_leader > r_leader` (sorted for a stable pick).
+pub fn out_of_range_opponents(state: &TourneyState, leader: &str, free: &[String]) -> Vec<String> {
+    let mut out: Vec<String> = free
+        .iter()
+        .filter(|id| id.as_str() != leader && !elite_eligible(state, id))
+        .cloned()
+        .collect();
+    out.sort();
+    out
+}
+
+fn pick_uniform(ids: &[String], seed_base: u64, slot_id: usize) -> String {
+    let i = (pairing_u64(seed_base, slot_id, 0x0DD5) as usize) % ids.len();
+    ids[i].clone()
+}
+
+/// Highest-`r` agent (tie: lowest id) vs a random UCI-ineligible free opponent.
+/// `None` if the roll misses, the leader is busy, or nobody is out of range.
+fn try_informational_pair(state: &TourneyState, free: &[String]) -> Option<(String, String)> {
+    let slot_id = next_slot_id(state);
+    if !informational_pair_due(state.seed_base, slot_id) {
+        return None;
+    }
+    let leader = top_rated_ids(state, 1).into_iter().next()?;
+    if !free.iter().any(|id| id == &leader) {
+        return None;
+    }
+    let outs = out_of_range_opponents(state, &leader, free);
+    if outs.is_empty() {
+        return None;
+    }
+    let b = pick_uniform(&outs, state.seed_base, slot_id);
+    Some((leader, b))
+}
+
 /// Passive RD inflation for sit-outs (Glicko period decay shape).
 pub fn apply_passive_rd_tick(rating: GlickoRating) -> GlickoRating {
     let rd = (rating.rd * rating.rd + RD_PASSIVE_C * RD_PASSIVE_C)
@@ -697,6 +761,34 @@ fn pick_swiss_a(pool: &[String], state: &TourneyState, games: &BTreeMap<String, 
         .expect("non-empty pool")
 }
 
+fn enqueue_swiss_slot(state: &mut TourneyState, a: String, b: String) {
+    let id = next_slot_id(state);
+    let prior = matchup_games(state, &a, &b);
+    let start_mode = if prior < 2 {
+        SlotStartMode::Opening
+    } else {
+        SlotStartMode::Light
+    };
+    let a_is_black = assign_a_is_black(state, &a, &b, id);
+    let start_seed = state
+        .seed_base
+        .wrapping_add((id as u64).wrapping_mul(1_000_003))
+        .wrapping_add(97);
+
+    state.slots.push(TourneySlot {
+        id,
+        model_a: a,
+        model_b: b,
+        start_seed,
+        a_is_black,
+        status: SlotStatus::Pending,
+        game_path: None,
+        score_a: None,
+        round: 0,
+        start_mode,
+    });
+}
+
 pub fn schedule_one_swiss_game(state: &mut TourneyState) -> bool {
     ensure_ratings(state);
     let busy = busy_agents(state);
@@ -716,6 +808,14 @@ pub fn schedule_one_swiss_game(state: &mut TourneyState) -> bool {
         .filter(|id| games.get(*id).copied().unwrap_or(0) < MINIMUM_GAMES)
         .cloned()
         .collect();
+
+    // Informational: only once the whole field has the game floor.
+    if under.is_empty() && all_have_minimum_games(state, &games) {
+        if let Some((a, b)) = try_informational_pair(state, &free) {
+            enqueue_swiss_slot(state, a, b);
+            return true;
+        }
+    }
 
     let elite_or_free = swiss_pair_pool(state, &free);
 
@@ -771,31 +871,7 @@ pub fn schedule_one_swiss_game(state: &mut TourneyState) -> bool {
         .cloned()
         .expect("non-empty pool");
 
-    let id = next_slot_id(state);
-    let prior = matchup_games(state, &a, &b);
-    let start_mode = if prior < 2 {
-        SlotStartMode::Opening
-    } else {
-        SlotStartMode::Light
-    };
-    let a_is_black = assign_a_is_black(state, &a, &b, id);
-    let start_seed = state
-        .seed_base
-        .wrapping_add((id as u64).wrapping_mul(1_000_003))
-        .wrapping_add(97);
-
-    state.slots.push(TourneySlot {
-        id,
-        model_a: a,
-        model_b: b,
-        start_seed,
-        a_is_black,
-        status: SlotStatus::Pending,
-        game_path: None,
-        score_a: None,
-        round: 0,
-        start_mode,
-    });
+    enqueue_swiss_slot(state, a, b);
     true
 }
 
@@ -1661,6 +1737,30 @@ mod tests {
         }
     }
 
+    fn seed_for_info_pair(slot_id: usize, want: bool) -> u64 {
+        (0u64..10_000)
+            .find(|&s| informational_pair_due(s, slot_id) == want)
+            .expect("found a seed for the informational roll")
+    }
+
+    fn runaway_field(st: &mut TourneyState) {
+        let rs = [
+            2400.0, 2200.0, 2150.0, 2100.0, 2050.0, 2000.0, 1950.0, 1900.0, 1700.0, 1600.0,
+        ];
+        for i in 0..10 {
+            st.ratings.insert(
+                format!("p{i}"),
+                GlickoRating {
+                    r: rs[i],
+                    rd: 40.0,
+                },
+            );
+        }
+        for i in 0..5 {
+            give_min_games(st, &format!("p{}", i * 2), &format!("p{}", i * 2 + 1), MINIMUM_GAMES);
+        }
+    }
+
     #[test]
     fn elite_pool_excludes_low_uci_agents() {
         let mut st = build_schedule(&TourneyConfig {
@@ -1687,6 +1787,7 @@ mod tests {
             give_min_games(&mut st, &format!("p{}", i * 2), &format!("p{}", i * 2 + 1), MINIMUM_GAMES);
         }
         give_min_games(&mut st, "p0", "p1", 2);
+        st.seed_base = seed_for_info_pair(next_slot_id(&st), false);
         assert!(elite_eligible(&st, "p0"));
         assert!(elite_eligible(&st, "p1")); // 1850+40+40 > 1900
         assert!(!elite_eligible(&st, "p2")); // 1500+50+40 ≤ 1900
@@ -1725,6 +1826,7 @@ mod tests {
         for i in 0..5 {
             give_min_games(&mut st, &format!("p{}", i * 2), &format!("p{}", i * 2 + 1), MINIMUM_GAMES);
         }
+        st.seed_base = seed_for_info_pair(next_slot_id(&st), false);
         assert!(elite_eligible(&st, "p0"));
         assert!(!elite_eligible(&st, "p1")); // 2200+40+40 ≤ 2400
         let free: Vec<String> = (0..10).map(|i| format!("p{i}")).collect();
@@ -1834,6 +1936,85 @@ mod tests {
         assert!((st.ratings["p2"].rd - expect).abs() < 1e-9);
         assert!((st.ratings["p0"].rd - 100.0).abs() < 1e-9);
         assert!((st.ratings["p1"].rd - 100.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn informational_pair_hits_leader_vs_uci_ineligible() {
+        let mut st = build_schedule(&TourneyConfig {
+            entrants: entrants(10),
+            format: TourneyFormat::Swiss,
+            seed_base: 1,
+            ..TourneyConfig::default()
+        });
+        runaway_field(&mut st);
+        st.seed_base = seed_for_info_pair(next_slot_id(&st), true);
+        assert!(!elite_eligible(&st, "p2"));
+        assert!(!elite_eligible(&st, "p9"));
+        assert!(schedule_one_swiss_game(&mut st));
+        let last = st.slots.last().unwrap();
+        let pair = [&last.model_a, &last.model_b];
+        assert!(pair.contains(&&"p0".to_string()));
+        let opp = if last.model_a == "p0" {
+            last.model_b.as_str()
+        } else {
+            last.model_a.as_str()
+        };
+        assert_ne!(opp, "p0");
+        assert!(!elite_eligible(&st, opp));
+    }
+
+    #[test]
+    fn informational_pair_waits_for_minimum_games() {
+        let mut st = build_schedule(&TourneyConfig {
+            entrants: entrants(4),
+            format: TourneyFormat::Swiss,
+            seed_base: 1,
+            ..TourneyConfig::default()
+        });
+        st.ratings.insert(
+            "p0".into(),
+            GlickoRating {
+                r: 2400.0,
+                rd: 40.0,
+            },
+        );
+        st.ratings.insert(
+            "p1".into(),
+            GlickoRating {
+                r: 2200.0,
+                rd: 40.0,
+            },
+        );
+        st.ratings.insert(
+            "p2".into(),
+            GlickoRating {
+                r: 1500.0,
+                rd: 40.0,
+            },
+        );
+        st.ratings.insert(
+            "p3".into(),
+            GlickoRating {
+                r: 1400.0,
+                rd: 40.0,
+            },
+        );
+        give_min_games(&mut st, "p0", "p1", MINIMUM_GAMES);
+        st.seed_base = seed_for_info_pair(next_slot_id(&st), true);
+        assert!(schedule_one_swiss_game(&mut st));
+        let last = st.slots.last().unwrap();
+        let pair = [&last.model_a, &last.model_b];
+        assert!(pair.contains(&&"p2".to_string()));
+        assert!(pair.contains(&&"p3".to_string()));
+        assert!(!pair.contains(&&"p0".to_string()));
+    }
+
+    #[test]
+    fn informational_pair_rate_is_one_in_denom() {
+        let hits = (0usize..10_000)
+            .filter(|&id| informational_pair_due(1, id))
+            .count();
+        assert!((900..=1100).contains(&hits), "hits={hits}");
     }
 }
 
