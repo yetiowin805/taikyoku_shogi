@@ -136,13 +136,13 @@ fi
 
 ARGS=(tournament --manifest "$MANIFEST" --run-id "$RUN_ID" --outdir "$OUTDIR"
   --starts "$STARTS" --depth "$DEPTH" --jobs "$JOBS"
-  --format swiss --swiss-rounds "$SWISS_ROUNDS"
+  --format knockout --swiss-rounds "$SWISS_ROUNDS"
   --games-per-pair "$GAMES_PER_PAIR" --seed-base 1)
 if [[ "$RESUME" == "1" ]]; then
   ARGS+=(--resume)
 fi
 
-echo "Starting Swiss run_id=$RUN_ID rounds=$SWISS_ROUNDS jobs=$JOBS games-per-pair=$GAMES_PER_PAIR"
+echo "Starting knockout run_id=$RUN_ID jobs=$JOBS games-per-pair=$GAMES_PER_PAIR"
 echo "Stop: touch data/run/TOURNEY_STOP   or Ctrl-C"
 echo "Detach-safe launch: $0 --detach --resume --run-id $RUN_ID --skip-gen"
 
@@ -187,15 +187,13 @@ if [[ -f "$OUTDIR/$RUN_ID/state.json" ]]; then
 import json
 from pathlib import Path
 st=json.loads(Path("$OUTDIR/$RUN_ID/state.json").read_text())
-unfinished=any(s.get("status") in ("pending","running","aborted") for s in st.get("slots",[]))
-swiss_done=st.get("swiss_next_round",0) >= max(int(st.get("swiss_rounds") or 1), 1)
-fmt=st.get("format","Swiss")
-if unfinished:
-    print(1)
-elif fmt == "Swiss" and not swiss_done:
-    print(1)
-else:
+fmt=str(st.get("format","")).lower()
+# Continuous formats only end on cooperative stop (binary rc).
+if fmt in ("swiss", "knockout"):
     print(0)
+else:
+    unfinished=any(s.get("status") in ("pending","running","aborted") for s in st.get("slots",[]))
+    print(1 if unfinished else 0)
 PY
 )"
 fi

@@ -128,7 +128,7 @@ if [[ "$RESUME" == "1" && ! -f "$OUTDIR/$RUN_ID/state.json" ]]; then
 fi
 
 ARGS=(tournament --manifest "$MANIFEST" --run-id "$RUN_ID" --outdir "$OUTDIR"
-  --depth "$DEPTH" --jobs "$JOBS" --format swiss --seed-base 1)
+  --depth "$DEPTH" --jobs "$JOBS" --format knockout --seed-base 1)
 if [[ -n "$TIME_MS" ]]; then
   ARGS+=(--time-ms "$TIME_MS")
 fi
@@ -136,7 +136,7 @@ if [[ "$RESUME" == "1" ]]; then
   ARGS+=(--resume)
 fi
 
-echo "Starting continuous Glicko Swiss run_id=$RUN_ID jobs=$JOBS depth=$DEPTH${TIME_MS:+ time_ms=$TIME_MS}"
+echo "Starting continuous knockout run_id=$RUN_ID jobs=$JOBS depth=$DEPTH${TIME_MS:+ time_ms=$TIME_MS}"
 echo "Stop: touch data/run/TOURNEY_STOP   or Ctrl-C"
 echo "Detach-safe launch: $0 --detach --resume --run-id $RUN_ID --skip-gen"
 

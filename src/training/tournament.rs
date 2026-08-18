@@ -1,6 +1,7 @@
-//! Round-robin / continuous Swiss tournament with Glicko-1, checkpoint/resume, and cooperative stop.
+//! Round-robin / continuous Swiss / continuous knockout with Glicko-1, checkpoint/resume, and cooperative stop.
 
 use crate::game_history::GameResult;
+use crate::training::knockout::{fill_knockout_queue, on_knockout_slot_finished, KnockoutTree};
 use crate::training::paths::ensure_data_dirs;
 use crate::training::pool::parse_starts_spec;
 use crate::training::record::{AgentSpec, GameStart};
@@ -41,10 +42,13 @@ const GLICKO_Q: f64 = std::f64::consts::LN_10 / 400.0;
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum TourneyFormat {
+    /// Kept as serde default so old `state.json` without `format` stays RR.
     #[default]
     RoundRobin,
     /// Continuous Glicko-window pairing until cooperative stop.
     Swiss,
+    /// Continuous seeded knockout until cooperative stop.
+    Knockout,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -143,6 +147,15 @@ pub struct TourneyState {
     /// Agents who played in a finished game since the last passive RD tick.
     #[serde(default)]
     pub rd_tick_participants: BTreeSet<String>,
+    #[serde(default)]
+    pub knockouts: Vec<KnockoutTree>,
+    /// id → stage label → appearance count (playing a match; byes are not PlayIn).
+    #[serde(default)]
+    pub knockout_stage_appearances: BTreeMap<String, BTreeMap<String, usize>>,
+    #[serde(default)]
+    pub knockout_stage_wins: BTreeMap<String, BTreeMap<String, usize>>,
+    #[serde(default)]
+    pub knockout_titles: BTreeMap<String, usize>,
 }
 
 #[derive(Debug, Clone)]
@@ -183,7 +196,7 @@ impl Default for TourneyConfig {
             resume: false,
             verbose: false,
             stop: Arc::new(AtomicBool::new(false)),
-            format: TourneyFormat::RoundRobin,
+            format: TourneyFormat::Knockout,
             swiss_rounds: DEFAULT_SWISS_ROUNDS,
         }
     }
@@ -201,23 +214,51 @@ pub fn new_run_id() -> String {
 }
 
 fn glicko_g(rd: f64) -> f64 {
-    1.0 / (1.0 + 3.0 * GLICKO_Q * GLICKO_Q * rd * rd / (std::f64::consts::PI * std::f64::consts::PI))
+    1.0 / (1.0
+        + 3.0 * GLICKO_Q * GLICKO_Q * rd * rd / (std::f64::consts::PI * std::f64::consts::PI))
         .sqrt()
 }
 
 /// One-game Glicko-1 update for both players (`score_a` in {0, 0.5, 1}).
-pub fn glicko_update(a: GlickoRating, b: GlickoRating, score_a: f64) -> (GlickoRating, GlickoRating) {
+pub fn glicko_update(
+    a: GlickoRating,
+    b: GlickoRating,
+    score_a: f64,
+) -> (GlickoRating, GlickoRating) {
     let na = glicko_update_one(a, b, score_a);
     let nb = glicko_update_one(b, a, 1.0 - score_a);
     (na, nb)
 }
 
-fn glicko_update_one(player: GlickoRating, opp: GlickoRating, score: f64) -> GlickoRating {
-    let g = glicko_g(opp.rd);
-    let e = 1.0 / (1.0 + 10f64.powf(-g * (player.r - opp.r) / 400.0));
-    let d2 = 1.0 / (GLICKO_Q * GLICKO_Q * g * g * e * (1.0 - e));
-    let rd_new = (1.0 / (1.0 / (player.rd * player.rd) + 1.0 / d2)).sqrt().max(RD_MIN);
-    let r_new = player.r + GLICKO_Q / (1.0 / (rd_new * rd_new)) * g * (score - e);
+pub(crate) fn glicko_update_one(
+    player: GlickoRating,
+    opp: GlickoRating,
+    score: f64,
+) -> GlickoRating {
+    glicko_update_period(player, &[(opp, score)])
+}
+
+/// Glicko-1 multi-opponent period update from a rating snapshot.
+pub(crate) fn glicko_update_period(
+    player: GlickoRating,
+    results: &[(GlickoRating, f64)],
+) -> GlickoRating {
+    if results.is_empty() {
+        return player;
+    }
+    let mut d2_inv = 0.0;
+    let mut sum = 0.0;
+    for &(opp, score) in results {
+        let g = glicko_g(opp.rd);
+        let e = 1.0 / (1.0 + 10f64.powf(-g * (player.r - opp.r) / 400.0));
+        d2_inv += g * g * e * (1.0 - e);
+        sum += g * (score - e);
+    }
+    let d2 = 1.0 / (GLICKO_Q * GLICKO_Q * d2_inv);
+    let rd_new = (1.0 / (1.0 / (player.rd * player.rd) + 1.0 / d2))
+        .sqrt()
+        .max(RD_MIN);
+    let r_new = player.r + GLICKO_Q / (1.0 / (rd_new * rd_new)) * sum;
     GlickoRating {
         r: r_new,
         rd: rd_new,
@@ -244,7 +285,7 @@ fn score_from_result(a_is_black: bool, result: &Option<GameResult>) -> f64 {
     }
 }
 
-fn ensure_ratings(state: &mut TourneyState) {
+pub(crate) fn ensure_ratings(state: &mut TourneyState) {
     if state.ratings.is_empty() && !state.elo.is_empty() {
         for (id, r) in &state.elo {
             state.ratings.insert(
@@ -269,15 +310,11 @@ fn ensure_ratings(state: &mut TourneyState) {
     }
 }
 
-fn rating_of(state: &TourneyState, id: &str) -> GlickoRating {
-    state
-        .ratings
-        .get(id)
-        .copied()
-        .unwrap_or_default()
+pub(crate) fn rating_of(state: &TourneyState, id: &str) -> GlickoRating {
+    state.ratings.get(id).copied().unwrap_or_default()
 }
 
-fn build_schedule(cfg: &TourneyConfig) -> TourneyState {
+pub(crate) fn build_schedule(cfg: &TourneyConfig) -> TourneyState {
     let mut ratings = BTreeMap::new();
     let mut elo = BTreeMap::new();
     for e in &cfg.entrants {
@@ -302,6 +339,10 @@ fn build_schedule(cfg: &TourneyConfig) -> TourneyState {
         swiss_next_round: 0,
         rd_tick_done_counter: 0,
         rd_tick_participants: BTreeSet::new(),
+        knockouts: Vec::new(),
+        knockout_stage_appearances: BTreeMap::new(),
+        knockout_stage_wins: BTreeMap::new(),
+        knockout_titles: BTreeMap::new(),
     };
     match cfg.format {
         TourneyFormat::RoundRobin => {
@@ -337,7 +378,7 @@ fn build_schedule(cfg: &TourneyConfig) -> TourneyState {
                 }
             }
         }
-        TourneyFormat::Swiss => {
+        TourneyFormat::Swiss | TourneyFormat::Knockout => {
             // Continuous: slots are appended on demand.
         }
     }
@@ -410,7 +451,7 @@ pub fn games_played(state: &TourneyState) -> BTreeMap<String, usize> {
     n
 }
 
-fn matchup_games(state: &TourneyState, a: &str, b: &str) -> usize {
+pub(crate) fn matchup_games(state: &TourneyState, a: &str, b: &str) -> usize {
     let mut n = 0usize;
     for slot in &state.slots {
         if !slot_counts(slot.status) {
@@ -467,8 +508,14 @@ fn black_counts_matchup(state: &TourneyState, a: &str, b: &str) -> (usize, usize
     (ba, bb)
 }
 
-fn next_slot_id(state: &TourneyState) -> usize {
-    state.slots.iter().map(|s| s.id).max().map(|x| x + 1).unwrap_or(0)
+pub(crate) fn next_slot_id(state: &TourneyState) -> usize {
+    state
+        .slots
+        .iter()
+        .map(|s| s.id)
+        .max()
+        .map(|x| x + 1)
+        .unwrap_or(0)
 }
 
 fn rating_of_map(ratings: &BTreeMap<String, GlickoRating>, id: &str) -> f64 {
@@ -542,9 +589,7 @@ pub fn opponent_pool(
     let mut hi = 0usize;
     let mut lo = 0usize;
     let mut take_higher = match (higher.first(), lower.first()) {
-        (Some(h), Some(l)) => {
-            h.0 < l.0 - 1e-12 || ((h.0 - l.0).abs() <= 1e-12 && h.1 <= l.1)
-        }
+        (Some(h), Some(l)) => h.0 < l.0 - 1e-12 || ((h.0 - l.0).abs() <= 1e-12 && h.1 <= l.1),
         (Some(_), None) => true,
         (None, Some(_)) => false,
         (None, None) => return within,
@@ -568,7 +613,7 @@ pub fn opponent_pool(
     within
 }
 
-fn assign_a_is_black(state: &TourneyState, a: &str, b: &str, slot_id: usize) -> bool {
+pub(crate) fn assign_a_is_black(state: &TourneyState, a: &str, b: &str, slot_id: usize) -> bool {
     let (ba, bb) = black_counts_matchup(state, a, b);
     if ba < bb {
         return true; // a gets black
@@ -587,7 +632,10 @@ fn assign_a_is_black(state: &TourneyState, a: &str, b: &str, slot_id: usize) -> 
         return false;
     }
     // Tie → deterministic RNG from seed_base + slot id.
-    let x = state.seed_base.wrapping_add(slot_id as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15);
+    let x = state
+        .seed_base
+        .wrapping_add(slot_id as u64)
+        .wrapping_mul(0x9E37_79B9_7F4A_7C15);
     (x >> 63) == 0
 }
 
@@ -851,7 +899,11 @@ pub fn schedule_one_swiss_game(state: &mut TourneyState) -> bool {
         })
         .cloned()
         .collect();
-    let pick_from = if preferred.is_empty() { &pool } else { &preferred };
+    let pick_from = if preferred.is_empty() {
+        &pool
+    } else {
+        &preferred
+    };
 
     let ra = rating_of(state, &a).r;
     let b = pick_from
@@ -874,7 +926,7 @@ pub fn schedule_one_swiss_game(state: &mut TourneyState) -> bool {
     true
 }
 
-fn inflight_count(state: &TourneyState) -> usize {
+pub(crate) fn inflight_count(state: &TourneyState) -> usize {
     state
         .slots
         .iter()
@@ -882,13 +934,16 @@ fn inflight_count(state: &TourneyState) -> usize {
         .count()
 }
 
-/// True when every scheduled RR slot is Done. Swiss continuous never completes on its own.
+pub(crate) fn format_is_continuous(format: TourneyFormat) -> bool {
+    matches!(format, TourneyFormat::Swiss | TourneyFormat::Knockout)
+}
+
+/// True when every scheduled RR slot is Done. Swiss/knockout never complete on their own.
 pub fn tournament_is_complete(state: &TourneyState) -> bool {
     match state.format {
-        TourneyFormat::Swiss => false,
+        TourneyFormat::Swiss | TourneyFormat::Knockout => false,
         TourneyFormat::RoundRobin => {
-            !state.slots.is_empty()
-                && state.slots.iter().all(|s| s.status == SlotStatus::Done)
+            !state.slots.is_empty() && state.slots.iter().all(|s| s.status == SlotStatus::Done)
         }
     }
 }
@@ -999,12 +1054,90 @@ pub fn format_standings(state: &TourneyState) -> String {
         ));
     }
     out.push('\n');
+    if !state.knockout_stage_appearances.is_empty()
+        || !state.knockout_stage_wins.is_empty()
+        || !state.knockout_titles.is_empty()
+    {
+        out.push_str(&format_knockout_stage_table(state));
+    }
     out
+}
+
+fn format_knockout_stage_table(state: &TourneyState) -> String {
+    let mut stages: BTreeSet<String> = BTreeSet::new();
+    for map in state.knockout_stage_appearances.values() {
+        stages.extend(map.keys().cloned());
+    }
+    for map in state.knockout_stage_wins.values() {
+        stages.extend(map.keys().cloned());
+    }
+    let mut stage_list: Vec<String> = stages.into_iter().collect();
+    stage_list.sort_by_key(|s| stage_column_key(s));
+    let mut out = String::from("## Knockout stages\n\n");
+    out.push_str("| Rank | Model |");
+    for s in &stage_list {
+        out.push_str(&format!(" {s} |"));
+    }
+    out.push_str(" Titles |\n|---:|---|");
+    for _ in &stage_list {
+        out.push_str("---:|");
+    }
+    out.push_str("---:|\n");
+    let mut rows: Vec<String> = state.entrants.iter().map(|e| e.id.clone()).collect();
+    rows.sort_by(|a, b| {
+        let ra = rating_of(state, a).r;
+        let rb = rating_of(state, b).r;
+        rb.partial_cmp(&ra)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| a.cmp(b))
+    });
+    for (i, id) in rows.iter().enumerate() {
+        out.push_str(&format!("| {} | {} |", i + 1, id));
+        for s in &stage_list {
+            let app = state
+                .knockout_stage_appearances
+                .get(id)
+                .and_then(|m| m.get(s))
+                .copied()
+                .unwrap_or(0);
+            let win = state
+                .knockout_stage_wins
+                .get(id)
+                .and_then(|m| m.get(s))
+                .copied()
+                .unwrap_or(0);
+            if app == 0 && win == 0 {
+                out.push_str(" — |");
+            } else {
+                out.push_str(&format!(" {app}/{win} |"));
+            }
+        }
+        let titles = state.knockout_titles.get(id).copied().unwrap_or(0);
+        out.push_str(&format!(" {titles} |\n"));
+    }
+    out.push('\n');
+    out
+}
+
+fn stage_column_key(label: &str) -> (u8, i32) {
+    match label {
+        "PlayIn" => (0, 0),
+        "Final" => (2, 0),
+        s if s.starts_with('R') => {
+            let n: i32 = s[1..].parse().unwrap_or(0);
+            (1, -n)
+        }
+        _ => (3, 0),
+    }
 }
 
 pub fn standings_summary(state: &TourneyState) -> String {
     let mut rows: Vec<_> = state.ratings.iter().collect();
-    rows.sort_by(|a, b| b.1.r.partial_cmp(&a.1.r).unwrap_or(std::cmp::Ordering::Equal));
+    rows.sort_by(|a, b| {
+        b.1.r
+            .partial_cmp(&a.1.r)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     let done = state
         .slots
         .iter()
@@ -1018,7 +1151,11 @@ pub fn standings_summary(state: &TourneyState) -> String {
     )];
     for (id, g) in rows {
         let delta = g.r - DEFAULT_RATING;
-        lines.push(format!("{id}: {r:.1}±{rd:.1} (Δ{delta:+.1})", r = g.r, rd = g.rd));
+        lines.push(format!(
+            "{id}: {r:.1}±{rd:.1} (Δ{delta:+.1})",
+            r = g.r,
+            rd = g.rd
+        ));
     }
     lines.join("\n")
 }
@@ -1051,7 +1188,7 @@ fn resolve_start(
     light: &crate::training::pool::StartsSource,
 ) -> Result<GameStart, String> {
     match format {
-        TourneyFormat::Swiss => match start_mode {
+        TourneyFormat::Swiss | TourneyFormat::Knockout => match start_mode {
             SlotStartMode::Opening => Ok(GameStart::Opening),
             SlotStartMode::Light => light.start_for_seed(start_seed),
         },
@@ -1062,18 +1199,21 @@ fn resolve_start(
     }
 }
 
-/// Claim a Pending slot, first topping the Swiss queue up to `jobs`.
-/// Returns None when this worker has nothing to do right now (Swiss idle
+/// Claim a Pending slot, first topping the Swiss/knockout queue up to `jobs`.
+/// Returns None when this worker has nothing to do right now (continuous
 /// threads must wait and retry — they must not exit, or jobs collapse to 1).
-fn claim_or_schedule_slot(
-    st: &mut TourneyState,
-    cfg: &TourneyConfig,
-) -> Option<usize> {
-    if st.format == TourneyFormat::Swiss {
-        let cap = cfg.jobs.max(1);
-        while inflight_count(st) < cap && schedule_one_swiss_game(st) {}
+fn claim_or_schedule_slot(st: &mut TourneyState, cfg: &TourneyConfig) -> Option<usize> {
+    let cap = cfg.jobs.max(1);
+    match st.format {
+        TourneyFormat::Swiss => while inflight_count(st) < cap && schedule_one_swiss_game(st) {},
+        TourneyFormat::Knockout => fill_knockout_queue(st, cap),
+        TourneyFormat::RoundRobin => {}
     }
-    if let Some(idx) = st.slots.iter().position(|s| s.status == SlotStatus::Pending) {
+    if let Some(idx) = st
+        .slots
+        .iter()
+        .position(|s| s.status == SlotStatus::Pending)
+    {
         st.slots[idx].status = SlotStatus::Running;
         st.updated_at = now_secs();
         return Some(st.slots[idx].id);
@@ -1148,7 +1288,7 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
                                 let _ = save_state(cfg, &st);
                                 break id;
                             }
-                            None if st.format == TourneyFormat::Swiss => {
+                            None if format_is_continuous(st.format) => {
                                 drop(st);
                                 std::thread::sleep(std::time::Duration::from_millis(50));
                             }
@@ -1156,7 +1296,16 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
                         }
                     };
 
-                    let (model_a, model_b, start_seed, a_is_black, depth, start_mode, format, starts_spec) = {
+                    let (
+                        model_a,
+                        model_b,
+                        start_seed,
+                        a_is_black,
+                        depth,
+                        start_mode,
+                        format,
+                        starts_spec,
+                    ) = {
                         let st = state_mu.lock().unwrap();
                         let Some(slot) = st.slots.iter().find(|s| s.id == slot_id) else {
                             eprintln!("tournament: missing slot id {slot_id}");
@@ -1249,19 +1398,23 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
                             let score_a = score_from_result(a_is_black, &rec.result);
                             let mut st = state_mu.lock().unwrap();
                             ensure_ratings(&mut st);
-                            let ra = rating_of(&st, &model_a);
-                            let rb = rating_of(&st, &model_b);
-                            let (na, nb) = glicko_update(ra, rb, score_a);
-                            st.ratings.insert(model_a.clone(), na);
-                            st.ratings.insert(model_b.clone(), nb);
-                            st.elo.insert(model_a.clone(), na.r);
-                            st.elo.insert(model_b.clone(), nb.r);
                             if let Some(slot) = st.slots.iter_mut().find(|s| s.id == slot_id) {
                                 slot.status = SlotStatus::Done;
                                 slot.score_a = Some(score_a);
                                 slot.game_path = Some(path.display().to_string());
                             }
-                            note_finished_game_for_rd_tick(&mut st, &model_a, &model_b);
+                            if st.format == TourneyFormat::Knockout {
+                                on_knockout_slot_finished(&mut st, slot_id);
+                            } else {
+                                let ra = rating_of(&st, &model_a);
+                                let rb = rating_of(&st, &model_b);
+                                let (na, nb) = glicko_update(ra, rb, score_a);
+                                st.ratings.insert(model_a.clone(), na);
+                                st.ratings.insert(model_b.clone(), nb);
+                                st.elo.insert(model_a.clone(), na.r);
+                                st.elo.insert(model_b.clone(), nb.r);
+                                note_finished_game_for_rd_tick(&mut st, &model_a, &model_b);
+                            }
                             st.updated_at = now_secs();
                             let _ = save_state(cfg, &st);
                             if cfg.verbose {
@@ -1298,12 +1451,22 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
             break;
         }
 
-        // RR drained; Swiss must never exit until cooperative stop.
+        // RR drained; Swiss/knockout must never exit until cooperative stop.
         let mut st = state_mu.lock().unwrap();
-        if st.format == TourneyFormat::Swiss {
-            if inflight_count(&st) < jobs && schedule_one_swiss_game(&mut st) {
+        if format_is_continuous(st.format) {
+            if st.format == TourneyFormat::Swiss
+                && inflight_count(&st) < jobs
+                && schedule_one_swiss_game(&mut st)
+            {
                 let _ = save_state(cfg, &st);
                 continue;
+            }
+            if st.format == TourneyFormat::Knockout && inflight_count(&st) < jobs {
+                fill_knockout_queue(&mut st, jobs);
+                let _ = save_state(cfg, &st);
+                if inflight_count(&st) > 0 {
+                    continue;
+                }
             }
             // Wait for in-flight work, or idle-spin until stop / a free pair appears.
             drop(st);
@@ -1325,13 +1488,17 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
     println!("{}", format_standings(&state));
 
     let stopped = cfg_stop.load(Ordering::Relaxed) || cfg.stop_file.exists();
-    if state.format == TourneyFormat::Swiss {
-        // Continuous Swiss only leaves the loop on cooperative stop.
+    if format_is_continuous(state.format) {
+        // Continuous formats only leave the loop on cooperative stop.
         if stopped {
             return Ok(state);
         }
+        let kind = match state.format {
+            TourneyFormat::Knockout => "knockout",
+            _ => "swiss",
+        };
         return Err(format!(
-            "tournament swiss exited without stop — resume with --resume --run-id {}",
+            "tournament {kind} exited without stop — resume with --resume --run-id {}",
             state.run_id
         ));
     }
@@ -1404,10 +1571,27 @@ mod tests {
     }
 
     #[test]
+    fn glicko_period_one_game_matches_one() {
+        let p = GlickoRating {
+            r: 1500.0,
+            rd: 350.0,
+        };
+        let o = GlickoRating {
+            r: 1400.0,
+            rd: 100.0,
+        };
+        let a = glicko_update_one(p, o, 1.0);
+        let b = glicko_update_period(p, &[(o, 1.0)]);
+        assert!((a.r - b.r).abs() < 1e-12);
+        assert!((a.rd - b.rd).abs() < 1e-12);
+    }
+
+    #[test]
     fn schedule_size() {
         let cfg = TourneyConfig {
             entrants: entrants(3),
             games_per_pair: 2,
+            format: TourneyFormat::RoundRobin,
             ..TourneyConfig::default()
         };
         let st = build_schedule(&cfg);
@@ -1434,6 +1618,7 @@ mod tests {
         let cfg = TourneyConfig {
             entrants: entrants(3),
             games_per_pair: 3,
+            format: TourneyFormat::RoundRobin,
             ..TourneyConfig::default()
         };
         let st = build_schedule(&cfg);
@@ -1504,7 +1689,12 @@ mod tests {
         assert!(schedule_one_swiss_game(&mut st));
         let last = st.slots.last().unwrap();
         // p2 and p3 have 0 games → one of them is A; opponent from pool.
-        assert!(last.model_a == "p2" || last.model_a == "p3" || last.model_b == "p2" || last.model_b == "p3");
+        assert!(
+            last.model_a == "p2"
+                || last.model_a == "p3"
+                || last.model_b == "p2"
+                || last.model_b == "p3"
+        );
         let games = games_counted(&st);
         assert_eq!(games.get("p2").copied().unwrap_or(0), 1);
         assert_eq!(games.get("p3").copied().unwrap_or(0), 1);
@@ -1557,16 +1747,16 @@ mod tests {
         });
         let rs = [1900.0, 1880.0, 1860.0, 1500.0, 1490.0, 1480.0];
         for i in 0..6 {
-            st.ratings.insert(
-                format!("p{i}"),
-                GlickoRating {
-                    r: rs[i],
-                    rd: 40.0,
-                },
-            );
+            st.ratings
+                .insert(format!("p{i}"), GlickoRating { r: rs[i], rd: 40.0 });
         }
         for i in 0..3 {
-            give_min_games(&mut st, &format!("p{}", i * 2), &format!("p{}", i * 2 + 1), MINIMUM_GAMES);
+            give_min_games(
+                &mut st,
+                &format!("p{}", i * 2),
+                &format!("p{}", i * 2 + 1),
+                MINIMUM_GAMES,
+            );
         }
         st.seed_base = seed_for_info_pair(next_slot_id(&st), false);
         assert!(elite_eligible(&st, "p0"));
@@ -1582,7 +1772,9 @@ mod tests {
         st.seed_base = seed_for_info_pair(next_slot_id(&st), false);
         assert!(schedule_one_swiss_game(&mut st));
         let second = st.slots.last().unwrap();
-        let reused = first_pair.iter().any(|id| id == &second.model_a || id == &second.model_b);
+        let reused = first_pair
+            .iter()
+            .any(|id| id == &second.model_a || id == &second.model_b);
         assert!(
             reused,
             "expected a second in-flight game to reuse an engine copy, got {} vs {} after {} vs {}",
@@ -1594,10 +1786,34 @@ mod tests {
     #[test]
     fn opponent_pool_expands_to_two_closer_side_first() {
         let mut ratings = BTreeMap::new();
-        ratings.insert("a".into(), GlickoRating { r: 1500.0, rd: 100.0 });
-        ratings.insert("strong".into(), GlickoRating { r: 1800.0, rd: 100.0 });
-        ratings.insert("weak".into(), GlickoRating { r: 1200.0, rd: 100.0 });
-        ratings.insert("near".into(), GlickoRating { r: 1510.0, rd: 100.0 });
+        ratings.insert(
+            "a".into(),
+            GlickoRating {
+                r: 1500.0,
+                rd: 100.0,
+            },
+        );
+        ratings.insert(
+            "strong".into(),
+            GlickoRating {
+                r: 1800.0,
+                rd: 100.0,
+            },
+        );
+        ratings.insert(
+            "weak".into(),
+            GlickoRating {
+                r: 1200.0,
+                rd: 100.0,
+            },
+        );
+        ratings.insert(
+            "near".into(),
+            GlickoRating {
+                r: 1510.0,
+                rd: 100.0,
+            },
+        );
         let cands = vec!["strong".into(), "weak".into(), "near".into()];
         let pool = opponent_pool("a", &cands, &ratings);
         // Window has only `near`; expand with closer unused side (tie 300 → id `strong`).
@@ -1607,7 +1823,13 @@ mod tests {
         assert!(!pool.contains(&"weak".to_string()));
 
         let cands2 = vec!["strong".into(), "weak_near".into()];
-        ratings.insert("weak_near".into(), GlickoRating { r: 1490.0, rd: 100.0 });
+        ratings.insert(
+            "weak_near".into(),
+            GlickoRating {
+                r: 1490.0,
+                rd: 100.0,
+            },
+        );
         let pool2 = opponent_pool("a", &cands2, &ratings);
         assert_eq!(pool2.len(), 2);
         assert!(pool2.contains(&"weak_near".to_string()));
@@ -1617,8 +1839,20 @@ mod tests {
     #[test]
     fn opponent_pool_singleton_outside_window_is_kept() {
         let mut ratings = BTreeMap::new();
-        ratings.insert("a".into(), GlickoRating { r: 2000.0, rd: 80.0 });
-        ratings.insert("far".into(), GlickoRating { r: 1700.0, rd: 80.0 });
+        ratings.insert(
+            "a".into(),
+            GlickoRating {
+                r: 2000.0,
+                rd: 80.0,
+            },
+        );
+        ratings.insert(
+            "far".into(),
+            GlickoRating {
+                r: 1700.0,
+                rd: 80.0,
+            },
+        );
         let cands = vec!["far".into()];
         let pool = opponent_pool("a", &cands, &ratings);
         assert_eq!(pool, vec!["far".to_string()]);
@@ -1632,18 +1866,20 @@ mod tests {
             seed_base: 1,
             ..TourneyConfig::default()
         });
-        let rs = [2400.0, 2100.0, 1600.0, 1580.0, 1560.0, 1540.0, 1520.0, 1500.0];
+        let rs = [
+            2400.0, 2100.0, 1600.0, 1580.0, 1560.0, 1540.0, 1520.0, 1500.0,
+        ];
         for i in 0..8 {
-            st.ratings.insert(
-                format!("p{i}"),
-                GlickoRating {
-                    r: rs[i],
-                    rd: 40.0,
-                },
-            );
+            st.ratings
+                .insert(format!("p{i}"), GlickoRating { r: rs[i], rd: 40.0 });
         }
         for i in 0..4 {
-            give_min_games(&mut st, &format!("p{}", i * 2), &format!("p{}", i * 2 + 1), MINIMUM_GAMES);
+            give_min_games(
+                &mut st,
+                &format!("p{}", i * 2),
+                &format!("p{}", i * 2 + 1),
+                MINIMUM_GAMES,
+            );
         }
         st.seed_base = seed_for_info_pair(next_slot_id(&st), false);
         assert!(elite_eligible(&st, "p0"));
@@ -1669,9 +1905,27 @@ mod tests {
     #[test]
     fn opponent_pool_empty_window_still_has_two() {
         let mut ratings = BTreeMap::new();
-        ratings.insert("a".into(), GlickoRating { r: 1500.0, rd: 80.0 });
-        ratings.insert("hi".into(), GlickoRating { r: 1900.0, rd: 80.0 });
-        ratings.insert("lo".into(), GlickoRating { r: 1100.0, rd: 80.0 });
+        ratings.insert(
+            "a".into(),
+            GlickoRating {
+                r: 1500.0,
+                rd: 80.0,
+            },
+        );
+        ratings.insert(
+            "hi".into(),
+            GlickoRating {
+                r: 1900.0,
+                rd: 80.0,
+            },
+        );
+        ratings.insert(
+            "lo".into(),
+            GlickoRating {
+                r: 1100.0,
+                rd: 80.0,
+            },
+        );
         let cands = vec!["hi".into(), "lo".into()];
         let pool = opponent_pool("a", &cands, &ratings);
         assert_eq!(pool.len(), 2);
@@ -1682,10 +1936,34 @@ mod tests {
     #[test]
     fn opponent_pool_leader_takes_next_two_lower() {
         let mut ratings = BTreeMap::new();
-        ratings.insert("top".into(), GlickoRating { r: 2000.0, rd: 80.0 });
-        ratings.insert("b".into(), GlickoRating { r: 1700.0, rd: 80.0 });
-        ratings.insert("c".into(), GlickoRating { r: 1600.0, rd: 80.0 });
-        ratings.insert("d".into(), GlickoRating { r: 1000.0, rd: 80.0 });
+        ratings.insert(
+            "top".into(),
+            GlickoRating {
+                r: 2000.0,
+                rd: 80.0,
+            },
+        );
+        ratings.insert(
+            "b".into(),
+            GlickoRating {
+                r: 1700.0,
+                rd: 80.0,
+            },
+        );
+        ratings.insert(
+            "c".into(),
+            GlickoRating {
+                r: 1600.0,
+                rd: 80.0,
+            },
+        );
+        ratings.insert(
+            "d".into(),
+            GlickoRating {
+                r: 1000.0,
+                rd: 80.0,
+            },
+        );
         let cands = vec!["b".into(), "c".into(), "d".into()];
         let pool = opponent_pool("top", &cands, &ratings);
         assert_eq!(pool.len(), 2);
@@ -1702,8 +1980,12 @@ mod tests {
         };
         let text = serde_json::to_string(&e).unwrap();
         let back: TourneyEntrant = serde_json::from_str(&text).unwrap();
-        assert_eq!(back.engine.as_deref(), Some("models/history/bin/LOGIC_H105"));
-        let plain: TourneyEntrant = serde_json::from_str(r#"{"id":"SEED","model":"x.json"}"#).unwrap();
+        assert_eq!(
+            back.engine.as_deref(),
+            Some("models/history/bin/LOGIC_H105")
+        );
+        let plain: TourneyEntrant =
+            serde_json::from_str(r#"{"id":"SEED","model":"x.json"}"#).unwrap();
         assert!(plain.engine.is_none());
     }
 
@@ -1761,6 +2043,12 @@ mod tests {
             ..TourneyConfig::default()
         });
         assert!(!tournament_is_complete(&swiss));
+        let ko = build_schedule(&TourneyConfig {
+            entrants: entrants(2),
+            format: TourneyFormat::Knockout,
+            ..TourneyConfig::default()
+        });
+        assert!(!tournament_is_complete(&ko));
     }
 
     #[test]
@@ -1783,6 +2071,10 @@ mod tests {
             swiss_next_round: 0,
             rd_tick_done_counter: 0,
             rd_tick_participants: BTreeSet::new(),
+            knockouts: Vec::new(),
+            knockout_stage_appearances: BTreeMap::new(),
+            knockout_stage_wins: BTreeMap::new(),
+            knockout_titles: BTreeMap::new(),
         };
         ensure_ratings(&mut st);
         assert!((st.ratings["p0"].r - 1600.0).abs() < 1e-9);
@@ -1817,16 +2109,16 @@ mod tests {
             2400.0, 2200.0, 2150.0, 2100.0, 2050.0, 2000.0, 1950.0, 1900.0, 1700.0, 1600.0,
         ];
         for i in 0..10 {
-            st.ratings.insert(
-                format!("p{i}"),
-                GlickoRating {
-                    r: rs[i],
-                    rd: 40.0,
-                },
-            );
+            st.ratings
+                .insert(format!("p{i}"), GlickoRating { r: rs[i], rd: 40.0 });
         }
         for i in 0..5 {
-            give_min_games(st, &format!("p{}", i * 2), &format!("p{}", i * 2 + 1), MINIMUM_GAMES);
+            give_min_games(
+                st,
+                &format!("p{}", i * 2),
+                &format!("p{}", i * 2 + 1),
+                MINIMUM_GAMES,
+            );
         }
     }
 
@@ -1853,7 +2145,12 @@ mod tests {
             );
         }
         for i in 0..5 {
-            give_min_games(&mut st, &format!("p{}", i * 2), &format!("p{}", i * 2 + 1), MINIMUM_GAMES);
+            give_min_games(
+                &mut st,
+                &format!("p{}", i * 2),
+                &format!("p{}", i * 2 + 1),
+                MINIMUM_GAMES,
+            );
         }
         give_min_games(&mut st, "p0", "p1", 2);
         st.seed_base = seed_for_info_pair(next_slot_id(&st), false);
@@ -1884,16 +2181,16 @@ mod tests {
             2400.0, 2200.0, 2150.0, 2100.0, 2050.0, 2000.0, 1950.0, 1900.0, 1700.0, 1600.0,
         ];
         for i in 0..10 {
-            st.ratings.insert(
-                format!("p{i}"),
-                GlickoRating {
-                    r: rs[i],
-                    rd: 40.0,
-                },
-            );
+            st.ratings
+                .insert(format!("p{i}"), GlickoRating { r: rs[i], rd: 40.0 });
         }
         for i in 0..5 {
-            give_min_games(&mut st, &format!("p{}", i * 2), &format!("p{}", i * 2 + 1), MINIMUM_GAMES);
+            give_min_games(
+                &mut st,
+                &format!("p{}", i * 2),
+                &format!("p{}", i * 2 + 1),
+                MINIMUM_GAMES,
+            );
         }
         st.seed_base = seed_for_info_pair(next_slot_id(&st), false);
         assert!(elite_eligible(&st, "p0"));
