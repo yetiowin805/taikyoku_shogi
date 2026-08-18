@@ -3,25 +3,25 @@
 use crate::board_position::BoardPosition;
 use crate::training::eval_trace::{run_eval_trace, EvalTraceConfig};
 use crate::training::featurize::{featurize_dir, FeaturizeConfig};
+use crate::training::file_pst_grid::{run_file_pst_grid, FilePstGridConfig};
+use crate::training::loud_grid::{run_loud_grid, LoudGridConfig};
 use crate::training::match_harness::{run_matches, MatchConfig};
 use crate::training::mobility_seed::{run_mobility_seed, MobilitySeedConfig};
 use crate::training::paths::{self, ensure_data_dirs};
-use crate::training::pool::{generate_pool, load_starts_dir, parse_starts_spec, PoolGenerateConfig};
-use crate::training::record::{AgentSpec, GameStart};
-use crate::training::run_status::{
-    disk_free_gb, utc_now_iso, RunStatus, WorkerDaemonConfig,
+use crate::training::pool::{
+    generate_pool, load_starts_dir, parse_starts_spec, PoolGenerateConfig,
 };
-use crate::training::file_pst_grid::{run_file_pst_grid, FilePstGridConfig};
-use crate::training::two_mob_grid::{run_two_mob_grid, TwoMobGridConfig};
-use crate::training::two_mob_q_grid::{run_two_mob_q_grid, TwoMobQGridConfig};
-use crate::training::loud_grid::{run_loud_grid, LoudGridConfig};
 use crate::training::pst_grid::{run_pst_grid, PstGridConfig};
+use crate::training::record::{AgentSpec, GameStart};
+use crate::training::run_status::{disk_free_gb, utc_now_iso, RunStatus, WorkerDaemonConfig};
 use crate::training::scale_sample::{run_scale_sample, ScaleSampleConfig};
 use crate::training::texel::{fit_texel, TexelFitConfig, TexelInit};
 use crate::training::tournament::{
-    load_manifest, new_run_id, run_tournament, standings_summary, TourneyConfig, TourneyFormat,
-    DEFAULT_GAMES_PER_PAIR,
+    format_is_continuous, load_manifest, new_run_id, run_tournament, standings_summary,
+    TourneyConfig, TourneyFormat, DEFAULT_GAMES_PER_PAIR,
 };
+use crate::training::two_mob_grid::{run_two_mob_grid, TwoMobGridConfig};
+use crate::training::two_mob_q_grid::{run_two_mob_q_grid, TwoMobQGridConfig};
 use crate::training::worker::{
     play_one_game, run_batch, BatchConfig, WorkerConfig, DEFAULT_MAX_MOVES,
 };
@@ -35,11 +35,7 @@ const DEFAULT_TIMED_DEPTH_CEILING: u32 = 8;
 /// Resolve AB depth / time from CLI flags.
 /// Time is a soft budget (ID returns the last completed depth); depth is a hard ceiling.
 /// When `time_ms` is set and depth was not explicit, use [`DEFAULT_TIMED_DEPTH_CEILING`].
-fn resolve_ab_depth(
-    depth: Option<u32>,
-    depth_explicit: bool,
-    time_ms: Option<u64>,
-) -> Option<u32> {
+fn resolve_ab_depth(depth: Option<u32>, depth_explicit: bool, time_ms: Option<u64>) -> Option<u32> {
     if time_ms.is_some() && !depth_explicit {
         Some(DEFAULT_TIMED_DEPTH_CEILING)
     } else {
@@ -49,16 +45,26 @@ fn resolve_ab_depth(
 
 pub fn print_training_usage() {
     println!("Training / Texel pipeline:");
-    println!("  worker run   --black AGENT --white AGENT [--model PATH] [--depth N] [--time-ms MS]");
+    println!(
+        "  worker run   --black AGENT --white AGENT [--model PATH] [--depth N] [--time-ms MS]"
+    );
     println!("               [--start opening|PATH] [--seed S] [--out PATH] [--verbose]");
-    println!("  worker batch --games N [--starts DIR|opening|random] [--outdir DIR] [--seed-base S]");
-    println!("               [--black AGENT] [--white AGENT] [--model PATH] [--depth N] [--time-ms MS]");
+    println!(
+        "  worker batch --games N [--starts DIR|opening|random] [--outdir DIR] [--seed-base S]"
+    );
+    println!(
+        "               [--black AGENT] [--white AGENT] [--model PATH] [--depth N] [--time-ms MS]"
+    );
     println!("               [--jobs J]");
     println!("  worker daemon [--batch N] [--jobs J] [--starts DIR|opening|random] [--outdir DIR] [--seed-base S]");
-    println!("                [--black AGENT] [--white AGENT] [--model PATH] [--depth N] [--time-ms MS]");
+    println!(
+        "                [--black AGENT] [--white AGENT] [--model PATH] [--depth N] [--time-ms MS]"
+    );
     println!("                [--status PATH] [--sleep-secs N]   (SIGTERM drains current batch)");
     println!("  (--seed-base 0 = per-game OS entropy; N>0 = deterministic N+index)");
-    println!("  (--time-ms = soft AB budget; ID keeps last completed depth. Omit --depth → ceiling 8)");
+    println!(
+        "  (--time-ms = soft AB budget; ID keeps last completed depth. Omit --depth → ceiling 8)"
+    );
     println!("  pool generate [--count K] [--seed-base S] [--outdir DIR]");
     println!("                [--from-play] [--agent AGENT] [--until-move N] [--noise F]");
     println!("                (default: Fischer shuffle+ablations; --from-play = legacy midgame)");
@@ -74,7 +80,9 @@ pub fn print_training_usage() {
     println!("  loud-grid [--seed PATH] [--out DIR]");
     println!("            (3×3×3: Hook H90/100/110 × Capricorn C80/100/120 × other O80/100/110)");
     println!("  pst-grid [--seed PATH] [--out DIR]");
-    println!("            (3×3×3 fast PST: promo P110/120/130 × opp-half H25/50/75 × back B25/50/75)");
+    println!(
+        "            (3×3×3 fast PST: promo P110/120/130 × opp-half H25/50/75 × back B25/50/75)"
+    );
     println!("  file-pst-grid [--seed PATH] [--out DIR]");
     println!("            (5×3×3: file F×C × back B50/60/75 × tropism T10/15/20)");
     println!("  two-mob-grid [--seed PATH] [--out DIR]");
@@ -87,11 +95,17 @@ pub fn print_training_usage() {
     println!("            (default: seed init, log-space, all plies+draws,");
     println!("             2500 iters, lr=0.05 scaled by 1/K, Pawn→1)");
     println!("  match --a AGENT --b AGENT [--starts SPEC] [--games N] [--jobs J] [--outdir DIR]");
-    println!("  tournament --manifest PATH [--run-id ID] [--resume] [--games-per-pair N] [--jobs J]");
+    println!(
+        "  tournament --manifest PATH [--run-id ID] [--resume] [--games-per-pair N] [--jobs J]"
+    );
     println!("             [--starts light] [--depth N] [--time-ms MS] [--outdir DIR]");
-    println!("             [--format round_robin|swiss]");
-    println!("             (Swiss = continuous Glicko until TOURNEY_STOP / Ctrl-C;");
-    println!("              RR default games-per-pair=24;");
+    println!("             [--format round_robin|swiss|knockout]");
+    println!("             [--init-ratings PATH]");
+    println!("             (knockout default = seeded 1v16 until TOURNEY_STOP / Ctrl-C;");
+    println!(
+        "              --init-ratings copies r/RD from a prior Swiss ratings.json or state.json;"
+    );
+    println!("              Swiss = continuous Glicko pairing; RR default games-per-pair=24;");
     println!("              --time-ms soft budget, last completed ID depth; omit --depth → 8)");
     println!();
     println!("  Agents: mi, random, royal, ab");
@@ -125,7 +139,9 @@ fn take_flag_value(args: &[String], i: &mut usize, flag: &str) -> Result<Option<
 
 fn take_u64(args: &[String], i: &mut usize, flag: &str) -> Result<Option<u64>, String> {
     if let Some(s) = take_flag_value(args, i, flag)? {
-        Ok(Some(s.parse().map_err(|_| format!("Invalid {} value", flag))?))
+        Ok(Some(
+            s.parse().map_err(|_| format!("Invalid {} value", flag))?,
+        ))
     } else {
         Ok(None)
     }
@@ -133,7 +149,9 @@ fn take_u64(args: &[String], i: &mut usize, flag: &str) -> Result<Option<u64>, S
 
 fn take_u32(args: &[String], i: &mut usize, flag: &str) -> Result<Option<u32>, String> {
     if let Some(s) = take_flag_value(args, i, flag)? {
-        Ok(Some(s.parse().map_err(|_| format!("Invalid {} value", flag))?))
+        Ok(Some(
+            s.parse().map_err(|_| format!("Invalid {} value", flag))?,
+        ))
     } else {
         Ok(None)
     }
@@ -141,7 +159,9 @@ fn take_u32(args: &[String], i: &mut usize, flag: &str) -> Result<Option<u32>, S
 
 fn take_usize(args: &[String], i: &mut usize, flag: &str) -> Result<Option<usize>, String> {
     if let Some(s) = take_flag_value(args, i, flag)? {
-        Ok(Some(s.parse().map_err(|_| format!("Invalid {} value", flag))?))
+        Ok(Some(
+            s.parse().map_err(|_| format!("Invalid {} value", flag))?,
+        ))
     } else {
         Ok(None)
     }
@@ -149,7 +169,9 @@ fn take_usize(args: &[String], i: &mut usize, flag: &str) -> Result<Option<usize
 
 fn take_f64(args: &[String], i: &mut usize, flag: &str) -> Result<Option<f64>, String> {
     if let Some(s) = take_flag_value(args, i, flag)? {
-        Ok(Some(s.parse().map_err(|_| format!("Invalid {} value", flag))?))
+        Ok(Some(
+            s.parse().map_err(|_| format!("Invalid {} value", flag))?,
+        ))
     } else {
         Ok(None)
     }
@@ -157,7 +179,9 @@ fn take_f64(args: &[String], i: &mut usize, flag: &str) -> Result<Option<f64>, S
 
 fn take_f32(args: &[String], i: &mut usize, flag: &str) -> Result<Option<f32>, String> {
     if let Some(s) = take_flag_value(args, i, flag)? {
-        Ok(Some(s.parse().map_err(|_| format!("Invalid {} value", flag))?))
+        Ok(Some(
+            s.parse().map_err(|_| format!("Invalid {} value", flag))?,
+        ))
     } else {
         Ok(None)
     }
@@ -396,18 +420,14 @@ fn env_or(name: &str, default: &str) -> String {
 
 fn env_usize(name: &str, default: usize) -> Result<usize, String> {
     match std::env::var(name) {
-        Ok(s) => s
-            .parse()
-            .map_err(|_| format!("Invalid env {}={}", name, s)),
+        Ok(s) => s.parse().map_err(|_| format!("Invalid env {}={}", name, s)),
         Err(_) => Ok(default),
     }
 }
 
 fn env_u64(name: &str, default: u64) -> Result<u64, String> {
     match std::env::var(name) {
-        Ok(s) => s
-            .parse()
-            .map_err(|_| format!("Invalid env {}={}", name, s)),
+        Ok(s) => s.parse().map_err(|_| format!("Invalid env {}={}", name, s)),
         Err(_) => Ok(default),
     }
 }
@@ -1278,12 +1298,21 @@ pub fn cmd_tournament(args: &[String]) -> Result<(), String> {
             cfg.format = match v.as_str() {
                 "round_robin" | "rr" => TourneyFormat::RoundRobin,
                 "swiss" => TourneyFormat::Swiss,
-                other => return Err(format!("Unknown --format {other} (round_robin|swiss)")),
+                "knockout" | "ko" => TourneyFormat::Knockout,
+                other => {
+                    return Err(format!(
+                        "Unknown --format {other} (round_robin|swiss|knockout)"
+                    ))
+                }
             };
             continue;
         }
         if let Some(_v) = take_usize(args, &mut i, "--swiss-rounds")? {
             // Legacy flag: Swiss is continuous until stop; ignore finite rounds.
+            continue;
+        }
+        if let Some(v) = take_flag_value(args, &mut i, "--init-ratings")? {
+            cfg.init_ratings = Some(PathBuf::from(v));
             continue;
         }
         return Err(format!("Unknown flag {}", args[i]));
@@ -1297,8 +1326,11 @@ pub fn cmd_tournament(args: &[String]) -> Result<(), String> {
     if cfg.run_id.is_empty() {
         cfg.run_id = new_run_id();
     }
-    if cfg.format == TourneyFormat::Swiss {
-        // Continuous until stop; games_per_pair unused for Swiss scheduling.
+    if cfg.resume && cfg.init_ratings.is_some() {
+        return Err("cannot combine --resume and --init-ratings".into());
+    }
+    if format_is_continuous(cfg.format) {
+        // Continuous until stop; games_per_pair unused for scheduling.
         if cfg.games_per_pair == DEFAULT_GAMES_PER_PAIR {
             cfg.games_per_pair = 1;
         }
