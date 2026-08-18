@@ -177,6 +177,9 @@ pub struct TourneyConfig {
     pub stop: Arc<AtomicBool>,
     pub format: TourneyFormat,
     pub swiss_rounds: usize,
+    /// Copy Glicko `r`/`rd` from another run's `ratings.json` or `state.json`.
+    /// New knockout only; not used with `--resume`.
+    pub init_ratings: Option<PathBuf>,
 }
 
 impl Default for TourneyConfig {
@@ -198,6 +201,7 @@ impl Default for TourneyConfig {
             stop: Arc::new(AtomicBool::new(false)),
             format: TourneyFormat::Knockout,
             swiss_rounds: DEFAULT_SWISS_ROUNDS,
+            init_ratings: None,
         }
     }
 }
@@ -993,6 +997,45 @@ pub fn load_state(path: &Path) -> Result<TourneyState, String> {
     Ok(state)
 }
 
+/// Load Glicko ratings from `ratings.json`, `state.json`, or legacy `elo.json`.
+pub fn load_ratings_file(path: &Path) -> Result<BTreeMap<String, GlickoRating>, String> {
+    let s = fs::read_to_string(path).map_err(|e| format!("read {}: {e}", path.display()))?;
+    let v: serde_json::Value =
+        serde_json::from_str(&s).map_err(|e| format!("parse {}: {e}", path.display()))?;
+    if v.get("entrants").is_some() || v.get("ratings").is_some() || v.get("slots").is_some() {
+        let mut st: TourneyState = serde_json::from_value(v)
+            .map_err(|e| format!("parse tournament state {}: {e}", path.display()))?;
+        ensure_ratings(&mut st);
+        return Ok(st.ratings);
+    }
+    if let Some(obj) = v.as_object() {
+        if obj.values().any(|x| x.is_number()) && !obj.values().any(|x| x.is_object()) {
+            let elo: BTreeMap<String, f64> = serde_json::from_value(v)
+                .map_err(|e| format!("parse elo map {}: {e}", path.display()))?;
+            return Ok(elo
+                .into_iter()
+                .map(|(id, r)| (id, GlickoRating { r, rd: DEFAULT_RD }))
+                .collect());
+        }
+    }
+    serde_json::from_value(v).map_err(|e| format!("parse ratings {}: {e}", path.display()))
+}
+
+pub fn apply_imported_ratings(
+    state: &mut TourneyState,
+    imported: &BTreeMap<String, GlickoRating>,
+) -> usize {
+    let mut n = 0usize;
+    for e in state.entrants.clone() {
+        if let Some(g) = imported.get(&e.id) {
+            state.ratings.insert(e.id.clone(), *g);
+            state.elo.insert(e.id.clone(), g.r);
+            n += 1;
+        }
+    }
+    n
+}
+
 pub fn save_state(cfg: &TourneyConfig, state: &TourneyState) -> Result<(), String> {
     let dir = run_dir(cfg);
     fs::create_dir_all(&dir).map_err(|e| format!("create {}: {e}", dir.display()))?;
@@ -1253,7 +1296,17 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
         if cfg.entrants.len() < 2 {
             return Err("tournament needs at least 2 entrants".into());
         }
-        build_schedule(cfg)
+        let mut s = build_schedule(cfg);
+        if let Some(path) = &cfg.init_ratings {
+            let imported = load_ratings_file(path)?;
+            let n = apply_imported_ratings(&mut s, &imported);
+            eprintln!(
+                "tournament: imported {n}/{} ratings from {}",
+                s.entrants.len(),
+                path.display()
+            );
+        }
+        s
     };
     save_state(cfg, &state)?;
 
@@ -1611,6 +1664,80 @@ mod tests {
         assert_eq!(a.depth, Some(8));
         assert_eq!(a.max_time_ms, Some(1000));
         assert_eq!(a.model.as_deref(), Some("p0.json"));
+    }
+
+    #[test]
+    fn load_ratings_file_accepts_ratings_and_elo() {
+        let dir = std::env::temp_dir().join(format!("ko-init-ratings-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let ratings_path = dir.join("ratings.json");
+        fs::write(
+            &ratings_path,
+            r#"{"SEED":{"r":1884.1,"rd":30.0},"BASE_P120H50B75":{"r":1917.5,"rd":31.5}}"#,
+        )
+        .unwrap();
+        let m = load_ratings_file(&ratings_path).unwrap();
+        assert!((m["SEED"].r - 1884.1).abs() < 1e-9);
+        assert!((m["BASE_P120H50B75"].rd - 31.5).abs() < 1e-9);
+
+        let elo_path = dir.join("elo.json");
+        fs::write(&elo_path, r#"{"SEED":1884.1}"#).unwrap();
+        let e = load_ratings_file(&elo_path).unwrap();
+        assert!((e["SEED"].r - 1884.1).abs() < 1e-9);
+        assert!((e["SEED"].rd - DEFAULT_RD).abs() < 1e-9);
+
+        let mut swiss = build_schedule(&TourneyConfig {
+            entrants: entrants(2),
+            format: TourneyFormat::Swiss,
+            ..TourneyConfig::default()
+        });
+        swiss.ratings.insert(
+            "p0".into(),
+            GlickoRating {
+                r: 1917.5,
+                rd: 31.5,
+            },
+        );
+        let state_path = dir.join("state.json");
+        fs::write(&state_path, serde_json::to_string(&swiss).unwrap()).unwrap();
+        let from_state = load_ratings_file(&state_path).unwrap();
+        assert!((from_state["p0"].r - 1917.5).abs() < 1e-9);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn imported_ratings_seed_first_knockout() {
+        let mut st = build_schedule(&TourneyConfig {
+            entrants: entrants(3),
+            format: TourneyFormat::Knockout,
+            ..TourneyConfig::default()
+        });
+        let mut imported = BTreeMap::new();
+        imported.insert(
+            "p2".into(),
+            GlickoRating {
+                r: 1917.0,
+                rd: 31.0,
+            },
+        );
+        imported.insert(
+            "p0".into(),
+            GlickoRating {
+                r: 1884.0,
+                rd: 30.0,
+            },
+        );
+        imported.insert(
+            "p1".into(),
+            GlickoRating {
+                r: 1200.0,
+                rd: 200.0,
+            },
+        );
+        assert_eq!(apply_imported_ratings(&mut st, &imported), 3);
+        crate::training::knockout::spawn_knockout(&mut st);
+        assert_eq!(st.knockouts[0].seeds, vec!["p2", "p0", "p1"]);
+        assert!((st.ratings["p2"].r - 1917.0).abs() < 1e-9);
     }
 
     #[test]

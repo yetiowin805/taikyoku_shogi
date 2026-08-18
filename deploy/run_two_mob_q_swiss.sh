@@ -4,6 +4,7 @@
 #
 # Stop anytime:  touch data/run/TOURNEY_STOP   (or Ctrl-C)
 # Resume:        ./deploy/run_two_mob_q_swiss.sh --detach --resume --run-id ID --skip-gen
+# Seed knockout from a prior Swiss: --init-ratings data/raw/tourney/RUN/ratings.json
 #
 # Survives SSH logout when started with:
 #   ./deploy/run_two_mob_q_swiss.sh --detach
@@ -30,6 +31,7 @@ RUN_ID="${RUN_ID:-}"
 RESUME="${RESUME:-0}"
 SKIP_GEN="${SKIP_GEN:-0}"
 DETACH="${DETACH:-0}"
+INIT_RATINGS="${INIT_RATINGS:-}"
 PID_FILE="${PID_FILE:-data/run/two-mob-q-swiss.pid}"
 LOCK_FILE="${LOCK_FILE:-data/run/two-mob-q-swiss.lock}"
 
@@ -47,6 +49,7 @@ while [[ $# -gt 0 ]]; do
     --seed) SEED_MODEL="$2"; shift 2 ;;
     --grid-out) GRID_OUT="$2"; shift 2 ;;
     --bin) BIN="$2"; shift 2 ;;
+    --init-ratings) INIT_RATINGS="$2"; shift 2 ;;
     *) echo "Unknown arg: $1" >&2; exit 2 ;;
   esac
 done
@@ -62,6 +65,7 @@ if [[ "$DETACH" == "1" ]]; then
   args+=(--jobs "$JOBS" --depth "$DEPTH" --manifest "$MANIFEST" --outdir "$OUTDIR"
     --seed "$SEED_MODEL" --grid-out "$GRID_OUT" --bin "$BIN")
   [[ -n "$TIME_MS" ]] && args+=(--time-ms "$TIME_MS")
+  [[ -n "$INIT_RATINGS" ]] && args+=(--init-ratings "$INIT_RATINGS")
   log="${TWO_MOB_Q_SWISS_LOG:-data/run/two-mob-q-swiss.log}"
   echo "Detaching two-mob-q Swiss → $log (pid file $PID_FILE)"
   nohup "$0" "${args[@]}" >>"$log" 2>&1 &
@@ -134,6 +138,9 @@ if [[ -n "$TIME_MS" ]]; then
 fi
 if [[ "$RESUME" == "1" ]]; then
   ARGS+=(--resume)
+fi
+if [[ -n "$INIT_RATINGS" ]]; then
+  ARGS+=(--init-ratings "$INIT_RATINGS")
 fi
 
 echo "Starting continuous knockout run_id=$RUN_ID jobs=$JOBS depth=$DEPTH${TIME_MS:+ time_ms=$TIME_MS}"

@@ -100,7 +100,11 @@ pub fn print_training_usage() {
     );
     println!("             [--starts light] [--depth N] [--time-ms MS] [--outdir DIR]");
     println!("             [--format round_robin|swiss|knockout]");
+    println!("             [--init-ratings PATH]");
     println!("             (knockout default = seeded 1v16 until TOURNEY_STOP / Ctrl-C;");
+    println!(
+        "              --init-ratings copies r/RD from a prior Swiss ratings.json or state.json;"
+    );
     println!("              Swiss = continuous Glicko pairing; RR default games-per-pair=24;");
     println!("              --time-ms soft budget, last completed ID depth; omit --depth → 8)");
     println!();
@@ -1307,6 +1311,10 @@ pub fn cmd_tournament(args: &[String]) -> Result<(), String> {
             // Legacy flag: Swiss is continuous until stop; ignore finite rounds.
             continue;
         }
+        if let Some(v) = take_flag_value(args, &mut i, "--init-ratings")? {
+            cfg.init_ratings = Some(PathBuf::from(v));
+            continue;
+        }
         return Err(format!("Unknown flag {}", args[i]));
     }
     if let Some(d) = resolve_ab_depth(Some(cfg.depth), depth_explicit, cfg.max_time_ms) {
@@ -1317,6 +1325,9 @@ pub fn cmd_tournament(args: &[String]) -> Result<(), String> {
     cfg.entrants = man.entrants;
     if cfg.run_id.is_empty() {
         cfg.run_id = new_run_id();
+    }
+    if cfg.resume && cfg.init_ratings.is_some() {
+        return Err("cannot combine --resume and --init-ratings".into());
     }
     if format_is_continuous(cfg.format) {
         // Continuous until stop; games_per_pair unused for scheduling.
