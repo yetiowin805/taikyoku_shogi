@@ -175,6 +175,32 @@ pub fn fill_knockout_queue(state: &mut TourneyState, jobs: usize) {
     }
 }
 
+/// Vector index of the next Pending slot, oldest knockout tree first.
+/// Later trees' R16 must not jump an earlier tree's continuation games.
+pub(crate) fn pending_slot_claim_index(state: &TourneyState) -> Option<usize> {
+    let mut best: Option<(usize, usize, usize)> = None;
+    for (idx, slot) in state.slots.iter().enumerate() {
+        if slot.status != SlotStatus::Pending {
+            continue;
+        }
+        let tree = tree_id_for_slot(state, slot.id).unwrap_or(usize::MAX);
+        let key = (tree, slot.id, idx);
+        if best.map_or(true, |b| key < b) {
+            best = Some(key);
+        }
+    }
+    best.map(|(_, _, idx)| idx)
+}
+
+fn tree_id_for_slot(state: &TourneyState, slot_id: usize) -> Option<usize> {
+    for t in &state.knockouts {
+        if t.matches.iter().any(|m| m.slot_ids.contains(&slot_id)) {
+            return Some(t.id);
+        }
+    }
+    None
+}
+
 pub fn on_knockout_slot_finished(state: &mut TourneyState, _slot_id: usize) {
     process_all_matches(state);
     enqueue_needed_games(state);
@@ -1116,6 +1142,33 @@ mod tests {
         let mut st = build_schedule(&cfg_n(2));
         fill_knockout_queue(&mut st, 4);
         assert!(st.knockouts.len() >= 2, "got {} trees", st.knockouts.len());
+    }
+
+    #[test]
+    fn claim_prefers_older_tree_over_newer_pending() {
+        let mut st = build_schedule(&cfg_n(2));
+        fill_knockout_queue(&mut st, 4);
+        assert!(st.knockouts.len() >= 2);
+        let t1 = st.knockouts[0].matches[0].slot_ids.clone();
+        assert_eq!(t1.len(), 2);
+        finish_slot(&mut st, t1[0], 1.0);
+        finish_slot(&mut st, t1[1], 0.0);
+        let t1_next = st.knockouts[0].matches[0].slot_ids[2];
+        let t2_pending: Vec<usize> = st.knockouts[1].matches[0]
+            .slot_ids
+            .iter()
+            .copied()
+            .filter(|&id| {
+                st.slots
+                    .iter()
+                    .find(|s| s.id == id)
+                    .is_some_and(|s| s.status == SlotStatus::Pending)
+            })
+            .collect();
+        assert!(!t2_pending.is_empty());
+        assert!(t2_pending.iter().all(|&id| id < t1_next));
+        let idx = pending_slot_claim_index(&st).unwrap();
+        assert_eq!(st.slots[idx].id, t1_next);
     }
 
     #[test]
