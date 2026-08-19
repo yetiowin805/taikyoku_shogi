@@ -175,30 +175,40 @@ pub fn fill_knockout_queue(state: &mut TourneyState, jobs: usize) {
     }
 }
 
-/// Vector index of the next Pending slot, oldest knockout tree first.
-/// Later trees' R16 must not jump an earlier tree's continuation games.
+/// Vector index of the next Pending slot: oldest tree, then earlier round.
+/// A new tree's R16 / a bye-bye QF must not jump an older final or a live play-in.
 pub(crate) fn pending_slot_claim_index(state: &TourneyState) -> Option<usize> {
-    let mut best: Option<(usize, usize, usize)> = None;
+    let mut best: Option<(usize, u32, usize, usize)> = None;
     for (idx, slot) in state.slots.iter().enumerate() {
         if slot.status != SlotStatus::Pending {
             continue;
         }
-        let tree = tree_id_for_slot(state, slot.id).unwrap_or(usize::MAX);
-        let key = (tree, slot.id, idx);
+        let (tree, round) = slot_tree_and_round(state, slot.id);
+        let key = (tree, round, slot.id, idx);
         if best.map_or(true, |b| key < b) {
             best = Some(key);
         }
     }
-    best.map(|(_, _, idx)| idx)
+    best.map(|(_, _, _, idx)| idx)
 }
 
-fn tree_id_for_slot(state: &TourneyState, slot_id: usize) -> Option<usize> {
+fn slot_tree_and_round(state: &TourneyState, slot_id: usize) -> (usize, u32) {
     for t in &state.knockouts {
-        if t.matches.iter().any(|m| m.slot_ids.contains(&slot_id)) {
-            return Some(t.id);
+        for m in &t.matches {
+            if m.slot_ids.contains(&slot_id) {
+                return (t.id, stage_claim_rank(m.stage));
+            }
         }
     }
-    None
+    (usize::MAX, u32::MAX)
+}
+
+/// Play-in first, then larger rounds (R16 before R8 before Final).
+fn stage_claim_rank(stage: KnockoutStage) -> u32 {
+    match stage {
+        KnockoutStage::PlayIn => 0,
+        KnockoutStage::Round { size } => 1000 - size as u32,
+    }
 }
 
 pub fn on_knockout_slot_finished(state: &mut TourneyState, _slot_id: usize) {
@@ -1169,6 +1179,64 @@ mod tests {
         assert!(t2_pending.iter().all(|&id| id < t1_next));
         let idx = pending_slot_claim_index(&st).unwrap();
         assert_eq!(st.slots[idx].id, t1_next);
+    }
+
+    fn match_stage_for_slot(st: &TourneyState, slot_id: usize) -> KnockoutStage {
+        for t in &st.knockouts {
+            for m in &t.matches {
+                if m.slot_ids.contains(&slot_id) {
+                    return m.stage;
+                }
+            }
+        }
+        panic!("slot {slot_id} not in a match");
+    }
+
+    #[test]
+    fn claim_prefers_earlier_round_in_same_tree() {
+        let mut st = build_schedule(&cfg_n(19));
+        for (i, e) in st.entrants.clone().iter().enumerate() {
+            st.ratings.insert(
+                e.id.clone(),
+                GlickoRating {
+                    r: 1900.0 - i as f64 * 10.0,
+                    rd: 50.0,
+                },
+            );
+        }
+        spawn_knockout(&mut st);
+        enqueue_needed_games(&mut st);
+        let r16: Vec<KnockoutMatch> = st.knockouts[0]
+            .matches
+            .iter()
+            .filter(|m| m.stage == KnockoutStage::Round { size: 16 })
+            .cloned()
+            .collect();
+        let a = r16.iter().find(|m| m.bracket_slot == 2).expect("4v13");
+        let b = r16.iter().find(|m| m.bracket_slot == 3).expect("5v12");
+        for id in a.slot_ids.iter().chain(b.slot_ids.iter()) {
+            finish_slot(&mut st, *id, 1.0);
+        }
+        assert!(st.knockouts[0]
+            .matches
+            .iter()
+            .any(|m| m.stage == KnockoutStage::Round { size: 8 }));
+        let play = st.knockouts[0]
+            .matches
+            .iter()
+            .find(|m| m.stage == KnockoutStage::PlayIn)
+            .unwrap()
+            .slot_ids
+            .clone();
+        finish_slot(&mut st, play[0], 1.0);
+        finish_slot(&mut st, play[1], 0.0);
+        let idx = pending_slot_claim_index(&st).unwrap();
+        let stage = match_stage_for_slot(&st, st.slots[idx].id);
+        assert_eq!(stage, KnockoutStage::PlayIn);
+        assert!(st.slots.iter().any(|s| {
+            s.status == SlotStatus::Pending
+                && match_stage_for_slot(&st, s.id) == KnockoutStage::Round { size: 8 }
+        }));
     }
 
     #[test]
