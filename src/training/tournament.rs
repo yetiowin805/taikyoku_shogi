@@ -1,7 +1,9 @@
 //! Round-robin / continuous Swiss / continuous knockout with Glicko-1, checkpoint/resume, and cooperative stop.
 
 use crate::game_history::GameResult;
-use crate::training::knockout::{fill_knockout_queue, on_knockout_slot_finished, KnockoutTree};
+use crate::training::knockout::{
+    fill_knockout_queue, on_knockout_slot_finished, pending_slot_claim_index, KnockoutTree,
+};
 use crate::training::paths::ensure_data_dirs;
 use crate::training::pool::parse_starts_spec;
 use crate::training::record::{AgentSpec, GameStart};
@@ -1252,11 +1254,11 @@ fn claim_or_schedule_slot(st: &mut TourneyState, cfg: &TourneyConfig) -> Option<
         TourneyFormat::Knockout => fill_knockout_queue(st, cap),
         TourneyFormat::RoundRobin => {}
     }
-    if let Some(idx) = st
-        .slots
-        .iter()
-        .position(|s| s.status == SlotStatus::Pending)
-    {
+    let idx = match st.format {
+        TourneyFormat::Knockout => pending_slot_claim_index(st),
+        _ => st.slots.iter().position(|s| s.status == SlotStatus::Pending),
+    };
+    if let Some(idx) = idx {
         st.slots[idx].status = SlotStatus::Running;
         st.updated_at = now_secs();
         return Some(st.slots[idx].id);
