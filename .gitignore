@@ -36,6 +36,7 @@ models/pst-grid/
 models/file-pst-grid/
 models/two-mob-grid/
 models/two-mob-q-grid/
+models/top4-mix-grid/
 models/history/bin/
 models/history/models/
 .history-worktrees/
