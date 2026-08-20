@@ -16,6 +16,7 @@ use crate::training::record::{AgentSpec, GameStart};
 use crate::training::run_status::{disk_free_gb, utc_now_iso, RunStatus, WorkerDaemonConfig};
 use crate::training::scale_sample::{run_scale_sample, ScaleSampleConfig};
 use crate::training::texel::{fit_texel, TexelFitConfig, TexelInit};
+use crate::training::top4_mix_grid::{run_top4_mix_grid, Top4MixGridConfig};
 use crate::training::tournament::{
     format_is_continuous, load_manifest, new_run_id, run_tournament, standings_summary,
     TourneyConfig, TourneyFormat, DEFAULT_GAMES_PER_PAIR,
@@ -89,6 +90,8 @@ pub fn print_training_usage() {
     println!("            (18 C×K×A mobility cells + SEED + history BASE_/LOGIC_)");
     println!("  two-mob-q-grid [--seed PATH] [--out DIR]");
     println!("            (C1/C2 × K100/K200 A1 pairs ± q-blowup search + SEED + history)");
+    println!("  top4-mix-grid [--seed PATH] [--out DIR]");
+    println!("            (3×3×2 material×PST×tropism + 6 pairwise avgs + 4 two-mob extras + leftover history)");
     println!("  texel-fit [--features DIR] [--out PATH] [--iters N] [--lr F] [--k F]");
     println!("            [--init seed|mobility|PATH] [--late-frac F] [--keep-draws]");
     println!("            [--no-log-space] [--no-lr-scale-k] [--no-renorm-pawn]");
@@ -1090,6 +1093,29 @@ pub fn cmd_two_mob_q_grid(args: &[String]) -> Result<(), String> {
     let (man, _grid) = run_two_mob_q_grid(&cfg)?;
     println!(
         "Wrote {} entrants under {} (4 cells × current/q-blowup + SEED + history)",
+        man.entrants.len(),
+        cfg.out_dir.display()
+    );
+    Ok(())
+}
+
+pub fn cmd_top4_mix_grid(args: &[String]) -> Result<(), String> {
+    let mut cfg = Top4MixGridConfig::default();
+    let mut i = 2;
+    while i < args.len() {
+        if let Some(v) = take_flag_value(args, &mut i, "--seed")? {
+            cfg.seed_model = PathBuf::from(v);
+            continue;
+        }
+        if let Some(v) = take_flag_value(args, &mut i, "--out")? {
+            cfg.out_dir = PathBuf::from(v);
+            continue;
+        }
+        return Err(format!("Unknown flag {}", args[i]));
+    }
+    let (man, _grid) = run_top4_mix_grid(&cfg)?;
+    println!(
+        "Wrote {} entrants under {} (18 mix + 6 avgs + 4 two-mob extras + leftover history)",
         man.entrants.len(),
         cfg.out_dir.display()
     );
