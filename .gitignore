@@ -52,6 +52,7 @@ testgame.txt
 !README.md
 !deploy/README.md
 !AGENTS.md
+!IDEAS_TO_TRY.md
 
 # Web frontend
 web/node_modules/
