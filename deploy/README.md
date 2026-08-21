@@ -2,6 +2,8 @@
 
 Run self-play on a cheap Linux VPS (Hetzner first), accumulate games under `data/raw/games`, then featurize / texel-fit on a quiet window. Same binary and systemd unit work later on a second host (including Oracle Always Free).
 
+Local worker / Texel / tournament CLI: [`src/training/README.md`](../src/training/README.md).
+
 ## Host recommendation
 
 **Primary: Hetzner Cloud** (~€6–12/mo, under $20):

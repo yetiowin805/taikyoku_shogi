@@ -1,4 +1,6 @@
 //! Local Texel-style training pipeline (pre-cloud).
+//!
+//! CLI and data layout: `src/training/README.md`. Cloud workers: `deploy/README.md`.
 
 pub mod cli;
 pub mod eval_trace;
