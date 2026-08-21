@@ -1,4 +1,6 @@
 //! Alpha-beta search over GameState with make/unmake, compact traces for the GUI.
+//!
+//! Pipeline, PathAware q, and what each prune can miss: `src/README.md`.
 
 use crate::eval::{
     bind_search_weights, evaluate_with_ply, is_big_piece, material_piece_value,

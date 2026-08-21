@@ -50,6 +50,7 @@ test_path
 testgame.txt
 *.md
 !README.md
+!**/README.md
 !deploy/README.md
 !AGENTS.md
 !IDEAS_TO_TRY.md

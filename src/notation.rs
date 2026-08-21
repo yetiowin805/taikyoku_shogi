@@ -2,6 +2,7 @@
 //!
 //! Coordinates are engine-native 0-based `file,rank` (same as JSON / [`Position`]).
 //! Piece ids are unique PascalCase [`PieceType`] variant names (not display symbols).
+//! Formats and CLI: `src/README.md`.
 
 use crate::board_position::BoardPosition;
 use crate::game_state::{Move, MoveData};
