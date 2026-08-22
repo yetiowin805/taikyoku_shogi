@@ -36,7 +36,7 @@ After a **quiet** AB parent, `leaf_or_quiesce` stand-pats unless:
 
 1. the parent was a loud capture, or
 2. there is a loud promotion (`promotes_into_big_piece`: two-mover or capturing-range, e.g. FreeKing→GG — **not** TreacherousFox→MountainCrane), or
-3. `stm_has_large_hang_take` — STM can dest-take a large enemy with a cheaper mover (`mv.to == victim`). SimpleTake always; dest MultiLeg / dest PathClear of a hanging range two-mover (A+B) also. Not corridor dest-beyond.
+3. `stm_has_large_hang_take` — STM can dest-take a hanging large enemy (`mv.to == victim`). Ordinary SimpleTakes still need a cheaper mover; dest MultiLeg / dest PathClear of a hanging range two-mover (A+B) count for any attacker. Not corridor dest-beyond.
 
 PathAware q then expands PathClear/MultiLeg only as a **destination recapture** (`mv.to == prev_to`). Corridor wipes (victim on the path, dest elsewhere) are left to main-search depth.
 
@@ -56,7 +56,7 @@ Code: `leaf_or_quiesce`, `stm_has_large_hang_simple_take`, `is_large_hang_simple
 
 The quiet-leaf scan already walks enemy large pieces and asks “can STM land on this square?” It then **drops** every two-step / Free Eagle / PathClear, even when `to` is the victim. That is why a hanging Hook is invisible at depth 1.
 
-Keep the victim loop. For those pieces, **any dest-capture counts**, including MultiLeg. Still ignore path-only wipes (`to` elsewhere). Keep `mover < victim`.
+Keep the victim loop. For those pieces, **any dest-capture counts**, including MultiLeg and equal hook-takes-hook. Still ignore path-only wipes (`to` elsewhere). Ordinary SimpleTakes of non-two-movers still need `mover < victim`.
 
 If a full `is_large_hang_victim` pass pulls in too much MultiLeg, gate the extra dest-takes on `is_range_two_mover` (Hook, +Capricorn, Tengu, Peacock).
 

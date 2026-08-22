@@ -37,7 +37,13 @@
       "id": "LOGIC_HANGQ_AB",
       "git": "ae03981",
       "kind": "logic",
-      "summary": "dest MultiLeg/PathClear hang-q default; last search before path-sum q sort, major dest recapture, and last-royal hang-skip"
+      "summary": "A+B dest hang-q with cheaper-attacker filter; last search before any dest capture of a hanging two-mover"
+    },
+    {
+      "id": "LOGIC_HANGQ_ANY",
+      "git": "a2f75dd",
+      "kind": "logic",
+      "summary": "any dest hang-q of a hanging two-mover; last search before path-sum q sort, major dest recapture, and last-royal hang-skip"
     }
   ]
 }
