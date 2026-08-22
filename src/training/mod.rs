@@ -6,6 +6,7 @@ pub mod cli;
 pub mod eval_trace;
 pub mod featurize;
 pub mod file_pst_grid;
+pub mod hang_q_ab_grid;
 pub mod history;
 pub mod knockout;
 pub mod loud_grid;

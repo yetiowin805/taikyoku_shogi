@@ -45,7 +45,7 @@ Inspect: `cat data/run/status.json`, or `serve` + SSH tunnel → `GET /api/train
 | `eval-trace` | Rank interesting eval swings in saved games |
 | `texel-fit` | Logistic Texel on featurized rows |
 | `match` / `tournament` | Head-to-head; RR / Swiss / knockout (`--format`) |
-| `scale-sample`, `*-grid` | Write checkpoint grids for Swiss (loud, PST, file-PST, two-mob, top4-mix, …) |
+| `scale-sample`, `*-grid` | Write checkpoint grids for Swiss (loud, PST, file-PST, two-mob, top4-mix, hang-q-ab, …) |
 | `mobility-seed` | Mobility-based init checkpoint |
 
 Knockout is the tournament default (seeded 1v16 until stop). `--init-ratings` copies Glicko r/RD from a prior Swiss `ratings.json` or `state.json`.

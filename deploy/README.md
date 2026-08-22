@@ -196,6 +196,16 @@ cd /opt/taikyoku_shogi
 tail -f data/run/two-mob-swiss.log
 ```
 
+### Hang-q A/B mini knockout
+
+Four mix-tournament weights (`T150_P120_T12`, `H120_P120_T15`, `AVG_T150_H120`, `C2K50A1`) × current / dest-MultiLeg A / dest-PathClear B / AB (16 agents). Same 1s / depth-8 PathAware setup as the mix tourney.
+
+```bash
+cd /opt/taikyoku_shogi
+./deploy/pull_build_hang_q_ab_swiss.sh --branch cursor/hang-q-ab-flags
+tail -f data/run/hang-q-ab-swiss.log
+```
+
 ### Scale-sample Swiss (legacy ±10% samples)
 
 ```bash

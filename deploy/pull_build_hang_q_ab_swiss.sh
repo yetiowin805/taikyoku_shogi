@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Pull a branch, release-build as the taikyoku user (with cargo on PATH), then
-# start a detached top4-mix-grid knockout. Defaults: 1s/move soft budget, depth 8.
+# start a detached hang-q A/B knockout. Defaults: 1s/move soft budget, depth 8.
 #
 # From root on the VPS (this branch is not on main until merged):
-#   cd /opt/taikyoku_shogi && ./deploy/pull_build_top4_mix_swiss.sh --branch cursor/top4-mix-grid
+#   cd /opt/taikyoku_shogi && ./deploy/pull_build_hang_q_ab_swiss.sh --branch cursor/hang-q-ab-flags
 #
-# Options (ours first; remainder forwarded to run_top4_mix_swiss.sh):
+# Options (ours first; remainder forwarded to run_hang_q_ab_swiss.sh):
 #   --jobs N  --time-ms MS  --depth N  --branch main  --skip-pull  --skip-build
 #   --no-detach  --no-kill  --resume --run-id ID --skip-gen
 set -euo pipefail
@@ -112,8 +112,8 @@ fi
 echo "Freezing historical logic binaries if missing…"
 run_as_repo './deploy/freeze_history.sh'
 
-# Build argv for run_top4_mix_swiss (always as REPO_USER so logs/pid/games aren't root-owned).
-swiss_cmd=(./deploy/run_top4_mix_swiss.sh
+# Build argv for run_hang_q_ab_swiss (always as REPO_USER so logs/pid/games aren't root-owned).
+swiss_cmd=(./deploy/run_hang_q_ab_swiss.sh
   --jobs "$JOBS"
   --depth "$DEPTH"
   --time-ms "$TIME_MS"
@@ -126,5 +126,5 @@ for a in "${swiss_cmd[@]}"; do
   quoted+=" $(printf '%q' "$a")"
 done
 
-echo "Starting top4-mix knockout (depth=$DEPTH time_ms=$TIME_MS jobs=$JOBS detach=$DETACH)…"
+echo "Starting hang-q A/B knockout (depth=$DEPTH time_ms=$TIME_MS jobs=$JOBS detach=$DETACH)…"
 run_as_repo "$quoted"
