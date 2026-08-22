@@ -196,6 +196,21 @@ cd /opt/taikyoku_shogi
 tail -f data/run/two-mob-swiss.log
 ```
 
+### Top-11 Texel inspection fits
+
+Eleven chassis from the mix-tournament top 11, each `texel-fit` with `--init` = that chassis. Same mix-game features. Piece values move; PST / tropism / `k` stay on the parent. Then `deploy/compare_top11_texel.py` writes a /Pawn %Δ table.
+
+```bash
+cd /opt/taikyoku_shogi
+# latest mix run if you omit --games-dir
+./deploy/run_top11_texel_fits.sh \
+  --games-dir data/raw/tourney/top4-mix-swiss-20260820T061654Z
+# table: models/top11-texel/compare.md
+# re-print: ./deploy/run_top11_texel_fits.sh --compare-only
+```
+
+Do **not** bake onto `models/ab-seed.json`. This is the look-at-deltas step before a large-piece transplant / 22-agent knockout (see [`FUTURE_NOTES.md`](../FUTURE_NOTES.md)).
+
 ### Hang-q A/B mini knockout
 
 Four mix-tournament weights (`T150_P120_T12`, `H120_P120_T15`, `AVG_T150_H120`, `C2K50A1`) × current / dest-MultiLeg A / dest-PathClear B / AB (16 agents). Same 1s / depth-8 PathAware setup as the mix tourney.
