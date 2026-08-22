@@ -964,16 +964,20 @@ pub struct SearchDefaults {
     /// Skip PathClear/MultiLeg loud-promo injection in q. Missing → false.
     #[serde(default)]
     pub q_loud_promo_simple_only: bool,
-    /// Idea A: dest MultiLeg takes of hanging range two-movers open q.
-    #[serde(default)]
+    /// Dest MultiLeg takes of hanging range two-movers open q. Missing → true.
+    #[serde(default = "default_true")]
     pub hang_q_dest_multileg: bool,
-    /// Idea B: dest PathClear takes of hanging range two-movers open q.
-    #[serde(default)]
+    /// Dest PathClear takes of hanging range two-movers open q. Missing → true.
+    #[serde(default = "default_true")]
     pub hang_q_dest_pathclear: bool,
 }
 
 fn default_quiescence_depth() -> u32 {
     2
+}
+
+fn default_true() -> bool {
+    true
 }
 
 impl Default for SearchDefaults {
@@ -984,8 +988,8 @@ impl Default for SearchDefaults {
             quiescence_depth: 2,
             sibling_mode: 0,
             q_loud_promo_simple_only: false,
-            hang_q_dest_multileg: false,
-            hang_q_dest_pathclear: false,
+            hang_q_dest_multileg: true,
+            hang_q_dest_pathclear: true,
         }
     }
 }
@@ -1871,8 +1875,8 @@ mod tests {
         .unwrap();
         assert_eq!(s.sibling_mode, 0);
         assert!(!s.q_loud_promo_simple_only);
-        assert!(!s.hang_q_dest_multileg);
-        assert!(!s.hang_q_dest_pathclear);
+        assert!(s.hang_q_dest_multileg);
+        assert!(s.hang_q_dest_pathclear);
     }
 
     #[test]

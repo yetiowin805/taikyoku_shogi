@@ -235,9 +235,9 @@ pub struct SearchConfig {
     pub sibling_mode: u8,
     /// After an AB PathClear/MultiLeg, q may not expand PathClear (incl. loud RO+).
     pub q_no_pathclear_after_wipe: bool,
-    /// Idea A: dest MultiLeg takes of hanging range two-movers open q.
+    /// Dest MultiLeg takes of hanging range two-movers open q (default on).
     pub hang_q_dest_multileg: bool,
-    /// Idea B: dest PathClear takes of hanging range two-movers open q.
+    /// Dest PathClear takes of hanging range two-movers open q (default on).
     pub hang_q_dest_pathclear: bool,
 }
 
@@ -258,8 +258,8 @@ impl Default for SearchConfig {
             track_q_unique: false,
             sibling_mode: 0,
             q_no_pathclear_after_wipe: false,
-            hang_q_dest_multileg: false,
-            hang_q_dest_pathclear: false,
+            hang_q_dest_multileg: true,
+            hang_q_dest_pathclear: true,
         }
     }
 }
@@ -1129,14 +1129,23 @@ fn quiesce_move_looks_path_or_multileg(state: &GameState, mv: &Move) -> bool {
         .any(|p| p != mv.from && p != mv.to && board.get_piece(p).is_some())
 }
 
-/// Opt-in dest-hang q gates (ideas A / B). Both default off.
-#[derive(Debug, Clone, Copy, Default)]
+/// Dest-hang q gates. Production default is both on (A+B).
+#[derive(Debug, Clone, Copy)]
 struct QHangOpts {
     dest_multileg: bool,
     dest_pathclear: bool,
 }
 
 impl QHangOpts {
+    const OFF: Self = Self {
+        dest_multileg: false,
+        dest_pathclear: false,
+    };
+    const AB: Self = Self {
+        dest_multileg: true,
+        dest_pathclear: true,
+    };
+
     fn from_ctx(ctx: &SearchContext) -> Self {
         Self {
             dest_multileg: ctx.hang_q_dest_multileg,
@@ -1146,6 +1155,12 @@ impl QHangOpts {
 
     fn any(self) -> bool {
         self.dest_multileg || self.dest_pathclear
+    }
+}
+
+impl Default for QHangOpts {
+    fn default() -> Self {
+        Self::AB
     }
 }
 
@@ -1460,7 +1475,7 @@ pub(crate) fn stm_has_large_hang_simple_take(
     state: &GameState,
     weights: &EvalWeights,
 ) -> bool {
-    stm_has_large_hang_take(state, weights, QHangOpts::default())
+    stm_has_large_hang_take(state, weights, QHangOpts::OFF)
 }
 
 fn stm_has_large_hang_take(state: &GameState, weights: &EvalWeights, opts: QHangOpts) -> bool {
@@ -2114,8 +2129,8 @@ pub fn probe_quiescence(
         track_q_unique: false,
         sibling_mode: 0,
         q_no_pathclear_after_wipe: false,
-        hang_q_dest_multileg: false,
-        hang_q_dest_pathclear: false,
+        hang_q_dest_multileg: true,
+        hang_q_dest_pathclear: true,
         sib_reduced: 0,
         sib_researched: 0,
     };
@@ -4869,16 +4884,21 @@ mod tests {
     }
 
     #[test]
-    fn dest_multileg_hang_off_by_default() {
+    fn dest_multileg_hang_on_by_default() {
         let (state, weights, mv) = peacock_dest_hangs_hook();
         assert!(!is_large_hang_simple_take(&state, &weights, &mv));
         assert!(!stm_has_large_hang_simple_take(&state, &weights));
         let gen = generate_quiescence_captures(&state, &weights, None, false, true, true, false);
         assert!(
-            !gen.iter().any(|m| m.from == mv.from && m.to == mv.to && m.is_two_step()),
-            "default q gen must drop MultiLeg dest-hang"
+            gen.iter()
+                .any(|m| m.from == mv.from && m.to == mv.to && m.is_two_step()),
+            "default q gen must inject MultiLeg dest-hang"
         );
-        assert!(dest_hang_kind(&state, &weights, &mv, QHangOpts::default()).is_none());
+        assert_eq!(
+            dest_hang_kind(&state, &weights, &mv, QHangOpts::default()),
+            Some(CaptureKind::MultiLeg)
+        );
+        assert!(dest_hang_kind(&state, &weights, &mv, QHangOpts::OFF).is_none());
     }
 
     #[test]
@@ -4937,13 +4957,21 @@ mod tests {
             dest_pathclear: false,
         };
         assert!(dest_hang_kind(&state, &weights, &mv, a_only).is_none());
-        let gen_off =
-            generate_quiescence_captures(&state, &weights, None, false, true, true, false);
+        let gen_off = generate_quiescence_captures_with_hang(
+            &state,
+            &weights,
+            None,
+            false,
+            true,
+            true,
+            false,
+            QHangOpts::OFF,
+        );
         assert!(
             !gen_off
                 .iter()
                 .any(|m| m.from == mv.from && m.to == mv.to),
-            "default q gen must drop PathClear dest-hang"
+            "flags-off q gen must drop PathClear dest-hang"
         );
         let gen = generate_quiescence_captures_with_hang(
             &state,

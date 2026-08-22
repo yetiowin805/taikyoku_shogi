@@ -269,7 +269,7 @@ mod tests {
             .find(|e| e.id == "LOGIC_H105")
             .expect("LOGIC_H105");
         assert!(logic.engine.as_ref().unwrap().contains("LOGIC_H105"));
-        assert_eq!(man.entrants.len(), 19);
+        assert_eq!(man.entrants.len(), 20);
 
         let q = EvalCheckpoint::load_path(tmp.join("C2K100A1Q.json")).unwrap();
         assert_eq!(q.search_defaults.sibling_mode, 2);
