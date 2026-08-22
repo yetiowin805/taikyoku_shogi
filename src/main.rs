@@ -162,7 +162,7 @@ fn main() {
             "featurize" => {
                 if let Err(e) = taikyoku_shogi::training::cli::cmd_featurize(&args) {
                     eprintln!("{}", e);
-                    print_usage();
+                    std::process::exit(1);
                 }
             }
             "eval-trace" => {
@@ -228,7 +228,7 @@ fn main() {
             "texel-fit" => {
                 if let Err(e) = taikyoku_shogi::training::cli::cmd_texel_fit(&args) {
                     eprintln!("{}", e);
-                    print_usage();
+                    std::process::exit(1);
                 }
             }
             "match" => {

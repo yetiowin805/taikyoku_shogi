@@ -58,35 +58,35 @@ latest_mix() {
   ls -1dt data/raw/tourney/top4-mix-swiss-* 2>/dev/null | head -1 || true
 }
 
-# Tourney dirs also have state.json / ratings.json. Featurize those as games.
+# Tourney dirs also have state.json / ratings.json. Link only slot games,
+# with absolute targets (relative links from models/top11-texel/games-stage break).
 stage_games() {
-  local src="$1"
-  local dest="$2"
-  mkdir -p "$dest"
+  local src dest
+  src="$(cd "$1" && pwd)"
+  mkdir -p "$2"
+  dest="$(cd "$2" && pwd)"
   find "$dest" -maxdepth 1 -name '*.json' -delete
-  local slots=()
-  shopt -s nullglob
-  slots=("$src"/slot*.json)
-  shopt -u nullglob
-  if [[ ${#slots[@]} -gt 0 ]]; then
-    ln -s "${slots[@]}" "$dest/"
-    echo "staged ${#slots[@]} slot games from $src → $dest"
-    return
-  fi
   local copied=0
   shopt -s nullglob
-  for f in "$src"/*.json; do
-    local base
-    base="$(basename "$f")"
-    case "$base" in
-      state.json|ratings.json|elo.json|manifest.json|samples.json|compare.json)
-        continue
-        ;;
-    esac
-    ln -s "$f" "$dest/"
+  local slots=("$src"/slot*.json)
+  if [[ ${#slots[@]} -eq 0 ]]; then
+    slots=()
+    for f in "$src"/*.json; do
+      local base
+      base="$(basename "$f")"
+      case "$base" in
+        state.json|ratings.json|elo.json|manifest.json|samples.json|compare.json)
+          continue
+          ;;
+      esac
+      slots+=("$f")
+    done
+  fi
+  shopt -u nullglob
+  for f in "${slots[@]}"; do
+    ln -sfn "$f" "$dest/$(basename "$f")"
     copied=$((copied + 1))
   done
-  shopt -u nullglob
   if [[ "$copied" -eq 0 ]]; then
     echo "No game JSON in $src" >&2
     exit 1
@@ -157,6 +157,12 @@ if [[ "$SKIP_FEATURIZE" != "1" ]]; then
   echo "=== featurize $GAMES_DIR → $FEATURES ==="
   stage_games "$GAMES_DIR" "$STAGE"
   "$BIN" featurize --games-dir "$STAGE" --out "$FEATURES"
+  n_feat="$(count_json "$FEATURES")"
+  if [[ "$n_feat" -eq 0 ]]; then
+    echo "featurize wrote 0 positions to $FEATURES" >&2
+    exit 1
+  fi
+  echo "=== featurize wrote $n_feat positions ==="
 else
   n_feat="$(count_json "$FEATURES")"
   if [[ "$n_feat" -eq 0 ]]; then
@@ -186,6 +192,10 @@ for id in "${IDS[@]}"; do
     --keep-draws \
     "${renorm_flag[@]}" \
     | tee "$log"
+  if [[ ! -f "$out" ]]; then
+    echo "texel-fit wrote no $out" >&2
+    exit 1
+  fi
   python3 - "$out" "$id" <<'PY'
 import json, sys
 path, name = sys.argv[1], sys.argv[2]
