@@ -368,8 +368,16 @@ pub fn featurize_dir(cfg: &FeaturizeConfig) -> Result<usize, String> {
 
     let weights = EvalWeights::seed();
     let mut total = 0usize;
+    let mut skipped = 0usize;
     for path in paths::list_json_files(Path::new(&cfg.games_dir))? {
-        let record = GameRecordV2::load_path(&path)?;
+        let record = match GameRecordV2::load_path(&path) {
+            Ok(r) => r,
+            Err(e) => {
+                eprintln!("skip {}: {}", path.display(), e);
+                skipped += 1;
+                continue;
+            }
+        };
         let rows = featurize_game(&record, cfg, &weights)?;
         for (j, row) in rows.iter().enumerate() {
             let out_path = Path::new(&cfg.out_dir).join(format!("{}-{:04}.json", record.game_id, j));
@@ -379,6 +387,9 @@ pub fn featurize_dir(cfg: &FeaturizeConfig) -> Result<usize, String> {
                 .map_err(|e| format!("write {}: {}", out_path.display(), e))?;
             total += 1;
         }
+    }
+    if skipped > 0 {
+        eprintln!("featurize skipped {skipped} non-game JSON files");
     }
     Ok(total)
 }
@@ -456,5 +467,24 @@ mod tests {
         let rows = featurize_game(&record, &FeaturizeConfig::default(), &EvalWeights::seed())
             .expect("standard LionDog jump must replay");
         assert!(!rows.is_empty());
+    }
+
+    #[test]
+    fn featurize_dir_skips_nongame_json() {
+        let root = std::env::temp_dir().join(format!("tk-feat-skip-{}", std::process::id()));
+        let games = root.join("games");
+        let out = root.join("out");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&games).unwrap();
+        fs::write(games.join("state.json"), r#"{"slots":[]}"#).unwrap();
+        let n = featurize_dir(&FeaturizeConfig {
+            games_dir: games.to_string_lossy().into(),
+            out_dir: out.to_string_lossy().into(),
+            target_per_game: 1,
+            ..FeaturizeConfig::default()
+        })
+        .expect("skip non-game");
+        assert_eq!(n, 0);
+        let _ = fs::remove_dir_all(&root);
     }
 }
