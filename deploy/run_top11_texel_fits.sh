@@ -133,7 +133,18 @@ for id in "${IDS[@]}"; do
   fi
 done
 
-n_feat="$(ls -1 "$FEATURES"/*.json 2>/dev/null | wc -l | tr -d ' ')"
+count_json() {
+  local dir="$1"
+  local n=0
+  if [[ -d "$dir" ]]; then
+    shopt -s nullglob
+    local files=("$dir"/*.json)
+    n=${#files[@]}
+    shopt -u nullglob
+  fi
+  echo "$n"
+}
+
 if [[ "$SKIP_FEATURIZE" != "1" ]]; then
   if [[ -z "$GAMES_DIR" ]]; then
     GAMES_DIR="$(latest_mix)"
@@ -147,7 +158,8 @@ if [[ "$SKIP_FEATURIZE" != "1" ]]; then
   stage_games "$GAMES_DIR" "$STAGE"
   "$BIN" featurize --games-dir "$STAGE" --out "$FEATURES"
 else
-  if [[ -z "$n_feat" || "$n_feat" == "0" ]]; then
+  n_feat="$(count_json "$FEATURES")"
+  if [[ "$n_feat" -eq 0 ]]; then
     echo "No features in $FEATURES — drop --skip-featurize or pass --games-dir" >&2
     exit 1
   fi
