@@ -38,6 +38,7 @@ models/two-mob-grid/
 models/two-mob-q-grid/
 models/top4-mix-grid/
 models/hang-q-ab-grid/
+models/top11-texel/
 models/history/bin/
 models/history/models/
 .history-worktrees/
@@ -55,6 +56,7 @@ testgame.txt
 !deploy/README.md
 !AGENTS.md
 !IDEAS_TO_TRY.md
+!FUTURE_NOTES.md
 
 # Web frontend
 web/node_modules/
