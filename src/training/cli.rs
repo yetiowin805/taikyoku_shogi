@@ -4,6 +4,7 @@ use crate::board_position::BoardPosition;
 use crate::training::eval_trace::{run_eval_trace, EvalTraceConfig};
 use crate::training::featurize::{featurize_dir, FeaturizeConfig};
 use crate::training::file_pst_grid::{run_file_pst_grid, FilePstGridConfig};
+use crate::training::hang_q_ab_grid::{run_hang_q_ab_grid, HangQAbGridConfig};
 use crate::training::loud_grid::{run_loud_grid, LoudGridConfig};
 use crate::training::match_harness::{run_matches, MatchConfig};
 use crate::training::mobility_seed::{run_mobility_seed, MobilitySeedConfig};
@@ -92,6 +93,8 @@ pub fn print_training_usage() {
     println!("            (C1/C2 × K100/K200 A1 pairs ± q-blowup search + SEED + history)");
     println!("  top4-mix-grid [--seed PATH] [--out DIR]");
     println!("            (3×3×2 material×PST×tropism + 6 pairwise avgs + 4 two-mob extras + leftover history)");
+    println!("  hang-q-ab-grid [--seed PATH] [--out DIR]");
+    println!("            (T150_P120_T12 / H120_P120_T15 / AVG_T150_H120 / C2K50A1 × current/A/B/AB)");
     println!("  texel-fit [--features DIR] [--out PATH] [--iters N] [--lr F] [--k F]");
     println!("            [--init seed|mobility|PATH] [--late-frac F] [--keep-draws]");
     println!("            [--no-log-space] [--no-lr-scale-k] [--no-renorm-pawn]");
@@ -1116,6 +1119,29 @@ pub fn cmd_top4_mix_grid(args: &[String]) -> Result<(), String> {
     let (man, _grid) = run_top4_mix_grid(&cfg)?;
     println!(
         "Wrote {} entrants under {} (18 mix + 6 avgs + 4 two-mob extras + leftover history)",
+        man.entrants.len(),
+        cfg.out_dir.display()
+    );
+    Ok(())
+}
+
+pub fn cmd_hang_q_ab_grid(args: &[String]) -> Result<(), String> {
+    let mut cfg = HangQAbGridConfig::default();
+    let mut i = 2;
+    while i < args.len() {
+        if let Some(v) = take_flag_value(args, &mut i, "--seed")? {
+            cfg.seed_model = PathBuf::from(v);
+            continue;
+        }
+        if let Some(v) = take_flag_value(args, &mut i, "--out")? {
+            cfg.out_dir = PathBuf::from(v);
+            continue;
+        }
+        return Err(format!("Unknown flag {}", args[i]));
+    }
+    let (man, _grid) = run_hang_q_ab_grid(&cfg)?;
+    println!(
+        "Wrote {} entrants under {} (4 weights × current/A/B/AB)",
         man.entrants.len(),
         cfg.out_dir.display()
     );
