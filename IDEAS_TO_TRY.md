@@ -121,7 +121,7 @@ Motivating line: **slot0260 ply 70–73**.
 
 A/B do not help: the Hook is not the landing square.
 
-Likely mechanism: at ID depth 1–2 the follow-up exists only in **q**. After staging, `prev_to` is `11,13`; the wipe lands on `24,0`, so PathAware drops it. AB would see `staging → reply → strike` from depth 3+, but 1s / ~20k nodes may never finish that on a late-ordered BG shuffle. White *played* the staging at root, so hang-skip of the staging move is not the story. Q sort is **landing victim first**, then path-sum — even if the corridor wipe were allowed, TopN=2 could bury `24,0` (Dove ~50).
+Likely mechanism: at ID depth 1–2 the follow-up exists only in **q**. After staging, `prev_to` is `11,13`; the wipe lands on `24,0`, so PathAware drops it. AB would see `staging → reply → strike` from depth 3+, but 1s / ~20k nodes may never finish that on a late-ordered BG shuffle. White *played* the staging at root, so hang-skip of the staging move is not the story. Q now sorts **path-sum first**, then dest recapture — even if the corridor wipe were allowed, TopN=2 could still bury a cheaper dest if a fatter hang-dest sits in the list.
 
 Prefer tiny gates. Measure q-nodes on a GG PathClear leaf **before** anything that lets dest-empty PathClear back into q.
 
@@ -141,13 +141,13 @@ Any PathClear whose **path** contains a Hook/Peacock/Tengu/… (not only the las
 
 Also covers slot0202 ply 72 overshoot `17,3-17,33` (Hook mid-path). **Risk:** classic mop blowup. Try only after C fails, and only to open q or only at q ply 0.
 
-### E — If C/D allow corridor wipes, sort them by path loot
+### E — Path-sum q sort (done)
 
-Q sorts landing victim first. Hook-on-path / Dove-on-dest looks like a 50-point take and loses TopN. Companion to C/D, not useful alone: for `CaptureKind::PathClear`, order by `max(landing, max_path)` or `enemy − own` (`tactical_gain`). AB `mvv_lva_score` already uses full path exchange — this is a **q-list** issue.
+Q now orders by last-royal, then total captured (`tactical_gain` / path-sum), then dest recapture, then net MVV-LVA. Landing-only sort buried Hook-on-path / Dove-on-dest. Remaining miss is TopN + hang-dest siblings, not the key.
 
 ### F — Don’t stand-pat after a capturing-range PathClear
 
-If `last_ab_wipe` and the mover was a range capturer, skip quiet stand-pat and enter q with C’s from-square rule (or a 1-ply capture gen **only from `last_ab_to`**). Same idea as C, trigger is “parent was a wipe.” Might be easier to A/B test.
+Dest recapture of a **major landing** now beats stand-pat β / TopN / delta (slot 10 keep-GG). Remaining: dest-empty corridor after a wipe (C’s from-square), not “did we take the piece that just sat down.”
 
 ### G — Extra ID depth on fat-path PathClear
 

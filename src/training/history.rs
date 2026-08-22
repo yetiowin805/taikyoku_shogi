@@ -149,6 +149,7 @@ mod tests {
         assert!(e.contains(&"LOGIC_B65T12"));
         assert!(e.contains(&"LOGIC_HANGQ_ST"));
         assert!(e.contains(&"LOGIC_HANGQ_AB"));
+        assert!(e.contains(&"LOGIC_HANGQ_ANY"));
     }
 
     #[test]
