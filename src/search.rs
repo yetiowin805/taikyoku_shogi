@@ -1164,7 +1164,12 @@ impl Default for QHangOpts {
     }
 }
 
-/// Dest-capture of a cheaper-attacker hang, optionally including MultiLeg / PathClear.
+/// Dest-capture of a hanging large enemy, optionally including MultiLeg / PathClear.
+///
+/// SimpleTakes of ordinary heavies still need a cheaper attacker (equal GG
+/// trades must not open q). A dest take of a range two-mover counts for any
+/// attacker — hook-takes-hook is the same hanging piece whether the mover
+/// is a Peacock or the other Hook.
 fn dest_hang_kind(
     state: &GameState,
     weights: &EvalWeights,
@@ -1184,7 +1189,9 @@ fn dest_hang_kind(
     if victim.color == mover.color || !is_large_hang_victim(&victim, weights) {
         return None;
     }
-    if material_piece_value(&mover, weights) >= material_piece_value(&victim, weights) {
+    if !is_range_two_mover(victim.piece_type)
+        && material_piece_value(&mover, weights) >= material_piece_value(&victim, weights)
+    {
         return None;
     }
     let (_, _, kind) = capture_exchange_kind(state, weights, mv);
@@ -4822,6 +4829,33 @@ mod tests {
         (state, weights, mv)
     }
 
+    /// Hook two-step landing on the other Hook (equal-value dest MultiLeg).
+    fn hook_dest_hangs_hook() -> (GameState, EvalWeights, Move) {
+        let (mut state, weights) = hang_q_kings();
+        state.place_piece(Piece::new(
+            PieceType::HookMover,
+            Color::Black,
+            Position::new(10, 20).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::HookMover,
+            Color::White,
+            Position::new(18, 14).unwrap(),
+        ));
+        state.set_current_turn(Color::Black);
+        let hook = Position::new(18, 14).unwrap();
+        let hits = generate_captures_hitting_square(&state, hook);
+        assert!(
+            hits.iter().all(|m| m.to != hook || m.is_two_step()),
+            "equal-hook fixture must be MultiLeg dest, not SimpleTake: {hits:?}"
+        );
+        let mv = hits
+            .into_iter()
+            .find(|m| m.to == hook && m.is_two_step())
+            .expect("Hook two-step dest onto Hook");
+        (state, weights, mv)
+    }
+
     /// GG PathClear through own pawn, landing on a Hook (idea B).
     fn gg_pathclear_dest_hangs_hook() -> (GameState, EvalWeights, Move) {
         let (mut state, weights) = hang_q_kings();
@@ -4937,6 +4971,36 @@ mod tests {
         let stand = evaluate_with_ply(&state, &weights, 0);
         assert!(q_nodes > 0, "A must open q");
         assert!(score > stand, "taking Hook in q should beat stand-pat: stand={stand} q={score}");
+    }
+
+    #[test]
+    fn dest_multileg_hang_includes_equal_hook_trade() {
+        let (state, weights, mv) = hook_dest_hangs_hook();
+        let mover = state.get_board().get_piece(mv.from).unwrap();
+        let victim = state.get_board().get_piece(mv.to).unwrap();
+        assert_eq!(
+            material_piece_value(&mover, &weights),
+            material_piece_value(&victim, &weights)
+        );
+        assert_eq!(
+            dest_hang_kind(&state, &weights, &mv, QHangOpts::default()),
+            Some(CaptureKind::MultiLeg)
+        );
+        assert!(stm_has_large_hang_take(&state, &weights, QHangOpts::AB));
+        let gen = generate_quiescence_captures(&state, &weights, None, false, true, true, false);
+        assert!(
+            gen.iter()
+                .any(|m| m.from == mv.from && m.to == mv.to && m.is_two_step()),
+            "q gen must inject Hook dest×Hook: {gen:?}"
+        );
+        let (score, q_nodes) =
+            probe_quiet_parent_leaf_or_quiesce_hang(&state, &weights, 2, QHangOpts::AB);
+        let stand = evaluate_with_ply(&state, &weights, 0);
+        assert!(q_nodes > 0, "equal hook dest-take must open q");
+        assert!(
+            score > stand,
+            "taking the hanging Hook must beat stand-pat: stand={stand} q={score}"
+        );
     }
 
     #[test]

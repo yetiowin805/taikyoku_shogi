@@ -32,6 +32,12 @@
       "git": "46d5cd9",
       "kind": "logic",
       "summary": "SimpleTake hang-q only; last search before dest MultiLeg/PathClear hang-q (A+B) default"
+    },
+    {
+      "id": "LOGIC_HANGQ_AB",
+      "git": "ae03981",
+      "kind": "logic",
+      "summary": "A+B dest hang-q with cheaper-attacker filter; last search before any dest capture of a hanging two-mover"
     }
   ]
 }
