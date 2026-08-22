@@ -1,6 +1,6 @@
 # Ideas to try (search, quiescence, eval)
 
-Notes from knockout games. **Nothing here is implemented yet.** Pick one experiment, measure it on the check positions plus q-node counts, then bake. Do not stack A+B+C in one patch.
+Notes from knockout games. **A+B are default search** (dest MultiLeg / dest PathClear hang-q). Pick one remaining experiment, measure it, then bake. Do not stack C–J in one patch.
 
 A **major eval or search-behavior change** (new term, new hang-q rule that changes move choice under the same time/depth) needs a `kind: logic` history freeze on the parent of the merge — see `AGENTS.md`. Tests, scripts, and this file do not.
 
@@ -22,13 +22,11 @@ Approximate seed material (for swing sizes): Hook ~6237, Capricorn ~2970, Peacoc
 
 ## Suggested order
 
-1. **A** — dest-hangs of high-value two-movers open q. Several confirmed misses; smallest patch.
-2. **B** — same, but the taker is a capturing-range piece landing on the two-mover (PathClear dest).
-3. **M** — last-royal captures are mate/loud (slot0151 mate-in-1 ordering). Tiny search change, separate from eval.
-4. **L** — last-royal flight penalty (slot0151 mate while ahead on material). Eval; freeze.
-5. **C / F**, then **E**, then **J** — corridor lasers (slot0260 ply 70, slot0202 ply 65–67 / 72 overshoot). Measure q-nodes before letting dest-empty PathClear back into q.
-6. **D** only if C is too narrow.
-7. **G, H, K, tropism retune** — later / speculative.
+1. **M** — last-royal captures are mate/loud (slot0151 mate-in-1 ordering). Tiny search change, separate from eval.
+2. **L** — last-royal flight penalty (slot0151 mate while ahead on material). Eval; freeze.
+3. **C / F**, then **E**, then **J** — corridor lasers (slot0260 ply 70, slot0202 ply 65–67 / 72 overshoot). Measure q-nodes before letting dest-empty PathClear back into q.
+4. **D** only if C is too narrow.
+5. **G, H, K, tropism retune** — later / speculative.
 
 ---
 
@@ -38,13 +36,13 @@ After a **quiet** AB parent, `leaf_or_quiesce` stand-pats unless:
 
 1. the parent was a loud capture, or
 2. there is a loud promotion (`promotes_into_big_piece`: two-mover or capturing-range, e.g. FreeKing→GG — **not** TreacherousFox→MountainCrane), or
-3. `stm_has_large_hang_simple_take` — STM can **SimpleTake** a large enemy with a cheaper mover, `mv.to == victim`, and **not** PathClear/MultiLeg (`quiesce_move_looks_path_or_multileg`).
+3. `stm_has_large_hang_take` — STM can dest-take a large enemy with a cheaper mover (`mv.to == victim`). SimpleTake always; dest MultiLeg / dest PathClear of a hanging range two-mover (A+B) also. Not corridor dest-beyond.
 
 PathAware q then expands PathClear/MultiLeg only as a **destination recapture** (`mv.to == prev_to`). Corridor wipes (victim on the path, dest elsewhere) are left to main-search depth.
 
 Code: `leaf_or_quiesce`, `stm_has_large_hang_simple_take`, `is_large_hang_simple_take`, `generate_captures_hitting_square`, `pathclear_allowed_in_pathaware_q` in `src/search.rs`. Victim test: `is_large_hang_victim` (`is_big_piece` or ≥ loud floor). Range two-movers: `is_range_two_mover` (Tengu, Capricorn, Hook Mover, Peacock, …).
 
-**The repeating miss:** a quiet parent, then a two-step or capturing-range piece **lands on** a Hook. Hang-q throws that take away. Depth 1 stand-pats (sometimes even *prefers* the hang because PST/mobility likes the new square). Depth 2 sees it. 1s with ~200–1500 root moves often never finishes depth 2, so the depth-1 PV stands.
+**The repeating miss (fixed by A+B):** a quiet parent, then a two-step or capturing-range piece **lands on** a Hook. Old hang-q threw that take away; dest MultiLeg / dest PathClear now open q. Corridor dest-beyond (C–J) is still a miss.
 
 **Do not conflate with AB hang-skip.** `capture_hangs_high_value_piece` skips *our* hanging **movers** (net < 0.8×mover and landing attacked). Hang-q looks for hanging **victims**. PathClear hang-skip already sums path loot and post-fire confirms (ply-71 false-positive fix: GG through a defending Hook).
 
@@ -54,7 +52,7 @@ Code: `leaf_or_quiesce`, `stm_has_large_hang_simple_take`, `is_large_hang_simple
 
 ## A — Always test dest-hangs of high-value pieces
 
-**Do this first.**
+**Baked** as default `hang_q_dest_multileg` (16-agent mix top-4 × A/B/AB knockout: AB twins sat at the top and mostly only lost to other AB). Checkpoint can still turn it off.
 
 The quiet-leaf scan already walks enemy large pieces and asks “can STM land on this square?” It then **drops** every two-step / Free Eagle / PathClear, even when `to` is the victim. That is why a hanging Hook is invisible at depth 1.
 
@@ -83,6 +81,8 @@ Expect after A: depth 1 must stop picking `17,27-17,6+` once q sees `13,2-16,5-1
 ---
 
 ## B — Range dest-captures of high-value two-movers
+
+**Baked** as default `hang_q_dest_pathclear` (same knockout as A). Checkpoint can still turn it off.
 
 A covers two-movers taking by landing. **B** covers BG/GG/VG/Fierce Dragon/etc. **sitting on** the two-mover, including PathClear that wipes the ray and lands on the victim.
 

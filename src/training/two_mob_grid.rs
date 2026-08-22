@@ -210,7 +210,7 @@ mod tests {
             .expect("LOGIC_H105");
         assert!(logic.engine.as_ref().unwrap().contains("LOGIC_H105"));
         assert!(man.entrants.iter().any(|e| e.id == "LOGIC_B65T12"));
-        assert_eq!(man.entrants.len(), 29);
+        assert_eq!(man.entrants.len(), 30);
         let _ = fs::remove_dir_all(&tmp);
     }
 }

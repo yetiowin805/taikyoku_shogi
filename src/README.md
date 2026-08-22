@@ -171,7 +171,7 @@ This skip is about hanging **movers**. Quiet-leaf hang-q (below) is about hangin
 
 - If the parent AB move’s captured enemy material (or **loud-promotion material gain**) is ≥ the loud floor → enter quiescence with `prev_to` = the AB landing square.
 - Else if the side to move has a legal promotion into a two-mover / range-capturer (e.g. FreeKing→GreatGeneral) → enter a **promo-only** quiescence (no full capture fanout). TreacherousFox→MountainCrane is **not** loud (ordinary range, not `is_big_piece`).
-- Else if STM has a **lesser-valued SimpleTake** of a hanging large enemy (`stm_has_large_hang_simple_take`) → enter capture q so that take is resolved. Two-step / PathClear dest-takes do **not** open this gate unless the checkpoint sets `hang_q_dest_multileg` (idea A) or `hang_q_dest_pathclear` (idea B).
+- Else if STM has a **lesser-valued dest-take** of a hanging large enemy (`stm_has_large_hang_take`) → enter capture q so that take is resolved. SimpleTake always counts; dest MultiLeg / dest PathClear of a hanging range two-mover also count (A+B, default on). Corridor dest-beyond PathClear still does not.
 - Otherwise → **stand-pat eval**, no quiescence.
 - **Non-PV** (null-window) leaves use `qdepth = min(config, 1)`; PV / fail-high research uses the full configured q depth.
 - Null-move children clear the loud-capture flag, so they do not gate into q via that path.
@@ -183,7 +183,7 @@ This skip is about hanging **movers**. Quiet-leaf hang-q (below) is about hangin
 
 **Can miss (approximate).**
 
-- Quiet moves that leave a piece hanging **to a two-step or capturing-range landing** (SimpleTake hang-q does not see MultiLeg / PathClear dest). See experiment A/B in [`IDEAS_TO_TRY.md`](../IDEAS_TO_TRY.md).
+- Quiet moves that leave a piece hanging **to a corridor PathClear** (victim on the path, dest elsewhere). Dest landings on the two-mover are hang-q (A+B). See remaining corridor ideas in [`IDEAS_TO_TRY.md`](../IDEAS_TO_TRY.md).
 - **Cheap takes** below the loud floor that start a large exchange chain (except last-royal captures, which are still priced as ~8 material).
 - Non-PV nodes only get **one** q ply → shallow recapture fights on scout windows.
 
@@ -258,7 +258,7 @@ Captures use hang-aware MVV-LVA (`gain × 1000 − mover`, with hanging movers d
 
 | Optimization | Typical missed / weakened line |
 |---|---|
-| Loud leaf gate | Quiet hanging piece taken by two-step / PathClear dest (SimpleTake hang-q only); pawn take that opens a big exchange |
+| Loud leaf gate | Quiet hanging piece taken by a corridor PathClear (dest elsewhere); pawn take that opens a big exchange |
 | Non-PV q depth 1 | Multi-ply recapture fight on a scout window |
 | PathClear dest-recapture only | GG corridor wipe not landing on the last square |
 | Top-N = 2 at first q ply | Third good capture option at q entry |

@@ -26,6 +26,12 @@
       "git": "4089e88",
       "kind": "logic",
       "summary": "B65/T12 bake; last search before LTO / incremental eval / reach-table nps opts"
+    },
+    {
+      "id": "LOGIC_HANGQ_ST",
+      "git": "46d5cd9",
+      "kind": "logic",
+      "summary": "SimpleTake hang-q only; last search before dest MultiLeg/PathClear hang-q (A+B) default"
     }
   ]
 }
