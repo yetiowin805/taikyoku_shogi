@@ -150,6 +150,8 @@ Implementation: [`search.rs`](search.rs). Ultimate Shogi has a huge branching fa
 2. net path material `(enemy − own) < 0.8 × mover`, and
 3. the landing square is attacked by the opponent.
 
+Never skip a capture that takes an enemy **royal** (King / Crown Prince) on dest, intermediate, path, or Free Eagle route. Those are cheap in material (CP=8) so they look like hung-Hook junk, but they can end the game. A capture that takes the **last** remaining royal is an instant win: it sorts first in AB and q, and the root loop stops once one is scored.
+
 `SimpleTake` uses a cheap pre-move landing attack. PathClear / MultiLeg: interior **confirm-on-prune** (pre-move attack first; only if that looks hanging, simulate post-fire); root goes straight to post-fire. Path loot is included in the net (a GG that path-clears a Hook then lands safely is not skipped).
 
 **Rationale.** After capturing-range tariffs were raised, Great General–class pieces love to “mop” low pieces onto guarded squares. Expanding those lines dominates the tree and is almost always losing.
@@ -195,7 +197,7 @@ Harness note (post–Great General leaf, q=6): PathAware ~**37×** fewer q-nodes
 
 #### Stand-pat and q transposition table
 
-Stand-pat raises α; if stand-pat ≥ β the node returns immediately. A separate q TT (`1<<18`) stores bounds and the **best capture** for ordering. Unique-q HashSet tracking is **debug-only** (no release cost, does not prune).
+Stand-pat raises α; if stand-pat ≥ β the node returns immediately **unless** `prev_to` holds a major enemy (big / loud). Then dest recaptures of that square run first — they stay outside TopN and live delta — so a hanging GG is not scored as a keep on a null-window cutoff. A separate q TT (`1<<18`) stores bounds and the **best capture** for ordering. Unique-q HashSet tracking is **debug-only** (no release cost, does not prune).
 
 #### Thin capture generation (victim square / cheap q-entry)
 
@@ -220,7 +222,7 @@ Stand-pat raises α; if stand-pat ≥ β the node returns immediately. A separat
 | `QUIESCE_TOP_N_DEEP` | 3 | Max captures at deeper q plies |
 | `QUIESCE_PATHCLEAR_DEEP_BUDGET` | 1 | Max PathClear/MultiLeg among those |
 
-Moves are ordered by landing victim, then recapture flag, then net MVV-LVA; then truncated.
+Moves are ordered by last-royal instant wins, then total material captured (path-sum / tactical gain), then dest recapture, then net MVV-LVA; then truncated. Dest recaptures of a major `prev_to` stay outside TopN.
 
 **Can miss.** A third (or later) equally good capture at the first q ply; corridor options beyond the budget.
 

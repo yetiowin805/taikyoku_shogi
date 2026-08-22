@@ -9,7 +9,7 @@
 //! Five cells reuse history/SEED ids. `BASE_H105O105` is H105×OLD×T15 (not a top-4
 //! agent, but the same weights as that corner). LOGIC_B65T12 and LOGIC_TROPISM are
 //! omitted; remaining history is PRELOUD, T150C120, P120H75B60, LOGIC_H105,
-//! LOGIC_HANGQ_ST.
+//! LOGIC_HANGQ_ST, LOGIC_HANGQ_AB.
 
 use crate::eval::{
     is_range_two_mover, seed_rank_factors_fast_params, EvalCheckpoint, EvalWeights, ALL_PIECE_TYPES,
@@ -554,7 +554,7 @@ mod tests {
     }
 
     #[test]
-    fn grid_writes_33_unique_entrants() {
+    fn grid_writes_34_unique_entrants() {
         let tmp = std::env::temp_dir().join(format!("tk-top4-mix-{}", std::process::id()));
         let _ = fs::remove_dir_all(&tmp);
         let cfg = Top4MixGridConfig {
@@ -575,7 +575,7 @@ mod tests {
         let ids: Vec<_> = man.entrants.iter().map(|e| e.id.as_str()).collect();
         let uniq: HashSet<_> = ids.iter().copied().collect();
         assert_eq!(uniq.len(), ids.len(), "duplicate ids: {ids:?}");
-        assert_eq!(man.entrants.len(), 33);
+        assert_eq!(man.entrants.len(), 34);
         for id in TOP4 {
             assert!(ids.contains(&id), "missing {id}");
         }
@@ -586,6 +586,7 @@ mod tests {
         assert!(ids.contains(&"BASE_P120H75B60"));
         assert!(ids.contains(&"LOGIC_H105"));
         assert!(ids.contains(&"LOGIC_HANGQ_ST"));
+        assert!(ids.contains(&"LOGIC_HANGQ_AB"));
         assert!(!ids.contains(&"LOGIC_B65T12"));
         assert!(!ids.contains(&"LOGIC_TROPISM"));
         let logic = man

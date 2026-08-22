@@ -72,6 +72,11 @@ pub const QUIESCE_PATHCLEAR_DEEP_BUDGET: usize = 1;
 pub const HANG_NET_FRAC: f32 = 0.8;
 /// AB skips captures that hang a mover at or above this piece value.
 pub const HIGH_VALUE_HANGER: f32 = 400.0;
+/// Scores at or above this are mate / last-royal wins. Order those first and
+/// stop the root loop once one is found.
+const MATE_SCORE_BAND: i32 = 900_000;
+/// Move-order key so last-royal captures sort above every MVV capture.
+const LAST_ROYAL_ORDER: i32 = i32::MAX / 2;
 
 /// Deeper-ply loudness floor (same formula as root worthwhile threshold).
 pub fn min_quiescence_deep_enemy() -> f32 {
@@ -84,6 +89,26 @@ pub fn min_quiescence_deep_enemy() -> f32 {
 /// Q finishes the contested square; capturing-range corridor wipes belong to AB.
 fn pathclear_allowed_in_pathaware_q(is_dest_recapture: bool) -> bool {
     is_dest_recapture
+}
+
+/// Enemy on `prev_to` is a major piece that just landed. Dest recaptures must
+/// run before a stand-pat β cutoff (and stay outside TopN / live delta).
+fn prev_to_is_major_enemy(
+    state: &GameState,
+    weights: &EvalWeights,
+    prev_to: Option<Position>,
+) -> bool {
+    let Some(sq) = prev_to else {
+        return false;
+    };
+    let Some(piece) = state.get_board().get_piece(sq) else {
+        return false;
+    };
+    if piece.color == state.get_current_turn() {
+        return false;
+    }
+    is_big_piece(piece.piece_type)
+        || material_piece_value(&piece, weights) >= min_quiescence_enemy_material()
 }
 
 /// PathClear empty-beyond landings that share `(from, direction, occupied-between)`.
@@ -796,6 +821,63 @@ fn net_below_hang_frac(enemy: f32, own: f32, mover_value: f32) -> bool {
     (enemy - own) < mover_value * HANG_NET_FRAC
 }
 
+/// Dest, intermediate, capturing-range path, or Free Eagle route takes an enemy King / CP.
+/// Hang-skip must not drop these: royals are cheap in material (CP=8) but end the game.
+fn capture_takes_enemy_royal(state: &GameState, mv: &Move) -> bool {
+    captured_enemy_royal_count(state, mv) > 0
+}
+
+/// True when this capture removes every remaining enemy royal (instant win).
+fn capture_takes_last_enemy_royal(state: &GameState, mv: &Move) -> bool {
+    let board = state.get_board();
+    let Some(mover) = board.get_piece(mv.from) else {
+        return false;
+    };
+    let them = mover.color.opposite();
+    let have = board
+        .iter_pieces_by_color(them)
+        .filter(|p| p.piece_type.is_royal())
+        .count();
+    have > 0 && captured_enemy_royal_count(state, mv) >= have
+}
+
+fn captured_enemy_royal_count(state: &GameState, mv: &Move) -> usize {
+    let board = state.get_board();
+    let Some(mover) = board.get_piece(mv.from) else {
+        return 0;
+    };
+    let them = mover.color.opposite();
+    let enemy_royal = |pos: Position| {
+        board
+            .get_piece(pos)
+            .is_some_and(|p| p.color == them && p.piece_type.is_royal())
+    };
+    let mut n = 0usize;
+    let mut seen = [None; 4];
+    let mut add = |pos: Position| {
+        if enemy_royal(pos) && !seen[..n].contains(&Some(pos)) && n < seen.len() {
+            seen[n] = Some(pos);
+            n += 1;
+        }
+    };
+    add(mv.to);
+    if let Some(inter) = mv.intermediate() {
+        add(inter);
+    }
+    if let Some(path) = mv.free_eagle_path() {
+        for &pos in path {
+            add(pos);
+        }
+    } else if piece_has_capturing_range(&mover) {
+        for pos in path_utils::get_path_positions(mv.from, mv.to) {
+            if pos != mv.from && pos != mv.to {
+                add(pos);
+            }
+        }
+    }
+    n
+}
+
 /// True when a capture hangs a high-value mover and should be skipped in AB.
 ///
 /// Conditions: mover value ≥ [`HIGH_VALUE_HANGER`], net below [`HANG_NET_FRAC`] of
@@ -822,6 +904,9 @@ fn capture_hangs_high_value_piece(
     };
     let mover_value = material_piece_value(&mover, weights);
     if mover_value < HIGH_VALUE_HANGER {
+        return false;
+    }
+    if capture_takes_enemy_royal(state, mv) {
         return false;
     }
     let (enemy, own, kind) = capture_exchange_kind(state, weights, mv);
@@ -1005,6 +1090,9 @@ fn move_order_score(
     let Some(mover) = board.get_piece(mv.from) else {
         return i32::MIN / 4;
     };
+    if capture_takes_last_enemy_royal(state, mv) {
+        return LAST_ROYAL_ORDER;
+    }
     let mover_value = material_piece_value(&mover, weights);
     let (enemy, own, kind) = capture_exchange_kind(state, weights, mv);
     if enemy == 0.0 {
@@ -1012,7 +1100,9 @@ fn move_order_score(
     }
 
     let mut gain = enemy - own;
-    let hanging = if net_below_hang_frac(enemy, own, mover_value) {
+    let hanging = if !capture_takes_enemy_royal(state, mv)
+        && net_below_hang_frac(enemy, own, mover_value)
+    {
         match kind {
             CaptureKind::SimpleTake => {
                 landing_attacked_cached(board, mv.to, opponent, attack_cache)
@@ -1943,6 +2033,9 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
             if score > alpha {
                 alpha = score;
             }
+            if score >= MATE_SCORE_BAND {
+                break;
+            }
         }
 
         if !finished_iteration {
@@ -2179,6 +2272,93 @@ pub fn probe_quiescence(
         root_moves_scored: 0,
         aborted: ctx.abort,
     }
+}
+
+/// Test harness: PathAware q with an explicit window and contested square.
+#[cfg(test)]
+fn probe_quiesce_window(
+    state: &GameState,
+    weights: &EvalWeights,
+    qdepth: u32,
+    alpha: i32,
+    beta: i32,
+    prev_to: Option<Position>,
+) -> (i32, u64) {
+    let _wbind = bind_search_weights(weights);
+    let root_ply = state.get_move_history().len();
+    let now = Instant::now();
+    let mut ctx = SearchContext {
+        deadline: None,
+        nodes: 0,
+        abort: false,
+        ply: root_ply,
+        quiescence_depth: qdepth,
+        quiesce_entry_depth: qdepth,
+        search_started: now,
+        last_progress_log: now,
+        search_depth: 0,
+        root_index: 0,
+        root_total: 0,
+        root_label: String::new(),
+        best_score: i32::MIN + 1,
+        phase: "quiesce",
+        tt: TranspositionTable::new(1024),
+        q_tt: TranspositionTable::new(1 << 16),
+        killers: Vec::new(),
+        history: HashMap::new(),
+        allow_null: true,
+        last_ab_capture_enemy: min_quiescence_enemy_material(),
+        last_ab_to: prev_to,
+        last_ab_wipe: false,
+        q_nodes: 0,
+        q_nodes_at_root_start: 0,
+        q_nodes_last_root: 0,
+        q_depth_left: 0,
+        q_caps_at_node: 0,
+        q_cap_index: 0,
+        q_label: String::new(),
+        q_stand_pat: 0,
+        q_prune_mode: QPruneMode::PathAware,
+        q_caps_generated: 0,
+        q_caps_searched: 0,
+        q_kind_simple: 0,
+        q_kind_path: 0,
+        q_kind_multi: 0,
+        root_pvs_tried: 0,
+        root_fail_high: 0,
+        root_near_best: 0,
+        root_moves_scored: 0,
+        q_unique: HashSet::new(),
+        q_unique_saturated: false,
+        q_tt_hits: 0,
+        q_tt_probes: 0,
+        root_move_started: Instant::now(),
+        q_hash_prev_to: false,
+        q_no_pathclear_reply: false,
+        q_no_pathclear: false,
+        q_loud_promo_simple_only: false,
+        track_q_unique: false,
+        sibling_mode: 0,
+        q_no_pathclear_after_wipe: false,
+        hang_q_dest_multileg: true,
+        hang_q_dest_pathclear: true,
+        sib_reduced: 0,
+        sib_researched: 0,
+    };
+    let mut pos = state.clone();
+    pos.ensure_eval_inc(weights);
+    let score = quiesce(
+        &mut pos,
+        weights,
+        qdepth,
+        alpha,
+        beta,
+        prev_to,
+        true,
+        true,
+        &mut ctx,
+    );
+    (score, ctx.q_nodes)
 }
 
 /// Test harness: quiet-parent leaf path (`last_ab_capture_enemy = 0`).
@@ -2426,8 +2606,7 @@ fn alphabeta(
     // fire at depth >= 2 to help opening d3 searches.
     // Null leaf (depth 0 after R) uses stand-pat eval — not quiescence.
     const NULL_R: u32 = 2;
-    const MATE_BAND: i32 = 900_000;
-    if ctx.allow_null && depth >= 2 && beta < MATE_BAND && beta > -MATE_BAND {
+    if ctx.allow_null && depth >= 2 && beta < MATE_SCORE_BAND && beta > -MATE_SCORE_BAND {
         let r = NULL_R.min(depth - 1);
         ctx.allow_null = false;
         let prev_turn = state.get_current_turn();
@@ -2833,7 +3012,8 @@ fn quiesce(
     if qdepth == 0 {
         return stand_pat;
     }
-    if stand_pat >= beta {
+    let resolve_major = prev_to_is_major_enemy(state, weights, prev_to);
+    if stand_pat >= beta && !resolve_major {
         ctx.q_tt.store(TtEntry {
             key,
             depth: qdepth,
@@ -2843,7 +3023,9 @@ fn quiesce(
         });
         return stand_pat;
     }
-    if stand_pat > alpha {
+    // Leave the window intact when deferring a stand-pat cutoff so dest
+    // recaptures still expand; `best` starts at stand-pat.
+    if stand_pat > alpha && stand_pat < beta {
         alpha = stand_pat;
     }
 
@@ -2875,7 +3057,6 @@ fn quiesce(
         own: f32,
         kind: CaptureKind,
         mover_value: f32,
-        landing_victim: f32,
         is_recapture: bool,
         is_dest_recapture: bool,
         is_loud_promo: bool,
@@ -2891,12 +3072,6 @@ fn quiesce(
             let mover_value = state
                 .get_board()
                 .get_piece(mv.from)
-                .map(|p| material_piece_value(&p, weights))
-                .unwrap_or(0.0);
-            let landing_victim = state
-                .get_board()
-                .get_piece(mv.to)
-                .filter(|p| p.color != state.get_current_turn())
                 .map(|p| material_piece_value(&p, weights))
                 .unwrap_or(0.0);
             let is_recapture = prev_to
@@ -2919,7 +3094,6 @@ fn quiesce(
                 own,
                 kind,
                 mover_value,
-                landing_victim,
                 is_recapture,
                 is_dest_recapture,
                 is_loud_promo,
@@ -2956,7 +3130,7 @@ fn quiesce(
         let mut attack_cache = LandingAttackCache::new();
         let board = state.get_board();
         cands.retain(|c| {
-            if c.is_loud_promo {
+            if c.is_loud_promo || capture_takes_enemy_royal(state, &c.mv) {
                 return true;
             }
             if !net_below_hang_frac(c.enemy, c.own, c.mover_value) {
@@ -2986,16 +3160,22 @@ fn quiesce(
         return stand_pat;
     }
 
-    // Landing victim first, soft-boost recaptures, then path-sum MVV-LVA.
-    // Loud promos sort by tactical (promo) gain so FreeKing→GG is not buried.
+    // Last-royal (instant win), then loud promo, path-sum, dest recapture, net MVV-LVA.
     cands.sort_by(|a, b| {
+        let win_a = capture_takes_last_enemy_royal(state, &a.mv);
+        let win_b = capture_takes_last_enemy_royal(state, &b.mv);
+        let win = win_a.cmp(&win_b);
+        if win != std::cmp::Ordering::Equal {
+            return win.reverse();
+        }
         let promo_a = a.is_loud_promo.cmp(&b.is_loud_promo);
         if promo_a != std::cmp::Ordering::Equal {
             return promo_a.reverse();
         }
-        let la = (a.landing_victim * 1000.0).round() as i32;
-        let lb = (b.landing_victim * 1000.0).round() as i32;
-        lb.cmp(&la)
+        let ga = (a.tactical_gain * 1000.0).round() as i32;
+        let gb = (b.tactical_gain * 1000.0).round() as i32;
+        gb.cmp(&ga)
+            .then_with(|| b.is_dest_recapture.cmp(&a.is_dest_recapture))
             .then_with(|| b.is_recapture.cmp(&a.is_recapture))
             .then_with(|| {
                 let sa = ((a.tactical_gain - a.own) * 1000.0 - a.mover_value).round() as i32;
@@ -3036,7 +3216,7 @@ fn quiesce(
         let mut path_kept = 0usize;
         let mut non_promo = 0usize;
         for c in cands.drain(..) {
-            if c.is_loud_promo {
+            if c.is_loud_promo || (resolve_major && c.is_dest_recapture) {
                 kept.push(c);
                 continue;
             }
@@ -3107,7 +3287,10 @@ fn quiesce(
         } else {
             c.enemy
         };
-        if !c.is_loud_promo && (stand_pat as f32 + gain) <= alpha as f32 {
+        if !c.is_loud_promo
+            && !(resolve_major && c.is_dest_recapture)
+            && (stand_pat as f32 + gain) <= alpha as f32
+        {
             continue;
         }
         ctx.q_cap_index = i + 1;
@@ -3126,6 +3309,7 @@ fn quiesce(
         let mv_key = move_tt_key(&c.mv);
         let mv = c.mv;
         let is_loud_promo = c.is_loud_promo;
+        let takes_royal = capture_takes_enemy_royal(state, &mv);
 
         // Pre-make hang skip for SimpleTake only. PathClear/MultiLeg often look
         // attacked pre-move only because a path victim "defends" the landing; those
@@ -3133,6 +3317,7 @@ fn quiesce(
         if path_aware
             && !is_loud_promo
             && matches!(kind, CaptureKind::SimpleTake)
+            && !takes_royal
             && net_below_hang_frac(enemy, own, mover_value)
             && state
                 .get_board()
@@ -3149,6 +3334,7 @@ fn quiesce(
         if path_aware
             && !is_loud_promo
             && matches!(kind, CaptureKind::PathClear | CaptureKind::MultiLeg)
+            && !takes_royal
             && net_below_hang_frac(enemy, own, mover_value)
         {
             if state
@@ -4418,21 +4604,20 @@ mod tests {
     }
 
     #[test]
-    fn landing_victim_outranks_path_sum_in_sort_key() {
-        // Sort key primary is landing victim: a 4000 landing beats a 3000 path sum
-        // with landing 50 when comparing the same way quiesce sorts.
-        let landing_hi = 4000.0f32;
-        let landing_lo = 50.0f32;
-        let path_hi = 3000.0f32;
-        let path_lo = 500.0f32;
-        let key = |landing: f32, path: f32, recapture: bool| {
+    fn path_sum_outranks_landing_victim_in_sort_key() {
+        // Sort key primary is total captured (path-sum / tactical_gain): a 3000
+        // corridor wipe beats a 4000 landing that took only 500 along the way.
+        let key = |tactical_gain: f32, dest_recapture: bool, recapture: bool, net_lva: i32| {
             (
-                (landing * 1000.0).round() as i32,
+                (tactical_gain * 1000.0).round() as i32,
+                dest_recapture,
                 recapture,
-                (path * 1000.0).round() as i32,
+                net_lva,
             )
         };
-        assert!(key(landing_hi, path_lo, false) > key(landing_lo, path_hi, false));
+        assert!(key(3000.0, false, false, 0) > key(500.0, false, false, 0));
+        // Equal loot: dest recapture of the contested square wins the tie.
+        assert!(key(2160.0, true, true, 0) > key(2160.0, false, true, 0));
     }
 
     #[test]
@@ -4738,6 +4923,25 @@ mod tests {
         assert!(
             score > stand,
             "taking hung GG in q should beat stand-pat: stand={stand} q={score}"
+        );
+    }
+
+    #[test]
+    fn q_tries_dest_recapture_of_major_before_stand_pat_cutoff() {
+        let (state, weights, take) = hung_gg_by_gold();
+        let stand = evaluate_with_ply(&state, &weights, 0);
+        let (score, q_nodes) = probe_quiesce_window(
+            &state,
+            &weights,
+            2,
+            stand - 50,
+            stand - 1,
+            Some(take.to),
+        );
+        assert!(q_nodes > 1, "must expand dest recapture, not cut at stand-pat");
+        assert!(
+            score > stand,
+            "taking hung GG must beat stand-pat even when stand-pat >= β: stand={stand} q={score}"
         );
     }
 
@@ -5253,6 +5457,106 @@ mod tests {
             result.best_move.as_ref().map(|m| (m.from, m.to)),
             Some((guarded.from, guarded.to)),
             "depth-1 must not pick the hanging GG capture"
+        );
+    }
+
+    /// Slot 11 shape: Hook takes Gold then last royal (CP). Landing is attacked
+    /// and net is ~14 vs Hook 6237 — hang-skip used to drop an instant win.
+    fn hook_takes_gold_then_last_cp() -> (GameState, EvalWeights, Move) {
+        let mut weights = EvalWeights::seed();
+        weights.noise_scale = 0.0;
+        weights.rebuild_piece_value_table();
+        let mut state = GameState::new();
+        state.place_piece(Piece::new(
+            PieceType::King,
+            Color::White,
+            Position::new(18, 35).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::HookMover,
+            Color::White,
+            Position::new(4, 0).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::GoldGeneral,
+            Color::Black,
+            Position::new(16, 0).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::CrownPrince,
+            Color::Black,
+            Position::new(18, 0).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::GoldGeneral,
+            Color::Black,
+            Position::new(19, 0).unwrap(),
+        ));
+        state.set_current_turn(Color::White);
+        let mv = Move::new_two_step(
+            Position::new(4, 0).unwrap(),
+            Position::new(16, 0).unwrap(),
+            Position::new(18, 0).unwrap(),
+        );
+        (state, weights, mv)
+    }
+
+    #[test]
+    fn ab_hang_keeps_royal_capture_even_when_hook_hangs() {
+        let (state, weights, take) = hook_takes_gold_then_last_cp();
+        assert!(
+            capture_takes_enemy_royal(&state, &take),
+            "two-step via Gold onto CP must count as a royal take"
+        );
+        assert!(
+            capture_takes_last_enemy_royal(&state, &take),
+            "Black has only CP — this is an instant win"
+        );
+        let gold_only = Move::new(
+            Position::new(4, 0).unwrap(),
+            Position::new(16, 0).unwrap(),
+        );
+        assert!(!capture_takes_last_enemy_royal(&state, &gold_only));
+        assert!(
+            move_order_score_fresh(&state, &weights, &take)
+                > move_order_score_fresh(&state, &weights, &gold_only),
+            "last-royal must order above taking Gold alone"
+        );
+        assert!(move_captures_enemy(&state, &take));
+        let mut cache = LandingAttackCache::new();
+        assert!(
+            !capture_hangs_high_value_piece(&state, &weights, &take, true, &mut cache),
+            "must not hang-skip a last-royal Hook take"
+        );
+
+        let result = search(
+            &state,
+            &weights,
+            &SearchConfig {
+                depth: 1,
+                max_time_ms: None,
+                collect_trace: false,
+                quiescence_depth: 0,
+                q_prune_mode: QPruneMode::PathAware,
+                ..Default::default()
+            },
+        );
+        let best = result.best_move.expect("White must have a move");
+        assert_eq!(
+            (best.from, best.intermediate(), best.to),
+            (take.from, take.intermediate(), take.to),
+            "depth-1 must take the last royal, got {:?}",
+            best
+        );
+        assert!(
+            result.score >= 900_000,
+            "last-royal take must score as mate, got {}",
+            result.score
+        );
+        assert_eq!(
+            result.root_moves_scored, 1,
+            "root must stop after the instant win, scored {}",
+            result.root_moves_scored
         );
     }
 
