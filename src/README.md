@@ -171,7 +171,7 @@ This skip is about hanging **movers**. Quiet-leaf hang-q (below) is about hangin
 
 - If the parent AB move’s captured enemy material (or **loud-promotion material gain**) is ≥ the loud floor → enter quiescence with `prev_to` = the AB landing square.
 - Else if the side to move has a legal promotion into a two-mover / range-capturer (e.g. FreeKing→GreatGeneral) → enter a **promo-only** quiescence (no full capture fanout). TreacherousFox→MountainCrane is **not** loud (ordinary range, not `is_big_piece`).
-- Else if STM has a **lesser-valued SimpleTake** of a hanging large enemy (`stm_has_large_hang_simple_take`) → enter capture q so that take is resolved. Two-step / PathClear dest-takes do **not** open this gate today.
+- Else if STM has a **lesser-valued SimpleTake** of a hanging large enemy (`stm_has_large_hang_simple_take`) → enter capture q so that take is resolved. Two-step / PathClear dest-takes do **not** open this gate unless the checkpoint sets `hang_q_dest_multileg` (idea A) or `hang_q_dest_pathclear` (idea B).
 - Otherwise → **stand-pat eval**, no quiescence.
 - **Non-PV** (null-window) leaves use `qdepth = min(config, 1)`; PV / fail-high research uses the full configured q depth.
 - Null-move children clear the loud-capture flag, so they do not gate into q via that path.

@@ -3,8 +3,8 @@
 //! Pipeline, PathAware q, and what each prune can miss: `src/README.md`.
 
 use crate::eval::{
-    bind_search_weights, evaluate_with_ply, is_big_piece, material_piece_value,
-    promotes_into_big_piece, seed_loud_capture_floor, EvalWeights,
+    bind_search_weights, evaluate_with_ply, is_big_piece, is_range_two_mover,
+    material_piece_value, promotes_into_big_piece, seed_loud_capture_floor, EvalWeights,
 };
 use crate::game_state::{GameState, LegalMoveGen, Move};
 use crate::movement::{BlockingMode, MovementCapability, MovementConfig, MovementGenerator};
@@ -235,6 +235,10 @@ pub struct SearchConfig {
     pub sibling_mode: u8,
     /// After an AB PathClear/MultiLeg, q may not expand PathClear (incl. loud RO+).
     pub q_no_pathclear_after_wipe: bool,
+    /// Idea A: dest MultiLeg takes of hanging range two-movers open q.
+    pub hang_q_dest_multileg: bool,
+    /// Idea B: dest PathClear takes of hanging range two-movers open q.
+    pub hang_q_dest_pathclear: bool,
 }
 
 impl Default for SearchConfig {
@@ -254,6 +258,8 @@ impl Default for SearchConfig {
             track_q_unique: false,
             sibling_mode: 0,
             q_no_pathclear_after_wipe: false,
+            hang_q_dest_multileg: false,
+            hang_q_dest_pathclear: false,
         }
     }
 }
@@ -394,6 +400,8 @@ struct SearchContext {
     track_q_unique: bool,
     sibling_mode: u8,
     q_no_pathclear_after_wipe: bool,
+    hang_q_dest_multileg: bool,
+    hang_q_dest_pathclear: bool,
     sib_reduced: u64,
     sib_researched: u64,
 }
@@ -1121,6 +1129,106 @@ fn quiesce_move_looks_path_or_multileg(state: &GameState, mv: &Move) -> bool {
         .any(|p| p != mv.from && p != mv.to && board.get_piece(p).is_some())
 }
 
+/// Opt-in dest-hang q gates (ideas A / B). Both default off.
+#[derive(Debug, Clone, Copy, Default)]
+struct QHangOpts {
+    dest_multileg: bool,
+    dest_pathclear: bool,
+}
+
+impl QHangOpts {
+    fn from_ctx(ctx: &SearchContext) -> Self {
+        Self {
+            dest_multileg: ctx.hang_q_dest_multileg,
+            dest_pathclear: ctx.hang_q_dest_pathclear,
+        }
+    }
+
+    fn any(self) -> bool {
+        self.dest_multileg || self.dest_pathclear
+    }
+}
+
+/// Dest-capture of a cheaper-attacker hang, optionally including MultiLeg / PathClear.
+fn dest_hang_kind(
+    state: &GameState,
+    weights: &EvalWeights,
+    mv: &Move,
+    opts: QHangOpts,
+) -> Option<CaptureKind> {
+    if mv.to == mv.from {
+        return None;
+    }
+    let board = state.get_board();
+    let Some(mover) = board.get_piece(mv.from) else {
+        return None;
+    };
+    let Some(victim) = board.get_piece(mv.to) else {
+        return None;
+    };
+    if victim.color == mover.color || !is_large_hang_victim(&victim, weights) {
+        return None;
+    }
+    if material_piece_value(&mover, weights) >= material_piece_value(&victim, weights) {
+        return None;
+    }
+    let (_, _, kind) = capture_exchange_kind(state, weights, mv);
+    match kind {
+        CaptureKind::SimpleTake => Some(CaptureKind::SimpleTake),
+        CaptureKind::MultiLeg => {
+            if opts.dest_multileg && is_range_two_mover(victim.piece_type) {
+                Some(CaptureKind::MultiLeg)
+            } else {
+                None
+            }
+        }
+        CaptureKind::PathClear => {
+            if opts.dest_pathclear && is_range_two_mover(victim.piece_type) {
+                Some(CaptureKind::PathClear)
+            } else {
+                None
+            }
+        }
+    }
+}
+
+fn generate_hang_dest_takes(
+    state: &GameState,
+    weights: &EvalWeights,
+    opts: QHangOpts,
+) -> Vec<Move> {
+    if !opts.any() {
+        return Vec::new();
+    }
+    let them = state.get_current_turn().opposite();
+    let mut out = Vec::new();
+    let mut seen: HashSet<(u16, u16, bool)> = HashSet::new();
+    for enemy in state.get_board().iter_pieces_by_color(them) {
+        if !is_range_two_mover(enemy.piece_type) || !is_large_hang_victim(&enemy, weights) {
+            continue;
+        }
+        for mv in generate_captures_hitting_square(state, enemy.position) {
+            if mv.to != enemy.position {
+                continue;
+            }
+            if dest_hang_kind(state, weights, &mv, opts)
+                .is_none_or(|k| matches!(k, CaptureKind::SimpleTake))
+            {
+                continue;
+            }
+            let key = (
+                mv.from.to_index() as u16,
+                mv.to.to_index() as u16,
+                mv.promoted,
+            );
+            if seen.insert(key) {
+                out.push(mv);
+            }
+        }
+    }
+    out
+}
+
 /// Captures worth expanding in quiescence, plus promotions into big pieces.
 ///
 /// Contract: q finishes the contested square (loud SimpleTakes + recaptures),
@@ -1142,6 +1250,28 @@ fn generate_quiescence_captures(
     captures: bool,
     allow_pathclear: bool,
     loud_promo_simple_only: bool,
+) -> Vec<Move> {
+    generate_quiescence_captures_with_hang(
+        state,
+        weights,
+        prev_to,
+        victim_square_only,
+        captures,
+        allow_pathclear,
+        loud_promo_simple_only,
+        QHangOpts::default(),
+    )
+}
+
+fn generate_quiescence_captures_with_hang(
+    state: &GameState,
+    weights: &EvalWeights,
+    prev_to: Option<Position>,
+    victim_square_only: bool,
+    captures: bool,
+    allow_pathclear: bool,
+    loud_promo_simple_only: bool,
+    hang: QHangOpts,
 ) -> Vec<Move> {
     let mut raw = if !captures {
         Vec::new()
@@ -1179,11 +1309,42 @@ fn generate_quiescence_captures(
             }
         }
     }
+    // Entry only: dest-hang MultiLeg/PathClear even when prev_to is not the victim.
+    if captures && !victim_square_only && hang.any() {
+        let extra = generate_hang_dest_takes(state, weights, hang);
+        if !extra.is_empty() {
+            let mut seen: HashSet<(u16, u16, bool)> = raw
+                .iter()
+                .map(|mv| {
+                    (
+                        mv.from.to_index() as u16,
+                        mv.to.to_index() as u16,
+                        mv.promoted,
+                    )
+                })
+                .collect();
+            for mv in extra {
+                let key = (
+                    mv.from.to_index() as u16,
+                    mv.to.to_index() as u16,
+                    mv.promoted,
+                );
+                if seen.insert(key) {
+                    raw.push(mv);
+                }
+            }
+        }
+    }
     if !captures {
         return raw;
     }
     raw.into_iter()
         .filter(|mv| {
+            if dest_hang_kind(state, weights, mv, hang)
+                .is_some_and(|k| !matches!(k, CaptureKind::SimpleTake))
+            {
+                return true;
+            }
             if is_loud_promotion_move(state, mv) {
                 if !(loud_promo_simple_only && quiesce_move_looks_path_or_multileg(state, mv)) {
                     return true;
@@ -1299,23 +1460,20 @@ pub(crate) fn stm_has_large_hang_simple_take(
     state: &GameState,
     weights: &EvalWeights,
 ) -> bool {
+    stm_has_large_hang_take(state, weights, QHangOpts::default())
+}
+
+fn stm_has_large_hang_take(state: &GameState, weights: &EvalWeights, opts: QHangOpts) -> bool {
     let them = state.get_current_turn().opposite();
     for enemy in state.get_board().iter_pieces_by_color(them) {
         if !is_large_hang_victim(&enemy, weights) {
             continue;
         }
-        let victim_val = material_piece_value(&enemy, weights);
         for mv in generate_captures_hitting_square(state, enemy.position) {
             if mv.to != enemy.position {
                 continue;
             }
-            if quiesce_move_looks_path_or_multileg(state, &mv) {
-                continue;
-            }
-            let Some(mover) = state.get_board().get_piece(mv.from) else {
-                continue;
-            };
-            if material_piece_value(&mover, weights) < victim_val {
+            if dest_hang_kind(state, weights, &mv, opts).is_some() {
                 return true;
             }
         }
@@ -1564,6 +1722,8 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
         track_q_unique: config.track_q_unique,
         sibling_mode: config.sibling_mode,
         q_no_pathclear_after_wipe: config.q_no_pathclear_after_wipe,
+        hang_q_dest_multileg: config.hang_q_dest_multileg,
+        hang_q_dest_pathclear: config.hang_q_dest_pathclear,
         sib_reduced: 0,
         sib_researched: 0,
     };
@@ -1954,6 +2114,8 @@ pub fn probe_quiescence(
         track_q_unique: false,
         sibling_mode: 0,
         q_no_pathclear_after_wipe: false,
+        hang_q_dest_multileg: false,
+        hang_q_dest_pathclear: false,
         sib_reduced: 0,
         sib_researched: 0,
     };
@@ -2011,6 +2173,16 @@ fn probe_quiet_parent_leaf_or_quiesce(
     weights: &EvalWeights,
     qdepth: u32,
 ) -> (i32, u64) {
+    probe_quiet_parent_leaf_or_quiesce_hang(state, weights, qdepth, QHangOpts::default())
+}
+
+#[cfg(test)]
+fn probe_quiet_parent_leaf_or_quiesce_hang(
+    state: &GameState,
+    weights: &EvalWeights,
+    qdepth: u32,
+    hang: QHangOpts,
+) -> (i32, u64) {
     let _wbind = bind_search_weights(weights);
     let root_ply = state.get_move_history().len();
     let now = Instant::now();
@@ -2067,6 +2239,8 @@ fn probe_quiet_parent_leaf_or_quiesce(
         track_q_unique: false,
         sibling_mode: 0,
         q_no_pathclear_after_wipe: false,
+        hang_q_dest_multileg: hang.dest_multileg,
+        hang_q_dest_pathclear: hang.dest_pathclear,
         sib_reduced: 0,
         sib_researched: 0,
     };
@@ -2534,7 +2708,8 @@ fn leaf_or_quiesce(
     // large enemy (lesser-valued SimpleTake) even when the parent AB move was quiet.
     let loud_parent = ctx.last_ab_capture_enemy >= min_quiescence_enemy_material();
     let loud_promos = generate_loud_promotions(state);
-    let hang_caps = !loud_parent && stm_has_large_hang_simple_take(state, weights);
+    let hang_opts = QHangOpts::from_ctx(ctx);
+    let hang_caps = !loud_parent && stm_has_large_hang_take(state, weights, hang_opts);
     if !loud_parent && loud_promos.is_empty() && !hang_caps {
         return evaluate_with_ply(state, weights, ctx.ply);
     }
@@ -2665,7 +2840,7 @@ fn quiesce(
     let gen_captures = include_captures || deep_ply;
     let loud_st = ctx.q_loud_promo_simple_only
         || (ctx.q_no_pathclear_after_wipe && ctx.last_ab_wipe);
-    let raw_moves = generate_quiescence_captures(
+    let raw_moves = generate_quiescence_captures_with_hang(
         state,
         weights,
         prev_to,
@@ -2673,6 +2848,7 @@ fn quiesce(
         gen_captures,
         allow_pathclear,
         loud_st,
+        QHangOpts::from_ctx(ctx),
     );
     if raw_moves.is_empty() {
         return stand_pat;
@@ -2690,6 +2866,8 @@ fn quiesce(
         is_loud_promo: bool,
         /// Capture victim + promo material jump (for delta / ordering).
         tactical_gain: f32,
+        /// Idea A/B dest-hang (keep even when not a dest recapture).
+        is_hang_dest: bool,
     }
 
     let mut cands: Vec<QCand> = raw_moves
@@ -2718,6 +2896,8 @@ fn quiesce(
             } else {
                 0.0
             };
+            let is_hang_dest = dest_hang_kind(state, weights, &mv, QHangOpts::from_ctx(ctx))
+                .is_some_and(|k| !matches!(k, CaptureKind::SimpleTake));
             Some(QCand {
                 mv,
                 enemy,
@@ -2729,6 +2909,7 @@ fn quiesce(
                 is_dest_recapture,
                 is_loud_promo,
                 tactical_gain: enemy + promo_gain,
+                is_hang_dest,
             })
         })
         .collect();
@@ -2860,7 +3041,7 @@ fn quiesce(
                     if path_kept >= QUIESCE_PATHCLEAR_DEEP_BUDGET {
                         continue;
                     }
-                    if !pathclear_allowed_in_pathaware_q(c.is_dest_recapture) {
+                    if !pathclear_allowed_in_pathaware_q(c.is_dest_recapture) && !c.is_hang_dest {
                         continue;
                     }
                     path_kept += 1;
@@ -4577,6 +4758,235 @@ mod tests {
         let (score, q_nodes) = probe_quiet_parent_leaf_or_quiesce(&state, &weights, 2);
         assert_eq!(q_nodes, 0, "no lesser-valued large hang → no q");
         assert_eq!(score, stand);
+    }
+
+    fn hang_q_kings() -> (GameState, EvalWeights) {
+        let mut weights = EvalWeights::seed();
+        weights.noise_scale = 0.0;
+        weights.rebuild_piece_value_table();
+        let mut state = GameState::new();
+        state.place_piece(Piece::new(
+            PieceType::King,
+            Color::Black,
+            Position::new(0, 0).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::King,
+            Color::White,
+            Position::new(35, 35).unwrap(),
+        ));
+        (state, weights)
+    }
+
+    /// Peacock two-step landing on a Hook (idea A). No cheap SimpleTake.
+    fn peacock_dest_hangs_hook() -> (GameState, EvalWeights, Move) {
+        let (mut state, weights) = hang_q_kings();
+        state.place_piece(Piece::new(
+            PieceType::Peacock,
+            Color::Black,
+            Position::new(10, 10).unwrap(),
+        ));
+        // Same rank: not on the Peacock's forward-diagonal Simple/first-leg ray,
+        // so the dest take must be a two-step (NE then SE).
+        state.place_piece(Piece::new(
+            PieceType::HookMover,
+            Color::White,
+            Position::new(18, 10).unwrap(),
+        ));
+        state.set_current_turn(Color::Black);
+        let hook = Position::new(18, 10).unwrap();
+        let hits = generate_captures_hitting_square(&state, hook);
+        assert!(
+            hits.iter().all(|m| m.to != hook || m.is_two_step()),
+            "A fixture must not also have a SimpleTake dest onto the Hook: {hits:?}"
+        );
+        let mv = hits
+            .into_iter()
+            .find(|m| m.to == hook && m.is_two_step())
+            .expect("Peacock two-step dest onto Hook");
+        (state, weights, mv)
+    }
+
+    /// GG PathClear through own pawn, landing on a Hook (idea B).
+    fn gg_pathclear_dest_hangs_hook() -> (GameState, EvalWeights, Move) {
+        let (mut state, weights) = hang_q_kings();
+        state.place_piece(Piece::new(
+            PieceType::GreatGeneral,
+            Color::Black,
+            Position::new(10, 5).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::Pawn,
+            Color::Black,
+            Position::new(10, 12).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::HookMover,
+            Color::White,
+            Position::new(10, 20).unwrap(),
+        ));
+        state.set_current_turn(Color::Black);
+        let hook = Position::new(10, 20).unwrap();
+        let mv = generate_captures_hitting_square(&state, hook)
+            .into_iter()
+            .find(|m| m.to == hook && quiesce_move_looks_path_or_multileg(&state, m))
+            .expect("GG PathClear dest onto Hook");
+        assert!(!mv.is_two_step());
+        (state, weights, mv)
+    }
+
+    /// GG PathClear that takes a Hook on the path and lands beyond (not B).
+    fn gg_corridor_through_hook() -> (GameState, EvalWeights, Move) {
+        let (mut state, weights) = hang_q_kings();
+        state.place_piece(Piece::new(
+            PieceType::GreatGeneral,
+            Color::Black,
+            Position::new(10, 5).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::Pawn,
+            Color::Black,
+            Position::new(10, 12).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::HookMover,
+            Color::White,
+            Position::new(10, 15).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::Pawn,
+            Color::White,
+            Position::new(10, 25).unwrap(),
+        ));
+        state.set_current_turn(Color::Black);
+        let hook = Position::new(10, 15).unwrap();
+        let dest = Position::new(10, 25).unwrap();
+        let mv = generate_captures_hitting_square(&state, hook)
+            .into_iter()
+            .find(|m| m.to == dest && capture_hits_square(&state, m, hook))
+            .expect("GG corridor through Hook landing beyond");
+        (state, weights, mv)
+    }
+
+    #[test]
+    fn dest_multileg_hang_off_by_default() {
+        let (state, weights, mv) = peacock_dest_hangs_hook();
+        assert!(!is_large_hang_simple_take(&state, &weights, &mv));
+        assert!(!stm_has_large_hang_simple_take(&state, &weights));
+        let gen = generate_quiescence_captures(&state, &weights, None, false, true, true, false);
+        assert!(
+            !gen.iter().any(|m| m.from == mv.from && m.to == mv.to && m.is_two_step()),
+            "default q gen must drop MultiLeg dest-hang"
+        );
+        assert!(dest_hang_kind(&state, &weights, &mv, QHangOpts::default()).is_none());
+    }
+
+    #[test]
+    fn dest_multileg_hang_opens_q_when_a_set() {
+        let (state, weights, mv) = peacock_dest_hangs_hook();
+        let a = QHangOpts {
+            dest_multileg: true,
+            dest_pathclear: false,
+        };
+        assert_eq!(
+            dest_hang_kind(&state, &weights, &mv, a),
+            Some(CaptureKind::MultiLeg)
+        );
+        assert!(stm_has_large_hang_take(&state, &weights, a));
+        let gen = generate_quiescence_captures_with_hang(
+            &state,
+            &weights,
+            None,
+            false,
+            true,
+            true,
+            false,
+            a,
+        );
+        assert!(
+            gen.iter()
+                .any(|m| m.from == mv.from && m.to == mv.to && m.is_two_step()),
+            "A must inject Peacock dest×Hook: {gen:?}"
+        );
+        let b_only = QHangOpts {
+            dest_multileg: false,
+            dest_pathclear: true,
+        };
+        assert!(dest_hang_kind(&state, &weights, &mv, b_only).is_none());
+        let (score, q_nodes) = probe_quiet_parent_leaf_or_quiesce_hang(&state, &weights, 2, a);
+        let stand = evaluate_with_ply(&state, &weights, 0);
+        assert!(q_nodes > 0, "A must open q");
+        assert!(score > stand, "taking Hook in q should beat stand-pat: stand={stand} q={score}");
+    }
+
+    #[test]
+    fn dest_pathclear_hang_opens_q_when_b_set() {
+        let (state, weights, mv) = gg_pathclear_dest_hangs_hook();
+        let b = QHangOpts {
+            dest_multileg: false,
+            dest_pathclear: true,
+        };
+        assert_eq!(
+            dest_hang_kind(&state, &weights, &mv, b),
+            Some(CaptureKind::PathClear)
+        );
+        assert!(!stm_has_large_hang_simple_take(&state, &weights));
+        assert!(stm_has_large_hang_take(&state, &weights, b));
+        let a_only = QHangOpts {
+            dest_multileg: true,
+            dest_pathclear: false,
+        };
+        assert!(dest_hang_kind(&state, &weights, &mv, a_only).is_none());
+        let gen_off =
+            generate_quiescence_captures(&state, &weights, None, false, true, true, false);
+        assert!(
+            !gen_off
+                .iter()
+                .any(|m| m.from == mv.from && m.to == mv.to),
+            "default q gen must drop PathClear dest-hang"
+        );
+        let gen = generate_quiescence_captures_with_hang(
+            &state,
+            &weights,
+            None,
+            false,
+            true,
+            true,
+            false,
+            b,
+        );
+        assert!(
+            gen.iter().any(|m| m.from == mv.from && m.to == mv.to),
+            "B must inject GG dest×Hook"
+        );
+        let (score, q_nodes) = probe_quiet_parent_leaf_or_quiesce_hang(&state, &weights, 2, b);
+        let stand = evaluate_with_ply(&state, &weights, 0);
+        assert!(q_nodes > 0, "B must open q");
+        assert!(score > stand, "taking Hook in q should beat stand-pat: stand={stand} q={score}");
+    }
+
+    #[test]
+    fn dest_pathclear_hang_does_not_admit_corridor() {
+        let (state, weights, mv) = gg_corridor_through_hook();
+        let b = QHangOpts {
+            dest_multileg: false,
+            dest_pathclear: true,
+        };
+        assert!(dest_hang_kind(&state, &weights, &mv, b).is_none());
+        let gen = generate_quiescence_captures_with_hang(
+            &state,
+            &weights,
+            None,
+            false,
+            true,
+            true,
+            false,
+            b,
+        );
+        assert!(
+            !gen.iter().any(|m| m.from == mv.from && m.to == mv.to),
+            "B must not inject dest-empty / dest-beyond corridor wipes"
+        );
     }
 
     #[test]

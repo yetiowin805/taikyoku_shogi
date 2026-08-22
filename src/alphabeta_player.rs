@@ -85,6 +85,8 @@ impl AlphaBetaPlayer {
             q_prune_mode: QPruneMode::PathAware,
             sibling_mode: checkpoint_defaults.sibling_mode,
             q_loud_promo_simple_only: checkpoint_defaults.q_loud_promo_simple_only,
+            hang_q_dest_multileg: checkpoint_defaults.hang_q_dest_multileg,
+            hang_q_dest_pathclear: checkpoint_defaults.hang_q_dest_pathclear,
             ..Default::default()
         };
         if let Ok(d) = env::var("TAIKYOKU_AB_DEPTH") {
@@ -125,6 +127,8 @@ impl AlphaBetaPlayer {
             q_prune_mode: QPruneMode::PathAware,
             sibling_mode: checkpoint.search_defaults.sibling_mode,
             q_loud_promo_simple_only: checkpoint.search_defaults.q_loud_promo_simple_only,
+            hang_q_dest_multileg: checkpoint.search_defaults.hang_q_dest_multileg,
+            hang_q_dest_pathclear: checkpoint.search_defaults.hang_q_dest_pathclear,
             ..Default::default()
         };
         if let Ok(d) = env::var("TAIKYOKU_AB_DEPTH") {
