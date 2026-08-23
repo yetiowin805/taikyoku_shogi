@@ -97,11 +97,11 @@ pub fn print_training_usage() {
     println!("            (T150_P120_T12 / H120_P120_T15 / AVG_T150_H120 / C2K50A1 × current/A/B/AB)");
     println!("  texel-fit [--features DIR] [--out PATH] [--iters N] [--lr F] [--k F]");
     println!("            [--init seed|mobility|PATH] [--late-frac F] [--keep-draws]");
-    println!("            [--no-log-space] [--no-lr-scale-k] [--no-renorm-pawn]");
-    println!("            [--all-pieces]");
+    println!("            [--no-log-space] [--lr-scale-k] [--no-renorm-pawn]");
+    println!("            [--all-pieces] [--l2 F]");
     println!("            (default: seed init, log-space, all plies+draws,");
-    println!("             2500 iters, lr=0.05 scaled by 1/K, only range two-movers");
-    println!("             + range capturers; --all-pieces trains every type + Pawn→1)");
+    println!("             2500 iters, lr=0.05, L2 0.5 toward init, only range");
+    println!("             two-movers + capturers; --all-pieces trains every type)");
     println!("  match --a AGENT --b AGENT [--starts SPEC] [--games N] [--jobs J] [--outdir DIR]");
     println!(
         "  tournament --manifest PATH [--run-id ID] [--resume] [--games-per-pair N] [--jobs J]"
@@ -1202,6 +1202,15 @@ pub fn cmd_texel_fit(args: &[String]) -> Result<(), String> {
             i += 1;
             continue;
         }
+        if args.get(i).map(|s| s.as_str()) == Some("--lr-scale-k") {
+            cfg.lr_scale_by_k = true;
+            i += 1;
+            continue;
+        }
+        if let Some(v) = take_f32(args, &mut i, "--l2")? {
+            cfg.l2 = v;
+            continue;
+        }
         if args.get(i).map(|s| s.as_str()) == Some("--no-renorm-pawn") {
             cfg.renormalize_pawn = false;
             i += 1;
@@ -1221,7 +1230,7 @@ pub fn cmd_texel_fit(args: &[String]) -> Result<(), String> {
     }
     let (_cp, stats) = fit_texel(&cfg)?;
     println!(
-        "Wrote {} (CE {:.6} → {:.6}, k={:.4}, max|Δw|={:.4}, mean|Δw|={:.4}, max%Δ={:.1}, mean%Δ={:.1}, used={}/{}, trained={}, agree={:.3})",
+        "Wrote {} (CE {:.6} → {:.6}, k={:.6}, max|Δw|={:.4}, mean|Δw|={:.4}, max%Δ={:.1}, mean%Δ={:.1}, used={}/{}, trained={}, agree={:.3})",
         cfg.out_model,
         stats.loss_before,
         stats.loss_after,

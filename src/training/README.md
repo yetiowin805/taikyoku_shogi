@@ -43,7 +43,7 @@ Inspect: `cat data/run/status.json`, or `serve` + SSH tunnel → `GET /api/train
 | `pool generate` | Fischer shuffle + ablations (or `--from-play` legacy midgames) |
 | `featurize` | Event-driven sampling into `data/derived/positions` |
 | `eval-trace` | Rank interesting eval swings in saved games |
-| `texel-fit` | Logistic Texel on featurized rows (default: range two-movers + capturers only) |
+| `texel-fit` | Logistic Texel (default: loud pieces only, L2 toward init, K unclamped) |
 | `match` / `tournament` | Head-to-head; RR / Swiss / knockout (`--format`) |
 | `scale-sample`, `*-grid` | Write checkpoint grids for Swiss (loud, PST, file-PST, two-mob, top4-mix, hang-q-ab, …) |
 | `mobility-seed` | Mobility-based init checkpoint |

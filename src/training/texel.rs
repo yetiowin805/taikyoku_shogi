@@ -41,12 +41,15 @@ pub struct TexelFitConfig {
     pub late_frac: f32,
     /// Optimize in log-space (`θ = log w`) so relative % moves are the natural step.
     pub log_space: bool,
-    /// Divide effective LR by K so small calibrated K does not freeze updates.
+    /// Divide effective LR by K. Off by default: on mix data K is ~1e-4 and
+    /// `lr/k` becomes a 500-step. Cap at [`LR_SCALE_K_MAX`] if enabled.
     pub lr_scale_by_k: bool,
     /// Divide all piece values by Pawn after fit so Pawn = 1.
     pub renormalize_pawn: bool,
     /// Train only range two-movers and range capturers; leave the mid table at `--init`.
     pub only_large: bool,
+    /// Log-space L2 toward `--init` (`λ · (log w − log w0)²`). 0 = no prior.
+    pub l2: f32,
 }
 
 impl Default for TexelFitConfig {
@@ -63,12 +66,20 @@ impl Default for TexelFitConfig {
             drop_draws: false,
             late_frac: 0.0,
             log_space: true,
-            lr_scale_by_k: true,
+            lr_scale_by_k: false,
             renormalize_pawn: true,
             only_large: true,
+            l2: 0.5,
         }
     }
 }
+
+/// Floor for [`calibrate_k`]. 0.01 was too high for Hook-scale material (mean
+/// |e| ~ 10⁴) and forced overconfident CE, then a collapse of the loud pieces.
+const K_MIN: f32 = 1e-5;
+const K_MAX: f32 = 2.0;
+/// When `lr_scale_by_k`, never let `lr/k` exceed this.
+const LR_SCALE_K_MAX: f32 = 0.25;
 
 /// Loud pieces we have been grid-searching: range two-movers + capturing-range (incl. FreeKing).
 pub fn is_texel_large_piece(pt: PieceType) -> bool {
@@ -121,7 +132,7 @@ fn mean_abs_eval(rows: &[LabeledPosition], weights: &[f32]) -> f32 {
 /// Choose K so typical |K·e| is about `target` (order-1 logistic argument).
 fn calibrate_k(rows: &[LabeledPosition], weights: &[f32], target: f32) -> f32 {
     let mean_abs = mean_abs_eval(rows, weights);
-    (target / mean_abs).clamp(0.01, 2.0)
+    (target / mean_abs).clamp(K_MIN, K_MAX)
 }
 
 fn mean_cross_entropy(rows: &[LabeledPosition], weights: &[f32], k: f32) -> f64 {
@@ -294,7 +305,7 @@ pub fn fit_texel_on_rows(
         }
 
         let lr = if cfg.lr_scale_by_k {
-            base_lr / k.max(1e-4)
+            (base_lr / k.max(K_MIN)).min(LR_SCALE_K_MAX)
         } else {
             base_lr
         };
@@ -317,7 +328,10 @@ pub fn fit_texel_on_rows(
                     continue;
                 }
                 let g_w = grad[i] * inv_n;
-                let g_theta = g_w * w[i];
+                let mut g_theta = g_w * w[i];
+                if cfg.l2 > 0.0 {
+                    g_theta += cfg.l2 * (w[i].max(0.05).ln() - w0[i].max(0.05).ln());
+                }
                 let theta = w[i].max(0.05).ln() - lr * g_theta;
                 w[i] = theta.exp().max(0.05);
             }
@@ -326,7 +340,11 @@ pub fn fit_texel_on_rows(
                 if !trained[i] {
                     continue;
                 }
-                w[i] -= lr * grad[i] * inv_n;
+                let mut g = grad[i] * inv_n;
+                if cfg.l2 > 0.0 {
+                    g += cfg.l2 * (w[i] - w0[i]);
+                }
+                w[i] -= lr * g;
                 if w[i] < 0.05 {
                     w[i] = 0.05;
                 }
@@ -483,6 +501,36 @@ mod tests {
     }
 
     #[test]
+    fn calibrate_k_allows_tiny_k_for_hook_scale() {
+        let hi = ALL_PIECE_TYPES
+            .iter()
+            .position(|p| *p == PieceType::HookMover)
+            .expect("Hook");
+        let mut rows = Vec::new();
+        for i in 0..8 {
+            let mut diff = vec![0.0f32; ALL_PIECE_TYPES.len()];
+            diff[hi] = if i % 2 == 0 { 1.0 } else { -1.0 };
+            rows.push(LabeledPosition {
+                format_version: FEATURE_FORMAT_VERSION,
+                game_id: format!("k-{i}"),
+                ply: 10,
+                result: 1.0,
+                turn: Color::Black,
+                piece_diff: diff,
+                seed_eval: 5000.0,
+            });
+        }
+        let mut w = vec![0.05f32; ALL_PIECE_TYPES.len()];
+        w[hi] = 5000.0;
+        let k = calibrate_k(&rows, &w, 1.0);
+        assert!(
+            k < 0.01,
+            "hook-scale material must not clamp K to 0.01, got {k}"
+        );
+        assert!((k - 1.0 / 5000.0).abs() < 1e-6);
+    }
+
+    #[test]
     fn calibrate_k_targets_unit_scale() {
         let rows = synthetic_rows(20);
         let w: Vec<f32> = ALL_PIECE_TYPES
@@ -536,6 +584,7 @@ mod tests {
             lr_scale_by_k: true,
             renormalize_pawn: true,
             only_large: false,
+            l2: 0.0,
         };
         let seed_pawn = EvalWeights::seed().piece_value(PieceType::Pawn);
         let (cp, stats) = fit_texel_on_rows(&cfg, &rows).expect("fit");
@@ -616,6 +665,7 @@ mod tests {
             lr_scale_by_k: false,
             renormalize_pawn: true,
             only_large: true,
+            l2: 0.0,
         };
         let (cp, stats) = fit_texel_on_rows(&cfg, &rows).expect("fit");
         assert!(stats.n_trained > 0);
