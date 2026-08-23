@@ -17,6 +17,7 @@ use crate::training::record::{AgentSpec, GameStart};
 use crate::training::run_status::{disk_free_gb, utc_now_iso, RunStatus, WorkerDaemonConfig};
 use crate::training::scale_sample::{run_scale_sample, ScaleSampleConfig};
 use crate::training::texel::{fit_texel, TexelFitConfig, TexelInit};
+use crate::training::top11_c2_grid::{run_top11_c2_grid, Top11C2GridConfig};
 use crate::training::top4_mix_grid::{run_top4_mix_grid, Top4MixGridConfig};
 use crate::training::tournament::{
     format_is_continuous, load_manifest, new_run_id, run_tournament, standings_summary,
@@ -94,7 +95,11 @@ pub fn print_training_usage() {
     println!("  top4-mix-grid [--seed PATH] [--out DIR]");
     println!("            (3×3×2 material×PST×tropism + 6 pairwise avgs + 4 two-mob extras + leftover history)");
     println!("  hang-q-ab-grid [--seed PATH] [--out DIR]");
-    println!("            (T150_P120_T12 / H120_P120_T15 / AVG_T150_H120 / C2K50A1 × current/A/B/AB)");
+    println!(
+        "            (T150_P120_T12 / H120_P120_T15 / AVG_T150_H120 / C2K50A1 × current/A/B/AB)"
+    );
+    println!("  top11-c2-grid [--seed PATH] [--out DIR]");
+    println!("            (mix top 11 + C2K50A1 twins + leftover playable history)");
     println!("  texel-fit [--features DIR] [--out PATH] [--iters N] [--lr F] [--k F]");
     println!("            [--init seed|mobility|PATH] [--late-frac F] [--keep-draws]");
     println!("            [--no-log-space] [--no-lr-scale-k] [--no-renorm-pawn]");
@@ -1144,6 +1149,29 @@ pub fn cmd_hang_q_ab_grid(args: &[String]) -> Result<(), String> {
     let (man, _grid) = run_hang_q_ab_grid(&cfg)?;
     println!(
         "Wrote {} entrants under {} (4 weights × current/A/B/AB)",
+        man.entrants.len(),
+        cfg.out_dir.display()
+    );
+    Ok(())
+}
+
+pub fn cmd_top11_c2_grid(args: &[String]) -> Result<(), String> {
+    let mut cfg = Top11C2GridConfig::default();
+    let mut i = 2;
+    while i < args.len() {
+        if let Some(v) = take_flag_value(args, &mut i, "--seed")? {
+            cfg.seed_model = PathBuf::from(v);
+            continue;
+        }
+        if let Some(v) = take_flag_value(args, &mut i, "--out")? {
+            cfg.out_dir = PathBuf::from(v);
+            continue;
+        }
+        return Err(format!("Unknown flag {}", args[i]));
+    }
+    let (man, _grid) = run_top11_c2_grid(&cfg)?;
+    println!(
+        "Wrote {} entrants under {} (11 top + 9 C2 twins + leftover history)",
         man.entrants.len(),
         cfg.out_dir.display()
     );
