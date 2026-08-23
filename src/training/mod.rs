@@ -20,6 +20,7 @@ pub mod run_status;
 pub mod scale_sample;
 pub mod start_gen;
 pub mod texel;
+pub mod top11_c2_grid;
 pub mod top4_mix_grid;
 pub mod tournament;
 pub mod two_mob_grid;

@@ -211,6 +211,16 @@ cd /opt/taikyoku_shogi
 
 Do **not** bake onto `models/ab-seed.json`. This is the look-at-deltas step before a large-piece transplant / 22-agent knockout (see [`FUTURE_NOTES.md`](../FUTURE_NOTES.md)).
 
+### Top-11 + C2 history knockout
+
+Mix-tournament top 11, C2K50A1 mobility twins of those chassis except `C2K50A1` and `SEED` (`C2K100A1D50` keeps D50 → `C2K50A1D50`), and leftover playable history (`BASE_PRELOUD`, `BASE_T150C50`, `BASE_T150C120`, `BASE_H105O105`, `BASE_P120H75B60`, `LOGIC_H105`, `LOGIC_HANGQ_ANY`). 27 agents. Same 1s / depth-8 PathAware setup as the mix tourney. Freeze pinned binaries first (`./deploy/freeze_history.sh`).
+
+```bash
+cd /opt/taikyoku_shogi
+./deploy/pull_build_top11_c2_swiss.sh --branch cursor/top11-c2-swiss
+tail -f data/run/top11-c2-swiss.log
+```
+
 ### Hang-q A/B mini knockout
 
 Four mix-tournament weights (`T150_P120_T12`, `H120_P120_T15`, `AVG_T150_H120`, `C2K50A1`) × current / dest-MultiLeg A / dest-PathClear B / AB (16 agents). Same 1s / depth-8 PathAware setup as the mix tourney.
