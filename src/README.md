@@ -36,6 +36,7 @@ Piece ids are unique PascalCase `PieceType` names (`Pawn`, `GreatGeneral`, …),
 
 ```text
 TSFEN1 <b|w> <draw> <n> <piece>…
+# <draw> = turns since last capture / promo / irreversible step (draw at 100)
 # piece = B|W: [+]<PieceType>[<Base>] @ <file>,<rank>
 # example: B:Pawn@5,2   W:+DragonKing<Rook>@18,30
 ```
@@ -95,6 +96,12 @@ Implementation: [`search.rs`](search.rs). Ultimate Shogi has a huge branching fa
 **Speedup.** Not a prune by itself; it enables timed search and makes selective search usable under a clock.
 
 **Can miss.** Under a time limit, moves that would only appear as best at an **incomplete** deeper iteration are discarded. Unlimited searches (`max_time_ms: None`) do **not** soft-abort or narrow the root: every legal root move is searched each ID depth (modulo hang-pruned captures).
+
+### Progress-draw clock (100-move rule)
+
+**Mechanism.** A game is drawn after 100 consecutive turns with no capture, promotion, or one-way irreversible step (same counter as TSFEN `<draw>`). Search scores that node as **0**, like a 2-fold path repetition. A quiet that hits the limit is a draw; a capture / promo / irreversible step that resets the clock is scored normally.
+
+**Can miss.** Hang-pruned captures still never get searched, even when taking one would reset the clock.
 
 ### Transposition table (main search)
 

@@ -1,4 +1,4 @@
-//! Directional irreversibility for the 500-move draw counter.
+//! Directional irreversibility for the progress-draw counter.
 //!
 //! A quiet step along direction D (or jump Δ) is irreversible when the piece
 //! cannot move in the opposite direction / offset under its movement config.

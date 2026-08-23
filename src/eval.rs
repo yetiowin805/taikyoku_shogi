@@ -1566,6 +1566,9 @@ pub fn evaluate_with_ply(state: &GameState, weights: &EvalWeights, ply: usize) -
             -weights.mate_score
         };
     }
+    if state.is_draw_by_progress_rule() {
+        return 0;
+    }
 
     #[cfg(feature = "search-profile")]
     let _prof = crate::profile_timers::eval_scope();

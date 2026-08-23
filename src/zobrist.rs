@@ -43,7 +43,7 @@ pub fn draw_key(turns: u32) -> u64 {
     splitmix64(DRAW_SEED.wrapping_add(turns as u64))
 }
 
-/// Position key for repetition (pieces + side to move; excludes 500-move counter).
+/// Position key for repetition (pieces + side to move; excludes progress-draw counter).
 #[inline]
 pub fn repetition_key(state: &GameState) -> u64 {
     state.hash() ^ draw_key(state.get_turns_without_capture_or_promotion())

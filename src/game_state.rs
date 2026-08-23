@@ -84,6 +84,9 @@ pub struct SearchUndo {
 pub const FIVEFOLD_REPETITION: usize = 5;
 /// In search, score as draw once a position has occurred this many times on the path.
 pub const SEARCH_REPETITION_DRAW: usize = 2;
+/// Consecutive turns without capture, promotion, or irreversible progress
+/// that adjudicate a draw.
+pub const PROGRESS_DRAW_LIMIT: u32 = 100;
 
 /// Filters for [`GameState::generate_legal_moves_mode`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -103,7 +106,7 @@ pub struct GameState {
     board: Board,
     current_turn: Color,
     move_history: Vec<Move>,
-    turns_without_capture_or_promotion: u32, // 500-move: resets on capture/promo/irreversible
+    turns_without_capture_or_promotion: u32, // progress-draw: resets on capture/promo/irreversible
     /// Incremental Zobrist key (see [`crate::zobrist`]).
     hash: u64,
     /// Repetition keys after each position (including the current one).
@@ -1622,10 +1625,11 @@ impl GameState {
         )
     }
     
-    /// Draw when 500 consecutive turns had no irreversible progress
-    /// (capture, promotion, or a one-way directional / jump move).
-    pub fn is_draw_by_500_move_rule(&self) -> bool {
-        self.turns_without_capture_or_promotion >= 500
+    /// Draw when [`PROGRESS_DRAW_LIMIT`] consecutive turns had no
+    /// irreversible progress (capture, promotion, or a one-way directional /
+    /// jump move).
+    pub fn is_draw_by_progress_rule(&self) -> bool {
+        self.turns_without_capture_or_promotion >= PROGRESS_DRAW_LIMIT
     }
     
     /// Check if the game should be adjudicated as a draw
@@ -2138,6 +2142,17 @@ mod tests {
         assert_eq!(piece.piece_type, PieceType::Peacock);
         assert!(state.board.is_empty(from));
         assert!(state.board.is_empty(mid));
+    }
+
+    #[test]
+    fn progress_draw_at_limit_not_before() {
+        let mut state = GameState::new();
+        state.setup_initial_position();
+        assert!(!state.is_draw_by_progress_rule());
+        state.set_turns_without_capture_or_promotion(PROGRESS_DRAW_LIMIT - 1);
+        assert!(!state.is_draw_by_progress_rule());
+        state.set_turns_without_capture_or_promotion(PROGRESS_DRAW_LIMIT);
+        assert!(state.is_draw_by_progress_rule());
     }
 
     #[test]
