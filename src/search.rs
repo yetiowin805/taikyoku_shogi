@@ -2580,6 +2580,9 @@ fn alphabeta(
     if state.is_repetition_draw_for_search() {
         return 0;
     }
+    if state.is_draw_by_progress_rule() {
+        return 0;
+    }
     if depth == 0 {
         return leaf_or_quiesce(state, weights, alpha, beta, is_pv, ctx);
     }
@@ -2974,6 +2977,9 @@ fn quiesce(
         return evaluate_with_ply(state, weights, ctx.ply);
     }
     if state.is_repetition_draw_for_search() {
+        return 0;
+    }
+    if state.is_draw_by_progress_rule() {
         return 0;
     }
 
@@ -6169,6 +6175,62 @@ mod tests {
             .find(|(m, _)| m.to == b_to)
             .expect("loop candidate");
         assert_eq!(loop_line.1, 0);
+    }
+
+    #[test]
+    fn search_prefers_progress_reset_over_walking_into_draw() {
+        use crate::game_state::PROGRESS_DRAW_LIMIT;
+
+        let mut state = GameState::new();
+        state.clear_board();
+        let b_from = Position::new(10, 10).unwrap();
+        let capture_to = Position::new(11, 10).unwrap();
+        let quiet_to = Position::new(10, 11).unwrap();
+        let w_king = Position::new(20, 20).unwrap();
+        state.place_piece(Piece::new(PieceType::King, Color::Black, b_from));
+        state.place_piece(Piece::new(PieceType::King, Color::White, w_king));
+        state.place_piece(Piece::new(PieceType::Pawn, Color::White, capture_to));
+        // Extra Gold so a clock reset stays ahead; two kings alone eval to ~0.
+        // Mid-board: not in a promotion zone (a Gold promo would also reset).
+        state.place_piece(Piece::new(
+            PieceType::GoldGeneral,
+            Color::Black,
+            Position::new(18, 18).unwrap(),
+        ));
+        state.set_current_turn(Color::Black);
+        state.set_turns_without_capture_or_promotion(PROGRESS_DRAW_LIMIT - 1);
+        state.reset_rep_history();
+
+        let mut weights = EvalWeights::seed();
+        weights.noise_scale = 0.0;
+        let result = search(
+            &state,
+            &weights,
+            &SearchConfig {
+                depth: 1,
+                max_time_ms: None,
+                collect_trace: false,
+                quiescence_depth: 0,
+                q_prune_mode: QPruneMode::Baseline,
+                ..Default::default()
+            },
+        );
+        let best = result.best_move.expect("move");
+        assert_eq!(
+            best.to, capture_to,
+            "expected pawn take to reset the clock, got {:?}",
+            best
+        );
+        let quiet = result
+            .root_lines
+            .iter()
+            .find(|(m, _)| m.to == quiet_to)
+            .expect("quiet king step");
+        assert_eq!(
+            quiet.1, 0,
+            "one more quiet should walk into the 100-move draw"
+        );
+        assert!(result.score > 0, "resetting capture must beat the draw");
     }
 }
 

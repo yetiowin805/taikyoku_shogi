@@ -5,7 +5,7 @@ A Rust engine for **Taikyoku (Ultimate) Shogi** — 36×36 board, ~720 pieces, ~
 ## Features
 
 - Opening setup, legal move generation (two-step pieces, capturing-range generals, Free Eagle), promotion
-- Win by capturing all opponent royals (King / Crown Prince); draw by 500-move rule or insufficient material
+- Win by capturing all opponent royals (King / Crown Prince); draw by 100-move rule or insufficient material
 - Agents: heuristic (`mi`), random, royal-capture, alpha-beta (`ab`)
 - Local web UI, debug REPL, JSON game history
 - Versioned eval checkpoints under `models/`; Texel / Swiss / knockout training pipeline

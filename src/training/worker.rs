@@ -176,7 +176,7 @@ pub fn play_one_game(config: &WorkerConfig) -> Result<GameRecordV2, PlayFailure>
         {
             return Err(abort("stopped".into(), moves));
         }
-        if state.is_draw_by_500_move_rule() {
+        if state.is_draw_by_progress_rule() {
             result = Some(GameResult::Draw);
             break;
         }

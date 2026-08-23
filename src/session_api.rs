@@ -185,8 +185,8 @@ impl DebugTool {
         }
 
         let winner = self.game_state_ref().get_winner().map(color_name);
-        let draw = if self.game_state_ref().is_draw_by_500_move_rule() {
-            Some("500-move rule".to_string())
+        let draw = if self.game_state_ref().is_draw_by_progress_rule() {
+            Some("100-move rule".to_string())
         } else if self.game_state_ref().is_draw_by_fivefold_repetition() {
             Some("fivefold repetition".to_string())
         } else if self.game_state_ref().is_draw_by_insufficient_material() {

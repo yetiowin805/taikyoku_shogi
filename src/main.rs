@@ -426,10 +426,10 @@ fn play_game(agent: &str) {
     println!("Starting {} self-play game...", player.name());
     
     while move_number <= max_moves {
-        // Check if game is a draw by 500-move rule (no capture or promotion for 500 turns)
-        if game_state.is_draw_by_500_move_rule() {
+        // Draw: no capture, promotion, or irreversible progress for 100 turns.
+        if game_state.is_draw_by_progress_rule() {
             if let Ok(filename) = history.end_game(GameResult::Draw) {
-                println!("Game ended after {} moves. Draw by 500-move rule (no capture or promotion for 500 turns). Saved to: {}", 
+                println!("Game ended after {} moves. Draw by 100-move rule (no capture or promotion for 100 turns). Saved to: {}", 
                     move_number - 1, filename);
             }
             return;
