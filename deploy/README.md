@@ -213,7 +213,7 @@ Do **not** bake onto `models/ab-seed.json`. This is the look-at-deltas step befo
 
 ### Top-11 + C2 history knockout
 
-Mix-tournament top 11, C2K50A1 mobility twins of those chassis except `C2K50A1` and `SEED` (`C2K100A1D50` keeps D50 → `C2K50A1D50`), and leftover playable history (`BASE_PRELOUD`, `BASE_T150C50`, `BASE_T150C120`, `BASE_H105O105`, `BASE_P120H75B60`, `LOGIC_H105`, `LOGIC_HANGQ_ANY`). 27 agents. Same 1s / depth-8 PathAware setup as the mix tourney. Freeze pinned binaries first (`./deploy/freeze_history.sh`).
+Mix-tournament top 11, leftover playable history (`BASE_PRELOUD`, `BASE_T150C50`, `BASE_T150C120`, `BASE_H105O105`, `BASE_P120H75B60`, `LOGIC_H105`, `LOGIC_HANGQ_ANY`), and C2K50A1 mobility twins of every weight chassis except `C2K50A1` and `SEED` (`C2K100A1D50` keeps D50 → `C2K50A1D50`). 32 agents. Same 1s / depth-8 PathAware setup as the mix tourney. Freeze pinned binaries first (`./deploy/freeze_history.sh`).
 
 ```bash
 cd /opt/taikyoku_shogi

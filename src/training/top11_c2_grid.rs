@@ -1,12 +1,13 @@
 //! Mix-tournament top 11 + C2K50A1 twins + leftover playable history.
 //!
-//! Field (27):
+//! Field (32):
 //! - Top 11 from `top4-mix-swiss-20260820`
-//! - C2K50A1 mobility twins of those chassis except `C2K50A1` and `SEED`
-//!   (`C2K100A1D50` keeps D50 → `C2K50A1D50`)
+//! - C2K50A1 mobility twins of every weight chassis in the field except
+//!   `C2K50A1` and `SEED` (`C2K100A1D50` keeps D50 → `C2K50A1D50`)
 //! - Leftover history: PRELOUD, T150C50, T150C120, H105O105, P120H75B60,
 //!   LOGIC_H105, LOGIC_HANGQ_ANY
 //!   (skip TROPISM, B65T12, HANGQ_ST, HANGQ_AB, and top-11 overlaps)
+//!   LOGIC engines are not twinned.
 
 use crate::eval::{EvalCheckpoint, EvalWeights};
 use crate::piece::PieceType;
@@ -155,6 +156,43 @@ fn twin_weights(parent_id: &str, parent: &EvalWeights, seed: &EvalWeights) -> Ev
     }
 }
 
+fn push_c2_twin(
+    cells: &mut Vec<GridCell>,
+    entrants: &mut Vec<TourneyEntrant>,
+    out_dir: &std::path::Path,
+    base_cp: &EvalCheckpoint,
+    parent_id: &str,
+    parent: &EvalWeights,
+    seed: &EvalWeights,
+) -> Result<(), String> {
+    let Some(twin_id) = c2_twin_id(parent_id) else {
+        return Ok(());
+    };
+    let weights = twin_weights(parent_id, parent, seed);
+    let model_path = out_dir.join(format!("{twin_id}.json"));
+    let mut cp = base_cp.clone();
+    cp.name = twin_id.clone();
+    cp.weights = weights;
+    cp.save_path(&model_path)
+        .map_err(|e| format!("save {}: {e}", model_path.display()))?;
+    let discount = if parent_id == "C2K100A1D50" {
+        Some(50.0)
+    } else {
+        Some(0.0)
+    };
+    let model = model_path.display().to_string();
+    cells.push(GridCell {
+        id: twin_id.clone(),
+        model: model.clone(),
+        kind: "c2_twin".into(),
+        parent_id: Some(parent_id.into()),
+        two_mover_mob_k: Some(50.0),
+        two_mover_discount: discount,
+    });
+    push_entrant(entrants, twin_id, model);
+    Ok(())
+}
+
 /// Write top 11 + C2 twins + leftover history and a knockout manifest.
 pub fn run_top11_c2_grid(cfg: &Top11C2GridConfig) -> Result<(TourneyManifest, GridFile), String> {
     if !cfg.seed_model.is_file() {
@@ -186,8 +224,8 @@ pub fn run_top11_c2_grid(cfg: &Top11C2GridConfig) -> Result<(TourneyManifest, Gr
         TOP11
     );
 
-    let mut cells = Vec::with_capacity(20);
-    let mut entrants = Vec::with_capacity(27);
+    let mut cells = Vec::with_capacity(25);
+    let mut entrants = Vec::with_capacity(32);
     let mut by_id: HashMap<String, EvalWeights> = HashMap::new();
 
     for (id, weights) in top11 {
@@ -212,44 +250,45 @@ pub fn run_top11_c2_grid(cfg: &Top11C2GridConfig) -> Result<(TourneyManifest, Gr
 
     let seed_w = by_id
         .get("SEED")
-        .ok_or_else(|| "missing SEED weights".to_string())?;
+        .ok_or_else(|| "missing SEED weights".to_string())?
+        .clone();
     for &parent_id in &TOP11 {
-        let Some(twin_id) = c2_twin_id(parent_id) else {
-            continue;
-        };
         let parent = by_id
             .get(parent_id)
             .ok_or_else(|| format!("missing parent {parent_id}"))?;
-        let weights = twin_weights(parent_id, parent, seed_w);
-        let model_path = cfg.out_dir.join(format!("{twin_id}.json"));
-        let mut cp = base_cp.clone();
-        cp.name = twin_id.clone();
-        cp.weights = weights;
-        cp.save_path(&model_path)
-            .map_err(|e| format!("save {}: {e}", model_path.display()))?;
-        let discount = if parent_id == "C2K100A1D50" {
-            Some(50.0)
-        } else {
-            Some(0.0)
-        };
-        let model = model_path.display().to_string();
-        cells.push(GridCell {
-            id: twin_id.clone(),
-            model: model.clone(),
-            kind: "c2_twin".into(),
-            parent_id: Some(parent_id.into()),
-            two_mover_mob_k: Some(50.0),
-            two_mover_discount: discount,
-        });
-        push_entrant(&mut entrants, twin_id, model);
+        push_c2_twin(
+            &mut cells,
+            &mut entrants,
+            &cfg.out_dir,
+            &base_cp,
+            parent_id,
+            parent,
+            &seed_w,
+        )?;
     }
 
-    append_history_entrants_except(
+    let leftover = append_history_entrants_except(
         &cfg.history_manifest,
         &cfg.out_dir,
         &mut entrants,
         SKIP_HISTORY,
     )?;
+    for id in leftover {
+        if id.starts_with("LOGIC_") {
+            continue;
+        }
+        let parent_path = cfg.out_dir.join(format!("{id}.json"));
+        let parent = EvalCheckpoint::load_path(&parent_path)?;
+        push_c2_twin(
+            &mut cells,
+            &mut entrants,
+            &cfg.out_dir,
+            &base_cp,
+            &id,
+            &parent.weights,
+            &seed_w,
+        )?;
+    }
 
     let grid = GridFile {
         seed_model: cfg.seed_model.display().to_string(),
@@ -295,10 +334,15 @@ mod tests {
         assert_eq!(twins.len(), 9);
         let uniq: HashSet<_> = twins.iter().cloned().collect();
         assert_eq!(uniq.len(), 9);
+        assert_eq!(
+            c2_twin_id("BASE_PRELOUD").as_deref(),
+            Some("BASE_PRELOUD_C2")
+        );
+        assert_eq!(c2_twin_id("LOGIC_H105").as_deref(), Some("LOGIC_H105_C2"));
     }
 
     #[test]
-    fn grid_writes_27_unique_entrants() {
+    fn grid_writes_32_unique_entrants() {
         let tmp = std::env::temp_dir().join(format!("tk-top11-c2-{}", std::process::id()));
         let _ = fs::remove_dir_all(&tmp);
         fs::create_dir_all(&tmp).unwrap();
@@ -316,11 +360,14 @@ mod tests {
         };
         let (man, grid) = run_top11_c2_grid(&cfg).expect("grid");
         assert_eq!(grid.cells.iter().filter(|c| c.kind == "top11").count(), 11);
-        assert_eq!(grid.cells.iter().filter(|c| c.kind == "c2_twin").count(), 9);
+        assert_eq!(
+            grid.cells.iter().filter(|c| c.kind == "c2_twin").count(),
+            14
+        );
         let ids: Vec<_> = man.entrants.iter().map(|e| e.id.as_str()).collect();
         let uniq: HashSet<_> = ids.iter().copied().collect();
         assert_eq!(uniq.len(), ids.len(), "duplicate ids: {ids:?}");
-        assert_eq!(man.entrants.len(), 27);
+        assert_eq!(man.entrants.len(), 32);
         for id in TOP11 {
             assert!(ids.contains(&id), "missing {id}");
         }
@@ -334,9 +381,16 @@ mod tests {
             "AVG_P120_SEED_C2",
             "T150_B65_T12_C2",
             "C2K50A1D50",
+            "BASE_PRELOUD_C2",
+            "BASE_T150C50_C2",
+            "BASE_T150C120_C2",
+            "BASE_H105O105_C2",
+            "BASE_P120H75B60_C2",
         ] {
             assert!(ids.contains(&id), "missing twin {id}");
         }
+        assert!(!ids.contains(&"LOGIC_H105_C2"));
+        assert!(!ids.contains(&"LOGIC_HANGQ_ANY_C2"));
         assert!(!ids.contains(&"C2K50A1_C2"));
         assert!(!ids.contains(&"SEED_C2"));
         for id in [
