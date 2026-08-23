@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 # Fit the mix-tournament top 11, each from its own chassis as --init.
 #
-# Same features (mix games). Texel only trains piece values; PST / tropism /
-# two_mover_mob_k stay on the parent. After the 11 runs, compare_top11_texel.py
-# writes a /Pawn %Δ table so we can see if the moves look reasonable before
-# transplanting large pieces onto twins.
+# Same features (mix games). Texel trains only range two-movers + range
+# capturers; the mid table / PST / tropism / k stay on the parent. After the
+# 11 runs, compare_top11_texel.py writes a /Pawn %Δ table.
 #
 # Usage (on the VPS, after the mix knockout):
 #   ./deploy/run_top11_texel_fits.sh \
@@ -190,6 +189,7 @@ for id in "${IDS[@]}"; do
     --lr "$LR" \
     --late-frac 0 \
     --keep-draws \
+    --only-large \
     "${renorm_flag[@]}" \
     | tee "$log"
   if [[ ! -f "$out" ]]; then

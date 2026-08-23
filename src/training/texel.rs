@@ -1,6 +1,8 @@
 //! Texel-style logistic fit on derived piece-count features.
 
-use crate::eval::{EvalCheckpoint, EvalWeights, ALL_PIECE_TYPES};
+use crate::eval::{
+    is_range_capturer, is_range_two_mover, EvalCheckpoint, EvalWeights, ALL_PIECE_TYPES,
+};
 use crate::piece::{Color, PieceType};
 use crate::training::featurize::{load_labeled_dir, LabeledPosition};
 use crate::training::mobility_seed::{run_mobility_seed, MobilitySeedConfig};
@@ -43,6 +45,8 @@ pub struct TexelFitConfig {
     pub lr_scale_by_k: bool,
     /// Divide all piece values by Pawn after fit so Pawn = 1.
     pub renormalize_pawn: bool,
+    /// Train only range two-movers and range capturers; leave the mid table at `--init`.
+    pub only_large: bool,
 }
 
 impl Default for TexelFitConfig {
@@ -61,8 +65,14 @@ impl Default for TexelFitConfig {
             log_space: true,
             lr_scale_by_k: true,
             renormalize_pawn: true,
+            only_large: true,
         }
     }
+}
+
+/// Loud pieces we have been grid-searching: range two-movers + capturing-range (incl. FreeKing).
+pub fn is_texel_large_piece(pt: PieceType) -> bool {
+    is_range_two_mover(pt) || is_range_capturer(pt)
 }
 
 #[derive(Debug, Clone)]
@@ -78,6 +88,8 @@ pub struct TexelFitStats {
     pub n_used: usize,
     pub n_draws_dropped: usize,
     pub n_early_dropped: usize,
+    /// How many piece types were updated (`only_large` → two-movers + capturers).
+    pub n_trained: usize,
     /// Fraction of used rows where sign(seed_eval) agrees with win/loss label.
     pub sign_agreement: f64,
 }
@@ -216,10 +228,12 @@ fn pawn_index() -> usize {
 
 /// Fit piece values via logistic regression (gradient descent).
 ///
-/// All piece material weights are trainable (including royals and high-value
-/// capturers). Rank PST / development / `royal_bonus_by_count` stay at seed:
-/// featurize only emits piece-count diffs. Terminal 0-royals is not learned
-/// here — [`EvalWeights::mate_score`] / `get_winner` already treat that as ±∞.
+/// Default: only range two-movers and range capturers move. Pawns, golds, royals,
+/// and the rest of the mid table stay at `--init` so a long-game CE collapse
+/// cannot rewrite them. Pass `only_large: false` / `--all-pieces` to train every
+/// type. Rank PST / tropism / `two_mover_mob_k` stay at init either way.
+/// Terminal 0-royals is not learned — [`EvalWeights::mate_score`] / `get_winner`
+/// already treat that as ±∞.
 pub fn fit_texel(cfg: &TexelFitConfig) -> Result<(EvalCheckpoint, TexelFitStats), String> {
     let rows = load_labeled_dir(Path::new(&cfg.features_dir))?;
     if rows.is_empty() {
@@ -254,6 +268,14 @@ pub fn fit_texel_on_rows(
     let mut seed = resolve_init_weights(&cfg.init)?;
     let w0 = piece_vec(&seed);
     let mut w = w0.clone();
+    let trained: Vec<bool> = ALL_PIECE_TYPES
+        .iter()
+        .map(|pt| !cfg.only_large || is_texel_large_piece(*pt))
+        .collect();
+    let n_trained = trained.iter().filter(|t| **t).count();
+    if n_trained == 0 {
+        return Err("No trainable piece types (only_large matched nothing)".into());
+    }
 
     let mut k = if cfg.fit_k {
         calibrate_k(rows, &w, cfg.k_target_abs)
@@ -291,6 +313,9 @@ pub fn fit_texel_on_rows(
         if cfg.log_space {
             // θ = log w; ∂L/∂θ_i = (∂L/∂w_i) · w_i
             for i in 0..w.len() {
+                if !trained[i] {
+                    continue;
+                }
                 let g_w = grad[i] * inv_n;
                 let g_theta = g_w * w[i];
                 let theta = w[i].max(0.05).ln() - lr * g_theta;
@@ -298,6 +323,9 @@ pub fn fit_texel_on_rows(
             }
         } else {
             for i in 0..w.len() {
+                if !trained[i] {
+                    continue;
+                }
                 w[i] -= lr * grad[i] * inv_n;
                 if w[i] < 0.05 {
                     w[i] = 0.05;
@@ -306,12 +334,15 @@ pub fn fit_texel_on_rows(
         }
     }
 
-    // Deltas vs init before pawn renorm (same scale as training).
+    // Deltas vs init before pawn renorm, over trained types only.
     let mut max_abs_delta = 0.0f32;
     let mut sum_abs_delta = 0.0f32;
     let mut max_pct_delta = 0.0f32;
     let mut sum_pct_delta = 0.0f32;
     for i in 0..w.len() {
+        if !trained[i] {
+            continue;
+        }
         let d = (w[i] - w0[i]).abs();
         max_abs_delta = max_abs_delta.max(d);
         sum_abs_delta += d;
@@ -320,8 +351,9 @@ pub fn fit_texel_on_rows(
         max_pct_delta = max_pct_delta.max(pct);
         sum_pct_delta += pct;
     }
-    let mean_abs_delta = sum_abs_delta / w.len() as f32;
-    let mean_pct_delta = sum_pct_delta / w.len() as f32;
+    let n_tr = n_trained.max(1) as f32;
+    let mean_abs_delta = sum_abs_delta / n_tr;
+    let mean_pct_delta = sum_pct_delta / n_tr;
 
     let loss_after = mean_cross_entropy(rows, &w, k);
     let agree_after = sign_agreement(rows, &w);
@@ -330,8 +362,9 @@ pub fn fit_texel_on_rows(
     let fit_pawn_pre = w[pawn_index()].max(1e-3);
 
     eprintln!(
-        "texel filter: raw={n_raw} used={} draws_dropped={n_draws_dropped} early_dropped={n_early_dropped}",
-        rows.len()
+        "texel filter: raw={n_raw} used={} draws_dropped={n_draws_dropped} early_dropped={n_early_dropped} trained={n_trained}/{}",
+        rows.len(),
+        ALL_PIECE_TYPES.len()
     );
     eprintln!(
         "texel agreement: before={agree_before:.3} after={agree_after:.3}  max%Δ={max_pct_delta:.1} mean%Δ={mean_pct_delta:.1}"
@@ -356,7 +389,8 @@ pub fn fit_texel_on_rows(
         }
     }
 
-    if cfg.renormalize_pawn {
+    // Renorm would rewrite frozen mid-table values. Skip when only_large.
+    if cfg.renormalize_pawn && !cfg.only_large {
         let pi = pawn_index();
         let pawn = w[pi].max(0.05);
         for v in &mut w {
@@ -381,6 +415,7 @@ pub fn fit_texel_on_rows(
         n_used: rows.len(),
         n_draws_dropped,
         n_early_dropped,
+        n_trained,
         sign_agreement: agree_after,
     };
 
@@ -429,6 +464,22 @@ mod tests {
             });
         }
         rows
+    }
+
+    #[test]
+    fn texel_large_is_two_movers_and_capturers() {
+        assert!(is_texel_large_piece(PieceType::HookMover));
+        assert!(is_texel_large_piece(PieceType::Capricorn));
+        assert!(is_texel_large_piece(PieceType::Tengu));
+        assert!(is_texel_large_piece(PieceType::Peacock));
+        assert!(is_texel_large_piece(PieceType::GreatGeneral));
+        assert!(is_texel_large_piece(PieceType::ViceGeneral));
+        assert!(is_texel_large_piece(PieceType::FreeKing));
+        assert!(is_texel_large_piece(PieceType::FierceDragon));
+        assert!(!is_texel_large_piece(PieceType::Pawn));
+        assert!(!is_texel_large_piece(PieceType::GoldGeneral));
+        assert!(!is_texel_large_piece(PieceType::King));
+        assert!(!is_texel_large_piece(PieceType::Lion));
     }
 
     #[test]
@@ -484,6 +535,7 @@ mod tests {
             log_space: true,
             lr_scale_by_k: true,
             renormalize_pawn: true,
+            only_large: false,
         };
         let seed_pawn = EvalWeights::seed().piece_value(PieceType::Pawn);
         let (cp, stats) = fit_texel_on_rows(&cfg, &rows).expect("fit");
@@ -507,6 +559,84 @@ mod tests {
             "expected pawn≈1 after renorm, got {fitted_pawn} (seed was {seed_pawn})"
         );
 
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    fn hook_idx() -> usize {
+        ALL_PIECE_TYPES
+            .iter()
+            .position(|p| *p == PieceType::HookMover)
+            .expect("HookMover")
+    }
+
+    fn synthetic_hook_rows(n: usize) -> Vec<LabeledPosition> {
+        let hi = hook_idx();
+        (0..n)
+            .map(|i| {
+                let black_ahead = i % 2 == 0;
+                let mut diff = vec![0.0f32; ALL_PIECE_TYPES.len()];
+                diff[hi] = if black_ahead { 1.0 } else { -1.0 };
+                LabeledPosition {
+                    format_version: FEATURE_FORMAT_VERSION,
+                    game_id: format!("syn-hook-{}", i / 4),
+                    ply: 80,
+                    // Opposite of material: extra Hook loses, so the fit must move Hook.
+                    result: if black_ahead { 0.0 } else { 1.0 },
+                    turn: Color::Black,
+                    piece_diff: diff,
+                    seed_eval: if black_ahead { 1.0 } else { -1.0 },
+                }
+            })
+            .collect()
+    }
+
+    #[test]
+    fn only_large_freezes_mid_table_and_moves_hook() {
+        let dir = std::env::temp_dir().join(format!(
+            "taikyoku-texel-large-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let rows = synthetic_hook_rows(64);
+        let seed = EvalWeights::seed();
+        let cfg = TexelFitConfig {
+            features_dir: dir.to_string_lossy().into(),
+            out_model: dir.join("out.json").to_string_lossy().into(),
+            iterations: 80,
+            learning_rate: 0.05,
+            // Seed Hook is ~6k; k=0.1 saturates sigmoid and freezes the gradient.
+            k: 1.0 / 6237.0,
+            fit_k: false,
+            k_target_abs: 1.0,
+            init: TexelInit::Seed,
+            drop_draws: true,
+            late_frac: 0.0,
+            log_space: true,
+            lr_scale_by_k: false,
+            renormalize_pawn: true,
+            only_large: true,
+        };
+        let (cp, stats) = fit_texel_on_rows(&cfg, &rows).expect("fit");
+        assert!(stats.n_trained > 0);
+        assert!(stats.n_trained < ALL_PIECE_TYPES.len());
+        assert!(
+            (cp.weights.piece_value(PieceType::Pawn) - seed.piece_value(PieceType::Pawn)).abs()
+                < 1e-5,
+            "pawn must stay at init"
+        );
+        assert!(
+            (cp.weights.piece_value(PieceType::GoldGeneral) - seed.piece_value(PieceType::GoldGeneral))
+                .abs()
+                < 1e-5,
+            "gold must stay at init"
+        );
+        let hook0 = seed.piece_value(PieceType::HookMover);
+        let hook1 = cp.weights.piece_value(PieceType::HookMover);
+        assert!(
+            hook1 < hook0 - 1.0,
+            "hook should fall when extra Hook loses: {hook0} → {hook1}"
+        );
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

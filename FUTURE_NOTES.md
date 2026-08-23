@@ -22,7 +22,7 @@ Ideas parked after a knockout, not the next patch. Search / eval experiments tha
 | 10 | `T150_B65_T12` |
 | 11 | `C2K100A1D50` |
 
-**Inspect first (11 fits):** `./deploy/run_top11_texel_fits.sh --games-dir data/raw/tourney/top4-mix-swiss-…` inits each chassis and writes `/Pawn` %Δ under `models/top11-texel/compare.md`. Same features; only piece values move. Use that table to decide whether the large-piece moves look reasonable.
+**Inspect first (11 fits):** `./deploy/run_top11_texel_fits.sh --games-dir data/raw/tourney/top4-mix-swiss-…` (add `--skip-featurize` if `data/derived/top11-texel` already exists). Each chassis `--init`, same features. **Only range two-movers + range capturers move**; Golds / pawns / royals stay on the parent. `/Pawn` %Δ in `models/top11-texel/compare.md`. An unconstrained all-piece fit collapsed Hook/VG to ~0 and exploded the mid table — do not use that.
 
 **Later transplant (one shared table, not 11):** if the 11 fits agree on the loud pieces, take one of those tables (or a seed-init fit on the same features) and copy **large pieces only** onto each chassis. Current `texel-fit` only trains the **piece-value** vector (`piece_diff`). PST, tropism, and `two_mover_mob_k` stay at `--init`.
 

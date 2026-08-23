@@ -198,7 +198,7 @@ tail -f data/run/two-mob-swiss.log
 
 ### Top-11 Texel inspection fits
 
-Eleven chassis from the mix-tournament top 11, each `texel-fit` with `--init` = that chassis. Same mix-game features. Piece values move; PST / tropism / `k` stay on the parent. Then `deploy/compare_top11_texel.py` writes a /Pawn %Δ table.
+Eleven chassis from the mix-tournament top 11, each `texel-fit --only-large` with `--init` = that chassis. Same mix-game features. Only range two-movers + range capturers move; mid table / PST / tropism / `k` stay on the parent. Then `deploy/compare_top11_texel.py` writes a /Pawn %Δ table. Re-fit without re-sampling: `--skip-featurize`.
 
 ```bash
 cd /opt/taikyoku_shogi

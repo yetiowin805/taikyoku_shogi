@@ -98,8 +98,10 @@ pub fn print_training_usage() {
     println!("  texel-fit [--features DIR] [--out PATH] [--iters N] [--lr F] [--k F]");
     println!("            [--init seed|mobility|PATH] [--late-frac F] [--keep-draws]");
     println!("            [--no-log-space] [--no-lr-scale-k] [--no-renorm-pawn]");
+    println!("            [--all-pieces]");
     println!("            (default: seed init, log-space, all plies+draws,");
-    println!("             2500 iters, lr=0.05 scaled by 1/K, Pawn→1)");
+    println!("             2500 iters, lr=0.05 scaled by 1/K, only range two-movers");
+    println!("             + range capturers; --all-pieces trains every type + Pawn→1)");
     println!("  match --a AGENT --b AGENT [--starts SPEC] [--games N] [--jobs J] [--outdir DIR]");
     println!(
         "  tournament --manifest PATH [--run-id ID] [--resume] [--games-per-pair N] [--jobs J]"
@@ -1205,11 +1207,21 @@ pub fn cmd_texel_fit(args: &[String]) -> Result<(), String> {
             i += 1;
             continue;
         }
+        if args.get(i).map(|s| s.as_str()) == Some("--all-pieces") {
+            cfg.only_large = false;
+            i += 1;
+            continue;
+        }
+        if args.get(i).map(|s| s.as_str()) == Some("--only-large") {
+            cfg.only_large = true;
+            i += 1;
+            continue;
+        }
         return Err(format!("Unknown flag {}", args[i]));
     }
     let (_cp, stats) = fit_texel(&cfg)?;
     println!(
-        "Wrote {} (CE {:.6} → {:.6}, k={:.4}, max|Δw|={:.4}, mean|Δw|={:.4}, max%Δ={:.1}, mean%Δ={:.1}, used={}/{}, agree={:.3})",
+        "Wrote {} (CE {:.6} → {:.6}, k={:.4}, max|Δw|={:.4}, mean|Δw|={:.4}, max%Δ={:.1}, mean%Δ={:.1}, used={}/{}, trained={}, agree={:.3})",
         cfg.out_model,
         stats.loss_before,
         stats.loss_after,
@@ -1220,6 +1232,7 @@ pub fn cmd_texel_fit(args: &[String]) -> Result<(), String> {
         stats.mean_pct_delta,
         stats.n_used,
         stats.n_raw,
+        stats.n_trained,
         stats.sign_agreement
     );
     Ok(())
