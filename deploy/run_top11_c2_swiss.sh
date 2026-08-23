@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Mix-tournament top 11 + C2K50A1 twins + leftover playable history (27 agents).
+# Mix-tournament top 11 + C2K50A1 twins + leftover playable history (32 agents).
 # Continuous seeded knockout.
 #
 # Stop anytime:  touch data/run/TOURNEY_STOP   (or Ctrl-C)

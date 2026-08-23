@@ -99,7 +99,7 @@ pub fn print_training_usage() {
         "            (T150_P120_T12 / H120_P120_T15 / AVG_T150_H120 / C2K50A1 × current/A/B/AB)"
     );
     println!("  top11-c2-grid [--seed PATH] [--out DIR]");
-    println!("            (mix top 11 + C2K50A1 twins + leftover playable history)");
+    println!("            (mix top 11 + leftover history + C2 twins of all weight chassis)");
     println!("  texel-fit [--features DIR] [--out PATH] [--iters N] [--lr F] [--k F]");
     println!("            [--init seed|mobility|PATH] [--late-frac F] [--keep-draws]");
     println!("            [--no-log-space] [--no-lr-scale-k] [--no-renorm-pawn]");
@@ -1171,7 +1171,7 @@ pub fn cmd_top11_c2_grid(args: &[String]) -> Result<(), String> {
     }
     let (man, _grid) = run_top11_c2_grid(&cfg)?;
     println!(
-        "Wrote {} entrants under {} (11 top + 9 C2 twins + leftover history)",
+        "Wrote {} entrants under {} (11 top + 14 C2 twins + leftover history)",
         man.entrants.len(),
         cfg.out_dir.display()
     );
