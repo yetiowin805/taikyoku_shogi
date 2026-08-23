@@ -118,6 +118,15 @@ nohup ./deploy/run_overnight_tourney.sh --resume --run-id tourney-YYYYMMDDTHHMMS
 
 Starts: `light` = shuffle-only ranks without powerful/royals (no ablations). Standings live under `data/raw/tourney/<run_id>/standings.md`.
 
+```bash
+# latest run: standings + knockout trees
+./deploy/tourney_status.py
+# latest top11-c2 run; trees only; one tree
+./deploy/tourney_status.py top11-c2
+./deploy/tourney_status.py --tree
+./deploy/tourney_status.py --tree 1
+```
+
 Incomplete exits (stop file / aborted slots) now fail the tournament binary with a non-zero status so notify says stopped/incomplete rather than “done”.
 
 ### Loud-grid continuous Glicko Swiss (preferred)
