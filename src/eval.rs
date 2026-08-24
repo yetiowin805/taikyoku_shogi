@@ -970,6 +970,22 @@ pub struct SearchDefaults {
     /// Dest PathClear takes of hanging range two-movers open q. Missing → true.
     #[serde(default = "default_true")]
     pub hang_q_dest_pathclear: bool,
+    /// Open q after a capture by a large mover (`is_big_piece`), even if the
+    /// victim is below the loud floor. Missing → false.
+    #[serde(default)]
+    pub q_open_large_mover: bool,
+    /// Open q after any enemy capture (not only loud / hang / royal). Missing → false.
+    #[serde(default)]
+    pub q_open_any_capture: bool,
+    /// Inside q, keep dest recaptures onto `prev_to` (plus royals / loud promos).
+    /// Missing → false.
+    #[serde(default)]
+    pub q_recapture_only: bool,
+    /// Open q when STM can dest-take the previous landing if it is a large enemy,
+    /// and keep only dest takes of large enemies (plus royals / loud promos).
+    /// Missing → false.
+    #[serde(default)]
+    pub q_own_large_only: bool,
 }
 
 fn default_quiescence_depth() -> u32 {
@@ -990,6 +1006,10 @@ impl Default for SearchDefaults {
             q_loud_promo_simple_only: false,
             hang_q_dest_multileg: true,
             hang_q_dest_pathclear: true,
+            q_open_large_mover: false,
+            q_open_any_capture: false,
+            q_recapture_only: false,
+            q_own_large_only: false,
         }
     }
 }
@@ -1880,6 +1900,10 @@ mod tests {
         assert!(!s.q_loud_promo_simple_only);
         assert!(s.hang_q_dest_multileg);
         assert!(s.hang_q_dest_pathclear);
+        assert!(!s.q_open_large_mover);
+        assert!(!s.q_open_any_capture);
+        assert!(!s.q_recapture_only);
+        assert!(!s.q_own_large_only);
     }
 
     #[test]

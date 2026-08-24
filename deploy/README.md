@@ -240,6 +240,16 @@ cd /opt/taikyoku_shogi
 tail -f data/run/hang-q-ab-swiss.log
 ```
 
+### R / S1 / S2 search-twin knockout
+
+Seven experimental chassis (`H120_P120_T15`, `AVG_P120_SEED_C2`, `SEED`, `BASE_P120H50B75_C2`, `T150_P120_T12_C2`, `C2K100A1D50`, `C2K50A1`) each with current / R / S1 / S2 search twins, plus five leftover-history baselines (`BASE_T150C120`, `BASE_P120H75B60`, `LOGIC_HANGQ_ANY`, `BASE_T150C50`, `BASE_H105O105`). 33 agents. Same 1s / depth-8 PathAware setup. Freeze pinned binaries first (`./deploy/freeze_history.sh`). Do not bake R/S onto `models/ab-seed.json`.
+
+```bash
+cd /opt/taikyoku_shogi
+./deploy/pull_build_q_rs_swiss.sh --branch cursor/q-rs-grid
+tail -f data/run/q-rs-swiss.log
+```
+
 ### Scale-sample Swiss (legacy ±10% samples)
 
 ```bash

@@ -3,12 +3,12 @@
 //! Pipeline, PathAware q, and what each prune can miss: `src/README.md`.
 
 use crate::eval::{
-    bind_search_weights, evaluate_with_ply, is_big_piece, is_range_two_mover,
-    material_piece_value, promotes_into_big_piece, seed_loud_capture_floor, EvalWeights,
+    bind_search_weights, evaluate_with_ply, is_big_piece, is_range_two_mover, material_piece_value,
+    promotes_into_big_piece, seed_loud_capture_floor, EvalWeights,
 };
 use crate::game_state::{GameState, LegalMoveGen, Move};
-use crate::movement::{BlockingMode, MovementCapability, MovementConfig, MovementGenerator};
 use crate::move_simulation::BoardLike;
+use crate::movement::{BlockingMode, MovementCapability, MovementConfig, MovementGenerator};
 use crate::path_utils;
 use crate::piece::{Color, Piece};
 use crate::position::Position;
@@ -171,8 +171,7 @@ fn capturing_wipe_group_key(state: &GameState, mv: &Move) -> Option<u64> {
     }
     let dir = (file_step as u8 as u64) | ((rank_step as u8 as u64) << 3);
     Some(
-        occ
-            ^ (mv.from.to_index() as u64).wrapping_mul(0x100000001B3)
+        occ ^ (mv.from.to_index() as u64).wrapping_mul(0x100000001B3)
             ^ dir.wrapping_mul(0xD1B54A32D192ED03)
             ^ (n as u64).wrapping_mul(0xC2B2AE3D27D4EB4F),
     )
@@ -264,6 +263,14 @@ pub struct SearchConfig {
     pub hang_q_dest_multileg: bool,
     /// Dest PathClear takes of hanging range two-movers open q (default on).
     pub hang_q_dest_pathclear: bool,
+    /// Open q after a capture by a large mover (`is_big_piece`).
+    pub q_open_large_mover: bool,
+    /// Open q after any enemy capture (not only loud / hang / royal).
+    pub q_open_any_capture: bool,
+    /// Keep dest recaptures onto `prev_to` (plus royals / loud promos).
+    pub q_recapture_only: bool,
+    /// Open q for dest recapture of a large landing; keep only large-victim takes.
+    pub q_own_large_only: bool,
 }
 
 impl Default for SearchConfig {
@@ -285,6 +292,10 @@ impl Default for SearchConfig {
             q_no_pathclear_after_wipe: false,
             hang_q_dest_multileg: true,
             hang_q_dest_pathclear: true,
+            q_open_large_mover: false,
+            q_open_any_capture: false,
+            q_recapture_only: false,
+            q_own_large_only: false,
         }
     }
 }
@@ -388,6 +399,8 @@ struct SearchContext {
     last_ab_to: Option<Position>,
     /// Last AB move was PathClear/MultiLeg (corridor wipe).
     last_ab_wipe: bool,
+    /// Last AB mover was a large piece (`is_big_piece`), capture or quiet.
+    last_ab_mover_large: bool,
     /// Quiescence diagnostics (updated while in `quiesce`).
     q_nodes: u64,
     /// `q_nodes` at the start of the current root move.
@@ -427,6 +440,10 @@ struct SearchContext {
     q_no_pathclear_after_wipe: bool,
     hang_q_dest_multileg: bool,
     hang_q_dest_pathclear: bool,
+    q_open_large_mover: bool,
+    q_open_any_capture: bool,
+    q_recapture_only: bool,
+    q_own_large_only: bool,
     sib_reduced: u64,
     sib_researched: u64,
 }
@@ -644,26 +661,19 @@ fn move_captures_enemy_raw(state: &GameState, mv: &Move) -> bool {
     };
     let enemy = piece.color.opposite();
 
-    if board
-        .get_piece(mv.to)
-        .is_some_and(|p| p.color == enemy)
-    {
+    if board.get_piece(mv.to).is_some_and(|p| p.color == enemy) {
         return true;
     }
     if let Some(inter) = mv.intermediate() {
-        if board
-            .get_piece(inter)
-            .is_some_and(|p| p.color == enemy)
-        {
+        if board.get_piece(inter).is_some_and(|p| p.color == enemy) {
             return true;
         }
     }
     if let Some(path) = mv.free_eagle_path() {
-        return path.iter().skip(1).any(|pos| {
-            board
-                .get_piece(*pos)
-                .is_some_and(|p| p.color == enemy)
-        });
+        return path
+            .iter()
+            .skip(1)
+            .any(|pos| board.get_piece(*pos).is_some_and(|p| p.color == enemy));
     }
 
     let config = MovementConfig::for_piece(&piece);
@@ -680,9 +690,7 @@ fn move_captures_enemy_raw(state: &GameState, mv: &Move) -> bool {
         for pos in path_utils::get_path_positions(mv.from, mv.to) {
             if pos != mv.from
                 && pos != mv.to
-                && board
-                    .get_piece(pos)
-                    .is_some_and(|p| p.color == enemy)
+                && board.get_piece(pos).is_some_and(|p| p.color == enemy)
             {
                 return true;
             }
@@ -693,11 +701,7 @@ fn move_captures_enemy_raw(state: &GameState, mv: &Move) -> bool {
 
 /// Enemy material taken vs own material destroyed by the move itself
 /// (capturing-range / FE path clears). Does not model recapture of the mover.
-fn capture_material_exchange(
-    state: &GameState,
-    weights: &EvalWeights,
-    mv: &Move,
-) -> (f32, f32) {
+fn capture_material_exchange(state: &GameState, weights: &EvalWeights, mv: &Move) -> (f32, f32) {
     let (enemy, own, _) = capture_exchange_kind(state, weights, mv);
     (enemy, own)
 }
@@ -915,9 +919,7 @@ fn capture_hangs_high_value_piece(
     }
     let opponent = state.get_current_turn().opposite();
     match kind {
-        CaptureKind::SimpleTake => {
-            landing_attacked_cached(board, mv.to, opponent, attack_cache)
-        }
+        CaptureKind::SimpleTake => landing_attacked_cached(board, mv.to, opponent, attack_cache),
         CaptureKind::PathClear | CaptureKind::MultiLeg => {
             if !postfire_pathclear_hang
                 && !landing_attacked_cached(board, mv.to, opponent, attack_cache)
@@ -1103,28 +1105,27 @@ fn move_order_score(
     }
 
     let mut gain = enemy - own;
-    let hanging = if !capture_takes_enemy_royal(state, mv)
-        && net_below_hang_frac(enemy, own, mover_value)
-    {
-        match kind {
-            CaptureKind::SimpleTake => {
-                landing_attacked_cached(board, mv.to, opponent, attack_cache)
-            }
-            CaptureKind::PathClear | CaptureKind::MultiLeg => {
-                // Same confirm-on-prune as [`capture_hangs_high_value_piece`].
-                if !postfire_pathclear_hang
-                    && !landing_attacked_cached(board, mv.to, opponent, attack_cache)
-                {
-                    false
-                } else {
-                    let vb = crate::move_simulation::simulate_move(board, mv, &mover);
-                    vb.is_position_attacked_by_color(mv.to, opponent)
+    let hanging =
+        if !capture_takes_enemy_royal(state, mv) && net_below_hang_frac(enemy, own, mover_value) {
+            match kind {
+                CaptureKind::SimpleTake => {
+                    landing_attacked_cached(board, mv.to, opponent, attack_cache)
+                }
+                CaptureKind::PathClear | CaptureKind::MultiLeg => {
+                    // Same confirm-on-prune as [`capture_hangs_high_value_piece`].
+                    if !postfire_pathclear_hang
+                        && !landing_attacked_cached(board, mv.to, opponent, attack_cache)
+                    {
+                        false
+                    } else {
+                        let vb = crate::move_simulation::simulate_move(board, mv, &mover);
+                        vb.is_position_attacked_by_color(mv.to, opponent)
+                    }
                 }
             }
-        }
-    } else {
-        false
-    };
+        } else {
+            false
+        };
     if hanging {
         gain -= mover_value;
     }
@@ -1389,6 +1390,38 @@ fn stm_has_royal_capture(state: &GameState) -> bool {
     false
 }
 
+fn mover_is_large(state: &GameState, mv: &Move) -> bool {
+    state
+        .get_board()
+        .get_piece(mv.from)
+        .is_some_and(|p| is_big_piece(p.piece_type))
+}
+
+/// Dest recapture of the previous landing when that piece is a large enemy.
+fn stm_has_dest_take_of_prev_large(state: &GameState, prev_to: Option<Position>) -> bool {
+    let Some(sq) = prev_to else {
+        return false;
+    };
+    let them = state.get_current_turn().opposite();
+    let Some(piece) = state.get_board().get_piece(sq) else {
+        return false;
+    };
+    if piece.color != them || !is_big_piece(piece.piece_type) {
+        return false;
+    }
+    generate_captures_hitting_square(state, sq)
+        .iter()
+        .any(|mv| mv.to == sq)
+}
+
+fn dest_victim_is_big(state: &GameState, mv: &Move) -> bool {
+    let them = state.get_current_turn().opposite();
+    state
+        .get_board()
+        .get_piece(mv.to)
+        .is_some_and(|p| p.color == them && is_big_piece(p.piece_type))
+}
+
 /// Captures worth expanding in quiescence, plus promotions into big pieces.
 ///
 /// Contract: q finishes the contested square (loud SimpleTakes + recaptures),
@@ -1647,10 +1680,7 @@ pub(crate) fn is_large_hang_simple_take(
 ///
 /// Used to open quiescence after quiet AB parents (classical engines resolve
 /// free hanging heavies in q; we previously stand-pat and missed them).
-pub(crate) fn stm_has_large_hang_simple_take(
-    state: &GameState,
-    weights: &EvalWeights,
-) -> bool {
+pub(crate) fn stm_has_large_hang_simple_take(state: &GameState, weights: &EvalWeights) -> bool {
     stm_has_large_hang_take(state, weights, QHangOpts::OFF)
 }
 
@@ -1762,18 +1792,9 @@ fn emit_directed_two_step_captures_hitting(
     }
 }
 
-fn append_full_gen_hits(
-    state: &GameState,
-    piece: Piece,
-    victim: Position,
-    out: &mut Vec<Move>,
-) {
+fn append_full_gen_hits(state: &GameState, piece: Piece, victim: Position, out: &mut Vec<Move>) {
     let start = out.len();
-    state.generate_legal_moves_for_pieces_mode(
-        &[piece],
-        LegalMoveGen::CapturesOnly,
-        out,
-    );
+    state.generate_legal_moves_for_pieces_mode(&[piece], LegalMoveGen::CapturesOnly, out);
     let mut w = start;
     for r in start..out.len() {
         if capture_hits_square(state, &out[r], victim) {
@@ -1883,6 +1904,7 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
         last_ab_capture_enemy: 0.0,
         last_ab_to: None,
         last_ab_wipe: false,
+        last_ab_mover_large: false,
         q_nodes: 0,
         q_nodes_at_root_start: 0,
         q_nodes_last_root: 0,
@@ -1915,6 +1937,10 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
         q_no_pathclear_after_wipe: config.q_no_pathclear_after_wipe,
         hang_q_dest_multileg: config.hang_q_dest_multileg,
         hang_q_dest_pathclear: config.hang_q_dest_pathclear,
+        q_open_large_mover: config.q_open_large_mover,
+        q_open_any_capture: config.q_open_any_capture,
+        q_recapture_only: config.q_recapture_only,
+        q_own_large_only: config.q_own_large_only,
         sib_reduced: 0,
         sib_researched: 0,
     };
@@ -2003,8 +2029,7 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
             let child_depth = d - 1;
             // Root LMR: late quiets at ID depth >= 2 (pre–PR17 rule).
             // Never reduce promotions into two-movers / range capturers.
-            let can_reduce =
-                d >= 2 && i >= 3 && !is_capture && !is_loud_promo && child_depth >= 1;
+            let can_reduce = d >= 2 && i >= 3 && !is_capture && !is_loud_promo && child_depth >= 1;
             let quiet_red = if can_reduce {
                 (if i >= 12 { 2 } else { 1 }).min(child_depth)
             } else {
@@ -2018,6 +2043,7 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
             ctx.last_ab_capture_enemy = move_loudness(state, weights, mv, is_capture);
             ctx.last_ab_to = Some(mv.to);
             ctx.last_ab_wipe = quiesce_move_looks_path_or_multileg(state, mv);
+            ctx.last_ab_mover_large = mover_is_large(state, mv);
             ctx.nodes += 1;
             ctx.ply = root_ply + 1;
             ctx.phase = "search";
@@ -2057,7 +2083,15 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
                     let reduced = child_depth - reduction;
                     -alphabeta(&mut pos, weights, reduced, -beta, -alpha, true, &mut ctx)
                 } else {
-                    -alphabeta(&mut pos, weights, child_depth, -beta, -alpha, true, &mut ctx)
+                    -alphabeta(
+                        &mut pos,
+                        weights,
+                        child_depth,
+                        -beta,
+                        -alpha,
+                        true,
+                        &mut ctx,
+                    )
                 }
             } else {
                 ctx.root_pvs_tried += 1;
@@ -2065,16 +2099,34 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
                 let nw_beta = probe_a.saturating_add(1);
                 let mut s = if reduction > 0 {
                     let reduced = child_depth - reduction;
-                    -alphabeta(&mut pos, weights, reduced, -nw_beta, -probe_a, false, &mut ctx)
+                    -alphabeta(
+                        &mut pos, weights, reduced, -nw_beta, -probe_a, false, &mut ctx,
+                    )
                 } else {
-                    -alphabeta(&mut pos, weights, child_depth, -nw_beta, -probe_a, false, &mut ctx)
+                    -alphabeta(
+                        &mut pos,
+                        weights,
+                        child_depth,
+                        -nw_beta,
+                        -probe_a,
+                        false,
+                        &mut ctx,
+                    )
                 };
                 if !ctx.abort && s > probe_a {
                     ctx.root_fail_high += 1;
                     if sib_r > 0 {
                         ctx.sib_researched += 1;
                     }
-                    s = -alphabeta(&mut pos, weights, child_depth, -beta, -alpha, true, &mut ctx);
+                    s = -alphabeta(
+                        &mut pos,
+                        weights,
+                        child_depth,
+                        -beta,
+                        -alpha,
+                        true,
+                        &mut ctx,
+                    );
                 } else if let Some(exp) = rel_expected {
                     if s <= probe_a && s >= exp.saturating_sub(50) {
                         s = exp;
@@ -2086,7 +2138,15 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
                 if sib_r > 0 {
                     ctx.sib_researched += 1;
                 }
-                score = -alphabeta(&mut pos, weights, child_depth, -beta, -alpha, true, &mut ctx);
+                score = -alphabeta(
+                    &mut pos,
+                    weights,
+                    child_depth,
+                    -beta,
+                    -alpha,
+                    true,
+                    &mut ctx,
+                );
             }
 
             pos.unmake_move_for_search(undo);
@@ -2278,6 +2338,7 @@ pub fn probe_quiescence(
         last_ab_capture_enemy: 0.0,
         last_ab_to: None,
         last_ab_wipe: false,
+        last_ab_mover_large: false,
         q_nodes: 0,
         q_nodes_at_root_start: 0,
         q_nodes_last_root: 0,
@@ -2310,6 +2371,10 @@ pub fn probe_quiescence(
         q_no_pathclear_after_wipe: false,
         hang_q_dest_multileg: true,
         hang_q_dest_pathclear: true,
+        q_open_large_mover: false,
+        q_open_any_capture: false,
+        q_recapture_only: false,
+        q_own_large_only: false,
         sib_reduced: 0,
         sib_researched: 0,
     };
@@ -2396,6 +2461,7 @@ fn probe_quiesce_window(
         last_ab_capture_enemy: min_quiescence_enemy_material(),
         last_ab_to: prev_to,
         last_ab_wipe: false,
+        last_ab_mover_large: false,
         q_nodes: 0,
         q_nodes_at_root_start: 0,
         q_nodes_last_root: 0,
@@ -2428,21 +2494,17 @@ fn probe_quiesce_window(
         q_no_pathclear_after_wipe: false,
         hang_q_dest_multileg: true,
         hang_q_dest_pathclear: true,
+        q_open_large_mover: false,
+        q_open_any_capture: false,
+        q_recapture_only: false,
+        q_own_large_only: false,
         sib_reduced: 0,
         sib_researched: 0,
     };
     let mut pos = state.clone();
     pos.ensure_eval_inc(weights);
     let score = quiesce(
-        &mut pos,
-        weights,
-        qdepth,
-        alpha,
-        beta,
-        prev_to,
-        true,
-        true,
-        &mut ctx,
+        &mut pos, weights, qdepth, alpha, beta, prev_to, true, true, &mut ctx,
     );
     (score, ctx.q_nodes)
 }
@@ -2490,6 +2552,7 @@ fn probe_quiet_parent_leaf_or_quiesce_hang(
         last_ab_capture_enemy: 0.0,
         last_ab_to: None,
         last_ab_wipe: false,
+        last_ab_mover_large: false,
         q_nodes: 0,
         q_nodes_at_root_start: 0,
         q_nodes_last_root: 0,
@@ -2522,6 +2585,103 @@ fn probe_quiet_parent_leaf_or_quiesce_hang(
         q_no_pathclear_after_wipe: false,
         hang_q_dest_multileg: hang.dest_multileg,
         hang_q_dest_pathclear: hang.dest_pathclear,
+        q_open_large_mover: false,
+        q_open_any_capture: false,
+        q_recapture_only: false,
+        q_own_large_only: false,
+        sib_reduced: 0,
+        sib_researched: 0,
+    };
+    let mut pos = state.clone();
+    pos.ensure_eval_inc(weights);
+    let score = leaf_or_quiesce(
+        &mut pos,
+        weights,
+        i32::MIN + 1,
+        i32::MAX - 1,
+        true,
+        &mut ctx,
+    );
+    (score, ctx.q_nodes)
+}
+
+/// Capture-parent leaf with optional R/S1/S2 flags (`last_ab_capture_enemy` set).
+#[cfg(test)]
+fn probe_capture_parent_leaf_or_quiesce_rs(
+    state: &GameState,
+    weights: &EvalWeights,
+    qdepth: u32,
+    last_ab_capture_enemy: f32,
+    last_ab_to: Option<Position>,
+    last_ab_mover_large: bool,
+    q_open_large_mover: bool,
+    q_open_any_capture: bool,
+    q_recapture_only: bool,
+    q_own_large_only: bool,
+) -> (i32, u64) {
+    let _wbind = bind_search_weights(weights);
+    let root_ply = state.get_move_history().len();
+    let now = Instant::now();
+    let mut ctx = SearchContext {
+        deadline: None,
+        nodes: 0,
+        abort: false,
+        ply: root_ply,
+        quiescence_depth: qdepth,
+        quiesce_entry_depth: qdepth,
+        search_started: now,
+        last_progress_log: now,
+        search_depth: 0,
+        root_index: 0,
+        root_total: 0,
+        root_label: String::new(),
+        best_score: i32::MIN + 1,
+        phase: "leaf",
+        tt: TranspositionTable::new(1024),
+        q_tt: TranspositionTable::new(1 << 16),
+        killers: Vec::new(),
+        history: HashMap::new(),
+        allow_null: true,
+        last_ab_capture_enemy,
+        last_ab_to,
+        last_ab_wipe: false,
+        last_ab_mover_large,
+        q_nodes: 0,
+        q_nodes_at_root_start: 0,
+        q_nodes_last_root: 0,
+        q_depth_left: 0,
+        q_caps_at_node: 0,
+        q_cap_index: 0,
+        q_label: String::new(),
+        q_stand_pat: 0,
+        q_prune_mode: QPruneMode::PathAware,
+        q_caps_generated: 0,
+        q_caps_searched: 0,
+        q_kind_simple: 0,
+        q_kind_path: 0,
+        q_kind_multi: 0,
+        root_pvs_tried: 0,
+        root_fail_high: 0,
+        root_near_best: 0,
+        root_moves_scored: 0,
+        q_unique: HashSet::new(),
+        q_unique_saturated: false,
+        q_tt_hits: 0,
+        q_tt_probes: 0,
+        root_move_started: Instant::now(),
+        q_hash_prev_to: false,
+        q_no_pathclear_reply: false,
+        q_no_pathclear: false,
+        q_loud_promo_simple_only: false,
+        track_q_unique: false,
+        sibling_mode: 0,
+        q_no_pathclear_after_wipe: false,
+        hang_q_dest_multileg: false,
+        hang_q_dest_pathclear: false,
+        q_open_large_mover,
+        q_open_any_capture,
+        q_recapture_only,
+        q_own_large_only,
         sib_reduced: 0,
         sib_researched: 0,
     };
@@ -2610,10 +2770,10 @@ fn build_trace_tree(
                 );
                 ctx.last_ab_to = Some(best_move.to);
                 ctx.last_ab_wipe = quiesce_move_looks_path_or_multileg(state, best_move);
+                ctx.last_ab_mover_large = mover_is_large(state, best_move);
                 ctx.ply = root_ply + 1;
                 ctx.phase = "trace";
-                let (_score, subtree) =
-                    alphabeta_record(&mut child, weights, depth - 1, &mut *ctx);
+                let (_score, subtree) = alphabeta_record(&mut child, weights, depth - 1, &mut *ctx);
                 child.unmake_move_for_search(undo);
                 if let Some(sub) = subtree {
                     best_node.children = sub.children;
@@ -2702,9 +2862,11 @@ fn alphabeta(
         let saved_enemy = ctx.last_ab_capture_enemy;
         let saved_to = ctx.last_ab_to;
         let saved_wipe = ctx.last_ab_wipe;
+        let saved_mover_large = ctx.last_ab_mover_large;
         ctx.last_ab_capture_enemy = 0.0;
         ctx.last_ab_to = None;
         ctx.last_ab_wipe = false;
+        ctx.last_ab_mover_large = false;
         state.set_current_turn(prev_turn.opposite());
         state.push_repetition_key();
         let parent_ply = ctx.ply;
@@ -2721,6 +2883,7 @@ fn alphabeta(
         ctx.last_ab_capture_enemy = saved_enemy;
         ctx.last_ab_to = saved_to;
         ctx.last_ab_wipe = saved_wipe;
+        ctx.last_ab_mover_large = saved_mover_large;
         ctx.allow_null = true;
         if !ctx.abort && score >= beta {
             return score;
@@ -2748,16 +2911,7 @@ fn alphabeta(
     let parent_ply = ctx.ply;
     let stage_a_len = moves.len();
     let (mut best, mut best_move_key, mut alpha, did_cutoff) = search_move_list(
-        state,
-        weights,
-        depth,
-        alpha,
-        beta,
-        is_pv,
-        ctx,
-        parent_ply,
-        &moves,
-        0,
+        state, weights, depth, alpha, beta, is_pv, ctx, parent_ply, &moves, 0,
     );
 
     if !did_cutoff && !ctx.abort && !used_only_stage_b {
@@ -2842,8 +2996,7 @@ fn search_move_list(
         let mv_key = move_tt_key(&mv);
         let is_capture = move_captures_enemy(state, &mv);
         let is_loud_promo = is_loud_promotion_move(state, &mv);
-        if is_capture
-            && capture_hangs_high_value_piece(state, weights, &mv, false, &mut hang_cache)
+        if is_capture && capture_hangs_high_value_piece(state, weights, &mv, false, &mut hang_cache)
         {
             continue;
         }
@@ -2861,12 +3014,7 @@ fn search_move_list(
             && !is_loud_promo
             && !is_killer;
         let quiet_red = if can_reduce {
-            if move_index >= 12 {
-                2
-            } else {
-                LMR_R
-            }
-            .min(depth - 1)
+            if move_index >= 12 { 2 } else { LMR_R }.min(depth - 1)
         } else {
             0
         };
@@ -2875,12 +3023,14 @@ fn search_move_list(
         let child_depth = depth.saturating_sub(1);
 
         let capture_enemy = move_loudness(state, weights, &mv, is_capture);
+        let mover_large = mover_is_large(state, &mv);
         let Some(undo) = state.make_move_for_search(mv.clone()) else {
             continue;
         };
         ctx.last_ab_capture_enemy = capture_enemy;
         ctx.last_ab_to = Some(mv.to);
         ctx.last_ab_wipe = is_wipe;
+        ctx.last_ab_mover_large = mover_large;
         ctx.ply = parent_ply + 1;
 
         let e_i = -evaluate_with_ply(state, weights, ctx.ply);
@@ -2915,10 +3065,26 @@ fn search_move_list(
         } else if let Some(exp) = rel_expected {
             let probe_a = alpha.max(exp);
             let reduced = child_depth - reduction;
-            let s = -alphabeta(state, weights, reduced, -(probe_a.saturating_add(1)), -probe_a, false, ctx);
+            let s = -alphabeta(
+                state,
+                weights,
+                reduced,
+                -(probe_a.saturating_add(1)),
+                -probe_a,
+                false,
+                ctx,
+            );
             if !ctx.abort && s > probe_a {
                 ctx.sib_researched += 1;
-                -alphabeta(state, weights, child_depth, -beta, -alpha, is_pv && i == 0, ctx)
+                -alphabeta(
+                    state,
+                    weights,
+                    child_depth,
+                    -beta,
+                    -alpha,
+                    is_pv && i == 0,
+                    ctx,
+                )
             } else if s <= probe_a && s >= exp.saturating_sub(50) {
                 exp
             } else {
@@ -2933,12 +3099,24 @@ fn search_move_list(
 
         // Re-search at full depth if reduced search looks interesting.
         // Fail-high research restores PV (full q) when the parent was PV.
-        if static_score.is_none() && rel_expected.is_none() && reduction > 0 && !ctx.abort && score > alpha
+        if static_score.is_none()
+            && rel_expected.is_none()
+            && reduction > 0
+            && !ctx.abort
+            && score > alpha
         {
             if sib_r > 0 {
                 ctx.sib_researched += 1;
             }
-            score = -alphabeta(state, weights, depth - 1, -beta, -alpha, is_pv && i == 0, ctx);
+            score = -alphabeta(
+                state,
+                weights,
+                depth - 1,
+                -beta,
+                -alpha,
+                is_pv && i == 0,
+                ctx,
+            );
         }
 
         state.unmake_move_for_search(undo);
@@ -2989,12 +3167,24 @@ fn leaf_or_quiesce(
 ) -> i32 {
     // Q after loud AB captures/promos, loud promos, a free take of a hanging
     // large enemy, or any King/CP capture (two-step dest included — one ply).
+    // Optional R/S1/S2 flags open q after sub-loud captures or own-large dest takes.
     let loud_parent = ctx.last_ab_capture_enemy >= min_quiescence_enemy_material();
     let loud_promos = generate_loud_promotions(state);
     let hang_opts = QHangOpts::from_ctx(ctx);
     let hang_caps = !loud_parent && stm_has_large_hang_take(state, weights, hang_opts);
     let royal_caps = !loud_parent && stm_has_royal_capture(state);
-    if !loud_parent && loud_promos.is_empty() && !hang_caps && !royal_caps {
+    let capture_parent = ctx.last_ab_capture_enemy > 0.0;
+    let large_mover_open = ctx.q_open_large_mover && ctx.last_ab_mover_large && capture_parent;
+    let any_cap_open = ctx.q_open_any_capture && capture_parent;
+    let own_large_open =
+        ctx.q_own_large_only && stm_has_dest_take_of_prev_large(state, ctx.last_ab_to);
+    let include_caps = loud_parent
+        || hang_caps
+        || royal_caps
+        || large_mover_open
+        || any_cap_open
+        || own_large_open;
+    if !include_caps && loud_promos.is_empty() {
         return evaluate_with_ply(state, weights, ctx.ply);
     }
     let q = leaf_quiescence_depth(ctx, is_pv);
@@ -3018,7 +3208,7 @@ fn leaf_or_quiesce(
             beta,
             prev_to,
             !ctx.q_no_pathclear && !after_wipe,
-            loud_parent || hang_caps || royal_caps,
+            include_caps,
             ctx,
         )
     }
@@ -3067,7 +3257,13 @@ fn quiesce(
     // Unique-q tracking is diagnostic-only unless `track_q_unique`.
     if ctx.track_q_unique || cfg!(debug_assertions) {
         if !ctx.q_unique_saturated {
-            if ctx.q_unique.len() < if ctx.track_q_unique { 1 << 20 } else { Q_UNIQUE_CAP } {
+            if ctx.q_unique.len()
+                < if ctx.track_q_unique {
+                    1 << 20
+                } else {
+                    Q_UNIQUE_CAP
+                }
+            {
                 ctx.q_unique.insert(key);
             } else {
                 ctx.q_unique_saturated = true;
@@ -3127,10 +3323,12 @@ fn quiesce(
     let deep_ply = qdepth < ctx.quiesce_entry_depth;
     // Deep PathAware plies only need recaptures onto prev_to — skip full-board gen.
     // Child plies always allow captures; promo-only is entry-only.
-    let victim_only = path_aware && deep_ply && prev_to.is_some();
+    // S1 recapture-only also generates dest hits on prev_to from the first ply.
+    let victim_only = (path_aware && deep_ply && prev_to.is_some())
+        || (ctx.q_recapture_only && prev_to.is_some());
     let gen_captures = include_captures || deep_ply;
-    let loud_st = ctx.q_loud_promo_simple_only
-        || (ctx.q_no_pathclear_after_wipe && ctx.last_ab_wipe);
+    let loud_st =
+        ctx.q_loud_promo_simple_only || (ctx.q_no_pathclear_after_wipe && ctx.last_ab_wipe);
     let raw_moves = generate_quiescence_captures_with_hang(
         state,
         weights,
@@ -3210,13 +3408,25 @@ fn quiesce(
             }
         }
     }
+    // S1: dest recapture onto prev_to only (plus royals / loud promos).
+    if ctx.q_recapture_only && prev_to.is_some() {
+        cands.retain(|c| c.is_dest_recapture || c.is_loud_promo || c.is_royal_take);
+        if cands.is_empty() {
+            return stand_pat;
+        }
+    }
+    // S2: only dest takes of large enemies (plus royals / loud promos).
+    if ctx.q_own_large_only {
+        cands.retain(|c| c.is_loud_promo || c.is_royal_take || dest_victim_is_big(state, &c.mv));
+        if cands.is_empty() {
+            return stand_pat;
+        }
+    }
 
     // PathAware deep taper: loud victims, or recapture onto the previous landing.
     if path_aware && deep_ply {
         let floor = min_quiescence_deep_enemy();
-        cands.retain(|c| {
-            c.enemy >= floor || c.is_recapture || c.is_loud_promo || c.is_royal_take
-        });
+        cands.retain(|c| c.enemy >= floor || c.is_recapture || c.is_loud_promo || c.is_royal_take);
         if cands.is_empty() {
             return stand_pat;
         }
@@ -3291,9 +3501,7 @@ fn quiesce(
         }
     }
 
-    ctx.q_caps_generated = ctx
-        .q_caps_generated
-        .saturating_add(cands.len() as u64);
+    ctx.q_caps_generated = ctx.q_caps_generated.saturating_add(cands.len() as u64);
 
     let top_n_cap = if ctx.q_prune_mode.uses_top_n() {
         if path_aware {
@@ -3576,14 +3784,7 @@ fn alphabeta_record(
         );
     }
     if depth == 0 {
-        let score = leaf_or_quiesce(
-            state,
-            weights,
-            i32::MIN + 1,
-            i32::MAX - 1,
-            true,
-            ctx,
-        );
+        let score = leaf_or_quiesce(state, weights, i32::MIN + 1, i32::MAX - 1, true, ctx);
         return (
             score,
             Some(SearchTreeNode {
@@ -3619,12 +3820,14 @@ fn alphabeta_record(
         let is_capture = move_captures_enemy(state, &mv);
         let capture_enemy = move_loudness(state, weights, &mv, is_capture);
         let is_wipe = quiesce_move_looks_path_or_multileg(state, &mv);
+        let mover_large = mover_is_large(state, &mv);
         let Some(undo) = state.make_move_for_search(mv.clone()) else {
             continue;
         };
         ctx.last_ab_capture_enemy = capture_enemy;
         ctx.last_ab_to = Some(mv.to);
         ctx.last_ab_wipe = is_wipe;
+        ctx.last_ab_mover_large = mover_large;
         ctx.ply = parent_ply + 1;
         let score = -alphabeta(state, weights, depth - 1, -beta, -alpha, true, ctx);
         state.unmake_move_for_search(undo);
@@ -3659,9 +3862,11 @@ fn alphabeta_record(
         }
     }
     children.sort_by(|a, b| {
-        b.best
-            .cmp(&a.best)
-            .then(b.score.unwrap_or(i32::MIN).cmp(&a.score.unwrap_or(i32::MIN)))
+        b.best.cmp(&a.best).then(
+            b.score
+                .unwrap_or(i32::MIN)
+                .cmp(&a.score.unwrap_or(i32::MIN)),
+        )
     });
     if children.len() > MAX_TREE_BRANCH {
         children.truncate(MAX_TREE_BRANCH);
@@ -3746,9 +3951,7 @@ impl SearchContext {
         } else {
             String::new()
         };
-        let rms = now
-            .duration_since(self.root_move_started)
-            .as_millis();
+        let rms = now.duration_since(self.root_move_started).as_millis();
         eprintln!(
             "ab search: {:.1}s nodes={} nps={} depth={} q={} phase={} root={} best={} rms={}{}",
             elapsed.as_secs_f64(),
@@ -4030,12 +4233,16 @@ mod tests {
                 collect_trace: true,
                 quiescence_depth: 0,
                 q_prune_mode: QPruneMode::PathAware,
-            ..Default::default()
+                ..Default::default()
             },
         );
         let best = result.best_move.expect("expected a move");
         assert_eq!(best.to, Position::new(10, 11).unwrap());
-        assert!(result.score > 100_000, "mate-ish score, got {}", result.score);
+        assert!(
+            result.score > 100_000,
+            "mate-ish score, got {}",
+            result.score
+        );
         assert!(!result.tree.children.is_empty());
     }
 
@@ -4079,7 +4286,13 @@ mod tests {
         cfg_trace.collect_trace = true;
         let play = search(&state, &weights, &cfg_play);
         let traced = search(&state, &weights, &cfg_trace);
-        assert_eq!(play.best_move.as_ref().map(|m| (m.from, m.to, m.promoted)), traced.best_move.as_ref().map(|m| (m.from, m.to, m.promoted)));
+        assert_eq!(
+            play.best_move.as_ref().map(|m| (m.from, m.to, m.promoted)),
+            traced
+                .best_move
+                .as_ref()
+                .map(|m| (m.from, m.to, m.promoted))
+        );
         assert_eq!(play.score, traced.score);
     }
 
@@ -4155,7 +4368,7 @@ mod tests {
                 collect_trace: false,
                 quiescence_depth: qdepth,
                 q_prune_mode: QPruneMode::PathAware,
-            ..Default::default()
+                ..Default::default()
             },
         );
         let elapsed = t0.elapsed();
@@ -4207,8 +4420,8 @@ mod tests {
                     max_time_ms: None,
                     collect_trace: false,
                     quiescence_depth: 2,
-                q_prune_mode: QPruneMode::PathAware,
-                ..Default::default()
+                    q_prune_mode: QPruneMode::PathAware,
+                    ..Default::default()
                 },
             );
             let elapsed = t0.elapsed();
@@ -4301,11 +4514,20 @@ mod tests {
             &loud_land
         )));
         // Generate-time filter: mop PathClear absent without dest prev_to.
-        let gen_none = generate_quiescence_captures(&state, &weights, None, false, true, true, false);
+        let gen_none =
+            generate_quiescence_captures(&state, &weights, None, false, true, true, false);
         assert!(!gen_none.iter().any(|m| same_root_move(m, &mop)));
         // Loud SimpleTake clears the floor and is kept even without prev_to.
         assert!(gen_none.iter().any(|m| same_root_move(m, &loud_land)));
-        let gen_dest = generate_quiescence_captures(&state, &weights, Some(loud_land.to), false, true, true, false);
+        let gen_dest = generate_quiescence_captures(
+            &state,
+            &weights,
+            Some(loud_land.to),
+            false,
+            true,
+            true,
+            false,
+        );
         assert!(gen_dest.iter().any(|m| same_root_move(m, &loud_land)));
         assert!(!gen_dest.iter().any(|m| same_root_move(m, &mop)));
     }
@@ -4321,15 +4543,13 @@ mod tests {
         state.setup_initial_position();
         // Push several black/white pawns one step each when legal.
         for file in [4u8, 8, 12, 16, 20, 24, 28] {
-            for &(from_rank, to_rank, color) in &[
-                (10u8, 11u8, Color::Black),
-                (25u8, 24u8, Color::White),
-            ] {
+            for &(from_rank, to_rank, color) in
+                &[(10u8, 11u8, Color::Black), (25u8, 24u8, Color::White)]
+            {
                 state.set_current_turn(color);
                 let from = Position::new(file, from_rank).unwrap();
                 let to = Position::new(file, to_rank).unwrap();
-                if state.get_board().get_piece(from).map(|p| p.piece_type)
-                    == Some(PieceType::Pawn)
+                if state.get_board().get_piece(from).map(|p| p.piece_type) == Some(PieceType::Pawn)
                     && state.get_board().get_piece(to).is_none()
                 {
                     let mv = Move::new(from, to);
@@ -4364,7 +4584,7 @@ mod tests {
                     collect_trace: false,
                     quiescence_depth: 2,
                     q_prune_mode: QPruneMode::PathAware,
-                ..Default::default()
+                    ..Default::default()
                 },
             );
             let q2_ms = t0.elapsed().as_millis();
@@ -4379,7 +4599,7 @@ mod tests {
                     collect_trace: false,
                     quiescence_depth: 4,
                     q_prune_mode: QPruneMode::PathAware,
-                ..Default::default()
+                    ..Default::default()
                 },
             );
             let q4_ms = t1.elapsed().as_millis();
@@ -4428,7 +4648,7 @@ mod tests {
                         collect_trace: false,
                         quiescence_depth: q,
                         q_prune_mode: QPruneMode::PathAware,
-                    ..Default::default()
+                        ..Default::default()
                     },
                 );
                 let ms = t0.elapsed().as_millis();
@@ -4473,8 +4693,8 @@ mod tests {
                     max_time_ms: Some(8_000),
                     collect_trace: false,
                     quiescence_depth: 2,
-                q_prune_mode: QPruneMode::PathAware,
-                ..Default::default()
+                    q_prune_mode: QPruneMode::PathAware,
+                    ..Default::default()
                 },
             );
             assert!(result.best_move.is_some());
@@ -4555,7 +4775,8 @@ mod tests {
         let all = state.generate_legal_moves();
 
         assert!(
-            caps.iter().any(|m| m.is_two_step() && move_captures_enemy(&state, m)),
+            caps.iter()
+                .any(|m| m.is_two_step() && move_captures_enemy(&state, m)),
             "CapturesOnly should include a capturing two-step"
         );
         assert!(
@@ -4573,9 +4794,7 @@ mod tests {
             "QuietMultiLegOnly should only be multi-leg"
         );
         assert!(
-            quiet_ml
-                .iter()
-                .all(|m| !move_captures_enemy(&state, m)),
+            quiet_ml.iter().all(|m| !move_captures_enemy(&state, m)),
             "QuietMultiLegOnly must omit captures"
         );
         assert!(
@@ -4601,7 +4820,7 @@ mod tests {
                 collect_trace: false,
                 quiescence_depth: 0,
                 q_prune_mode: QPruneMode::PathAware,
-            ..Default::default()
+                ..Default::default()
             },
         );
         assert!(result.best_move.is_some());
@@ -4623,7 +4842,7 @@ mod tests {
                 collect_trace: false,
                 quiescence_depth: 0,
                 q_prune_mode: QPruneMode::PathAware,
-            ..Default::default()
+                ..Default::default()
             },
         );
         assert!(result.best_move.is_some());
@@ -4687,7 +4906,8 @@ mod tests {
         assert!(!is_quiescence_capture_candidate(
             &state, &weights, &mv, None
         ));
-        let gen = generate_quiescence_captures(&state, &weights, Some(landing), false, true, true, false);
+        let gen =
+            generate_quiescence_captures(&state, &weights, Some(landing), false, true, true, false);
         assert!(gen.iter().any(|m| same_root_move(m, &mv)));
     }
 
@@ -4763,10 +4983,7 @@ mod tests {
             Position::new(10, 10).unwrap(),
             Position::new(10, 11).unwrap(),
         );
-        let quiet = Move::new(
-            Position::new(5, 10).unwrap(),
-            Position::new(5, 11).unwrap(),
-        );
+        let quiet = Move::new(Position::new(5, 10).unwrap(), Position::new(5, 11).unwrap());
         assert!(move_captures_enemy(&state, &capture));
         assert!(!move_captures_enemy(&state, &quiet));
         // Pre–PR17 root LMR: late quiets reducible; any capture is not.
@@ -4801,7 +5018,7 @@ mod tests {
                 collect_trace: true,
                 quiescence_depth: 0,
                 q_prune_mode: QPruneMode::PathAware,
-            ..Default::default()
+                ..Default::default()
             },
         );
         // Depth 1 finishes the full searchable root (hanging high-value captures skipped).
@@ -5033,15 +5250,12 @@ mod tests {
     fn q_tries_dest_recapture_of_major_before_stand_pat_cutoff() {
         let (state, weights, take) = hung_gg_by_gold();
         let stand = evaluate_with_ply(&state, &weights, 0);
-        let (score, q_nodes) = probe_quiesce_window(
-            &state,
-            &weights,
-            2,
-            stand - 50,
-            stand - 1,
-            Some(take.to),
+        let (score, q_nodes) =
+            probe_quiesce_window(&state, &weights, 2, stand - 50, stand - 1, Some(take.to));
+        assert!(
+            q_nodes > 1,
+            "must expand dest recapture, not cut at stand-pat"
         );
-        assert!(q_nodes > 1, "must expand dest recapture, not cut at stand-pat");
         assert!(
             score > stand,
             "taking hung GG must beat stand-pat even when stand-pat >= β: stand={stand} q={score}"
@@ -5248,14 +5462,7 @@ mod tests {
         );
         assert!(stm_has_large_hang_take(&state, &weights, a));
         let gen = generate_quiescence_captures_with_hang(
-            &state,
-            &weights,
-            None,
-            false,
-            true,
-            true,
-            false,
-            a,
+            &state, &weights, None, false, true, true, false, a,
         );
         assert!(
             gen.iter()
@@ -5270,7 +5477,10 @@ mod tests {
         let (score, q_nodes) = probe_quiet_parent_leaf_or_quiesce_hang(&state, &weights, 2, a);
         let stand = evaluate_with_ply(&state, &weights, 0);
         assert!(q_nodes > 0, "A must open q");
-        assert!(score > stand, "taking Hook in q should beat stand-pat: stand={stand} q={score}");
+        assert!(
+            score > stand,
+            "taking Hook in q should beat stand-pat: stand={stand} q={score}"
+        );
     }
 
     #[test]
@@ -5304,6 +5514,63 @@ mod tests {
     }
 
     #[test]
+    fn large_mover_subloud_capture_opens_q_only_with_r() {
+        let (mut state, weights) = hang_q_kings();
+        let hook_sq = Position::new(18, 18).unwrap();
+        state.place_piece(Piece::new(PieceType::HookMover, Color::White, hook_sq));
+        state.set_current_turn(Color::Black);
+        let gold = weights.piece_value(PieceType::GoldGeneral);
+        assert!(gold > 0.0 && gold < min_quiescence_enemy_material());
+        assert!(!stm_has_large_hang_take(&state, &weights, QHangOpts::OFF));
+        assert!(!stm_has_royal_capture(&state));
+
+        let (_, q0) = probe_capture_parent_leaf_or_quiesce_rs(
+            &state,
+            &weights,
+            2,
+            gold,
+            Some(hook_sq),
+            true,
+            false,
+            false,
+            false,
+            false,
+        );
+        assert_eq!(q0, 0, "sub-loud capture must not open q without R");
+
+        let (_, q_r) = probe_capture_parent_leaf_or_quiesce_rs(
+            &state,
+            &weights,
+            2,
+            gold,
+            Some(hook_sq),
+            true,
+            true,
+            false,
+            false,
+            false,
+        );
+        assert!(
+            q_r > 0,
+            "R must open q after a large-mover sub-loud capture"
+        );
+
+        let (_, q_s1) = probe_capture_parent_leaf_or_quiesce_rs(
+            &state,
+            &weights,
+            2,
+            gold,
+            Some(hook_sq),
+            false,
+            false,
+            true,
+            true,
+            false,
+        );
+        assert!(q_s1 > 0, "S1 must open q after any capture");
+    }
+
+    #[test]
     fn dest_pathclear_hang_opens_q_when_b_set() {
         let (state, weights, mv) = gg_pathclear_dest_hangs_hook();
         let b = QHangOpts {
@@ -5332,20 +5599,11 @@ mod tests {
             QHangOpts::OFF,
         );
         assert!(
-            !gen_off
-                .iter()
-                .any(|m| m.from == mv.from && m.to == mv.to),
+            !gen_off.iter().any(|m| m.from == mv.from && m.to == mv.to),
             "flags-off q gen must drop PathClear dest-hang"
         );
         let gen = generate_quiescence_captures_with_hang(
-            &state,
-            &weights,
-            None,
-            false,
-            true,
-            true,
-            false,
-            b,
+            &state, &weights, None, false, true, true, false, b,
         );
         assert!(
             gen.iter().any(|m| m.from == mv.from && m.to == mv.to),
@@ -5354,7 +5612,10 @@ mod tests {
         let (score, q_nodes) = probe_quiet_parent_leaf_or_quiesce_hang(&state, &weights, 2, b);
         let stand = evaluate_with_ply(&state, &weights, 0);
         assert!(q_nodes > 0, "B must open q");
-        assert!(score > stand, "taking Hook in q should beat stand-pat: stand={stand} q={score}");
+        assert!(
+            score > stand,
+            "taking Hook in q should beat stand-pat: stand={stand} q={score}"
+        );
     }
 
     #[test]
@@ -5366,14 +5627,7 @@ mod tests {
         };
         assert!(dest_hang_kind(&state, &weights, &mv, b).is_none());
         let gen = generate_quiescence_captures_with_hang(
-            &state,
-            &weights,
-            None,
-            false,
-            true,
-            true,
-            false,
-            b,
+            &state, &weights, None, false, true, true, false, b,
         );
         assert!(
             !gen.iter().any(|m| m.from == mv.from && m.to == mv.to),
@@ -5399,8 +5653,7 @@ mod tests {
         let gen_pathish_non_promo = gen
             .iter()
             .filter(|m| {
-                quiesce_move_looks_path_or_multileg(&state, m)
-                    && !is_loud_promotion_move(&state, m)
+                quiesce_move_looks_path_or_multileg(&state, m) && !is_loud_promotion_move(&state, m)
             })
             .count();
         eprintln!(
@@ -5410,7 +5663,10 @@ mod tests {
         // Without a contested square, PathClear/MultiLeg must not enter q gen
         // (loud promotions into big pieces are the intentional exception).
         assert_eq!(gen_pathish_non_promo, 0);
-        assert!(pathish > 0, "opening should have path-clear captures to filter");
+        assert!(
+            pathish > 0,
+            "opening should have path-clear captures to filter"
+        );
     }
 
     #[test]
@@ -5423,7 +5679,8 @@ mod tests {
             .iter()
             .filter(|m| move_captures_enemy(&state, m))
             .count();
-        let worth = generate_quiescence_captures(&state, &weights, None, false, true, true, false).len();
+        let worth =
+            generate_quiescence_captures(&state, &weights, None, false, true, true, false).len();
         let caps_only = state
             .generate_legal_moves_mode(LegalMoveGen::CapturesOnly)
             .len();
@@ -5522,13 +5779,7 @@ mod tests {
         let _undo = state.make_move_for_search(hang).expect("hang take");
         // White to move: hung gold is a loud capture (≥ floor).
         let stand = evaluate_with_ply(&state, &weights, 0);
-        let with_q = probe_quiescence(
-            &state,
-            &weights,
-            4,
-            QPruneMode::PathAware,
-            None,
-        );
+        let with_q = probe_quiescence(&state, &weights, 4, QPruneMode::PathAware, None);
         assert!(
             with_q.score > stand + 500,
             "q should take the hung gold: stand={stand} with_q={} q_caps={}",
@@ -5610,7 +5861,7 @@ mod tests {
                 collect_trace: false,
                 quiescence_depth: 0,
                 q_prune_mode: QPruneMode::PathAware,
-            ..Default::default()
+                ..Default::default()
             },
         );
         assert_ne!(
@@ -5672,10 +5923,7 @@ mod tests {
             capture_takes_last_enemy_royal(&state, &take),
             "Black has only CP — this is an instant win"
         );
-        let gold_only = Move::new(
-            Position::new(4, 0).unwrap(),
-            Position::new(16, 0).unwrap(),
-        );
+        let gold_only = Move::new(Position::new(4, 0).unwrap(), Position::new(16, 0).unwrap());
         assert!(!capture_takes_last_enemy_royal(&state, &gold_only));
         assert!(
             move_order_score_fresh(&state, &weights, &take)
@@ -5755,7 +6003,9 @@ mod tests {
         let (mut state, _weights, take) = hook_two_step_mates_king();
         assert!(take.is_two_step());
         assert!(capture_takes_last_enemy_royal(&state, &take));
-        let undo = state.make_move_for_search(take).expect("two-step must apply in one make");
+        let undo = state
+            .make_move_for_search(take)
+            .expect("two-step must apply in one make");
         assert_eq!(state.get_winner(), Some(Color::Black));
         assert!(state.has_lost(Color::White));
         state.unmake_move_for_search(undo);
@@ -5768,19 +6018,11 @@ mod tests {
         assert!(stm_has_royal_capture(&state));
         // Quiet parent landed somewhere else (slot0240 Peacock 21,32).
         let prev = Position::new(21, 32).unwrap();
-        let gen = generate_quiescence_captures(
-            &state,
-            &weights,
-            Some(prev),
-            false,
-            true,
-            true,
-            false,
-        );
+        let gen =
+            generate_quiescence_captures(&state, &weights, Some(prev), false, true, true, false);
         assert!(
-            gen.iter().any(|m| {
-                m.from == take.from && m.to == take.to && m.is_two_step()
-            }),
+            gen.iter()
+                .any(|m| { m.from == take.from && m.to == take.to && m.is_two_step() }),
             "q must inject Hook×King two-step even when prev_to is not the king: {gen:?}"
         );
     }
@@ -5790,7 +6032,10 @@ mod tests {
         let (state, weights, _take) = hook_two_step_mates_king();
         let stand = evaluate_with_ply(&state, &weights, 0);
         let (score, q_nodes) = probe_quiet_parent_leaf_or_quiesce(&state, &weights, 2);
-        assert!(q_nodes > 0, "quiet parent must open q when a royal take exists");
+        assert!(
+            q_nodes > 0,
+            "quiet parent must open q when a royal take exists"
+        );
         assert!(
             score >= 900_000,
             "Hook two-step onto king is one q ply and mate, stand={stand} q={score}"
@@ -5857,11 +6102,17 @@ mod tests {
             Position::new(17, 34).unwrap(),
         );
         assert!(
-            state.generate_legal_moves().iter().any(|m| same_root_move(m, &hang)),
+            state
+                .generate_legal_moves()
+                .iter()
+                .any(|m| same_root_move(m, &hang)),
             "Silver step must be legal"
         );
         assert!(
-            state.generate_legal_moves().iter().any(|m| same_root_move(m, &save)),
+            state
+                .generate_legal_moves()
+                .iter()
+                .any(|m| same_root_move(m, &save)),
             "Gold interpose on file 17 must be legal"
         );
         {
@@ -5998,7 +6249,7 @@ mod tests {
                 collect_trace: false,
                 quiescence_depth: 0,
                 q_prune_mode: QPruneMode::PathAware,
-            ..Default::default()
+                ..Default::default()
             },
         );
         let best = result.best_move.expect("GG should have a move");
@@ -6061,7 +6312,7 @@ mod tests {
                 collect_trace: false,
                 quiescence_depth: 0,
                 q_prune_mode: QPruneMode::PathAware,
-            ..Default::default()
+                ..Default::default()
             },
         );
         assert_eq!(
@@ -6079,7 +6330,7 @@ mod tests {
                 collect_trace: false,
                 quiescence_depth: 2,
                 q_prune_mode: QPruneMode::PathAware,
-            ..Default::default()
+                ..Default::default()
             },
         );
         assert!(
@@ -6122,7 +6373,7 @@ mod tests {
                 collect_trace: false,
                 quiescence_depth: 4,
                 q_prune_mode: QPruneMode::PathAware,
-            ..Default::default()
+                ..Default::default()
             },
         );
         assert_eq!(
@@ -6181,7 +6432,7 @@ mod tests {
                 collect_trace: false,
                 quiescence_depth: 4,
                 q_prune_mode: QPruneMode::PathAware,
-            ..Default::default()
+                ..Default::default()
             },
         );
         assert_eq!(
@@ -6396,7 +6647,7 @@ mod tests {
                     collect_trace: false,
                     quiescence_depth: 6,
                     q_prune_mode: *mode,
-                ..Default::default()
+                    ..Default::default()
                 },
             );
             let ms = t0.elapsed().as_millis();
@@ -6445,7 +6696,7 @@ mod tests {
                 collect_trace: false,
                 quiescence_depth: 0,
                 q_prune_mode: QPruneMode::Baseline,
-            ..Default::default()
+                ..Default::default()
             },
         );
         let best = result.best_move.expect("move");
@@ -6519,5 +6770,3 @@ mod tests {
         assert!(result.score > 0, "resetting capture must beat the draw");
     }
 }
-
-
