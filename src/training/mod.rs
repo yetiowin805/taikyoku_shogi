@@ -15,6 +15,7 @@ pub mod mobility_seed;
 pub mod paths;
 pub mod pool;
 pub mod pst_grid;
+pub mod q_rs_grid;
 pub mod record;
 pub mod run_status;
 pub mod scale_sample;

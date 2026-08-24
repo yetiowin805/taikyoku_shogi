@@ -231,6 +231,12 @@ fn main() {
                     print_usage();
                 }
             }
+            "q-rs-grid" => {
+                if let Err(e) = taikyoku_shogi::training::cli::cmd_q_rs_grid(&args) {
+                    eprintln!("{}", e);
+                    print_usage();
+                }
+            }
             "texel-fit" => {
                 if let Err(e) = taikyoku_shogi::training::cli::cmd_texel_fit(&args) {
                     eprintln!("{}", e);

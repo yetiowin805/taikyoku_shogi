@@ -13,6 +13,7 @@ use crate::training::pool::{
     generate_pool, load_starts_dir, parse_starts_spec, PoolGenerateConfig,
 };
 use crate::training::pst_grid::{run_pst_grid, PstGridConfig};
+use crate::training::q_rs_grid::{run_q_rs_grid, QRsGridConfig};
 use crate::training::record::{AgentSpec, GameStart};
 use crate::training::run_status::{disk_free_gb, utc_now_iso, RunStatus, WorkerDaemonConfig};
 use crate::training::scale_sample::{run_scale_sample, ScaleSampleConfig};
@@ -100,6 +101,10 @@ pub fn print_training_usage() {
     );
     println!("  top11-c2-grid [--seed PATH] [--out DIR]");
     println!("            (mix top 11 + leftover history + C2 twins of all weight chassis)");
+    println!("  q-rs-grid [--seed PATH] [--out DIR]");
+    println!(
+        "            (7 chassis × current/R/S1/S2 + 5 history baselines; R/S1/S2 independent)"
+    );
     println!("  texel-fit [--features DIR] [--out PATH] [--iters N] [--lr F] [--k F]");
     println!("            [--init seed|mobility|PATH] [--late-frac F] [--keep-draws]");
     println!("            [--no-log-space] [--no-lr-scale-k] [--no-renorm-pawn]");
@@ -1172,6 +1177,29 @@ pub fn cmd_top11_c2_grid(args: &[String]) -> Result<(), String> {
     let (man, _grid) = run_top11_c2_grid(&cfg)?;
     println!(
         "Wrote {} entrants under {} (11 top + 14 C2 twins + leftover history)",
+        man.entrants.len(),
+        cfg.out_dir.display()
+    );
+    Ok(())
+}
+
+pub fn cmd_q_rs_grid(args: &[String]) -> Result<(), String> {
+    let mut cfg = QRsGridConfig::default();
+    let mut i = 2;
+    while i < args.len() {
+        if let Some(v) = take_flag_value(args, &mut i, "--seed")? {
+            cfg.seed_model = PathBuf::from(v);
+            continue;
+        }
+        if let Some(v) = take_flag_value(args, &mut i, "--out")? {
+            cfg.out_dir = PathBuf::from(v);
+            continue;
+        }
+        return Err(format!("Unknown flag {}", args[i]));
+    }
+    let (man, _grid) = run_q_rs_grid(&cfg)?;
+    println!(
+        "Wrote {} entrants under {} (7 chassis × current/R/S1/S2 + 5 baselines)",
         man.entrants.len(),
         cfg.out_dir.display()
     );

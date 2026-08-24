@@ -51,8 +51,7 @@ impl AlphaBetaPlayer {
 
     /// Build from explicit options (GUI/API), falling back to env then checkpoint defaults.
     pub fn from_options(opts: &AgentOptions) -> Self {
-        let using_default_model = opts.model.is_none()
-            && env::var("TAIKYOKU_AB_MODEL").is_err();
+        let using_default_model = opts.model.is_none() && env::var("TAIKYOKU_AB_MODEL").is_err();
         let weights = if using_default_model {
             cached_seed_weights().clone()
         } else {
@@ -87,6 +86,10 @@ impl AlphaBetaPlayer {
             q_loud_promo_simple_only: checkpoint_defaults.q_loud_promo_simple_only,
             hang_q_dest_multileg: checkpoint_defaults.hang_q_dest_multileg,
             hang_q_dest_pathclear: checkpoint_defaults.hang_q_dest_pathclear,
+            q_open_large_mover: checkpoint_defaults.q_open_large_mover,
+            q_open_any_capture: checkpoint_defaults.q_open_any_capture,
+            q_recapture_only: checkpoint_defaults.q_recapture_only,
+            q_own_large_only: checkpoint_defaults.q_own_large_only,
             ..Default::default()
         };
         if let Ok(d) = env::var("TAIKYOKU_AB_DEPTH") {
@@ -129,6 +132,10 @@ impl AlphaBetaPlayer {
             q_loud_promo_simple_only: checkpoint.search_defaults.q_loud_promo_simple_only,
             hang_q_dest_multileg: checkpoint.search_defaults.hang_q_dest_multileg,
             hang_q_dest_pathclear: checkpoint.search_defaults.hang_q_dest_pathclear,
+            q_open_large_mover: checkpoint.search_defaults.q_open_large_mover,
+            q_open_any_capture: checkpoint.search_defaults.q_open_any_capture,
+            q_recapture_only: checkpoint.search_defaults.q_recapture_only,
+            q_own_large_only: checkpoint.search_defaults.q_own_large_only,
             ..Default::default()
         };
         if let Ok(d) = env::var("TAIKYOKU_AB_DEPTH") {
