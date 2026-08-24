@@ -958,6 +958,9 @@ pub fn is_worthwhile_quiescence_capture(
     if !move_captures_enemy_raw(state, mv) {
         return false;
     }
+    if capture_takes_enemy_royal(state, mv) {
+        return true;
+    }
     let (enemy, _own) = capture_material_exchange(state, weights, mv);
     enemy >= min_quiescence_enemy_material()
 }
@@ -1341,19 +1344,65 @@ fn generate_hang_dest_takes(
     out
 }
 
+/// Dest (or two-step / path) captures of an enemy King or Crown Prince.
+///
+/// Royals are cheap in material (King 100, CP 8) so they fail the loud floor and
+/// `is_big_piece`. A two-step Hook take of the king is still **one move / one q
+/// ply** — both legs apply in `make_move_for_search`.
+fn generate_royal_captures(state: &GameState) -> Vec<Move> {
+    let them = state.get_current_turn().opposite();
+    let mut out = Vec::new();
+    let mut seen: HashSet<(u16, u16, bool)> = HashSet::new();
+    for enemy in state.get_board().iter_pieces_by_color(them) {
+        if !enemy.piece_type.is_royal() {
+            continue;
+        }
+        for mv in generate_captures_hitting_square(state, enemy.position) {
+            if !capture_takes_enemy_royal(state, &mv) {
+                continue;
+            }
+            let key = (
+                mv.from.to_index() as u16,
+                mv.to.to_index() as u16,
+                mv.promoted,
+            );
+            if seen.insert(key) {
+                out.push(mv);
+            }
+        }
+    }
+    out
+}
+
+fn stm_has_royal_capture(state: &GameState) -> bool {
+    let them = state.get_current_turn().opposite();
+    for enemy in state.get_board().iter_pieces_by_color(them) {
+        if !enemy.piece_type.is_royal() {
+            continue;
+        }
+        for mv in generate_captures_hitting_square(state, enemy.position) {
+            if capture_takes_enemy_royal(state, &mv) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
 /// Captures worth expanding in quiescence, plus promotions into big pieces.
 ///
 /// Contract: q finishes the contested square (loud SimpleTakes + recaptures),
 /// and also expands FreeKing→GG-style promotions that swing material massively.
 /// Capturing-range corridor wipes / multi-leg snipes belong to main search unless
-/// they are a destination recapture onto `prev_to`.
+/// they are a destination recapture onto `prev_to`, a dest-hang of a range
+/// two-mover, or they capture a royal (King/CP; two-step dest is one q ply).
 ///
 /// - Deep PathAware (`victim_square_only`): only captures hitting `prev_to`, plus
 ///   loud promotions.
 /// - Entry with `prev_to`: dest hits on `prev_to` plus loud SimpleTakes (no full-board
 ///   CapturesOnly), plus loud promotions.
 /// - Entry without `prev_to`: full CapturesOnly fallback + loud promotions.
-/// - `captures`: when false, only loud promotions (leaf entry after quiet AB).
+/// - `captures`: when false, loud promotions **and** royal takes (leaf after quiet AB).
 fn generate_quiescence_captures(
     state: &GameState,
     weights: &EvalWeights,
@@ -1447,11 +1496,41 @@ fn generate_quiescence_captures_with_hang(
             }
         }
     }
+    // Royal takes (King/CP), including two-step dest, even when prev_to is a
+    // different square (slot0240: quiet Peacock, Hook mates on 18,35).
+    {
+        let extra = generate_royal_captures(state);
+        if !extra.is_empty() {
+            let mut seen: HashSet<(u16, u16, bool)> = raw
+                .iter()
+                .map(|mv| {
+                    (
+                        mv.from.to_index() as u16,
+                        mv.to.to_index() as u16,
+                        mv.promoted,
+                    )
+                })
+                .collect();
+            for mv in extra {
+                let key = (
+                    mv.from.to_index() as u16,
+                    mv.to.to_index() as u16,
+                    mv.promoted,
+                );
+                if seen.insert(key) {
+                    raw.push(mv);
+                }
+            }
+        }
+    }
     if !captures {
         return raw;
     }
     raw.into_iter()
         .filter(|mv| {
+            if capture_takes_enemy_royal(state, mv) {
+                return true;
+            }
             if dest_hang_kind(state, weights, mv, hang)
                 .is_some_and(|k| !matches!(k, CaptureKind::SimpleTake))
             {
@@ -2908,13 +2987,14 @@ fn leaf_or_quiesce(
     is_pv: bool,
     ctx: &mut SearchContext,
 ) -> i32 {
-    // Q after loud AB captures/promos, loud promos, or a free take of a hanging
-    // large enemy (lesser-valued SimpleTake) even when the parent AB move was quiet.
+    // Q after loud AB captures/promos, loud promos, a free take of a hanging
+    // large enemy, or any King/CP capture (two-step dest included — one ply).
     let loud_parent = ctx.last_ab_capture_enemy >= min_quiescence_enemy_material();
     let loud_promos = generate_loud_promotions(state);
     let hang_opts = QHangOpts::from_ctx(ctx);
     let hang_caps = !loud_parent && stm_has_large_hang_take(state, weights, hang_opts);
-    if !loud_parent && loud_promos.is_empty() && !hang_caps {
+    let royal_caps = !loud_parent && stm_has_royal_capture(state);
+    if !loud_parent && loud_promos.is_empty() && !hang_caps && !royal_caps {
         return evaluate_with_ply(state, weights, ctx.ply);
     }
     let q = leaf_quiescence_depth(ctx, is_pv);
@@ -2938,7 +3018,7 @@ fn leaf_or_quiesce(
             beta,
             prev_to,
             !ctx.q_no_pathclear && !after_wipe,
-            loud_parent || hang_caps,
+            loud_parent || hang_caps || royal_caps,
             ctx,
         )
     }
@@ -3026,7 +3106,8 @@ fn quiesce(
         return stand_pat;
     }
     let resolve_major = prev_to_is_major_enemy(state, weights, prev_to);
-    if stand_pat >= beta && !resolve_major {
+    let has_royal_take = stm_has_royal_capture(state);
+    if stand_pat >= beta && !resolve_major && !has_royal_take {
         ctx.q_tt.store(TtEntry {
             key,
             depth: qdepth,
@@ -3077,6 +3158,8 @@ fn quiesce(
         tactical_gain: f32,
         /// Idea A/B dest-hang (keep even when not a dest recapture).
         is_hang_dest: bool,
+        /// King / CP capture (two-step dest is one ply). Always keep.
+        is_royal_take: bool,
     }
 
     let mut cands: Vec<QCand> = raw_moves
@@ -3101,6 +3184,7 @@ fn quiesce(
             };
             let is_hang_dest = dest_hang_kind(state, weights, &mv, QHangOpts::from_ctx(ctx))
                 .is_some_and(|k| !matches!(k, CaptureKind::SimpleTake));
+            let is_royal_take = capture_takes_enemy_royal(state, &mv);
             Some(QCand {
                 mv,
                 enemy,
@@ -3112,6 +3196,7 @@ fn quiesce(
                 is_loud_promo,
                 tactical_gain: enemy + promo_gain,
                 is_hang_dest,
+                is_royal_take,
             })
         })
         .collect();
@@ -3119,7 +3204,7 @@ fn quiesce(
     // Recapture-only after the first q-ply.
     if ctx.q_prune_mode.uses_recapture_only() {
         if prev_to.is_some() {
-            cands.retain(|c| c.is_recapture || c.is_loud_promo);
+            cands.retain(|c| c.is_recapture || c.is_loud_promo || c.is_royal_take);
             if cands.is_empty() {
                 return stand_pat;
             }
@@ -3129,7 +3214,9 @@ fn quiesce(
     // PathAware deep taper: loud victims, or recapture onto the previous landing.
     if path_aware && deep_ply {
         let floor = min_quiescence_deep_enemy();
-        cands.retain(|c| c.enemy >= floor || c.is_recapture || c.is_loud_promo);
+        cands.retain(|c| {
+            c.enemy >= floor || c.is_recapture || c.is_loud_promo || c.is_royal_take
+        });
         if cands.is_empty() {
             return stand_pat;
         }
@@ -3169,7 +3256,9 @@ fn quiesce(
             }
         })
         .fold(0.0f32, f32::max);
-    if stand_pat.saturating_add(best_gain.round() as i32) <= alpha {
+    if !cands.iter().any(|c| c.is_royal_take)
+        && stand_pat.saturating_add(best_gain.round() as i32) <= alpha
+    {
         return stand_pat;
     }
 
@@ -3229,7 +3318,7 @@ fn quiesce(
         let mut path_kept = 0usize;
         let mut non_promo = 0usize;
         for c in cands.drain(..) {
-            if c.is_loud_promo || (resolve_major && c.is_dest_recapture) {
+            if c.is_loud_promo || c.is_royal_take || (resolve_major && c.is_dest_recapture) {
                 kept.push(c);
                 continue;
             }
@@ -3301,6 +3390,7 @@ fn quiesce(
             c.enemy
         };
         if !c.is_loud_promo
+            && !c.is_royal_take
             && !(resolve_major && c.is_dest_recapture)
             && (stand_pat as f32 + gain) <= alpha as f32
         {
@@ -5627,6 +5717,202 @@ mod tests {
             result.root_moves_scored, 1,
             "root must stop after the instant win, scored {}",
             result.root_moves_scored
+        );
+    }
+
+    /// Slot 0240 end: Hook on file 17 two-steps through empty 17,35 onto King 18,35.
+    fn hook_two_step_mates_king() -> (GameState, EvalWeights, Move) {
+        let mut weights = EvalWeights::seed();
+        weights.noise_scale = 0.0;
+        weights.rebuild_piece_value_table();
+        let mut state = GameState::new();
+        state.place_piece(Piece::new(
+            PieceType::King,
+            Color::White,
+            Position::new(18, 35).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::King,
+            Color::Black,
+            Position::new(17, 0).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::HookMover,
+            Color::Black,
+            Position::new(17, 11).unwrap(),
+        ));
+        state.set_current_turn(Color::Black);
+        let mv = Move::new_two_step(
+            Position::new(17, 11).unwrap(),
+            Position::new(17, 35).unwrap(),
+            Position::new(18, 35).unwrap(),
+        );
+        (state, weights, mv)
+    }
+
+    #[test]
+    fn two_step_royal_take_is_one_search_ply() {
+        let (mut state, _weights, take) = hook_two_step_mates_king();
+        assert!(take.is_two_step());
+        assert!(capture_takes_last_enemy_royal(&state, &take));
+        let undo = state.make_move_for_search(take).expect("two-step must apply in one make");
+        assert_eq!(state.get_winner(), Some(Color::Black));
+        assert!(state.has_lost(Color::White));
+        state.unmake_move_for_search(undo);
+        assert!(state.get_winner().is_none());
+    }
+
+    #[test]
+    fn q_includes_hook_two_step_king_take_off_prev_to() {
+        let (state, weights, take) = hook_two_step_mates_king();
+        assert!(stm_has_royal_capture(&state));
+        // Quiet parent landed somewhere else (slot0240 Peacock 21,32).
+        let prev = Position::new(21, 32).unwrap();
+        let gen = generate_quiescence_captures(
+            &state,
+            &weights,
+            Some(prev),
+            false,
+            true,
+            true,
+            false,
+        );
+        assert!(
+            gen.iter().any(|m| {
+                m.from == take.from && m.to == take.to && m.is_two_step()
+            }),
+            "q must inject Hook×King two-step even when prev_to is not the king: {gen:?}"
+        );
+    }
+
+    #[test]
+    fn quiet_parent_q_sees_two_step_king_mate() {
+        let (state, weights, _take) = hook_two_step_mates_king();
+        let stand = evaluate_with_ply(&state, &weights, 0);
+        let (score, q_nodes) = probe_quiet_parent_leaf_or_quiesce(&state, &weights, 2);
+        assert!(q_nodes > 0, "quiet parent must open q when a royal take exists");
+        assert!(
+            score >= 900_000,
+            "Hook two-step onto king is one q ply and mate, stand={stand} q={score}"
+        );
+    }
+
+    #[test]
+    fn depth1_search_plays_two_step_king_mate() {
+        let (state, weights, take) = hook_two_step_mates_king();
+        let result = search(
+            &state,
+            &weights,
+            &SearchConfig {
+                depth: 1,
+                max_time_ms: None,
+                collect_trace: false,
+                quiescence_depth: 2,
+                q_prune_mode: QPruneMode::PathAware,
+                ..Default::default()
+            },
+        );
+        let best = result.best_move.expect("Black must have a move");
+        assert_eq!(
+            (best.from, best.intermediate(), best.to),
+            (take.from, take.intermediate(), take.to),
+            "depth-1 must play the two-step mate as one ply, got {:?}",
+            best
+        );
+        assert!(
+            result.score >= 900_000,
+            "two-step king take must score as mate, got {}",
+            result.score
+        );
+    }
+
+    #[test]
+    fn depth1_q_refuses_quiet_that_allows_hook_king_mate() {
+        let (mut state, weights, _take) = hook_two_step_mates_king();
+        state.place_piece(Piece::new(
+            PieceType::GoldGeneral,
+            Color::White,
+            Position::new(16, 35).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::SilverGeneral,
+            Color::White,
+            Position::new(22, 33).unwrap(),
+        ));
+        // Occupying the other corner (18,11) does not help: the Hook captures
+        // there on the first leg and still takes the King on file 18. Block the
+        // *second* leg instead — 18,20 is not a first-dest from 17,11.
+        state.place_piece(Piece::new(
+            PieceType::Pawn,
+            Color::White,
+            Position::new(18, 20).unwrap(),
+        ));
+        state.set_current_turn(Color::White);
+        let hang = Move::new(
+            Position::new(22, 33).unwrap(),
+            Position::new(21, 32).unwrap(),
+        );
+        let save = Move::new(
+            Position::new(16, 35).unwrap(),
+            Position::new(17, 34).unwrap(),
+        );
+        assert!(
+            state.generate_legal_moves().iter().any(|m| same_root_move(m, &hang)),
+            "Silver step must be legal"
+        );
+        assert!(
+            state.generate_legal_moves().iter().any(|m| same_root_move(m, &save)),
+            "Gold interpose on file 17 must be legal"
+        );
+        {
+            let undo = state.make_move_for_search(save.clone()).expect("save");
+            assert!(
+                !stm_has_royal_capture(&state),
+                "Gold on 17,34 must close both Hook paths to the King"
+            );
+            state.unmake_move_for_search(undo);
+        }
+        {
+            let undo = state.make_move_for_search(hang.clone()).expect("hang");
+            assert!(
+                stm_has_royal_capture(&state),
+                "Silver shuffle must leave Hook×King legal"
+            );
+            state.unmake_move_for_search(undo);
+        }
+
+        let result = search(
+            &state,
+            &weights,
+            &SearchConfig {
+                depth: 1,
+                max_time_ms: None,
+                collect_trace: false,
+                quiescence_depth: 2,
+                q_prune_mode: QPruneMode::PathAware,
+                ..Default::default()
+            },
+        );
+        let hang_sc = result
+            .root_lines
+            .iter()
+            .find(|(m, _)| same_root_move(m, &hang))
+            .map(|(_, s)| *s);
+        assert_eq!(
+            hang_sc,
+            Some(-1_000_000),
+            "quiet that allows Hook×King must be mate after q, got {hang_sc:?}"
+        );
+        let best = result.best_move.expect("White must have a move");
+        assert!(
+            !same_root_move(&best, &hang),
+            "depth-1 must not play the hanging Silver, got {:?}",
+            best
+        );
+        assert!(
+            result.score > -900_000,
+            "chosen move must not be mate, got {}",
+            result.score
         );
     }
 
