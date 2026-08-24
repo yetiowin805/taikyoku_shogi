@@ -22,11 +22,10 @@ Approximate seed material (for swing sizes): Hook ~6237, Capricorn ~2970, Peacoc
 
 ## Suggested order
 
-1. **M** — last-royal captures are mate/loud (slot0151 mate-in-1 ordering). Tiny search change, separate from eval.
-2. **L** — last-royal flight penalty (slot0151 mate while ahead on material). Eval; freeze.
-3. **C / F**, then **E**, then **J** — corridor lasers (slot0260 ply 70, slot0202 ply 65–67 / 72 overshoot). Measure q-nodes before letting dest-empty PathClear back into q.
-4. **D** only if C is too narrow.
-5. **G, H, K, tropism retune** — later / speculative.
+1. **L** — last-royal flight penalty (slot0151 mate while ahead on material). Eval; freeze.
+2. **C / F**, then **E**, then **J** — corridor lasers (slot0260 ply 70, slot0202 ply 65–67 / 72 overshoot). Measure q-nodes before letting dest-empty PathClear back into q.
+3. **D** only if C is too narrow.
+4. **G, H, K, tropism retune** — later / speculative.
 
 ---
 
@@ -37,8 +36,9 @@ After a **quiet** AB parent, `leaf_or_quiesce` stand-pats unless:
 1. the parent was a loud capture, or
 2. there is a loud promotion (`promotes_into_big_piece`: two-mover or capturing-range, e.g. FreeKing→GG — **not** TreacherousFox→MountainCrane), or
 3. `stm_has_large_hang_take` — STM can dest-take a hanging large enemy (`mv.to == victim`). Ordinary SimpleTakes still need a cheaper mover; dest MultiLeg / dest PathClear of a hanging range two-mover (A+B) count for any attacker. Not corridor dest-beyond.
+4. `stm_has_royal_capture` — STM can take a King or Crown Prince (SimpleTake, two-step dest, or PathClear onto/through the royal). Two-step is **one ply**.
 
-PathAware q then expands PathClear/MultiLeg only as a **destination recapture** (`mv.to == prev_to`). Corridor wipes (victim on the path, dest elsewhere) are left to main-search depth.
+PathAware q then expands PathClear/MultiLeg only as a **destination recapture** (`mv.to == prev_to`), plus dest-hang two-movers (A+B) and **royal takes**. Corridor wipes (victim on the path, dest elsewhere) are left to main-search depth.
 
 Code: `leaf_or_quiesce`, `stm_has_large_hang_simple_take`, `is_large_hang_simple_take`, `generate_captures_hitting_square`, `pathclear_allowed_in_pathaware_q` in `src/search.rs`. Victim test: `is_large_hang_victim` (`is_big_piece` or ≥ loud floor). Range two-movers: `is_range_two_mover` (Tengu, Capricorn, Hook Mover, Peacock, …).
 
@@ -196,13 +196,13 @@ If C–F see the FG laser, this position may already flip without K: promo-now h
 
 ---
 
-## M — Last-royal captures are mate / loud
+## M — Last-royal / king captures are mate / loud
 
-**slot0151 last ply.** White Running Chariot `18,31-18,0+` takes Black’s only royal (Crown Prince on `18,0`). Black’s previous search **+759** / static **+758** — mate-in-1 missed.
+**Baked** (q always looks at King/CP captures, including two-step dest as **one ply**). Hang-skip and AB ordering already kept last-royal takes; q after a quiet parent still stand-patted because King=100 / CP=8 miss the loud floor and `is_big_piece`. Slot0240 White Peacock shuffle, Black Hook `17,11-17,35-18,35` mates.
 
-Crown Prince material is **8**, below the q loud floor (~648). Taking the last royal is ordered like a pawn grab (MVV last among captures) and does not open q. White found it with ~58k nodes; Black’s previous move had ~23k.
+Still useful to remember: a *reposition* two-step then a mate two-step is **two** Black turns (needs AB depth). Q only sees the take that is legal now.
 
-**Idea:** a capture of the opponent’s last King/CP is mate (or at least louder than Hook). Force it first in AB/q ordering; never hang-skip it; always loud for q. Independent of L (eval safety). Small, do after A or in parallel.
+AB already orders last-royal first and does not hang-skip royal takes (`ab_hang_keeps_royal_capture_even_when_hook_hangs`). Independent of L (eval safety).
 
 ---
 

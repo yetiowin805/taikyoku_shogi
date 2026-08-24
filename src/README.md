@@ -181,6 +181,7 @@ This skip is about hanging **movers**. Quiet-leaf hang-q (below) is about hangin
 - If the parent AB move’s captured enemy material (or **loud-promotion material gain**) is ≥ the loud floor → enter quiescence with `prev_to` = the AB landing square.
 - Else if the side to move has a legal promotion into a two-mover / range-capturer (e.g. FreeKing→GreatGeneral) → enter a **promo-only** quiescence (no full capture fanout). TreacherousFox→MountainCrane is **not** loud (ordinary range, not `is_big_piece`).
 - Else if STM has a dest-take of a hanging large enemy (`stm_has_large_hang_take`) → enter capture q so that take is resolved. Ordinary SimpleTakes still need a cheaper attacker (equal GG trades do not open q). Dest MultiLeg / dest PathClear of a hanging range two-mover count for **any** attacker (A+B, default on), including hook-takes-hook. Corridor dest-beyond PathClear still does not.
+- Else if STM can capture an enemy **King or Crown Prince** (including a two-step dest — **one ply**, both legs in one `make_move`) → enter capture q and keep that take outside PathAware dest-recapture / TopN / delta. Royals are cheap in material (King 100, CP 8) so they miss the loud floor and `is_big_piece`.
 - Otherwise → **stand-pat eval**, no quiescence.
 - **Non-PV** (null-window) leaves use `qdepth = min(config, 1)`; PV / fail-high research uses the full configured q depth.
 - Null-move children clear the loud-capture flag, so they do not gate into q via that path.
@@ -193,7 +194,7 @@ This skip is about hanging **movers**. Quiet-leaf hang-q (below) is about hangin
 **Can miss (approximate).**
 
 - Quiet moves that leave a piece hanging **to a corridor PathClear** (victim on the path, dest elsewhere). Dest landings on the two-mover are hang-q (A+B). See remaining corridor ideas in [`IDEAS_TO_TRY.md`](../IDEAS_TO_TRY.md).
-- **Cheap takes** below the loud floor that start a large exchange chain (except last-royal captures, which are still priced as ~8 material).
+- **Cheap takes** below the loud floor that start a large exchange chain. Last-royal / any King-or-CP capture (including two-step dest) **does** open q.
 - Non-PV nodes only get **one** q ply → shallow recapture fights on scout windows.
 
 ### Quiescence: PathAware capture search (default)
@@ -204,7 +205,7 @@ Harness note (post–Great General leaf, q=6): PathAware ~**37×** fewer q-nodes
 
 #### Stand-pat and q transposition table
 
-Stand-pat raises α; if stand-pat ≥ β the node returns immediately **unless** `prev_to` holds a major enemy (big / loud). Then dest recaptures of that square run first — they stay outside TopN and live delta — so a hanging GG is not scored as a keep on a null-window cutoff. A separate q TT (`1<<18`) stores bounds and the **best capture** for ordering. Unique-q HashSet tracking is **debug-only** (no release cost, does not prune).
+Stand-pat raises α; if stand-pat ≥ β the node returns immediately **unless** `prev_to` holds a major enemy (big / loud) **or** STM can capture a King/CP. Then dest recaptures of that square (and royal takes) run first — they stay outside TopN and live delta — so a hanging GG or a Hook×King two-step is not scored as a keep on a null-window cutoff. A separate q TT (`1<<18`) stores bounds and the **best capture** for ordering. Unique-q HashSet tracking is **debug-only** (no release cost, does not prune).
 
 #### Thin capture generation (victim square / cheap q-entry)
 
@@ -212,7 +213,7 @@ Stand-pat raises α; if stand-pat ≥ β the node returns immediately **unless**
 
 - **Entry** into q with `prev_to`: generate captures **hitting** that square plus **loud SimpleTakes** (dest-captures of enemies ≥ loud floor) — **not** full-board `CapturesOnly` — plus any legal **loud promotions**.
 - **Deep** PathAware plies: only captures hitting `prev_to` (directed landing emit for ordinary pieces; TwoStep / Free Eagle fall back to per-piece CapturesOnly + filter), plus loud promotions.
-- PathClear / MultiLeg candidates that do not land on `prev_to` are filtered out at generation time as well (loud promotions exempt).
+- PathClear / MultiLeg candidates that do not land on `prev_to` are filtered out at generation time as well (loud promotions and **royal takes** exempt).
 - Loud promotions skip PathAware top-N / delta / hang cuts so FreeKing→GG is not discarded as a “quiet” move.
 
 **Rationale.** After a loud AB capture, the contested square is what matters; regenerating every capture on the board was the multi-second `rms` spike (`qST` blowups).
