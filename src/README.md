@@ -81,11 +81,12 @@ Implementation: [`search.rs`](search.rs). Ultimate Shogi has a huge branching fa
 
 ### Pipeline overview
 
-1. **Iterative deepening** from depth 1 to the configured max; each iteration scores (almost) every legal root move.
-2. Interior nodes use **alpha-beta** with a **transposition table**, **null-move pruning**, **late-move reductions**, and **staged move generation** (defer quiet multi-leg / Free Eagle until needed).
-3. Captures that hang high-value pieces (e.g. Great General mopping a pawn onto a guarded square) are **skipped** in AB.
-4. At depth 0, the engine does **not** always enter quiescence: only after a **loud** AB capture (enemy material ≥ loud floor ≈ **648**), a **loud promotion**, or a **lesser-valued SimpleTake of a hanging large piece**. Other quiets get **stand-pat eval**.
-5. Quiescence is **capture-only**, default **PathAware**: thin generation onto the contested square, top-N fanout, PathClear only as dest-recapture, hang skips, and material futility.
+1. **Last royal in check** (exactly one King/CP, attacked): search **only** moves that resolve it (including quiets). Empty list is mate. Hang-skip and null-move do not apply. Depth-0 leaves do not stand-pat.
+2. **Iterative deepening** from depth 1 to the configured max; each iteration scores (almost) every legal root move (or only last-royal evasions).
+3. Interior nodes use **alpha-beta** with a **transposition table**, **null-move pruning**, **late-move reductions**, and **staged move generation** (defer quiet multi-leg / Free Eagle until needed).
+4. Captures that hang high-value pieces (e.g. Great General mopping a pawn onto a guarded square) are **skipped** in AB, except when the last royal is in check.
+5. At depth 0, the engine does **not** always enter quiescence: only after a **loud** AB capture (enemy material ≥ loud floor ≈ **648**), a **loud promotion**, or a **lesser-valued SimpleTake of a hanging large piece**. Other quiets get **stand-pat eval**.
+6. Quiescence is **capture-only**, default **PathAware**: thin generation onto the contested square, top-N fanout, PathClear only as dest-recapture, hang skips, and material futility.
 
 ### Iterative deepening and time control
 
@@ -95,7 +96,7 @@ Implementation: [`search.rs`](search.rs). Ultimate Shogi has a huge branching fa
 
 **Speedup.** Not a prune by itself; it enables timed search and makes selective search usable under a clock.
 
-**Can miss.** Under a time limit, moves that would only appear as best at an **incomplete** deeper iteration are discarded. Unlimited searches (`max_time_ms: None`) do **not** soft-abort or narrow the root: every legal root move is searched each ID depth (modulo hang-pruned captures).
+**Can miss.** Under a time limit, moves that would only appear as best at an **incomplete** deeper iteration are discarded. Unlimited searches (`max_time_ms: None`) do **not** soft-abort or narrow the root: every legal root move is searched each ID depth (modulo hang-pruned captures and last-royal evasion filtering).
 
 ### Progress-draw clock (100-move rule)
 
@@ -115,7 +116,7 @@ Implementation: [`search.rs`](search.rs). Ultimate Shogi has a huge branching fa
 
 ### Null-move pruning
 
-**Mechanism.** At interior nodes with `depth ≥ 2` (and β not in a mate score band), the side to move “passes”: turn flips, AB capture context is cleared, and a reduced search (`depth − 1 − R`, `R = 2`) runs. If that still fails high (≥ β), the node is cut off. When the reduced depth hits 0, the null child uses **stand-pat eval**, not quiescence. Consecutive nulls are disallowed.
+**Mechanism.** At interior nodes with `depth ≥ 2` (and β not in a mate score band), the side to move “passes”: turn flips, AB capture context is cleared, and a reduced search (`depth − 1 − R`, `R = 2`) runs. If that still fails high (≥ β), the node is cut off. When the reduced depth hits 0, the null child uses **stand-pat eval**, not quiescence. Consecutive nulls are disallowed. Skipped when STM’s last royal is in check.
 
 **Rationale.** Ultimate Shogi almost always has near-null quiet moves, so true zugzwang is rare. Null-move is what makes opening depth-3 searches interactive in release builds.
 
@@ -157,7 +158,7 @@ Implementation: [`search.rs`](search.rs). Ultimate Shogi has a huge branching fa
 2. net path material `(enemy − own) < 0.8 × mover`, and
 3. the landing square is attacked by the opponent.
 
-Never skip a capture that takes an enemy **royal** (King / Crown Prince) on dest, intermediate, path, or Free Eagle route. Those are cheap in material (CP=8) so they look like hung-Hook junk, but they can end the game. A capture that takes the **last** remaining royal is an instant win: it sorts first in AB and q, and the root loop stops once one is scored.
+Never skip a capture that takes an enemy **royal** (King / Crown Prince) on dest, intermediate, path, or Free Eagle route. Those are cheap in material (CP=8) so they look like hung-Hook junk, but they can end the game. A capture that takes the **last** remaining royal is an instant win: it sorts first in AB and q, and the root loop stops once one is scored. Also never hang-skip when **our** last royal is in check — only resolving moves are generated, including a hanging recapture that is the only king-save.
 
 `SimpleTake` uses a cheap pre-move landing attack. PathClear / MultiLeg: interior **confirm-on-prune** (pre-move attack first; only if that looks hanging, simulate post-fire); root goes straight to post-fire. Path loot is included in the net (a GG that path-clears a Hook then lands safely is not skipped).
 
@@ -178,6 +179,7 @@ This skip is about hanging **movers**. Quiet-leaf hang-q (below) is about hangin
 
 **Mechanism.** At AB depth 0:
 
+- If STM’s last royal is in check → search those evasions for one ply (no stand-pat), then continue.
 - If the parent AB move’s captured enemy material (or **loud-promotion material gain**) is ≥ the loud floor → enter quiescence with `prev_to` = the AB landing square.
 - Else if the side to move has a legal promotion into a two-mover / range-capturer (e.g. FreeKing→GreatGeneral) → enter a **promo-only** quiescence (no full capture fanout). TreacherousFox→MountainCrane is **not** loud (ordinary range, not `is_big_piece`).
 - Else if STM has a dest-take of a hanging large enemy (`stm_has_large_hang_take`) → enter capture q so that take is resolved. Ordinary SimpleTakes still need a cheaper attacker (equal GG trades do not open q). Dest MultiLeg / dest PathClear of a hanging range two-mover count for **any** attacker (A+B, default on), including hook-takes-hook. Corridor dest-beyond PathClear still does not.
