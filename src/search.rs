@@ -845,6 +845,80 @@ fn capture_takes_last_enemy_royal(state: &GameState, mv: &Move) -> bool {
     have > 0 && captured_enemy_royal_count(state, mv) >= have
 }
 
+/// STM has exactly one King/CP and it is attacked (one legal enemy take).
+fn stm_last_royal_in_check(state: &GameState) -> bool {
+    color_has_last_royal_in_check(state, state.get_current_turn())
+}
+
+fn color_has_last_royal_in_check(state: &GameState, color: Color) -> bool {
+    let board = state.get_board();
+    let mut pos = None;
+    let mut n = 0u8;
+    for p in board.iter_pieces_by_color(color) {
+        if p.piece_type.is_royal() {
+            n += 1;
+            if n > 1 {
+                return false;
+            }
+            pos = Some(p.position);
+        }
+    }
+    let Some(sq) = pos else {
+        return false;
+    };
+    board.is_position_attacked_by_color_for_check(sq, color.opposite())
+}
+
+/// After a move: our last royal is safe, we have a spare royal, or we already won.
+fn color_last_royal_resolved(state: &GameState, color: Color) -> bool {
+    if state.get_winner() == Some(color) {
+        return true;
+    }
+    let board = state.get_board();
+    let mut pos = None;
+    let mut n = 0u8;
+    for p in board.iter_pieces_by_color(color) {
+        if p.piece_type.is_royal() {
+            n += 1;
+            if n > 1 {
+                return true;
+            }
+            pos = Some(p.position);
+        }
+    }
+    match (n, pos) {
+        (1, Some(sq)) => !board.is_position_attacked_by_color_for_check(sq, color.opposite()),
+        _ => false,
+    }
+}
+
+fn move_resolves_last_royal_check(state: &mut GameState, mv: &Move) -> bool {
+    if capture_takes_last_enemy_royal(state, mv) {
+        return true;
+    }
+    let us = state.get_current_turn();
+    let Some(undo) = state.make_move_for_search(mv.clone()) else {
+        return false;
+    };
+    let ok = color_last_royal_resolved(state, us);
+    state.unmake_move_for_search(undo);
+    ok
+}
+
+/// `Some(evasions)` when the last royal is in check (`empty` = mate). `None` if not.
+fn last_royal_evasions(state: &mut GameState) -> Option<Vec<Move>> {
+    if !stm_last_royal_in_check(state) {
+        return None;
+    }
+    Some(
+        state
+            .generate_legal_moves()
+            .into_iter()
+            .filter(|mv| move_resolves_last_royal_check(state, mv))
+            .collect(),
+    )
+}
+
 fn captured_enemy_royal_count(state: &GameState, mv: &Move) -> usize {
     let board = state.get_board();
     let Some(mover) = board.get_piece(mv.from) else {
@@ -883,6 +957,9 @@ fn captured_enemy_royal_count(state: &GameState, mv: &Move) -> usize {
 }
 
 /// True when a capture hangs a high-value mover and should be skipped in AB.
+///
+/// Not applied when STM's last royal is in check — those nodes only search
+/// evasions, including a hanging recapture that is the only king-save.
 ///
 /// Conditions: mover value ≥ [`HIGH_VALUE_HANGER`], net below [`HANG_NET_FRAC`] of
 /// mover, and landing attacked.
@@ -1945,11 +2022,22 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
         sib_researched: 0,
     };
 
-    let mut moves = state.generate_legal_moves();
+    let mut pos = state.clone();
+    pos.ensure_eval_inc(weights);
+    let in_lr_check = stm_last_royal_in_check(&pos);
+    let mut moves = pos.generate_legal_moves();
+    if in_lr_check {
+        moves.retain(|mv| move_resolves_last_royal_check(&mut pos, mv));
+    }
     if moves.is_empty() {
+        let score = if in_lr_check {
+            -weights.mate_score
+        } else {
+            static_eval
+        };
         let tree = SearchTreeNode {
             label: "root".into(),
-            score: Some(static_eval),
+            score: Some(score),
             static_eval: Some(static_eval),
             best: true,
             cutoff: false,
@@ -1957,7 +2045,7 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
         };
         return SearchResult {
             best_move: None,
-            score: static_eval,
+            score,
             nodes: 0,
             static_eval,
             root_lines: vec![],
@@ -1985,9 +2073,7 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
     let mut completed_lines: Vec<(Move, i32)> = Vec::new();
     let mut completed_depth = 0u32;
 
-    // One working copy for the whole ID loop; make/unmake instead of per-child clone.
-    let mut pos = state.clone();
-    pos.ensure_eval_inc(weights);
+    // Working copy already cloned above for last-royal evasion filtering.
 
     for d in 1..=max_depth {
         if ctx.timed_out() {
@@ -2020,7 +2106,7 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
 
             let is_capture = move_captures_enemy(state, mv);
             let is_loud_promo = is_loud_promotion_move(state, mv);
-            if is_capture {
+            if is_capture && !in_lr_check {
                 let mut hang_cache = LandingAttackCache::new();
                 if capture_hangs_high_value_piece(state, weights, mv, true, &mut hang_cache) {
                     continue;
@@ -2855,7 +2941,12 @@ fn alphabeta(
     // fire at depth >= 2 to help opening d3 searches.
     // Null leaf (depth 0 after R) uses stand-pat eval — not quiescence.
     const NULL_R: u32 = 2;
-    if ctx.allow_null && depth >= 2 && beta < MATE_SCORE_BAND && beta > -MATE_SCORE_BAND {
+    if ctx.allow_null
+        && depth >= 2
+        && beta < MATE_SCORE_BAND
+        && beta > -MATE_SCORE_BAND
+        && !stm_last_royal_in_check(state)
+    {
         let r = NULL_R.min(depth - 1);
         ctx.allow_null = false;
         let prev_turn = state.get_current_turn();
@@ -2888,6 +2979,40 @@ fn alphabeta(
         if !ctx.abort && score >= beta {
             return score;
         }
+    }
+
+    // Last royal in check: search only evasions (including quiets). No staging,
+    // no hang-skip of the saving capture.
+    if let Some(mut evasions) = last_royal_evasions(state) {
+        if evasions.is_empty() {
+            return -weights.mate_score;
+        }
+        order_moves_with_heuristics(state, weights, &mut evasions, ctx, ctx.ply, false, false);
+        prefer_tt_move(&mut evasions, tt_move);
+        let parent_ply = ctx.ply;
+        let (best, best_move_key, _, _) = search_move_list(
+            state, weights, depth, alpha, beta, is_pv, ctx, parent_ply, &evasions, 0,
+        );
+        if best == i32::MIN + 1 {
+            return -weights.mate_score;
+        }
+        if !ctx.abort {
+            let bound = if best <= alpha_orig {
+                TtBound::Upper
+            } else if best >= beta {
+                TtBound::Lower
+            } else {
+                TtBound::Exact
+            };
+            ctx.tt.store(TtEntry {
+                key,
+                depth,
+                score: best,
+                bound,
+                best: best_move_key,
+            });
+        }
+        return best;
     }
 
     // Stage A: captures + non-multi-leg quiets (+ capturing multi-leg).
@@ -2988,6 +3113,7 @@ fn search_move_list(
     let mut did_cutoff = false;
     let mut hang_cache = LandingAttackCache::new();
     let mut sib_reps: HashMap<u64, (i32, i32)> = HashMap::new();
+    let skip_hang = stm_last_royal_in_check(state);
 
     for (i, mv) in moves.iter().enumerate() {
         if ctx.timed_out() {
@@ -2996,7 +3122,9 @@ fn search_move_list(
         let mv_key = move_tt_key(&mv);
         let is_capture = move_captures_enemy(state, &mv);
         let is_loud_promo = is_loud_promotion_move(state, &mv);
-        if is_capture && capture_hangs_high_value_piece(state, weights, &mv, false, &mut hang_cache)
+        if is_capture
+            && !skip_hang
+            && capture_hangs_high_value_piece(state, weights, &mv, false, &mut hang_cache)
         {
             continue;
         }
@@ -3165,6 +3293,25 @@ fn leaf_or_quiesce(
     is_pv: bool,
     ctx: &mut SearchContext,
 ) -> i32 {
+    // Last royal in check: never stand-pat. Search evasions for one ply even
+    // when the q budget is 0 (king-flight / hanging recapture are often quiet
+    // or hang-skipped captures).
+    if let Some(mut evasions) = last_royal_evasions(state) {
+        if evasions.is_empty() {
+            return -weights.mate_score;
+        }
+        order_moves_with_heuristics(state, weights, &mut evasions, ctx, ctx.ply, false, false);
+        let parent_ply = ctx.ply;
+        let (best, _, _, _) = search_move_list(
+            state, weights, 1, alpha, beta, is_pv, ctx, parent_ply, &evasions, 0,
+        );
+        return if best == i32::MIN + 1 {
+            -weights.mate_score
+        } else {
+            best
+        };
+    }
+
     // Q after loud AB captures/promos, loud promos, a free take of a hanging
     // large enemy, or any King/CP capture (two-step dest included — one ply).
     // Optional R/S1/S2 flags open q after sub-loud captures or own-large dest takes.
@@ -5311,6 +5458,18 @@ mod tests {
             Color::White,
             Position::new(35, 35).unwrap(),
         ));
+        // Spare royals so q-gating tests are not intercepted as last-royal check
+        // when a Hook (etc.) happens to attack a king.
+        state.place_piece(Piece::new(
+            PieceType::CrownPrince,
+            Color::Black,
+            Position::new(1, 0).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::CrownPrince,
+            Color::White,
+            Position::new(34, 35).unwrap(),
+        ));
         (state, weights)
     }
 
@@ -6149,6 +6308,19 @@ mod tests {
             .iter()
             .find(|(m, _)| same_root_move(m, &hang))
             .map(|(_, s)| *s);
+        if stm_last_royal_in_check(&state) {
+            assert!(
+                hang_sc.is_none(),
+                "last-royal check must not search the Silver shuffle"
+            );
+            let best = result.best_move.expect("White must have an evasion");
+            assert!(
+                same_root_move(&best, &save) || result.score > -900_000,
+                "must evade, got {:?}",
+                (best.from, best.to)
+            );
+            return;
+        }
         assert_eq!(
             hang_sc,
             Some(-1_000_000),
@@ -6768,5 +6940,140 @@ mod tests {
             "one more quiet should walk into the 100-move draw"
         );
         assert!(result.score > 0, "resetting capture must beat the draw");
+    }
+
+    /// Slot0847 shape: last royal checked by a gold; only save is a hanging
+    /// FierceDragon PathClear that root hang-skip would drop.
+    fn last_royal_check_hanging_dragon() -> (GameState, EvalWeights, Move) {
+        let mut weights = EvalWeights::seed();
+        weights.noise_scale = 0.0;
+        weights.rebuild_piece_value_table();
+        let mut state = GameState::new();
+        state.place_piece(Piece::new(
+            PieceType::King,
+            Color::White,
+            Position::new(18, 35).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::FierceDragon,
+            Color::White,
+            Position::new(20, 32).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::GoldGeneral,
+            Color::Black,
+            Position::new(18, 34).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::Pawn,
+            Color::Black,
+            Position::new(19, 33).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::Rook,
+            Color::Black,
+            Position::new(0, 34).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::King,
+            Color::Black,
+            Position::new(5, 5).unwrap(),
+        ));
+        state.set_current_turn(Color::White);
+        let take = Move::new(Position::new(20, 32).unwrap(), Position::new(18, 34).unwrap());
+        (state, weights, take)
+    }
+
+    #[test]
+    fn last_royal_check_filters_to_hanging_dragon_recapture() {
+        let (mut state, weights, take) = last_royal_check_hanging_dragon();
+        assert!(stm_last_royal_in_check(&state));
+        let mut cache = LandingAttackCache::new();
+        assert!(
+            capture_hangs_high_value_piece(&state, &weights, &take, true, &mut cache),
+            "root hang-skip must still consider the dragon recapture hanging"
+        );
+        let evasions = last_royal_evasions(&mut state).expect("in check");
+        assert!(
+            evasions.iter().any(|m| m.from == take.from && m.to == take.to),
+            "dragon recapture must be an evasion, got {:?}",
+            evasions
+                .iter()
+                .map(|m| (m.from, m.to))
+                .collect::<Vec<_>>()
+        );
+        let result = search(
+            &state,
+            &weights,
+            &SearchConfig {
+                depth: 1,
+                max_time_ms: None,
+                collect_trace: true,
+                quiescence_depth: 0,
+                q_prune_mode: QPruneMode::PathAware,
+                ..Default::default()
+            },
+        );
+        let best = result.best_move.as_ref().expect("evasion");
+        assert!(
+            evasions
+                .iter()
+                .any(|e| e.from == best.from && e.to == best.to),
+            "must pick a last-royal evasion, got {:?}",
+            (best.from, best.to)
+        );
+        assert!(
+            result
+                .root_lines
+                .iter()
+                .any(|(m, _)| m.from == take.from && m.to == take.to),
+            "hanging dest recapture must still be searched"
+        );
+        assert!(
+            result.root_lines.iter().all(|(m, _)| {
+                evasions
+                    .iter()
+                    .any(|e| e.from == m.from && e.to == m.to && e.intermediate() == m.intermediate())
+            }),
+            "root must not search non-evasions"
+        );
+    }
+
+    #[test]
+    fn two_royals_does_not_force_check_evasions() {
+        let (mut state, weights, take) = last_royal_check_hanging_dragon();
+        state.place_piece(Piece::new(
+            PieceType::CrownPrince,
+            Color::White,
+            Position::new(0, 0).unwrap(),
+        ));
+        assert!(
+            !stm_last_royal_in_check(&state),
+            "spare CP means the king is not the last royal"
+        );
+        assert!(last_royal_evasions(&mut state).is_none());
+        let mut cache = LandingAttackCache::new();
+        assert!(capture_hangs_high_value_piece(
+            &state, &weights, &take, true, &mut cache
+        ));
+        let result = search(
+            &state,
+            &weights,
+            &SearchConfig {
+                depth: 1,
+                max_time_ms: None,
+                collect_trace: true,
+                quiescence_depth: 0,
+                q_prune_mode: QPruneMode::PathAware,
+                ..Default::default()
+            },
+        );
+        assert!(
+            result
+                .root_lines
+                .iter()
+                .all(|(m, _)| !(m.from == take.from && m.to == take.to)),
+            "hanging dragon recapture should still be hang-skipped with a spare royal"
+        );
     }
 }
