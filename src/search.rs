@@ -2024,10 +2024,17 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
 
     let mut pos = state.clone();
     pos.ensure_eval_inc(weights);
-    let in_lr_check = stm_last_royal_in_check(&pos);
+    let mut in_lr_check = stm_last_royal_in_check(&pos);
     let mut moves = pos.generate_legal_moves();
     if in_lr_check {
         moves.retain(|mv| move_resolves_last_royal_check(&mut pos, mv));
+        // Empty evasions is mate for interior nodes, but the game is not over
+        // until the royal is actually taken. Returning `best_move: None` here
+        // makes the worker abort (`Player ab returned no move with N legal`).
+        if moves.is_empty() {
+            in_lr_check = false;
+            moves = pos.generate_legal_moves();
+        }
     }
     if moves.is_empty() {
         let score = if in_lr_check {
@@ -7074,6 +7081,88 @@ mod tests {
                 .iter()
                 .all(|(m, _)| !(m.from == take.from && m.to == take.to)),
             "hanging dragon recapture should still be hang-skipped with a spare royal"
+        );
+    }
+
+    /// Last royal checked by a jumping knight; king boxed; extra Gold can still
+    /// move. Root must return a legal move (tourney worker aborts on `None`).
+    fn last_royal_check_no_evasion() -> GameState {
+        let mut state = GameState::new();
+        state.place_piece(Piece::new(
+            PieceType::King,
+            Color::White,
+            Position::new(35, 35).unwrap(),
+        ));
+        // Box the three on-board flight squares. Lance/Bishop cannot take the
+        // knight at 34,33 (behind the lance; orthogonal to the bishop).
+        state.place_piece(Piece::new(
+            PieceType::Pawn,
+            Color::White,
+            Position::new(34, 35).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::Lance,
+            Color::White,
+            Position::new(35, 34).unwrap(),
+        ));
+        // Bishop has no orthogonal step, so it cannot take the knight on 34,33.
+        state.place_piece(Piece::new(
+            PieceType::Bishop,
+            Color::White,
+            Position::new(34, 34).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::GoldGeneral,
+            Color::White,
+            Position::new(10, 10).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::Knight,
+            Color::Black,
+            Position::new(34, 33).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::King,
+            Color::Black,
+            Position::new(0, 0).unwrap(),
+        ));
+        state.set_current_turn(Color::White);
+        state
+    }
+
+    #[test]
+    fn last_royal_check_with_no_evasion_still_returns_a_move() {
+        let mut state = last_royal_check_no_evasion();
+        assert!(stm_last_royal_in_check(&state));
+        let legal = state.generate_legal_moves();
+        assert!(!legal.is_empty(), "Gold must still have legal moves");
+        let evasions = last_royal_evasions(&mut state).expect("in check");
+        assert!(
+            evasions.is_empty(),
+            "knight jump + boxed king should have no evasion, got {:?}",
+            evasions.iter().map(|m| (m.from, m.to)).collect::<Vec<_>>()
+        );
+        let mut weights = EvalWeights::seed();
+        weights.noise_scale = 0.0;
+        let result = search(
+            &state,
+            &weights,
+            &SearchConfig {
+                depth: 1,
+                max_time_ms: None,
+                collect_trace: false,
+                quiescence_depth: 0,
+                q_prune_mode: QPruneMode::PathAware,
+                ..Default::default()
+            },
+        );
+        let best = result.best_move.expect("root must still pick a legal move");
+        assert!(
+            legal
+                .iter()
+                .any(|m| m.from == best.from && m.to == best.to && m.promoted == best.promoted),
+            "fallback move must be legal, got {:?}",
+            (best.from, best.to)
         );
     }
 }

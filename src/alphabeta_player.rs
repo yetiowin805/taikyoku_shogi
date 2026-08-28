@@ -191,7 +191,10 @@ impl AlphaBetaPlayer {
         let mut cfg = self.config.clone();
         cfg.collect_trace = false;
         let result = search(game_state, &self.weights, &cfg);
-        let mv = result.best_move?;
+        let mv = match result.best_move {
+            Some(mv) => mv,
+            None => game_state.generate_legal_moves().into_iter().next()?,
+        };
         let stm = game_state.get_current_turn();
         Some((
             mv,
