@@ -2,6 +2,7 @@
 
 use crate::board::Board;
 use crate::game_state::GameState;
+use crate::movement::direction::Direction;
 use crate::movement::{
     BlockingMode, MovementCapability, MovementConfig, MovementGenerator,
 };
@@ -543,6 +544,132 @@ fn two_mover_mobility_of(pieces: &[Piece], board: &Board, weights: &EvalWeights)
             * two_mover_mob_apply(p, weights);
     }
     s
+}
+
+fn first_leg_range_dirs(piece: &Piece) -> u8 {
+    if !is_range_two_mover(piece.piece_type) {
+        return 0;
+    }
+    let cfg = MovementConfig::for_piece_type(piece.piece_type);
+    for cap in &cfg.capabilities {
+        if let MovementCapability::TwoStep { first, second } = cap {
+            if is_range_capability(first) && is_range_capability(second) {
+                if let MovementCapability::Range { directions, .. } = first.as_ref() {
+                    return MovementGenerator::adjust_directions_for_color(
+                        *directions,
+                        piece.color,
+                    );
+                }
+            }
+        }
+    }
+    0
+}
+
+/// Orthogonal or diagonal unit direction from `from` to `to`, if any.
+fn ortho_diag_dir(from: Position, to: Position) -> Option<Direction> {
+    let df = to.file as i16 - from.file as i16;
+    let dr = to.rank as i16 - from.rank as i16;
+    if df == 0 && dr == 0 {
+        return None;
+    }
+    if df != 0 && dr != 0 && df.abs() != dr.abs() {
+        return None;
+    }
+    let sf = df.signum() as i8;
+    let sr = dr.signum() as i8;
+    Direction::all()
+        .into_iter()
+        .find(|d| d.to_offset() == (sf, sr))
+}
+
+fn two_mover_on_first_leg_ray(piece: &Piece, royal: Position) -> bool {
+    let dirs = first_leg_range_dirs(piece);
+    if dirs == 0 {
+        return false;
+    }
+    ortho_diag_dir(piece.position, royal).is_some_and(|d| dirs & d.to_bit() != 0)
+}
+
+/// Always-on two-mover alignment tropism (idea 1). Density / ahead gates do not apply.
+fn two_mover_align_of(
+    our_pieces: &[Piece],
+    enemy_royals: &[Position],
+    weights: &EvalWeights,
+) -> f32 {
+    if weights.two_mover_align_k == 0.0 || enemy_royals.is_empty() {
+        return 0.0;
+    }
+    let mut s = 0.0f32;
+    for p in our_pieces {
+        if !is_range_two_mover(p.piece_type) {
+            continue;
+        }
+        if enemy_royals
+            .iter()
+            .any(|&r| two_mover_on_first_leg_ray(p, r))
+        {
+            s += weights.two_mover_align_k;
+        }
+    }
+    let cap = weights.two_mover_align_cap.abs();
+    if cap > 0.0 {
+        s.min(cap)
+    } else {
+        s
+    }
+}
+
+fn last_royal_of(pieces: &[Piece]) -> Option<Position> {
+    let mut found = None;
+    for p in pieces {
+        if p.piece_type.is_royal() {
+            if found.is_some() {
+                return None;
+            }
+            found = Some(p.position);
+        }
+    }
+    found
+}
+
+fn lr_flight_unit(in_check: bool, flights: u8) -> f32 {
+    match (in_check, flights) {
+        (false, f) if f >= 2 => 0.0,
+        (true, 0) => 1.0,
+        (true, 1) => 0.5,
+        (true, _) => 0.2,
+        (false, 0) => 0.1,
+        (false, 1) => 0.05,
+        _ => 0.0,
+    }
+}
+
+/// Last-royal flight penalty (idea L). Positive is bad for `color`. `k=0` is off.
+fn last_royal_flight_penalty(board: &Board, color: Color, weights: &EvalWeights) -> f32 {
+    if weights.lr_flight_k == 0.0 {
+        return 0.0;
+    }
+    let pieces = board.pieces_by_color(color);
+    let Some(royal) = last_royal_of(&pieces) else {
+        return 0.0;
+    };
+    let enemy = color.opposite();
+    let in_check = board.is_position_attacked_by_color(royal, enemy);
+    let mut flights = 0u8;
+    for d in Direction::all() {
+        let (df, dr) = d.to_offset();
+        let Some(sq) = royal.offset(df, dr) else {
+            continue;
+        };
+        if board.get_piece(sq).is_some() {
+            continue;
+        }
+        if !board.is_position_attacked_by_color(sq, enemy) {
+            flights += 1;
+        }
+    }
+    weights.lr_flight_k * lr_flight_unit(in_check, flights)
 }
 
 /// True when the piece has a TwoStep whose both legs are range slides (Tengu family).
@@ -1121,6 +1248,15 @@ pub struct EvalWeights {
     /// 0 raw, 1 `× rank_factor_fast[progress]`, 2 `× file_factor[file]`.
     #[serde(default)]
     pub two_mover_mob_apply: u8,
+    /// Last-royal flight penalty scale (0 = off). 0-flight in check costs this amount.
+    #[serde(default)]
+    pub lr_flight_k: f32,
+    /// Per aligned range two-mover bonus (0 = off). First-leg ray vs enemy royals.
+    #[serde(default)]
+    pub two_mover_align_k: f32,
+    /// Cap on a side's alignment term (0 = uncapped).
+    #[serde(default)]
+    pub two_mover_align_cap: f32,
     /// Max absolute noise contribution (deterministic).
     pub noise_scale: f64,
     pub mate_score: i32,
@@ -1350,6 +1486,9 @@ impl EvalWeights {
             two_mover_mob_k: 0.0,
             two_mover_mob_curve: 0,
             two_mover_mob_apply: 0,
+            lr_flight_k: 0.0,
+            two_mover_align_k: 0.0,
+            two_mover_align_cap: 0.0,
             noise_scale: 1.0,
             mate_score: 1_000_000,
             weight_seed: 0xA11B_E7A1,
@@ -1639,6 +1778,12 @@ pub fn evaluate_absolute_black(board: &Board, weights: &EvalWeights, ply: usize)
     score += two_mover_mobility_of(black, board, weights);
     score -= two_mover_mobility_of(white, board, weights);
 
+    score -= last_royal_flight_penalty(board, Color::Black, weights);
+    score += last_royal_flight_penalty(board, Color::White, weights);
+
+    score += two_mover_align_of(black, &enemy_royal_positions(&white), weights);
+    score -= two_mover_align_of(white, &enemy_royal_positions(&black), weights);
+
     score.round() as i32 + noise_component(board, weights, ply)
 }
 
@@ -1709,7 +1854,11 @@ fn evaluate_absolute_black_from_inc(
     score -= inc.undev[0];
     score += inc.undev[1];
 
-    if weights.advance != 0 || weights.two_mover_mob_k != 0.0 {
+    if weights.advance != 0
+        || weights.two_mover_mob_k != 0.0
+        || weights.lr_flight_k != 0.0
+        || weights.two_mover_align_k != 0.0
+    {
         let black = board.pieces_by_color(Color::Black);
         let white = board.pieces_by_color(Color::White);
         if weights.advance != 0 {
@@ -1719,6 +1868,14 @@ fn evaluate_absolute_black_from_inc(
         if weights.two_mover_mob_k != 0.0 {
             score += two_mover_mobility_of(black, board, weights);
             score -= two_mover_mobility_of(white, board, weights);
+        }
+        if weights.lr_flight_k != 0.0 {
+            score -= last_royal_flight_penalty(board, Color::Black, weights);
+            score += last_royal_flight_penalty(board, Color::White, weights);
+        }
+        if weights.two_mover_align_k != 0.0 {
+            score += two_mover_align_of(black, &enemy_royal_positions(&white), weights);
+            score -= two_mover_align_of(white, &enemy_royal_positions(&black), weights);
         }
     }
 
@@ -2051,6 +2208,8 @@ mod tests {
         assert_eq!(back.weights.royal_bonus(3), 110);
         assert!((back.weights.eg_tropism_scale - 1.2).abs() < 1e-6);
         assert!((back.weights.two_mover_mob_k - 0.0).abs() < 1e-6);
+        assert!((back.weights.lr_flight_k - 0.0).abs() < 1e-6);
+        assert!((back.weights.two_mover_align_k - 0.0).abs() < 1e-6);
         assert!((back.weights.eg_tropism_cap - 0.0).abs() < 1e-6);
         assert!((back.weights.eg_density_n - 20.0).abs() < 1e-6);
         assert!((back.weights.eg_tropism_d_ref - 18.0).abs() < 1e-6);
@@ -2894,6 +3053,180 @@ mod tests {
             .expect("pawn push");
         assert_inc_matches_full(&state, &weights, 1);
         state.unmake_move_for_search(undo);
+        assert_inc_matches_full(&state, &weights, 0);
+    }
+
+    #[test]
+    fn lr_flight_zero_when_two_flights_not_in_check() {
+        let mut w = EvalWeights::seed();
+        w.noise_scale = 0.0;
+        w.lr_flight_k = 4000.0;
+        let board = kings_and(Piece::new(
+            PieceType::Pawn,
+            Color::Black,
+            Position::new(10, 10).unwrap(),
+        ));
+        let off = {
+            let mut o = w.clone();
+            o.lr_flight_k = 0.0;
+            o
+        };
+        assert_eq!(
+            evaluate_absolute_black(&board, &w, 0),
+            evaluate_absolute_black(&board, &off, 0),
+            "open kings with flights must not pay L"
+        );
+    }
+
+    #[test]
+    fn lr_flight_zero_flight_in_check_pays_k() {
+        let mut board = Board::new();
+        board.place_piece(Piece::new(
+            PieceType::King,
+            Color::Black,
+            Position::new(0, 0).unwrap(),
+        ));
+        board.place_piece(Piece::new(
+            PieceType::King,
+            Color::White,
+            Position::new(35, 35).unwrap(),
+        ));
+        // File 0, rank 0, and file 1: cover king + three on-board neighbors.
+        board.place_piece(Piece::new(
+            PieceType::Rook,
+            Color::White,
+            Position::new(0, 18).unwrap(),
+        ));
+        board.place_piece(Piece::new(
+            PieceType::Rook,
+            Color::White,
+            Position::new(18, 0).unwrap(),
+        ));
+        board.place_piece(Piece::new(
+            PieceType::Rook,
+            Color::White,
+            Position::new(1, 18).unwrap(),
+        ));
+
+        let mut off = EvalWeights::seed();
+        off.noise_scale = 0.0;
+        let mut on = off.clone();
+        on.lr_flight_k = 4000.0;
+        let d = evaluate_absolute_black(&board, &on, 0) - evaluate_absolute_black(&board, &off, 0);
+        assert_eq!(d, -4000, "0-flight in check should cost lr_flight_k");
+
+        board.place_piece(Piece::new(
+            PieceType::CrownPrince,
+            Color::Black,
+            Position::new(20, 20).unwrap(),
+        ));
+        let d2 = evaluate_absolute_black(&board, &on, 0) - evaluate_absolute_black(&board, &off, 0);
+        assert_eq!(d2, 0, "spare royal must skip L");
+    }
+
+    #[test]
+    fn two_mover_align_hook_file_not_diag() {
+        let hook = Piece::new(
+            PieceType::HookMover,
+            Color::Black,
+            Position::new(18, 18).unwrap(),
+        );
+        let mut file_board = Board::new();
+        file_board.place_piece(Piece::new(
+            PieceType::King,
+            Color::Black,
+            Position::new(0, 0).unwrap(),
+        ));
+        file_board.place_piece(Piece::new(
+            PieceType::King,
+            Color::White,
+            Position::new(18, 30).unwrap(),
+        ));
+        file_board.place_piece(hook);
+
+        let mut diag_board = Board::new();
+        diag_board.place_piece(Piece::new(
+            PieceType::King,
+            Color::Black,
+            Position::new(0, 0).unwrap(),
+        ));
+        diag_board.place_piece(Piece::new(
+            PieceType::King,
+            Color::White,
+            Position::new(24, 24).unwrap(),
+        ));
+        diag_board.place_piece(hook);
+
+        let mut off = EvalWeights::seed();
+        off.noise_scale = 0.0;
+        let mut on = off.clone();
+        on.two_mover_align_k = 80.0;
+        on.two_mover_align_cap = 400.0;
+
+        let d_file =
+            evaluate_absolute_black(&file_board, &on, 0) - evaluate_absolute_black(&file_board, &off, 0);
+        let d_diag =
+            evaluate_absolute_black(&diag_board, &on, 0) - evaluate_absolute_black(&diag_board, &off, 0);
+        assert_eq!(d_file, 80, "Hook first-leg is orthogonal");
+        assert_eq!(d_diag, 0, "Hook should not score a diagonal royal");
+    }
+
+    #[test]
+    fn two_mover_align_tengu_diag_not_file() {
+        let tengu = Piece::new(
+            PieceType::Tengu,
+            Color::Black,
+            Position::new(18, 18).unwrap(),
+        );
+        let mut diag_board = Board::new();
+        diag_board.place_piece(Piece::new(
+            PieceType::King,
+            Color::Black,
+            Position::new(0, 0).unwrap(),
+        ));
+        diag_board.place_piece(Piece::new(
+            PieceType::King,
+            Color::White,
+            Position::new(24, 24).unwrap(),
+        ));
+        diag_board.place_piece(tengu);
+
+        let mut file_board = Board::new();
+        file_board.place_piece(Piece::new(
+            PieceType::King,
+            Color::Black,
+            Position::new(0, 0).unwrap(),
+        ));
+        file_board.place_piece(Piece::new(
+            PieceType::King,
+            Color::White,
+            Position::new(18, 30).unwrap(),
+        ));
+        file_board.place_piece(tengu);
+
+        let mut off = EvalWeights::seed();
+        off.noise_scale = 0.0;
+        let mut on = off.clone();
+        on.two_mover_align_k = 80.0;
+
+        let d_diag =
+            evaluate_absolute_black(&diag_board, &on, 0) - evaluate_absolute_black(&diag_board, &off, 0);
+        let d_file =
+            evaluate_absolute_black(&file_board, &on, 0) - evaluate_absolute_black(&file_board, &off, 0);
+        assert_eq!(d_diag, 80, "Tengu first-leg is diagonal");
+        assert_eq!(d_file, 0, "Tengu should not score a file royal");
+    }
+
+    #[test]
+    fn incremental_eval_matches_full_with_l_and_align() {
+        let mut weights = EvalWeights::seed();
+        weights.noise_scale = 0.0;
+        weights.lr_flight_k = 4000.0;
+        weights.two_mover_align_k = 80.0;
+        weights.two_mover_align_cap = 400.0;
+        let mut state = GameState::new();
+        state.setup_initial_position();
+        state.ensure_eval_inc(&weights);
         assert_inc_matches_full(&state, &weights, 0);
     }
 }

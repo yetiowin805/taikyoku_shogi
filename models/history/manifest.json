@@ -44,6 +44,12 @@
       "git": "a2f75dd",
       "kind": "logic",
       "summary": "any dest hang-q of a hanging two-mover; last search before path-sum q sort, major dest recapture, and last-royal hang-skip"
+    },
+    {
+      "id": "LOGIC_PRE_LRCHECK",
+      "git": "ee580c4",
+      "kind": "logic",
+      "summary": "q-rs / royal-q search; last search before last-royal-in-check evasions"
     }
   ]
 }

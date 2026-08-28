@@ -250,6 +250,16 @@ cd /opt/taikyoku_shogi
 tail -f data/run/q-rs-swiss.log
 ```
 
+### AVG_P120_SEED_C2 L / alignment / S2 knockout
+
+`AVG_P120_SEED_C2` and `BASE_P120H50B75_C2` × current/S2 × {none, L, A, LA} (16) plus leftover-history baselines from q-rs (`BASE_T150C120`, `BASE_P120H75B60`, `LOGIC_HANGQ_ANY`, `BASE_T150C50`, `BASE_H105O105`) and pinned `LOGIC_PRE_LRCHECK` (parent of last-royal-in-check, `ee580c4`). 22 agents. Last-royal-in-check is always on in the in-process binary. Same 1s / depth-8 PathAware setup. Freeze pinned binaries first (`./deploy/freeze_history.sh`). Do not bake onto `models/ab-seed.json`.
+
+```bash
+cd /opt/taikyoku_shogi
+./deploy/pull_build_royal_s2_swiss.sh --branch cursor/royal-l-align-s2
+tail -f data/run/royal-s2-swiss.log
+```
+
 ### Scale-sample Swiss (legacy ±10% samples)
 
 ```bash

@@ -150,6 +150,7 @@ mod tests {
         assert!(e.contains(&"LOGIC_HANGQ_ST"));
         assert!(e.contains(&"LOGIC_HANGQ_AB"));
         assert!(e.contains(&"LOGIC_HANGQ_ANY"));
+        assert!(e.contains(&"LOGIC_PRE_LRCHECK"));
     }
 
     #[test]
