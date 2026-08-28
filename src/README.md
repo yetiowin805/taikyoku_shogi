@@ -6,7 +6,7 @@ Core library (`src/lib.rs`): board, movement, eval, search, training, HTTP sessi
 |---|---|
 | [`game_state.rs`](game_state.rs) / [`board.rs`](board.rs) | Position, make/unmake, legal moves |
 | [`movement/`](movement/) | Per-type configs and generators |
-| [`eval.rs`](eval.rs) | Capability material, PST, tropism, two-mover mobility |
+| [`eval.rs`](eval.rs) | Capability material, PST, tropism, two-mover mobility / alignment, last-royal flight |
 | [`search.rs`](search.rs) | Alpha-beta + PathAware quiescence (details below) |
 | [`notation.rs`](notation.rs) | TSFEN1 / TM1 |
 | [`training/`](training/) | Texel, workers, tournaments — [`training/README.md`](training/README.md) |

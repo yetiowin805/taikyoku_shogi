@@ -17,6 +17,7 @@ pub mod pool;
 pub mod pst_grid;
 pub mod q_rs_grid;
 pub mod record;
+pub mod royal_s2_grid;
 pub mod run_status;
 pub mod scale_sample;
 pub mod start_gen;
