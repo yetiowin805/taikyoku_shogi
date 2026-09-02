@@ -125,6 +125,7 @@ Starts: `light` = shuffle-only ranks without powerful/royals (no ablations). Sta
 ./deploy/tourney_status.py top11-c2
 ./deploy/tourney_status.py --tree
 ./deploy/tourney_status.py --tree 1
+./deploy/tourney_status.py --all-trees
 ```
 
 Incomplete exits (stop file / aborted slots) now fail the tournament binary with a non-zero status so notify says stopped/incomplete rather than “done”.
