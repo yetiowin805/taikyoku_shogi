@@ -260,6 +260,16 @@ cd /opt/taikyoku_shogi
 tail -f data/run/royal-s2-swiss.log
 ```
 
+### Royal-s2 title-winner rematch (3s)
+
+The 11 agents with at least one knockout title in `royal-s2-swiss-20260828T064125Z` (`BASE_P120H75B60`, `AVG_P120_SEED_C2S2`, `AVG_P120_SEED_C2A`, `AVG_P120_SEED_C2L`, `AVG_P120_SEED_C2S2L`, `AVG_P120_SEED_C2`, `AVG_P120_SEED_C2LA`, `BASE_P120H50B75_C2`, `AVG_P120_SEED_C2S2A`, `AVG_P120_SEED_C2S2LA`, `BASE_T150C120`). Same cells as the 22-agent grid, filtered; no logic-engine pins. Soft budget **3s**/move, depth 8. Do not bake onto `models/ab-seed.json`.
+
+```bash
+cd /opt/taikyoku_shogi
+./deploy/pull_build_royal_s2_champs_swiss.sh --branch cursor/royal-s2-champs-3s
+tail -f data/run/royal-s2-champs-swiss.log
+```
+
 ### Scale-sample Swiss (legacy ±10% samples)
 
 ```bash

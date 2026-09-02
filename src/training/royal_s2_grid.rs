@@ -22,7 +22,24 @@ use std::fs;
 use std::path::PathBuf;
 
 pub const DEFAULT_OUT_DIR: &str = "models/royal-s2-grid";
+pub const DEFAULT_CHAMPS_OUT_DIR: &str = "models/royal-s2-champs-grid";
 pub const DEFAULT_SEED_MODEL: &str = "models/ab-seed.json";
+
+/// Agents with at least one knockout title in `royal-s2-swiss-20260828T064125Z`
+/// (titles desc, then id). No logic-engine pins.
+pub const TITLE_WINNERS: [&str; 11] = [
+    "BASE_P120H75B60",
+    "AVG_P120_SEED_C2S2",
+    "AVG_P120_SEED_C2A",
+    "AVG_P120_SEED_C2L",
+    "AVG_P120_SEED_C2S2L",
+    "AVG_P120_SEED_C2",
+    "AVG_P120_SEED_C2LA",
+    "BASE_P120H50B75_C2",
+    "AVG_P120_SEED_C2S2A",
+    "AVG_P120_SEED_C2S2LA",
+    "BASE_T150C120",
+];
 
 pub const CHASSIS: [&str; 2] = ["AVG_P120_SEED_C2", "BASE_P120H50B75_C2"];
 
@@ -279,6 +296,42 @@ pub fn run_royal_s2_grid(cfg: &RoyalS2GridConfig) -> Result<(TourneyManifest, Gr
     Ok((manifest, grid))
 }
 
+/// Same cells as [`run_royal_s2_grid`], then keep only [`TITLE_WINNERS`].
+pub fn run_royal_s2_champs_grid(
+    cfg: &RoyalS2GridConfig,
+) -> Result<(TourneyManifest, GridFile), String> {
+    let (mut man, mut grid) = run_royal_s2_grid(cfg)?;
+    let keep: HashSet<&str> = TITLE_WINNERS.iter().copied().collect();
+    man.entrants.retain(|e| keep.contains(e.id.as_str()));
+    grid.cells.retain(|c| keep.contains(c.id.as_str()));
+    if man.entrants.len() != TITLE_WINNERS.len() {
+        return Err(format!(
+            "champs filter: wrote {} entrants, want {}",
+            man.entrants.len(),
+            TITLE_WINNERS.len()
+        ));
+    }
+    for e in &man.entrants {
+        if e.engine.is_some() {
+            return Err(format!("{} should not pin a logic engine", e.id));
+        }
+    }
+
+    let grid_path = cfg.out_dir.join("grid.json");
+    fs::write(
+        &grid_path,
+        serde_json::to_string_pretty(&grid).map_err(|e| e.to_string())?,
+    )
+    .map_err(|e| format!("write {}: {e}", grid_path.display()))?;
+    let man_path = cfg.out_dir.join("manifest.json");
+    fs::write(
+        &man_path,
+        serde_json::to_string_pretty(&man).map_err(|e| e.to_string())?,
+    )
+    .map_err(|e| format!("write {}: {e}", man_path.display()))?;
+    Ok((man, grid))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -374,6 +427,37 @@ mod tests {
             .expect("LOGIC_PRE_LRCHECK");
         assert!(pre.engine.as_ref().unwrap().contains("LOGIC_PRE_LRCHECK"));
 
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn champs_grid_writes_title_winners_only() {
+        let tmp = std::env::temp_dir().join(format!("tk-royal-s2-champs-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(&tmp).unwrap();
+        let seed_path = if PathBuf::from(DEFAULT_SEED_MODEL).is_file() {
+            PathBuf::from(DEFAULT_SEED_MODEL)
+        } else {
+            let p = tmp.join("ab-seed.json");
+            EvalCheckpoint::seed("ab-seed").save_path(&p).unwrap();
+            p
+        };
+        let cfg = RoyalS2GridConfig {
+            seed_model: seed_path,
+            out_dir: tmp.clone(),
+            history_manifest: PathBuf::from(DEFAULT_MANIFEST),
+        };
+        let (man, grid) = run_royal_s2_champs_grid(&cfg).expect("champs");
+        assert_eq!(man.entrants.len(), 11);
+        assert_eq!(grid.cells.len(), 11);
+        let ids: HashSet<_> = man.entrants.iter().map(|e| e.id.as_str()).collect();
+        for id in TITLE_WINNERS {
+            assert!(ids.contains(id), "missing {id}");
+        }
+        assert!(!ids.contains("LOGIC_HANGQ_ANY"));
+        assert!(!ids.contains("LOGIC_PRE_LRCHECK"));
+        assert!(!ids.contains("BASE_P120H50B75_C2L"));
+        assert!(man.entrants.iter().all(|e| e.engine.is_none()));
         let _ = fs::remove_dir_all(&tmp);
     }
 }
