@@ -15,7 +15,9 @@ use crate::training::pool::{
 use crate::training::pst_grid::{run_pst_grid, PstGridConfig};
 use crate::training::q_rs_grid::{run_q_rs_grid, QRsGridConfig};
 use crate::training::record::{AgentSpec, GameStart};
-use crate::training::royal_s2_grid::{run_royal_s2_grid, RoyalS2GridConfig};
+use crate::training::royal_s2_grid::{
+    run_royal_s2_champs_grid, run_royal_s2_grid, RoyalS2GridConfig, DEFAULT_CHAMPS_OUT_DIR,
+};
 use crate::training::run_status::{disk_free_gb, utc_now_iso, RunStatus, WorkerDaemonConfig};
 use crate::training::scale_sample::{run_scale_sample, ScaleSampleConfig};
 use crate::training::texel::{fit_texel, TexelFitConfig, TexelInit};
@@ -109,6 +111,10 @@ pub fn print_training_usage() {
     println!("  royal-s2-grid [--seed PATH] [--out DIR]");
     println!(
         "            (2 chassis × ±S2 × {{none,L,A,LA}} + 6 leftover history; 22 agents)"
+    );
+    println!("  royal-s2-champs-grid [--seed PATH] [--out DIR]");
+    println!(
+        "            (11 royal-s2 title-winners; same cells, filtered manifest)"
     );
     println!("  texel-fit [--features DIR] [--out PATH] [--iters N] [--lr F] [--k F]");
     println!("            [--init seed|mobility|PATH] [--late-frac F] [--keep-draws]");
@@ -1228,6 +1234,30 @@ pub fn cmd_royal_s2_grid(args: &[String]) -> Result<(), String> {
     let (man, _grid) = run_royal_s2_grid(&cfg)?;
     println!(
         "Wrote {} entrants under {} (2 chassis × 8 + 6 leftover history)",
+        man.entrants.len(),
+        cfg.out_dir.display()
+    );
+    Ok(())
+}
+
+pub fn cmd_royal_s2_champs_grid(args: &[String]) -> Result<(), String> {
+    let mut cfg = RoyalS2GridConfig::default();
+    cfg.out_dir = PathBuf::from(DEFAULT_CHAMPS_OUT_DIR);
+    let mut i = 2;
+    while i < args.len() {
+        if let Some(v) = take_flag_value(args, &mut i, "--seed")? {
+            cfg.seed_model = PathBuf::from(v);
+            continue;
+        }
+        if let Some(v) = take_flag_value(args, &mut i, "--out")? {
+            cfg.out_dir = PathBuf::from(v);
+            continue;
+        }
+        return Err(format!("Unknown flag {}", args[i]));
+    }
+    let (man, _grid) = run_royal_s2_champs_grid(&cfg)?;
+    println!(
+        "Wrote {} title-winner entrants under {}",
         man.entrants.len(),
         cfg.out_dir.display()
     );
