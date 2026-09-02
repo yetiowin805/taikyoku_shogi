@@ -5,8 +5,9 @@
   ./deploy/tourney_status.py top11-c2        # latest run whose id contains that
   ./deploy/tourney_status.py --run-id ID
   ./deploy/tourney_status.py --standings     # table only
-  ./deploy/tourney_status.py --tree          # trees only
+  ./deploy/tourney_status.py --tree          # trees only (unfinished + latest complete)
   ./deploy/tourney_status.py --tree 1        # one tree (1-based or tree id)
+  ./deploy/tourney_status.py --all-trees     # every knockout tree
 """
 
 from __future__ import annotations
@@ -188,14 +189,12 @@ def print_tree(tree: Dict[str, Any], slots: Dict[int, Dict[str, Any]]) -> None:
     print()
 
 
-def print_trees(
-    state: Dict[str, Any], which: Optional[str]
-) -> None:
-    trees: List[Dict[str, Any]] = list(state.get("knockouts") or [])
+def trees_for_display(
+    trees: List[Dict[str, Any]], which: Optional[str], all_trees: bool
+) -> List[Dict[str, Any]]:
+    """Specific id, every tree, or unfinished plus the latest complete."""
     if not trees:
-        print("(no knockout trees — Swiss / RR run)\n")
-        return
-    slots = slot_by_id(state)
+        return []
     if which is not None:
         picked = []
         for t in trees:
@@ -204,8 +203,34 @@ def print_trees(
         if not picked:
             ids = ", ".join(str(t.get("id")) for t in trees)
             raise SystemExit(f"no tree {which!r} (have {ids})")
-        trees = picked
-    for t in trees:
+        return picked
+    if all_trees:
+        return trees
+    unfinished = [t for t in trees if not t.get("complete")]
+    finished = [t for t in trees if t.get("complete")]
+    out: List[Dict[str, Any]] = []
+    if finished:
+        out.append(max(finished, key=lambda t: int(t.get("id") or 0)))
+    out.extend(unfinished)
+    out.sort(key=lambda t: int(t.get("id") or 0))
+    return out
+
+
+def print_trees(
+    state: Dict[str, Any], which: Optional[str], all_trees: bool = False
+) -> None:
+    trees: List[Dict[str, Any]] = list(state.get("knockouts") or [])
+    if not trees:
+        print("(no knockout trees — Swiss / RR run)\n")
+        return
+    slots = slot_by_id(state)
+    shown = trees_for_display(trees, which, all_trees)
+    if which is None and not all_trees and len(shown) < len(trees):
+        print(
+            f"showing {len(shown)}/{len(trees)} trees "
+            f"(unfinished + latest complete; --all-trees for every bracket)\n"
+        )
+    for t in shown:
         print_tree(t, slots)
 
 
@@ -222,6 +247,21 @@ def self_test() -> None:
     sa, sb, st = match_score({"slot_ids": [1, 2, 3]}, slots)
     assert abs(sa - 1.0) < 1e-9 and abs(sb - 1.0) < 1e-9
     assert st["done"] == 2 and st["running"] == 1
+
+    trees = [
+        {"id": 1, "complete": True},
+        {"id": 2, "complete": True},
+        {"id": 3, "complete": False},
+        {"id": 4, "complete": False},
+    ]
+    shown = trees_for_display(trees, None, False)
+    assert [t["id"] for t in shown] == [2, 3, 4]
+    assert [t["id"] for t in trees_for_display(trees, None, True)] == [1, 2, 3, 4]
+    assert [t["id"] for t in trees_for_display(trees, "1", False)] == [1]
+    only_done = trees_for_display(
+        [{"id": 1, "complete": True}, {"id": 5, "complete": True}], None, False
+    )
+    assert [t["id"] for t in only_done] == [5]
     print("self-test ok")
 
 
@@ -231,7 +271,18 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
     ap.add_argument("--root", type=Path, default=DEFAULT_TOURNEY_ROOT)
     ap.add_argument("--run-id", help="exact run directory name")
     ap.add_argument("--standings", action="store_true", help="print standings.md only")
-    ap.add_argument("--tree", nargs="?", const="all", metavar="N", help="print trees (optional id)")
+    ap.add_argument(
+        "--tree",
+        nargs="?",
+        const="recent",
+        metavar="N",
+        help="print trees (optional id; default is unfinished + latest complete)",
+    )
+    ap.add_argument(
+        "--all-trees",
+        action="store_true",
+        help="print every knockout tree (overrides the unfinished+latest filter)",
+    )
     ap.add_argument("--self-test", action="store_true")
     args = ap.parse_args(list(argv) if argv is not None else None)
 
@@ -249,8 +300,10 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
     if want_standings:
         print_standings(run_dir)
     if want_tree:
-        which = None if args.tree in (None, "all") else args.tree
-        print_trees(state, which)
+        which = None if args.tree in (None, "recent", "all") else args.tree
+        # --tree all keeps the old "every tree" meaning.
+        all_trees = args.all_trees or args.tree == "all"
+        print_trees(state, which, all_trees)
     return 0
 
 
