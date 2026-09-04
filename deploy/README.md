@@ -271,6 +271,16 @@ cd /opt/taikyoku_shogi
 tail -f data/run/royal-s2-champs-swiss.log
 ```
 
+### Royal-s2 AVG / H50 twins (3s)
+
+`AVG_P120_SEED_C2` and `BASE_P120H50B75_C2` × current/S2 × {none, L, A, LA} (16). No leftover-history baselines. Soft budget **3s**/move, depth 8. Do not bake onto `models/ab-seed.json`.
+
+```bash
+cd /opt/taikyoku_shogi
+./deploy/pull_build_royal_s2_twins_swiss.sh --branch cursor/royal-s2-twins-3s
+tail -f data/run/royal-s2-twins-swiss.log
+```
+
 ### Scale-sample Swiss (legacy ±10% samples)
 
 ```bash

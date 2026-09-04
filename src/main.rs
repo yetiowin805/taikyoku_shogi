@@ -249,6 +249,12 @@ fn main() {
                     print_usage();
                 }
             }
+            "royal-s2-twins-grid" => {
+                if let Err(e) = taikyoku_shogi::training::cli::cmd_royal_s2_twins_grid(&args) {
+                    eprintln!("{}", e);
+                    print_usage();
+                }
+            }
             "texel-fit" => {
                 if let Err(e) = taikyoku_shogi::training::cli::cmd_texel_fit(&args) {
                     eprintln!("{}", e);
