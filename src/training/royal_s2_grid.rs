@@ -23,6 +23,7 @@ use std::path::PathBuf;
 
 pub const DEFAULT_OUT_DIR: &str = "models/royal-s2-grid";
 pub const DEFAULT_CHAMPS_OUT_DIR: &str = "models/royal-s2-champs-grid";
+pub const DEFAULT_TWINS_OUT_DIR: &str = "models/royal-s2-twins-grid";
 pub const DEFAULT_SEED_MODEL: &str = "models/ab-seed.json";
 
 /// Agents with at least one knockout title in `royal-s2-swiss-20260828T064125Z`
@@ -332,6 +333,46 @@ pub fn run_royal_s2_champs_grid(
     Ok((man, grid))
 }
 
+/// `AVG_P120_SEED_C2` and `BASE_P120H50B75_C2` × the S2/L/A factorial (16).
+/// Drops leftover-history baselines (`BASE_T150C120`, `BASE_P120H75B60`, LOGIC_*).
+pub fn run_royal_s2_twins_grid(
+    cfg: &RoyalS2GridConfig,
+) -> Result<(TourneyManifest, GridFile), String> {
+    let (mut man, mut grid) = run_royal_s2_grid(cfg)?;
+    let keep: HashSet<String> = CHASSIS
+        .iter()
+        .flat_map(|base| FACTORIAL.iter().map(|(suffix, ..)| variant_id(base, suffix)))
+        .collect();
+    let want = keep.len();
+    man.entrants.retain(|e| keep.contains(&e.id));
+    grid.cells.retain(|c| keep.contains(&c.id));
+    if man.entrants.len() != want {
+        return Err(format!(
+            "twins filter: wrote {} entrants, want {want}",
+            man.entrants.len()
+        ));
+    }
+    for e in &man.entrants {
+        if e.engine.is_some() {
+            return Err(format!("{} should not pin a logic engine", e.id));
+        }
+    }
+
+    let grid_path = cfg.out_dir.join("grid.json");
+    fs::write(
+        &grid_path,
+        serde_json::to_string_pretty(&grid).map_err(|e| e.to_string())?,
+    )
+    .map_err(|e| format!("write {}: {e}", grid_path.display()))?;
+    let man_path = cfg.out_dir.join("manifest.json");
+    fs::write(
+        &man_path,
+        serde_json::to_string_pretty(&man).map_err(|e| e.to_string())?,
+    )
+    .map_err(|e| format!("write {}: {e}", man_path.display()))?;
+    Ok((man, grid))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -458,6 +499,48 @@ mod tests {
         assert!(!ids.contains("LOGIC_PRE_LRCHECK"));
         assert!(!ids.contains("BASE_P120H50B75_C2L"));
         assert!(man.entrants.iter().all(|e| e.engine.is_none()));
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn twins_grid_writes_16_experimental_only() {
+        let tmp = std::env::temp_dir().join(format!("tk-royal-s2-twins-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(&tmp).unwrap();
+        let seed_path = if PathBuf::from(DEFAULT_SEED_MODEL).is_file() {
+            PathBuf::from(DEFAULT_SEED_MODEL)
+        } else {
+            let p = tmp.join("ab-seed.json");
+            EvalCheckpoint::seed("ab-seed").save_path(&p).unwrap();
+            p
+        };
+        let cfg = RoyalS2GridConfig {
+            seed_model: seed_path,
+            out_dir: tmp.clone(),
+            history_manifest: PathBuf::from(DEFAULT_MANIFEST),
+        };
+        let (man, grid) = run_royal_s2_twins_grid(&cfg).expect("twins");
+        assert_eq!(man.entrants.len(), 16);
+        assert_eq!(grid.cells.len(), 16);
+        let ids: HashSet<_> = man.entrants.iter().map(|e| e.id.as_str()).collect();
+        for &base_id in &CHASSIS {
+            for &(suffix, ..) in &FACTORIAL {
+                let id = variant_id(base_id, suffix);
+                assert!(ids.contains(id.as_str()), "missing {id}");
+            }
+        }
+        for id in [
+            "BASE_T150C120",
+            "BASE_P120H75B60",
+            "LOGIC_HANGQ_ANY",
+            "LOGIC_PRE_LRCHECK",
+            "BASE_T150C50",
+            "BASE_H105O105",
+        ] {
+            assert!(!ids.contains(id), "leftover {id}");
+        }
+        assert!(man.entrants.iter().all(|e| e.engine.is_none()));
+        assert!(grid.cells.iter().all(|c| c.kind == "experimental"));
         let _ = fs::remove_dir_all(&tmp);
     }
 }
