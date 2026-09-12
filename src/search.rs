@@ -338,6 +338,8 @@ pub struct SearchInfo {
 
 #[derive(Debug, Clone)]
 pub struct SearchResult {
+    /// Fully completed iterative-deepening depth; zero means no completed iteration.
+    pub completed_depth: u32,
     pub best_move: Option<Move>,
     pub score: i32,
     pub nodes: u64,
@@ -1939,6 +1941,14 @@ pub(crate) fn generate_captures_hitting_square(state: &GameState, victim: Positi
 /// Uses iterative deepening from depth 1..=`config.depth`. On timeout mid-iteration,
 /// returns the last **completed** iteration's result.
 pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -> SearchResult {
+    search_with_progress(state, weights, config, &mut |_, _, _, _| {})
+}
+
+/// Report each completed iteration before starting deeper work.
+pub fn search_with_progress(
+    state: &GameState, weights: &EvalWeights, config: &SearchConfig,
+    progress: &mut dyn FnMut(u32, i32, &Move, u64),
+) -> SearchResult {
     // Search eval skips deterministic noise (hashes every piece when enabled).
     let mut weights_buf;
     let weights = if weights.noise_scale != 0.0 {
@@ -2051,6 +2061,7 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
             children: vec![],
         };
         return SearchResult {
+            completed_depth: 0,
             best_move: None,
             score,
             nodes: 0,
@@ -2079,6 +2090,7 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
     let mut completed_score = i32::MIN + 1;
     let mut completed_lines: Vec<(Move, i32)> = Vec::new();
     let mut completed_depth = 0u32;
+    let mut actual_completed_depth = 0u32;
 
     // Working copy already cloned above for last-royal evasion filtering.
 
@@ -2294,6 +2306,8 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
         completed_best = iter_best;
         completed_score = iter_score;
         completed_depth = d;
+        actual_completed_depth = d;
+        progress(d, completed_score, &completed_best, ctx.nodes);
         ctx.best_score = completed_score;
 
         if d < max_depth {
@@ -2374,6 +2388,7 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
     };
 
     SearchResult {
+        completed_depth: actual_completed_depth,
         best_move: Some(best_move),
         score: best_score,
         nodes: ctx.nodes,
@@ -2490,6 +2505,7 @@ pub fn probe_quiescence(
         )
     };
     SearchResult {
+        completed_depth: 0,
         best_move: None,
         score,
         nodes: ctx.nodes,

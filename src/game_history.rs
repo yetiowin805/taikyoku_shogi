@@ -22,6 +22,8 @@ pub enum MoveRecordData {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MoveRecord {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub completed_depth: Option<u32>,
     pub move_number: usize,
     pub color: Color,
     pub from_file: u8,
@@ -119,6 +121,7 @@ impl GameHistory {
                 eval: None,
                 static_eval: None,
                 nodes: None,
+                completed_depth: None,
             });
         }
     }
@@ -188,6 +191,7 @@ impl GameHistory {
             eval: None,
             static_eval: None,
             nodes: None,
+                completed_depth: None,
         }
     }
 

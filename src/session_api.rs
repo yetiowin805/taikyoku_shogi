@@ -461,6 +461,7 @@ mod tests {
             eval: Some(42),
             static_eval: Some(10),
             nodes: Some(99),
+            completed_depth: None,
         };
         let v2 = GameRecordV2 {
             format_version: FORMAT_VERSION,
@@ -506,6 +507,7 @@ mod tests {
                 eval: Some(100),
                 static_eval: Some(50),
                 nodes: None,
+                completed_depth: None,
             },
             MoveRecord {
                 move_number: 2,
@@ -519,6 +521,7 @@ mod tests {
                 eval: None,
                 static_eval: Some(20),
                 nodes: None,
+                completed_depth: None,
             },
         ];
         let s = EvalSeriesDto::from_recorded_moves(&moves, "g1").unwrap();
@@ -544,6 +547,7 @@ mod tests {
             eval: None,
             static_eval: None,
             nodes: None,
+                completed_depth: None,
         }];
         assert!(EvalSeriesDto::from_recorded_moves(&moves, "g1").is_none());
     }
