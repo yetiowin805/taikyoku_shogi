@@ -374,3 +374,59 @@ Wall time for one batch ≈ `(BATCH / JOBS) * mean_game_seconds` when CPU-bound.
 - `systemctl start` resumes and increments `games_completed` in `status.json`
 - `GET /api/training/status` (via tunnel) matches `status.json`
 - Same env + unit on a second VM (e.g. Oracle Free) with only hostname / `SEED_BASE` changes
+
+### Tournament with continuous swing analysis (four Linux CPUs)
+
+Build with `cargo build --release --bins`. The combined Python launcher requires
+only Python's standard library. Run it as the tournament repository user:
+
+```bash
+python3 deploy/tourney_analysis.py resume --run-dir data/raw/tourney/royal-s2-twins-swiss-20260904T070539Z
+python3 deploy/tourney_analysis.py status --run-dir data/raw/tourney/royal-s2-twins-swiss-20260904T070539Z
+python3 deploy/tourney_analysis.py stop --run-dir data/raw/tourney/royal-s2-twins-swiss-20260904T070539Z
+```
+
+For a new run, use `start --run-dir data/raw/tourney/NEW_ID --manifest PATH`
+(default depth ceiling 8, 3000 ms/move). Resume reads the original entrants,
+depth and time budget from saved state; it never regenerates a grid or bakes
+weights. Stop the legacy tournament before switching launchers. The legacy
+stop file is checked at game boundaries; SIGTERM to its verified engine PID
+requests interruption between moves. Interrupted slots restart from their
+initial positions on resume; completed games and ratings remain intact.
+
+The launcher detaches after checking child readiness. It chooses the first four
+allowed CPUs, or accepts `--cpus 0,1,2,3`. Three tournament threads each own a CPU.
+The fourth thread and analyzer share an exclusive lock and CPU: analysis requests
+prevent new fourth-worker games, then wait for its current game to finish.
+An empty analysis queue gives that CPU back. Analyzer failure is visible in
+status and releases the CPU while the tournament continues. Stop/resume restarts
+the analyzer. Do not use a legacy launcher's kill/rebuild wrapper while this pair
+is running.
+
+Each run's `analysis/` contains `catalogue.sqlite`, individual completed
+`moments/*.json`, content-addressed checkpoint/binary snapshots, per-iteration
+progress JSON, and separate supervisor/tournament/analyzer/search stderr logs.
+Status reports backlog, completed/failed moments and cached search count.
+SQLite is authoritative for discovery and completion; interrupted moments retry,
+while failed moments remain recorded for inspection and are not hot-looped.
+
+Only completed tournament slots are scanned. Same-player evaluations two plies
+apart must differ by at least 1000 (either direction, Black-positive convention).
+Every batch selects the 20 largest pending swings and analyzes the seven
+surrounding pre-move positions, clipping at game boundaries. Adjacent moments
+remain separate but share cached searches. New games are discovered between
+batches, or every 10 seconds when idle.
+
+Future move records include optional `completed_depth`. Analysis targets that
+depth plus one with a five-minute watchdog; old/missing/zero depths use a
+30-second budget and depth ceiling 64. Every finished iteration is flushed before
+deeper work, allowing the watchdog to retain its deepest received result.
+Results include the best move (not a separately reconstructed PV), Black-positive
+score, original telemetry, actual completed depth, timing and model identity.
+Terminal positions carry `terminal: true`. Unsupported historical-engine games,
+changed checkpoints, malformed records and failed searches are diagnosed rather
+than silently analyzed using a different agent.
+
+Rollback: stop the combined launcher, then resume with
+`./deploy/run_royal_s2_twins_swiss.sh --detach --resume --run-id RUN_ID --skip-gen --jobs 4 --depth 8 --time-ms 3000`.
+Use the backed-up original binary via `--bin` if rolling back executable changes.

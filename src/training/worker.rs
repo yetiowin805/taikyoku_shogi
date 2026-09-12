@@ -241,6 +241,9 @@ pub fn play_one_game(config: &WorkerConfig) -> Result<GameRecordV2, PlayFailure>
             ann.static_eval,
             ann.nodes,
         ));
+        if let Some(rec) = moves.last_mut() {
+            rec.completed_depth = ann.completed_depth;
+        }
         if config.verbose {
             println!(
                 "{}. {:?}: {}{}-{}{}",

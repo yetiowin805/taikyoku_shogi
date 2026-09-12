@@ -1068,6 +1068,7 @@ mod tests {
             eval,
             static_eval,
             nodes: None,
+                completed_depth: None,
         };
         let moves = vec![mk(Some(100), Some(50)), mk(None, Some(200))];
         assert_eq!(recorded_eval_for_ply(&moves, 0), Some(50)); // start: static

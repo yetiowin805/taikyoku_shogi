@@ -28,3 +28,5 @@ pub mod tournament;
 pub mod two_mob_grid;
 pub mod two_mob_q_grid;
 pub mod worker;
+
+pub mod compute_gate;

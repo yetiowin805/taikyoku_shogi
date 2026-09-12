@@ -1314,6 +1314,7 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
 
     let light_starts = parse_starts_spec("light")?;
     let jobs = cfg.jobs.max(1);
+    let compute_gate = crate::training::compute_gate::ComputeGate::from_env(jobs)?;
     let state_mu = Arc::new(Mutex::new(state));
     let cfg_stop = cfg.stop.clone();
     let games_dir = dir.clone();
@@ -1326,16 +1327,42 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
 
     loop {
         std::thread::scope(|scope| {
-            for _ in 0..jobs {
+            for worker_index in 0..jobs {
+                let compute_gate = &compute_gate;
                 let state_mu = Arc::clone(&state_mu);
                 let cfg_stop = Arc::clone(&cfg_stop);
                 let light_starts = &light_starts;
                 let games_dir = &games_dir;
                 scope.spawn(move || loop {
+                    if let Some(gate) = compute_gate {
+                        if let Err(e) = gate.pin(worker_index) {
+                            eprintln!("compute affinity failed: {e}");
+                            cfg_stop.store(true, Ordering::Relaxed);
+                            return;
+                        }
+                    }
+                    // Hold this descriptor through one game, never through idle queue waits.
+                    let mut shared_lease = None;
                     let slot_id = loop {
                         poll_stop_file(cfg);
                         if cfg_stop.load(Ordering::Relaxed) {
                             return;
+                        }
+                        if worker_index == 3 {
+                            if let Some(gate) = compute_gate {
+                                match gate.claim() {
+                                    Ok(Some(lease)) => shared_lease = Some(lease),
+                                    Ok(None) => {
+                                        std::thread::sleep(std::time::Duration::from_millis(100));
+                                        continue;
+                                    }
+                                    Err(e) => {
+                                        eprintln!("compute admission failed: {e}");
+                                        cfg_stop.store(true, Ordering::Relaxed);
+                                        return;
+                                    }
+                                }
+                            }
                         }
                         let mut st = state_mu.lock().unwrap();
                         match claim_or_schedule_slot(&mut st, cfg) {
@@ -1345,6 +1372,7 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
                             }
                             None if format_is_continuous(st.format) => {
                                 drop(st);
+                                shared_lease.take();
                                 std::thread::sleep(std::time::Duration::from_millis(50));
                             }
                             None => return,

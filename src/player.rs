@@ -16,6 +16,7 @@ pub struct AgentOptions {
 /// Optional search telemetry attached to a chosen move (AB fills these).
 #[derive(Debug, Clone, Default)]
 pub struct MoveAnnotation {
+    pub completed_depth: Option<u32>,
     /// Black-absolute search score for the chosen line.
     pub eval: Option<i32>,
     /// Black-absolute stand-pat at the root before the move.
