@@ -1,0 +1,30 @@
+{
+  "main_revision": "9d3058696779ed1664c54e336d351c1ef006acdf",
+  "source_revision": "df0b454",
+  "source_note": "Binaries built from the pre-rustfmt working snapshot represented by df0b454; later changes add tests, reporting and an existing-output guard only. Formatting changes may alter bitwise rebuild identity.",
+  "compiler": "rustc 1.92.0 (ded5c06cf 2025-12-08)\nbinary: rustc\ncommit-hash: ded5c06cf21d2b93bffd5d884aa6e96934ee4234\ncommit-date: 2025-12-08\nhost: x86_64-unknown-linux-gnu\nrelease: 1.92.0\nLLVM version: 21.1.3\n",
+  "profile": {
+    "mode": "release",
+    "lto": "thin",
+    "codegen_units": 1
+  },
+  "mechanical_mask": 507,
+  "experimental_defaults": "all search-changing switches disabled",
+  "binaries": {
+    "experiments": "291a2b441444f1017d9544a58c68c65ce1a6de4bcee08eebccdd32a948515baf",
+    "stock": "728e31fd7096febc1fc296f879945715c2bebf60d9fae281c95941763a68fe6b"
+  },
+  "validation": {
+    "feature_debug_library": "345 passed, 4 ignored",
+    "feature_release_library": "345 passed, 4 ignored",
+    "feature_debug_all_targets": "passed",
+    "production_release_all_targets": "342 library tests passed, 4 ignored; all binary/example targets passed",
+    "python_analyzer": "5 passed",
+    "vps_fixed2": "24 complete main/mechanical pairs; exact score, full route, ordered root-line and node parity"
+  },
+  "remaining": [
+    "Full analyzer batch replay/model-switch/termination integration matrix",
+    "Broad mechanical attribution and leave-one-out matrix",
+    "Independent tactical ground truth and tournament strength"
+  ]
+}

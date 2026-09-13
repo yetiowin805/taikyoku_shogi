@@ -1,0 +1,19 @@
+{
+  "original_configuration_unchanged": true,
+  "original_model_snapshots_verified": true,
+  "completed_slots_before": 1409,
+  "completed_slots_after": 1409,
+  "catalogue": {
+    "completed": 1592,
+    "pending": 55709,
+    "running": 1
+  },
+  "cached_searches": 6337,
+  "supervisor": {
+    "pid": 657676,
+    "identity": "240732046",
+    "tournament_pid": 657677,
+    "analyzer_pid": 657678,
+    "state": "running"
+  }
+}

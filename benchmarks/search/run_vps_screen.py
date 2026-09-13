@@ -19,6 +19,8 @@ def main():
     cpus = list(map(int, args.cpus.split(',')))
     assert len(set(cpus)) == len(cpus) and set(cpus) <= os.sched_getaffinity(0)
     args.out.mkdir(parents=True, exist_ok=True)
+    if any(args.out.glob('raw-cpu*.jsonl*')):
+        parser.error('output already contains observations; use a fresh output directory')
     cases = json.loads(args.corpus.read_text())
     started = time.monotonic()
     deadline = started + args.seconds
