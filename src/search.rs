@@ -2140,7 +2140,12 @@ pub fn search_with_progress(
             } else {
                 0
             };
-            let wipe_key = capturing_wipe_group_key(state, mv);
+            // Mode zero never consumes sibling metadata or stores representatives.
+            let wipe_key = if ctx.sibling_mode != 0 {
+                capturing_wipe_group_key(state, mv)
+            } else {
+                None
+            };
 
             let Some(undo) = pos.make_move_for_search(mv.clone()) else {
                 continue;
@@ -2156,10 +2161,15 @@ pub fn search_with_progress(
             ctx.q_caps_at_node = 0;
             ctx.q_cap_index = 0;
 
-            let e_i = -evaluate_with_ply(&pos, weights, ctx.ply);
-            let landing_hit = pos
-                .get_board()
-                .is_position_attacked_by_color(mv.to, pos.get_current_turn());
+            let (e_i, landing_hit) = if ctx.sibling_mode != 0 {
+                (
+                    -evaluate_with_ply(&pos, weights, ctx.ply),
+                    pos.get_board()
+                        .is_position_attacked_by_color(mv.to, pos.get_current_turn()),
+                )
+            } else {
+                (0, false)
+            };
             let sib = sibling_action(
                 ctx.sibling_mode,
                 wipe_key,
@@ -3169,7 +3179,11 @@ fn search_move_list(
         } else {
             0
         };
-        let wipe_key = capturing_wipe_group_key(state, &mv);
+        let wipe_key = if ctx.sibling_mode != 0 {
+            capturing_wipe_group_key(state, &mv)
+        } else {
+            None
+        };
         let is_wipe = quiesce_move_looks_path_or_multileg(state, &mv);
         let child_depth = depth.saturating_sub(1);
 
@@ -3184,10 +3198,16 @@ fn search_move_list(
         ctx.last_ab_mover_large = mover_large;
         ctx.ply = parent_ply + 1;
 
-        let e_i = -evaluate_with_ply(state, weights, ctx.ply);
-        let landing_hit = state
-            .get_board()
-            .is_position_attacked_by_color(mv.to, state.get_current_turn());
+        let (e_i, landing_hit) = if ctx.sibling_mode != 0 {
+            (
+                -evaluate_with_ply(state, weights, ctx.ply),
+                state
+                    .get_board()
+                    .is_position_attacked_by_color(mv.to, state.get_current_turn()),
+            )
+        } else {
+            (0, false)
+        };
         let sib = sibling_action(
             ctx.sibling_mode,
             wipe_key,
@@ -4196,7 +4216,8 @@ fn order_moves_with_heuristics(
         return;
     }
     let mut attack_cache = LandingAttackCache::new();
-    moves.sort_by_key(|mv| {
+    // Score each move once; the stable sort preserves the order of equal keys.
+    moves.sort_by_cached_key(|mv| {
         let cap = move_order_score(
             state,
             weights,
