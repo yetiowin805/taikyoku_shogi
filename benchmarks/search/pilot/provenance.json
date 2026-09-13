@@ -1,0 +1,143 @@
+{
+  "base_revision": "9d3058696779ed1664c54e336d351c1ef006acdf",
+  "selection": "Frozen before pilot timing: five prior corpus positions plus first finite sign crossing in slot0046; ply is the number of applied array entries.",
+  "inputs": {
+    "inputs/opening-BASE_P120H50B75_C2.json": {
+      "sha256": "7b9a1fe45fa72ed7374ab4cb66a070ebde26e020f46c8265e9f5adfe51303db9",
+      "source": "/home/frank/.codex/visualizations/2026/09/12/01a09425-5147-7010-9566-5574db11cc63/search-experiments/inputs/opening-BASE_P120H50B75_C2.json"
+    },
+    "inputs/BASE_P120H50B75_C2.json": {
+      "sha256": "c6f9234dd3b8ea0eb7bcedec3db93ac8f5ec8bacfd4509028f37e209ca2cd56d",
+      "source": "/home/frank/.codex/visualizations/2026/09/12/01a09425-5147-7010-9566-5574db11cc63/search-experiments/inputs/models/royal-s2-twins-grid/BASE_P120H50B75_C2.json"
+    },
+    "inputs/slot0569-BASE_P120H50B75_C2S2-vs-BASE_P120H50B75_C2LA-a-white.json": {
+      "sha256": "a319793b01856b2ac5d0a09578145999ee608da039aed43e46920f55fcccba46",
+      "source": "/home/frank/.codex/visualizations/2026/09/12/01a09425-5147-7010-9566-5574db11cc63/search-experiments/inputs/data/raw/tourney/royal-s2-twins-swiss-20260904T070539Z/slot0569-BASE_P120H50B75_C2S2-vs-BASE_P120H50B75_C2LA-a-white.json"
+    },
+    "inputs/BASE_P120H50B75_C2S2.json": {
+      "sha256": "ea1d59b34ead2f4d0e8c19e4c2073408544b3b4cf7a7cf75cf5c9c01746c6e63",
+      "source": "/home/frank/.codex/visualizations/2026/09/12/01a09425-5147-7010-9566-5574db11cc63/search-experiments/inputs/models/royal-s2-twins-grid/BASE_P120H50B75_C2S2.json"
+    },
+    "inputs/slot0670-AVG_P120_SEED_C2S2A-vs-AVG_P120_SEED_C2S2-a-black.json": {
+      "sha256": "8178363bc98dd4775de0359508bbdc940ab4230e76e57fc835f4d5b598d202bc",
+      "source": "/home/frank/.codex/visualizations/2026/09/12/01a09425-5147-7010-9566-5574db11cc63/search-experiments/inputs/data/raw/tourney/royal-s2-twins-swiss-20260904T070539Z/slot0670-AVG_P120_SEED_C2S2A-vs-AVG_P120_SEED_C2S2-a-black.json"
+    },
+    "inputs/AVG_P120_SEED_C2S2.json": {
+      "sha256": "6edcccf193c62a9c0d789d6770391f5a9b7b57cc2ef99512ac194864f4a0a52f",
+      "source": "/home/frank/.codex/visualizations/2026/09/12/01a09425-5147-7010-9566-5574db11cc63/search-experiments/inputs/models/royal-s2-twins-grid/AVG_P120_SEED_C2S2.json"
+    },
+    "inputs/AVG_P120_SEED_C2S2A.json": {
+      "sha256": "bafdade3f9504f0aad319947bfe0d8fecd0142ad23de589d5ef4dd3c115cfad7",
+      "source": "/home/frank/.codex/visualizations/2026/09/12/01a09425-5147-7010-9566-5574db11cc63/search-experiments/inputs/models/royal-s2-twins-grid/AVG_P120_SEED_C2S2A.json"
+    },
+    "inputs/slot1233-BASE_P120H50B75_C2-vs-AVG_P120_SEED_C2S2L-a-white.json": {
+      "sha256": "17afe6f2256c4a56017b20853a9c98419105ff48b97b643431e6eb85ba22d123",
+      "source": "/home/frank/.codex/visualizations/2026/09/12/01a09425-5147-7010-9566-5574db11cc63/search-experiments/inputs/data/raw/tourney/royal-s2-twins-swiss-20260904T070539Z/slot1233-BASE_P120H50B75_C2-vs-AVG_P120_SEED_C2S2L-a-white.json"
+    },
+    "inputs/slot0046-AVG_P120_SEED_C2S2A-vs-AVG_P120_SEED_C2LA-a-white.json": {
+      "sha256": "aaf4423e49da207b949e79628e094f3c36f3ac8a8716b6a2c096edfd081239dc",
+      "source": "/home/frank/taikyoku_shogi/data/raw/games/interesting-knockouts/royal-s2-sign-flips-20260912/slot0046-AVG_P120_SEED_C2S2A-vs-AVG_P120_SEED_C2LA-a-white.json"
+    }
+  },
+  "compiler": "rustc 1.92.0 (ded5c06cf 2025-12-08)\nbinary: rustc\ncommit-hash: ded5c06cf21d2b93bffd5d884aa6e96934ee4234\ncommit-date: 2025-12-08\nhost: x86_64-unknown-linux-gnu\nrelease: 1.92.0\nLLVM version: 21.1.3\n",
+  "cpu": 0,
+  "binaries": {
+    "stock": "728e31fd7096febc1fc296f879945715c2bebf60d9fae281c95941763a68fe6b",
+    "production": "8e85eae99813157ac4d84b3d5a9d31a6e8fde97c69e6ca354b2a9564998e24c7",
+    "experiments": "40dffc181591dcbdc63810e654e9de2b9ab14b75032b759b8c5d8bdb2956f7c8"
+  },
+  "build": {
+    "profile": "release",
+    "lto": "thin",
+    "codegen_units": 1,
+    "features": [
+      "search-experiments"
+    ],
+    "baseline_features": [],
+    "offline": true
+  },
+  "source_files": {
+    "src/search.rs": "bac9a21bfdb672c5ef21e6f11793ab413b826df0277a013eae3b36b2807261f8",
+    "src/game_state.rs": "758677bff747674bea361edda9c3ce0968c6cbc652c9d8ac809664fcf12f00be",
+    "src/parity.rs": "658d28c6c7f25782d1512451b938db4a78b276ecb49433318984abf791dbb3d6",
+    "src/optimization.rs": "6659921d27c8053e42caec37269b846da02b577fd58b53f9e0f23f902f358e04",
+    "src/zobrist.rs": "587ad9792f12038434987651fa9b0dea03edd15ba7e811a58bc857ba9c0f631a",
+    "src/random_player.rs": "b4e3123d006e492d17ea7db51f5a19e15ec7f3f30c42a8ffd00a4c706f7c3439",
+    "src/experimental_mobility.rs": "7b8b20b37bfae0146c713f8aa877307ede48432a156074628c918f50be435e74",
+    "src/eval.rs": "b6dc056adc9476736fe6fc5abc75ef0ed98832216755cb9d712dc44009242d3d",
+    "src/profile_timers.rs": "d63dc96c1947f500850629c3a611b883cd9b9d45b8b28ee3f93b898add26d7f0",
+    "src/board.rs": "adbc3a0a9f325a10919b05e5992f0a3230484f278d443da4759ee47f4475b2a5",
+    "src/tengu_attack.rs": "22e2e38d222eff0fa806e6312206892145040c5ea5ee2fd8f253de630bc5096d",
+    "src/main.rs": "2e60bba9155d9cc7b959833c1cb0516b951d0498bdcd54d5de3a907a93abd7e5",
+    "src/debug_tool.rs": "1204517f27fd3b82ffdf85664690018df13c107c563b50214babc758312a2e6c",
+    "src/lib.rs": "e6a42e19313515a84bcaf5bc781e0778254ba6cbbdf30b7a3dcdd58c0803927f",
+    "src/external_player.rs": "bbdcb1d312e113cd9731217180c8d0c6c6b71f4da71e72cb9735ed4b0b2b2d94",
+    "src/search_experiments.rs": "45109431f1cb57cd0b9646293d59d61324c745a1fb73e4610da6aff8cc0eda64",
+    "src/notation.rs": "46b4362bbb0778060831b067cd3f8cdceac5aa242696a2841e9b9fd155dff40c",
+    "src/server.rs": "ca2d25a37f1fb7e28faa9db2ea7350e67a7ede96712e896edf24dacbf4035a0d",
+    "src/attack_utils.rs": "6327544b923b51fd465ea2699308260258ec5ba06e997c245c973a5058993d95",
+    "src/think_loop.rs": "0919b95c4f583bb193486cebc95903fba42c934f496464ab395d37895cd6d4e3",
+    "src/test_support.rs": "8d95e1d319be8ace5c18f67b4e50945e5b4456fa6c607d40545cd893622259d7",
+    "src/position.rs": "251fd2a75d1940533f35b7980af5b858bb314145f3922ba26eeea3e8ab074f2f",
+    "src/royal_capture_player.rs": "e455e018610a4bb83fae7b88c66f86a37540324fb8064127f2dedb93931849a0",
+    "src/player.rs": "abcf22ab7403cb24b04cc29356187eb60302f88d410dcff6cdc30738851c63fa",
+    "src/board_position.rs": "bce5f9cc9ae5e3bddd805fbbc6f1762795107e8e7cb2e9f84e5702e536eb5b27",
+    "src/piece.rs": "9345638c31b974967fbfa02672382d5e569b36485a9b8178d25c5855467a05f4",
+    "src/alphabeta_player.rs": "3dc839d13cff068bea4d2a07090ade63c12180c9789d45243c9e2396ad7bd207",
+    "src/path_utils.rs": "1ab144974101dfe124db3f5d34e6153c7a99a419ad3d1af9b112021d39d4ab5e",
+    "src/uci.rs": "d56625bb7bdc8b73fa9f1189f202d4625b09ce89853e4e2c5d4b3cdbb3568070",
+    "src/session_api.rs": "337fe9306372d165c52cd927732abf612cba5fe616526470de7ad95b95f14158",
+    "src/minimal_intelligence_player.rs": "5d5966ffc767254f67bf9ca9fc88a70673c8640dde8d2a952b2f9c9362d872b2",
+    "src/game_history.rs": "4c4e141de8efb8c649480e28a94f7ba3b9dc7b3e6f9e42f309a65a8714fc94de",
+    "src/move_simulation.rs": "59c5c4f73d8a76e94eac7530a8712957e036be6cda1fdc1df28a91fd5946f868",
+    "src/training/compute_gate.rs": "52c6e292a808f418d4936e2294d1ffdccdcdf3112482e5aaa5dc208ede6a3aba",
+    "src/training/match_harness.rs": "699992770f7aeddfd82aa6c9669bdaab037ba35594203bbe0c11f883916cec39",
+    "src/training/paths.rs": "436ea549877a4abb0e0d7da5e8dc88cbab69d413195c49712afd68b4c83e2887",
+    "src/training/run_status.rs": "7eb201510d86460fe6bcd22787a0cbaa2026ece5d0df238d3cb06a84dbd147aa",
+    "src/training/mobility_seed.rs": "89c37ad1e915f70934edb68b3ad0152cc4e234d2e33f81d454af140f39722376",
+    "src/training/eval_trace.rs": "bbe4148c89cf59119c43a8e12e3d9cdeb6b979328e64da56612a2a5659c0bd6c",
+    "src/training/tournament.rs": "04495e91504afa8205c6de21fa798ac02191957a3cc35309e353a0195de7a56f",
+    "src/training/record.rs": "feaa385f6e571807558448fcd41b69ce13938a7e965f66c9cec4b518a6829672",
+    "src/training/start_gen.rs": "fa8963faf8d6ff11280fa6bb010dfa93cbf3bbddbc6b9dd45cf87a791a278146",
+    "src/training/two_mob_grid.rs": "3737cd6bacad1a2202a8dff9edc824b968cfe1a578cb4b398783281e09eb397c",
+    "src/training/top4_mix_grid.rs": "70183e41e511230d1677ccb3e2db5745dee972afe67c186f780bfbc05681d819",
+    "src/training/pst_grid.rs": "5d36a93ba8d5351b0dd2f2a827c1d2e14d89ed4695fd7cd63b786b89a86f72cb",
+    "src/training/two_mob_q_grid.rs": "9b27410ea2501168af8657140debc3f4a194011fd993231733ccc7cd7b144be3",
+    "src/training/texel.rs": "09abc18b14d454a7ad9b0325ff3fafc910bb52894edac72574dc9ff44d3a9436",
+    "src/training/pool.rs": "e4cba3c8b0bd86617a2bfb74b71644a98c2fbde0eb5a5f4516ee1190110cadb8",
+    "src/training/knockout.rs": "45063e88bcf5761ff6c726f9b8446ac119abec6f57a169b9d5fdaa5564079994",
+    "src/training/q_rs_grid.rs": "fb0e2c1d3681297e1945baba782ccd75ba7e5dfea51cd1376ced90177103ba58",
+    "src/training/mod.rs": "3ef16a0f1decf1ce5a864b162815290cf54a778ceb046771d9ce0d09d6330474",
+    "src/training/hang_q_ab_grid.rs": "dce1c7fb22df176a2c23175e7e8957f08ef91dc7b3e9bd66b7dee3df8308ce97",
+    "src/training/worker.rs": "051b611287e1326d0506da9c8df1bf029b91a7ea3ee33610f9ad7998a8c00b3b",
+    "src/training/royal_s2_grid.rs": "ddf4b2a179392071e38575f0bc979fe066f8791bc2402342316c52721c029533",
+    "src/training/featurize.rs": "8c42ec759db2b5056ca7bfef384739972e916b92f3e16cc01234386a05b4a9b8",
+    "src/training/cli.rs": "f32778e17a48a3a39b7473d6e08b3c2473c5a8f77e8f1c2bd0fad12ddfa3bf0d",
+    "src/training/scale_sample.rs": "7b7d4dcfe54ec5eb0c522fd88102bc35a7a60b78ce4c3cc8d7af39138d72536c",
+    "src/training/top11_c2_grid.rs": "27a6b7d10dc8571f3f0530001e47ff30b09da64824b2f5ebb59f5ca3d244aa2a",
+    "src/training/file_pst_grid.rs": "a721e75938509fcdbda75c2faf4c36da586b08899beaf7035f6bfc2ef3628e23",
+    "src/training/loud_grid.rs": "df763136b82269d6b6a563a3c83a1c0837b22bde23b823debb086e50b101dbad",
+    "src/training/history.rs": "cdb60c2325640f4c0b2f97cb0d3dda2dfcc7245672405c5a018f8687c4dbaf2d",
+    "src/bin/search_speed.rs": "121c762d5fc4cc347a8816afe0b9856734bb865c82c441f352cfadb1c894285a",
+    "src/bin/analyze_position.rs": "4a4c9e1bc7b54a8387d5586cad7874195037776d1deefc7156b3e7469b9b64a8",
+    "src/bin/q_blowup_exp.rs": "e66cb07cb325e6c255458bd02f9684d1aaa091231cc59e67c98f29846a00e93b",
+    "src/bin/test_free_eagle.rs": "6e0945e5799660c8d986f960e28cdbc71e6c10b2b379265971a0224d5f539668",
+    "src/movement/generator.rs": "5a9a68a02ae2bd0803f417cd5b5c66366733f281e132fc5b974c54d65fa7c11b",
+    "src/movement/direction.rs": "65ba9d00e3711e86ba81dc15e261143521a83ec520560e2d26090dece838162c",
+    "src/movement/types.rs": "c3d05d246a379dabb34621868889804e96e30429244a2fb55119c8df1c0d227c",
+    "src/movement/config.rs": "fb7e0dfbd4b2980d8e473f766a69b3c3d941a3573f15dedd78b8735e788610d2",
+    "src/movement/mod.rs": "9c731f40bbc370b1d586d7585c108c3ff8283aea6f1dbdba79071ece4e1dedee",
+    "src/movement/irreversible.rs": "e911933267871466387985532fea6d6c52c3bcc4ee4fbb73890cd3c81e441ca6",
+    "examples/search_bench.rs": "7e9af8289dc2814dcdd875f3d006b71a789a3bdf7f110e941478a0cb5acada1e",
+    "Cargo.toml": "8ceb5774754f53b7c48965294724de670f23720af959f0ba46b23f6b4e101244",
+    "Cargo.lock": "13c06e00e34d43933b1d5ab0817257bc00eabb416e60472050294c242b55acd6"
+  },
+  "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+  "cpu_info": "Architecture:                            x86_64\nCPU op-mode(s):                          32-bit, 64-bit\nAddress sizes:                           39 bits physical, 48 bits virtual\nByte Order:                              Little Endian\nCPU(s):                                  12\nOn-line CPU(s) list:                     0-11\nVendor ID:                               GenuineIntel\nModel name:                              12th Gen Intel(R) Core(TM) i7-1255U\nCPU family:                              6\nModel:                                   154\nThread(s) per core:                      2\nCore(s) per socket:                      10\nSocket(s):                               1\nStepping:                                4\nCPU max MHz:                             4700.0000\nCPU min MHz:                             400.0000\nBogoMIPS:                                5222.40\nFlags:                                   fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf tsc_known_freq pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch cpuid_fault epb ssbd ibrs ibpb stibp ibrs_enhanced tpr_shadow flexpriority ept vpid ept_ad fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid rdseed adx smap clflushopt clwb intel_pt sha_ni xsaveopt xsavec xgetbv1 xsaves split_lock_detect user_shstk avx_vnni dtherm ida arat pln pts hwp hwp_notify hwp_act_window hwp_epp hwp_pkg_req hfi vnmi umip pku ospke waitpkg gfni vaes vpclmulqdq rdpid movdiri movdir64b fsrm md_clear serialize arch_lbr ibt flush_l1d arch_capabilities ibpb_exit_to_user\nVirtualization:                          VT-x\nL1d cache:                               352 KiB (10 instances)\nL1i cache:                               576 KiB (10 instances)\nL2 cache:                                6.5 MiB (4 instances)\nL3 cache:                                12 MiB (1 instance)\nNUMA node(s):                            1\nNUMA node0 CPU(s):                       0-11\nVulnerability Gather data sampling:      Not affected\nVulnerability Indirect target selection: Not affected\nVulnerability Itlb multihit:             Not affected\nVulnerability L1tf:                      Not affected\nVulnerability Mds:                       Not affected\nVulnerability Meltdown:                  Not affected\nVulnerability Mmio stale data:           Not affected\nVulnerability Reg file data sampling:    Mitigation; Clear Register File\nVulnerability Retbleed:                  Not affected\nVulnerability Spec rstack overflow:      Not affected\nVulnerability Spec store bypass:         Mitigation; Speculative Store Bypass disabled via prctl\nVulnerability Spectre v1:                Mitigation; usercopy/swapgs barriers and __user pointer sanitization\nVulnerability Spectre v2:                Mitigation; Enhanced / Automatic IBRS; IBPB conditional; PBRSB-eIBRS SW sequence; BHI BHI_DIS_S\nVulnerability Srbds:                     Not affected\nVulnerability Tsa:                       Not affected\nVulnerability Tsx async abort:           Not affected\nVulnerability Vmscape:                   Mitigation; IBPB before exit to userspace\n",
+  "verification": {
+    "debug": "345 passed, 4 ignored",
+    "release": "345 passed, 4 ignored",
+    "python_analyzer_legacy": "3 passed; batch recovery validation remains pending"
+  },
+  "measurement_notes": "Sequential processes pinned to logical CPU 0; no intentional concurrent build/test workload. Two shuffled blocks at d2 and 1 second; one d3 follow-up on five baseline-qualified positions. Cross-turn warms the same model two plies earlier without an intervening opponent search."
+}

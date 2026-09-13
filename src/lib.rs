@@ -7,17 +7,17 @@ pub mod eval;
 pub mod external_player;
 pub mod game_history;
 pub mod game_state;
-pub mod movement;
 pub mod minimal_intelligence_player;
 pub mod move_simulation;
+pub mod movement;
 pub mod notation;
 pub mod parity;
 pub mod path_utils;
-#[cfg(feature = "search-profile")]
-pub mod profile_timers;
 pub mod piece;
 pub mod player;
 pub mod position;
+#[cfg(feature = "search-profile")]
+pub mod profile_timers;
 pub mod random_player;
 pub mod royal_capture_player;
 pub mod search;
@@ -29,6 +29,11 @@ pub mod training;
 pub mod uci;
 pub mod zobrist;
 
-
 #[cfg(test)]
 pub(crate) mod test_support;
+
+#[doc(hidden)]
+pub mod optimization;
+
+#[cfg(feature = "search-experiments")]
+mod experimental_mobility;

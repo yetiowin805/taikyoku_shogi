@@ -1,0 +1,175 @@
+[
+  {
+    "name": "full-opening-BASE_P120H50B75_C2",
+    "game": "inputs/opening-BASE_P120H50B75_C2.json",
+    "ply": 0,
+    "model": "inputs/BASE_P120H50B75_C2.json",
+    "group": "opening"
+  },
+  {
+    "name": "full-opening-AVG_P120_SEED_C2S2LA",
+    "game": "inputs/opening-AVG_P120_SEED_C2S2LA.json",
+    "ply": 0,
+    "model": "inputs/AVG_P120_SEED_C2S2LA.json",
+    "group": "opening"
+  },
+  {
+    "name": "slot0422-initial-light",
+    "game": "inputs/slot0422-AVG_P120_SEED_C2S2L-vs-AVG_P120_SEED_C2L-a-white.json",
+    "ply": 0,
+    "model": "inputs/AVG_P120_SEED_C2L.json",
+    "group": "opening"
+  },
+  {
+    "name": "slot0569-middle",
+    "game": "inputs/slot0569-BASE_P120H50B75_C2S2-vs-BASE_P120H50B75_C2LA-a-white.json",
+    "ply": 126,
+    "model": "inputs/BASE_P120H50B75_C2LA.json",
+    "group": "middle_or_late"
+  },
+  {
+    "name": "slot0569-swing",
+    "game": "inputs/slot0569-BASE_P120H50B75_C2S2-vs-BASE_P120H50B75_C2LA-a-white.json",
+    "ply": 187,
+    "model": "inputs/BASE_P120H50B75_C2S2.json",
+    "group": "middle_or_late"
+  },
+  {
+    "name": "slot0590-late",
+    "game": "inputs/slot0590-BASE_P120H50B75_C2A-vs-AVG_P120_SEED_C2S2A-a-black.json",
+    "ply": 106,
+    "model": "inputs/BASE_P120H50B75_C2A.json",
+    "group": "middle_or_late"
+  },
+  {
+    "name": "slot0621-middle",
+    "game": "inputs/slot0621-BASE_P120H50B75_C2A-vs-AVG_P120_SEED_C2-a-white.json",
+    "ply": 72,
+    "model": "inputs/AVG_P120_SEED_C2.json",
+    "group": "middle_or_late"
+  },
+  {
+    "name": "slot0658-middle",
+    "game": "inputs/slot0658-BASE_P120H50B75_C2S2L-vs-BASE_P120H50B75_C2-a-black.json",
+    "ply": 197,
+    "model": "inputs/BASE_P120H50B75_C2.json",
+    "group": "middle_or_late"
+  },
+  {
+    "name": "slot0670-middle",
+    "game": "inputs/slot0670-AVG_P120_SEED_C2S2A-vs-AVG_P120_SEED_C2S2-a-black.json",
+    "ply": 217,
+    "model": "inputs/AVG_P120_SEED_C2S2.json",
+    "group": "middle_or_late"
+  },
+  {
+    "name": "slot0764-middle",
+    "game": "inputs/slot0764-BASE_P120H50B75_C2-vs-BASE_P120H50B75_C2LA-a-white.json",
+    "ply": 154,
+    "model": "inputs/BASE_P120H50B75_C2LA.json",
+    "group": "middle_or_late"
+  },
+  {
+    "name": "slot0766-middle",
+    "game": "inputs/slot0766-BASE_P120H50B75_C2S2L-vs-AVG_P120_SEED_C2S2LA-a-white.json",
+    "ply": 211,
+    "model": "inputs/BASE_P120H50B75_C2S2L.json",
+    "group": "middle_or_late"
+  },
+  {
+    "name": "slot0766-late",
+    "game": "inputs/slot0766-BASE_P120H50B75_C2S2L-vs-AVG_P120_SEED_C2S2LA-a-white.json",
+    "ply": 422,
+    "model": "inputs/AVG_P120_SEED_C2S2LA.json",
+    "group": "middle_or_late"
+  },
+  {
+    "name": "slot0422-late",
+    "game": "inputs/slot0422-AVG_P120_SEED_C2S2L-vs-AVG_P120_SEED_C2L-a-white.json",
+    "ply": 486,
+    "model": "inputs/AVG_P120_SEED_C2L.json",
+    "group": "middle_or_late"
+  },
+  {
+    "name": "slot0422-ending",
+    "game": "inputs/slot0422-AVG_P120_SEED_C2S2L-vs-AVG_P120_SEED_C2L-a-white.json",
+    "ply": 722,
+    "model": "inputs/AVG_P120_SEED_C2L.json",
+    "group": "ending"
+  },
+  {
+    "name": "slot0670-ending",
+    "game": "inputs/slot0670-AVG_P120_SEED_C2S2A-vs-AVG_P120_SEED_C2S2-a-black.json",
+    "ply": 644,
+    "model": "inputs/AVG_P120_SEED_C2S2A.json",
+    "group": "ending"
+  },
+  {
+    "name": "slot0766-final",
+    "game": "inputs/slot0766-BASE_P120H50B75_C2S2L-vs-AVG_P120_SEED_C2S2LA-a-white.json",
+    "ply": 632,
+    "model": "inputs/AVG_P120_SEED_C2S2LA.json",
+    "group": "ending"
+  },
+  {
+    "name": "slot1233-late",
+    "game": "inputs/slot1233-BASE_P120H50B75_C2-vs-AVG_P120_SEED_C2S2L-a-white.json",
+    "ply": 692,
+    "model": "inputs/AVG_P120_SEED_C2S2L.json",
+    "group": "middle_or_late"
+  },
+  {
+    "name": "slot1233-swing",
+    "game": "inputs/slot1233-BASE_P120H50B75_C2-vs-AVG_P120_SEED_C2S2L-a-white.json",
+    "ply": 1031,
+    "model": "inputs/BASE_P120H50B75_C2.json",
+    "group": "long_history"
+  },
+  {
+    "name": "slot0046-finite-crossing",
+    "group": "finite_reversal",
+    "game": "inputs/slot0046-AVG_P120_SEED_C2S2A-vs-AVG_P120_SEED_C2LA-a-white.json",
+    "ply": 19,
+    "model": "inputs/AVG_P120_SEED_C2S2A.json"
+  },
+  {
+    "name": "slot0073-finite-reversal",
+    "group": "finite_reversal",
+    "game": "inputs/slot0073-BASE_P120H50B75_C2LA-vs-BASE_P120H50B75_C2S2LA-a-black.json",
+    "model": "inputs/BASE_P120H50B75_C2S2LA.json",
+    "ply": 29,
+    "saved_swing": 1938
+  },
+  {
+    "name": "slot0116-finite-reversal",
+    "group": "finite_reversal",
+    "game": "inputs/slot0116-BASE_P120H50B75_C2S2-vs-BASE_P120H50B75_C2S2L-a-black.json",
+    "model": "inputs/BASE_P120H50B75_C2S2.json",
+    "ply": 46,
+    "saved_swing": 3301
+  },
+  {
+    "name": "slot0164-finite-reversal",
+    "group": "finite_reversal",
+    "game": "inputs/slot0164-AVG_P120_SEED_C2LA-vs-AVG_P120_SEED_C2S2-a-black.json",
+    "model": "inputs/AVG_P120_SEED_C2LA.json",
+    "ply": 428,
+    "saved_swing": 4134
+  },
+  {
+    "name": "slot0292-finite-reversal",
+    "group": "finite_reversal",
+    "game": "inputs/slot0292-BASE_P120H50B75_C2S2A-vs-BASE_P120H50B75_C2L-a-black.json",
+    "model": "inputs/BASE_P120H50B75_C2L.json",
+    "ply": 27,
+    "saved_swing": 2226
+  },
+  {
+    "name": "slot0304-finite-reversal",
+    "group": "finite_reversal",
+    "game": "inputs/slot0304-BASE_P120H50B75_C2S2L-vs-BASE_P120H50B75_C2S2A-a-white.json",
+    "model": "inputs/BASE_P120H50B75_C2S2L.json",
+    "ply": 9,
+    "saved_swing": 1913
+  }
+]

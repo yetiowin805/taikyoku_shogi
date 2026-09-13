@@ -3,9 +3,7 @@
 use crate::board::Board;
 use crate::game_state::GameState;
 use crate::movement::direction::Direction;
-use crate::movement::{
-    BlockingMode, MovementCapability, MovementConfig, MovementGenerator,
-};
+use crate::movement::{BlockingMode, MovementCapability, MovementConfig, MovementGenerator};
 use crate::piece::{Color, Piece, PieceType};
 use crate::position::Position;
 use serde::{Deserialize, Serialize};
@@ -391,10 +389,7 @@ pub fn seed_loud_capture_floor() -> f32 {
 /// Used by scale-sample free params and by search for "loud" promotions into
 /// these types (e.g. FreeKing→GreatGeneral).
 pub fn is_big_piece(pt: PieceType) -> bool {
-    big_piece_table()
-        .get(pt as usize)
-        .copied()
-        .unwrap_or(false)
+    big_piece_table().get(pt as usize).copied().unwrap_or(false)
 }
 
 fn big_piece_table() -> &'static [bool] {
@@ -486,6 +481,21 @@ fn is_range_capability(cap: &MovementCapability) -> bool {
 
 /// First-leg empty+enemy landings for a range two-mover (0 otherwise).
 pub fn first_leg_landing_count(piece: &Piece, board: &Board) -> u32 {
+    #[cfg(feature = "search-experiments")]
+    if board.get_piece(piece.position) == Some(*piece) {
+        if let Some(cache) = board.mobility_cache() {
+            if let Some(count) = cache.get(piece.position) {
+                return count;
+            }
+            let count = first_leg_landing_count_uncached(piece, board);
+            cache.put(piece.position, count);
+            return count;
+        }
+    }
+    first_leg_landing_count_uncached(piece, board)
+}
+
+fn first_leg_landing_count_uncached(piece: &Piece, board: &Board) -> u32 {
     if !is_range_two_mover(piece.piece_type) {
         return 0;
     }
@@ -493,7 +503,11 @@ pub fn first_leg_landing_count(piece: &Piece, board: &Board) -> u32 {
     for cap in &cfg.capabilities {
         if let MovementCapability::TwoStep { first, second } = cap {
             if is_range_capability(first) && is_range_capability(second) {
-                return MovementGenerator::capability_landings(piece, board, first).len() as u32;
+                return if crate::optimization::enabled(crate::optimization::MOBILITY_COUNT) {
+                    MovementGenerator::capability_landing_count(piece, board, first)
+                } else {
+                    MovementGenerator::capability_landings(piece, board, first).len() as u32
+                };
             }
         }
     }
@@ -540,7 +554,8 @@ fn two_mover_mobility_of(pieces: &[Piece], board: &Board, weights: &EvalWeights)
             continue;
         }
         let m = first_leg_landing_count(p, board) as f32;
-        s += weights.two_mover_mob_k * two_mover_mob_curve(m, weights.two_mover_mob_curve)
+        s += weights.two_mover_mob_k
+            * two_mover_mob_curve(m, weights.two_mover_mob_curve)
             * two_mover_mob_apply(p, weights);
     }
     s
@@ -1067,11 +1082,7 @@ pub fn eg_tropism_term_black(black: &[Piece], white: &[Piece], weights: &EvalWei
 }
 
 /// Black-positive phase-blended positional (PST fade + tropism fade-in).
-pub fn eg_blended_positional_black(
-    black: &[Piece],
-    white: &[Piece],
-    weights: &EvalWeights,
-) -> f32 {
+pub fn eg_blended_positional_black(black: &[Piece], white: &[Piece], weights: &EvalWeights) -> f32 {
     let black_mat = raw_material_of(black, weights);
     let white_mat = raw_material_of(white, weights);
     side_blended_positional(black, white, black_mat, white_mat, weights)
@@ -1289,7 +1300,11 @@ fn default_royal_bonus_by_count() -> Vec<i32> {
 ///
 /// Seed defaults after file-PST Swiss: `back=0.65`, `opp_half_frac=0.75`
 /// (→ 115% when promo is 120%), `promo_factor=1.2`.
-pub fn seed_rank_factors_fast_params(back: f32, opp_half_frac: f32, promo_factor: f32) -> [f32; 36] {
+pub fn seed_rank_factors_fast_params(
+    back: f32,
+    opp_half_frac: f32,
+    promo_factor: f32,
+) -> [f32; 36] {
     let pawn = RANK_PAWN_START;
     let opp = RANK_OPPONENT_HALF;
     let promo = RANK_PST_PROMO;
@@ -1518,10 +1533,7 @@ impl EvalWeights {
         if i < self.piece_value_table.len() {
             self.piece_value_table[i]
         } else {
-            self.piece
-                .get(&pt)
-                .copied()
-                .unwrap_or(DEFAULT_PIECE_VALUE)
+            self.piece.get(&pt).copied().unwrap_or(DEFAULT_PIECE_VALUE)
         }
     }
 
@@ -1829,18 +1841,8 @@ fn evaluate_absolute_black_from_inc(
     let white_mat = inc.mat[1];
     let mut score = black_mat - white_mat;
 
-    let w_b = side_phase_weight(
-        black_mat,
-        white_mat,
-        inc.non_royals[1] as usize,
-        weights,
-    );
-    let w_w = side_phase_weight(
-        white_mat,
-        black_mat,
-        inc.non_royals[0] as usize,
-        weights,
-    );
+    let w_b = side_phase_weight(black_mat, white_mat, inc.non_royals[1] as usize, weights);
+    let w_w = side_phase_weight(white_mat, black_mat, inc.non_royals[0] as usize, weights);
     if w_b <= 0.0 && w_w <= 0.0 {
         score += inc.pst[0] - inc.pst[1];
     } else {
@@ -2049,10 +2051,8 @@ mod tests {
 
     #[test]
     fn search_defaults_old_json_defaults_q_blowup_off() {
-        let s: SearchDefaults = serde_json::from_str(
-            r#"{"depth":2,"max_time_ms":null,"quiescence_depth":2}"#,
-        )
-        .unwrap();
+        let s: SearchDefaults =
+            serde_json::from_str(r#"{"depth":2,"max_time_ms":null,"quiescence_depth":2}"#).unwrap();
         assert_eq!(s.sibling_mode, 0);
         assert!(!s.q_loud_promo_simple_only);
         assert!(s.hang_q_dest_multileg);
@@ -2097,9 +2097,7 @@ mod tests {
         promo_fk.promote();
         assert_eq!(promo_fk.piece_type, PieceType::FreeKing);
         assert!(promo_fk.is_promoted);
-        assert!(
-            (material_piece_value(&promo_fk, &w) - PROMOTED_FREE_KING_VALUE).abs() < 1e-3
-        );
+        assert!((material_piece_value(&promo_fk, &w) - PROMOTED_FREE_KING_VALUE).abs() < 1e-3);
         let natural_fk = Piece::new(
             PieceType::FreeKing,
             Color::Black,
@@ -2160,8 +2158,9 @@ mod tests {
         assert!((seed_loud_capture_floor() - 648.0).abs() < 1e-3);
         assert!(
             (seed_loud_capture_floor()
-                - (TARIFF_RANGE_CAPTURING * SEED_CAPTURER_SCALE * 2.4).max(TARIFF_RANGE_JUMP * 8.0))
-                .abs()
+                - (TARIFF_RANGE_CAPTURING * SEED_CAPTURER_SCALE * 2.4)
+                    .max(TARIFF_RANGE_JUMP * 8.0))
+            .abs()
                 < 1e-6
         );
         assert!(TARIFF_RANGE_CAPTURING * SEED_CAPTURER_SCALE * 2.4 >= TARIFF_RANGE_JUMP * 8.0);
@@ -2215,7 +2214,9 @@ mod tests {
         assert!((back.weights.eg_tropism_d_ref - 18.0).abs() < 1e-6);
         assert_eq!(back.weights.eg_tropism_topk, 8);
         assert!((back.weights.eg_tropism_tail_scale - 0.25).abs() < 1e-6);
-        assert!((back.weights.eg_tropism_range_scale - DEFAULT_EG_TROPISM_RANGE_SCALE).abs() < 1e-6);
+        assert!(
+            (back.weights.eg_tropism_range_scale - DEFAULT_EG_TROPISM_RANGE_SCALE).abs() < 1e-6
+        );
     }
 
     #[test]
@@ -2370,7 +2371,10 @@ mod tests {
         state.set_current_turn(Color::Black);
         let score = evaluate(&state, &weights);
         // Two royals → +100 royal bonus vs one (0), plus CP material 8.
-        assert!(score > 100, "black with two royals vs one should be positive, got {score}");
+        assert!(
+            score > 100,
+            "black with two royals vs one should be positive, got {score}"
+        );
     }
 
     #[test]
@@ -2400,7 +2404,10 @@ mod tests {
         let white_pen =
             undeveloped_home_penalty(state.get_board().pieces_by_color(Color::White), &weights);
         assert!((black_pen - white_pen).abs() < 1e-3);
-        assert!(black_pen > 100.0, "expected full-army undeveloped penalty, got {black_pen}");
+        assert!(
+            black_pen > 100.0,
+            "expected full-army undeveloped penalty, got {black_pen}"
+        );
 
         // Pawn value is now 1.0 → 90% cap = 0.9.
         let from = Position::new(16, 10).unwrap();
@@ -2469,13 +2476,13 @@ mod tests {
             Position::new(16, 5).unwrap(),
         ));
         let mut fwd = back.clone();
-        fwd.move_piece(Position::new(16, 5).unwrap(), Position::new(16, 17).unwrap());
+        fwd.move_piece(
+            Position::new(16, 5).unwrap(),
+            Position::new(16, 17).unwrap(),
+        );
         let a = evaluate_absolute_black(&back, &weights, 0);
         let b = evaluate_absolute_black(&fwd, &weights, 0);
-        assert!(
-            b > a,
-            "forward gold should score higher: back={a} fwd={b}"
-        );
+        assert!(b > a, "forward gold should score higher: back={a} fwd={b}");
     }
 
     fn quiet_weights() -> EvalWeights {
@@ -2497,7 +2504,10 @@ mod tests {
     fn tropism_class_scales_short_range_capturing() {
         assert!((tropism_class_scale(PieceType::GoldGeneral) - 1.0).abs() < 1e-6);
         assert!((tropism_class_scale(PieceType::Pawn) - 1.0).abs() < 1e-6);
-        assert!((tropism_class_scale(PieceType::FreeKing) - DEFAULT_EG_TROPISM_RANGE_SCALE).abs() < 1e-6);
+        assert!(
+            (tropism_class_scale(PieceType::FreeKing) - DEFAULT_EG_TROPISM_RANGE_SCALE).abs()
+                < 1e-6
+        );
         assert!((tropism_class_scale(PieceType::GreatGeneral) - 0.0).abs() < 1e-6);
         assert!((tropism_class_scale(PieceType::King) - 0.0).abs() < 1e-6);
         assert!((tropism_class_scale(PieceType::CrownPrince) - 0.0).abs() < 1e-6);
@@ -2521,7 +2531,10 @@ mod tests {
         ));
         let mut near = far.clone();
         // Walk own king next to enemy royal — must not create tropism.
-        near.move_piece(Position::new(10, 10).unwrap(), Position::new(20, 21).unwrap());
+        near.move_piece(
+            Position::new(10, 10).unwrap(),
+            Position::new(20, 21).unwrap(),
+        );
 
         let t_far = eg_tropism_term_black(
             far.pieces_by_color(Color::Black),
@@ -2712,7 +2725,10 @@ mod tests {
             Position::new(20, 26).unwrap(), // d=6
         ));
         let mut near = far.clone();
-        near.move_piece(Position::new(20, 26).unwrap(), Position::new(20, 25).unwrap()); // d=5
+        near.move_piece(
+            Position::new(20, 26).unwrap(),
+            Position::new(20, 25).unwrap(),
+        ); // d=5
 
         let t_far = eg_tropism_term_black(
             far.pieces_by_color(Color::Black),
@@ -2766,7 +2782,10 @@ mod tests {
             Position::new(20, 30).unwrap(), // d=10 tail
         ));
         let mut closer = far.clone();
-        closer.move_piece(Position::new(20, 30).unwrap(), Position::new(20, 29).unwrap()); // d=9
+        closer.move_piece(
+            Position::new(20, 30).unwrap(),
+            Position::new(20, 29).unwrap(),
+        ); // d=9
 
         let t0 = eg_tropism_term_black(
             far.pieces_by_color(Color::Black),
@@ -2904,7 +2923,10 @@ mod tests {
             .copied()
             .unwrap();
         let open_n = first_leg_landing_count(&hook, &open_hook);
-        assert!(open_n > 10, "open Hook first-leg should be many, got {open_n}");
+        assert!(
+            open_n > 10,
+            "open Hook first-leg should be many, got {open_n}"
+        );
 
         let mut boxed = open_hook.clone();
         for (df, dr) in [(0i8, 1), (0, -1), (1, 0), (-1, 0)] {
@@ -2912,7 +2934,10 @@ mod tests {
             boxed.place_piece(Piece::new(PieceType::Pawn, Color::Black, pos));
         }
         let boxed_n = first_leg_landing_count(&hook, &boxed);
-        assert!(boxed_n <= 2, "boxed Hook first-leg should be 0–2, got {boxed_n}");
+        assert!(
+            boxed_n <= 2,
+            "boxed Hook first-leg should be 0–2, got {boxed_n}"
+        );
 
         let tengu_board = kings_and(Piece::new(
             PieceType::Tengu,
@@ -3007,10 +3032,9 @@ mod tests {
 
         let _bind = bind_search_weights(&weights);
         for file in [4u8, 8, 12, 16, 20, 24, 28] {
-            for &(from_rank, to_rank, color) in &[
-                (10u8, 11u8, Color::Black),
-                (25u8, 24u8, Color::White),
-            ] {
+            for &(from_rank, to_rank, color) in
+                &[(10u8, 11u8, Color::Black), (25u8, 24u8, Color::White)]
+            {
                 state.set_current_turn(color);
                 let from = Position::new(file, from_rank).unwrap();
                 let to = Position::new(file, to_rank).unwrap();
@@ -3164,10 +3188,10 @@ mod tests {
         on.two_mover_align_k = 80.0;
         on.two_mover_align_cap = 400.0;
 
-        let d_file =
-            evaluate_absolute_black(&file_board, &on, 0) - evaluate_absolute_black(&file_board, &off, 0);
-        let d_diag =
-            evaluate_absolute_black(&diag_board, &on, 0) - evaluate_absolute_black(&diag_board, &off, 0);
+        let d_file = evaluate_absolute_black(&file_board, &on, 0)
+            - evaluate_absolute_black(&file_board, &off, 0);
+        let d_diag = evaluate_absolute_black(&diag_board, &on, 0)
+            - evaluate_absolute_black(&diag_board, &off, 0);
         assert_eq!(d_file, 80, "Hook first-leg is orthogonal");
         assert_eq!(d_diag, 0, "Hook should not score a diagonal royal");
     }
@@ -3210,10 +3234,10 @@ mod tests {
         let mut on = off.clone();
         on.two_mover_align_k = 80.0;
 
-        let d_diag =
-            evaluate_absolute_black(&diag_board, &on, 0) - evaluate_absolute_black(&diag_board, &off, 0);
-        let d_file =
-            evaluate_absolute_black(&file_board, &on, 0) - evaluate_absolute_black(&file_board, &off, 0);
+        let d_diag = evaluate_absolute_black(&diag_board, &on, 0)
+            - evaluate_absolute_black(&diag_board, &off, 0);
+        let d_file = evaluate_absolute_black(&file_board, &on, 0)
+            - evaluate_absolute_black(&file_board, &off, 0);
         assert_eq!(d_diag, 80, "Tengu first-leg is diagonal");
         assert_eq!(d_file, 0, "Tengu should not score a file royal");
     }
