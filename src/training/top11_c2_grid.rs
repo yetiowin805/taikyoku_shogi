@@ -342,17 +342,10 @@ mod tests {
     }
 
     #[test]
-    fn grid_writes_32_unique_entrants() {
-        let tmp = std::env::temp_dir().join(format!("tk-top11-c2-{}", std::process::id()));
-        let _ = fs::remove_dir_all(&tmp);
-        fs::create_dir_all(&tmp).unwrap();
-        let seed_path = if PathBuf::from(DEFAULT_SEED_MODEL).is_file() {
-            PathBuf::from(DEFAULT_SEED_MODEL)
-        } else {
-            let p = tmp.join("ab-seed.json");
-            EvalCheckpoint::seed("ab-seed").save_path(&p).unwrap();
-            p
-        };
+    fn grid_writes_unique_entrants_with_history() {
+        let fixture = crate::test_support::TempDir::new();
+        let tmp = fixture.path();
+        let seed_path = fixture.seed();
         let cfg = Top11C2GridConfig {
             seed_model: seed_path,
             out_dir: tmp.clone(),
@@ -365,9 +358,12 @@ mod tests {
             14
         );
         let ids: Vec<_> = man.entrants.iter().map(|e| e.id.as_str()).collect();
-        let uniq: HashSet<_> = ids.iter().copied().collect();
-        assert_eq!(uniq.len(), ids.len(), "duplicate ids: {ids:?}");
-        assert_eq!(man.entrants.len(), 32);
+        crate::test_support::assert_grid_roster(
+            &man.entrants,
+            grid.cells.iter().map(|cell| cell.id.as_str()),
+            &cfg.history_manifest,
+            SKIP_HISTORY,
+        );
         for id in TOP11 {
             assert!(ids.contains(&id), "missing {id}");
         }
@@ -449,7 +445,5 @@ mod tests {
             .find(|e| e.id == "LOGIC_H105")
             .expect("LOGIC_H105");
         assert!(logic.engine.as_ref().unwrap().contains("LOGIC_H105"));
-
-        let _ = fs::remove_dir_all(&tmp);
     }
 }

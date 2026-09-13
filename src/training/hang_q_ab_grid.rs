@@ -224,16 +224,9 @@ mod tests {
 
     #[test]
     fn grid_is_four_by_four() {
-        let tmp = std::env::temp_dir().join(format!("tk-hang-q-ab-{}", std::process::id()));
-        let _ = fs::remove_dir_all(&tmp);
-        fs::create_dir_all(&tmp).unwrap();
-        let seed_path = if PathBuf::from(DEFAULT_SEED_MODEL).is_file() {
-            PathBuf::from(DEFAULT_SEED_MODEL)
-        } else {
-            let p = tmp.join("ab-seed.json");
-            EvalCheckpoint::seed("ab-seed").save_path(&p).unwrap();
-            p
-        };
+        let fixture = crate::test_support::TempDir::new();
+        let tmp = fixture.path();
+        let seed_path = fixture.seed();
         let cfg = HangQAbGridConfig {
             seed_model: seed_path,
             out_dir: tmp.clone(),
@@ -275,7 +268,5 @@ mod tests {
                 > 100.0,
             "T150 Hook should differ from current seed"
         );
-
-        let _ = fs::remove_dir_all(&tmp);
     }
 }

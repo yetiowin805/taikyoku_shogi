@@ -242,18 +242,13 @@ mod tests {
 
     #[test]
     fn grid_pairs_finalists_and_keeps_history() {
-        let tmp = std::env::temp_dir().join(format!("tk-two-mob-q-{}", std::process::id()));
-        let _ = fs::remove_dir_all(&tmp);
+        let fixture = crate::test_support::TempDir::new();
+        let tmp = fixture.path();
         let cfg = TwoMobQGridConfig {
-            seed_model: PathBuf::from(DEFAULT_SEED_MODEL),
+            seed_model: fixture.seed(),
             out_dir: tmp.clone(),
             history_manifest: PathBuf::from(DEFAULT_MANIFEST),
         };
-        if !cfg.seed_model.is_file() {
-            EvalCheckpoint::seed("ab-seed")
-                .save_path(&cfg.seed_model)
-                .unwrap();
-        }
         let (man, grid) = run_two_mob_q_grid(&cfg).expect("grid");
         assert_eq!(grid.cells.len(), 9);
         assert!(man.entrants.iter().any(|e| e.id == "SEED"));
@@ -269,7 +264,12 @@ mod tests {
             .find(|e| e.id == "LOGIC_H105")
             .expect("LOGIC_H105");
         assert!(logic.engine.as_ref().unwrap().contains("LOGIC_H105"));
-        assert_eq!(man.entrants.len(), 22);
+        crate::test_support::assert_grid_roster(
+            &man.entrants,
+            grid.cells.iter().map(|cell| cell.id.as_str()),
+            &cfg.history_manifest,
+            &[],
+        );
 
         let q = EvalCheckpoint::load_path(tmp.join("C2K100A1Q.json")).unwrap();
         assert_eq!(q.search_defaults.sibling_mode, 2);
@@ -279,7 +279,5 @@ mod tests {
         assert!(!plain.search_defaults.q_loud_promo_simple_only);
         assert_eq!(q.weights.two_mover_mob_curve, plain.weights.two_mover_mob_curve);
         assert!((q.weights.two_mover_mob_k - plain.weights.two_mover_mob_k).abs() < 1e-6);
-
-        let _ = fs::remove_dir_all(&tmp);
     }
 }
