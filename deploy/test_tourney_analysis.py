@@ -102,5 +102,58 @@ if 'watchdog' in sys.argv[0]: time.sleep(10)
             a.search_position(cfg, moment, 2, self.db)
 
 
+    def test_batch_reuses_worker_and_rejects_uncorrelated_events(self):
+        engine = self.run / "batch"
+        engine.write_text("""#!/usr/bin/env python3
+import json,sys
+for line in sys.stdin:
+    r=json.loads(line)
+    identity=dict(version=1,id='wrong' if r['ply']==99 else r['id'])
+    print(json.dumps(dict(identity,event='iteration',completed_depth=2,score=r['ply'])),flush=True)
+    print(json.dumps(dict(identity,event='complete')),flush=True)
+""")
+        engine.chmod(0o755)
+        worker = a.BatchWorker(dict(run=str(self.run), analyzer_bin=str(engine)))
+        self.addCleanup(worker.close)
+        progress = []
+        def search(ply):
+            return worker.search("game", "hash", ply, "model", 2, 100, progress.append)
+        self.assertEqual(search(3), ({"completed_depth": 2, "score": 3}, False))
+        pid = worker.proc.pid
+        self.assertEqual(search(1)[0]["score"], 1)
+        self.assertEqual(worker.proc.pid, pid)
+        with self.assertRaisesRegex(ValueError, "uncorrelated"):
+            search(99)
+        self.assertIsNone(worker.proc)
+        self.assertEqual(search(4)[0]["score"], 4)
+        self.assertNotEqual(worker.proc.pid, pid)
+        self.assertEqual([p["score"] for p in progress], [3, 1, 4])
+
+    def test_batch_partial_line_watchdog_preserves_completed_iteration(self):
+        engine = self.run / "partial"
+        engine.write_text("""#!/usr/bin/env python3
+import json,sys,time
+r=json.loads(sys.stdin.readline())
+identity=dict(version=1,id=r['id'],event='iteration')
+for depth in (2,1):
+    print(json.dumps(dict(identity,completed_depth=depth,score=depth)),flush=True)
+sys.stdout.write('{');sys.stdout.flush();time.sleep(10)
+""")
+        engine.chmod(0o755)
+        worker = a.BatchWorker(dict(run=str(self.run), analyzer_bin=str(engine)))
+        self.addCleanup(worker.close)
+        old = a.SEARCH_HARD_SECONDS
+        progress = []
+        try:
+            a.SEARCH_HARD_SECONDS = .3
+            best, timeout = worker.search("game", "hash", 1, "model", 8, 100, progress.append)
+        finally:
+            a.SEARCH_HARD_SECONDS = old
+        self.assertTrue(timeout)
+        self.assertEqual(best, {"completed_depth": 2, "score": 2})
+        self.assertEqual(progress, [best])
+        self.assertIsNone(worker.proc)
+
+
 if __name__ == "__main__":
     unittest.main()
