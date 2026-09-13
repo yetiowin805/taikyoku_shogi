@@ -121,7 +121,8 @@ impl AlphaBetaPlayer {
         Self::from_checkpoint_with_overrides(checkpoint, &AgentOptions::default())
     }
 
-    fn from_checkpoint_with_overrides(checkpoint: EvalCheckpoint, opts: &AgentOptions) -> Self {
+    /// Construct from validated contents; explicit limits override checkpoint defaults.
+    pub fn from_checkpoint_with_overrides(checkpoint: EvalCheckpoint, opts: &AgentOptions) -> Self {
         let mut config = SearchConfig {
             depth: checkpoint.search_defaults.depth.max(1),
             max_time_ms: checkpoint.search_defaults.max_time_ms,

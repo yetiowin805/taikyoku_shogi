@@ -1,0 +1,10 @@
+__pycache__/
+# Immutable games/checkpoints and detailed raw results stay local/on the VPS.
+*/inputs/
+*/raw*.jsonl*
+*/results.json
+*/references.json
+*/search.stderr.log
+*/tested-source.patch
+*/summary.json
+*/stderr-cpu*.log

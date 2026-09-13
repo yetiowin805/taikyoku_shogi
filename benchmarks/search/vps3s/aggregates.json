@@ -1,0 +1,3650 @@
+{
+  "rows": 1038,
+  "failures": [],
+  "fixed_mechanical": {
+    "pairs": 24,
+    "positions": 24,
+    "nps_change_pct": 5.057957976059568,
+    "nps_bootstrap95_pct": [
+      1.0678535537518075,
+      8.955670205943434
+    ],
+    "elapsed_saving_pct": 4.81444535330885,
+    "total_elapsed_saving_pct": 5.206004832209543,
+    "deeper": 0,
+    "shallower": 0,
+    "changed_moves": 0,
+    "changed_scores": 0,
+    "changed_nodes": 0,
+    "changed_lines": 0,
+    "early_searches": 0,
+    "max_overshoot_ms": null,
+    "max_peak_rss_change_pct": 16.957097727504333,
+    "counters": {
+      "aspiration_retries": 0,
+      "interior_probes": 0,
+      "interior_researches": 0,
+      "rejected_bounds": 0,
+      "retained_bounds": 0,
+      "retained_hints": 0,
+      "root_probes": 45751,
+      "root_researches": 835,
+      "tt_first_cutoffs": 0,
+      "tt_first_probes": 0
+    },
+    "groups": {
+      "ending": {
+        "positions": 3,
+        "nps_change_pct": -7.639361414006151,
+        "elapsed_saving_pct": -8.271230613995172
+      },
+      "finite_reversal": {
+        "positions": 6,
+        "nps_change_pct": 8.916448541891619,
+        "elapsed_saving_pct": 8.18650319695482
+      },
+      "long_history": {
+        "positions": 1,
+        "nps_change_pct": -20.830002659029624,
+        "elapsed_saving_pct": -26.31047538036244
+      },
+      "middle_or_late": {
+        "positions": 11,
+        "nps_change_pct": 9.018441629978424,
+        "elapsed_saving_pct": 8.27240005923776
+      },
+      "opening": {
+        "positions": 3,
+        "nps_change_pct": 6.677051801171974,
+        "elapsed_saving_pct": 6.259126671045312
+      }
+    },
+    "per_position": [
+      {
+        "case": 0,
+        "name": "full-opening-BASE_P120H50B75_C2",
+        "group": "opening",
+        "pairs": 1,
+        "nps_ratio": 1.0304331533408648,
+        "elapsed_ratio": 0.9704656694690047,
+        "peak_rss_ratio": 1.0
+      },
+      {
+        "case": 1,
+        "name": "full-opening-AVG_P120_SEED_C2S2LA",
+        "group": "opening",
+        "pairs": 1,
+        "nps_ratio": 1.114491880317919,
+        "elapsed_ratio": 0.8972698838458482,
+        "peak_rss_ratio": 1.0038655265315686
+      },
+      {
+        "case": 2,
+        "name": "slot0422-initial-light",
+        "group": "opening",
+        "pairs": 1,
+        "nps_ratio": 1.0571005094395094,
+        "elapsed_ratio": 0.9459838407704629,
+        "peak_rss_ratio": 1.0
+      },
+      {
+        "case": 3,
+        "name": "slot0569-middle",
+        "group": "middle_or_late",
+        "pairs": 1,
+        "nps_ratio": 1.1697389314909017,
+        "elapsed_ratio": 0.8548916113490731,
+        "peak_rss_ratio": 1.0
+      },
+      {
+        "case": 4,
+        "name": "slot0569-swing",
+        "group": "middle_or_late",
+        "pairs": 1,
+        "nps_ratio": 1.177484093937612,
+        "elapsed_ratio": 0.8492683724124973,
+        "peak_rss_ratio": 0.9524122087298983
+      },
+      {
+        "case": 5,
+        "name": "slot0590-late",
+        "group": "middle_or_late",
+        "pairs": 1,
+        "nps_ratio": 1.0193666935111523,
+        "elapsed_ratio": 0.9810012494675053,
+        "peak_rss_ratio": 1.0020775623268698
+      },
+      {
+        "case": 6,
+        "name": "slot0621-middle",
+        "group": "middle_or_late",
+        "pairs": 1,
+        "nps_ratio": 1.068582634549679,
+        "elapsed_ratio": 0.9358190631849628,
+        "peak_rss_ratio": 0.7015275195991272
+      },
+      {
+        "case": 7,
+        "name": "slot0658-middle",
+        "group": "middle_or_late",
+        "pairs": 1,
+        "nps_ratio": 1.1262701675886853,
+        "elapsed_ratio": 0.8878864314953611,
+        "peak_rss_ratio": 1.0028931836592987
+      },
+      {
+        "case": 8,
+        "name": "slot0670-middle",
+        "group": "middle_or_late",
+        "pairs": 1,
+        "nps_ratio": 1.0125781775189537,
+        "elapsed_ratio": 0.9875780677500149,
+        "peak_rss_ratio": 1.0074159907300115
+      },
+      {
+        "case": 9,
+        "name": "slot0764-middle",
+        "group": "middle_or_late",
+        "pairs": 1,
+        "nps_ratio": 1.1791164193321106,
+        "elapsed_ratio": 0.8480926765199591,
+        "peak_rss_ratio": 1.1695709772750433
+      },
+      {
+        "case": 10,
+        "name": "slot0766-middle",
+        "group": "middle_or_late",
+        "pairs": 1,
+        "nps_ratio": 1.0138294074434095,
+        "elapsed_ratio": 0.986359236236515,
+        "peak_rss_ratio": 1.0
+      },
+      {
+        "case": 11,
+        "name": "slot0766-late",
+        "group": "middle_or_late",
+        "pairs": 1,
+        "nps_ratio": 1.1279056520816624,
+        "elapsed_ratio": 0.8865989794043503,
+        "peak_rss_ratio": 0.8762782221322264
+      },
+      {
+        "case": 12,
+        "name": "slot0422-late",
+        "group": "middle_or_late",
+        "pairs": 1,
+        "nps_ratio": 0.9680178554871263,
+        "elapsed_ratio": 1.033038796063095,
+        "peak_rss_ratio": 1.004740432419933
+      },
+      {
+        "case": 13,
+        "name": "slot0422-ending",
+        "group": "ending",
+        "pairs": 1,
+        "nps_ratio": 0.8655502294300687,
+        "elapsed_ratio": 1.1553344520033937,
+        "peak_rss_ratio": 1.0
+      },
+      {
+        "case": 14,
+        "name": "slot0670-ending",
+        "group": "ending",
+        "pairs": 1,
+        "nps_ratio": 0.9397338976344997,
+        "elapsed_ratio": 1.0641310295576252,
+        "peak_rss_ratio": 1.0
+      },
+      {
+        "case": 15,
+        "name": "slot0766-final",
+        "group": "ending",
+        "pairs": 1,
+        "nps_ratio": 0.9686427055811755,
+        "elapsed_ratio": 1.0323724054681345,
+        "peak_rss_ratio": 1.0
+      },
+      {
+        "case": 16,
+        "name": "slot1233-late",
+        "group": "middle_or_late",
+        "pairs": 1,
+        "nps_ratio": 1.15762597928187,
+        "elapsed_ratio": 0.8638368677768852,
+        "peak_rss_ratio": 1.1421415745203667
+      },
+      {
+        "case": 17,
+        "name": "slot1233-swing",
+        "group": "long_history",
+        "pairs": 1,
+        "nps_ratio": 0.7916999734097038,
+        "elapsed_ratio": 1.2631047538036244,
+        "peak_rss_ratio": 1.0
+      },
+      {
+        "case": 18,
+        "name": "slot0046-finite-crossing",
+        "group": "finite_reversal",
+        "pairs": 1,
+        "nps_ratio": 1.044751520373713,
+        "elapsed_ratio": 0.9571653933964077,
+        "peak_rss_ratio": 1.0
+      },
+      {
+        "case": 19,
+        "name": "slot0073-finite-reversal",
+        "group": "finite_reversal",
+        "pairs": 1,
+        "nps_ratio": 1.0875670855590087,
+        "elapsed_ratio": 0.9194835089055686,
+        "peak_rss_ratio": 1.0131007942356505
+      },
+      {
+        "case": 20,
+        "name": "slot0116-finite-reversal",
+        "group": "finite_reversal",
+        "pairs": 1,
+        "nps_ratio": 1.0841352138535507,
+        "elapsed_ratio": 0.922394169308003,
+        "peak_rss_ratio": 1.0026601896830905
+      },
+      {
+        "case": 21,
+        "name": "slot0164-finite-reversal",
+        "group": "finite_reversal",
+        "pairs": 1,
+        "nps_ratio": 1.1520423650472358,
+        "elapsed_ratio": 0.8680236338001323,
+        "peak_rss_ratio": 1.0
+      },
+      {
+        "case": 22,
+        "name": "slot0292-finite-reversal",
+        "group": "finite_reversal",
+        "pairs": 1,
+        "nps_ratio": 1.0504928003636924,
+        "elapsed_ratio": 0.9519341776105354,
+        "peak_rss_ratio": 1.0
+      },
+      {
+        "case": 23,
+        "name": "slot0304-finite-reversal",
+        "group": "finite_reversal",
+        "pairs": 1,
+        "nps_ratio": 1.119816292895194,
+        "elapsed_ratio": 0.8930036170616711,
+        "peak_rss_ratio": 1.0
+      }
+    ]
+  },
+  "mechanical": {
+    "pairs": 72,
+    "positions": 24,
+    "nps_change_pct": 9.323202378178808,
+    "nps_bootstrap95_pct": [
+      6.180171073148366,
+      12.767489022012546
+    ],
+    "elapsed_saving_pct": 0.002049733528308728,
+    "total_elapsed_saving_pct": 0.006994163095619399,
+    "deeper": 5,
+    "shallower": 0,
+    "changed_moves": 0,
+    "changed_scores": 5,
+    "changed_nodes": 72,
+    "changed_lines": 5,
+    "early_searches": 0,
+    "max_overshoot_ms": 4.744144000000233,
+    "max_peak_rss_change_pct": 1.033591731266159,
+    "counters": {
+      "aspiration_retries": 0,
+      "interior_probes": 0,
+      "interior_researches": 0,
+      "rejected_bounds": 0,
+      "retained_bounds": 0,
+      "retained_hints": 0,
+      "root_probes": 187351,
+      "root_researches": 2648,
+      "tt_first_cutoffs": 0,
+      "tt_first_probes": 0
+    },
+    "groups": {
+      "ending": {
+        "positions": 3,
+        "nps_change_pct": -2.3572720497449295,
+        "elapsed_saving_pct": 0.005637964853022481
+      },
+      "finite_reversal": {
+        "positions": 6,
+        "nps_change_pct": 13.077117067662725,
+        "elapsed_saving_pct": 0.002317524525741188
+      },
+      "long_history": {
+        "positions": 1,
+        "nps_change_pct": -2.486909669277626,
+        "elapsed_saving_pct": -0.007309054286896988
+      },
+      "middle_or_late": {
+        "positions": 11,
+        "nps_change_pct": 11.51131518989188,
+        "elapsed_saving_pct": 0.0009770249441598544
+      },
+      "opening": {
+        "positions": 3,
+        "nps_change_pct": 10.522912377755711,
+        "elapsed_saving_pct": 0.004978505899821961
+      }
+    },
+    "per_position": [
+      {
+        "case": 0,
+        "name": "full-opening-BASE_P120H50B75_C2",
+        "group": "opening",
+        "pairs": 3,
+        "nps_ratio": 1.0904478742563364,
+        "elapsed_ratio": 0.9999961791605806,
+        "peak_rss_ratio": 1.0
+      },
+      {
+        "case": 1,
+        "name": "full-opening-AVG_P120_SEED_C2S2LA",
+        "group": "opening",
+        "pairs": 3,
+        "nps_ratio": 1.0844204592031108,
+        "elapsed_ratio": 0.9999653281527036,
+        "peak_rss_ratio": 1.0
+      },
+      {
+        "case": 2,
+        "name": "slot0422-initial-light",
+        "group": "opening",
+        "pairs": 3,
+        "nps_ratio": 1.1417061712064651,
+        "elapsed_ratio": 0.999889140545515,
+        "peak_rss_ratio": 1.0
+      },
+      {
+        "case": 3,
+        "name": "slot0569-middle",
+        "group": "middle_or_late",
+        "pairs": 3,
+        "nps_ratio": 1.2395039380770092,
+        "elapsed_ratio": 1.0000126081212068,
+        "peak_rss_ratio": 1.0
+      },
+      {
+        "case": 4,
+        "name": "slot0569-swing",
+        "group": "middle_or_late",
+        "pairs": 3,
+        "nps_ratio": 1.1299977867200421,
+        "elapsed_ratio": 0.9998244709593886,
+        "peak_rss_ratio": 1.0
+      },
+      {
+        "case": 5,
+        "name": "slot0590-late",
+        "group": "middle_or_late",
+        "pairs": 3,
+        "nps_ratio": 1.0528368791624054,
+        "elapsed_ratio": 1.0000360712629577,
+        "peak_rss_ratio": 1.0
+      },
+      {
+        "case": 6,
+        "name": "slot0621-middle",
+        "group": "middle_or_late",
+        "pairs": 3,
+        "nps_ratio": 1.130940068317266,
+        "elapsed_ratio": 1.000078811540325,
+        "peak_rss_ratio": 1.0
+      },
+      {
+        "case": 7,
+        "name": "slot0658-middle",
+        "group": "middle_or_late",
+        "pairs": 3,
+        "nps_ratio": 1.2152257801956667,
+        "elapsed_ratio": 0.9998758067543977,
+        "peak_rss_ratio": 1.0
+      },
+      {
+        "case": 8,
+        "name": "slot0670-middle",
+        "group": "middle_or_late",
+        "pairs": 3,
+        "nps_ratio": 1.0965017311228424,
+        "elapsed_ratio": 1.0000389652993684,
+        "peak_rss_ratio": 1.0
+      },
+      {
+        "case": 9,
+        "name": "slot0764-middle",
+        "group": "middle_or_late",
+        "pairs": 3,
+        "nps_ratio": 1.070874305187143,
+        "elapsed_ratio": 1.0000606157338479,
+        "peak_rss_ratio": 1.0025575447570332
+      },
+      {
+        "case": 10,
+        "name": "slot0766-middle",
+        "group": "middle_or_late",
+        "pairs": 3,
+        "nps_ratio": 1.0413442809106304,
+        "elapsed_ratio": 1.0000564118514452,
+        "peak_rss_ratio": 1.002434385697984
+      },
+      {
+        "case": 11,
+        "name": "slot0766-late",
+        "group": "middle_or_late",
+        "pairs": 3,
+        "nps_ratio": 1.1616138370337057,
+        "elapsed_ratio": 1.0000074266060337,
+        "peak_rss_ratio": 1.0
+      },
+      {
+        "case": 12,
+        "name": "slot0422-late",
+        "group": "middle_or_late",
+        "pairs": 3,
+        "nps_ratio": 0.9941219580248107,
+        "elapsed_ratio": 0.9999521671704449,
+        "peak_rss_ratio": 1.0
+      },
+      {
+        "case": 13,
+        "name": "slot0422-ending",
+        "group": "ending",
+        "pairs": 3,
+        "nps_ratio": 0.9437051294220772,
+        "elapsed_ratio": 0.9998994872172512,
+        "peak_rss_ratio": 1.0
+      },
+      {
+        "case": 14,
+        "name": "slot0670-ending",
+        "group": "ending",
+        "pairs": 3,
+        "nps_ratio": 0.9898611276990895,
+        "elapsed_ratio": 1.0000924119399315,
+        "peak_rss_ratio": 1.0024752475247525
+      },
+      {
+        "case": 15,
+        "name": "slot0766-final",
+        "group": "ending",
+        "pairs": 3,
+        "nps_ratio": 0.9965730248245419,
+        "elapsed_ratio": 0.9998389794157249,
+        "peak_rss_ratio": 1.0
+      },
+      {
+        "case": 16,
+        "name": "slot1233-late",
+        "group": "middle_or_late",
+        "pairs": 3,
+        "nps_ratio": 1.1584613815630875,
+        "elapsed_ratio": 0.9999492050358371,
+        "peak_rss_ratio": 1.0
+      },
+      {
+        "case": 17,
+        "name": "slot1233-swing",
+        "group": "long_history",
+        "pairs": 3,
+        "nps_ratio": 0.9751309033072237,
+        "elapsed_ratio": 1.000073090542869,
+        "peak_rss_ratio": 1.002434385697984
+      },
+      {
+        "case": 18,
+        "name": "slot0046-finite-crossing",
+        "group": "finite_reversal",
+        "pairs": 3,
+        "nps_ratio": 1.1147524042504193,
+        "elapsed_ratio": 1.000050227895404,
+        "peak_rss_ratio": 1.0
+      },
+      {
+        "case": 19,
+        "name": "slot0073-finite-reversal",
+        "group": "finite_reversal",
+        "pairs": 3,
+        "nps_ratio": 1.0716978051332988,
+        "elapsed_ratio": 0.9999968891603505,
+        "peak_rss_ratio": 1.0
+      },
+      {
+        "case": 20,
+        "name": "slot0116-finite-reversal",
+        "group": "finite_reversal",
+        "pairs": 3,
+        "nps_ratio": 1.2941347411481878,
+        "elapsed_ratio": 0.9999753840448755,
+        "peak_rss_ratio": 1.0103359173126616
+      },
+      {
+        "case": 21,
+        "name": "slot0164-finite-reversal",
+        "group": "finite_reversal",
+        "pairs": 3,
+        "nps_ratio": 1.1048370247380053,
+        "elapsed_ratio": 1.0000505130743385,
+        "peak_rss_ratio": 1.0
+      },
+      {
+        "case": 22,
+        "name": "slot0292-finite-reversal",
+        "group": "finite_reversal",
+        "pairs": 3,
+        "nps_ratio": 1.150128480193246,
+        "elapsed_ratio": 1.0000013301639945,
+        "peak_rss_ratio": 1.0
+      },
+      {
+        "case": 23,
+        "name": "slot0304-finite-reversal",
+        "group": "finite_reversal",
+        "pairs": 3,
+        "nps_ratio": 1.0640781674045734,
+        "elapsed_ratio": 0.9997866281910165,
+        "peak_rss_ratio": 1.0048806527873102
+      }
+    ]
+  },
+  "variants": {
+    "asp100": {
+      "pairs": 72,
+      "positions": 24,
+      "nps_change_pct": 3.5617727150625056,
+      "nps_bootstrap95_pct": [
+        -0.21166085555114345,
+        8.695514718211461
+      ],
+      "elapsed_saving_pct": -0.0012312690609750376,
+      "total_elapsed_saving_pct": -0.001925875375219377,
+      "deeper": 2,
+      "shallower": 6,
+      "changed_moves": 6,
+      "changed_scores": 20,
+      "changed_nodes": 72,
+      "changed_lines": 29,
+      "early_searches": 0,
+      "max_overshoot_ms": 5.997939999999744,
+      "max_peak_rss_change_pct": 0.24691358024691024,
+      "counters": {
+        "aspiration_retries": 234,
+        "interior_probes": 0,
+        "interior_researches": 0,
+        "rejected_bounds": 0,
+        "retained_bounds": 0,
+        "retained_hints": 0,
+        "root_probes": 280998,
+        "root_researches": 2974,
+        "tt_first_cutoffs": 0,
+        "tt_first_probes": 0
+      },
+      "groups": {
+        "ending": {
+          "positions": 3,
+          "nps_change_pct": -0.6981024175407691,
+          "elapsed_saving_pct": -0.01717607933997556
+        },
+        "finite_reversal": {
+          "positions": 6,
+          "nps_change_pct": 12.529298615101347,
+          "elapsed_saving_pct": 0.0022623634923890634
+        },
+        "long_history": {
+          "positions": 1,
+          "nps_change_pct": 0.6750229342026959,
+          "elapsed_saving_pct": 0.030747438408229577
+        },
+        "middle_or_late": {
+          "positions": 11,
+          "nps_change_pct": 1.7191167017010178,
+          "elapsed_saving_pct": -0.0011331024033944814
+        },
+        "opening": {
+          "positions": 3,
+          "nps_change_pct": -1.3742477702784917,
+          "elapsed_saving_pct": -0.0032963567841992614
+        }
+      },
+      "per_position": [
+        {
+          "case": 0,
+          "name": "full-opening-BASE_P120H50B75_C2",
+          "group": "opening",
+          "pairs": 3,
+          "nps_ratio": 0.9682811781261016,
+          "elapsed_ratio": 1.0000707810540388,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 1,
+          "name": "full-opening-AVG_P120_SEED_C2S2LA",
+          "group": "opening",
+          "pairs": 3,
+          "nps_ratio": 0.9695243451836625,
+          "elapsed_ratio": 0.9999910936717331,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 2,
+          "name": "slot0422-initial-light",
+          "group": "opening",
+          "pairs": 3,
+          "nps_ratio": 1.0219055954086906,
+          "elapsed_ratio": 1.0000370175775504,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 3,
+          "name": "slot0569-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.9583416854253859,
+          "elapsed_ratio": 0.9999650856154044,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 4,
+          "name": "slot0569-swing",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 1.0837798550166966,
+          "elapsed_ratio": 0.9999801671428196,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 5,
+          "name": "slot0590-late",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 1.0400563551784474,
+          "elapsed_ratio": 0.9998923430239725,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 6,
+          "name": "slot0621-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.9036439442861283,
+          "elapsed_ratio": 0.999996029124979,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 7,
+          "name": "slot0658-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.9928031681817727,
+          "elapsed_ratio": 1.000068611747273,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 8,
+          "name": "slot0670-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 1.0297551968348106,
+          "elapsed_ratio": 1.0000636704902293,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 9,
+          "name": "slot0764-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 1.0922588247869938,
+          "elapsed_ratio": 0.9999516248578793,
+          "peak_rss_ratio": 1.002469135802469
+        },
+        {
+          "case": 10,
+          "name": "slot0766-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 1.1480792859375974,
+          "elapsed_ratio": 1.0001086661290526,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 11,
+          "name": "slot0766-late",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 1.0299028292537389,
+          "elapsed_ratio": 1.0000080265349502,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 12,
+          "name": "slot0422-late",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.9679196769502758,
+          "elapsed_ratio": 1.000045441699262,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 13,
+          "name": "slot0422-ending",
+          "group": "ending",
+          "pairs": 3,
+          "nps_ratio": 1.0432785842922077,
+          "elapsed_ratio": 1.0000800801816765,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 14,
+          "name": "slot0670-ending",
+          "group": "ending",
+          "pairs": 3,
+          "nps_ratio": 0.9395880828413358,
+          "elapsed_ratio": 1.000187441087159,
+          "peak_rss_ratio": 1.002469135802469
+        },
+        {
+          "case": 15,
+          "name": "slot0766-final",
+          "group": "ending",
+          "pairs": 3,
+          "nps_ratio": 0.9989295268976021,
+          "elapsed_ratio": 1.0002477683244095,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 16,
+          "name": "slot1233-late",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.9669022130241619,
+          "elapsed_ratio": 1.0000449943331857,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 17,
+          "name": "slot1233-swing",
+          "group": "long_history",
+          "pairs": 3,
+          "nps_ratio": 1.006750229342027,
+          "elapsed_ratio": 0.9996925256159177,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 18,
+          "name": "slot0046-finite-crossing",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 1.5413385339310126,
+          "elapsed_ratio": 1.0000989518979255,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 19,
+          "name": "slot0073-finite-reversal",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 1.1768350164872199,
+          "elapsed_ratio": 0.9999629864195619,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 20,
+          "name": "slot0116-finite-reversal",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 0.9199834596306119,
+          "elapsed_ratio": 0.9999769830174388,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 21,
+          "name": "slot0164-finite-reversal",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 1.1888544146452082,
+          "elapsed_ratio": 0.9997924087720848,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 22,
+          "name": "slot0292-finite-reversal",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 0.9937028551315078,
+          "elapsed_ratio": 1.0000186565656992,
+          "peak_rss_ratio": 1.0024167358960803
+        },
+        {
+          "case": 23,
+          "name": "slot0304-finite-reversal",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 1.0299468691568592,
+          "elapsed_ratio": 1.0000142976538504,
+          "peak_rss_ratio": 1.0
+        }
+      ]
+    },
+    "asp2000": {
+      "pairs": 72,
+      "positions": 24,
+      "nps_change_pct": 0.44914516692688977,
+      "nps_bootstrap95_pct": [
+        -0.9042470279924442,
+        1.8402218855214203
+      ],
+      "elapsed_saving_pct": -0.0033698860758990534,
+      "total_elapsed_saving_pct": -0.004851779155434777,
+      "deeper": 2,
+      "shallower": 3,
+      "changed_moves": 3,
+      "changed_scores": 11,
+      "changed_nodes": 72,
+      "changed_lines": 14,
+      "early_searches": 0,
+      "max_overshoot_ms": 8.406422999999904,
+      "max_peak_rss_change_pct": 0.4845181315769498,
+      "counters": {
+        "aspiration_retries": 33,
+        "interior_probes": 0,
+        "interior_researches": 0,
+        "rejected_bounds": 0,
+        "retained_bounds": 0,
+        "retained_hints": 0,
+        "root_probes": 207725,
+        "root_researches": 2737,
+        "tt_first_cutoffs": 0,
+        "tt_first_probes": 0
+      },
+      "groups": {
+        "ending": {
+          "positions": 3,
+          "nps_change_pct": 0.8583168890326176,
+          "elapsed_saving_pct": -0.012068017300004286
+        },
+        "finite_reversal": {
+          "positions": 6,
+          "nps_change_pct": 1.8728913319590923,
+          "elapsed_saving_pct": 0.0008121076091271995
+        },
+        "long_history": {
+          "positions": 1,
+          "nps_change_pct": 0.5643306394065517,
+          "elapsed_saving_pct": -0.015647196295320853
+        },
+        "middle_or_late": {
+          "positions": 11,
+          "nps_change_pct": -0.1188701754937016,
+          "elapsed_saving_pct": -0.0029217737868902915
+        },
+        "opening": {
+          "positions": 3,
+          "nps_change_pct": -0.729466720511518,
+          "elapsed_saving_pct": -0.000587230605608724
+        }
+      },
+      "per_position": [
+        {
+          "case": 0,
+          "name": "full-opening-BASE_P120H50B75_C2",
+          "group": "opening",
+          "pairs": 3,
+          "nps_ratio": 0.9958309312936536,
+          "elapsed_ratio": 0.9999628771533788,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 1,
+          "name": "full-opening-AVG_P120_SEED_C2S2LA",
+          "group": "opening",
+          "pairs": 3,
+          "nps_ratio": 0.9795873738004217,
+          "elapsed_ratio": 0.9999785059877564,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 2,
+          "name": "slot0422-initial-light",
+          "group": "opening",
+          "pairs": 3,
+          "nps_ratio": 1.0028414457337307,
+          "elapsed_ratio": 1.0000762375513113,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 3,
+          "name": "slot0569-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 1.02735718047829,
+          "elapsed_ratio": 1.0000182527122146,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 4,
+          "name": "slot0569-swing",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 1.018155384428066,
+          "elapsed_ratio": 1.000046141715385,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 5,
+          "name": "slot0590-late",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.9917331655837991,
+          "elapsed_ratio": 0.9999532575917287,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 6,
+          "name": "slot0621-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.9265335417641342,
+          "elapsed_ratio": 0.9999300557349148,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 7,
+          "name": "slot0658-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 1.0145774815099482,
+          "elapsed_ratio": 1.000009189852169,
+          "peak_rss_ratio": 1.002469135802469
+        },
+        {
+          "case": 8,
+          "name": "slot0670-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.9885230180920548,
+          "elapsed_ratio": 1.0001512038461997,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 9,
+          "name": "slot0764-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.9910734417875986,
+          "elapsed_ratio": 0.9999634989894544,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 10,
+          "name": "slot0766-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 1.0479299772461266,
+          "elapsed_ratio": 0.9999609302752274,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 11,
+          "name": "slot0766-late",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 1.0023744863932826,
+          "elapsed_ratio": 1.000019666347891,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 12,
+          "name": "slot0422-late",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.9790570007187367,
+          "elapsed_ratio": 1.0001084749011055,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 13,
+          "name": "slot0422-ending",
+          "group": "ending",
+          "pairs": 3,
+          "nps_ratio": 1.045767364477259,
+          "elapsed_ratio": 1.0000170321168373,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 14,
+          "name": "slot0670-ending",
+          "group": "ending",
+          "pairs": 3,
+          "nps_ratio": 0.9931096899284064,
+          "elapsed_ratio": 1.0001001758765615,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 15,
+          "name": "slot0766-final",
+          "group": "ending",
+          "pairs": 3,
+          "nps_ratio": 0.9878769343491054,
+          "elapsed_ratio": 1.0002448458139597,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 16,
+          "name": "slot1233-late",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 1.0045656280620892,
+          "elapsed_ratio": 1.0001607551227625,
+          "peak_rss_ratio": 1.0048451813157695
+        },
+        {
+          "case": 17,
+          "name": "slot1233-swing",
+          "group": "long_history",
+          "pairs": 3,
+          "nps_ratio": 1.0056433063940655,
+          "elapsed_ratio": 1.0001564719629532,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 18,
+          "name": "slot0046-finite-crossing",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 0.9861784322242321,
+          "elapsed_ratio": 1.0000892731655848,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 19,
+          "name": "slot0073-finite-reversal",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 0.9809932519943622,
+          "elapsed_ratio": 0.999992127326797,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 20,
+          "name": "slot0116-finite-reversal",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 1.0664866439781167,
+          "elapsed_ratio": 0.9999545556546607,
+          "peak_rss_ratio": 1.0025575447570332
+        },
+        {
+          "case": 21,
+          "name": "slot0164-finite-reversal",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 1.0503768771106436,
+          "elapsed_ratio": 0.9998253973286978,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 22,
+          "name": "slot0292-finite-reversal",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 0.9492037031219996,
+          "elapsed_ratio": 1.0000089329918707,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 23,
+          "name": "slot0304-finite-reversal",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 1.0866014406357225,
+          "elapsed_ratio": 1.0000810104921045,
+          "peak_rss_ratio": 1.0
+        }
+      ]
+    },
+    "asp500": {
+      "pairs": 72,
+      "positions": 24,
+      "nps_change_pct": 3.081072521966388,
+      "nps_bootstrap95_pct": [
+        -1.2952598892945866,
+        9.480323231345956
+      ],
+      "elapsed_saving_pct": -0.003625678280672062,
+      "total_elapsed_saving_pct": -0.0030761051632577363,
+      "deeper": 2,
+      "shallower": 3,
+      "changed_moves": 3,
+      "changed_scores": 11,
+      "changed_nodes": 72,
+      "changed_lines": 23,
+      "early_searches": 0,
+      "max_overshoot_ms": 5.308974000000035,
+      "max_peak_rss_change_pct": 0.2557544757033181,
+      "counters": {
+        "aspiration_retries": 114,
+        "interior_probes": 0,
+        "interior_researches": 0,
+        "rejected_bounds": 0,
+        "retained_bounds": 0,
+        "retained_hints": 0,
+        "root_probes": 241229,
+        "root_researches": 2880,
+        "tt_first_cutoffs": 0,
+        "tt_first_probes": 0
+      },
+      "groups": {
+        "ending": {
+          "positions": 3,
+          "nps_change_pct": 0.9262211322550451,
+          "elapsed_saving_pct": -0.020314900154549953
+        },
+        "finite_reversal": {
+          "positions": 6,
+          "nps_change_pct": 13.753134872253447,
+          "elapsed_saving_pct": -0.004319371116179305
+        },
+        "long_history": {
+          "positions": 1,
+          "nps_change_pct": -0.292741930297169,
+          "elapsed_saving_pct": 6.808687526005386e-05
+        },
+        "middle_or_late": {
+          "positions": 11,
+          "nps_change_pct": 0.28186593628363177,
+          "elapsed_saving_pct": 1.1840615443681202e-05
+        },
+        "opening": {
+          "positions": 3,
+          "nps_change_pct": -3.2963379718920383,
+          "elapsed_saving_pct": -0.00011961910699742617
+        }
+      },
+      "per_position": [
+        {
+          "case": 0,
+          "name": "full-opening-BASE_P120H50B75_C2",
+          "group": "opening",
+          "pairs": 3,
+          "nps_ratio": 0.9551089756604633,
+          "elapsed_ratio": 0.9999230617308021,
+          "peak_rss_ratio": 1.0024403263936552
+        },
+        {
+          "case": 1,
+          "name": "full-opening-AVG_P120_SEED_C2S2LA",
+          "group": "opening",
+          "pairs": 3,
+          "nps_ratio": 0.9616216666863175,
+          "elapsed_ratio": 1.0000114944208918,
+          "peak_rss_ratio": 1.0024167358960803
+        },
+        {
+          "case": 2,
+          "name": "slot0422-initial-light",
+          "group": "opening",
+          "pairs": 3,
+          "nps_ratio": 0.9846266700326456,
+          "elapsed_ratio": 1.0000690378283317,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 3,
+          "name": "slot0569-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.9978694409175264,
+          "elapsed_ratio": 1.0000184691264815,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 4,
+          "name": "slot0569-swing",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 1.0746843223963478,
+          "elapsed_ratio": 0.9999149218766672,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 5,
+          "name": "slot0590-late",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 1.011499108986267,
+          "elapsed_ratio": 0.9999120447692714,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 6,
+          "name": "slot0621-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.9073753766767408,
+          "elapsed_ratio": 0.999998806746624,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 7,
+          "name": "slot0658-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.989852024003846,
+          "elapsed_ratio": 1.0001216169476819,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 8,
+          "name": "slot0670-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.9997488489586259,
+          "elapsed_ratio": 1.0000624002501979,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 9,
+          "name": "slot0764-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.9641539924792465,
+          "elapsed_ratio": 0.9999119697842593,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 10,
+          "name": "slot0766-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 1.115883487293987,
+          "elapsed_ratio": 0.9999416339656614,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 11,
+          "name": "slot0766-late",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 1.0163099367173936,
+          "elapsed_ratio": 1.0000173595834916,
+          "peak_rss_ratio": 1.0024167358960803
+        },
+        {
+          "case": 12,
+          "name": "slot0422-late",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.9771175496036678,
+          "elapsed_ratio": 1.0000058047384597,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 13,
+          "name": "slot0422-ending",
+          "group": "ending",
+          "pairs": 3,
+          "nps_ratio": 1.0607658681264729,
+          "elapsed_ratio": 1.0001868365551045,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 14,
+          "name": "slot0670-ending",
+          "group": "ending",
+          "pairs": 3,
+          "nps_ratio": 0.9851164085458655,
+          "elapsed_ratio": 1.000145481221803,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 15,
+          "name": "slot0766-final",
+          "group": "ending",
+          "pairs": 3,
+          "nps_ratio": 0.9837957638221299,
+          "elapsed_ratio": 1.0002771337594452,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 16,
+          "name": "slot1233-late",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.991151196645583,
+          "elapsed_ratio": 1.0000936968789373,
+          "peak_rss_ratio": 1.0024225906578847
+        },
+        {
+          "case": 17,
+          "name": "slot1233-swing",
+          "group": "long_history",
+          "pairs": 3,
+          "nps_ratio": 0.9970725806970283,
+          "elapsed_ratio": 0.9999993191312474,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 18,
+          "name": "slot0046-finite-crossing",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 1.8207938365807235,
+          "elapsed_ratio": 1.0003591257090985,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 19,
+          "name": "slot0073-finite-reversal",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 1.1965508553262851,
+          "elapsed_ratio": 1.0000065118943753,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 20,
+          "name": "slot0116-finite-reversal",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 0.8797633193128225,
+          "elapsed_ratio": 0.9999572071704389,
+          "peak_rss_ratio": 1.0025575447570332
+        },
+        {
+          "case": 21,
+          "name": "slot0164-finite-reversal",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 1.07309535080506,
+          "elapsed_ratio": 0.9999154134013536,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 22,
+          "name": "slot0292-finite-reversal",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 0.9762916622962442,
+          "elapsed_ratio": 1.0000006269408757,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 23,
+          "name": "slot0304-finite-reversal",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 1.0789580601339994,
+          "elapsed_ratio": 1.0000203407456596,
+          "peak_rss_ratio": 1.0
+        }
+      ]
+    },
+    "clock128": {
+      "pairs": 72,
+      "positions": 24,
+      "nps_change_pct": -0.36603616863334354,
+      "nps_bootstrap95_pct": [
+        -1.1884822076199675,
+        0.5333537611715178
+      ],
+      "elapsed_saving_pct": -0.01099623077562839,
+      "total_elapsed_saving_pct": -0.012886437371562032,
+      "deeper": 1,
+      "shallower": 0,
+      "changed_moves": 0,
+      "changed_scores": 1,
+      "changed_nodes": 71,
+      "changed_lines": 1,
+      "early_searches": 0,
+      "max_overshoot_ms": 7.576653999999962,
+      "max_peak_rss_change_pct": 0.48806527873102024,
+      "counters": {
+        "aspiration_retries": 0,
+        "interior_probes": 0,
+        "interior_researches": 0,
+        "rejected_bounds": 0,
+        "retained_bounds": 0,
+        "retained_hints": 0,
+        "root_probes": 187387,
+        "root_researches": 2647,
+        "tt_first_cutoffs": 0,
+        "tt_first_probes": 0
+      },
+      "groups": {
+        "ending": {
+          "positions": 3,
+          "nps_change_pct": -0.43580860320060477,
+          "elapsed_saving_pct": -0.028746048857919426
+        },
+        "finite_reversal": {
+          "positions": 6,
+          "nps_change_pct": -1.9683149975745828,
+          "elapsed_saving_pct": -0.003928119743012992
+        },
+        "long_history": {
+          "positions": 1,
+          "nps_change_pct": 0.735772196336204,
+          "elapsed_saving_pct": -0.0677308286776146
+        },
+        "middle_or_late": {
+          "positions": 11,
+          "nps_change_pct": 0.3716940966843385,
+          "elapsed_saving_pct": -0.007607237292139857
+        },
+        "opening": {
+          "positions": 3,
+          "nps_change_pct": -0.1256443786236905,
+          "elapsed_saving_pct": -0.0009055677392399986
+        }
+      },
+      "per_position": [
+        {
+          "case": 0,
+          "name": "full-opening-BASE_P120H50B75_C2",
+          "group": "opening",
+          "pairs": 3,
+          "nps_ratio": 0.9994797665192595,
+          "elapsed_ratio": 1.0000205637623623,
+          "peak_rss_ratio": 1.0048806527873102
+        },
+        {
+          "case": 1,
+          "name": "full-opening-AVG_P120_SEED_C2S2LA",
+          "group": "opening",
+          "pairs": 3,
+          "nps_ratio": 1.0004771261190073,
+          "elapsed_ratio": 0.9999865251372028,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 2,
+          "name": "slot0422-initial-light",
+          "group": "opening",
+          "pairs": 3,
+          "nps_ratio": 0.9962785968458946,
+          "elapsed_ratio": 1.0000200785133937,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 3,
+          "name": "slot0569-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 1.015620166138356,
+          "elapsed_ratio": 0.9999980894414104,
+          "peak_rss_ratio": 1.0008890325709205
+        },
+        {
+          "case": 4,
+          "name": "slot0569-swing",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.9974894601266859,
+          "elapsed_ratio": 1.0000137068349306,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 5,
+          "name": "slot0590-late",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.98945833088754,
+          "elapsed_ratio": 1.0000326718917212,
+          "peak_rss_ratio": 1.0008890325709205
+        },
+        {
+          "case": 6,
+          "name": "slot0621-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.9737694533935752,
+          "elapsed_ratio": 1.0001025038332116,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 7,
+          "name": "slot0658-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 1.0177369756089787,
+          "elapsed_ratio": 1.0000523295017174,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 8,
+          "name": "slot0670-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.9872657446272333,
+          "elapsed_ratio": 1.0000408631400135,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 9,
+          "name": "slot0764-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.9994594863022522,
+          "elapsed_ratio": 1.0000500187494734,
+          "peak_rss_ratio": 1.002469135802469
+        },
+        {
+          "case": 10,
+          "name": "slot0766-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 1.080565331545005,
+          "elapsed_ratio": 1.0001556882602864,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 11,
+          "name": "slot0766-late",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.9998443002110701,
+          "elapsed_ratio": 1.000033581794295,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 12,
+          "name": "slot0422-late",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.9880468302886185,
+          "elapsed_ratio": 1.0003430957341037,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 13,
+          "name": "slot0422-ending",
+          "group": "ending",
+          "pairs": 3,
+          "nps_ratio": 1.0101106551501056,
+          "elapsed_ratio": 1.0000158719057461,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 14,
+          "name": "slot0670-ending",
+          "group": "ending",
+          "pairs": 3,
+          "nps_ratio": 0.971704552982314,
+          "elapsed_ratio": 1.000222875512373,
+          "peak_rss_ratio": 1.002469135802469
+        },
+        {
+          "case": 15,
+          "name": "slot0766-final",
+          "group": "ending",
+          "pairs": 3,
+          "nps_ratio": 1.0055561420662937,
+          "elapsed_ratio": 1.0006237295184923,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 16,
+          "name": "slot1233-late",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.9954850907407518,
+          "elapsed_ratio": 1.000014296059687,
+          "peak_rss_ratio": 1.0024225906578847
+        },
+        {
+          "case": 17,
+          "name": "slot1233-swing",
+          "group": "long_history",
+          "pairs": 3,
+          "nps_ratio": 1.007357721963362,
+          "elapsed_ratio": 1.0006773082867761,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 18,
+          "name": "slot0046-finite-crossing",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 0.9956866645494199,
+          "elapsed_ratio": 0.9999915409903691,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 19,
+          "name": "slot0073-finite-reversal",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 0.979774422944961,
+          "elapsed_ratio": 1.0000900182048476,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 20,
+          "name": "slot0116-finite-reversal",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 0.9831080032470558,
+          "elapsed_ratio": 1.0001348400335304,
+          "peak_rss_ratio": 1.0025575447570332
+        },
+        {
+          "case": 21,
+          "name": "slot0164-finite-reversal",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 0.9719334498847126,
+          "elapsed_ratio": 0.9999129694082309,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 22,
+          "name": "slot0292-finite-reversal",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 0.9592836186924236,
+          "elapsed_ratio": 1.0000274428968299,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 23,
+          "name": "slot0304-finite-reversal",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 0.9925793314979223,
+          "elapsed_ratio": 1.0000788914748295,
+          "peak_rss_ratio": 1.0
+        }
+      ]
+    },
+    "clock32": {
+      "pairs": 72,
+      "positions": 24,
+      "nps_change_pct": -0.28095603271788283,
+      "nps_bootstrap95_pct": [
+        -1.3571515509693266,
+        0.7114565487920332
+      ],
+      "elapsed_saving_pct": -0.003306318166806932,
+      "total_elapsed_saving_pct": -0.0035127502961529444,
+      "deeper": 1,
+      "shallower": 1,
+      "changed_moves": 0,
+      "changed_scores": 2,
+      "changed_nodes": 72,
+      "changed_lines": 2,
+      "early_searches": 0,
+      "max_overshoot_ms": 5.931039999999939,
+      "max_peak_rss_change_pct": 0.2557544757033181,
+      "counters": {
+        "aspiration_retries": 0,
+        "interior_probes": 0,
+        "interior_researches": 0,
+        "rejected_bounds": 0,
+        "retained_bounds": 0,
+        "retained_hints": 0,
+        "root_probes": 187240,
+        "root_researches": 2648,
+        "tt_first_cutoffs": 0,
+        "tt_first_probes": 0
+      },
+      "groups": {
+        "ending": {
+          "positions": 3,
+          "nps_change_pct": -0.03336259471083958,
+          "elapsed_saving_pct": -0.010497699281164508
+        },
+        "finite_reversal": {
+          "positions": 6,
+          "nps_change_pct": -1.88614400822803,
+          "elapsed_saving_pct": -0.00017467832877926526
+        },
+        "long_history": {
+          "positions": 1,
+          "nps_change_pct": 1.0096588093306824,
+          "elapsed_saving_pct": 0.007549519342153754
+        },
+        "middle_or_late": {
+          "positions": 11,
+          "nps_change_pct": 0.05944624394786935,
+          "elapsed_saving_pct": -0.004515063762666749
+        },
+        "opening": {
+          "positions": 3,
+          "nps_change_pct": 1.0435106119462523,
+          "elapsed_saving_pct": -0.0015653570386131577
+        }
+      },
+      "per_position": [
+        {
+          "case": 0,
+          "name": "full-opening-BASE_P120H50B75_C2",
+          "group": "opening",
+          "pairs": 3,
+          "nps_ratio": 1.0122893823732388,
+          "elapsed_ratio": 0.9999908305196636,
+          "peak_rss_ratio": 1.0024403263936552
+        },
+        {
+          "case": 1,
+          "name": "full-opening-AVG_P120_SEED_C2S2LA",
+          "group": "opening",
+          "pairs": 3,
+          "nps_ratio": 0.9991552487352686,
+          "elapsed_ratio": 1.000053913768439,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 2,
+          "name": "slot0422-initial-light",
+          "group": "opening",
+          "pairs": 3,
+          "nps_ratio": 1.0199705312938832,
+          "elapsed_ratio": 1.0000022175533017,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 3,
+          "name": "slot0569-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 1.0125230922154602,
+          "elapsed_ratio": 1.0000484026565326,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 4,
+          "name": "slot0569-swing",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.9996636793377172,
+          "elapsed_ratio": 0.9999588433837532,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 5,
+          "name": "slot0590-late",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.9989501191920084,
+          "elapsed_ratio": 1.000026777248313,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 6,
+          "name": "slot0621-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.9685429877299615,
+          "elapsed_ratio": 1.0000069359315757,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 7,
+          "name": "slot0658-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.9931801014104666,
+          "elapsed_ratio": 1.0000648009832427,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 8,
+          "name": "slot0670-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.9968385686320678,
+          "elapsed_ratio": 1.0000676721885262,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 9,
+          "name": "slot0764-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.9875832848861216,
+          "elapsed_ratio": 1.0000105870043448,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 10,
+          "name": "slot0766-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 1.0714762699554656,
+          "elapsed_ratio": 1.0001503861616645,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 11,
+          "name": "slot0766-late",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 1.0018963619159906,
+          "elapsed_ratio": 0.9999813640969568,
+          "peak_rss_ratio": 1.0024167358960803
+        },
+        {
+          "case": 12,
+          "name": "slot0422-late",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.9578722850752092,
+          "elapsed_ratio": 1.0001047458221572,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 13,
+          "name": "slot0422-ending",
+          "group": "ending",
+          "pairs": 3,
+          "nps_ratio": 0.9918589062505577,
+          "elapsed_ratio": 1.0001138938195662,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 14,
+          "name": "slot0670-ending",
+          "group": "ending",
+          "pairs": 3,
+          "nps_ratio": 1.003638931485255,
+          "elapsed_ratio": 0.99996719945292,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 15,
+          "name": "slot0766-final",
+          "group": "ending",
+          "pairs": 3,
+          "nps_ratio": 1.0035473188810242,
+          "elapsed_ratio": 1.0002338555401549,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 16,
+          "name": "slot1233-late",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 1.0222990412754602,
+          "elapsed_ratio": 1.0000761570368295,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 17,
+          "name": "slot1233-swing",
+          "group": "long_history",
+          "pairs": 3,
+          "nps_ratio": 1.0100965880933068,
+          "elapsed_ratio": 0.9999245048065785,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 18,
+          "name": "slot0046-finite-crossing",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 0.9674860213056156,
+          "elapsed_ratio": 1.0000158346747505,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 19,
+          "name": "slot0073-finite-reversal",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 1.0023399225103078,
+          "elapsed_ratio": 1.0000263525463564,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 20,
+          "name": "slot0116-finite-reversal",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 0.9947079352788493,
+          "elapsed_ratio": 1.0000636783540862,
+          "peak_rss_ratio": 1.0025575447570332
+        },
+        {
+          "case": 21,
+          "name": "slot0164-finite-reversal",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 0.9995635403580717,
+          "elapsed_ratio": 0.9997903522301802,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 22,
+          "name": "slot0292-finite-reversal",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 0.9253778308249667,
+          "elapsed_ratio": 1.0000580283686964,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 23,
+          "name": "slot0304-finite-reversal",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 0.9997634575238806,
+          "elapsed_ratio": 1.000056262261881,
+          "peak_rss_ratio": 1.0
+        }
+      ]
+    },
+    "clock8": {
+      "pairs": 72,
+      "positions": 24,
+      "nps_change_pct": -0.49142574425286023,
+      "nps_bootstrap95_pct": [
+        -1.1632722176484145,
+        0.20546011910516082
+      ],
+      "elapsed_saving_pct": -0.003110213086765512,
+      "total_elapsed_saving_pct": -0.0031940169574529165,
+      "deeper": 2,
+      "shallower": 1,
+      "changed_moves": 0,
+      "changed_scores": 3,
+      "changed_nodes": 71,
+      "changed_lines": 3,
+      "early_searches": 0,
+      "max_overshoot_ms": 6.820578000000296,
+      "max_peak_rss_change_pct": 0.2557544757033181,
+      "counters": {
+        "aspiration_retries": 0,
+        "interior_probes": 0,
+        "interior_researches": 0,
+        "rejected_bounds": 0,
+        "retained_bounds": 0,
+        "retained_hints": 0,
+        "root_probes": 186707,
+        "root_researches": 2647,
+        "tt_first_cutoffs": 0,
+        "tt_first_probes": 0
+      },
+      "groups": {
+        "ending": {
+          "positions": 3,
+          "nps_change_pct": -0.4797454446514915,
+          "elapsed_saving_pct": -0.008829803190346652
+        },
+        "finite_reversal": {
+          "positions": 6,
+          "nps_change_pct": -0.9067749760823474,
+          "elapsed_saving_pct": 0.0021453026564088873
+        },
+        "long_history": {
+          "positions": 1,
+          "nps_change_pct": -0.42298226534572825,
+          "elapsed_saving_pct": -0.028222328097737837
+        },
+        "middle_or_late": {
+          "positions": 11,
+          "nps_change_pct": -0.11709455306299077,
+          "elapsed_saving_pct": -0.002701144769923225
+        },
+        "opening": {
+          "positions": 3,
+          "nps_change_pct": -1.0618065910210972,
+          "elapsed_saving_pct": -0.0010323818667057338
+        }
+      },
+      "per_position": [
+        {
+          "case": 0,
+          "name": "full-opening-BASE_P120H50B75_C2",
+          "group": "opening",
+          "pairs": 3,
+          "nps_ratio": 0.9845797888608402,
+          "elapsed_ratio": 0.9999642177370748,
+          "peak_rss_ratio": 1.0024403263936552
+        },
+        {
+          "case": 1,
+          "name": "full-opening-AVG_P120_SEED_C2S2LA",
+          "group": "opening",
+          "pairs": 3,
+          "nps_ratio": 1.0021561722558354,
+          "elapsed_ratio": 1.0000403719808226,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 2,
+          "name": "slot0422-initial-light",
+          "group": "opening",
+          "pairs": 3,
+          "nps_ratio": 0.9815345826758688,
+          "elapsed_ratio": 1.000026383381395,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 3,
+          "name": "slot0569-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 1.028150677318815,
+          "elapsed_ratio": 1.0000145047822684,
+          "peak_rss_ratio": 1.0008890325709205
+        },
+        {
+          "case": 4,
+          "name": "slot0569-swing",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.9888703066190969,
+          "elapsed_ratio": 0.9999405377978491,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 5,
+          "name": "slot0590-late",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 1.0011234390625743,
+          "elapsed_ratio": 0.9999722164305106,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 6,
+          "name": "slot0621-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.9650304021164676,
+          "elapsed_ratio": 0.9999675960459423,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 7,
+          "name": "slot0658-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.9999993733763529,
+          "elapsed_ratio": 0.9999988363271863,
+          "peak_rss_ratio": 1.002469135802469
+        },
+        {
+          "case": 8,
+          "name": "slot0670-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 1.0002323310514116,
+          "elapsed_ratio": 1.000053686280378,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 9,
+          "name": "slot0764-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.9921198738633792,
+          "elapsed_ratio": 1.0002500438071904,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 10,
+          "name": "slot0766-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 1.038582863654443,
+          "elapsed_ratio": 0.9999651576013828,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 11,
+          "name": "slot0766-late",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 1.0175271776848627,
+          "elapsed_ratio": 1.0000424553655793,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 12,
+          "name": "slot0422-late",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.9955205261214568,
+          "elapsed_ratio": 1.000068508002368,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 13,
+          "name": "slot0422-ending",
+          "group": "ending",
+          "pairs": 3,
+          "nps_ratio": 0.998439118483743,
+          "elapsed_ratio": 0.9999663947058496,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 14,
+          "name": "slot0670-ending",
+          "group": "ending",
+          "pairs": 3,
+          "nps_ratio": 0.9977703087576719,
+          "elapsed_ratio": 1.0002317357002584,
+          "peak_rss_ratio": 1.002469135802469
+        },
+        {
+          "case": 15,
+          "name": "slot0766-final",
+          "group": "ending",
+          "pairs": 3,
+          "nps_ratio": 0.9894236116658777,
+          "elapsed_ratio": 1.0000667816365119,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 16,
+          "name": "slot1233-late",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.9626667086671784,
+          "elapsed_ratio": 1.000023619086521,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 17,
+          "name": "slot1233-swing",
+          "group": "long_history",
+          "pairs": 3,
+          "nps_ratio": 0.9957701773465427,
+          "elapsed_ratio": 1.0002822232809774,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 18,
+          "name": "slot0046-finite-crossing",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 0.9624194014006011,
+          "elapsed_ratio": 1.000011056247235,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 19,
+          "name": "slot0073-finite-reversal",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 1.0082222144733286,
+          "elapsed_ratio": 0.9999899400113322,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 20,
+          "name": "slot0116-finite-reversal",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 1.002622590613603,
+          "elapsed_ratio": 0.9999794472430642,
+          "peak_rss_ratio": 1.0025575447570332
+        },
+        {
+          "case": 21,
+          "name": "slot0164-finite-reversal",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 0.9927059428244938,
+          "elapsed_ratio": 0.9998025842937653,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 22,
+          "name": "slot0292-finite-reversal",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 0.987678023324901,
+          "elapsed_ratio": 1.0000720701538093,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 23,
+          "name": "slot0304-finite-reversal",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 0.9925894342781335,
+          "elapsed_ratio": 1.0000162050509,
+          "peak_rss_ratio": 1.0
+        }
+      ]
+    },
+    "swap": {
+      "pairs": 72,
+      "positions": 24,
+      "nps_change_pct": 3.1579281781930924,
+      "nps_bootstrap95_pct": [
+        1.0297866847392312,
+        5.385099698412432
+      ],
+      "elapsed_saving_pct": -0.001530952440309541,
+      "total_elapsed_saving_pct": -0.001809622682369394,
+      "deeper": 2,
+      "shallower": 1,
+      "changed_moves": 3,
+      "changed_scores": 4,
+      "changed_nodes": 72,
+      "changed_lines": 54,
+      "early_searches": 0,
+      "max_overshoot_ms": 5.139418999999634,
+      "max_peak_rss_change_pct": 0.48806527873102024,
+      "counters": {
+        "aspiration_retries": 0,
+        "interior_probes": 0,
+        "interior_researches": 0,
+        "rejected_bounds": 0,
+        "retained_bounds": 0,
+        "retained_hints": 0,
+        "root_probes": 186554,
+        "root_researches": 2622,
+        "tt_first_cutoffs": 0,
+        "tt_first_probes": 0
+      },
+      "groups": {
+        "ending": {
+          "positions": 3,
+          "nps_change_pct": 10.844723626872366,
+          "elapsed_saving_pct": -0.005469539605207352
+        },
+        "finite_reversal": {
+          "positions": 6,
+          "nps_change_pct": 0.42783899583056506,
+          "elapsed_saving_pct": 0.0010380864395753697
+        },
+        "long_history": {
+          "positions": 1,
+          "nps_change_pct": 12.39535080922547,
+          "elapsed_saving_pct": -0.0013237486914174923
+        },
+        "middle_or_late": {
+          "positions": 11,
+          "nps_change_pct": 2.1593762590923493,
+          "elapsed_saving_pct": -0.0020689575031651586
+        },
+        "opening": {
+          "positions": 3,
+          "nps_change_pct": 2.0143642112658844,
+          "elapsed_saving_pct": -0.0008269771358371258
+        }
+      },
+      "per_position": [
+        {
+          "case": 0,
+          "name": "full-opening-BASE_P120H50B75_C2",
+          "group": "opening",
+          "pairs": 3,
+          "nps_ratio": 1.0054028520694474,
+          "elapsed_ratio": 0.9999740237190481,
+          "peak_rss_ratio": 1.0048806527873102
+        },
+        {
+          "case": 1,
+          "name": "full-opening-AVG_P120_SEED_C2S2LA",
+          "group": "opening",
+          "pairs": 3,
+          "nps_ratio": 1.0090804194129521,
+          "elapsed_ratio": 1.0000244658492303,
+          "peak_rss_ratio": 1.0024167358960803
+        },
+        {
+          "case": 2,
+          "name": "slot0422-initial-light",
+          "group": "opening",
+          "pairs": 3,
+          "nps_ratio": 1.046449054196738,
+          "elapsed_ratio": 1.0000263206262687,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 3,
+          "name": "slot0569-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 1.100044649671654,
+          "elapsed_ratio": 1.0000468394761641,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 4,
+          "name": "slot0569-swing",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.9982354421331519,
+          "elapsed_ratio": 1.0000322162450705,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 5,
+          "name": "slot0590-late",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 1.0064897953201717,
+          "elapsed_ratio": 0.9999262973352903,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 6,
+          "name": "slot0621-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.9514996077846019,
+          "elapsed_ratio": 1.0000239306785264,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 7,
+          "name": "slot0658-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.9670777808299347,
+          "elapsed_ratio": 1.0000721654886504,
+          "peak_rss_ratio": 1.002469135802469
+        },
+        {
+          "case": 8,
+          "name": "slot0670-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.9920759267744662,
+          "elapsed_ratio": 1.0000280199612477,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 9,
+          "name": "slot0764-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 1.026024339737472,
+          "elapsed_ratio": 0.9999315725076582,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 10,
+          "name": "slot0766-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 1.1276450379654255,
+          "elapsed_ratio": 1.0001601406018659,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 11,
+          "name": "slot0766-late",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 1.0613629565184544,
+          "elapsed_ratio": 0.9999831942602294,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 12,
+          "name": "slot0422-late",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 1.017096914389261,
+          "elapsed_ratio": 0.9999784218223575,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 13,
+          "name": "slot0422-ending",
+          "group": "ending",
+          "pairs": 3,
+          "nps_ratio": 1.0679841068891205,
+          "elapsed_ratio": 1.0000200106188692,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 14,
+          "name": "slot0670-ending",
+          "group": "ending",
+          "pairs": 3,
+          "nps_ratio": 1.0808927932082086,
+          "elapsed_ratio": 1.0001216664641994,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 15,
+          "name": "slot0766-final",
+          "group": "ending",
+          "pairs": 3,
+          "nps_ratio": 1.17977085615271,
+          "elapsed_ratio": 1.000022412470001,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 16,
+          "name": "slot1233-late",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 1.003775555390884,
+          "elapsed_ratio": 1.000044808749045,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 17,
+          "name": "slot1233-swing",
+          "group": "long_history",
+          "pairs": 3,
+          "nps_ratio": 1.1239535080922547,
+          "elapsed_ratio": 1.0000132374869142,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 18,
+          "name": "slot0046-finite-crossing",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 1.0223579547433315,
+          "elapsed_ratio": 1.000029515176191,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 19,
+          "name": "slot0073-finite-reversal",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 1.0132192247602942,
+          "elapsed_ratio": 0.9999972188437612,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 20,
+          "name": "slot0116-finite-reversal",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 0.9444729019798201,
+          "elapsed_ratio": 0.9999750323636243,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 21,
+          "name": "slot0164-finite-reversal",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 1.0190186159574803,
+          "elapsed_ratio": 0.9999008452534695,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 22,
+          "name": "slot0292-finite-reversal",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 1.02969943878496,
+          "elapsed_ratio": 1.000011137403363,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 23,
+          "name": "slot0304-finite-reversal",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 0.999392780674978,
+          "elapsed_ratio": 1.0000239714665435,
+          "peak_rss_ratio": 1.0
+        }
+      ]
+    },
+    "tt-first": {
+      "pairs": 72,
+      "positions": 24,
+      "nps_change_pct": -0.1160008418086722,
+      "nps_bootstrap95_pct": [
+        -0.7401442188000318,
+        0.531480927027772
+      ],
+      "elapsed_saving_pct": -0.001334843498890237,
+      "total_elapsed_saving_pct": -0.0011454254227549754,
+      "deeper": 2,
+      "shallower": 1,
+      "changed_moves": 0,
+      "changed_scores": 3,
+      "changed_nodes": 72,
+      "changed_lines": 3,
+      "early_searches": 0,
+      "max_overshoot_ms": 4.754259999999704,
+      "max_peak_rss_change_pct": 0.4845181315769498,
+      "counters": {
+        "aspiration_retries": 0,
+        "interior_probes": 0,
+        "interior_researches": 0,
+        "rejected_bounds": 0,
+        "retained_bounds": 0,
+        "retained_hints": 0,
+        "root_probes": 187377,
+        "root_researches": 2648,
+        "tt_first_cutoffs": 918,
+        "tt_first_probes": 1588
+      },
+      "groups": {
+        "ending": {
+          "positions": 3,
+          "nps_change_pct": -0.6089130238310814,
+          "elapsed_saving_pct": -0.0022969603353795165
+        },
+        "finite_reversal": {
+          "positions": 6,
+          "nps_change_pct": -0.9281731882497701,
+          "elapsed_saving_pct": -0.004472076089845345
+        },
+        "long_history": {
+          "positions": 1,
+          "nps_change_pct": 1.0029922083583775,
+          "elapsed_saving_pct": 0.00621053303540009
+        },
+        "middle_or_late": {
+          "positions": 11,
+          "nps_change_pct": 0.449822071308037,
+          "elapsed_saving_pct": 0.00045864154506469745
+        },
+        "opening": {
+          "positions": 3,
+          "nps_change_pct": -0.43014237719627424,
+          "elapsed_saving_pct": -0.0031897729323659973
+        }
+      },
+      "per_position": [
+        {
+          "case": 0,
+          "name": "full-opening-BASE_P120H50B75_C2",
+          "group": "opening",
+          "pairs": 3,
+          "nps_ratio": 1.004072132986062,
+          "elapsed_ratio": 1.0000132675771316,
+          "peak_rss_ratio": 1.0024403263936552
+        },
+        {
+          "case": 1,
+          "name": "full-opening-AVG_P120_SEED_C2S2LA",
+          "group": "opening",
+          "pairs": 3,
+          "nps_ratio": 1.0049739642152602,
+          "elapsed_ratio": 0.9999849239359379,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 2,
+          "name": "slot0422-initial-light",
+          "group": "opening",
+          "pairs": 3,
+          "nps_ratio": 0.9782817096541809,
+          "elapsed_ratio": 1.0000975051037082,
+          "peak_rss_ratio": 1.0008890325709205
+        },
+        {
+          "case": 3,
+          "name": "slot0569-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 1.024330869875081,
+          "elapsed_ratio": 1.0000509202793293,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 4,
+          "name": "slot0569-swing",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 1.001575342445787,
+          "elapsed_ratio": 1.000034775450703,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 5,
+          "name": "slot0590-late",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 1.0004843914876935,
+          "elapsed_ratio": 0.9999715831312884,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 6,
+          "name": "slot0621-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.9995305060813701,
+          "elapsed_ratio": 0.9999149546240568,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 7,
+          "name": "slot0658-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.9695192809364208,
+          "elapsed_ratio": 0.9999890957697716,
+          "peak_rss_ratio": 1.002469135802469
+        },
+        {
+          "case": 8,
+          "name": "slot0670-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 1.0000726890759424,
+          "elapsed_ratio": 0.9999513396395212,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 9,
+          "name": "slot0764-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.9955529042278797,
+          "elapsed_ratio": 0.9999028169000838,
+          "peak_rss_ratio": 1.002469135802469
+        },
+        {
+          "case": 10,
+          "name": "slot0766-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 1.0440529287071754,
+          "elapsed_ratio": 0.9999841006117816,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 11,
+          "name": "slot0766-late",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 1.0187989818075265,
+          "elapsed_ratio": 1.000029596240489,
+          "peak_rss_ratio": 1.0024167358960803
+        },
+        {
+          "case": 12,
+          "name": "slot0422-late",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.9843939270192962,
+          "elapsed_ratio": 1.000111388184924,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 13,
+          "name": "slot0422-ending",
+          "group": "ending",
+          "pairs": 3,
+          "nps_ratio": 0.9775569408923546,
+          "elapsed_ratio": 0.9999878521812705,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 14,
+          "name": "slot0670-ending",
+          "group": "ending",
+          "pairs": 3,
+          "nps_ratio": 0.9991120091385688,
+          "elapsed_ratio": 1.000048466022843,
+          "peak_rss_ratio": 1.002469135802469
+        },
+        {
+          "case": 15,
+          "name": "slot0766-final",
+          "group": "ending",
+          "pairs": 3,
+          "nps_ratio": 1.0052777674483766,
+          "elapsed_ratio": 1.0000325915938755,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 16,
+          "name": "slot1233-late",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 1.0131606833088924,
+          "elapsed_ratio": 1.000008997177799,
+          "peak_rss_ratio": 1.0048451813157695
+        },
+        {
+          "case": 17,
+          "name": "slot1233-swing",
+          "group": "long_history",
+          "pairs": 3,
+          "nps_ratio": 1.0100299220835838,
+          "elapsed_ratio": 0.999937894669646,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 18,
+          "name": "slot0046-finite-crossing",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 0.9951284590925223,
+          "elapsed_ratio": 1.0000004035102426,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 19,
+          "name": "slot0073-finite-reversal",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 0.9882659933900753,
+          "elapsed_ratio": 0.9999899994243043,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 20,
+          "name": "slot0116-finite-reversal",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 0.9942562063352551,
+          "elapsed_ratio": 1.0001787600779357,
+          "peak_rss_ratio": 1.0025575447570332
+        },
+        {
+          "case": 21,
+          "name": "slot0164-finite-reversal",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 0.9960927229660397,
+          "elapsed_ratio": 0.9998533820106084,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 22,
+          "name": "slot0292-finite-reversal",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 0.9791911410626466,
+          "elapsed_ratio": 1.000099972824621,
+          "peak_rss_ratio": 1.0024167358960803
+        },
+        {
+          "case": 23,
+          "name": "slot0304-finite-reversal",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 0.9914766147572593,
+          "elapsed_ratio": 1.0001458431242778,
+          "peak_rss_ratio": 1.0
+        }
+      ]
+    },
+    "tt-hints": {
+      "pairs": 72,
+      "positions": 24,
+      "nps_change_pct": 0.03576174465309556,
+      "nps_bootstrap95_pct": [
+        -0.653029044690856,
+        0.8008377798715216
+      ],
+      "elapsed_saving_pct": -0.004583238538757861,
+      "total_elapsed_saving_pct": -0.005498266387049533,
+      "deeper": 2,
+      "shallower": 0,
+      "changed_moves": 0,
+      "changed_scores": 2,
+      "changed_nodes": 72,
+      "changed_lines": 2,
+      "early_searches": 0,
+      "max_overshoot_ms": 7.419227999999748,
+      "max_peak_rss_change_pct": 0.4845181315769498,
+      "counters": {
+        "aspiration_retries": 0,
+        "interior_probes": 0,
+        "interior_researches": 0,
+        "rejected_bounds": 0,
+        "retained_bounds": 0,
+        "retained_hints": 0,
+        "root_probes": 187539,
+        "root_researches": 2649,
+        "tt_first_cutoffs": 0,
+        "tt_first_probes": 0
+      },
+      "groups": {
+        "ending": {
+          "positions": 3,
+          "nps_change_pct": -1.2810888925020913,
+          "elapsed_saving_pct": -0.009605636436260667
+        },
+        "finite_reversal": {
+          "positions": 6,
+          "nps_change_pct": -0.35685840080555975,
+          "elapsed_saving_pct": 0.0014384859156280072
+        },
+        "long_history": {
+          "positions": 1,
+          "nps_change_pct": -2.33618642375395,
+          "elapsed_saving_pct": -0.04762022691957579
+        },
+        "middle_or_late": {
+          "positions": 11,
+          "nps_change_pct": 0.8177233482065782,
+          "elapsed_saving_pct": -0.0035356974414479936
+        },
+        "opening": {
+          "positions": 3,
+          "nps_change_pct": 0.09228718824505489,
+          "elapsed_saving_pct": -0.0011032661125343068
+        }
+      },
+      "per_position": [
+        {
+          "case": 0,
+          "name": "full-opening-BASE_P120H50B75_C2",
+          "group": "opening",
+          "pairs": 3,
+          "nps_ratio": 1.0035352754895908,
+          "elapsed_ratio": 0.9999611564868977,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 1,
+          "name": "full-opening-AVG_P120_SEED_C2S2LA",
+          "group": "opening",
+          "pairs": 3,
+          "nps_ratio": 1.0022548094819015,
+          "elapsed_ratio": 1.000032317429534,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 2,
+          "name": "slot0422-initial-light",
+          "group": "opening",
+          "pairs": 3,
+          "nps_ratio": 0.9969905640459276,
+          "elapsed_ratio": 1.000039625946079,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 3,
+          "name": "slot0569-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 1.0129667027604625,
+          "elapsed_ratio": 1.0000323806404112,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 4,
+          "name": "slot0569-swing",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.9959894654494704,
+          "elapsed_ratio": 1.0000195781489507,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 5,
+          "name": "slot0590-late",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 1.0198316479835212,
+          "elapsed_ratio": 0.9999707825118259,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 6,
+          "name": "slot0621-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.9835395481184825,
+          "elapsed_ratio": 1.0001666994040106,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 7,
+          "name": "slot0658-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 1.0154657016876356,
+          "elapsed_ratio": 0.9999610687340825,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 8,
+          "name": "slot0670-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 1.005470813884901,
+          "elapsed_ratio": 0.9999904772309983,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 9,
+          "name": "slot0764-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.9912069258871978,
+          "elapsed_ratio": 0.9999156875065167,
+          "peak_rss_ratio": 1.002469135802469
+        },
+        {
+          "case": 10,
+          "name": "slot0766-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 1.0646038705708136,
+          "elapsed_ratio": 1.0000089388140694,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 11,
+          "name": "slot0766-late",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 1.010715688145851,
+          "elapsed_ratio": 1.0001603248996136,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 12,
+          "name": "slot0422-late",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.9920084385201742,
+          "elapsed_ratio": 1.0000545896463322,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 13,
+          "name": "slot0422-ending",
+          "group": "ending",
+          "pairs": 3,
+          "nps_ratio": 0.9678955852253526,
+          "elapsed_ratio": 1.0000378356108592,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 14,
+          "name": "slot0670-ending",
+          "group": "ending",
+          "pairs": 3,
+          "nps_ratio": 1.0029616072668162,
+          "elapsed_ratio": 1.0000421732956617,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 15,
+          "name": "slot0766-final",
+          "group": "ending",
+          "pairs": 3,
+          "nps_ratio": 0.9910333083907519,
+          "elapsed_ratio": 1.0002081696165204,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 16,
+          "name": "slot1233-late",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 1.0004699502274832,
+          "elapsed_ratio": 1.000108431958381,
+          "peak_rss_ratio": 1.0048451813157695
+        },
+        {
+          "case": 17,
+          "name": "slot1233-swing",
+          "group": "long_history",
+          "pairs": 3,
+          "nps_ratio": 0.9766381357624605,
+          "elapsed_ratio": 1.0004762022691958,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 18,
+          "name": "slot0046-finite-crossing",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 0.983854750211426,
+          "elapsed_ratio": 0.9999520997925986,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 19,
+          "name": "slot0073-finite-reversal",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 1.000209214330474,
+          "elapsed_ratio": 1.000021310988413,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 20,
+          "name": "slot0116-finite-reversal",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 1.000642159227201,
+          "elapsed_ratio": 1.0002219174180165,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 21,
+          "name": "slot0164-finite-reversal",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 0.986599792336876,
+          "elapsed_ratio": 0.9997257925263798,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 22,
+          "name": "slot0292-finite-reversal",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 1.0182294661699187,
+          "elapsed_ratio": 0.9999654283559115,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 23,
+          "name": "slot0304-finite-reversal",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 0.9894575239807911,
+          "elapsed_ratio": 1.0000272057067445,
+          "peak_rss_ratio": 1.0
+        }
+      ]
+    },
+    "tt-promote": {
+      "pairs": 72,
+      "positions": 24,
+      "nps_change_pct": -0.6653631117494507,
+      "nps_bootstrap95_pct": [
+        -2.482042508578719,
+        1.4132327947315781
+      ],
+      "elapsed_saving_pct": -0.001013171069974561,
+      "total_elapsed_saving_pct": -0.005091472592977375,
+      "deeper": 2,
+      "shallower": 4,
+      "changed_moves": 3,
+      "changed_scores": 9,
+      "changed_nodes": 72,
+      "changed_lines": 9,
+      "early_searches": 0,
+      "max_overshoot_ms": 11.41199400000005,
+      "max_peak_rss_change_pct": 0.48806527873102024,
+      "counters": {
+        "aspiration_retries": 0,
+        "interior_probes": 0,
+        "interior_researches": 0,
+        "rejected_bounds": 0,
+        "retained_bounds": 0,
+        "retained_hints": 0,
+        "root_probes": 176498,
+        "root_researches": 2670,
+        "tt_first_cutoffs": 922,
+        "tt_first_probes": 1689
+      },
+      "groups": {
+        "ending": {
+          "positions": 3,
+          "nps_change_pct": 0.4977294767528839,
+          "elapsed_saving_pct": -0.007273158788345668
+        },
+        "finite_reversal": {
+          "positions": 6,
+          "nps_change_pct": -2.453544000298613,
+          "elapsed_saving_pct": 0.001735088569443377
+        },
+        "long_history": {
+          "positions": 1,
+          "nps_change_pct": 0.9703163520487168,
+          "elapsed_saving_pct": 0.017421916233639756
+        },
+        "middle_or_late": {
+          "positions": 11,
+          "nps_change_pct": -0.379961517981231,
+          "elapsed_saving_pct": -0.002914280089694188
+        },
+        "opening": {
+          "positions": 3,
+          "nps_change_pct": 0.20527936661727253,
+          "elapsed_saving_pct": 0.0005750845271101923
+        }
+      },
+      "per_position": [
+        {
+          "case": 0,
+          "name": "full-opening-BASE_P120H50B75_C2",
+          "group": "opening",
+          "pairs": 3,
+          "nps_ratio": 1.011457047962079,
+          "elapsed_ratio": 0.9999660850517204,
+          "peak_rss_ratio": 1.0048806527873102
+        },
+        {
+          "case": 1,
+          "name": "full-opening-AVG_P120_SEED_C2S2LA",
+          "group": "opening",
+          "pairs": 3,
+          "nps_ratio": 0.9949828346150006,
+          "elapsed_ratio": 1.0000127313646845,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 2,
+          "name": "slot0422-initial-light",
+          "group": "opening",
+          "pairs": 3,
+          "nps_ratio": 0.9997899713487949,
+          "elapsed_ratio": 1.0000039316620701,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 3,
+          "name": "slot0569-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 1.033873534833206,
+          "elapsed_ratio": 0.9999889598513659,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 4,
+          "name": "slot0569-swing",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.9996930389483579,
+          "elapsed_ratio": 1.0001965229236587,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 5,
+          "name": "slot0590-late",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 1.0043856576731254,
+          "elapsed_ratio": 0.9999074528334005,
+          "peak_rss_ratio": 1.0008890325709205
+        },
+        {
+          "case": 6,
+          "name": "slot0621-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.9780295059612453,
+          "elapsed_ratio": 0.9999840585698199,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 7,
+          "name": "slot0658-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 1.002656909259215,
+          "elapsed_ratio": 0.9999954218488072,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 8,
+          "name": "slot0670-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 1.0086944785225633,
+          "elapsed_ratio": 0.9999675104897053,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 9,
+          "name": "slot0764-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.9298628737930509,
+          "elapsed_ratio": 1.0000940356884838,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 10,
+          "name": "slot0766-middle",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 1.0654420341497663,
+          "elapsed_ratio": 0.9999944578503194,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 11,
+          "name": "slot0766-late",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.9586927138882221,
+          "elapsed_ratio": 0.9999982326773338,
+          "peak_rss_ratio": 1.0024167358960803
+        },
+        {
+          "case": 12,
+          "name": "slot0422-late",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.9986716437567349,
+          "elapsed_ratio": 1.0000647115586456,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 13,
+          "name": "slot0422-ending",
+          "group": "ending",
+          "pairs": 3,
+          "nps_ratio": 1.171874320398834,
+          "elapsed_ratio": 0.9999972119214481,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 14,
+          "name": "slot0670-ending",
+          "group": "ending",
+          "pairs": 3,
+          "nps_ratio": 0.892228601804939,
+          "elapsed_ratio": 1.0000536975033467,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 15,
+          "name": "slot0766-final",
+          "group": "ending",
+          "pairs": 3,
+          "nps_ratio": 0.9707593253219098,
+          "elapsed_ratio": 1.0001672928418477,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 16,
+          "name": "slot1233-late",
+          "group": "middle_or_late",
+          "pairs": 3,
+          "nps_ratio": 0.9846102124245281,
+          "elapsed_ratio": 1.000129241046993,
+          "peak_rss_ratio": 1.0024225906578847
+        },
+        {
+          "case": 17,
+          "name": "slot1233-swing",
+          "group": "long_history",
+          "pairs": 3,
+          "nps_ratio": 1.0097031635204872,
+          "elapsed_ratio": 0.9998257808376636,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 18,
+          "name": "slot0046-finite-crossing",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 0.9768874198040355,
+          "elapsed_ratio": 0.9999651090153202,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 19,
+          "name": "slot0073-finite-reversal",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 0.9930920857106967,
+          "elapsed_ratio": 0.9999620506685255,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 20,
+          "name": "slot0116-finite-reversal",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 0.9746104812535832,
+          "elapsed_ratio": 1.0000733522377327,
+          "peak_rss_ratio": 1.0025575447570332
+        },
+        {
+          "case": 21,
+          "name": "slot0164-finite-reversal",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 0.9888541453857566,
+          "elapsed_ratio": 0.9998011511258175,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 22,
+          "name": "slot0292-finite-reversal",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 0.9405911922551541,
+          "elapsed_ratio": 1.0000848686784092,
+          "peak_rss_ratio": 1.0
+        },
+        {
+          "case": 23,
+          "name": "slot0304-finite-reversal",
+          "group": "finite_reversal",
+          "pairs": 3,
+          "nps_ratio": 0.9796494780405779,
+          "elapsed_ratio": 1.0000093894940827,
+          "peak_rss_ratio": 1.0
+        }
+      ]
+    }
+  },
+  "warm_hints": {
+    "pairs": 63,
+    "positions": 21,
+    "nps_change_pct": -0.15449892154131284,
+    "nps_bootstrap95_pct": [
+      -0.7400472068111896,
+      0.4035110534703179
+    ],
+    "elapsed_saving_pct": -0.005260912980453725,
+    "total_elapsed_saving_pct": -0.005505471525113492,
+    "deeper": 0,
+    "shallower": 0,
+    "changed_moves": 0,
+    "changed_scores": 0,
+    "changed_nodes": 63,
+    "changed_lines": 12,
+    "early_searches": 0,
+    "max_overshoot_ms": 1.8747879999996258,
+    "max_peak_rss_change_pct": 0.0,
+    "counters": {
+      "aspiration_retries": 0,
+      "interior_probes": 0,
+      "interior_researches": 0,
+      "rejected_bounds": 0,
+      "retained_bounds": 0,
+      "retained_hints": 21239,
+      "root_probes": 182086,
+      "root_researches": 2558,
+      "tt_first_cutoffs": 0,
+      "tt_first_probes": 0
+    },
+    "groups": {
+      "ending": {
+        "positions": 3,
+        "nps_change_pct": 0.2924347917674819,
+        "elapsed_saving_pct": -0.002655042536270358
+      },
+      "finite_reversal": {
+        "positions": 6,
+        "nps_change_pct": 0.26687347185463395,
+        "elapsed_saving_pct": -0.003207604078059312
+      },
+      "long_history": {
+        "positions": 1,
+        "nps_change_pct": -2.3315803694647363,
+        "elapsed_saving_pct": -0.0022442429558289234
+      },
+      "middle_or_late": {
+        "positions": 11,
+        "nps_change_pct": -0.3052537524578236,
+        "elapsed_saving_pct": -0.0073658813701360515
+      }
+    },
+    "per_position": [
+      {
+        "case": 3,
+        "name": "slot0569-middle",
+        "group": "middle_or_late",
+        "pairs": 3,
+        "nps_ratio": 1.011983769759258,
+        "elapsed_ratio": 1.0000618060408224,
+        "peak_rss_ratio": 1.0
+      },
+      {
+        "case": 4,
+        "name": "slot0569-swing",
+        "group": "middle_or_late",
+        "pairs": 3,
+        "nps_ratio": 0.9969952545839954,
+        "elapsed_ratio": 1.0000628035695849,
+        "peak_rss_ratio": 1.0
+      },
+      {
+        "case": 5,
+        "name": "slot0590-late",
+        "group": "middle_or_late",
+        "pairs": 3,
+        "nps_ratio": 0.989412323103608,
+        "elapsed_ratio": 1.000034777165122,
+        "peak_rss_ratio": 1.0
+      },
+      {
+        "case": 6,
+        "name": "slot0621-middle",
+        "group": "middle_or_late",
+        "pairs": 3,
+        "nps_ratio": 0.9927283959015387,
+        "elapsed_ratio": 1.000050959550555,
+        "peak_rss_ratio": 1.0
+      },
+      {
+        "case": 7,
+        "name": "slot0658-middle",
+        "group": "middle_or_late",
+        "pairs": 3,
+        "nps_ratio": 0.9710477805250258,
+        "elapsed_ratio": 1.000060391375055,
+        "peak_rss_ratio": 1.0
+      },
+      {
+        "case": 8,
+        "name": "slot0670-middle",
+        "group": "middle_or_late",
+        "pairs": 3,
+        "nps_ratio": 0.9832990464379618,
+        "elapsed_ratio": 1.0000722628175607,
+        "peak_rss_ratio": 1.0
+      },
+      {
+        "case": 9,
+        "name": "slot0764-middle",
+        "group": "middle_or_late",
+        "pairs": 3,
+        "nps_ratio": 1.0162765617346787,
+        "elapsed_ratio": 1.000064271996816,
+        "peak_rss_ratio": 1.0
+      },
+      {
+        "case": 10,
+        "name": "slot0766-middle",
+        "group": "middle_or_late",
+        "pairs": 3,
+        "nps_ratio": 1.0052266652493667,
+        "elapsed_ratio": 1.0000511174191975,
+        "peak_rss_ratio": 1.0
+      },
+      {
+        "case": 11,
+        "name": "slot0766-late",
+        "group": "middle_or_late",
+        "pairs": 3,
+        "nps_ratio": 1.002334630158301,
+        "elapsed_ratio": 1.0000697979229654,
+        "peak_rss_ratio": 1.0
+      },
+      {
+        "case": 12,
+        "name": "slot0422-late",
+        "group": "middle_or_late",
+        "pairs": 3,
+        "nps_ratio": 0.9996604753427126,
+        "elapsed_ratio": 1.0000985964461377,
+        "peak_rss_ratio": 1.0
+      },
+      {
+        "case": 13,
+        "name": "slot0422-ending",
+        "group": "ending",
+        "pairs": 3,
+        "nps_ratio": 0.9915467875641794,
+        "elapsed_ratio": 1.000008794930281,
+        "peak_rss_ratio": 1.0
+      },
+      {
+        "case": 14,
+        "name": "slot0670-ending",
+        "group": "ending",
+        "pairs": 3,
+        "nps_ratio": 0.9991993141015757,
+        "elapsed_ratio": 0.9999106649862385,
+        "peak_rss_ratio": 1.0
+      },
+      {
+        "case": 15,
+        "name": "slot0766-final",
+        "group": "ending",
+        "pairs": 3,
+        "nps_ratio": 1.018214284011473,
+        "elapsed_ratio": 1.000160207163282,
+        "peak_rss_ratio": 1.0
+      },
+      {
+        "case": 16,
+        "name": "slot1233-late",
+        "group": "middle_or_late",
+        "pairs": 3,
+        "nps_ratio": 0.9982819356253805,
+        "elapsed_ratio": 1.0001834705233847,
+        "peak_rss_ratio": 1.0
+      },
+      {
+        "case": 17,
+        "name": "slot1233-swing",
+        "group": "long_history",
+        "pairs": 3,
+        "nps_ratio": 0.9766841963053526,
+        "elapsed_ratio": 1.0000224424295583,
+        "peak_rss_ratio": 1.0
+      },
+      {
+        "case": 18,
+        "name": "slot0046-finite-crossing",
+        "group": "finite_reversal",
+        "pairs": 3,
+        "nps_ratio": 1.0191175354037936,
+        "elapsed_ratio": 1.000042581609842,
+        "peak_rss_ratio": 1.0
+      },
+      {
+        "case": 19,
+        "name": "slot0073-finite-reversal",
+        "group": "finite_reversal",
+        "pairs": 3,
+        "nps_ratio": 0.9888245439046839,
+        "elapsed_ratio": 1.0000676277644507,
+        "peak_rss_ratio": 1.0
+      },
+      {
+        "case": 20,
+        "name": "slot0116-finite-reversal",
+        "group": "finite_reversal",
+        "pairs": 3,
+        "nps_ratio": 0.9856156551833454,
+        "elapsed_ratio": 1.000046366082445,
+        "peak_rss_ratio": 1.0
+      },
+      {
+        "case": 21,
+        "name": "slot0164-finite-reversal",
+        "group": "finite_reversal",
+        "pairs": 3,
+        "nps_ratio": 1.000853329118,
+        "elapsed_ratio": 1.0000540955731032,
+        "peak_rss_ratio": 1.0
+      },
+      {
+        "case": 22,
+        "name": "slot0292-finite-reversal",
+        "group": "finite_reversal",
+        "pairs": 3,
+        "nps_ratio": 1.0162593214132543,
+        "elapsed_ratio": 0.999936221622814,
+        "peak_rss_ratio": 1.0
+      },
+      {
+        "case": 23,
+        "name": "slot0304-finite-reversal",
+        "group": "finite_reversal",
+        "pairs": 3,
+        "nps_ratio": 1.0058164924930626,
+        "elapsed_ratio": 1.000045569308865,
+        "peak_rss_ratio": 1.0
+      }
+    ]
+  },
+  "repeat_variability": {
+    "asp100": {
+      "positions": 24,
+      "variable_moves": 0,
+      "variable_depth": 0,
+      "variable_scores": 0
+    },
+    "asp2000": {
+      "positions": 24,
+      "variable_moves": 0,
+      "variable_depth": 0,
+      "variable_scores": 0
+    },
+    "asp500": {
+      "positions": 24,
+      "variable_moves": 0,
+      "variable_depth": 0,
+      "variable_scores": 0
+    },
+    "clock128": {
+      "positions": 24,
+      "variable_moves": 0,
+      "variable_depth": 1,
+      "variable_scores": 1
+    },
+    "clock32": {
+      "positions": 24,
+      "variable_moves": 0,
+      "variable_depth": 1,
+      "variable_scores": 1
+    },
+    "clock8": {
+      "positions": 24,
+      "variable_moves": 0,
+      "variable_depth": 1,
+      "variable_scores": 1
+    },
+    "combined": {
+      "positions": 24,
+      "variable_moves": 0,
+      "variable_depth": 1,
+      "variable_scores": 1
+    },
+    "stock": {
+      "positions": 24,
+      "variable_moves": 0,
+      "variable_depth": 1,
+      "variable_scores": 1
+    },
+    "swap": {
+      "positions": 24,
+      "variable_moves": 0,
+      "variable_depth": 1,
+      "variable_scores": 1
+    },
+    "tt-first": {
+      "positions": 24,
+      "variable_moves": 0,
+      "variable_depth": 1,
+      "variable_scores": 1
+    },
+    "tt-hints": {
+      "positions": 24,
+      "variable_moves": 0,
+      "variable_depth": 0,
+      "variable_scores": 0
+    },
+    "tt-promote": {
+      "positions": 24,
+      "variable_moves": 0,
+      "variable_depth": 1,
+      "variable_scores": 1
+    }
+  },
+  "caveat": "NPS is throughput, not playing strength. Bootstrap samples positions; shared games reduce independence. Per-position ratios are medians of paired repetitions."
+}

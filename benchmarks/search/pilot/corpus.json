@@ -1,0 +1,44 @@
+[
+  {
+    "name": "full-opening-BASE_P120H50B75_C2",
+    "game": "inputs/opening-BASE_P120H50B75_C2.json",
+    "ply": 0,
+    "model": "inputs/BASE_P120H50B75_C2.json",
+    "group": "opening"
+  },
+  {
+    "name": "slot0569-swing",
+    "game": "inputs/slot0569-BASE_P120H50B75_C2S2-vs-BASE_P120H50B75_C2LA-a-white.json",
+    "ply": 187,
+    "model": "inputs/BASE_P120H50B75_C2S2.json",
+    "group": "wide_promotions"
+  },
+  {
+    "name": "slot0670-middle",
+    "game": "inputs/slot0670-AVG_P120_SEED_C2S2A-vs-AVG_P120_SEED_C2S2-a-black.json",
+    "ply": 217,
+    "model": "inputs/AVG_P120_SEED_C2S2.json",
+    "group": "multi_leg"
+  },
+  {
+    "name": "slot0670-ending",
+    "game": "inputs/slot0670-AVG_P120_SEED_C2S2A-vs-AVG_P120_SEED_C2S2-a-black.json",
+    "ply": 644,
+    "model": "inputs/AVG_P120_SEED_C2S2A.json",
+    "group": "royal_evasion"
+  },
+  {
+    "name": "slot1233-swing",
+    "game": "inputs/slot1233-BASE_P120H50B75_C2-vs-AVG_P120_SEED_C2S2L-a-white.json",
+    "ply": 1031,
+    "model": "inputs/BASE_P120H50B75_C2.json",
+    "group": "long_history"
+  },
+  {
+    "name": "slot0046-finite-crossing",
+    "group": "finite_reversal",
+    "game": "inputs/slot0046-AVG_P120_SEED_C2S2A-vs-AVG_P120_SEED_C2LA-a-white.json",
+    "ply": 19,
+    "model": "inputs/AVG_P120_SEED_C2S2A.json"
+  }
+]
