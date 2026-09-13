@@ -29,3 +29,6 @@ pub mod training;
 pub mod uci;
 pub mod zobrist;
 
+
+#[cfg(test)]
+pub(crate) mod test_support;

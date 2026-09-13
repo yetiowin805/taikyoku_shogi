@@ -184,18 +184,13 @@ mod tests {
 
     #[test]
     fn grid_writes_seed_base_and_logic_engine_fields() {
-        let tmp = std::env::temp_dir().join(format!("tk-two-mob-{}", std::process::id()));
-        let _ = fs::remove_dir_all(&tmp);
+        let fixture = crate::test_support::TempDir::new();
+        let tmp = fixture.path();
         let cfg = TwoMobGridConfig {
-            seed_model: PathBuf::from(DEFAULT_SEED_MODEL),
+            seed_model: fixture.seed(),
             out_dir: tmp.clone(),
             history_manifest: PathBuf::from(DEFAULT_MANIFEST),
         };
-        if !cfg.seed_model.is_file() {
-            EvalCheckpoint::seed("ab-seed")
-                .save_path(&cfg.seed_model)
-                .unwrap();
-        }
         let (man, grid) = run_two_mob_grid(&cfg).expect("grid");
         assert_eq!(grid.cells.len(), 19);
         assert!(man.entrants.iter().any(|e| e.id == "SEED"));
@@ -210,7 +205,11 @@ mod tests {
             .expect("LOGIC_H105");
         assert!(logic.engine.as_ref().unwrap().contains("LOGIC_H105"));
         assert!(man.entrants.iter().any(|e| e.id == "LOGIC_B65T12"));
-        assert_eq!(man.entrants.len(), 32);
-        let _ = fs::remove_dir_all(&tmp);
+        crate::test_support::assert_grid_roster(
+            &man.entrants,
+            grid.cells.iter().map(|cell| cell.id.as_str()),
+            &cfg.history_manifest,
+            &[],
+        );
     }
 }

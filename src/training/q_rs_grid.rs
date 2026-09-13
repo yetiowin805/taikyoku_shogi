@@ -333,16 +333,9 @@ mod tests {
 
     #[test]
     fn grid_writes_33_unique_entrants() {
-        let tmp = std::env::temp_dir().join(format!("tk-q-rs-{}", std::process::id()));
-        let _ = fs::remove_dir_all(&tmp);
-        fs::create_dir_all(&tmp).unwrap();
-        let seed_path = if PathBuf::from(DEFAULT_SEED_MODEL).is_file() {
-            PathBuf::from(DEFAULT_SEED_MODEL)
-        } else {
-            let p = tmp.join("ab-seed.json");
-            EvalCheckpoint::seed("ab-seed").save_path(&p).unwrap();
-            p
-        };
+        let fixture = crate::test_support::TempDir::new();
+        let tmp = fixture.path();
+        let seed_path = fixture.seed();
         let cfg = QRsGridConfig {
             seed_model: seed_path,
             out_dir: tmp.clone(),
@@ -412,7 +405,5 @@ mod tests {
             .find(|e| e.id == "LOGIC_HANGQ_ANY")
             .expect("LOGIC_HANGQ_ANY");
         assert!(logic.engine.as_ref().unwrap().contains("LOGIC_HANGQ_ANY"));
-
-        let _ = fs::remove_dir_all(&tmp);
     }
 }

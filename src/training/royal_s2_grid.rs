@@ -392,16 +392,9 @@ mod tests {
 
     #[test]
     fn grid_writes_22_unique_entrants() {
-        let tmp = std::env::temp_dir().join(format!("tk-royal-s2-{}", std::process::id()));
-        let _ = fs::remove_dir_all(&tmp);
-        fs::create_dir_all(&tmp).unwrap();
-        let seed_path = if PathBuf::from(DEFAULT_SEED_MODEL).is_file() {
-            PathBuf::from(DEFAULT_SEED_MODEL)
-        } else {
-            let p = tmp.join("ab-seed.json");
-            EvalCheckpoint::seed("ab-seed").save_path(&p).unwrap();
-            p
-        };
+        let fixture = crate::test_support::TempDir::new();
+        let tmp = fixture.path();
+        let seed_path = fixture.seed();
         let cfg = RoyalS2GridConfig {
             seed_model: seed_path,
             out_dir: tmp.clone(),
@@ -467,22 +460,13 @@ mod tests {
             .find(|e| e.id == "LOGIC_PRE_LRCHECK")
             .expect("LOGIC_PRE_LRCHECK");
         assert!(pre.engine.as_ref().unwrap().contains("LOGIC_PRE_LRCHECK"));
-
-        let _ = fs::remove_dir_all(&tmp);
     }
 
     #[test]
     fn champs_grid_writes_title_winners_only() {
-        let tmp = std::env::temp_dir().join(format!("tk-royal-s2-champs-{}", std::process::id()));
-        let _ = fs::remove_dir_all(&tmp);
-        fs::create_dir_all(&tmp).unwrap();
-        let seed_path = if PathBuf::from(DEFAULT_SEED_MODEL).is_file() {
-            PathBuf::from(DEFAULT_SEED_MODEL)
-        } else {
-            let p = tmp.join("ab-seed.json");
-            EvalCheckpoint::seed("ab-seed").save_path(&p).unwrap();
-            p
-        };
+        let fixture = crate::test_support::TempDir::new();
+        let tmp = fixture.path();
+        let seed_path = fixture.seed();
         let cfg = RoyalS2GridConfig {
             seed_model: seed_path,
             out_dir: tmp.clone(),
@@ -499,21 +483,13 @@ mod tests {
         assert!(!ids.contains("LOGIC_PRE_LRCHECK"));
         assert!(!ids.contains("BASE_P120H50B75_C2L"));
         assert!(man.entrants.iter().all(|e| e.engine.is_none()));
-        let _ = fs::remove_dir_all(&tmp);
     }
 
     #[test]
     fn twins_grid_writes_16_experimental_only() {
-        let tmp = std::env::temp_dir().join(format!("tk-royal-s2-twins-{}", std::process::id()));
-        let _ = fs::remove_dir_all(&tmp);
-        fs::create_dir_all(&tmp).unwrap();
-        let seed_path = if PathBuf::from(DEFAULT_SEED_MODEL).is_file() {
-            PathBuf::from(DEFAULT_SEED_MODEL)
-        } else {
-            let p = tmp.join("ab-seed.json");
-            EvalCheckpoint::seed("ab-seed").save_path(&p).unwrap();
-            p
-        };
+        let fixture = crate::test_support::TempDir::new();
+        let tmp = fixture.path();
+        let seed_path = fixture.seed();
         let cfg = RoyalS2GridConfig {
             seed_model: seed_path,
             out_dir: tmp.clone(),
@@ -541,6 +517,5 @@ mod tests {
         }
         assert!(man.entrants.iter().all(|e| e.engine.is_none()));
         assert!(grid.cells.iter().all(|c| c.kind == "experimental"));
-        let _ = fs::remove_dir_all(&tmp);
     }
 }

@@ -45,6 +45,15 @@ cargo run --               # UCI stub (TSFEN1 / TM1)
 cargo test
 ```
 
+The default suite checks correctness without machine-speed thresholds. Run it in both
+profiles with `cargo test` and `cargo test --release`. Search performance experiments
+are opt-in: `cargo test --release --lib search::tests:: -- --ignored --nocapture --test-threads=1`.
+Run these on an otherwise idle machine; their wall-time and node-rate thresholds are
+hardware-dependent. The q0/q2/q4 ablation also covers the former q2/q4 smoke test.
+Grid and checkpoint file tests use disposable seed fixtures. History integration tests
+still need the repository's Git history and `models/history/manifest.json`; they check
+eligible baseline IDs rather than a frozen total that breaks when history grows.
+
 CLI usage: `cargo run --` with no args that match a subcommand, or any bad flag, prints the full command list (including training). Free Eagle sandbox: `cargo run --bin test_free_eagle`.
 
 ## Docs

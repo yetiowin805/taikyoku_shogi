@@ -2332,11 +2332,12 @@ mod tests {
     }
 
     #[test]
-    fn export_seed_checkpoint_to_models() {
+    fn seed_checkpoint_file_roundtrip() {
         let a = EvalCheckpoint::seed("ab-seed");
-        a.save_path(DEFAULT_MODEL_PATH)
-            .expect("write ab-seed.json");
-        let loaded = EvalCheckpoint::load_path(DEFAULT_MODEL_PATH).unwrap();
+        let fixture = crate::test_support::TempDir::new();
+        let path = fixture.path().join("checkpoint.json");
+        a.save_path(&path).unwrap();
+        let loaded = EvalCheckpoint::load_path(&path).unwrap();
         assert_eq!(loaded.weights.advance, 0);
         assert_eq!(loaded.name, "ab-seed");
         assert_eq!(loaded.weights.piece_value(PieceType::King), 100.0);

@@ -554,28 +554,26 @@ mod tests {
     }
 
     #[test]
-    fn grid_writes_35_unique_entrants() {
-        let tmp = std::env::temp_dir().join(format!("tk-top4-mix-{}", std::process::id()));
-        let _ = fs::remove_dir_all(&tmp);
+    fn grid_writes_unique_entrants_with_history() {
+        let fixture = crate::test_support::TempDir::new();
+        let tmp = fixture.path();
         let cfg = Top4MixGridConfig {
-            seed_model: PathBuf::from(DEFAULT_SEED_MODEL),
+            seed_model: fixture.seed(),
             out_dir: tmp.clone(),
             history_manifest: PathBuf::from(DEFAULT_MANIFEST),
         };
-        if !cfg.seed_model.is_file() {
-            EvalCheckpoint::seed("ab-seed")
-                .save_path(&cfg.seed_model)
-                .unwrap();
-        }
         let (man, grid) = run_top4_mix_grid(&cfg).expect("grid");
         assert_eq!(grid.cells.len(), 28);
         assert_eq!(grid.cells.iter().filter(|c| c.kind == "mix").count(), 18);
         assert_eq!(grid.cells.iter().filter(|c| c.kind == "avg").count(), 6);
         assert_eq!(grid.cells.iter().filter(|c| c.kind == "two_mob").count(), 4);
         let ids: Vec<_> = man.entrants.iter().map(|e| e.id.as_str()).collect();
-        let uniq: HashSet<_> = ids.iter().copied().collect();
-        assert_eq!(uniq.len(), ids.len(), "duplicate ids: {ids:?}");
-        assert_eq!(man.entrants.len(), 35);
+        crate::test_support::assert_grid_roster(
+            &man.entrants,
+            grid.cells.iter().map(|cell| cell.id.as_str()),
+            &cfg.history_manifest,
+            SKIP_HISTORY,
+        );
         for id in TOP4 {
             assert!(ids.contains(&id), "missing {id}");
         }
@@ -628,7 +626,5 @@ mod tests {
                 .abs()
                 < 1e-3
         );
-
-        let _ = fs::remove_dir_all(&tmp);
     }
 }

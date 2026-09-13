@@ -4541,15 +4541,11 @@ mod tests {
         let mut state = GameState::new();
         state.setup_initial_position();
         let t0 = Instant::now();
-        // Release: d2/q2 target after capture-gen + staging + TT (allow small machine slack).
+        // Keep the debug smoke test cheap; release also exercises quiescence.
         #[cfg(debug_assertions)]
         let qdepth = 0u32;
         #[cfg(not(debug_assertions))]
         let qdepth = 2u32;
-        #[cfg(debug_assertions)]
-        let max_secs = 10u64;
-        #[cfg(not(debug_assertions))]
-        let max_secs_f = 2.5f64;
         let result = search(
             &state,
             &weights,
@@ -4565,20 +4561,7 @@ mod tests {
         let elapsed = t0.elapsed();
         assert!(result.best_move.is_some());
         assert!(result.nodes > 0);
-        #[cfg(debug_assertions)]
-        assert!(
-            elapsed.as_secs() < max_secs,
-            "opening depth-2 q{qdepth} ID took {:?}, nodes={}",
-            elapsed,
-            result.nodes
-        );
-        #[cfg(not(debug_assertions))]
-        assert!(
-            elapsed.as_secs_f64() < max_secs_f,
-            "opening depth-2 q{qdepth} ID took {:?}, nodes={}",
-            elapsed,
-            result.nodes
-        );
+        assert_eq!(result.completed_depth, 2);
         assert!(
             result.score > -5_000,
             "opening ID score unexpectedly bad: {}",
@@ -4591,43 +4574,41 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "manual release performance experiment; run serially"]
     fn opening_depth3_q2_completes_quickly_release() {
+        assert!(
+            !cfg!(debug_assertions),
+            "run performance experiments with --release"
+        );
         // Selective search (null/LMR/killers) should make d3 interactive in release.
-        #[cfg(debug_assertions)]
-        {
-            return;
-        }
-        #[cfg(not(debug_assertions))]
-        {
-            let weights = EvalWeights::seed();
-            let mut state = GameState::new();
-            state.setup_initial_position();
-            let t0 = Instant::now();
-            let result = search(
-                &state,
-                &weights,
-                &SearchConfig {
-                    depth: 3,
-                    max_time_ms: None,
-                    collect_trace: false,
-                    quiescence_depth: 2,
-                    q_prune_mode: QPruneMode::PathAware,
-                    ..Default::default()
-                },
-            );
-            let elapsed = t0.elapsed();
-            assert!(result.best_move.is_some());
-            assert!(
-                elapsed.as_secs_f64() < 2.5,
-                "opening d3/q2 took {:?}, nodes={}",
-                elapsed,
-                result.nodes
-            );
-            eprintln!(
-                "opening d3/q2: {:?} nodes={} score={}",
-                elapsed, result.nodes, result.score
-            );
-        }
+        let weights = EvalWeights::seed();
+        let mut state = GameState::new();
+        state.setup_initial_position();
+        let t0 = Instant::now();
+        let result = search(
+            &state,
+            &weights,
+            &SearchConfig {
+                depth: 3,
+                max_time_ms: None,
+                collect_trace: false,
+                quiescence_depth: 2,
+                q_prune_mode: QPruneMode::PathAware,
+                ..Default::default()
+            },
+        );
+        let elapsed = t0.elapsed();
+        assert!(result.best_move.is_some());
+        assert!(
+            elapsed.as_secs_f64() < 2.5,
+            "opening d3/q2 took {:?}, nodes={}",
+            elapsed,
+            result.nodes
+        );
+        eprintln!(
+            "opening d3/q2: {:?} nodes={} score={}",
+            elapsed, result.nodes, result.score
+        );
     }
 
     #[test]
@@ -4753,185 +4734,109 @@ mod tests {
     }
 
     #[test]
-    fn midgame_d4_q2_and_q4_smoke_release() {
-        #[cfg(debug_assertions)]
-        {
-            return;
-        }
-        #[cfg(not(debug_assertions))]
-        {
-            let weights = EvalWeights::seed();
-            let state = midgame_ish_after_pawn_pushes();
-            let root_n = state.generate_legal_moves().len();
-            assert!(root_n > 200, "expected busy root, got {root_n}");
-
-            let t0 = Instant::now();
-            let q2 = search(
-                &state,
-                &weights,
-                &SearchConfig {
-                    depth: 4,
-                    max_time_ms: Some(12_000),
-                    collect_trace: false,
-                    quiescence_depth: 2,
-                    q_prune_mode: QPruneMode::PathAware,
-                    ..Default::default()
-                },
-            );
-            let q2_ms = t0.elapsed().as_millis();
-
-            let t1 = Instant::now();
-            let q4 = search(
-                &state,
-                &weights,
-                &SearchConfig {
-                    depth: 4,
-                    max_time_ms: Some(12_000),
-                    collect_trace: false,
-                    quiescence_depth: 4,
-                    q_prune_mode: QPruneMode::PathAware,
-                    ..Default::default()
-                },
-            );
-            let q4_ms = t1.elapsed().as_millis();
-
-            assert!(q2.best_move.is_some());
-            assert!(q4.best_move.is_some());
-            eprintln!(
-                "midgame smoke root={root_n}: d4/q2 {}ms nodes={} qnodes={} | d4/q4 {}ms nodes={} qnodes={}",
-                q2_ms, q2.nodes, q2.q_nodes, q4_ms, q4.nodes, q4.q_nodes
-            );
-            // Soft budgets: should make progress well under the wall, not hang.
-            assert!(
-                q2_ms < 12_500,
-                "d4/q2 exceeded soft wall: {q2_ms}ms nodes={}",
-                q2.nodes
-            );
-            assert!(
-                q4.nodes > 500,
-                "d4/q4 made too little progress: nodes={}",
-                q4.nodes
-            );
-        }
-    }
-
-    #[test]
+    #[ignore = "manual release performance experiment; run serially"]
     fn midgame_d4_q_ablation_release() {
+        assert!(
+            !cfg!(debug_assertions),
+            "run performance experiments with --release"
+        );
         // Separates root-width cost (q0) from quiescence cost (q2/q4).
-        #[cfg(debug_assertions)]
-        {
-            return;
-        }
-        #[cfg(not(debug_assertions))]
-        {
-            let weights = EvalWeights::seed();
-            let state = midgame_ish_after_pawn_pushes();
-            let budget = Some(8_000u64);
-            let mut rows = Vec::new();
-            for q in [0u32, 2, 4] {
-                let t0 = Instant::now();
-                let r = search(
-                    &state,
-                    &weights,
-                    &SearchConfig {
-                        depth: 4,
-                        max_time_ms: budget,
-                        collect_trace: false,
-                        quiescence_depth: q,
-                        q_prune_mode: QPruneMode::PathAware,
-                        ..Default::default()
-                    },
-                );
-                let ms = t0.elapsed().as_millis();
-                eprintln!(
-                    "ablation d4/q{q}: {ms}ms nodes={} qnodes={} score={} best={:?}",
-                    r.nodes,
-                    r.q_nodes,
-                    r.score,
-                    r.best_move.as_ref().map(|m| (m.from, m.to))
-                );
-                assert!(r.best_move.is_some());
-                rows.push((q, ms, r.nodes, r.q_nodes));
-            }
-            // q0 should not be dominated by qnodes.
-            assert_eq!(rows[0].0, 0);
-            assert!(
-                rows[0].3 < rows[0].2 / 2 || rows[0].3 < 1_000,
-                "q0 should spend little in quiescence: nodes={} qnodes={}",
-                rows[0].2,
-                rows[0].3
-            );
-        }
-    }
-
-    #[test]
-    fn opening_depth4_makes_root_progress_in_budget_release() {
-        // With a few seconds, ID should finish d3 and start several d4 root moves.
-        #[cfg(debug_assertions)]
-        {
-            return;
-        }
-        #[cfg(not(debug_assertions))]
-        {
-            let weights = EvalWeights::seed();
-            let mut state = GameState::new();
-            state.setup_initial_position();
-            let result = search(
+        let weights = EvalWeights::seed();
+        let state = midgame_ish_after_pawn_pushes();
+        let root_n = state.generate_legal_moves().len();
+        assert!(root_n > 200, "expected busy root, got {root_n}");
+        let budget = Some(8_000u64);
+        let mut rows = Vec::new();
+        for q in [0u32, 2, 4] {
+            let t0 = Instant::now();
+            let r = search(
                 &state,
                 &weights,
                 &SearchConfig {
                     depth: 4,
-                    max_time_ms: Some(8_000),
+                    max_time_ms: budget,
                     collect_trace: false,
-                    quiescence_depth: 2,
+                    quiescence_depth: q,
                     q_prune_mode: QPruneMode::PathAware,
                     ..Default::default()
                 },
             );
-            assert!(result.best_move.is_some());
-            assert!(
-                result.nodes > 50_000,
-                "expected meaningful d4 progress, nodes={}",
-                result.nodes
-            );
-            // Completing d3 (~273k before reductions) or a large d4 partial both count.
+            let ms = t0.elapsed().as_millis();
             eprintln!(
-                "opening d4/q2 @8s: nodes={} score={} best={:?}",
-                result.nodes,
-                result.score,
-                result.best_move.as_ref().map(|m| (m.from, m.to))
+                "ablation d4/q{q}: {ms}ms nodes={} qnodes={} score={} best={:?}",
+                r.nodes,
+                r.q_nodes,
+                r.score,
+                r.best_move.as_ref().map(|m| (m.from, m.to))
             );
+            assert!(r.best_move.is_some());
+            rows.push((q, ms, r.nodes, r.q_nodes));
         }
+        // q0 should not be dominated by qnodes.
+        assert_eq!(rows[0].0, 0);
+        assert!(
+            rows[0].3 < rows[0].2 / 2 || rows[0].3 < 1_000,
+            "q0 should spend little in quiescence: nodes={} qnodes={}",
+            rows[0].2,
+            rows[0].3
+        );
     }
 
     #[test]
-    fn capture_gen_faster_than_full_on_opening() {
+    #[ignore = "manual release performance experiment; run serially"]
+    fn opening_depth4_makes_root_progress_in_budget_release() {
+        assert!(
+            !cfg!(debug_assertions),
+            "run performance experiments with --release"
+        );
+        // With a few seconds, ID should finish d3 and start several d4 root moves.
+        let weights = EvalWeights::seed();
         let mut state = GameState::new();
         state.setup_initial_position();
-        let full_n = state.generate_legal_moves().len();
-        let caps_n = state
-            .generate_legal_moves_mode(LegalMoveGen::CapturesOnly)
-            .len();
-        assert!(caps_n < full_n, "captures_only={caps_n} full={full_n}");
-        // Timing is noisy in debug; only assert speedup in release.
-        #[cfg(not(debug_assertions))]
-        {
-            let t0 = Instant::now();
-            for _ in 0..50 {
-                let _ = state.generate_legal_moves();
-            }
-            let full = t0.elapsed();
-            let t1 = Instant::now();
-            for _ in 0..50 {
-                let _ = state.generate_legal_moves_mode(LegalMoveGen::CapturesOnly);
-            }
-            let caps = t1.elapsed();
-            eprintln!("opening gen x50: full={full:?} captures_only={caps:?}");
-            assert!(
-                caps <= full,
-                "captures_only should not be slower: {caps:?} vs {full:?}"
-            );
-        }
+        let result = search(
+            &state,
+            &weights,
+            &SearchConfig {
+                depth: 4,
+                max_time_ms: Some(8_000),
+                collect_trace: false,
+                quiescence_depth: 2,
+                q_prune_mode: QPruneMode::PathAware,
+                ..Default::default()
+            },
+        );
+        assert!(result.best_move.is_some());
+        assert!(
+            result.nodes > 50_000,
+            "expected meaningful d4 progress, nodes={}",
+            result.nodes
+        );
+        // Completing d3 (~273k before reductions) or a large d4 partial both count.
+        eprintln!(
+            "opening d4/q2 @8s: nodes={} score={} best={:?}",
+            result.nodes,
+            result.score,
+            result.best_move.as_ref().map(|m| (m.from, m.to))
+        );
+    }
+
+    #[test]
+    fn capture_gen_matches_filtered_full_generation_on_opening() {
+        let mut state = GameState::new();
+        state.setup_initial_position();
+        let full = state.generate_legal_moves();
+        let expected: Vec<_> = full.iter().filter(|m| move_captures_enemy(&state, m)).collect();
+        let captures = state.generate_legal_moves_mode(LegalMoveGen::CapturesOnly);
+        assert!(!captures.is_empty());
+        assert!(captures.len() < full.len());
+        // Include path/two-step data and multiplicity, not just endpoints.
+        let mut expected: Vec<_> = expected.iter()
+            .map(|mv| serde_json::to_string(mv).unwrap()).collect();
+        let mut actual: Vec<_> = captures.iter()
+            .map(|mv| serde_json::to_string(mv).unwrap()).collect();
+        expected.sort();
+        actual.sort();
+        assert_eq!(actual, expected);
     }
 
     #[test]
@@ -5926,12 +5831,12 @@ mod tests {
         );
         let gain = loud_promotion_material_gain(&state, &weights, &promo);
         assert!(
-            gain >= min_quiescence_enemy_material(),
-            "promo gain {gain} should clear loud floor"
+            gain < min_quiescence_enemy_material(),
+            "fixture must exercise a loud promotion below the capture floor: {gain}"
         );
         let gen = generate_quiescence_captures(&state, &weights, None, false, false, true, false);
         assert!(
-            gen.iter().any(|m| m.promoted && m.from == fk),
+            gen.iter().any(|candidate| same_root_move(candidate, &promo)),
             "promo-only q gen must include FreeKing promotions: {gen:?}"
         );
     }
