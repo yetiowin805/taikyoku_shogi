@@ -64,6 +64,22 @@ cargo build --locked --release --bins --features royal-probes --example royal_pr
 # Run only after all builds and tests finish; one pinned CPU, sequentially.
 taskset -c 0 target/release/examples/royal_probe_smoke grid-smoke CORPUS.json > grid-smoke.jsonl
 taskset -c 0 target/release/examples/royal_probe_smoke search-new CORPUS.json > search-new.jsonl
+python3 benchmarks/royal_al_grid/summarize.py PRIVATE_ARTIFACT_DIRECTORY > summary.json
 ```
 
 `grid-smoke` exercises all 25 policies on the first five full-history saved positions with 100 ms budgets, checking move legality and input-state preservation. It is an activation/compatibility check, not a strength trial. `search-new` makes two shuffled three-second runs of off/defense/mate on five saved opening/middle/reversal/late/1,031-ply positions and two forced fixtures. Use the same corpus schema as `benchmarks/royal_eval_smoke/README.md`; raw routes, root scores, nodes, completed depth and probe/extension diagnostics are retained. Builds and timings must not overlap.
+
+## Final local smoke results
+
+The default debug and release correctness suites each passed 359 tests with four intentional ignores. The six Python analyzer tests passed, including watchdog recovery, historical helper identity, carry-forward persistence and resume. All seven reconstructed reference checkpoints matched the saved VPS weights and search settings exactly. Both frozen engines were built; the pre-change analysis helper completed a real full-prefix request at depth one.
+
+All 125 grid searches (25 policies × five saved positions) returned legal full routes and preserved their input state. The maximum elapsed time was 110.31 ms for a 100 ms budget. The 42 shuffled search records comprise two runs of each of three settings on five saved positions and two forced fixtures. The saved-position runs used the new A0/L0 checkpoint as their common base, a three-second budget, CPU 0, and no concurrent builds.
+
+- **Sole non-royal defense extension:** 162 extensions across ten saved-position searches; no chosen-route changes. Equal-position geometric mean NPS was +5.3%, but individual positions ranged from −15.8% to +47.6%. Mean completed depth was 0.1 lower; maximum elapsed time was 3,000.42 ms.
+- **Root mating probe:** no chosen-route changes and no positive mate proofs in these five saved positions. Maximum probe time was 313 microseconds. Aggregate NPS was −1.9%, with individual positions from −9.5% to +2.6%. Mean completed depth was 0.1 lower; maximum elapsed time was 3,000.67 ms.
+
+These are small, noisy activation checks, not speed or strength estimates. NPS depends on the resulting search tree and node types; the extension's high NPS on the long position does not establish stronger or deeper search. The root probe's measured direct cost was below 0.011% of a three-second budget, so the observed NPS variation should not be attributed to that direct cost alone. Both remain tournament trials.
+
+An earlier broader extension (one or two evasions, including royal flights) produced about −5.6% aggregate NPS and −25.1% on the long position. That motivated narrowing it to exactly one non-royal evasion. The final results above use the narrowed version; the earlier records are preserved separately in the private artifact directory. A and verified-flight sanity measurements are also recorded in `benchmarks/royal_eval_smoke/README.md`. No claim about their playing strength follows from this smoke study.
+
+Raw records, full game prefixes, model hashes, compiler settings and binary hashes remain in the private `royal-al-grid` artifact directory. The summarizer reads `corpus.json`, `grid-smoke.jsonl` and `search-new.jsonl`; early-finishing saved-position searches cause it to fail instead of silently mixing them with budget-limited timings.
