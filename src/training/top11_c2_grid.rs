@@ -353,9 +353,17 @@ mod tests {
         };
         let (man, grid) = run_top11_c2_grid(&cfg).expect("grid");
         assert_eq!(grid.cells.iter().filter(|c| c.kind == "top11").count(), 11);
+        let history = HistoryManifest::load_path(&cfg.history_manifest).unwrap();
+        let expected_twins = TOP11.iter().filter_map(|id| c2_twin_id(id)).count()
+            + history
+                .weights
+                .iter()
+                .filter(|e| !SKIP_HISTORY.contains(&e.id.as_str()))
+                .filter_map(|e| c2_twin_id(&e.id))
+                .count();
         assert_eq!(
             grid.cells.iter().filter(|c| c.kind == "c2_twin").count(),
-            14
+            expected_twins
         );
         let ids: Vec<_> = man.entrants.iter().map(|e| e.id.as_str()).collect();
         crate::test_support::assert_grid_roster(

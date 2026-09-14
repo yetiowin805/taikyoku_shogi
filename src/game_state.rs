@@ -4,14 +4,14 @@ use crate::position::Position;
 use crate::movement::MovementConfig;
 use crate::path_utils;
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum MoveData {
     Standard,
     TwoStep { intermediate: Position },
     FreeEagle { path: Vec<Position> },
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Move {
     pub from: Position,
     pub to: Position,

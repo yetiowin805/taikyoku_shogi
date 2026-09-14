@@ -1,11 +1,11 @@
 //! Static evaluation and versioned weight checkpoints for the alpha-beta agent.
 
+pub mod royal_probes;
+
 use crate::board::Board;
 use crate::game_state::GameState;
 use crate::movement::direction::Direction;
-use crate::movement::{
-    BlockingMode, MovementCapability, MovementConfig, MovementGenerator,
-};
+use crate::movement::{BlockingMode, MovementCapability, MovementConfig, MovementGenerator};
 use crate::piece::{Color, Piece, PieceType};
 use crate::position::Position;
 use serde::{Deserialize, Serialize};
@@ -593,6 +593,7 @@ fn two_mover_on_first_leg_ray(piece: &Piece, royal: Position) -> bool {
 
 /// Always-on two-mover alignment tropism (idea 1). Density / ahead gates do not apply.
 fn two_mover_align_of(
+    _board: &Board,
     our_pieces: &[Piece],
     enemy_royals: &[Position],
     weights: &EvalWeights,
@@ -605,10 +606,15 @@ fn two_mover_align_of(
         if !is_range_two_mover(p.piece_type) {
             continue;
         }
-        if enemy_royals
-            .iter()
-            .any(|&r| two_mover_on_first_leg_ray(p, r))
-        {
+        if enemy_royals.iter().any(|&r| {
+            if !two_mover_on_first_leg_ray(p, r) {
+                return false;
+            }
+            if weights.two_mover_align_blocked || royal_probes::blocked_alignment_enabled() {
+                return royal_probes::clear_alignment_ray(_board, p.position, r);
+            }
+            true
+        }) {
             s += weights.two_mover_align_k;
         }
     }
@@ -647,6 +653,14 @@ fn lr_flight_unit(in_check: bool, flights: u8) -> f32 {
 
 /// Last-royal flight penalty (idea L). Positive is bad for `color`. `k=0` is off.
 fn last_royal_flight_penalty(board: &Board, color: Color, weights: &EvalWeights) -> f32 {
+    if weights.last_royal_mode == LastRoyalMode::VerifiedFlights
+        || royal_probes::verified_flights_enabled()
+    {
+        return royal_probes::verified_flight_penalty(board, color, weights.lr_flight_k);
+    }
+    if matches!(weights.last_royal_mode, LastRoyalMode::ScarceDefenses | LastRoyalMode::MateProbe) {
+        return 0.0;
+    }
     if weights.lr_flight_k == 0.0 {
         return 0.0;
     }
@@ -1067,15 +1081,22 @@ pub fn eg_tropism_term_black(black: &[Piece], white: &[Piece], weights: &EvalWei
 }
 
 /// Black-positive phase-blended positional (PST fade + tropism fade-in).
-pub fn eg_blended_positional_black(
-    black: &[Piece],
-    white: &[Piece],
-    weights: &EvalWeights,
-) -> f32 {
+pub fn eg_blended_positional_black(black: &[Piece], white: &[Piece], weights: &EvalWeights) -> f32 {
     let black_mat = raw_material_of(black, weights);
     let white_mat = raw_material_of(white, weights);
     side_blended_positional(black, white, black_mat, white_mat, weights)
         - side_blended_positional(white, black, white_mat, black_mat, weights)
+}
+
+/// Mutually exclusive trapped-royal experiments, persisted with each checkpoint.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LastRoyalMode {
+    #[default]
+    Legacy,
+    VerifiedFlights,
+    ScarceDefenses,
+    MateProbe,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1136,7 +1157,7 @@ impl Default for SearchDefaults {
             q_open_large_mover: false,
             q_open_any_capture: false,
             q_recapture_only: false,
-            q_own_large_only: false,
+            q_own_large_only: true,
         }
     }
 }
@@ -1257,6 +1278,12 @@ pub struct EvalWeights {
     /// Cap on a side's alignment term (0 = uncapped).
     #[serde(default)]
     pub two_mover_align_cap: f32,
+    /// Clear-first-leg alignment filter. Missing in old checkpoints → false.
+    #[serde(default)]
+    pub two_mover_align_blocked: bool,
+    /// Select the L experiment; Legacy uses lr_flight_k (zero disables it).
+    #[serde(default)]
+    pub last_royal_mode: LastRoyalMode,
     /// Max absolute noise contribution (deterministic).
     pub noise_scale: f64,
     pub mate_score: i32,
@@ -1289,7 +1316,11 @@ fn default_royal_bonus_by_count() -> Vec<i32> {
 ///
 /// Seed defaults after file-PST Swiss: `back=0.65`, `opp_half_frac=0.75`
 /// (→ 115% when promo is 120%), `promo_factor=1.2`.
-pub fn seed_rank_factors_fast_params(back: f32, opp_half_frac: f32, promo_factor: f32) -> [f32; 36] {
+pub fn seed_rank_factors_fast_params(
+    back: f32,
+    opp_half_frac: f32,
+    promo_factor: f32,
+) -> [f32; 36] {
     let pawn = RANK_PAWN_START;
     let opp = RANK_OPPONENT_HALF;
     let promo = RANK_PST_PROMO;
@@ -1489,6 +1520,8 @@ impl EvalWeights {
             lr_flight_k: 0.0,
             two_mover_align_k: 0.0,
             two_mover_align_cap: 0.0,
+            two_mover_align_blocked: false,
+            last_royal_mode: LastRoyalMode::Legacy,
             noise_scale: 1.0,
             mate_score: 1_000_000,
             weight_seed: 0xA11B_E7A1,
@@ -1781,8 +1814,8 @@ pub fn evaluate_absolute_black(board: &Board, weights: &EvalWeights, ply: usize)
     score -= last_royal_flight_penalty(board, Color::Black, weights);
     score += last_royal_flight_penalty(board, Color::White, weights);
 
-    score += two_mover_align_of(black, &enemy_royal_positions(&white), weights);
-    score -= two_mover_align_of(white, &enemy_royal_positions(&black), weights);
+    score += two_mover_align_of(board, black, &enemy_royal_positions(&white), weights);
+    score -= two_mover_align_of(board, white, &enemy_royal_positions(&black), weights);
 
     score.round() as i32 + noise_component(board, weights, ply)
 }
@@ -1829,18 +1862,8 @@ fn evaluate_absolute_black_from_inc(
     let white_mat = inc.mat[1];
     let mut score = black_mat - white_mat;
 
-    let w_b = side_phase_weight(
-        black_mat,
-        white_mat,
-        inc.non_royals[1] as usize,
-        weights,
-    );
-    let w_w = side_phase_weight(
-        white_mat,
-        black_mat,
-        inc.non_royals[0] as usize,
-        weights,
-    );
+    let w_b = side_phase_weight(black_mat, white_mat, inc.non_royals[1] as usize, weights);
+    let w_w = side_phase_weight(white_mat, black_mat, inc.non_royals[0] as usize, weights);
     if w_b <= 0.0 && w_w <= 0.0 {
         score += inc.pst[0] - inc.pst[1];
     } else {
@@ -1874,8 +1897,8 @@ fn evaluate_absolute_black_from_inc(
             score += last_royal_flight_penalty(board, Color::White, weights);
         }
         if weights.two_mover_align_k != 0.0 {
-            score += two_mover_align_of(black, &enemy_royal_positions(&white), weights);
-            score -= two_mover_align_of(white, &enemy_royal_positions(&black), weights);
+            score += two_mover_align_of(board, black, &enemy_royal_positions(&white), weights);
+            score -= two_mover_align_of(board, white, &enemy_royal_positions(&black), weights);
         }
     }
 
@@ -2049,10 +2072,8 @@ mod tests {
 
     #[test]
     fn search_defaults_old_json_defaults_q_blowup_off() {
-        let s: SearchDefaults = serde_json::from_str(
-            r#"{"depth":2,"max_time_ms":null,"quiescence_depth":2}"#,
-        )
-        .unwrap();
+        let s: SearchDefaults =
+            serde_json::from_str(r#"{"depth":2,"max_time_ms":null,"quiescence_depth":2}"#).unwrap();
         assert_eq!(s.sibling_mode, 0);
         assert!(!s.q_loud_promo_simple_only);
         assert!(s.hang_q_dest_multileg);
@@ -2469,7 +2490,10 @@ mod tests {
             Position::new(16, 5).unwrap(),
         ));
         let mut fwd = back.clone();
-        fwd.move_piece(Position::new(16, 5).unwrap(), Position::new(16, 17).unwrap());
+        fwd.move_piece(
+            Position::new(16, 5).unwrap(),
+            Position::new(16, 17).unwrap(),
+        );
         let a = evaluate_absolute_black(&back, &weights, 0);
         let b = evaluate_absolute_black(&fwd, &weights, 0);
         assert!(
@@ -2521,7 +2545,10 @@ mod tests {
         ));
         let mut near = far.clone();
         // Walk own king next to enemy royal — must not create tropism.
-        near.move_piece(Position::new(10, 10).unwrap(), Position::new(20, 21).unwrap());
+        near.move_piece(
+            Position::new(10, 10).unwrap(),
+            Position::new(20, 21).unwrap(),
+        );
 
         let t_far = eg_tropism_term_black(
             far.pieces_by_color(Color::Black),
@@ -2712,7 +2739,10 @@ mod tests {
             Position::new(20, 26).unwrap(), // d=6
         ));
         let mut near = far.clone();
-        near.move_piece(Position::new(20, 26).unwrap(), Position::new(20, 25).unwrap()); // d=5
+        near.move_piece(
+            Position::new(20, 26).unwrap(),
+            Position::new(20, 25).unwrap(),
+        ); // d=5
 
         let t_far = eg_tropism_term_black(
             far.pieces_by_color(Color::Black),
@@ -2766,7 +2796,10 @@ mod tests {
             Position::new(20, 30).unwrap(), // d=10 tail
         ));
         let mut closer = far.clone();
-        closer.move_piece(Position::new(20, 30).unwrap(), Position::new(20, 29).unwrap()); // d=9
+        closer.move_piece(
+            Position::new(20, 30).unwrap(),
+            Position::new(20, 29).unwrap(),
+        ); // d=9
 
         let t0 = eg_tropism_term_black(
             far.pieces_by_color(Color::Black),
@@ -3007,10 +3040,9 @@ mod tests {
 
         let _bind = bind_search_weights(&weights);
         for file in [4u8, 8, 12, 16, 20, 24, 28] {
-            for &(from_rank, to_rank, color) in &[
-                (10u8, 11u8, Color::Black),
-                (25u8, 24u8, Color::White),
-            ] {
+            for &(from_rank, to_rank, color) in
+                &[(10u8, 11u8, Color::Black), (25u8, 24u8, Color::White)]
+            {
                 state.set_current_turn(color);
                 let from = Position::new(file, from_rank).unwrap();
                 let to = Position::new(file, to_rank).unwrap();

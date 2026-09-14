@@ -117,15 +117,64 @@ def parent_death_guard(parent):
     return setup
 
 
+def analyzer_for_agent(config, agent):
+    if not agent.get("engine"):
+        return config
+    path = absolute(agent["engine"]).resolve()
+    entry = config.get("historical_engines", {}).get(str(path))
+    if not entry:
+        raise ValueError(f"no matching historical analyzer for {path}")
+    if digest(path.read_bytes()) != entry["engine_sha256"]:
+        raise ValueError(f"historical engine changed: {path}")
+    if digest(Path(entry["analyzer_bin"]).read_bytes()) != entry["analyzer_sha256"]:
+        raise ValueError(f"historical analyzer changed: {entry['analyzer_bin']}")
+    return entry
+
+
+def validate_source(source):
+    binary = Path(source["analyzer_bin"])
+    if not os.access(binary, os.X_OK) or digest(binary.read_bytes()) != source["analyzer_sha256"]:
+        raise ValueError(f"source analyzer missing or changed: {binary}")
+    for original, model in source["models"].items():
+        if any(digest(Path(path).read_bytes()) != model["sha256"] for path in (original, model["snapshot"])):
+            raise ValueError(f"source model changed: {original}")
+    for engine in source.get("historical_engines", {}):
+        analyzer_for_agent(source, {"engine": engine})
+
+
+def historical_pair(source, previous):
+    """Validate a freeze-produced pair, or the pinned pair from a resumed run."""
+    if str(source) in previous.get("historical_engines", {}):
+        return analyzer_for_agent(previous, {"engine": str(source)})
+    helper = source.with_name(source.name + ".analyze_position")
+    meta = source.with_name(source.name + ".meta")
+    if not os.access(source, os.X_OK) or not os.access(helper, os.X_OK):
+        raise ValueError(f"missing historical engine/helper pair for {source}; run freeze_history.sh")
+    fields = dict(line.split("=", 1) for line in meta.read_text().splitlines() if "=" in line)
+    entry = dict(engine_sha256=digest(source.read_bytes()), analyzer_bin=str(helper),
+                 analyzer_sha256=digest(helper.read_bytes()), revision=fields.get("rev"))
+    if not entry["revision"] or any(entry[k] != fields.get(k) for k in ("engine_sha256", "analyzer_sha256")):
+        raise ValueError(f"historical engine/helper metadata mismatch: {source}")
+    return entry
+
+
 def search_position(config, moment, ply, db):
+    # Carried games keep their original analysis engine/checkpoint bindings while
+    # results are written into the new run's catalogue and CPU lease.
+    destination = config["run"]
+    for source in config.get("analysis_sources", []):
+        if Path(moment["game"]).resolve().parent == Path(source["run"]).resolve():
+            config = dict(source, run=destination)
+            break
     data = Path(moment["game"]).read_bytes()
     if digest(data) != moment["game_hash"]:
         raise ValueError("game changed since scan")
     game = json.loads(data)
     move = game["moves"][ply - 1]
     agent = game["black" if move["color"].lower() == "black" else "white"]
-    if agent["name"] != "ab" or agent.get("engine"):
-        raise ValueError("only current in-process ab agents are supported")
+    if agent["name"] != "ab":
+        raise ValueError("only ab agents are supported")
+    helper = analyzer_for_agent(config, agent)
     model_key = str(absolute(agent["model"]).resolve())
     model = config["models"][model_key]
     if digest(Path(model_key).read_bytes()) != model["sha256"]:
@@ -134,7 +183,7 @@ def search_position(config, moment, ply, db):
     depth = recorded_depth + 1 if isinstance(recorded_depth, int) and recorded_depth > 0 else 64
     budget = 300_000 if isinstance(recorded_depth, int) and recorded_depth > 0 else 30_000
     identity = dict(policy=POLICY, game=moment["game_hash"], ply=ply, agent=agent,
-                    model=model["sha256"], binary=config["analyzer_sha256"],
+                    model=model["sha256"], binary=helper["analyzer_sha256"],
                     depth=depth, budget=budget)
     key = digest(json.dumps(identity, sort_keys=True).encode())
     cached = db.execute("SELECT payload FROM searches WHERE key=?", (key,)).fetchone()
@@ -146,9 +195,11 @@ def search_position(config, moment, ply, db):
     best = None
     hard_timeout = False
     env = {k: v for k, v in os.environ.items() if not k.startswith("TAIKYOKU_AB_")}
+    command = [helper["analyzer_bin"], moment["game"], str(ply), model["snapshot"], str(depth), str(budget)]
+    if agent.get("engine"):
+        command.append("--allow-historical")
     with log_path.open("ab") as err:
-        proc = subprocess.Popen([config["analyzer_bin"], moment["game"], str(ply),
-                                 model["snapshot"], str(depth), str(budget)],
+        proc = subprocess.Popen(command,
                                 stdout=subprocess.PIPE, stderr=err, env=env,
                                 preexec_fn=parent_death_guard(os.getpid()))
         selector = selectors.DefaultSelector()
@@ -183,6 +234,7 @@ def search_position(config, moment, ply, db):
     if proc.returncode != 0 and not hard_timeout:
         raise ValueError(f"search failed (exit {proc.returncode}); see {log_path}")
     best.update(key=key, ply=ply, agent=agent, model_sha256=model["sha256"],
+                analyzer_sha256=helper["analyzer_sha256"], engine_sha256=helper.get("engine_sha256"),
                 original_eval=move.get("eval"), original_static_eval=move.get("static_eval"),
                 original_depth=recorded_depth, original_move=move, target_depth=depth,
                 budget_ms=budget, hard_timeout=hard_timeout, wall_ms=int((time.monotonic()-start)*1000))
@@ -201,6 +253,8 @@ def analyzer(config):
         while not STOPPING:
             try:
                 scan(db, run)
+                for source in config.get("analysis_sources", []):
+                    scan(db, Path(source["run"]))
             except (OSError, ValueError, KeyError) as e:
                 print(f"scan state retry: {e}", file=sys.stderr, flush=True)
             batch = db.execute(
@@ -325,6 +379,23 @@ def prepare(args, run):
     if args.action == "start" and (run / "state.json").exists():
         raise ValueError("run already exists; use resume")
     state = read(run / "state.json") if args.action == "resume" else None
+    previous = read(run / "analysis/config.json") if state and (run / "analysis/config.json").exists() else {}
+    sources = previous.get("analysis_sources", [])
+    carry = getattr(args, "carry_analysis_from", None)
+    if carry:
+        if state:
+            raise ValueError("--carry-analysis-from is for a new run only; resume keeps saved sources")
+        old_run = absolute(carry).resolve()
+        if old_run == run:
+            raise ValueError("cannot carry analysis from the new run itself")
+        old = read(old_run / "analysis/config.json")
+        if not (old_run / "state.json").is_file() or not (old_run / "analysis/catalogue.sqlite").is_file():
+            raise ValueError("source run has no saved state/catalogue")
+        # Make a flattened snapshot of bindings. Never substitute the new engine
+        # for an old in-process game merely because it has the same agent name.
+        sources = [dict(old, analysis_sources=[])] + old.get("analysis_sources", [])
+    for source in sources:
+        validate_source(source)
     entrants = state["entrants"] if state else read(absolute(args.manifest))["entrants"]
     allowed = sorted(os.sched_getaffinity(0))
     cpus = list(map(int, args.cpus.split(","))) if args.cpus else allowed[:4]
@@ -345,13 +416,18 @@ def prepare(args, run):
         except (FileNotFoundError, PermissionError, ProcessLookupError):
             pass
     validated = []
+    historical = {}
     for ent in entrants:
+        validator = binaries[1]
         if ent.get("engine"):
-            raise ValueError("historical binary entrants are unsupported by this analyzer")
+            engine = absolute(ent["engine"]).resolve()
+            entry = historical_pair(engine, previous)
+            historical[str(engine)] = entry
+            validator = Path(entry["analyzer_bin"])
         source = absolute(ent["model"]).resolve()
         data = source.read_bytes()
         json.loads(data)
-        subprocess.run([str(binaries[1]), "--validate-model", str(source)],
+        subprocess.run([str(validator), "--validate-model", str(source)],
                        check=True, capture_output=True, text=True)
         validated.append((source, data))
     control = run / "analysis"
@@ -365,14 +441,36 @@ def prepare(args, run):
         snapshot.write_bytes(data)
         model_map[str(source)] = {"sha256": sha, "snapshot": str(snapshot)}
     # Pin the executables too; a later build cannot change a running analysis policy.
-    frozen = []
-    for binary in binaries:
+    if carry:
+        destination = control / "catalogue.sqlite"
+        if destination.exists():
+            raise ValueError("new run already has a catalogue; refusing to overwrite it")
+        with sqlite3.connect(f"file:{old_run / 'analysis/catalogue.sqlite'}?mode=ro", uri=True) as source_db:
+            with sqlite3.connect(destination) as destination_db:
+                source_db.backup(destination_db)
+                for moment_id, payload in destination_db.execute("SELECT id,payload FROM moments WHERE status='completed'"):
+                    atomic(control / "moments" / (moment_id + ".json"), json.loads(payload))
+    def freeze(binary):
+        if binary.resolve().parent == (control / "bin").resolve():
+            return binary
         data = binary.read_bytes()
         target = control / "bin" / (binary.name + "-" + digest(data))
         if not target.exists():
             target.write_bytes(data)
             target.chmod(0o755)
-        frozen.append(target)
+        return target
+    frozen = [freeze(binary) for binary in binaries]
+    historical_map = {}
+    for ent in entrants:
+        if not ent.get("engine"):
+            continue
+        original = str(absolute(ent["engine"]).resolve())
+        entry = historical[original].copy()
+        engine_target = freeze(Path(original))
+        entry["analyzer_bin"] = str(freeze(Path(entry["analyzer_bin"])))
+        historical_map[original] = entry
+        historical_map[str(engine_target)] = entry
+        ent["engine"] = str(engine_target)
     manifest = control / "manifest.json"
     atomic(manifest, {"entrants": entrants})
     depth = state["depth"] if state else args.depth
@@ -385,7 +483,7 @@ def prepare(args, run):
         command.append("--resume")
     if budget is not None:
         command += ["--time-ms", str(budget)]
-    return dict(run=str(run), cpus=cpus, models=model_map, command=command,
+    return dict(run=str(run), cpus=cpus, models=model_map, command=command, historical_engines=historical_map, analysis_sources=sources,
                 analyzer_bin=str(frozen[1]), analyzer_sha256=digest(frozen[1].read_bytes()))
 
 
@@ -394,6 +492,7 @@ def main():
     parser.add_argument("action", choices=["start", "resume", "stop", "status", "_supervise", "_analyze"])
     parser.add_argument("--run-dir", required=True)
     parser.add_argument("--manifest", default="models/royal-s2-twins-grid/manifest.json")
+    parser.add_argument("--carry-analysis-from", help="continue a previous run catalogue with its original engine bindings")
     parser.add_argument("--cpus", help="four CPU IDs; defaults to first four allowed")
     parser.add_argument("--depth", type=int, default=8)
     parser.add_argument("--time-ms", type=int, default=3000)

@@ -295,7 +295,7 @@ impl Default for SearchConfig {
             q_open_large_mover: false,
             q_open_any_capture: false,
             q_recapture_only: false,
-            q_own_large_only: false,
+            q_own_large_only: true,
         }
     }
 }
@@ -338,6 +338,8 @@ pub struct SearchInfo {
 
 #[derive(Debug, Clone)]
 pub struct SearchResult {
+    pub royal_extensions: u64,
+    pub royal_probe: Option<crate::eval::royal_probes::ProbeResult>,
     /// Fully completed iterative-deepening depth; zero means no completed iteration.
     pub completed_depth: u32,
     pub best_move: Option<Move>,
@@ -448,6 +450,8 @@ struct SearchContext {
     q_own_large_only: bool,
     sib_reduced: u64,
     sib_researched: u64,
+    royal_extension_spent: bool,
+    royal_extensions: u64,
 }
 
 impl QPruneMode {
@@ -919,6 +923,10 @@ fn last_royal_evasions(state: &mut GameState) -> Option<Vec<Move>> {
             .filter(|mv| move_resolves_last_royal_check(state, mv))
             .collect(),
     )
+}
+
+pub fn royal_probe_evasions(state: &mut GameState) -> Option<Vec<Move>> {
+    last_royal_evasions(state)
 }
 
 fn captured_enemy_royal_count(state: &GameState, mv: &Move) -> usize {
@@ -1960,11 +1968,11 @@ pub fn search_with_progress(
     };
     let _wbind = bind_search_weights(weights);
 
-    let root_ply = state.get_move_history().len();
-    let static_eval = evaluate_with_ply(state, weights, root_ply);
     let deadline = config
         .max_time_ms
         .map(|ms| Instant::now() + Duration::from_millis(ms));
+    let root_ply = state.get_move_history().len();
+    let static_eval = evaluate_with_ply(state, weights, root_ply);
     let now = Instant::now();
     let max_depth = config.depth.max(1);
 
@@ -2030,6 +2038,8 @@ pub fn search_with_progress(
         q_own_large_only: config.q_own_large_only,
         sib_reduced: 0,
         sib_researched: 0,
+        royal_extension_spent: false,
+        royal_extensions: 0,
     };
 
     let mut pos = state.clone();
@@ -2061,6 +2071,8 @@ pub fn search_with_progress(
             children: vec![],
         };
         return SearchResult {
+            royal_extensions: 0,
+            royal_probe: None,
             completed_depth: 0,
             best_move: None,
             score,
@@ -2084,6 +2096,25 @@ pub fn search_with_progress(
     }
 
     order_moves_with_heuristics(state, weights, &mut moves, &ctx, root_ply, false, true);
+    // One private probe per search, never per node/root candidate. Keep the normal
+    // move generator as the authority and match the entire route, not just endpoints.
+    let royal_probe = if weights.last_royal_mode == crate::eval::LastRoyalMode::MateProbe {
+        let remaining = deadline
+            .map(|d| d.saturating_duration_since(Instant::now()))
+            .unwrap_or(Duration::from_millis(2));
+        Some(crate::eval::royal_probes::mate_probe(
+            state,
+            remaining.min(Duration::from_millis(2)),
+            64,
+        ))
+    } else {
+        None
+    };
+    let proven_check = royal_probe.as_ref().and_then(|p| p.winning_check.as_ref());
+    if let Some(index) = proven_check.and_then(|m| moves.iter().position(|x| x == m)) {
+        let mv = moves.remove(index);
+        moves.insert(0, mv);
+    }
     ctx.root_total = moves.len();
 
     let mut completed_best = moves[0].clone();
@@ -2094,7 +2125,7 @@ pub fn search_with_progress(
 
     // Working copy already cloned above for last-royal evasion filtering.
 
-    for d in 1..=max_depth {
+    'depths: for d in 1..=max_depth {
         if ctx.timed_out() {
             break;
         }
@@ -2103,13 +2134,20 @@ pub fn search_with_progress(
         ctx.best_score = completed_score;
         ctx.root_total = moves.len();
 
-        let mut iter_best = moves[0].clone();
-        let mut iter_score = i32::MIN + 1;
-        let mut alpha = i32::MIN + 1;
-        let beta = i32::MAX - 1;
-        let mut iter_lines: Vec<(Move, i32)> = Vec::with_capacity(moves.len());
-        let mut finished_iteration = true;
-        let mut sib_reps: HashMap<u64, (i32, i32)> = HashMap::new();
+        let mut width = if d > 1 && completed_score.abs() < MATE_SCORE_BAND {
+            500i32
+        } else {
+            i32::MAX
+        };
+        loop {
+            let (low, high) = aspiration_window(completed_score, width);
+            let mut iter_best = moves[0].clone();
+            let mut iter_score = i32::MIN + 1;
+            let mut alpha = low;
+            let beta = high;
+            let mut iter_lines: Vec<(Move, i32)> = Vec::with_capacity(moves.len());
+            let mut finished_iteration = true;
+            let mut sib_reps: HashMap<u64, (i32, i32)> = HashMap::new();
 
         for (i, mv) in moves.iter().enumerate() {
             if ctx.timed_out() {
@@ -2123,117 +2161,139 @@ pub fn search_with_progress(
             ctx.root_move_started = Instant::now();
             ctx.maybe_log_progress();
 
-            let is_capture = move_captures_enemy(state, mv);
-            let is_loud_promo = is_loud_promotion_move(state, mv);
-            if is_capture && !in_lr_check {
-                let mut hang_cache = LandingAttackCache::new();
-                if capture_hangs_high_value_piece(state, weights, mv, true, &mut hang_cache) {
-                    continue;
+                let is_capture = move_captures_enemy(state, mv);
+                let is_loud_promo = is_loud_promotion_move(state, mv);
+                if is_capture && !in_lr_check && proven_check != Some(mv) {
+                    let mut hang_cache = LandingAttackCache::new();
+                    if capture_hangs_high_value_piece(state, weights, mv, true, &mut hang_cache) {
+                        continue;
+                    }
                 }
-            }
-            let child_depth = d - 1;
-            // Root LMR: late quiets at ID depth >= 2 (pre–PR17 rule).
-            // Never reduce promotions into two-movers / range capturers.
-            let can_reduce = d >= 2 && i >= 3 && !is_capture && !is_loud_promo && child_depth >= 1;
-            let quiet_red = if can_reduce {
-                (if i >= 12 { 2 } else { 1 }).min(child_depth)
-            } else {
-                0
-            };
-            // Mode zero never consumes sibling metadata or stores representatives.
-            let wipe_key = if ctx.sibling_mode != 0 {
-                capturing_wipe_group_key(state, mv)
-            } else {
-                None
-            };
-
-            let Some(undo) = pos.make_move_for_search(mv.clone()) else {
-                continue;
-            };
-            ctx.last_ab_capture_enemy = move_loudness(state, weights, mv, is_capture);
-            ctx.last_ab_to = Some(mv.to);
-            ctx.last_ab_wipe = quiesce_move_looks_path_or_multileg(state, mv);
-            ctx.last_ab_mover_large = mover_is_large(state, mv);
-            ctx.nodes += 1;
-            ctx.ply = root_ply + 1;
-            ctx.phase = "search";
-            ctx.q_label.clear();
-            ctx.q_caps_at_node = 0;
-            ctx.q_cap_index = 0;
-
-            let (e_i, landing_hit) = if ctx.sibling_mode != 0 {
-                (
-                    -evaluate_with_ply(&pos, weights, ctx.ply),
-                    pos.get_board()
-                        .is_position_attacked_by_color(mv.to, pos.get_current_turn()),
-                )
-            } else {
-                (0, false)
-            };
-            let sib = sibling_action(
-                ctx.sibling_mode,
-                wipe_key,
-                &sib_reps,
-                e_i,
-                landing_hit,
-                child_depth,
-                i == 0,
-            );
-            let (sib_r, rel_expected, static_score) = match sib {
-                SiblingAction::Full => (0, None, None),
-                SiblingAction::Reduce { r, rel_expected } => (r, rel_expected, None),
-                SiblingAction::Static { expected } => (0, None, Some(expected)),
-            };
-            let reduction = quiet_red.max(sib_r);
-            if sib_r > 0 || static_score.is_some() {
-                ctx.sib_reduced += 1;
-            }
-
-            // Root PVS: first move full window (PV); later moves null-window then
-            // full-window research on fail-high (research keeps full q depth).
-            let mut score = if let Some(expected) = static_score {
-                expected
-            } else if i == 0 {
-                if reduction > 0 {
-                    let reduced = child_depth - reduction;
-                    -alphabeta(&mut pos, weights, reduced, -beta, -alpha, true, &mut ctx)
+                let child_depth = d - 1;
+                // Root LMR: late quiets at ID depth >= 2 (pre–PR17 rule).
+                // Never reduce promotions into two-movers / range capturers.
+                let can_reduce =
+                    d >= 2 && i >= 3 && !is_capture && !is_loud_promo && child_depth >= 1;
+                let quiet_red = if can_reduce {
+                    (if i >= 12 { 2 } else { 1 }).min(child_depth)
                 } else {
-                    -alphabeta(
-                        &mut pos,
-                        weights,
-                        child_depth,
-                        -beta,
-                        -alpha,
-                        true,
-                        &mut ctx,
-                    )
-                }
-            } else {
-                ctx.root_pvs_tried += 1;
-                let probe_a = rel_expected.map(|exp| alpha.max(exp)).unwrap_or(alpha);
-                let nw_beta = probe_a.saturating_add(1);
-                let mut s = if reduction > 0 {
-                    let reduced = child_depth - reduction;
-                    -alphabeta(
-                        &mut pos, weights, reduced, -nw_beta, -probe_a, false, &mut ctx,
-                    )
-                } else {
-                    -alphabeta(
-                        &mut pos,
-                        weights,
-                        child_depth,
-                        -nw_beta,
-                        -probe_a,
-                        false,
-                        &mut ctx,
-                    )
+                    0
                 };
-                if !ctx.abort && s > probe_a {
-                    ctx.root_fail_high += 1;
+                // Mode zero never consumes sibling metadata or stores representatives.
+                let wipe_key = if ctx.sibling_mode != 0 {
+                    capturing_wipe_group_key(state, mv)
+                } else {
+                    None
+                };
+
+                let Some(undo) = pos.make_move_for_search(mv.clone()) else {
+                    continue;
+                };
+                ctx.last_ab_capture_enemy = move_loudness(state, weights, mv, is_capture);
+                ctx.last_ab_to = Some(mv.to);
+                ctx.last_ab_wipe = quiesce_move_looks_path_or_multileg(state, mv);
+                ctx.last_ab_mover_large = mover_is_large(state, mv);
+                ctx.nodes += 1;
+                ctx.ply = root_ply + 1;
+                ctx.phase = "search";
+                ctx.q_label.clear();
+                ctx.q_caps_at_node = 0;
+                ctx.q_cap_index = 0;
+
+                let (e_i, landing_hit) = if ctx.sibling_mode != 0 {
+                    (
+                        -evaluate_with_ply(&pos, weights, ctx.ply),
+                        pos.get_board()
+                            .is_position_attacked_by_color(mv.to, pos.get_current_turn()),
+                    )
+                } else {
+                    (0, false)
+                };
+                let sib = sibling_action(
+                    ctx.sibling_mode,
+                    wipe_key,
+                    &sib_reps,
+                    e_i,
+                    landing_hit,
+                    child_depth,
+                    i == 0,
+                );
+                let (sib_r, rel_expected, static_score) = match sib {
+                    SiblingAction::Full => (0, None, None),
+                    SiblingAction::Reduce { r, rel_expected } => (r, rel_expected, None),
+                    SiblingAction::Static { expected } => (0, None, Some(expected)),
+                };
+                let reduction = quiet_red.max(sib_r);
+                if sib_r > 0 || static_score.is_some() {
+                    ctx.sib_reduced += 1;
+                }
+
+                // Root PVS: first move full window (PV); later moves null-window then
+                // full-window research on fail-high (research keeps full q depth).
+                let mut score = if let Some(expected) = static_score {
+                    expected
+                } else if i == 0 {
+                    if reduction > 0 {
+                        let reduced = child_depth - reduction;
+                        -alphabeta(&mut pos, weights, reduced, -beta, -alpha, true, &mut ctx)
+                    } else {
+                        -alphabeta(
+                            &mut pos,
+                            weights,
+                            child_depth,
+                            -beta,
+                            -alpha,
+                            true,
+                            &mut ctx,
+                        )
+                    }
+                } else {
+                    ctx.root_pvs_tried += 1;
+                    let probe_a = rel_expected.map(|exp| alpha.max(exp)).unwrap_or(alpha);
+                    let nw_beta = probe_a.saturating_add(1);
+                    let mut s = if reduction > 0 {
+                        let reduced = child_depth - reduction;
+                        -alphabeta(
+                            &mut pos, weights, reduced, -nw_beta, -probe_a, false, &mut ctx,
+                        )
+                    } else {
+                        -alphabeta(
+                            &mut pos,
+                            weights,
+                            child_depth,
+                            -nw_beta,
+                            -probe_a,
+                            false,
+                            &mut ctx,
+                        )
+                    };
+                    if !ctx.abort && s > probe_a {
+                        ctx.root_fail_high += 1;
+                        if sib_r > 0 {
+                            ctx.sib_researched += 1;
+                        }
+                        s = -alphabeta(
+                            &mut pos,
+                            weights,
+                            child_depth,
+                            -beta,
+                            -alpha,
+                            true,
+                            &mut ctx,
+                        );
+                    } else if let Some(exp) = rel_expected {
+                        if s <= probe_a && s >= exp.saturating_sub(50) {
+                            s = exp;
+                        }
+                    }
+                    s
+                };
+                if static_score.is_none() && i == 0 && reduction > 0 && !ctx.abort && score > alpha
+                {
                     if sib_r > 0 {
                         ctx.sib_researched += 1;
                     }
-                    s = -alphabeta(
+                    score = -alphabeta(
                         &mut pos,
                         weights,
                         child_depth,
@@ -2242,86 +2302,76 @@ pub fn search_with_progress(
                         true,
                         &mut ctx,
                     );
-                } else if let Some(exp) = rel_expected {
-                    if s <= probe_a && s >= exp.saturating_sub(50) {
-                        s = exp;
+                }
+
+                pos.unmake_move_for_search(undo);
+                ctx.ply = root_ply;
+                ctx.q_nodes_last_root = ctx.q_nodes.saturating_sub(ctx.q_nodes_at_root_start);
+
+                if ctx.abort {
+                    finished_iteration = false;
+                    break;
+                }
+                if let Some(k) = wipe_key {
+                    sib_reps.entry(k).or_insert((score, e_i));
+                }
+                iter_lines.push((mv.clone(), score));
+                ctx.root_moves_scored += 1;
+
+                let improved = score > iter_score;
+                if improved {
+                    iter_score = score;
+                    iter_best = mv.clone();
+                    ctx.best_score = iter_score;
+                    if !is_capture {
+                        store_killer(&mut ctx, root_ply, move_tt_key(mv));
+                        bump_history(&mut ctx, mv, d);
                     }
                 }
-                s
-            };
-            if static_score.is_none() && i == 0 && reduction > 0 && !ctx.abort && score > alpha {
-                if sib_r > 0 {
-                    ctx.sib_researched += 1;
+                if iter_score > i32::MIN + 1 && (score - iter_score).abs() < 20 {
+                    ctx.root_near_best += 1;
                 }
-                score = -alphabeta(
-                    &mut pos,
-                    weights,
-                    child_depth,
-                    -beta,
-                    -alpha,
-                    true,
-                    &mut ctx,
-                );
-            }
-
-            pos.unmake_move_for_search(undo);
-            ctx.ply = root_ply;
-            ctx.q_nodes_last_root = ctx.q_nodes.saturating_sub(ctx.q_nodes_at_root_start);
-
-            if ctx.abort {
-                finished_iteration = false;
-                break;
-            }
-            if let Some(k) = wipe_key {
-                sib_reps.entry(k).or_insert((score, e_i));
-            }
-            iter_lines.push((mv.clone(), score));
-            ctx.root_moves_scored += 1;
-
-            let improved = score > iter_score;
-            if improved {
-                iter_score = score;
-                iter_best = mv.clone();
-                ctx.best_score = iter_score;
-                if !is_capture {
-                    store_killer(&mut ctx, root_ply, move_tt_key(mv));
-                    bump_history(&mut ctx, mv, d);
+                if score > alpha {
+                    alpha = score;
+                }
+                if score >= beta || score >= MATE_SCORE_BAND {
+                    break;
                 }
             }
-            if iter_score > i32::MIN + 1 && (score - iter_score).abs() < 20 {
-                ctx.root_near_best += 1;
-            }
-            if score > alpha {
-                alpha = score;
-            }
-            if score >= MATE_SCORE_BAND {
-                break;
-            }
-        }
 
-        if !finished_iteration {
-            if completed_depth == 0 && !iter_lines.is_empty() {
-                // Hard timeout: keep last completed iteration (partial d=1 only if nothing completed yet).
-                iter_lines.sort_by(|a, b| b.1.cmp(&a.1));
-                completed_lines = iter_lines;
-                completed_best = iter_best;
-                completed_score = iter_score;
-                completed_depth = d;
+            if !finished_iteration {
+                if completed_depth == 0 && !iter_lines.is_empty() {
+                    // Hard timeout: keep last completed iteration (partial d=1 only if nothing completed yet).
+                    iter_lines.sort_by(|a, b| b.1.cmp(&a.1));
+                    completed_lines = iter_lines;
+                    completed_best = iter_best;
+                    completed_score = iter_score;
+                    completed_depth = d;
+                }
+                break 'depths;
+            }
+            if width != i32::MAX && (iter_score <= low || iter_score >= high) {
+                width = if iter_score.abs() >= MATE_SCORE_BAND {
+                    i32::MAX
+                } else {
+                    width.saturating_mul(2)
+                };
+                continue;
+            }
+
+            iter_lines.sort_by(|a, b| b.1.cmp(&a.1));
+            completed_lines = iter_lines;
+            completed_best = iter_best;
+            completed_score = iter_score;
+            completed_depth = d;
+            actual_completed_depth = d;
+            progress(d, completed_score, &completed_best, ctx.nodes);
+            ctx.best_score = completed_score;
+
+            if d < max_depth {
+                reorder_root_moves(&mut moves, &completed_best, &completed_lines);
             }
             break;
-        }
-
-        iter_lines.sort_by(|a, b| b.1.cmp(&a.1));
-        completed_lines = iter_lines;
-        completed_best = iter_best;
-        completed_score = iter_score;
-        completed_depth = d;
-        actual_completed_depth = d;
-        progress(d, completed_score, &completed_best, ctx.nodes);
-        ctx.best_score = completed_score;
-
-        if d < max_depth {
-            reorder_root_moves(&mut moves, &completed_best, &completed_lines);
         }
     }
 
@@ -2398,6 +2448,8 @@ pub fn search_with_progress(
     };
 
     SearchResult {
+        royal_extensions: ctx.royal_extensions,
+        royal_probe,
         completed_depth: actual_completed_depth,
         best_move: Some(best_move),
         score: best_score,
@@ -2495,6 +2547,8 @@ pub fn probe_quiescence(
         q_own_large_only: false,
         sib_reduced: 0,
         sib_researched: 0,
+        royal_extension_spent: false,
+        royal_extensions: 0,
     };
     let mut pos = state.clone();
     pos.ensure_eval_inc(weights);
@@ -2515,6 +2569,8 @@ pub fn probe_quiescence(
         )
     };
     SearchResult {
+        royal_extensions: ctx.royal_extensions,
+        royal_probe: None,
         completed_depth: 0,
         best_move: None,
         score,
@@ -2619,6 +2675,8 @@ fn probe_quiesce_window(
         q_own_large_only: false,
         sib_reduced: 0,
         sib_researched: 0,
+        royal_extension_spent: false,
+        royal_extensions: 0,
     };
     let mut pos = state.clone();
     pos.ensure_eval_inc(weights);
@@ -2645,6 +2703,17 @@ fn probe_quiet_parent_leaf_or_quiesce_hang(
     qdepth: u32,
     hang: QHangOpts,
 ) -> (i32, u64) {
+    let (score, q_nodes, _) = probe_quiet_parent_leaf_stats(state, weights, qdepth, hang);
+    (score, q_nodes)
+}
+
+#[cfg(test)]
+fn probe_quiet_parent_leaf_stats(
+    state: &GameState,
+    weights: &EvalWeights,
+    qdepth: u32,
+    hang: QHangOpts,
+) -> (i32, u64, u64) {
     let _wbind = bind_search_weights(weights);
     let root_ply = state.get_move_history().len();
     let now = Instant::now();
@@ -2710,6 +2779,8 @@ fn probe_quiet_parent_leaf_or_quiesce_hang(
         q_own_large_only: false,
         sib_reduced: 0,
         sib_researched: 0,
+        royal_extension_spent: false,
+        royal_extensions: 0,
     };
     let mut pos = state.clone();
     pos.ensure_eval_inc(weights);
@@ -2721,7 +2792,11 @@ fn probe_quiet_parent_leaf_or_quiesce_hang(
         true,
         &mut ctx,
     );
-    (score, ctx.q_nodes)
+    assert!(
+        !ctx.royal_extension_spent,
+        "extension budget must be restored after leaf search"
+    );
+    (score, ctx.q_nodes, ctx.royal_extensions)
 }
 
 /// Capture-parent leaf with optional R/S1/S2 flags (`last_ab_capture_enemy` set).
@@ -2803,6 +2878,8 @@ fn probe_capture_parent_leaf_or_quiesce_rs(
         q_own_large_only,
         sib_reduced: 0,
         sib_researched: 0,
+        royal_extension_spent: false,
+        royal_extensions: 0,
     };
     let mut pos = state.clone();
     pos.ensure_eval_inc(weights);
@@ -2911,6 +2988,25 @@ fn build_trace_tree(
     }
 }
 
+fn aspiration_window(score: i32, width: i32) -> (i32, i32) {
+    if width == i32::MAX {
+        (i32::MIN + 1, i32::MAX - 1)
+    } else {
+        (
+            score.saturating_sub(width).max(i32::MIN + 1),
+            score.saturating_add(width).min(i32::MAX - 1),
+        )
+    }
+}
+
+fn royal_extension_key(ctx: &SearchContext) -> u64 {
+    if ctx.royal_extension_spent {
+        0x796f_7261_6c65_7874
+    } else {
+        0
+    }
+}
+
 fn alphabeta(
     state: &mut GameState,
     weights: &EvalWeights,
@@ -2945,7 +3041,7 @@ fn alphabeta(
         return leaf_or_quiesce(state, weights, alpha, beta, is_pv, ctx);
     }
 
-    let key = position_hash(state);
+    let key = position_hash(state) ^ royal_extension_key(ctx);
     let alpha_orig = alpha;
     let mut tt_move: Option<MoveKey> = None;
     if let Some(e) = ctx.tt.probe(key) {
@@ -3345,9 +3441,32 @@ fn leaf_or_quiesce(
         }
         order_moves_with_heuristics(state, weights, &mut evasions, ctx, ctx.ply, false, false);
         let parent_ply = ctx.ply;
+        // A royal with no flight and exactly one non-royal defense gets one extra
+        // ply, once per path. Routine king flights do not trigger this extension.
+        // Reuse the existing evasion list; no extra detection or static score tax.
+        let saved = ctx.royal_extension_spent;
+        let extend = weights.last_royal_mode == crate::eval::LastRoyalMode::ScarceDefenses
+            && !saved
+            && evasions.len() == 1
+            && state.get_board().get_piece(evasions[0].from)
+                .is_some_and(|p| !p.piece_type.is_royal());
+        if extend {
+            ctx.royal_extension_spent = true;
+            ctx.royal_extensions += 1;
+        }
         let (best, _, _, _) = search_move_list(
-            state, weights, 1, alpha, beta, is_pv, ctx, parent_ply, &evasions, 0,
+            state,
+            weights,
+            if extend { 2 } else { 1 },
+            alpha,
+            beta,
+            is_pv,
+            ctx,
+            parent_ply,
+            &evasions,
+            0,
         );
+        ctx.royal_extension_spent = saved;
         return if best == i32::MIN + 1 {
             -weights.mate_score
         } else {
@@ -3443,7 +3562,7 @@ fn quiesce(
         return 0;
     }
 
-    let key = q_tt_key(state, prev_to, ctx.q_hash_prev_to);
+    let key = q_tt_key(state, prev_to, ctx.q_hash_prev_to) ^ royal_extension_key(ctx);
     // Unique-q tracking is diagnostic-only unless `track_q_unique`.
     if ctx.track_q_unique || cfg!(debug_assertions) {
         if !ctx.q_unique_saturated {
@@ -6929,7 +7048,10 @@ mod tests {
             Position::new(5, 5).unwrap(),
         ));
         state.set_current_turn(Color::White);
-        let take = Move::new(Position::new(20, 32).unwrap(), Position::new(18, 34).unwrap());
+        let take = Move::new(
+            Position::new(20, 32).unwrap(),
+            Position::new(18, 34).unwrap(),
+        );
         (state, weights, take)
     }
 
@@ -6980,9 +7102,9 @@ mod tests {
         );
         assert!(
             result.root_lines.iter().all(|(m, _)| {
-                evasions
-                    .iter()
-                    .any(|e| e.from == m.from && e.to == m.to && e.intermediate() == m.intermediate())
+                evasions.iter().any(|e| {
+                    e.from == m.from && e.to == m.to && e.intermediate() == m.intermediate()
+                })
             }),
             "root must not search non-evasions"
         );
@@ -7106,5 +7228,51 @@ mod tests {
             "fallback move must be legal, got {:?}",
             (best.from, best.to)
         );
+    }
+}
+
+#[cfg(test)]
+mod royal_al_search_tests {
+    use super::*;
+    use crate::piece::{Piece, PieceType};
+    #[test]
+    fn scarce_defenses_extend_search_without_static_penalty() {
+        let mut s = GameState::new();
+        s.clear_board();
+        for (t, c, x, y) in [
+            (PieceType::CrownPrince, Color::Black, 0, 0),
+            (PieceType::King, Color::White, 35, 35),
+            (PieceType::Rook, Color::White, 0, 8),
+            (PieceType::Rook, Color::White, 1, 8),
+            (PieceType::Rook, Color::Black, 4, 1),
+        ] {
+            s.place_piece(Piece::new(t, c, Position::new(x, y).unwrap()));
+        }
+        s.reset_rep_history();
+        let mut w = EvalWeights::seed();
+        w.noise_scale = 0.;
+        assert_eq!(last_royal_evasions(&mut s).unwrap().len(), 1);
+        let baseline = probe_quiet_parent_leaf_stats(&s, &w, 0, QHangOpts::default());
+        let static_score = evaluate_with_ply(&s, &w, 0);
+        w.last_royal_mode = crate::eval::LastRoyalMode::ScarceDefenses;
+        let extended = probe_quiet_parent_leaf_stats(&s, &w, 0, QHangOpts::default());
+        assert_eq!(evaluate_with_ply(&s, &w, 0), static_score);
+        assert_eq!(baseline.2, 0);
+        assert_eq!(extended.2, 1);
+        // A future search starts with a fresh path budget.
+        assert_eq!(
+            probe_quiet_parent_leaf_stats(&s, &w, 0, QHangOpts::default()).2,
+            1
+        );
+    }
+    #[test]
+    fn aspiration_windows_expand_safely_and_keep_full_mate_window() {
+        assert_eq!(aspiration_window(1200, 500), (700, 1700));
+        assert_eq!(aspiration_window(1200, 1000), (200, 2200));
+        assert_eq!(
+            aspiration_window(i32::MAX - 1, i32::MAX),
+            (i32::MIN + 1, i32::MAX - 1)
+        );
+        assert_eq!(aspiration_window(i32::MIN + 1, 500).0, i32::MIN + 1);
     }
 }

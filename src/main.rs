@@ -237,6 +237,17 @@ fn main() {
                     print_usage();
                 }
             }
+            "royal-al-policy" => {
+                println!(r#"{{"policy":"royal-al-v1","swap_removal":true,"aspiration":500,"checkpoint_L_modes":true}}"#);
+                return;
+            }
+            "royal-al-grid" => {
+                if let Err(e) = taikyoku_shogi::training::royal_al_grid::cli(&args[2..]) {
+                    eprintln!("royal-al-grid failed: {e}; tournament did not start");
+                    std::process::exit(1);
+                }
+                return;
+            }
             "royal-s2-grid" => {
                 if let Err(e) = taikyoku_shogi::training::cli::cmd_royal_s2_grid(&args) {
                     eprintln!("{}", e);
