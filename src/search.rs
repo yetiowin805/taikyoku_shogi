@@ -921,6 +921,11 @@ fn last_royal_evasions(state: &mut GameState) -> Option<Vec<Move>> {
     )
 }
 
+#[cfg(feature = "royal-probes")]
+pub fn royal_probe_evasions(state: &mut GameState) -> Option<Vec<Move>> {
+    last_royal_evasions(state)
+}
+
 fn captured_enemy_royal_count(state: &GameState, mv: &Move) -> usize {
     let board = state.get_board();
     let Some(mover) = board.get_piece(mv.from) else {

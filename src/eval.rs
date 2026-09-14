@@ -1,5 +1,8 @@
 //! Static evaluation and versioned weight checkpoints for the alpha-beta agent.
 
+#[cfg(feature = "royal-probes")]
+pub mod royal_probes;
+
 use crate::board::Board;
 use crate::game_state::GameState;
 use crate::movement::direction::Direction;
@@ -593,6 +596,7 @@ fn two_mover_on_first_leg_ray(piece: &Piece, royal: Position) -> bool {
 
 /// Always-on two-mover alignment tropism (idea 1). Density / ahead gates do not apply.
 fn two_mover_align_of(
+    _board: &Board,
     our_pieces: &[Piece],
     enemy_royals: &[Position],
     weights: &EvalWeights,
@@ -607,7 +611,14 @@ fn two_mover_align_of(
         }
         if enemy_royals
             .iter()
-            .any(|&r| two_mover_on_first_leg_ray(p, r))
+            .any(|&r| {
+                if !two_mover_on_first_leg_ray(p, r) { return false; }
+                #[cfg(feature = "royal-probes")]
+                if royal_probes::blocked_alignment_enabled() {
+                    return royal_probes::clear_alignment_ray(_board, p.position, r);
+                }
+                true
+            })
         {
             s += weights.two_mover_align_k;
         }
@@ -647,6 +658,10 @@ fn lr_flight_unit(in_check: bool, flights: u8) -> f32 {
 
 /// Last-royal flight penalty (idea L). Positive is bad for `color`. `k=0` is off.
 fn last_royal_flight_penalty(board: &Board, color: Color, weights: &EvalWeights) -> f32 {
+    #[cfg(feature = "royal-probes")]
+    if royal_probes::verified_flights_enabled() {
+        return royal_probes::verified_flight_penalty(board, color, weights.lr_flight_k);
+    }
     if weights.lr_flight_k == 0.0 {
         return 0.0;
     }
@@ -1781,8 +1796,8 @@ pub fn evaluate_absolute_black(board: &Board, weights: &EvalWeights, ply: usize)
     score -= last_royal_flight_penalty(board, Color::Black, weights);
     score += last_royal_flight_penalty(board, Color::White, weights);
 
-    score += two_mover_align_of(black, &enemy_royal_positions(&white), weights);
-    score -= two_mover_align_of(white, &enemy_royal_positions(&black), weights);
+    score += two_mover_align_of(board, black, &enemy_royal_positions(&white), weights);
+    score -= two_mover_align_of(board, white, &enemy_royal_positions(&black), weights);
 
     score.round() as i32 + noise_component(board, weights, ply)
 }
@@ -1874,8 +1889,8 @@ fn evaluate_absolute_black_from_inc(
             score += last_royal_flight_penalty(board, Color::White, weights);
         }
         if weights.two_mover_align_k != 0.0 {
-            score += two_mover_align_of(black, &enemy_royal_positions(&white), weights);
-            score -= two_mover_align_of(white, &enemy_royal_positions(&black), weights);
+            score += two_mover_align_of(board, black, &enemy_royal_positions(&white), weights);
+            score -= two_mover_align_of(board, white, &enemy_royal_positions(&black), weights);
         }
     }
 
