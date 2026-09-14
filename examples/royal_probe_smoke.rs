@@ -58,6 +58,8 @@ fn weights(base: &EvalWeights, variant: &str) -> EvalWeights {
     w.two_mover_align_k = 0.;
     w.two_mover_align_cap = 0.;
     w.lr_flight_k = 0.;
+    w.last_royal_mode = taikyoku_shogi::eval::LastRoyalMode::Legacy;
+    w.two_mover_align_blocked = variant == "Ablocked";
     let k = match variant {
         "A40" => 40.,
         "A80" | "Ablocked" => 80.,
@@ -66,9 +68,15 @@ fn weights(base: &EvalWeights, variant: &str) -> EvalWeights {
     };
     w.two_mover_align_k = k;
     w.two_mover_align_cap = k * 5.;
-    if variant.starts_with('L') {
+    if ["Lold", "Lverified"].contains(&variant) {
         w.lr_flight_k = 4000.;
     }
+    w.last_royal_mode = match variant {
+        "Lverified" => taikyoku_shogi::eval::LastRoyalMode::VerifiedFlights,
+        "Ldefense" => taikyoku_shogi::eval::LastRoyalMode::ScarceDefenses,
+        "Lmate" => taikyoku_shogi::eval::LastRoyalMode::MateProbe,
+        _ => taikyoku_shogi::eval::LastRoyalMode::Legacy,
+    };
     w
 }
 fn emit(v: serde_json::Value) {
@@ -156,9 +164,43 @@ fn run() -> Result<(), String> {
     for (name, s) in fixtures() {
         all.push((name, s, fixture_cp.clone()));
     }
-    let variants = ["off", "A40", "A80", "A160", "Ablocked", "Lold", "Lverified"];
+    let variants = if args[1] == "search-new" {
+        vec!["off", "Ldefense", "Lmate"]
+    } else {
+        vec![
+            "off",
+            "A40",
+            "A80",
+            "A160",
+            "Ablocked",
+            "Lold",
+            "Lverified",
+            "Ldefense",
+            "Lmate",
+        ]
+    };
     let mut rng = rand::rngs::StdRng::seed_from_u64(20260915);
     match args[1].as_str() {
+        "grid-smoke" => {
+            use taikyoku_shogi::training::royal_al_grid::{experimental_cells, retired_checkpoint, BASE, SOURCE_REV};
+            let cells = experimental_cells(&retired_checkpoint(SOURCE_REV, BASE)?);
+            for (name, state, _) in all.iter().take(5) {
+                let before = BoardPosition::from_state(state);
+                let legal = state.generate_legal_moves();
+                for cp in &cells {
+                    let player = AlphaBetaPlayer::from_checkpoint(cp.clone());
+                    let mut cfg = player.config().clone();
+                    cfg.depth = 8; cfg.max_time_ms = Some(100); cfg.collect_trace = false;
+                    let t = Instant::now();
+                    let r = search(state, player.weights(), &cfg);
+                    assert!(r.best_move.as_ref().is_some_and(|m| legal.contains(m)));
+                    assert_eq!(BoardPosition::from_state(state), before);
+                    emit(serde_json::json!({"case":name,"agent":cp.name,"ms":t.elapsed().as_secs_f64()*1000.,
+                        "depth":r.completed_depth,"nodes":r.nodes,"best":r.best_move,
+                        "royal_extensions":r.royal_extensions,"royal_probe":r.royal_probe}));
+                }
+            }
+        }
         "probe-stress" => {
             for piece in [PieceType::Tengu, PieceType::FreeEagle] {
                 let mut s = GameState::new();
@@ -202,11 +244,10 @@ fn run() -> Result<(), String> {
                 order.shuffle(&mut rng);
                 for i in order {
                     let (name, s, cp) = &mut all[i];
-                    let mut vs = variants;
+                    let mut vs = variants.clone();
                     vs.shuffle(&mut rng);
                     for v in vs {
                         let w = weights(&cp.weights, v);
-                        let _m = set_modes(v == "Ablocked", v == "Lverified");
                         s.ensure_eval_inc(&w);
                         let mut n = 0u64;
                         let t = Instant::now();
@@ -223,7 +264,7 @@ fn run() -> Result<(), String> {
                 }
             }
         }
-        "search" => {
+        "search" | "search-new" => {
             for rep in 0..2 {
                 let mut order: Vec<_> = (0..all.len()).collect();
                 order.shuffle(&mut rng);
@@ -240,7 +281,7 @@ fn run() -> Result<(), String> {
                     {
                         continue;
                     }
-                    let mut vs = variants;
+                    let mut vs = variants.clone();
                     vs.shuffle(&mut rng);
                     for v in vs {
                         let mut cp = cp.clone();
@@ -251,12 +292,11 @@ fn run() -> Result<(), String> {
                         cfg.depth = 8;
                         cfg.max_time_ms = Some(3000);
                         cfg.collect_trace = false;
-                        let _m = set_modes(v == "Ablocked", v == "Lverified");
                         let t = Instant::now();
                         let r = search(s, player.weights(), &cfg);
                         let ms = t.elapsed().as_secs_f64() * 1000.;
                         emit(
-                            serde_json::json!({"case":name,"rep":rep,"variant":v,"nodes":r.nodes,"qnodes":r.q_nodes,"ms":ms,"depth":r.completed_depth,"score":r.score,"best":r.best_move,"root_lines":r.root_lines,"aborted":r.aborted}),
+                            serde_json::json!({"case":name,"rep":rep,"variant":v,"nodes":r.nodes,"qnodes":r.q_nodes,"ms":ms,"depth":r.completed_depth,"score":r.score,"best":r.best_move,"root_lines":r.root_lines,"aborted":r.aborted,"royal_extensions":r.royal_extensions,"royal_probe":r.royal_probe}),
                         );
                     }
                 }

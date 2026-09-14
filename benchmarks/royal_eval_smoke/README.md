@@ -1,5 +1,7 @@
 # A/L sanity and cost probes
 
+This documents the original opt-in smoke study at `9d09d43`. The current implementation makes the variants checkpoint-selectable and completes the 25-agent grid; see [the field and validation notes](../royal_al_grid/README.md). The harness now also measures `Ldefense` and `Lmate`; the seven-setting measurements below describe the original run, not a rerun of the current engine.
+
 Opt-in prototypes on `68dada7`, built with `royal-probes`. They do not change checkpoints, normal builds, live tournament configuration, or production defaults. This is a small first filter, not a strength trial or a validation of the planned swap/aspiration baseline. Search measurements force S2 on and otherwise use the recorded checkpoint search policy.
 
 ## Prototypes

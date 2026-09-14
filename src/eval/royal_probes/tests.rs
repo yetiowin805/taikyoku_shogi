@@ -250,3 +250,65 @@ fn incremental_evaluation_agrees_and_history_survives_probe() {
     assert_eq!(s.repetition_count(), repetitions);
     assert_eq!(serde_json::to_value(s.get_move_history()).unwrap(), history);
 }
+
+#[test]
+fn checkpoint_modes_drive_search_and_survive_model_switching() {
+    use crate::{alphabeta_player::AlphaBetaPlayer, search::search};
+    let mut cp = EvalCheckpoint::seed("Lmate");
+    cp.weights.noise_scale = 0.;
+    cp.weights.last_royal_mode = LastRoyalMode::MateProbe;
+    let player = AlphaBetaPlayer::from_checkpoint(cp.clone());
+    let mut cfg = player.config().clone();
+    cfg.depth = 1;
+    cfg.max_time_ms = Some(2000);
+    let state = mate_fixture();
+    let before = BoardPosition::from_state(&state);
+    let r = search(&state, player.weights(), &cfg);
+    let probe = r.royal_probe.unwrap();
+    assert_eq!(probe.status, ProbeStatus::Found, "{probe:?}");
+    assert_eq!(r.best_move, probe.winning_check);
+    assert!(r.score > 900_000);
+    assert_eq!(BoardPosition::from_state(&state), before);
+    cp.weights.last_royal_mode = LastRoyalMode::Legacy;
+    let plain = search(&state, &cp.weights, &cfg);
+    assert!(plain.royal_probe.is_none());
+    assert_eq!(plain.royal_extensions, 0);
+    cp.weights.last_royal_mode = LastRoyalMode::MateProbe;
+    cfg.max_time_ms = Some(0);
+    let timeout = search(&state, &cp.weights, &cfg);
+    assert_eq!(timeout.completed_depth, 0);
+    assert_eq!(timeout.royal_probe.unwrap().status, ProbeStatus::Unknown);
+    assert_eq!(
+        search(&state, &cp.weights, &player.config()).completed_depth,
+        2
+    );
+}
+
+#[test]
+fn checkpoint_modes_preserve_full_and_incremental_eval_parity() {
+    let mut s = kings();
+    put(&mut s, Rook, Color::White, 0, 1);
+    put(&mut s, HookMover, Color::Black, 35, 18);
+    for mode in [
+        LastRoyalMode::Legacy,
+        LastRoyalMode::VerifiedFlights,
+        LastRoyalMode::ScarceDefenses,
+        LastRoyalMode::MateProbe,
+    ] {
+        for blocked in [false, true] {
+            let mut weights = w();
+            weights.last_royal_mode = mode;
+            weights.two_mover_align_blocked = blocked;
+            let cp: EvalCheckpoint = serde_json::from_value(serde_json::json!({
+                "format_version":1,"name":"roundtrip","created_at":"test",
+                "search_defaults":SearchDefaults::default(),"weights":weights,
+            }))
+            .unwrap();
+            let mut full = s.clone();
+            assert!(full.eval_inc().is_none());
+            let expected = evaluate_with_ply(&full, &cp.weights, 0);
+            full.ensure_eval_inc(&cp.weights);
+            assert_eq!(evaluate_with_ply(&full, &cp.weights, 0), expected);
+        }
+    }
+}

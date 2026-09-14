@@ -1,4 +1,4 @@
-//! Opt-in smoke experiments. No checkpoint schema or production defaults change.
+//! Checkpoint-selected A/L variants and bounded root mate detection.
 //! The mate probe returns Unknown on budget exhaustion; generation is not interruptible.
 use super::*;
 use crate::game_state::{GameState, Move};
@@ -19,10 +19,10 @@ pub fn set_modes(blocked_alignment: bool, verified_flights: bool) -> ModeGuard {
     ModeGuard(MODES.with(|m| m.replace((blocked_alignment, verified_flights))))
 }
 pub(super) fn blocked_alignment_enabled() -> bool {
-    MODES.with(|m| m.get().0)
+    cfg!(any(test, feature = "royal-probes")) && MODES.with(|m| m.get().0)
 }
 pub(super) fn verified_flights_enabled() -> bool {
-    MODES.with(|m| m.get().1)
+    cfg!(any(test, feature = "royal-probes")) && MODES.with(|m| m.get().1)
 }
 
 /// Conservative clear-first-leg heuristic; not a complete two-step attack detector.
@@ -52,7 +52,7 @@ pub fn verified_flights(board: &Board, color: Color) -> Option<u8> {
     let royal = last_royal_of(board.pieces_by_color(color))?;
     let piece = board.get_piece(royal)?;
     let mut flights = 0;
-    let cfg = MovementConfig::for_piece_type(piece.piece_type);
+    let cfg = MovementConfig::for_piece(&piece);
     let targets = MovementGenerator::generate_targets(&piece, board, &cfg.capabilities);
     let last_enemy = last_royal_of(board.pieces_by_color(color.opposite()));
     for to in targets {
@@ -112,14 +112,14 @@ fn safe_for(state: &GameState, color: Color) -> bool {
     }
 }
 
-#[derive(Debug, serde::Serialize, PartialEq)]
+#[derive(Debug, Clone, serde::Serialize, PartialEq)]
 pub enum ProbeStatus {
     Found,
     NoMate,
     Unknown,
     NotApplicable,
 }
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct ProbeResult {
     pub status: ProbeStatus,
     pub winning_check: Option<Move>,
@@ -204,9 +204,7 @@ pub fn mate_probe(original: &GameState, budget: Duration, cap: usize) -> ProbeRe
                         let Some(reply_undo) = state.make_move_for_search(reply) else {
                             continue;
                         };
-                        escaped = safe_for(state, them)
-                            || state.is_repetition_draw_for_search()
-                            || state.is_draw_by_progress_rule();
+                        escaped = safe_for(state, them);
                         state.unmake_move_for_search(reply_undo);
                         if escaped {
                             break 'defense;

@@ -1,20 +1,22 @@
-use crate::piece::{Piece, Color};
-use crate::position::Position;
 use crate::move_simulation;
+use crate::piece::{Color, Piece};
+use crate::position::Position;
 use crate::tengu_attack;
 
 /// Represents the 36x36 board
 /// Uses a flat vector for efficient access
 /// Maintains separate piece lists by color for fast iteration
 pub struct Board {
-    squares: Vec<Option<Piece>>,  // 36 * 36 = 1296 squares
-    black_pieces: Vec<Piece>,     // Fast iteration over black pieces
-    white_pieces: Vec<Piece>,     // Fast iteration over white pieces
+    piece_slots: Box<[u16]>, // square → index in its color list; empty = u16::MAX
+    squares: Vec<Option<Piece>>, // 36 * 36 = 1296 squares
+    black_pieces: Vec<Piece>, // Fast iteration over black pieces
+    white_pieces: Vec<Piece>, // Fast iteration over white pieces
 }
 
 impl Board {
     pub fn new() -> Board {
         Board {
+            piece_slots: vec![u16::MAX; 1296].into_boxed_slice(),
             squares: vec![None; 1296],
             black_pieces: Vec::new(),
             white_pieces: Vec::new(),
@@ -30,45 +32,42 @@ impl Board {
     /// If a piece already exists at this position, it will be removed first
     pub fn place_piece(&mut self, piece: Piece) {
         let index = piece.position.to_index();
-        if index < self.squares.len() {
-            // Remove any existing piece at this position from the list
-            if let Some(existing_piece) = self.squares[index] {
-                match existing_piece.color {
-                    Color::Black => {
-                        self.black_pieces.retain(|p| p.position != piece.position);
-                    }
-                    Color::White => {
-                        self.white_pieces.retain(|p| p.position != piece.position);
-                    }
-                }
-            }
-            
-            self.squares[index] = Some(piece);
-            // Add to appropriate color list
-            match piece.color {
-                Color::Black => self.black_pieces.push(piece),
-                Color::White => self.white_pieces.push(piece),
-            }
+        if index >= self.squares.len() {
+            return;
         }
+        if let Some(old) = self.squares[index] {
+            self.remove_from_list(old);
+        }
+        let list = match piece.color {
+            Color::Black => &mut self.black_pieces,
+            Color::White => &mut self.white_pieces,
+        };
+        self.piece_slots[index] = list.len() as u16;
+        list.push(piece);
+        self.squares[index] = Some(piece);
+    }
+
+    /// Constant-time removal. Deliberately changes traversal order after captures.
+    fn remove_from_list(&mut self, piece: Piece) {
+        let list = match piece.color {
+            Color::Black => &mut self.black_pieces,
+            Color::White => &mut self.white_pieces,
+        };
+        let square = piece.position.to_index();
+        let index = self.piece_slots[square] as usize;
+        debug_assert_eq!(list.get(index), Some(&piece));
+        list.swap_remove(index);
+        if let Some(moved) = list.get(index) {
+            self.piece_slots[moved.position.to_index()] = index as u16;
+        }
+        self.piece_slots[square] = u16::MAX;
     }
 
     /// Remove piece from position. Returns the removed piece, if any.
     pub fn remove_piece(&mut self, pos: Position) -> Option<Piece> {
-        let index = pos.to_index();
-        if index < self.squares.len() {
-            if let Some(piece) = self.squares[index].take() {
-                match piece.color {
-                    Color::Black => {
-                        self.black_pieces.retain(|p| p.position != pos);
-                    }
-                    Color::White => {
-                        self.white_pieces.retain(|p| p.position != pos);
-                    }
-                }
-                return Some(piece);
-            }
-        }
-        None
+        let piece = self.squares.get_mut(pos.to_index())?.take()?;
+        self.remove_from_list(piece);
+        Some(piece)
     }
 
     /// Check if a square is empty
@@ -112,41 +111,26 @@ impl Board {
     /// Move a piece from one position to another
     /// Returns the captured piece if any
     pub fn move_piece(&mut self, from: Position, to: Position) -> Option<Piece> {
-        let captured = self.get_piece(to);
-        
-        // Remove captured piece from list if any
-        if let Some(captured_piece) = captured {
-            match captured_piece.color {
-                Color::Black => {
-                    self.black_pieces.retain(|p| p.position != to);
-                }
-                Color::White => {
-                    self.white_pieces.retain(|p| p.position != to);
-                }
-            }
+        // GameState handles return-to-origin routes itself; a board-only no-op
+        // must not remove its own list entry or make the square index stale.
+        if from == to {
+            return None;
         }
-        
-        if let Some(mut piece) = self.get_piece(from) {
-            // Update piece position in the list (before updating squares)
-            match piece.color {
-                Color::Black => {
-                    if let Some(list_piece) = self.black_pieces.iter_mut().find(|p| p.position == from) {
-                        list_piece.position = to;
-                    }
-                }
-                Color::White => {
-                    if let Some(list_piece) = self.white_pieces.iter_mut().find(|p| p.position == from) {
-                        list_piece.position = to;
-                    }
-                }
-            }
-            
-            // Update squares array
-            piece.position = to;
-            self.squares[from.to_index()] = None;
-            self.squares[to.to_index()] = Some(piece);
-        }
-        
+        let Some(mut piece) = self.get_piece(from) else {
+            return None;
+        };
+        let captured = self.remove_piece(to);
+        let index = self.piece_slots[from.to_index()] as usize;
+        let list = match piece.color {
+            Color::Black => &mut self.black_pieces,
+            Color::White => &mut self.white_pieces,
+        };
+        piece.position = to;
+        list[index] = piece;
+        self.squares[from.to_index()] = None;
+        self.squares[to.to_index()] = Some(piece);
+        self.piece_slots[from.to_index()] = u16::MAX;
+        self.piece_slots[to.to_index()] = index as u16;
         captured
     }
 
@@ -168,7 +152,11 @@ impl Board {
     /// This treats pieces with only capturing range movement as short-range only
     /// Uses early termination and optimized functions for specialized pieces
     /// Returns true immediately when first attacker is found
-    pub fn is_position_attacked_by_color_for_check(&self, position: Position, attacker_color: Color) -> bool {
+    pub fn is_position_attacked_by_color_for_check(
+        &self,
+        position: Position,
+        attacker_color: Color,
+    ) -> bool {
         is_position_attacked_by_pieces(self, position, self.pieces_by_color(attacker_color), true)
     }
 }
@@ -176,6 +164,7 @@ impl Board {
 impl Clone for Board {
     fn clone(&self) -> Board {
         Board {
+            piece_slots: self.piece_slots.clone(),
             squares: self.squares.clone(),
             black_pieces: self.black_pieces.clone(),
             white_pieces: self.white_pieces.clone(),
@@ -287,9 +276,9 @@ mod tests {
 
     #[test]
     fn test_tengu_two_step_attack_with_virtual_board() {
-        use crate::move_simulation::{BoardLike, simulate_move};
         use crate::game_state::Move;
-        
+        use crate::move_simulation::{simulate_move, BoardLike};
+
         let mut board = Board::new();
         
         // Place a Tengu at (10, 10)
@@ -322,9 +311,9 @@ mod tests {
 
     #[test]
     fn test_peacock_two_step_attack_with_virtual_board() {
-        use crate::move_simulation::{BoardLike, simulate_move};
         use crate::game_state::Move;
-        
+        use crate::move_simulation::{simulate_move, BoardLike};
+
         let mut board = Board::new();
         
         // Place an unpromoted Peacock at (10, 10)
@@ -361,9 +350,9 @@ mod tests {
 
     #[test]
     fn test_hook_mover_two_step_attack_with_virtual_board() {
-        use crate::move_simulation::{BoardLike, simulate_move};
         use crate::game_state::Move;
-        
+        use crate::move_simulation::{simulate_move, BoardLike};
+
         let mut board = Board::new();
         
         // Place a Hook Mover at (10, 10)
@@ -611,9 +600,9 @@ mod tests {
     #[test]
     fn test_unpin_scenario_1() {
         // Test: Piece pinned to royal, moving it would expose royal
-        use crate::move_simulation::BoardLike;
         use crate::game_state::Move;
-        
+        use crate::move_simulation::BoardLike;
+
         let mut board = Board::new();
         
         // Place royal at (10, 10)
@@ -642,9 +631,9 @@ mod tests {
     #[test]
     fn test_unpin_scenario_2() {
         // Test: Piece pinned diagonally
-        use crate::move_simulation::BoardLike;
         use crate::game_state::Move;
-        
+        use crate::move_simulation::BoardLike;
+
         let mut board = Board::new();
         
         let royal_pos = Position::new(10, 10).unwrap();
@@ -672,9 +661,9 @@ mod tests {
     #[test]
     fn test_unpin_scenario_3_no_threat() {
         // Test: Piece not actually pinned (no threat beyond)
-        use crate::move_simulation::BoardLike;
         use crate::game_state::Move;
-        
+        use crate::move_simulation::BoardLike;
+
         let mut board = Board::new();
         
         let royal_pos = Position::new(10, 10).unwrap();
@@ -821,8 +810,12 @@ mod tests {
             let blocker_pos = Position::new(i, 10).unwrap();
             let blocker = Piece::new(
                 PieceType::Pawn,
-                if i % 2 == 0 { Color::Black } else { Color::White },
-                blocker_pos
+                if i % 2 == 0 {
+                    Color::Black
+                } else {
+                    Color::White
+                },
+                blocker_pos,
             );
             board.place_piece(blocker);
         }
@@ -850,8 +843,12 @@ mod tests {
             let blocker_pos = Position::new(10, i).unwrap();
             let blocker = Piece::new(
                 PieceType::Pawn,
-                if i % 2 == 0 { Color::Black } else { Color::White },
-                blocker_pos
+                if i % 2 == 0 {
+                    Color::Black
+                } else {
+                    Color::White
+                },
+                blocker_pos,
             );
             board.place_piece(blocker);
         }
@@ -878,8 +875,12 @@ mod tests {
             let blocker_pos = Position::new(5 + i, 5 + i).unwrap();
             let blocker = Piece::new(
                 PieceType::Pawn,
-                if i % 2 == 0 { Color::Black } else { Color::White },
-                blocker_pos
+                if i % 2 == 0 {
+                    Color::Black
+                } else {
+                    Color::White
+                },
+                blocker_pos,
             );
             board.place_piece(blocker);
         }
@@ -912,8 +913,12 @@ mod tests {
             let blocker_pos = Position::new(5 + i, 25 - i).unwrap();
             let blocker = Piece::new(
                 PieceType::Pawn,
-                if i % 2 == 0 { Color::Black } else { Color::White },
-                blocker_pos
+                if i % 2 == 0 {
+                    Color::Black
+                } else {
+                    Color::White
+                },
+                blocker_pos,
             );
             board.place_piece(blocker);
         }
@@ -964,8 +969,12 @@ mod tests {
             let blocker_pos = Position::new(i, 10).unwrap();
             let blocker = Piece::new(
                 PieceType::Pawn,
-                if i % 2 == 0 { Color::Black } else { Color::White },
-                blocker_pos
+                if i % 2 == 0 {
+                    Color::Black
+                } else {
+                    Color::White
+                },
+                blocker_pos,
             );
             board.place_piece(blocker);
         }
@@ -992,8 +1001,12 @@ mod tests {
             let blocker_pos = Position::new(i, 10).unwrap();
             let blocker = Piece::new(
                 PieceType::Pawn,
-                if i % 2 == 0 { Color::Black } else { Color::White },
-                blocker_pos
+                if i % 2 == 0 {
+                    Color::Black
+                } else {
+                    Color::White
+                },
+                blocker_pos,
             );
             board.place_piece(blocker);
         }
@@ -1003,3 +1016,58 @@ mod tests {
     }
 }
 
+#[cfg(test)]
+mod dense_list_tests {
+    use super::*;
+    use crate::piece::PieceType;
+    fn check(b: &Board) {
+        let mut count = 0;
+        for color in [Color::Black, Color::White] {
+            for (i, p) in b.pieces_by_color(color).iter().enumerate() {
+                assert_eq!(b.get_piece(p.position), Some(*p));
+                assert_eq!(b.piece_slots[p.position.to_index()] as usize, i);
+                count += 1;
+            }
+        }
+        assert_eq!(b.squares.iter().flatten().count(), count);
+        for (i, sq) in b.squares.iter().enumerate() {
+            if sq.is_none() {
+                assert_eq!(b.piece_slots[i], u16::MAX);
+            }
+        }
+    }
+    #[test]
+    fn square_indices_survive_replacements_moves_removals_and_clone() {
+        let mut b = Board::new();
+        for i in 0..500 {
+            let from = Position::new((i % 36) as u8, ((i / 36) % 10) as u8).unwrap();
+            let to = Position::new(((i * 7) % 36) as u8, 14).unwrap();
+            let color = if i % 2 == 0 {
+                Color::Black
+            } else {
+                Color::White
+            };
+            b.place_piece(Piece::new(PieceType::Pawn, color, from));
+            b.place_piece(Piece::new(PieceType::Rook, color.opposite(), to));
+            check(&b);
+            b.move_piece(from, to);
+            check(&b);
+            let mut copy = b.clone();
+            copy.remove_piece(to);
+            check(&copy);
+            check(&b);
+            if i % 3 == 0 {
+                b.remove_piece(to);
+            }
+        }
+        check(&b);
+    }
+    #[test]
+    fn same_square_move_keeps_index_consistent() {
+        let mut b = Board::new();
+        let pos = Position::new(0, 0).unwrap();
+        b.place_piece(Piece::new(PieceType::King, Color::Black, pos));
+        assert_eq!(b.move_piece(pos, pos), None);
+        check(&b);
+    }
+}

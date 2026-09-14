@@ -18,6 +18,8 @@ pub struct HistoryEntry {
     pub kind: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub summary: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recipe: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -104,7 +106,16 @@ pub fn append_history_entrants_except(
             continue;
         }
         let dest = out_dir.join(format!("{}.json", w.id));
-        extract_seed_at(&w.git, &w.id, &dest)?;
+        match w.recipe.as_deref() {
+            None => extract_seed_at(&w.git, &w.id, &dest)?,
+            Some("q-rs") => {
+                fs::create_dir_all(out_dir).map_err(|e| e.to_string())?;
+                crate::training::royal_al_grid::retired_checkpoint(&w.git, &w.id)?
+                    .save_path(&dest)
+                    .map_err(|e| e.to_string())?;
+            }
+            Some(recipe) => return Err(format!("unknown history recipe: {recipe}")),
+        }
         ids.push(w.id.clone());
         entrants.push(TourneyEntrant {
             id: w.id.clone(),

@@ -18,8 +18,9 @@ fn run() -> Result<(), String> {
         taikyoku_shogi::eval::EvalCheckpoint::load_path(&a[2])?;
         return Ok(());
     }
-    if a.len() != 6 {
-        return Err("usage: analyze_position GAME PLY MODEL DEPTH TIME_MS".into());
+    let allow_historical = a.len() == 7 && a[6] == "--allow-historical";
+    if a.len() != 6 && !allow_historical {
+        return Err("usage: analyze_position GAME PLY MODEL DEPTH TIME_MS [--allow-historical]".into());
     }
     let rec: GameRecordV2 =
         serde_json::from_slice(&std::fs::read(&a[1]).map_err(|e| e.to_string())?)
@@ -55,9 +56,11 @@ fn run() -> Result<(), String> {
     } else {
         &rec.white
     };
-    if agent.name != "ab" || agent.engine.is_some() {
+    // The supervisor binds the matching content-pinned historical helper.
+    // An explicit flag prevents accidental historical analysis with a current CLI.
+    if agent.name != "ab" || (agent.engine.is_some() && !allow_historical) {
         return Err(
-            "analysis requires current in-process ab agent; historical engines are unsupported"
+            "historical analysis requires its matching helper and --allow-historical"
                 .into(),
         );
     }
