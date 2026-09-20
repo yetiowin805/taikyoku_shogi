@@ -2,7 +2,7 @@ use crate::move_simulation::BoardLike;
 use crate::piece::{Piece, Color};
 use crate::position::Position;
 use crate::movement::types::{MovementCapability, BlockingMode};
-use crate::movement::direction::{Direction, DirectionSet, direction_set_to_directions};
+use crate::movement::direction::{Direction, DirectionSet, direction_iter};
 use crate::path_utils;
 
 pub struct MovementGenerator;
@@ -229,7 +229,7 @@ impl MovementGenerator {
                         {
                             // Blocked before this square — only capturable if first blocker.
                             let path_positions =
-                                path_utils::get_path_positions(piece.position, pos);
+                                path_utils::path_positions(piece.position, pos);
                             for path_pos in path_positions {
                                 if let Some(blocking_piece) = board.get_piece(path_pos) {
                                     return path_pos == target
@@ -438,7 +438,7 @@ impl MovementGenerator {
         // Adjust directions for color (for pawn and gold general)
         let adjusted_directions = Self::adjust_directions_for_color(directions, piece.color);
         
-        for direction in direction_set_to_directions(adjusted_directions) {
+        for direction in direction_iter(adjusted_directions) {
             let (file_delta, rank_delta) = direction.to_offset();
             
             for distance in 1..=max_distance {
@@ -453,7 +453,7 @@ impl MovementGenerator {
                 if max_distance > 1 {
                     if !path_utils::is_path_clear_for_boardlike(board, piece.position, target) {
                         // Path is blocked - find the first blocking piece along the path
-                        let path_positions = path_utils::get_path_positions(piece.position, target);
+                        let path_positions = path_utils::path_positions(piece.position, target);
                         for path_pos in path_positions {
                             if let Some(blocking_piece) = board.get_piece(path_pos) {
                                 // Found the first blocking piece
@@ -498,7 +498,7 @@ impl MovementGenerator {
         // Adjust directions for color (for pieces that need it)
         let adjusted_directions = Self::adjust_directions_for_color(directions, piece.color);
         
-        for direction in direction_set_to_directions(adjusted_directions) {
+        for direction in direction_iter(adjusted_directions) {
             let (file_delta, rank_delta) = direction.to_offset();
             let mut distance = 1;
             let mut ray_has_enemy_capture = false;
