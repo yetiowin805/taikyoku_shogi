@@ -165,6 +165,10 @@ class HistoricalAndCarryTests(AnalyzerFixture):
         (self.run/'historical.meta').write_text(f'rev=old\nengine_sha256={a.digest(historical.read_bytes())}\nanalyzer_sha256={a.digest(helper.read_bytes())}\n')
         source_config = dict(run=str(self.run), models={str(model): {'sha256':a.digest(model.read_bytes()),'snapshot':str(model)}},
                              analyzer_bin=str(helper), analyzer_sha256=a.digest(helper.read_bytes()))
+        source_config['historical_engines'] = {str(historical): a.historical_pair(historical, {})}
+        # Saved entrants point to pinned binaries without adjacent freeze metadata.
+        # A new field must use the carried run's exact binding, as resume does.
+        (self.run/'historical.meta').unlink()
         a.atomic(self.run/'analysis/config.json', source_config)
         a.atomic(self.run/'state.json', {'slots':[]})
         payload = {'id':'completed', 'status':'completed', 'searches':[{'score':7}]}
