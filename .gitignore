@@ -69,3 +69,7 @@ web/dist/
 
 models/royal-al-inputs/
 models/royal-al-grid/
+
+models/nnue-*/
+training/nnue/__pycache__/
+data/nnue-*/

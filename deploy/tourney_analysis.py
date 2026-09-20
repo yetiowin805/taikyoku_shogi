@@ -8,6 +8,7 @@ import json
 import os
 from pathlib import Path
 import selectors
+import shutil
 import signal
 import sqlite3
 import subprocess
@@ -131,13 +132,62 @@ def analyzer_for_agent(config, agent):
     return entry
 
 
+def file_digest(path):
+    h = hashlib.sha256()
+    with Path(path).open("rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def validate_model_binding(original, model):
+    if digest(Path(original).read_bytes()) != model["sha256"]:
+        raise ValueError(f"original model changed: {original}")
+    expected = model.get("snapshot_sha256", model["sha256"])
+    if digest(Path(model["snapshot"]).read_bytes()) != expected:
+        raise ValueError(f"snapshot model changed: {model['snapshot']}")
+    for artifact in model.get("artifacts", []):
+        for key in ("original", "snapshot"):
+            if file_digest(artifact[key]) != artifact["sha256"]:
+                raise ValueError(f"NNUE artifact changed: {artifact[key]}")
+
+
+def snapshot_model(source, data, control):
+    """Pin NNUE dependencies and rewrite only the analysis snapshot's blob path."""
+    sha = digest(data)
+    snapshot = control / "models" / (sha + ".json")
+    binding = {"sha256": sha, "snapshot": str(snapshot)}
+    checkpoint = json.loads(data)
+    descriptor = checkpoint.get("weights", {}).get("nnue")
+    if descriptor:
+        original = (source.parent / descriptor["file"]).resolve()
+        if file_digest(original) != descriptor["sha256"]:
+            raise ValueError(f"NNUE artifact hash mismatch: {original}")
+        blob = control / "models" / (descriptor["sha256"] + ".nnue")
+        if blob.exists():
+            if file_digest(blob) != descriptor["sha256"]:
+                raise ValueError(f"corrupt existing NNUE snapshot: {blob}")
+        else:
+            temporary = blob.with_suffix(".tmp")
+            shutil.copyfile(original, temporary)
+            if file_digest(temporary) != descriptor["sha256"]:
+                temporary.unlink()
+                raise ValueError("NNUE source changed while copying")
+            temporary.replace(blob)
+        descriptor["file"] = str(blob)
+        data = json.dumps(checkpoint, sort_keys=True).encode()
+        binding["snapshot_sha256"] = digest(data)
+        binding["artifacts"] = [{"original": str(original), "snapshot": str(blob), "sha256": descriptor["sha256"]}]
+    snapshot.write_bytes(data)
+    return binding
+
+
 def validate_source(source):
     binary = Path(source["analyzer_bin"])
     if not os.access(binary, os.X_OK) or digest(binary.read_bytes()) != source["analyzer_sha256"]:
         raise ValueError(f"source analyzer missing or changed: {binary}")
     for original, model in source["models"].items():
-        if any(digest(Path(path).read_bytes()) != model["sha256"] for path in (original, model["snapshot"])):
-            raise ValueError(f"source model changed: {original}")
+        validate_model_binding(original, model)
     for engine in source.get("historical_engines", {}):
         analyzer_for_agent(source, {"engine": engine})
 
@@ -436,10 +486,7 @@ def prepare(args, run):
         (control / name).mkdir(exist_ok=True)
     model_map = {}
     for source, data in validated:
-        sha = digest(data)
-        snapshot = control / "models" / (sha + ".json")
-        snapshot.write_bytes(data)
-        model_map[str(source)] = {"sha256": sha, "snapshot": str(snapshot)}
+        model_map[str(source)] = snapshot_model(source, data, control)
     # Pin the executables too; a later build cannot change a running analysis policy.
     if carry:
         destination = control / "catalogue.sqlite"

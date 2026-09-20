@@ -1199,6 +1199,10 @@ fn default_eg_tropism_tail_scale() -> f32 {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EvalWeights {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub nnue: Option<crate::nnue::Descriptor>,
+    #[serde(skip)]
+    pub nnue_runtime: Option<std::sync::Arc<crate::nnue::Network>>,
     /// Material value keyed by current piece type (after promotion).
     pub piece: HashMap<PieceType, f32>,
     /// Legacy per-royal linear term (unused by seed; kept for old JSON).
@@ -1494,6 +1498,7 @@ impl EvalWeights {
             piece.insert(pt, seed_piece_value(pt));
         }
         let mut w = Self {
+            nnue: None, nnue_runtime: None,
             piece,
             royal_alive: 0,
             sole_royal_factor: 0,
@@ -1600,6 +1605,9 @@ impl EvalCheckpoint {
         let text = fs::read_to_string(path.as_ref()).map_err(|e| e.to_string())?;
         let mut cp: Self = serde_json::from_str(&text).map_err(|e| e.to_string())?;
         cp.weights.rebuild_piece_value_table();
+        if let Some(d) = &cp.weights.nnue {
+            cp.weights.nnue_runtime = Some(crate::nnue::Network::load(path.as_ref(), d)?);
+        }
         Ok(cp)
     }
 
@@ -1764,6 +1772,17 @@ pub fn evaluate_with_ply(state: &GameState, weights: &EvalWeights, ply: usize) -
 
     #[cfg(feature = "search-profile")]
     let _prof = crate::profile_timers::eval_scope();
+    if let Some(net) = &weights.nnue_runtime {
+        let fresh;
+        let acc = if let Some(a) = state.nnue.as_ref().filter(|a|a.matches(net)) { a } else {
+            fresh = crate::nnue::Accumulator::new(net.clone(),state.get_board()); &fresh
+        };
+        let material = state.eval_inc().filter(|i|i.matches(weights)).map(|i|i.mat[0]-i.mat[1]).unwrap_or_else(||crate::nnue::material(state.get_board(),weights));
+        let signed = if stm == Color::Black {material} else {-material};
+        return (signed.round() as i32 + acc.residual(stm)).clamp(-weights.mate_score/2,weights.mate_score/2);
+    }
+    assert!(weights.nnue.is_none(), "NNUE descriptor has not been loaded from its checkpoint");
+
     let absolute_black = if let Some(inc) = state.eval_inc() {
         if inc.matches(weights) {
             evaluate_absolute_black_from_inc(state.get_board(), inc, weights, ply)
@@ -1795,6 +1814,11 @@ pub fn evaluate_absolute_black(board: &Board, weights: &EvalWeights, ply: usize)
         return weights.mate_score;
     }
 
+    if let Some(net) = &weights.nnue_runtime {
+        let a=crate::nnue::Accumulator::new(net.clone(),board);
+        return (crate::nnue::material(board,weights).round() as i32+a.residual(Color::Black)).clamp(-weights.mate_score/2,weights.mate_score/2);
+    }
+    assert!(weights.nnue.is_none(), "NNUE descriptor has not been loaded");
     let mut score = 0.0f32;
     // Base material (no PST) + phase-blended positional (PST ↔ tropism).
     score += raw_material_of(black, weights) - raw_material_of(white, weights);
@@ -2041,7 +2065,12 @@ pub fn list_model_files(dir: impl AsRef<Path>) -> Result<Vec<String>, String> {
 pub fn load_checkpoint_or_seed(path: impl AsRef<Path>) -> EvalCheckpoint {
     match EvalCheckpoint::load_path(path.as_ref()) {
         Ok(cp) => cp,
-        Err(_) => EvalCheckpoint::seed("ab-seed"),
+        Err(error) => {
+            // An explicitly declared NNUE must never silently become the seed engine.
+            let declared = fs::read_to_string(path.as_ref()).ok().and_then(|s|serde_json::from_str::<serde_json::Value>(&s).ok()).is_some_and(|v|!v["weights"]["nnue"].is_null());
+            if declared { panic!("NNUE checkpoint {} failed: {error}",path.as_ref().display()); }
+            EvalCheckpoint::seed("ab-seed")
+        },
     }
 }
 
