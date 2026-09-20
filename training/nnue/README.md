@@ -81,7 +81,8 @@ Each best export is compared with floating-point inference on 32 validation
 positions. `validate.py` additionally checks independent NumPy integer inference
 against Rust, measures the entire held-out corpus, rejects constant corrections
 or held-out loss worse than material alone, and requires legal completed searches
-on eight spread-out positions per model. Only then does it write `ready.json`.
+on eight spread-out positions per model using the tournament's three-second
+budget. Legality compares the complete route with generated moves. Only then does it write `ready.json`.
 These are entry sanity gates, **not** evidence of tournament strength.
 
 ```sh
