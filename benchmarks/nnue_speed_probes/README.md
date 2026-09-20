@@ -4,6 +4,11 @@ These are opt-in measurement prototypes, not a production change. Enable the
 `nnue-speed-probes` Cargo feature and choose `NNUE_SPEED_PROBE` = `baseline`,
 `fused`, `snapshot`, or `both`. A normal build contains none of these prototypes.
 
+See [measured results](RESULTS.md) for the selected next-run baseline and
+[follow-up research](FOLLOWUP.md) for further ideas from established NNUE engines
+and diagnostics of our current checkpoints. Follow-up ideas are not measured
+whole-search gains over the combined baseline.
+
 - **fused:** a 4,096-slot direct-mapped cache sums all ability vectors for a
   piece/square/perspective into one i32 vector. Keys include schema piece identity,
   promotion/base-piece distinctions, color, square and perspective. Cache

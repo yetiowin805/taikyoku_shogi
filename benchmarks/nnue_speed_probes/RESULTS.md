@@ -35,6 +35,10 @@ The bounded cache added about 8.7 MiB / 33.8 MiB of peak process memory at width
 - Models are the actual admitted v2 checkpoints. Positions and full histories are the same four games used in the preceding speed probe: plies 0, 160, 360 and 2000.
 - Search timing excludes loading/replay/initial accumulator construction; it includes search root cloning and filling its initially empty cache. Peak RSS includes the entire process.
 
+## Next-run baseline
+
+Selected for the next tournament run: CPU-specific compilation, cached ability-vector sums, and saved accumulator undo. These are the reference baseline for any further speed experiments. Selection does not mean deployment: PR #107 remains unmerged and the feature remains off by default. Verify on the VPS CPU before rollout.
+
 ## Decision
 
 These are promising mechanical candidates requiring no retraining. Prioritize the ability cache and CPU-specific compilation; keep saved undo as a smaller additional improvement. The prototypes remain behind the disabled-by-default `nnue-speed-probes` feature. Before a production rollout, test representative tactical/multi-leg cases more broadly and rebuild/benchmark native compilation on the VPS CPU. Do not copy this laptop-native executable onto the VPS.
