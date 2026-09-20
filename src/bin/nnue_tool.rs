@@ -134,7 +134,9 @@ fn run() -> Result<(), String> {
                 cfg.max_time_ms = Some(ms.parse().map_err(|_| "bad time")?);
                 let t = std::time::Instant::now();
                 let r = search(&s, &cp.weights, &cfg);
-                value["search"] = json!({"depth":r.completed_depth,"nodes":r.nodes,"score":r.score,"best":r.best_move,"elapsed_ms":t.elapsed().as_millis()});
+                let elapsed_ms = t.elapsed().as_millis();
+                let legal = r.best_move.as_ref().is_some_and(|m| s.generate_legal_moves().contains(m));
+                value["search"] = json!({"depth":r.completed_depth,"nodes":r.nodes,"score":r.score,"best":r.best_move,"legal":legal,"elapsed_ms":elapsed_ms});
             }
             println!("{value}");
         }
