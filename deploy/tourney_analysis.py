@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run a tournament and a resumable evaluation-swing analyzer on four Linux CPUs."""
+"""Run a tournament with analysis, NNUE training, or four game workers on Linux."""
 import argparse
 import ctypes
 import fcntl
@@ -14,6 +14,9 @@ import sqlite3
 import subprocess
 import sys
 import time
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import training_sidecar
 
 ROOT = Path(__file__).resolve().parent.parent
 STOPPING = False
@@ -371,55 +374,70 @@ def alive(info):
     return info and process_identity(info["pid"]) == info["identity"]
 
 
+def sidecar_result(mode, code):
+    return "completed" if mode == "training" and code == 0 else "failed"
+
+
 def supervise(config):
     run = Path(config["run"])
     control = run / "analysis"
+    mode = config.get("sidecar", "analysis")
+    worker = None
     with (control / "supervisor.lock").open("a+") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         global_lock = (ROOT / "data/run/tourney-analysis.lock").open("a+")
         fcntl.flock(global_lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        (control / "analysis.request").unlink(missing_ok=True)
+        request = control / "analysis.request"
+        request.unlink(missing_ok=True)
         (ROOT / "data/run/TOURNEY_STOP").unlink(missing_ok=True)
         env = dict(os.environ, TAIKYOKU_COMPUTE_DIR=str(control),
                    TAIKYOKU_COMPUTE_CPUS=",".join(map(str, config["cpus"])))
-        # Reserve shared CPU until analyzer has scanned the initial backlog.
-        (control / "analysis.request").touch()
-        with (control / "tournament.log").open("ab") as tlog, (control / "analyzer.log").open("ab") as alog:
+        if mode != "none":
+            request.touch()  # Reserve before a fourth game can be admitted.
+        log_path = run / "training/trainer.log" if mode == "training" else control / "analyzer.log"
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        with (control / "tournament.log").open("ab") as tlog, log_path.open("ab") as slog:
             tourney = subprocess.Popen(config["command"], cwd=ROOT, env=env, stdout=tlog, stderr=tlog)
-            try:
-                worker = subprocess.Popen([sys.executable, str(Path(__file__).resolve()), "_analyze",
-                                           "--run-dir", str(run)], cwd=ROOT, stdout=alog, stderr=alog)
-            except Exception:
-                tourney.terminate()
-                tourney.wait()
-                raise
             meta = {"pid": os.getpid(), "identity": process_identity(os.getpid()),
-                    "tournament_pid": tourney.pid, "analyzer_pid": worker.pid, "state": "starting"}
+                    "tournament_pid": tourney.pid, "analyzer_pid": None, "sidecar_pid": None,
+                    "sidecar_mode": mode, "sidecar_state": "disabled" if mode == "none" else "running", "state": "starting"}
             try:
+                if mode != "none":
+                    action = "_train" if mode == "training" else "_analyze"
+                    worker = subprocess.Popen([sys.executable, str(Path(__file__).resolve()), action,
+                                               "--run-dir", str(run)], cwd=ROOT, stdout=slog, stderr=slog,
+                                               preexec_fn=parent_death_guard(os.getpid()))
+                    meta['sidecar_pid'] = worker.pid
+                    if mode == 'analysis':
+                        meta['analyzer_pid'] = worker.pid
                 time.sleep(2)
-                if tourney.poll() is not None or worker.poll() is not None:
-                    raise RuntimeError("child exited during startup; see tournament.log and analyzer.log")
+                if tourney.poll() is not None:
+                    raise RuntimeError("tournament exited during startup; see tournament.log")
+                # Training prerequisites were checked before launch. A runtime
+                # training failure, even an immediate one, must not stop games.
+                if mode == 'analysis' and worker and worker.poll() is not None:
+                    raise RuntimeError("sidecar failed during startup; see its log")
                 meta["state"] = "running"
                 atomic(control / "supervisor.json", meta)
                 while not STOPPING and tourney.poll() is None:
-                    if worker.poll() is not None and meta["state"] != "analyzer_failed":
-                        (control / "analysis.request").unlink(missing_ok=True)
-                        meta.update(state="analyzer_failed", analyzer_exit=worker.returncode)
+                    if worker and worker.poll() is not None and meta['sidecar_state'] == 'running':
+                        request.unlink(missing_ok=True)
+                        meta.update(sidecar_state=sidecar_result(mode, worker.returncode), sidecar_exit=worker.returncode)
                         atomic(control / "supervisor.json", meta)
-                        print("Analyzer failed; tournament continues with four CPUs", file=sys.stderr, flush=True)
+                        print(f"{mode} {meta['sidecar_state']}; tournament continues with four CPUs", flush=True)
                     time.sleep(.5)
             finally:
-                if worker.poll() is None:
+                if worker and worker.poll() is None:
                     worker.send_signal(signal.SIGTERM)
                     try:
-                        worker.wait(timeout=10)
+                        worker.wait(timeout=25)
                     except subprocess.TimeoutExpired:
                         worker.kill()
                         worker.wait()
-                (control / "analysis.request").unlink(missing_ok=True)
+                request.unlink(missing_ok=True)
                 if tourney.poll() is None:
                     tourney.send_signal(signal.SIGTERM)
-                tourney.wait()  # existing engine stops between moves
+                tourney.wait()
                 meta.update(state="stopped" if STOPPING else "failed", tournament_exit=tourney.returncode)
                 atomic(control / "supervisor.json", meta)
 
@@ -431,6 +449,10 @@ def prepare(args, run):
         raise ValueError("run already exists; use resume")
     state = read(run / "state.json") if args.action == "resume" else None
     previous = read(run / "analysis/config.json") if state and (run / "analysis/config.json").exists() else {}
+    mode = getattr(args, 'sidecar', None) or previous.get('sidecar', 'analysis')
+    training = None
+    if mode != 'training' and getattr(args, 'training_config', None):
+        raise ValueError('--training-config requires --sidecar training')
     sources = previous.get("analysis_sources", [])
     carry = getattr(args, "carry_analysis_from", None)
     if carry:
@@ -466,6 +488,9 @@ def prepare(args, run):
                 raise ValueError(f"tournament already running as PID {proc.name}; stop it first")
         except (FileNotFoundError, PermissionError, ProcessLookupError):
             pass
+    if mode == 'training':
+        training = training_sidecar.prepare(sys.modules[__name__], getattr(args, 'training_config', None), run,
+                                           previous.get('training'), entrants=entrants)
     validated = []
     historical = {}
     for ent in entrants:
@@ -531,17 +556,19 @@ def prepare(args, run):
         command.append("--resume")
     if budget is not None:
         command += ["--time-ms", str(budget)]
-    return dict(run=str(run), cpus=cpus, models=model_map, command=command, historical_engines=historical_map, analysis_sources=sources,
+    return dict(run=str(run), cpus=cpus, sidecar=mode, training=training, models=model_map, command=command, historical_engines=historical_map, analysis_sources=sources,
                 analyzer_bin=str(frozen[1]), analyzer_sha256=digest(frozen[1].read_bytes()))
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=["start", "resume", "stop", "status", "_supervise", "_analyze"])
+    parser.add_argument("action", choices=["start", "resume", "stop", "status", "check-training", "_supervise", "_analyze", "_train"])
     parser.add_argument("--run-dir", required=True)
     parser.add_argument("--manifest", default="models/royal-s2-twins-grid/manifest.json")
     parser.add_argument("--carry-analysis-from", help="continue a previous run catalogue with its original engine bindings")
     parser.add_argument("--cpus", help="four CPU IDs; defaults to first four allowed")
+    parser.add_argument('--sidecar', choices=['analysis', 'training', 'none'], help='resume keeps the saved mode unless overridden')
+    parser.add_argument('--training-config', help='configuration generated by training/nnue/continuation.py prepare')
     parser.add_argument("--depth", type=int, default=8)
     parser.add_argument("--time-ms", type=int, default=3000)
     args = parser.parse_args()
@@ -549,6 +576,13 @@ def main():
     control = run / "analysis"
     signal.signal(signal.SIGTERM, stop_handler)
     signal.signal(signal.SIGINT, stop_handler)
+    if args.action == 'check-training':
+        training_sidecar.prepare(sys.modules[__name__], args.training_config, run, dry_run=True)
+        print('Training prerequisites passed; live processes are unchanged.')
+        return
+    if args.action == '_train':
+        # Pass the module itself so signal updates to STOPPING remain visible.
+        return training_sidecar.run(sys.modules[__name__], read(control / 'config.json'))
     if args.action == "_analyze":
         return analyzer(read(control / "config.json"))
     if args.action == "_supervise":
@@ -560,9 +594,21 @@ def main():
             with sqlite3.connect(f"file:{control / 'catalogue.sqlite'}?mode=ro", uri=True) as db:
                 counts = dict(db.execute("SELECT status,count(*) FROM moments GROUP BY status"))
                 counts["cached_searches"] = db.execute("SELECT count(*) FROM searches").fetchone()[0]
-        print(json.dumps({"supervisor": meta, "alive": bool(alive(meta)), "catalogue": counts,
-                          "analyzer": read(control / "analyzer-status.json")
-                          if (control / "analyzer-status.json").exists() else None}, indent=2))
+        config = read(control / 'config.json') if (control / 'config.json').exists() else {}
+        mode = config.get('sidecar', 'analysis')
+        trainer = None
+        if mode == 'training':
+            progress = Path(config['training']['out']) / 'progress.json'
+            trainer = {'status': read(run / 'training/status.json') if (run / 'training/status.json').exists() else None,
+                       'progress': read(progress) if progress.exists() else None}
+            width = (trainer['progress'] or {}).get('current_width')
+            detail = Path(config['training']['out']) / f'w{width}.status.json'
+            trainer['current'] = read(detail) if width and detail.exists() else None
+        requested = (control / 'analysis.request').exists()
+        print(json.dumps({'supervisor': meta, 'alive': bool(alive(meta)), 'catalogue': counts,
+                          'sidecar': mode, 'allocation': ('3/1' if requested else '4/0') if alive(meta) else 'stopped', 'training': trainer,
+                          'analyzer': (read(control / 'analyzer-status.json') if (control / 'analyzer-status.json').exists() else None)
+                                      if mode == 'analysis' else {'state': 'paused'}}, indent=2))
         return
     if args.action == "stop":
         if not alive(meta):
