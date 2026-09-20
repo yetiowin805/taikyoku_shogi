@@ -116,3 +116,91 @@ returning the fourth CPU when analysis is idle. Analyzer model snapshots now als
 pin NNUE blobs and rewrite their local dependency paths. Carried catalogue entries
 retain their original model/engine identities. Rollback is to stop the new run
 and resume the preserved old run; do not delete its model or analyzer snapshots.
+
+## Continue training beside the tournament
+
+The coordinator also supports `--sidecar training`: three CPUs play games while
+the fourth continues **512, 768, 1024, 1536, 2048**, sequentially, with one PyTorch
+thread. Position analysis is paused; its saved catalogue remains available.
+Training waits for any game already holding the fourth CPU to finish. When all
+five widths finish, or training fails, that CPU returns to games automatically.
+Analysis stays paused. A failure is visible in status and logs and requires an
+operator restart; it is not silently retried forever.
+
+The first continuation uses the same frozen dataset, validation split, fixed
+material baseline, optimizer state and sample order as the two-epoch starter
+models. It does not ingest newly played games. For each width, monitor held-out
+Huber loss, require at least **8 total epochs**, and count **0.5% relative loss
+reduction** as meaningful improvement. After three epochs without meaningful
+improvement, halve both learning rates; allow two such reductions, then stop
+after another three unproductive epochs. Small improvements can accumulate to
+the threshold. **32 total epochs** is a safety cap, reported as `max_epochs`, not
+as evidence that the model plateaued. These are practical first-pass stopping
+settings, not a claim that validation loss measures playing strength.
+
+Each completed epoch atomically saves the latest training state, optimizers,
+plateau counters and learning rates. Interrupted epochs repeat on resume.
+The exported model is the **best validation epoch**, which may precede the latest
+training state. Starter files and current tournament weights stay immutable:
+continuation writes a separate `v2` generation and never changes the live field.
+Run the quantization/search admission checks above before considering those
+models for a later tournament. Repeated tuning on this validation set will need
+a separate final test set to assess generalization.
+
+Prepare these inputs on the VPS **before stopping anything**:
+
+- CPU PyTorch environment installed with `training/nnue/requirements.txt`.
+- `dataset-v1/` containing `features.bin`, `samples.jsonl`, `schema.json`, and
+  `dataset.json`, plus the original `base.json`. Raw games are unnecessary for
+  continuation; game paths in the samples are split identities only.
+- The five original `wWIDTH.training.pt` files from the admitted
+  `models-final-v1/` training output, copied into `seed-state/`. These contain
+  optimizer state and are additional to the deployed inference models.
+- The deployed `models/nnue-v1/` descriptors and their referenced blobs.
+
+The initial dataset is about 342 MiB and the five training states total about
+5.3 GiB. Keep room for another full set of training states, best exports, and
+temporary atomic replacements (roughly 13 GiB of additional output headroom).
+Restore uses memory-mapped tensors without allocating a second full network.
+Only one width is resident for training at a time. Old exports in this private
+output directory are removed once no model descriptor references them; source
+models are never pruned. Do not use the mutable training directory as a live
+tournament model directory.
+
+From `/opt/taikyoku_shogi`, after the PR is merged and pulled:
+
+```bash
+python3 -m venv data/nnue-venv
+data/nnue-venv/bin/pip install -r training/nnue/requirements.txt --index-url https://download.pytorch.org/whl/cpu
+# Copy the inputs described above before preparing the job.
+data/nnue-venv/bin/python training/nnue/continuation.py prepare \
+  --dataset data/nnue-training/dataset-v1 --base data/nnue-training/base.json \
+  --checkpoints data/nnue-training/seed-state --seed-models models/nnue-v1 \
+  --out data/nnue-continuation/v2 --python data/nnue-venv/bin/python \
+  --config data/run/nnue-training-v2.json
+run=$(cat data/run/royal-nnue-current-run.txt)
+python3 deploy/tourney_analysis.py check-training --run-dir "$run" \
+  --training-config data/run/nnue-training-v2.json
+```
+
+`check-training` is read-only: it verifies dependencies, input hashes, dimensions,
+sample counts, material values and output isolation without touching live
+processes. Launch repeats preflight before starting children and pins the
+training program and configuration under `RUN/training/`. Resume uses that
+pinned program. Changing data, code or policy requires a new output directory;
+an existing output refuses a mismatched job identity. The prepared config may
+be edited before its first launch.
+
+After preflight passes, use the switch commands in
+[the deployment guide](../../deploy/README.md#switch-the-fourth-cpu-from-analysis-to-nnue-training).
+For progress, use the usual coordinator `status` command, or inspect
+`RUN/training/trainer.log`, `OUTPUT/progress.json`, `OUTPUT/wWIDTH.status.json`,
+`OUTPUT/wWIDTH.metrics.json`, and `OUTPUT/wWIDTH.log`. Status includes per-width
+completion reasons, the current epoch/sample progress, and CPU allocation.
+
+Tests use tiny networks and process fixtures, without touching the VPS:
+
+```bash
+data/nnue-venv/bin/python -m unittest discover -s training/nnue -p 'test_*.py'
+python3 -m unittest discover -s deploy -p 'test_*sidecar.py'
+```

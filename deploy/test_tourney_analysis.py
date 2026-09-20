@@ -1,12 +1,14 @@
 import importlib.util
 import json
 import os
+import sys
 from pathlib import Path
 import tempfile
 import unittest
 
 spec = importlib.util.spec_from_file_location("analysis", Path(__file__).with_name("tourney_analysis.py"))
 a = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = a
 spec.loader.exec_module(a)
 
 
@@ -187,6 +189,19 @@ class HistoricalAndCarryTests(AnalyzerFixture):
             a.atomic(new/'state.json', {'entrants': a.read(new/'analysis/manifest.json')['entrants'], 'depth':8, 'max_time_ms':3000})
             args.action='resume'; args.carry_analysis_from=None
             resumed = a.prepare(args, new)
+            self.assertEqual(resumed['sidecar'], 'analysis')
+            args.sidecar='none'
+            disabled = a.prepare(args, new)
+            a.atomic(new/'analysis/config.json', disabled)
+            args.sidecar=None
+            self.assertEqual(a.prepare(args, new)['sidecar'], 'none')
+            args.sidecar='training'
+            saved_job={'config':'pinned'}
+            with patch.object(a.training_sidecar, 'prepare', return_value=saved_job):
+                enabled = a.prepare(args, new)
+                a.atomic(new/'analysis/config.json', enabled)
+                args.sidecar=None
+                self.assertEqual(a.prepare(args, new)['training'], saved_job)
         self.assertEqual(resumed['analysis_sources'], config['analysis_sources'])
         self.assertEqual(a.read(new/'analysis/moments/completed.json'), payload)
         with a.sqlite3.connect(new/'analysis/catalogue.sqlite') as db:

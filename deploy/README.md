@@ -430,3 +430,40 @@ than silently analyzed using a different agent.
 Rollback: stop the combined launcher, then resume with
 `./deploy/run_royal_s2_twins_swiss.sh --detach --resume --run-id RUN_ID --skip-gen --jobs 4 --depth 8 --time-ms 3000`.
 Use the backed-up original binary via `--bin` if rolling back executable changes.
+
+### Switch the fourth CPU from analysis to NNUE training
+
+Merge and pull the training-sidecar changes first. Prepare/copy the training
+inputs and run the read-only preflight in
+[the training guide](../training/nnue/README.md#continue-training-beside-the-tournament)
+while the existing tournament and analyzer are still running. No grid generation,
+seed bake, field replacement, or engine rebuild is needed for this tooling change.
+
+After preflight succeeds, back up the run state/config and switch the existing
+run with a brief stop/resume:
+
+```bash
+run=$(cat data/run/royal-nnue-current-run.txt)
+python3 deploy/tourney_analysis.py stop --run-dir "$run"
+backup="data/run/before-training-$(date -u +%Y%m%dT%H%M%SZ)"
+mkdir -p "$backup"
+cp "$run/state.json" "$backup/"
+cp "$run/analysis/config.json" "$backup/analysis-config.json"
+python3 deploy/tourney_analysis.py resume --run-dir "$run" --sidecar training \
+  --training-config data/run/nnue-training-v2.json
+python3 deploy/tourney_analysis.py status --run-dir "$run"
+```
+
+Stop aborts in-flight games; resume requeues them from their starts. Completed
+games, ratings, bracket progress, entrant models and analysis results remain
+intact. Three workers play while the trainer owns the fourth CPU. Training
+completion or failure releases it for a fourth game worker. The analyzer is
+not launched in training mode, including after training finishes. New training
+exports do not replace tournament models.
+
+`resume` without `--sidecar` retains the saved mode and pinned training job.
+An interrupted job resumes from completed epochs. `--sidecar none` runs four
+game workers immediately; `--sidecar analysis` restores the original analyzer.
+Change modes through stop/resume, never by starting a second supervisor.
+Rollback to analysis requires the same stop/resume with `--sidecar analysis`;
+the existing catalogue continues from its saved state.
