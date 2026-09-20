@@ -1,5 +1,7 @@
 //! Versioned, content-verified NNUE residual on a fixed material baseline.
 pub mod features;
+#[cfg(feature = "nnue-speed-probes")]
+pub mod experiment;
 use crate::{
     board::Board,
     piece::{Color, Piece},
@@ -196,13 +198,18 @@ impl Network {
 pub struct Accumulator {
     pub net: Arc<Network>,
     sums: Vec<i32>,
+    #[cfg(feature = "nnue-speed-probes")]
+    probe: experiment::Storage,
 }
 thread_local! {static INPUT:std::cell::RefCell<Vec<u8>>=const{std::cell::RefCell::new(Vec::new())};}
 impl Accumulator {
     pub fn new(net: Arc<Network>, board: &Board) -> Self {
         let mut sums = net.bias.clone();
         sums.extend_from_slice(&net.bias);
-        let mut a = Self { net, sums };
+        let mut a = Self { net, sums,
+            #[cfg(feature = "nnue-speed-probes")]
+            probe: experiment::Storage::default(),
+        };
         for c in [Color::Black, Color::White] {
             for p in board.pieces_by_color(c) {
                 a.change(p, 1);
@@ -214,6 +221,11 @@ impl Accumulator {
         Arc::ptr_eq(&self.net, net)
     }
     pub fn change(&mut self, p: &Piece, sign: i32) {
+        #[cfg(feature = "nnue-speed-probes")]
+        if experiment::fused() {
+            self.change_fused(p, sign);
+            return;
+        }
         let w = self.net.width;
         for (side, c) in [Color::Black, Color::White].into_iter().enumerate() {
             features::visit(p, c, |i| {
@@ -286,7 +298,7 @@ mod tests {
         position::Position,
         search::{search, SearchConfig},
     };
-    fn net(width: usize, tag: &str) -> Arc<Network> {
+    pub(super) fn net(width: usize, tag: &str) -> Arc<Network> {
         Arc::new(Network {
             width,
             sha256: tag.into(),
