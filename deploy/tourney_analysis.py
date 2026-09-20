@@ -192,10 +192,11 @@ def validate_source(source):
         analyzer_for_agent(source, {"engine": engine})
 
 
-def historical_pair(source, previous):
-    """Validate a freeze-produced pair, or the pinned pair from a resumed run."""
-    if str(source) in previous.get("historical_engines", {}):
-        return analyzer_for_agent(previous, {"engine": str(source)})
+def historical_pair(source, previous, carried=()):
+    """Resolve exact pinned bindings from a resumed or carried run before disk metadata."""
+    for config in (previous, *carried):
+        if str(source) in config.get("historical_engines", {}):
+            return analyzer_for_agent(config, {"engine": str(source)})
     helper = source.with_name(source.name + ".analyze_position")
     meta = source.with_name(source.name + ".meta")
     if not os.access(source, os.X_OK) or not os.access(helper, os.X_OK):
@@ -471,7 +472,7 @@ def prepare(args, run):
         validator = binaries[1]
         if ent.get("engine"):
             engine = absolute(ent["engine"]).resolve()
-            entry = historical_pair(engine, previous)
+            entry = historical_pair(engine, previous, sources)
             historical[str(engine)] = entry
             validator = Path(entry["analyzer_bin"])
         source = absolute(ent["model"]).resolve()
