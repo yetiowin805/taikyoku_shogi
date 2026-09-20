@@ -113,6 +113,7 @@ pub struct GameState {
     rep_history: Vec<u64>,
     /// Search-only incremental material/PST; `None` outside a bound search.
     eval_inc: Option<crate::eval::EvalInc>,
+    pub(crate) nnue: Option<crate::nnue::Accumulator>,
 }
 
 enum ApplyOutcome {
@@ -133,6 +134,7 @@ impl GameState {
             hash: 0,
             rep_history: Vec::new(),
             eval_inc: None,
+            nnue: None,
         };
         state.recompute_hash();
         state.reset_rep_history();
@@ -193,6 +195,7 @@ impl GameState {
 
     pub fn get_board_mut(&mut self) -> &mut Board {
         self.eval_inc = None;
+        self.nnue = None;
         &mut self.board
     }
 
@@ -203,6 +206,13 @@ impl GameState {
 
     /// Rebuild incremental eval if missing or built for a different weight seed.
     pub fn ensure_eval_inc(&mut self, weights: &crate::eval::EvalWeights) {
+        match &weights.nnue_runtime {
+            Some(net) if !self.nnue.as_ref().is_some_and(|a| a.matches(net)) => {
+                self.nnue = Some(crate::nnue::Accumulator::new(net.clone(), &self.board));
+            }
+            None => self.nnue = None,
+            _ => {}
+        }
         if self
             .eval_inc
             .as_ref()
@@ -230,6 +240,7 @@ impl GameState {
     pub fn place_piece(&mut self, piece: Piece) {
         self.board.place_piece(piece);
         self.eval_inc = None;
+        self.nnue = None;
         self.recompute_hash();
         self.reset_rep_history();
     }
@@ -240,6 +251,7 @@ impl GameState {
         if piece.is_some() {
             self.board.remove_piece(pos);
             self.eval_inc = None;
+            self.nnue = None;
             self.recompute_hash();
             self.reset_rep_history();
         }
@@ -250,6 +262,7 @@ impl GameState {
     pub fn clear_board(&mut self) {
         self.board = Board::new();
         self.eval_inc = None;
+        self.nnue = None;
         self.recompute_hash();
         self.reset_rep_history();
     }
@@ -311,8 +324,10 @@ impl GameState {
     /// - Kings: file 16 (17th from left), on back ranks (rank 0 for Black, rank 35 for White)
     /// - Pawns: on rank 10 for Black, rank 25 for White, all files
     pub fn setup_initial_position(&mut self) {
-        // Clear the board first
+        // Clear the board and any position-dependent evaluation caches first.
         self.board = Board::new();
+        self.eval_inc = None;
+        self.nnue = None;
         
         // Place back rank pieces in order (files 0-35 for Black, automatically mirrored for White)
         // Note: This includes King, CrownPrince, GoldGenerals, LeftGeneral, RightGeneral, and RearStandards
@@ -1205,6 +1220,7 @@ impl GameState {
             ApplyOutcome::Failed => None,
             ApplyOutcome::Ok { intermediate, .. } => {
                 self.eval_inc = None;
+                self.nnue = None;
                 self.recompute_hash();
                 self.push_repetition_key();
                 intermediate
@@ -1264,6 +1280,11 @@ impl GameState {
             }
         }
 
+        if let Some(acc) = self.nnue.as_mut() {
+            acc.change(&original_mover, -1);
+            for (_, piece) in &removed { acc.change(piece, -1); }
+            if let Some(piece) = self.board.get_piece(final_to) { acc.change(&piece, 1); }
+        }
         Some(SearchUndo {
             from,
             final_to,
@@ -1281,6 +1302,11 @@ impl GameState {
     pub fn unmake_move_for_search(&mut self, undo: SearchUndo) {
         #[cfg(feature = "search-profile")]
         let _make = crate::profile_timers::make_scope();
+        if let Some(acc) = self.nnue.as_mut() {
+            if let Some(piece) = self.board.get_piece(undo.final_to) { acc.change(&piece, -1); }
+            acc.change(&undo.original_mover, 1);
+            for (_, piece) in &undo.removed { acc.change(piece, 1); }
+        }
         self.board.remove_piece(undo.final_to);
         self.board.place_piece(undo.original_mover);
         for (_pos, piece) in undo.removed {
@@ -1597,6 +1623,7 @@ impl GameState {
             hash: self.hash,
             rep_history: Vec::new(),
             eval_inc: None,
+            nnue: None,
         };
         state.hash ^= crate::zobrist::side_key(self.current_turn);
         state.hash ^= crate::zobrist::side_key(state.current_turn);

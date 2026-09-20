@@ -1,12 +1,40 @@
 {
   "weights": [
-    { "id": "BASE_PRELOUD", "git": "e08a736", "kind": "weights" },
-    { "id": "BASE_T150C50", "git": "0c0444d", "kind": "weights" },
-    { "id": "BASE_T150C120", "git": "080ab56", "kind": "weights" },
-    { "id": "BASE_H120O80", "git": "fae5573", "kind": "weights" },
-    { "id": "BASE_H105O105", "git": "12791cb", "kind": "weights" },
-    { "id": "BASE_P120H50B75", "git": "ef2e8a9", "kind": "weights" },
-    { "id": "BASE_P120H75B60", "git": "a439080", "kind": "weights" },
+    {
+      "id": "BASE_PRELOUD",
+      "git": "e08a736",
+      "kind": "weights"
+    },
+    {
+      "id": "BASE_T150C50",
+      "git": "0c0444d",
+      "kind": "weights"
+    },
+    {
+      "id": "BASE_T150C120",
+      "git": "080ab56",
+      "kind": "weights"
+    },
+    {
+      "id": "BASE_H120O80",
+      "git": "fae5573",
+      "kind": "weights"
+    },
+    {
+      "id": "BASE_H105O105",
+      "git": "12791cb",
+      "kind": "weights"
+    },
+    {
+      "id": "BASE_P120H50B75",
+      "git": "ef2e8a9",
+      "kind": "weights"
+    },
+    {
+      "id": "BASE_P120H75B60",
+      "git": "a439080",
+      "kind": "weights"
+    },
     {
       "id": "QRS_AVG_P120_SEED_C2R",
       "git": "ee580c44b3e41fd33e1eabe41b51d19321c9b304",
@@ -104,6 +132,12 @@
       "git": "68dada78b6dc6a2f867f9df1c567e6102d7201b4",
       "kind": "logic",
       "summary": "Pre swap-removal/aspiration500 and new A/L variants; run with BASE_P120H50B75_C2 checkpoint for the frozen reference."
+    },
+    {
+      "id": "LOGIC_PRE_NNUE",
+      "git": "a3c1fab76cf3c6810d4ddb048486de86686e4265",
+      "kind": "logic",
+      "summary": "Handcrafted A/L search before adding ability-feature NNUE residual evaluators."
     }
   ]
 }

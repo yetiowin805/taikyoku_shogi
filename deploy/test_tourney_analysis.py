@@ -192,3 +192,18 @@ class HistoricalAndCarryTests(AnalyzerFixture):
 
 if __name__ == "__main__":
     unittest.main()
+
+class NnueSnapshotTests(unittest.TestCase):
+    def test_dependency_pinned_and_source_change_rejected(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d);control=root/'analysis';(control/'models').mkdir(parents=True)
+            blob=root/'weights.bin';blob.write_bytes(b'test network bytes')
+            source=root/'agent.json';source.write_text(json.dumps({'weights':{'nnue':{'file':blob.name,'sha256':a.file_digest(blob),'width':512}}}))
+            binding=a.snapshot_model(source,source.read_bytes(),control)
+            snapshot=json.loads(Path(binding['snapshot']).read_text())
+            self.assertEqual(Path(snapshot['weights']['nnue']['file']).read_bytes(),blob.read_bytes())
+            self.assertNotEqual(binding['sha256'],binding['snapshot_sha256'])
+            a.validate_model_binding(source,binding)
+            blob.write_bytes(b'changed')
+            with self.assertRaisesRegex(ValueError,'artifact changed'):
+                a.validate_model_binding(source,binding)
