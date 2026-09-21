@@ -35,4 +35,3 @@ required-features = ["royal-probes"]
 
 [[example]]
 name = "nnue_speed_probe"
-required-features = ["nnue-speed-probes"]

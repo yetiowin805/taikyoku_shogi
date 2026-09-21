@@ -33,6 +33,40 @@ The prototypes are intended to preserve integer accumulator values, scores,
 chosen routes, move order and fixed-depth node counts. Timing-limited searches
 can choose differently when they complete more work.
 
+## Short ablation after the search-overhead merge
+
+`post_merge_ablation.py` compares a native default-feature build with the full
+cache/snapshot/packed/royal bundle, then removes one component at a time. Both
+builds include main's merged ray iteration, quiescence ordering metadata, and
+reusable empty TT storage. Each process performs an untimed depth-1 warmup before
+its measured search so TT allocation reuse is exercised. The six configurations
+share four frozen positions and widths 512/2048. Two balanced, shuffled
+three-second repetitions produce 96 timed searches; 48 depth-2 searches verify
+scores, complete routes, ordered root lines, and main/quiescence node counts.
+
+```sh
+ROOT=/home/frank/taikyoku_shogi
+OUT="$ROOT/data/nnue-post-merge-ablation-20260920"
+mkdir -p "$OUT/bin"
+RUSTFLAGS='-C target-cpu=native' cargo build --offline --release --example nnue_speed_probe
+cp target/release/examples/nnue_speed_probe "$OUT/bin/main"
+RUSTFLAGS='-C target-cpu=native' cargo build --offline --release --features nnue-speed-probes --example nnue_speed_probe
+cp target/release/examples/nnue_speed_probe "$OUT/bin/probes"
+NNUE_SPEED_PROBE=both NNUE_FOLLOWUP=packed,royal RUSTFLAGS='-C target-cpu=native' \
+  cargo test --offline --release --features nnue-speed-probes --lib nnue:: -- --test-threads=1
+for phase in verify timed; do
+  python3 benchmarks/nnue_speed_probes/post_merge_ablation.py --root "$ROOT" \
+    --out "$OUT" --stock "$OUT/bin/main" --probes "$OUT/bin/probes" --phase "$phase" || break
+done
+python3 benchmarks/nnue_speed_probes/post_merge_summary.py "$OUT"
+```
+
+Use a new output directory on repetition; the runner refuses to overwrite raw
+results. The main control compiles without the experimental feature, rather than
+merely switching its flags off. Native compilation is held constant and is not
+itself ablated. Baseline equivalence concerns fixed-depth results; timed searches
+may finish different iterations. This small study does not measure Elo.
+
 ## Reproduce
 
 Run from this branch's worktree. `ROOT` below is the existing data checkout,

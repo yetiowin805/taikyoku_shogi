@@ -12,7 +12,7 @@ use taikyoku_shogi::{
 fn main() -> Result<(), String> {
     let args: Vec<_> = std::env::args().collect();
     if args.len() != 7 {
-        return Err("MODEL GAME PLY MILLISECONDS DEPTH search|micro".into());
+        return Err("MODEL GAME PLY MILLISECONDS DEPTH search|micro|static".into());
     }
     let cp = EvalCheckpoint::load_path(&args[1])?;
     let rec = load_game_json(&std::fs::read_to_string(&args[2]).map_err(|e| e.to_string())?)?;
@@ -73,6 +73,16 @@ fn main() -> Result<(), String> {
             .clone();
         cfg.depth = args[5].parse().map_err(|_| "bad depth")?;
         cfg.max_time_ms = Some(args[4].parse().map_err(|_| "bad time")?);
+        // Optional untimed warmup exercises the production TT allocation pool.
+        let warmup = std::env::var_os("NNUE_ABLATION_WARMUP").is_some();
+        if warmup {
+            let mut warm_cfg = cfg.clone();
+            warm_cfg.depth = 1;
+            warm_cfg.max_time_ms = Some(30000);
+            let result = search(&state, &cp.weights, &warm_cfg);
+            assert!(!result.aborted && result.completed_depth == 1);
+        }
+        #[cfg(feature = "nnue-speed-probes")]
         taikyoku_shogi::nnue::experiment::reset_counters();
         let t = Instant::now();
         let r = search(&state, &cp.weights, &cfg);
@@ -81,11 +91,16 @@ fn main() -> Result<(), String> {
             .best_move
             .as_ref()
             .is_some_and(|m| state.generate_legal_moves().contains(m));
+        #[cfg(feature = "nnue-speed-probes")]
+        let counters = taikyoku_shogi::nnue::experiment::counters();
+        #[cfg(not(feature = "nnue-speed-probes"))]
+        let counters = [0u64; 4];
         println!(
             "{}",
             json!({"elapsed_ns":elapsed_ns,"depth":r.completed_depth,
             "nodes":r.nodes,"qnodes":r.q_nodes,"score":r.score,"static_score":static_score,
-            "counters":taikyoku_shogi::nnue::experiment::counters(),
+            "counters":counters,"probes_compiled":cfg!(feature = "nnue-speed-probes"),
+            "warmup":warmup,
             "best":r.best_move,"root_lines":r.root_lines,"legal":legal,"aborted":r.aborted})
         );
     }

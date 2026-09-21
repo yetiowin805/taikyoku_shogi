@@ -1,0 +1,23 @@
+{
+  "baseline_main": "05b6ec7",
+  "positions": "same four frozen positions as prior NNUE study; opening, middlegame, tactical, long-history",
+  "widths": [
+    512,
+    2048
+  ],
+  "variants": [
+    "main",
+    "full",
+    "no-cache",
+    "no-snapshot",
+    "no-packed",
+    "no-royal"
+  ],
+  "fixed_depth": 2,
+  "timed_seconds": 3,
+  "paired_repetitions": 2,
+  "warmup": "one depth-1 search before each measured search",
+  "metric": "geometric mean of paired NPS ratios, equal weight per position",
+  "scope": "short local exact-evaluation ablation; no pruning, no retraining, no deployment; stop after planned fixed sample",
+  "tests": "targeted release NNUE tests and full-route, score, root-line, node-count parity in all 48 depth-2 searches"
+}
