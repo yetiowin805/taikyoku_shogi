@@ -1,0 +1,407 @@
+{
+  "revision": "05b6ec7099d3767ad0c069016851dcfd6e5eb198",
+  "diff": "diff --git a/src/game_state.rs b/src/game_state.rs\nindex 7ea5b50..d9ae724 100644\n--- a/src/game_state.rs\n+++ b/src/game_state.rs\n@@ -78,6 +78,7 @@ pub struct SearchUndo {\n     /// Length of `rep_history` before this move was pushed.\n     prev_rep_len: usize,\n     prev_eval_inc: Option<crate::eval::EvalInc>,\n+    nnue_snapshot: Option<crate::nnue::Snapshot>,\n }\n \n /// Occurrences of the same position (pieces + STM) that adjudicate a draw.\n@@ -1280,6 +1281,7 @@ impl GameState {\n             }\n         }\n \n+        let nnue_snapshot = self.nnue.as_mut().map(|acc| acc.save_sums());\n         if let Some(acc) = self.nnue.as_mut() {\n             acc.change(&original_mover, -1);\n             for (_, piece) in &removed { acc.change(piece, -1); }\n@@ -1295,6 +1297,7 @@ impl GameState {\n             prev_hash,\n             prev_rep_len,\n             prev_eval_inc,\n+            nnue_snapshot,\n         })\n     }\n \n@@ -1303,9 +1306,15 @@ impl GameState {\n         #[cfg(feature = \"search-profile\")]\n         let _make = crate::profile_timers::make_scope();\n         if let Some(acc) = self.nnue.as_mut() {\n-            if let Some(piece) = self.board.get_piece(undo.final_to) { acc.change(&piece, -1); }\n-            acc.change(&undo.original_mover, 1);\n-            for (_, piece) in &undo.removed { acc.change(piece, 1); }\n+            if let Some(snapshot) = undo.nnue_snapshot {\n+                if !acc.restore_sums(snapshot) {\n+                    self.nnue = None;\n+                }\n+            } else {\n+                // A caller initialized NNUE only after making this move.\n+                // Invalidate it rather than keep sums for the child position.\n+                self.nnue = None;\n+            }\n         }\n         self.board.remove_piece(undo.final_to);\n         self.board.place_piece(undo.original_mover);\n@@ -2233,4 +2242,3 @@ mod tests {\n         assert_eq!(state.repetition_count(), 1);\n     }\n }\n-\ndiff --git a/src/nnue/features.rs b/src/nnue/features.rs\nindex d03ebfa..1503bcd 100644\n--- a/src/nnue/features.rs\n+++ b/src/nnue/features.rs\n@@ -107,7 +107,7 @@ fn abilities(piece: &Piece) -> BTreeSet<String> {\n     }\n     out\n }\n-fn key(p: &Piece) -> usize {\n+pub(super) fn key(p: &Piece) -> usize {\n     (p.piece_type as usize * 4\n         + usize::from(p.is_promoted)\n         + 2 * usize::from(p.base_piece_type == Some(PieceType::ReverseChariot)))\ndiff --git a/src/nnue/mod.rs b/src/nnue/mod.rs\nindex 4fca9ae..4ec8450 100644\n--- a/src/nnue/mod.rs\n+++ b/src/nnue/mod.rs\n@@ -1,5 +1,8 @@\n //! Versioned, content-verified NNUE residual on a fixed material baseline.\n pub mod features;\n+mod storage;\n+mod packed;\n+pub(crate) use storage::Snapshot;\n use crate::{\n     board::Board,\n     piece::{Color, Piece},\n@@ -196,13 +199,14 @@ impl Network {\n pub struct Accumulator {\n     pub net: Arc<Network>,\n     sums: Vec<i32>,\n+    storage: storage::Storage,\n }\n thread_local! {static INPUT:std::cell::RefCell<Vec<u8>>=const{std::cell::RefCell::new(Vec::new())};}\n impl Accumulator {\n     pub fn new(net: Arc<Network>, board: &Board) -> Self {\n         let mut sums = net.bias.clone();\n         sums.extend_from_slice(&net.bias);\n-        let mut a = Self { net, sums };\n+        let mut a = Self { net, sums, storage: storage::Storage::default() };\n         for c in [Color::Black, Color::White] {\n             for p in board.pieces_by_color(c) {\n                 a.change(p, 1);\n@@ -214,17 +218,7 @@ impl Accumulator {\n         Arc::ptr_eq(&self.net, net)\n     }\n     pub fn change(&mut self, p: &Piece, sign: i32) {\n-        let w = self.net.width;\n-        for (side, c) in [Color::Black, Color::White].into_iter().enumerate() {\n-            features::visit(p, c, |i| {\n-                for (a, &b) in self.sums[side * w..(side + 1) * w]\n-                    .iter_mut()\n-                    .zip(&self.net.weights[i * w..(i + 1) * w])\n-                {\n-                    *a += sign * i32::from(b);\n-                }\n-            });\n-        }\n+        self.change_cached(p, sign);\n     }\n     pub fn residual(&self, stm: Color) -> i32 {\n         let w = self.net.width;\n@@ -242,11 +236,7 @@ impl Accumulator {\n             }\n             let mut h = [0i32; 32];\n             for (j, y) in h.iter_mut().enumerate() {\n-                let sum: i32 = x\n-                    .iter()\n-                    .zip(&self.net.h1[j * 2 * w..(j + 1) * 2 * w])\n-                    .map(|(&a, &b)| i32::from(a) * i32::from(b))\n-                    .sum();\n+                let sum = packed::dot(&x, &self.net.h1[j * 2 * w..(j + 1) * 2 * w]);\n                 *y = ((sum + self.net.b1[j] + 32) / 64).clamp(0, 127);\n             }\n             let mut result = self.net.out_bias;\n@@ -277,7 +267,7 @@ pub fn material(board: &Board, weights: &crate::eval::EvalWeights) -> f32 {\n }\n \n #[cfg(test)]\n-mod tests {\n+pub(crate) mod tests {\n     use super::*;\n     use crate::{\n         eval::{self, EvalWeights},\n@@ -286,7 +276,7 @@ mod tests {\n         position::Position,\n         search::{search, SearchConfig},\n     };\n-    fn net(width: usize, tag: &str) -> Arc<Network> {\n+    pub(crate) fn net(width: usize, tag: &str) -> Arc<Network> {\n         Arc::new(Network {\n             width,\n             sha256: tag.into(),\n@@ -400,6 +390,28 @@ mod tests {\n         assert!(s.nnue.is_none());\n     }\n     #[test]\n+    fn undo_after_model_rebinding_invalidates_the_old_snapshot() {\n+        for initially_bound in [false, true] {\n+            let mut s = state();\n+            let mut w = EvalWeights::seed();\n+            if initially_bound {\n+                w.nnue_runtime = Some(net(32, \"before\"));\n+                s.ensure_eval_inc(&w);\n+            }\n+            let undo = s.make_move_for_search(Move::new(\n+                Position::new(5, 5).unwrap(), Position::new(5, 8).unwrap(),\n+            )).unwrap();\n+            w.nnue_runtime = Some(net(64, \"after\"));\n+            s.ensure_eval_inc(&w);\n+            s.unmake_move_for_search(undo);\n+            assert!(s.nnue.is_none());\n+            let score = eval::evaluate(&s, &w);\n+            s.ensure_eval_inc(&w);\n+            assert!(s.nnue.as_ref().unwrap().matches_rebuild(s.get_board()));\n+            assert_eq!(score, eval::evaluate(&s, &w));\n+        }\n+    }\n+    #[test]\n     fn schema_stable_and_color_rotation_equivalent() {\n         assert_eq!(features::schema().names.len(), 85);\n         let mut a = Board::new();\ndiff --git a/src/search.rs b/src/search.rs\nindex 0dc24ee..bd07c66 100644\n--- a/src/search.rs\n+++ b/src/search.rs\n@@ -908,11 +908,17 @@ fn move_resolves_last_royal_check(state: &mut GameState, mv: &Move) -> bool {\n         return true;\n     }\n     let us = state.get_current_turn();\n-    let Some(undo) = state.make_move_for_search(mv.clone()) else {\n-        return false;\n+    // This rule-only probe never evaluates a position. Keep the original\n+    // accumulator (and its caches) untouched while simulating board changes.\n+    let nnue = state.nnue.take();\n+    let ok = if let Some(undo) = state.make_move_for_search(mv.clone()) {\n+        let ok = color_last_royal_resolved(state, us);\n+        state.unmake_move_for_search(undo);\n+        ok\n+    } else {\n+        false\n     };\n-    let ok = color_last_royal_resolved(state, us);\n-    state.unmake_move_for_search(undo);\n+    state.nnue = nnue;\n     ok\n }\n \n@@ -7072,6 +7078,37 @@ mod tests {\n         (state, weights, take)\n     }\n \n+    #[test]\n+    fn royal_probe_preserves_nnue_and_matches_normal_simulation() {\n+        let (mut initial, mut weights, _) = last_royal_check_hanging_dragon();\n+        weights.nnue_runtime = Some(crate::nnue::tests::net(32, \"royal-probe\"));\n+        initial.ensure_eval_inc(&weights);\n+        let mut moves = initial.generate_legal_moves();\n+        // Also exercise the failed-make path, which must restore the accumulator.\n+        moves.push(Move::new(Position::new(34, 0).unwrap(), Position::new(33, 0).unwrap()));\n+        for mv in moves {\n+            let mut fast = initial.clone();\n+            let mut reference = initial.clone();\n+            let us = reference.get_current_turn();\n+            let before = [Color::Black, Color::White].map(|c| fast.nnue.as_ref().unwrap().residual(c));\n+            let expected = if capture_takes_last_enemy_royal(&reference, &mv) {\n+                true\n+            } else if let Some(undo) = reference.make_move_for_search(mv.clone()) {\n+                let resolved = color_last_royal_resolved(&reference, us);\n+                reference.unmake_move_for_search(undo);\n+                resolved\n+            } else { false };\n+            assert_eq!(move_resolves_last_royal_check(&mut fast, &mv), expected);\n+            assert!(fast.nnue.as_ref().unwrap().matches_rebuild(fast.get_board()));\n+            assert_eq!(before, [Color::Black, Color::White].map(|c| fast.nnue.as_ref().unwrap().residual(c)));\n+            assert_eq!(fast.hash(), reference.hash());\n+            assert_eq!(fast.repetition_count(), reference.repetition_count());\n+            for color in [Color::Black, Color::White] {\n+                assert_eq!(fast.get_board().pieces_by_color(color), reference.get_board().pieces_by_color(color));\n+            }\n+        }\n+    }\n+\n     #[test]\n     fn last_royal_check_filters_to_hanging_dragon_recapture() {\n         let (mut state, weights, take) = last_royal_check_hanging_dragon();\n",
+  "phase": "timed",
+  "source_sha256": {
+    "src/nnue/mod.rs": "6110c15b10705337dffb0867910feaf151f217c346ec58755378fba0378d87ca",
+    "src/nnue/packed.rs": "aeb50d9fb6615a8d508898551294b6aeb351281e7e6fc397ff22ff6fef81b4bf",
+    "src/nnue/storage.rs": "226484dd9b276c19de131896828aba00ae09ee5eecaed895f680f558da0bc85c",
+    "src/nnue/features.rs": "21709cf4210730f905669b692dede19348173114ab01a179ea6d7cb5c13ff167",
+    "src/search.rs": "7efc38c68f88c490e144743548735361dc6c961bd8bd65cd113ebf1eeedd4a45",
+    "src/game_state.rs": "2dd33c3f139fe69b3e5fe6ef2107301966ede77a7d847997c1973d300336eab6",
+    "examples/nnue_speed_check.rs": "cd648742ce1c5369a030adfca0cf762026fdd82b6737574fa1a0c5d9a5b71d71",
+    "/tmp/taikyoku-nnue-production/benchmarks/nnue_production/check.py": "9aab56615a8bc6da4f801e20b593f450f769eb226be20c6bad786e4a5a1f8d71"
+  },
+  "binary_sha256": {
+    "reference": "e755e223feeefcb11f6ccec80e17c82b309fe65f1fc5a1364b1b35b01a1deba8",
+    "candidate": "331007612d012a07f033b92556f9d87d24c64a972da77c5fe53832ea7f9f2638"
+  },
+  "game_sha256": {
+    "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0002-BASE_C2S2_A40_Lmate-vs-NNUE_W512_v1-a-white.json": "315684a55724ccb297bc7205f719abf7701a99b9dddbd12bad26a23953a5670d",
+    "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0007-NNUE_W1024_v1-vs-C2K50A1-a-white.json": "5aca746fc7cdaf325a04d61847c470636cf391a79a755bfe06cb7f41ae7eba9a",
+    "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0041-BASE_C2S2_A80_Lflight-vs-NNUE_W2048_v1-a-white.json": "48db53e7f60f96e79cf58d35a624698f970d125b3e981ee450db9c6edffd5cd2",
+    "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0034-NNUE_W1024_v1-vs-C2K50A1-a-white.json": "97f5b99c5a0ec6e53508b014940fd6aad9cf4fb97f062a264b282f8770d97846"
+  },
+  "models": {
+    "W512": {
+      "path": "/home/frank/taikyoku_shogi/data/nnue-admission-v2/NNUE_W512_v2.json",
+      "sha256": "cc35f156f63ce898da757b2ef000e45d5f7d4d97b41d0bed4ca10c435a0f0f42",
+      "nnue": {
+        "file": "nnue-c42dc7aa1811d9ebdcfca74c190a7234a292156f63ee0780b4e9a580cd2eb131.bin",
+        "sha256": "c42dc7aa1811d9ebdcfca74c190a7234a292156f63ee0780b4e9a580cd2eb131",
+        "width": 512,
+        "feature_hash": "126bc08ca9871740d5cc545d4c1723d21e7705089bf98a79b8714a598409ca72"
+      }
+    },
+    "W2048": {
+      "path": "/home/frank/taikyoku_shogi/data/nnue-admission-v2/NNUE_W2048_v2.json",
+      "sha256": "0f5d5754a7ec378ba73fc646bd0a9757d273d776e17c3e6b5523dcb76f8b5c7d",
+      "nnue": {
+        "file": "nnue-bfb0ddf94230ab010cb0e818c653dc8ae9bcf0ab4c4992366eea31dcddb11ddd.bin",
+        "sha256": "bfb0ddf94230ab010cb0e818c653dc8ae9bcf0ab4c4992366eea31dcddb11ddd",
+        "width": 2048,
+        "feature_hash": "126bc08ca9871740d5cc545d4c1723d21e7705089bf98a79b8714a598409ca72"
+      }
+    }
+  },
+  "cpu": 0,
+  "rustflags": "-C target-cpu=native",
+  "compiler": "rustc 1.92.0 (ded5c06cf 2025-12-08)\nbinary: rustc\ncommit-hash: ded5c06cf21d2b93bffd5d884aa6e96934ee4234\ncommit-date: 2025-12-08\nhost: x86_64-unknown-linux-gnu\nrelease: 1.92.0\nLLVM version: 21.1.3\n",
+  "order": [
+    [
+      0,
+      "W2048",
+      {
+        "name": "middlegame",
+        "game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0007-NNUE_W1024_v1-vs-C2K50A1-a-white.json",
+        "sha256": "5aca746fc7cdaf325a04d61847c470636cf391a79a755bfe06cb7f41ae7eba9a",
+        "ply": 160
+      },
+      "reference"
+    ],
+    [
+      0,
+      "W2048",
+      {
+        "name": "middlegame",
+        "game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0007-NNUE_W1024_v1-vs-C2K50A1-a-white.json",
+        "sha256": "5aca746fc7cdaf325a04d61847c470636cf391a79a755bfe06cb7f41ae7eba9a",
+        "ply": 160
+      },
+      "candidate"
+    ],
+    [
+      0,
+      "W2048",
+      {
+        "name": "opening",
+        "game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0002-BASE_C2S2_A40_Lmate-vs-NNUE_W512_v1-a-white.json",
+        "sha256": "315684a55724ccb297bc7205f719abf7701a99b9dddbd12bad26a23953a5670d",
+        "ply": 0
+      },
+      "candidate"
+    ],
+    [
+      0,
+      "W2048",
+      {
+        "name": "opening",
+        "game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0002-BASE_C2S2_A40_Lmate-vs-NNUE_W512_v1-a-white.json",
+        "sha256": "315684a55724ccb297bc7205f719abf7701a99b9dddbd12bad26a23953a5670d",
+        "ply": 0
+      },
+      "reference"
+    ],
+    [
+      0,
+      "W2048",
+      {
+        "name": "long-history",
+        "game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0034-NNUE_W1024_v1-vs-C2K50A1-a-white.json",
+        "sha256": "97f5b99c5a0ec6e53508b014940fd6aad9cf4fb97f062a264b282f8770d97846",
+        "ply": 2000
+      },
+      "candidate"
+    ],
+    [
+      0,
+      "W2048",
+      {
+        "name": "long-history",
+        "game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0034-NNUE_W1024_v1-vs-C2K50A1-a-white.json",
+        "sha256": "97f5b99c5a0ec6e53508b014940fd6aad9cf4fb97f062a264b282f8770d97846",
+        "ply": 2000
+      },
+      "reference"
+    ],
+    [
+      0,
+      "W512",
+      {
+        "name": "tactical",
+        "game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0041-BASE_C2S2_A80_Lflight-vs-NNUE_W2048_v1-a-white.json",
+        "sha256": "48db53e7f60f96e79cf58d35a624698f970d125b3e981ee450db9c6edffd5cd2",
+        "ply": 360
+      },
+      "candidate"
+    ],
+    [
+      0,
+      "W512",
+      {
+        "name": "tactical",
+        "game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0041-BASE_C2S2_A80_Lflight-vs-NNUE_W2048_v1-a-white.json",
+        "sha256": "48db53e7f60f96e79cf58d35a624698f970d125b3e981ee450db9c6edffd5cd2",
+        "ply": 360
+      },
+      "reference"
+    ],
+    [
+      0,
+      "W512",
+      {
+        "name": "opening",
+        "game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0002-BASE_C2S2_A40_Lmate-vs-NNUE_W512_v1-a-white.json",
+        "sha256": "315684a55724ccb297bc7205f719abf7701a99b9dddbd12bad26a23953a5670d",
+        "ply": 0
+      },
+      "reference"
+    ],
+    [
+      0,
+      "W512",
+      {
+        "name": "opening",
+        "game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0002-BASE_C2S2_A40_Lmate-vs-NNUE_W512_v1-a-white.json",
+        "sha256": "315684a55724ccb297bc7205f719abf7701a99b9dddbd12bad26a23953a5670d",
+        "ply": 0
+      },
+      "candidate"
+    ],
+    [
+      0,
+      "W512",
+      {
+        "name": "long-history",
+        "game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0034-NNUE_W1024_v1-vs-C2K50A1-a-white.json",
+        "sha256": "97f5b99c5a0ec6e53508b014940fd6aad9cf4fb97f062a264b282f8770d97846",
+        "ply": 2000
+      },
+      "candidate"
+    ],
+    [
+      0,
+      "W512",
+      {
+        "name": "long-history",
+        "game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0034-NNUE_W1024_v1-vs-C2K50A1-a-white.json",
+        "sha256": "97f5b99c5a0ec6e53508b014940fd6aad9cf4fb97f062a264b282f8770d97846",
+        "ply": 2000
+      },
+      "reference"
+    ],
+    [
+      0,
+      "W2048",
+      {
+        "name": "tactical",
+        "game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0041-BASE_C2S2_A80_Lflight-vs-NNUE_W2048_v1-a-white.json",
+        "sha256": "48db53e7f60f96e79cf58d35a624698f970d125b3e981ee450db9c6edffd5cd2",
+        "ply": 360
+      },
+      "candidate"
+    ],
+    [
+      0,
+      "W2048",
+      {
+        "name": "tactical",
+        "game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0041-BASE_C2S2_A80_Lflight-vs-NNUE_W2048_v1-a-white.json",
+        "sha256": "48db53e7f60f96e79cf58d35a624698f970d125b3e981ee450db9c6edffd5cd2",
+        "ply": 360
+      },
+      "reference"
+    ],
+    [
+      0,
+      "W512",
+      {
+        "name": "middlegame",
+        "game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0007-NNUE_W1024_v1-vs-C2K50A1-a-white.json",
+        "sha256": "5aca746fc7cdaf325a04d61847c470636cf391a79a755bfe06cb7f41ae7eba9a",
+        "ply": 160
+      },
+      "candidate"
+    ],
+    [
+      0,
+      "W512",
+      {
+        "name": "middlegame",
+        "game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0007-NNUE_W1024_v1-vs-C2K50A1-a-white.json",
+        "sha256": "5aca746fc7cdaf325a04d61847c470636cf391a79a755bfe06cb7f41ae7eba9a",
+        "ply": 160
+      },
+      "reference"
+    ],
+    [
+      1,
+      "W2048",
+      {
+        "name": "opening",
+        "game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0002-BASE_C2S2_A40_Lmate-vs-NNUE_W512_v1-a-white.json",
+        "sha256": "315684a55724ccb297bc7205f719abf7701a99b9dddbd12bad26a23953a5670d",
+        "ply": 0
+      },
+      "reference"
+    ],
+    [
+      1,
+      "W2048",
+      {
+        "name": "opening",
+        "game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0002-BASE_C2S2_A40_Lmate-vs-NNUE_W512_v1-a-white.json",
+        "sha256": "315684a55724ccb297bc7205f719abf7701a99b9dddbd12bad26a23953a5670d",
+        "ply": 0
+      },
+      "candidate"
+    ],
+    [
+      1,
+      "W2048",
+      {
+        "name": "middlegame",
+        "game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0007-NNUE_W1024_v1-vs-C2K50A1-a-white.json",
+        "sha256": "5aca746fc7cdaf325a04d61847c470636cf391a79a755bfe06cb7f41ae7eba9a",
+        "ply": 160
+      },
+      "candidate"
+    ],
+    [
+      1,
+      "W2048",
+      {
+        "name": "middlegame",
+        "game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0007-NNUE_W1024_v1-vs-C2K50A1-a-white.json",
+        "sha256": "5aca746fc7cdaf325a04d61847c470636cf391a79a755bfe06cb7f41ae7eba9a",
+        "ply": 160
+      },
+      "reference"
+    ],
+    [
+      1,
+      "W512",
+      {
+        "name": "tactical",
+        "game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0041-BASE_C2S2_A80_Lflight-vs-NNUE_W2048_v1-a-white.json",
+        "sha256": "48db53e7f60f96e79cf58d35a624698f970d125b3e981ee450db9c6edffd5cd2",
+        "ply": 360
+      },
+      "reference"
+    ],
+    [
+      1,
+      "W512",
+      {
+        "name": "tactical",
+        "game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0041-BASE_C2S2_A80_Lflight-vs-NNUE_W2048_v1-a-white.json",
+        "sha256": "48db53e7f60f96e79cf58d35a624698f970d125b3e981ee450db9c6edffd5cd2",
+        "ply": 360
+      },
+      "candidate"
+    ],
+    [
+      1,
+      "W512",
+      {
+        "name": "opening",
+        "game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0002-BASE_C2S2_A40_Lmate-vs-NNUE_W512_v1-a-white.json",
+        "sha256": "315684a55724ccb297bc7205f719abf7701a99b9dddbd12bad26a23953a5670d",
+        "ply": 0
+      },
+      "candidate"
+    ],
+    [
+      1,
+      "W512",
+      {
+        "name": "opening",
+        "game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0002-BASE_C2S2_A40_Lmate-vs-NNUE_W512_v1-a-white.json",
+        "sha256": "315684a55724ccb297bc7205f719abf7701a99b9dddbd12bad26a23953a5670d",
+        "ply": 0
+      },
+      "reference"
+    ],
+    [
+      1,
+      "W2048",
+      {
+        "name": "tactical",
+        "game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0041-BASE_C2S2_A80_Lflight-vs-NNUE_W2048_v1-a-white.json",
+        "sha256": "48db53e7f60f96e79cf58d35a624698f970d125b3e981ee450db9c6edffd5cd2",
+        "ply": 360
+      },
+      "reference"
+    ],
+    [
+      1,
+      "W2048",
+      {
+        "name": "tactical",
+        "game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0041-BASE_C2S2_A80_Lflight-vs-NNUE_W2048_v1-a-white.json",
+        "sha256": "48db53e7f60f96e79cf58d35a624698f970d125b3e981ee450db9c6edffd5cd2",
+        "ply": 360
+      },
+      "candidate"
+    ],
+    [
+      1,
+      "W2048",
+      {
+        "name": "long-history",
+        "game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0034-NNUE_W1024_v1-vs-C2K50A1-a-white.json",
+        "sha256": "97f5b99c5a0ec6e53508b014940fd6aad9cf4fb97f062a264b282f8770d97846",
+        "ply": 2000
+      },
+      "reference"
+    ],
+    [
+      1,
+      "W2048",
+      {
+        "name": "long-history",
+        "game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0034-NNUE_W1024_v1-vs-C2K50A1-a-white.json",
+        "sha256": "97f5b99c5a0ec6e53508b014940fd6aad9cf4fb97f062a264b282f8770d97846",
+        "ply": 2000
+      },
+      "candidate"
+    ],
+    [
+      1,
+      "W512",
+      {
+        "name": "middlegame",
+        "game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0007-NNUE_W1024_v1-vs-C2K50A1-a-white.json",
+        "sha256": "5aca746fc7cdaf325a04d61847c470636cf391a79a755bfe06cb7f41ae7eba9a",
+        "ply": 160
+      },
+      "reference"
+    ],
+    [
+      1,
+      "W512",
+      {
+        "name": "middlegame",
+        "game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0007-NNUE_W1024_v1-vs-C2K50A1-a-white.json",
+        "sha256": "5aca746fc7cdaf325a04d61847c470636cf391a79a755bfe06cb7f41ae7eba9a",
+        "ply": 160
+      },
+      "candidate"
+    ],
+    [
+      1,
+      "W512",
+      {
+        "name": "long-history",
+        "game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0034-NNUE_W1024_v1-vs-C2K50A1-a-white.json",
+        "sha256": "97f5b99c5a0ec6e53508b014940fd6aad9cf4fb97f062a264b282f8770d97846",
+        "ply": 2000
+      },
+      "reference"
+    ],
+    [
+      1,
+      "W512",
+      {
+        "name": "long-history",
+        "game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0034-NNUE_W1024_v1-vs-C2K50A1-a-white.json",
+        "sha256": "97f5b99c5a0ec6e53508b014940fd6aad9cf4fb97f062a264b282f8770d97846",
+        "ply": 2000
+      },
+      "candidate"
+    ]
+  ],
+  "warmup_depth": 1,
+  "reference_main": "05b6ec7",
+  "timed_reference": "full bundle, not unoptimized main"
+}

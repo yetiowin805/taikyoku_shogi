@@ -78,6 +78,7 @@ pub struct SearchUndo {
     /// Length of `rep_history` before this move was pushed.
     prev_rep_len: usize,
     prev_eval_inc: Option<crate::eval::EvalInc>,
+    nnue_snapshot: Option<crate::nnue::Snapshot>,
 }
 
 /// Occurrences of the same position (pieces + STM) that adjudicate a draw.
@@ -1280,6 +1281,7 @@ impl GameState {
             }
         }
 
+        let nnue_snapshot = self.nnue.as_mut().map(|acc| acc.save_sums());
         if let Some(acc) = self.nnue.as_mut() {
             acc.change(&original_mover, -1);
             for (_, piece) in &removed { acc.change(piece, -1); }
@@ -1295,6 +1297,7 @@ impl GameState {
             prev_hash,
             prev_rep_len,
             prev_eval_inc,
+            nnue_snapshot,
         })
     }
 
@@ -1303,9 +1306,15 @@ impl GameState {
         #[cfg(feature = "search-profile")]
         let _make = crate::profile_timers::make_scope();
         if let Some(acc) = self.nnue.as_mut() {
-            if let Some(piece) = self.board.get_piece(undo.final_to) { acc.change(&piece, -1); }
-            acc.change(&undo.original_mover, 1);
-            for (_, piece) in &undo.removed { acc.change(piece, 1); }
+            if let Some(snapshot) = undo.nnue_snapshot {
+                if !acc.restore_sums(snapshot) {
+                    self.nnue = None;
+                }
+            } else {
+                // A caller initialized NNUE only after making this move.
+                // Invalidate it rather than keep sums for the child position.
+                self.nnue = None;
+            }
         }
         self.board.remove_piece(undo.final_to);
         self.board.place_piece(undo.original_mover);
@@ -2233,4 +2242,3 @@ mod tests {
         assert_eq!(state.repetition_count(), 1);
     }
 }
-
