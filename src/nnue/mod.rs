@@ -35,6 +35,8 @@ pub struct Network {
     b2: Vec<i32>,
     out: Vec<f32>,
     out_bias: f32,
+    #[cfg(feature = "nnue-speed-probes")]
+    head_plan: Option<experiment::HeadPlan>,
 }
 impl std::fmt::Debug for Network {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -178,6 +180,8 @@ impl Network {
             b2: i32s(&mut r, 32)?,
             out: f32s(&mut r, 32)?,
             out_bias: f32s(&mut r, 1)?[0],
+            #[cfg(feature = "nnue-speed-probes")]
+            head_plan: experiment::head_plan(&d.sha256, w),
         });
         // Accumulator arithmetic stays bounded even on a completely occupied board.
         if net.weights.iter().any(|&x| i32::from(x).abs() > 2048)
@@ -222,6 +226,8 @@ impl Accumulator {
     }
     pub fn change(&mut self, p: &Piece, sign: i32) {
         #[cfg(feature = "nnue-speed-probes")]
+        { self.probe.residual.set([None;2]); experiment::count(2); }
+        #[cfg(feature = "nnue-speed-probes")]
         if experiment::fused() {
             self.change_fused(p, sign);
             return;
@@ -239,8 +245,26 @@ impl Accumulator {
         }
     }
     pub fn residual(&self, stm: Color) -> i32 {
+        #[cfg(feature = "nnue-speed-probes")]
+        {
+            experiment::count(0);
+            if experiment::followup().memo {
+                let side=usize::from(stm==Color::White);
+                let mut cached=self.probe.residual.get();
+                if let Some(v)=cached[side] { experiment::count(1); return v; }
+                let v=self.residual_uncached(stm);
+                cached[side]=Some(v);
+                self.probe.residual.set(cached);
+                return v;
+            }
+        }
+        self.residual_uncached(stm)
+    }
+    fn residual_uncached(&self, stm: Color) -> i32 {
         let w = self.net.width;
         let first = usize::from(stm == Color::White);
+        #[cfg(feature = "nnue-speed-probes")]
+        let followup = experiment::followup();
         INPUT.with(|input| {
             let mut x = input.borrow_mut();
             x.resize(2 * w, 0);
@@ -249,11 +273,24 @@ impl Accumulator {
                     .iter_mut()
                     .zip(&self.sums[(first ^ side) * w..((first ^ side) + 1) * w])
                 {
+                    #[cfg(feature = "nnue-speed-probes")]
+                    if followup.quant { *d=experiment::quantize(a); continue; }
                     *d = ((i64::from(a) * 127 + 2048) / 4096).clamp(0, 127) as u8;
                 }
             }
             let mut h = [0i32; 32];
             for (j, y) in h.iter_mut().enumerate() {
+                #[cfg(feature = "nnue-speed-probes")]
+                {
+                    if let Some(plan)=&self.net.head_plan {
+                        if !plan.keep.contains(&j) { *y=plan.fill[j]; continue; }
+                    }
+                    if followup.packed {
+                        let sum=experiment::dot(&x, &self.net.h1[j*2*w..(j+1)*2*w]);
+                        *y=((sum+self.net.b1[j]+32)/64).clamp(0,127);
+                        continue;
+                    }
+                }
                 let sum: i32 = x
                     .iter()
                     .zip(&self.net.h1[j * 2 * w..(j + 1) * 2 * w])
@@ -312,6 +349,8 @@ mod tests {
             b2: vec![1024; 32],
             out: vec![0.02; 32],
             out_bias: -0.1,
+            #[cfg(feature = "nnue-speed-probes")]
+            head_plan: None,
         })
     }
     fn state() -> GameState {

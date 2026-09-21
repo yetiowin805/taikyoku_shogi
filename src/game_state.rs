@@ -79,7 +79,7 @@ pub struct SearchUndo {
     prev_rep_len: usize,
     prev_eval_inc: Option<crate::eval::EvalInc>,
     #[cfg(feature = "nnue-speed-probes")]
-    nnue_snapshot: Option<Vec<i32>>,
+    nnue_snapshot: Option<crate::nnue::experiment::Snapshot>,
 }
 
 /// Occurrences of the same position (pieces + STM) that adjudicate a draw.

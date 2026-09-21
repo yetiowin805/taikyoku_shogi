@@ -2,6 +2,10 @@
 
 Research date: 20 September 2026. The selected next-run baseline is native compilation + cached ability-vector sums + saved accumulator undo. Every future timing comparison should use that combination as its control. None of the ideas below has a measured whole-search speedup over that baseline yet. The live tournament and checkpoints were not changed.
 
+Update: [follow-up experiments](FURTHER_RESULTS.md) now measure four exact additions
+and two smaller-head ablations. The discussion below preserves the original
+hypotheses; use that result report for measured gains and decisions.
+
 The source review focused on Stockfish, YaneuraOu, and the Rust engine Viridithas. Their techniques are useful precedents, but their architectures, boards and activation distributions differ from ours. In particular, copying Stockfish's sparse path or 16-bit accumulator type is not automatically appropriate.
 
 ## Highest-priority experiments

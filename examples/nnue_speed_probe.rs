@@ -64,6 +64,8 @@ fn main() -> Result<(), String> {
             samples.push(json!({"forward_ns":forward_ns,"change_pair_ns":change_pair_ns,"make_unmake_ns":make_unmake_ns}));
         }
         println!("{}", json!({"micro":samples}));
+    } else if args[6] == "static" {
+        println!("{}",json!({"static_score":static_score}));
     } else {
         assert_eq!(args[6], "search");
         let mut cfg = AlphaBetaPlayer::from_checkpoint(cp.clone())
@@ -71,6 +73,7 @@ fn main() -> Result<(), String> {
             .clone();
         cfg.depth = args[5].parse().map_err(|_| "bad depth")?;
         cfg.max_time_ms = Some(args[4].parse().map_err(|_| "bad time")?);
+        taikyoku_shogi::nnue::experiment::reset_counters();
         let t = Instant::now();
         let r = search(&state, &cp.weights, &cfg);
         let elapsed_ns = t.elapsed().as_nanos();
@@ -82,6 +85,7 @@ fn main() -> Result<(), String> {
             "{}",
             json!({"elapsed_ns":elapsed_ns,"depth":r.completed_depth,
             "nodes":r.nodes,"qnodes":r.q_nodes,"score":r.score,"static_score":static_score,
+            "counters":taikyoku_shogi::nnue::experiment::counters(),
             "best":r.best_move,"root_lines":r.root_lines,"legal":legal,"aborted":r.aborted})
         );
     }

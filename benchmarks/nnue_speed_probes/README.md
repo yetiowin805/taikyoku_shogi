@@ -9,6 +9,11 @@ See [measured results](RESULTS.md) for the selected next-run baseline and
 and diagnostics of our current checkpoints. Follow-up ideas are not measured
 whole-search gains over the combined baseline.
 
+The [follow-up results](FURTHER_RESULTS.md) measure packed arithmetic,
+royal-probe bypass, exact activation conversion, residual caching, and smaller
+dense-head ablations. See [the follow-up protocol](FOLLOWUP_EXPERIMENTS.md) for
+the quality checks, runtime flags, and reproduction commands.
+
 - **fused:** a 4,096-slot direct-mapped cache sums all ability vectors for a
   piece/square/perspective into one i32 vector. Keys include schema piece identity,
   promotion/base-piece distinctions, color, square and perspective. Cache
