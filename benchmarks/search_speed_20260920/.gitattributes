@@ -1,0 +1,3 @@
+# Preserve verbatim evidence: patch context and cargo output contain whitespace.
+results/*.patch -whitespace
+results/tests-*.log -whitespace

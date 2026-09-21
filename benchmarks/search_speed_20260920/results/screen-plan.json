@@ -1,0 +1,105 @@
+{
+  "phase": "screen",
+  "label": "screen",
+  "variants": [
+    "placebo",
+    "qcache",
+    "iter",
+    "pool0",
+    "tt-clear",
+    "tt-dirty"
+  ],
+  "repeats": 3,
+  "cpu": 2,
+  "cases": [
+    {
+      "position": 0,
+      "model": 0,
+      "depth": 3
+    },
+    {
+      "position": 0,
+      "model": 1,
+      "depth": 3
+    },
+    {
+      "position": 0,
+      "model": 2,
+      "depth": 3
+    },
+    {
+      "position": 0,
+      "model": 3,
+      "depth": 1
+    },
+    {
+      "position": 1,
+      "model": 0,
+      "depth": 3
+    },
+    {
+      "position": 1,
+      "model": 1,
+      "depth": 3
+    },
+    {
+      "position": 1,
+      "model": 2,
+      "depth": 3
+    },
+    {
+      "position": 1,
+      "model": 3,
+      "depth": 2
+    },
+    {
+      "position": 2,
+      "model": 0,
+      "depth": 1
+    },
+    {
+      "position": 2,
+      "model": 1,
+      "depth": 1
+    },
+    {
+      "position": 2,
+      "model": 2,
+      "depth": 1
+    },
+    {
+      "position": 2,
+      "model": 3,
+      "depth": 1
+    },
+    {
+      "position": 3,
+      "model": 0,
+      "depth": 1
+    },
+    {
+      "position": 3,
+      "model": 1,
+      "depth": 1
+    },
+    {
+      "position": 3,
+      "model": 2,
+      "depth": 3
+    },
+    {
+      "position": 3,
+      "model": 3,
+      "depth": 2
+    }
+  ],
+  "seed": 20260921,
+  "primary": "equal-position/equal-agent geometric mean paired wall-time ratio; position-cluster 95% CI and exact two-sided sign-flip test",
+  "holdout_positions": [
+    4,
+    5,
+    6,
+    7
+  ],
+  "created": 1789947132.8057404
+}

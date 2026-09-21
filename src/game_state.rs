@@ -1571,7 +1571,7 @@ impl GameState {
 
         // If using capturing range movement, capture all pieces in the path
         if uses_capturing {
-            let path_positions = path_utils::get_path_positions(mv.from, mv.to);
+            let path_positions = path_utils::path_positions(mv.from, mv.to);
             // Remove all pieces in the path (excluding start and destination)
             // Start is excluded because that's where the moving piece is
             // Destination is excluded because move_piece will handle it

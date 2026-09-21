@@ -1,0 +1,306 @@
+--- a/src/game_state.rs
++++ b/src/game_state.rs
+@@ -1553,7 +1553,7 @@
+ 
+         // If using capturing range movement, capture all pieces in the path
+         if uses_capturing {
+-            let path_positions = path_utils::get_path_positions(mv.from, mv.to);
++            let path_positions = path_utils::path_positions(mv.from, mv.to);
+             // Remove all pieces in the path (excluding start and destination)
+             // Start is excluded because that's where the moving piece is
+             // Destination is excluded because move_piece will handle it
+--- a/src/move_simulation.rs
++++ b/src/move_simulation.rs
+@@ -369,7 +369,7 @@
+     });
+     
+     if uses_capturing {
+-        let path_positions = path_utils::get_path_positions(mv.from, mv.to);
++        let path_positions = path_utils::path_positions(mv.from, mv.to);
+         for pos in path_positions {
+             if pos != mv.from && pos != mv.to {
+                 if let Some(piece) = board.get_piece(pos) {
+--- a/src/movement/direction.rs
++++ b/src/movement/direction.rs
+@@ -152,3 +152,10 @@
+     }
+ }
+ 
++
++/// Allocation-free direction walk with the same order as the Vec API.
++pub fn direction_iter(set: DirectionSet) -> impl Iterator<Item = Direction> {
++    [Direction::N, Direction::NE, Direction::E, Direction::SE,
++     Direction::S, Direction::SW, Direction::W, Direction::NW]
++        .into_iter().filter(move |d| direction_set_contains(set, *d))
++}
+--- a/src/movement/generator.rs
++++ b/src/movement/generator.rs
+@@ -2,7 +2,7 @@
+ use crate::piece::{Piece, Color};
+ use crate::position::Position;
+ use crate::movement::types::{MovementCapability, BlockingMode};
+-use crate::movement::direction::{Direction, DirectionSet, direction_set_to_directions};
++use crate::movement::direction::{Direction, DirectionSet, direction_iter};
+ use crate::path_utils;
+ 
+ pub struct MovementGenerator;
+@@ -229,7 +229,7 @@
+                         {
+                             // Blocked before this square — only capturable if first blocker.
+                             let path_positions =
+-                                path_utils::get_path_positions(piece.position, pos);
++                                path_utils::path_positions(piece.position, pos);
+                             for path_pos in path_positions {
+                                 if let Some(blocking_piece) = board.get_piece(path_pos) {
+                                     return path_pos == target
+@@ -438,7 +438,7 @@
+         // Adjust directions for color (for pawn and gold general)
+         let adjusted_directions = Self::adjust_directions_for_color(directions, piece.color);
+         
+-        for direction in direction_set_to_directions(adjusted_directions) {
++        for direction in direction_iter(adjusted_directions) {
+             let (file_delta, rank_delta) = direction.to_offset();
+             
+             for distance in 1..=max_distance {
+@@ -453,7 +453,7 @@
+                 if max_distance > 1 {
+                     if !path_utils::is_path_clear_for_boardlike(board, piece.position, target) {
+                         // Path is blocked - find the first blocking piece along the path
+-                        let path_positions = path_utils::get_path_positions(piece.position, target);
++                        let path_positions = path_utils::path_positions(piece.position, target);
+                         for path_pos in path_positions {
+                             if let Some(blocking_piece) = board.get_piece(path_pos) {
+                                 // Found the first blocking piece
+@@ -498,7 +498,7 @@
+         // Adjust directions for color (for pieces that need it)
+         let adjusted_directions = Self::adjust_directions_for_color(directions, piece.color);
+         
+-        for direction in direction_set_to_directions(adjusted_directions) {
++        for direction in direction_iter(adjusted_directions) {
+             let (file_delta, rank_delta) = direction.to_offset();
+             let mut distance = 1;
+             let mut ray_has_enemy_capture = false;
+--- a/src/path_utils.rs
++++ b/src/path_utils.rs
+@@ -305,3 +305,39 @@
+     }
+ }
+ 
++
++/// Lazy equivalent of get_path_positions, including its off-ray stopping rules.
++pub fn path_positions(from: Position, to: Position) -> impl Iterator<Item = Position> {
++    let df = (to.file as i8 - from.file as i8).signum();
++    let dr = (to.rank as i8 - from.rank as i8).signum();
++    let mut file = from.file as i8 + df;
++    let mut rank = from.rank as i8 + dr;
++    let mut done = df == 0 && dr == 0;
++    std::iter::from_fn(move || {
++        if done || (df != 0 && (file - to.file as i8) * df > 0)
++            || (dr != 0 && (rank - to.rank as i8) * dr > 0) { return None; }
++        let p = Position::new(file as u8, rank as u8)?;
++        done = p == to;
++        file += df; rank += dr;
++        Some(p)
++    })
++}
++
++#[cfg(test)]
++mod iterator_parity {
++    use super::*;
++    #[test]
++    fn every_square_pair_matches_old_path() {
++        for a in 0..1296 { for b in 0..1296 {
++            let from=Position::from_index(a).unwrap();let to=Position::from_index(b).unwrap();
++            assert_eq!(get_path_positions(from,to),path_positions(from,to).collect::<Vec<_>>());
++        }}
++    }
++    #[test]
++    fn every_direction_mask_matches_old_order() {
++        for mask in 0..=255 {
++            assert_eq!(crate::movement::direction::direction_set_to_directions(mask),
++                crate::movement::direction::direction_iter(mask).collect::<Vec<_>>());
++        }
++    }
++}
+--- a/src/search.rs
++++ b/src/search.rs
+@@ -156,7 +156,7 @@
+ 
+     let mut occ = 0u64;
+     let mut n = 0u32;
+-    for pos in path_utils::get_path_positions(mv.from, mv.to) {
++    for pos in path_utils::path_positions(mv.from, mv.to) {
+         if pos == mv.to {
+             continue;
+         }
+@@ -501,6 +501,7 @@
+ }
+ 
+ struct TranspositionTable {
++    touched: Vec<usize>,
+     entries: Vec<Option<TtEntry>>,
+     clusters: usize,
+ }
+@@ -515,7 +516,8 @@
+         let n = size_pow2.next_power_of_two().max(1024);
+         let n = (n / clusters) * clusters;
+         Self {
+-            entries: vec![None; n],
++            entries: take_tt_storage(n),
++            touched: Vec::new(),
+             clusters,
+         }
+     }
+@@ -545,6 +547,7 @@
+                 Some(old) => entry.depth >= old.depth || old.key != entry.key,
+             };
+             if replace {
++                if self.entries[base].is_none() { self.touched.push(base); }
+                 self.entries[base] = Some(entry);
+             }
+             return;
+@@ -573,7 +576,9 @@
+                 }
+             }
+         }
+-        self.entries[empty.unwrap_or(worst)] = Some(entry);
++        let idx = empty.unwrap_or(worst);
++        if self.entries[idx].is_none() { self.touched.push(idx); }
++        self.entries[idx] = Some(entry);
+     }
+ }
+ 
+@@ -693,7 +698,7 @@
+         )
+     });
+     if uses_capturing {
+-        for pos in path_utils::get_path_positions(mv.from, mv.to) {
++        for pos in path_utils::path_positions(mv.from, mv.to) {
+             if pos != mv.from
+                 && pos != mv.to
+                 && board.get_piece(pos).is_some_and(|p| p.color == enemy)
+@@ -754,7 +759,7 @@
+     if !piece_has_capturing_range(&piece) {
+         return (enemy, own, CaptureKind::SimpleTake);
+     }
+-    for pos in path_utils::get_path_positions(mv.from, mv.to) {
++    for pos in path_utils::path_positions(mv.from, mv.to) {
+         if pos != mv.from && pos != mv.to && board.get_piece(pos).is_some() {
+             path_occupied = true;
+             add(pos);
+@@ -811,7 +816,7 @@
+     }
+ 
+     if piece_has_capturing_range(&piece) {
+-        for pos in path_utils::get_path_positions(mv.from, mv.to) {
++        for pos in path_utils::path_positions(mv.from, mv.to) {
+             if pos != mv.from && pos != mv.to {
+                 add(pos);
+             }
+@@ -957,7 +962,7 @@
+             add(pos);
+         }
+     } else if piece_has_capturing_range(&mover) {
+-        for pos in path_utils::get_path_positions(mv.from, mv.to) {
++        for pos in path_utils::path_positions(mv.from, mv.to) {
+             if pos != mv.from && pos != mv.to {
+                 add(pos);
+             }
+@@ -1305,7 +1310,7 @@
+     if !piece_has_capturing_range(&piece) {
+         return false;
+     }
+-    path_utils::get_path_positions(mv.from, mv.to)
++    path_utils::path_positions(mv.from, mv.to)
+         .into_iter()
+         .any(|p| p != mv.from && p != mv.to && board.get_piece(p).is_some())
+ }
+@@ -3653,6 +3658,7 @@
+     }
+ 
+     struct QCand {
++        last_royal_take: bool,
+         mv: Move,
+         enemy: f32,
+         own: f32,
+@@ -3692,7 +3698,9 @@
+             let is_hang_dest = dest_hang_kind(state, weights, &mv, QHangOpts::from_ctx(ctx))
+                 .is_some_and(|k| !matches!(k, CaptureKind::SimpleTake));
+             let is_royal_take = capture_takes_enemy_royal(state, &mv);
++            let last_royal_take = false;
+             Some(QCand {
++                last_royal_take,
+                 mv,
+                 enemy,
+                 own,
+@@ -3781,10 +3789,19 @@
+         return stand_pat;
+     }
+ 
++    // Candidates have survived filtering; count royals only once for this node.
++    if cands.len() > 1 {
++    let royal_count = state.get_board().pieces_by_color(state.get_current_turn().opposite())
++        .iter().filter(|p| p.piece_type.is_royal()).count();
++    for candidate in &mut cands {
++        candidate.last_royal_take = candidate.is_royal_take && royal_count > 0
++            && (royal_count == 1 || captured_enemy_royal_count(state, &candidate.mv) >= royal_count);
++    }
++    }
+     // Last-royal (instant win), then loud promo, path-sum, dest recapture, net MVV-LVA.
+     cands.sort_by(|a, b| {
+-        let win_a = capture_takes_last_enemy_royal(state, &a.mv);
+-        let win_b = capture_takes_last_enemy_royal(state, &b.mv);
++        let win_a = a.last_royal_take;
++        let win_b = b.last_royal_take;
+         let win = win_a.cmp(&win_b);
+         if win != std::cmp::Ordering::Equal {
+             return win.reverse();
+@@ -4062,7 +4079,7 @@
+         )
+     });
+     if uses_capturing {
+-        return path_utils::get_path_positions(mv.from, mv.to)
++        return path_utils::path_positions(mv.from, mv.to)
+             .into_iter()
+             .any(|p| p == sq && p != mv.from && is_enemy(sq));
+     }
+@@ -7276,3 +7293,39 @@
+         assert_eq!(aspiration_window(i32::MIN + 1, 500).0, i32::MIN + 1);
+     }
+ }
++
++thread_local! { static TT_STORAGE: std::cell::RefCell<Vec<Vec<Option<TtEntry>>>> = const {std::cell::RefCell::new(Vec::new())}; }
++fn take_tt_storage(n: usize) -> Vec<Option<TtEntry>> {
++    TT_STORAGE.with(|pool| { let mut pool=pool.borrow_mut();
++        pool.iter().position(|v| v.len()==n).map(|i|pool.swap_remove(i))
++    }).unwrap_or_else(||vec![None;n])
++}
++impl Drop for TranspositionTable {
++    fn drop(&mut self) {
++        for i in self.touched.drain(..) { self.entries[i] = None; }
++        let entries=std::mem::take(&mut self.entries);
++        TT_STORAGE.with(|pool| { let mut pool=pool.borrow_mut(); if pool.len()<8 {pool.push(entries);} });
++    }
++}
++
++#[cfg(test)]
++mod reusable_tt_tests {
++    use super::*;
++    #[test]
++    fn table_pool_never_retains_bounds_across_searches() {
++        for clusters in [1, 2, 4, 8] {
++            {
++                let mut table = TranspositionTable::with_clusters(1024, clusters);
++                for key in 0..64u64 {
++                    for offset in [0, 1024, 2048, 0] {
++                        table.store(TtEntry { key: key + offset, depth: 4,
++                            score: 123, bound: TtBound::Exact, best: None });
++                    }
++                }
++                assert!(table.entries.iter().any(Option::is_some));
++            }
++            let table = TranspositionTable::with_clusters(1024, clusters);
++            assert!(table.entries.iter().all(Option::is_none));
++        }
++    }
++}
