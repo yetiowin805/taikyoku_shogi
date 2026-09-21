@@ -1,0 +1,10 @@
+{
+  "W512": {
+    "nps_ratio_to_tested_prototype": 1.0053742577250404,
+    "pairs": 8
+  },
+  "W2048": {
+    "nps_ratio_to_tested_prototype": 0.9917971398949332,
+    "pairs": 8
+  }
+}

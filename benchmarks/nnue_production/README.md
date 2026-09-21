@@ -33,3 +33,7 @@ done
 Finish all builds and tests before timing. Runs are sequential on CPU 0; loading, replay and a depth-1 TT warmup are outside the measured search. Raw rows include full moves and root lines. Manifests record model/blob identities, game/source/binary hashes, compiler settings and randomized order. Use a new output directory for a repeat; existing result files are never overwritten.
 
 For deployment, rebuild on the destination CPU with `RUSTFLAGS='-C target-cpu=native'`, preserve the coordinator's current run/state/models/sidecar setting, stop through its supported CLI, and resume without regenerating a grid or rebaking weights. Existing historical-engine bindings remain pinned. Keep the old frozen executable and configuration available for rollback.
+
+## Integration results
+
+All 28 paired depth-2 checks matched exactly. The production-versus-full-prototype timed check retained the measured gains: +0.5% NPS at width 512 and -0.8% at width 2048 (eight pairs each). These small differences are inconclusive; no additional speed gain is claimed for the integration itself. All 370 debug and release Rust tests passed (four previously ignored), plus 12 coordinator tests and six training/recovery tests. Complete raw observations, provenance and test logs are in `results/`.
