@@ -369,7 +369,7 @@ pub fn move_to_delta(board: &Board, mv: &Move, moving_piece: &Piece) -> MoveDelt
     });
     
     if uses_capturing {
-        let path_positions = path_utils::get_path_positions(mv.from, mv.to);
+        let path_positions = path_utils::path_positions(mv.from, mv.to);
         for pos in path_positions {
             if pos != mv.from && pos != mv.to {
                 if let Some(piece) = board.get_piece(pos) {

@@ -152,3 +152,10 @@ mod tests {
     }
 }
 
+
+/// Allocation-free direction walk with the same order as the Vec API.
+pub fn direction_iter(set: DirectionSet) -> impl Iterator<Item = Direction> {
+    [Direction::N, Direction::NE, Direction::E, Direction::SE,
+     Direction::S, Direction::SW, Direction::W, Direction::NW]
+        .into_iter().filter(move |d| direction_set_contains(set, *d))
+}

@@ -156,7 +156,7 @@ fn capturing_wipe_group_key(state: &GameState, mv: &Move) -> Option<u64> {
 
     let mut occ = 0u64;
     let mut n = 0u32;
-    for pos in path_utils::get_path_positions(mv.from, mv.to) {
+    for pos in path_utils::path_positions(mv.from, mv.to) {
         if pos == mv.to {
             continue;
         }
@@ -501,6 +501,7 @@ struct TtEntry {
 }
 
 struct TranspositionTable {
+    touched: Vec<usize>,
     entries: Vec<Option<TtEntry>>,
     clusters: usize,
 }
@@ -515,7 +516,8 @@ impl TranspositionTable {
         let n = size_pow2.next_power_of_two().max(1024);
         let n = (n / clusters) * clusters;
         Self {
-            entries: vec![None; n],
+            entries: take_tt_storage(n),
+            touched: Vec::new(),
             clusters,
         }
     }
@@ -545,6 +547,7 @@ impl TranspositionTable {
                 Some(old) => entry.depth >= old.depth || old.key != entry.key,
             };
             if replace {
+                if self.entries[base].is_none() { self.touched.push(base); }
                 self.entries[base] = Some(entry);
             }
             return;
@@ -573,7 +576,9 @@ impl TranspositionTable {
                 }
             }
         }
-        self.entries[empty.unwrap_or(worst)] = Some(entry);
+        let idx = empty.unwrap_or(worst);
+        if self.entries[idx].is_none() { self.touched.push(idx); }
+        self.entries[idx] = Some(entry);
     }
 }
 
@@ -693,7 +698,7 @@ fn move_captures_enemy_raw(state: &GameState, mv: &Move) -> bool {
         )
     });
     if uses_capturing {
-        for pos in path_utils::get_path_positions(mv.from, mv.to) {
+        for pos in path_utils::path_positions(mv.from, mv.to) {
             if pos != mv.from
                 && pos != mv.to
                 && board.get_piece(pos).is_some_and(|p| p.color == enemy)
@@ -754,7 +759,7 @@ fn capture_exchange_kind(
     if !piece_has_capturing_range(&piece) {
         return (enemy, own, CaptureKind::SimpleTake);
     }
-    for pos in path_utils::get_path_positions(mv.from, mv.to) {
+    for pos in path_utils::path_positions(mv.from, mv.to) {
         if pos != mv.from && pos != mv.to && board.get_piece(pos).is_some() {
             path_occupied = true;
             add(pos);
@@ -811,7 +816,7 @@ fn capture_material_exchange_raw(
     }
 
     if piece_has_capturing_range(&piece) {
-        for pos in path_utils::get_path_positions(mv.from, mv.to) {
+        for pos in path_utils::path_positions(mv.from, mv.to) {
             if pos != mv.from && pos != mv.to {
                 add(pos);
             }
@@ -957,7 +962,7 @@ fn captured_enemy_royal_count(state: &GameState, mv: &Move) -> usize {
             add(pos);
         }
     } else if piece_has_capturing_range(&mover) {
-        for pos in path_utils::get_path_positions(mv.from, mv.to) {
+        for pos in path_utils::path_positions(mv.from, mv.to) {
             if pos != mv.from && pos != mv.to {
                 add(pos);
             }
@@ -1305,7 +1310,7 @@ fn quiesce_move_looks_path_or_multileg(state: &GameState, mv: &Move) -> bool {
     if !piece_has_capturing_range(&piece) {
         return false;
     }
-    path_utils::get_path_positions(mv.from, mv.to)
+    path_utils::path_positions(mv.from, mv.to)
         .into_iter()
         .any(|p| p != mv.from && p != mv.to && board.get_piece(p).is_some())
 }
@@ -3653,6 +3658,7 @@ fn quiesce(
     }
 
     struct QCand {
+        last_royal_take: bool,
         mv: Move,
         enemy: f32,
         own: f32,
@@ -3692,7 +3698,9 @@ fn quiesce(
             let is_hang_dest = dest_hang_kind(state, weights, &mv, QHangOpts::from_ctx(ctx))
                 .is_some_and(|k| !matches!(k, CaptureKind::SimpleTake));
             let is_royal_take = capture_takes_enemy_royal(state, &mv);
+            let last_royal_take = false;
             Some(QCand {
+                last_royal_take,
                 mv,
                 enemy,
                 own,
@@ -3781,10 +3789,19 @@ fn quiesce(
         return stand_pat;
     }
 
+    // Candidates have survived filtering; count royals only once for this node.
+    if cands.len() > 1 {
+    let royal_count = state.get_board().pieces_by_color(state.get_current_turn().opposite())
+        .iter().filter(|p| p.piece_type.is_royal()).count();
+    for candidate in &mut cands {
+        candidate.last_royal_take = candidate.is_royal_take && royal_count > 0
+            && (royal_count == 1 || captured_enemy_royal_count(state, &candidate.mv) >= royal_count);
+    }
+    }
     // Last-royal (instant win), then loud promo, path-sum, dest recapture, net MVV-LVA.
     cands.sort_by(|a, b| {
-        let win_a = capture_takes_last_enemy_royal(state, &a.mv);
-        let win_b = capture_takes_last_enemy_royal(state, &b.mv);
+        let win_a = a.last_royal_take;
+        let win_b = b.last_royal_take;
         let win = win_a.cmp(&win_b);
         if win != std::cmp::Ordering::Equal {
             return win.reverse();
@@ -4062,7 +4079,7 @@ pub(crate) fn capture_hits_square(state: &GameState, mv: &Move, sq: Position) ->
         )
     });
     if uses_capturing {
-        return path_utils::get_path_positions(mv.from, mv.to)
+        return path_utils::path_positions(mv.from, mv.to)
             .into_iter()
             .any(|p| p == sq && p != mv.from && is_enemy(sq));
     }
@@ -7274,5 +7291,41 @@ mod royal_al_search_tests {
             (i32::MIN + 1, i32::MAX - 1)
         );
         assert_eq!(aspiration_window(i32::MIN + 1, 500).0, i32::MIN + 1);
+    }
+}
+
+thread_local! { static TT_STORAGE: std::cell::RefCell<Vec<Vec<Option<TtEntry>>>> = const {std::cell::RefCell::new(Vec::new())}; }
+fn take_tt_storage(n: usize) -> Vec<Option<TtEntry>> {
+    TT_STORAGE.with(|pool| { let mut pool=pool.borrow_mut();
+        pool.iter().position(|v| v.len()==n).map(|i|pool.swap_remove(i))
+    }).unwrap_or_else(||vec![None;n])
+}
+impl Drop for TranspositionTable {
+    fn drop(&mut self) {
+        for i in self.touched.drain(..) { self.entries[i] = None; }
+        let entries=std::mem::take(&mut self.entries);
+        TT_STORAGE.with(|pool| { let mut pool=pool.borrow_mut(); if pool.len()<8 {pool.push(entries);} });
+    }
+}
+
+#[cfg(test)]
+mod reusable_tt_tests {
+    use super::*;
+    #[test]
+    fn table_pool_never_retains_bounds_across_searches() {
+        for clusters in [1, 2, 4, 8] {
+            {
+                let mut table = TranspositionTable::with_clusters(1024, clusters);
+                for key in 0..64u64 {
+                    for offset in [0, 1024, 2048, 0] {
+                        table.store(TtEntry { key: key + offset, depth: 4,
+                            score: 123, bound: TtBound::Exact, best: None });
+                    }
+                }
+                assert!(table.entries.iter().any(Option::is_some));
+            }
+            let table = TranspositionTable::with_clusters(1024, clusters);
+            assert!(table.entries.iter().all(Option::is_none));
+        }
     }
 }

@@ -305,3 +305,39 @@ mod tests {
     }
 }
 
+
+/// Lazy equivalent of get_path_positions, including its off-ray stopping rules.
+pub fn path_positions(from: Position, to: Position) -> impl Iterator<Item = Position> {
+    let df = (to.file as i8 - from.file as i8).signum();
+    let dr = (to.rank as i8 - from.rank as i8).signum();
+    let mut file = from.file as i8 + df;
+    let mut rank = from.rank as i8 + dr;
+    let mut done = df == 0 && dr == 0;
+    std::iter::from_fn(move || {
+        if done || (df != 0 && (file - to.file as i8) * df > 0)
+            || (dr != 0 && (rank - to.rank as i8) * dr > 0) { return None; }
+        let p = Position::new(file as u8, rank as u8)?;
+        done = p == to;
+        file += df; rank += dr;
+        Some(p)
+    })
+}
+
+#[cfg(test)]
+mod iterator_parity {
+    use super::*;
+    #[test]
+    fn every_square_pair_matches_old_path() {
+        for a in 0..1296 { for b in 0..1296 {
+            let from=Position::from_index(a).unwrap();let to=Position::from_index(b).unwrap();
+            assert_eq!(get_path_positions(from,to),path_positions(from,to).collect::<Vec<_>>());
+        }}
+    }
+    #[test]
+    fn every_direction_mask_matches_old_order() {
+        for mask in 0..=255 {
+            assert_eq!(crate::movement::direction::direction_set_to_directions(mask),
+                crate::movement::direction::direction_iter(mask).collect::<Vec<_>>());
+        }
+    }
+}
