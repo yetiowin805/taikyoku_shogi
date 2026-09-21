@@ -22,6 +22,7 @@ ctrlc = { version = "3", features = ["termination"] }
 [features]
 search-profile = []
 royal-probes = []
+nnue-speed-probes = []
 
 [profile.release]
 lto = "thin"
@@ -31,3 +32,6 @@ codegen-units = 1
 [[example]]
 name = "royal_probe_smoke"
 required-features = ["royal-probes"]
+
+[[example]]
+name = "nnue_speed_probe"

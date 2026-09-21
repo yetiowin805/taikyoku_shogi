@@ -1,0 +1,781 @@
+{
+  "timed_runs": 96,
+  "fixed_runs": 48,
+  "summary": [
+    {
+      "width": 512,
+      "variant": "baseline",
+      "relative_nps": 1.0,
+      "positions": [
+        {
+          "position": "opening",
+          "nps_ratio": 1.0,
+          "depths": [
+            3,
+            3
+          ],
+          "nps": 15716.02686093804,
+          "rss_mib": 266.5
+        },
+        {
+          "position": "middlegame",
+          "nps_ratio": 1.0,
+          "depths": [
+            3,
+            3
+          ],
+          "nps": 32448.286834000508,
+          "rss_mib": 266.625
+        },
+        {
+          "position": "tactical",
+          "nps_ratio": 1.0,
+          "depths": [
+            1,
+            1
+          ],
+          "nps": 7246.6555082275445,
+          "rss_mib": 266.83984375
+        },
+        {
+          "position": "long-history",
+          "nps_ratio": 1.0,
+          "depths": [
+            4,
+            4
+          ],
+          "nps": 41047.06250912622,
+          "rss_mib": 267.1796875
+        }
+      ],
+      "fixed_speedup": 1.0,
+      "micro": {
+        "forward_ns": {
+          "ns": 6745.1595,
+          "speedup": 1.0
+        },
+        "change_pair_ns": {
+          "ns": 3560.09423828125,
+          "speedup": 1.0
+        },
+        "make_unmake_ns": {
+          "ns": 36272.404296875,
+          "speedup": 1.0
+        }
+      }
+    },
+    {
+      "width": 512,
+      "variant": "native",
+      "relative_nps": 1.448893370296786,
+      "positions": [
+        {
+          "position": "opening",
+          "nps_ratio": 1.3708774011354345,
+          "depths": [
+            3,
+            3
+          ],
+          "nps": 21543.69977948742,
+          "rss_mib": 266.625
+        },
+        {
+          "position": "middlegame",
+          "nps_ratio": 1.4103273526479059,
+          "depths": [
+            3,
+            3
+          ],
+          "nps": 45762.086499133846,
+          "rss_mib": 266.625
+        },
+        {
+          "position": "tactical",
+          "nps_ratio": 1.6096451530594442,
+          "depths": [
+            1,
+            1
+          ],
+          "nps": 11664.65936657397,
+          "rss_mib": 266.8359375
+        },
+        {
+          "position": "long-history",
+          "nps_ratio": 1.4161100620155622,
+          "depths": [
+            4,
+            4
+          ],
+          "nps": 58132.02813086203,
+          "rss_mib": 267.17578125
+        }
+      ],
+      "fixed_speedup": 1.2862881164596562,
+      "micro": {
+        "forward_ns": {
+          "ns": 2895.0755,
+          "speedup": 2.3298734350796724
+        },
+        "change_pair_ns": {
+          "ns": 1182.232421875,
+          "speedup": 3.011331927976567
+        },
+        "make_unmake_ns": {
+          "ns": 11291.318359375,
+          "speedup": 3.2124153391493566
+        }
+      }
+    },
+    {
+      "width": 512,
+      "variant": "fused",
+      "relative_nps": 1.4972947029099237,
+      "positions": [
+        {
+          "position": "opening",
+          "nps_ratio": 1.3437413544192127,
+          "depths": [
+            3,
+            3
+          ],
+          "nps": 21117.432433052694,
+          "rss_mib": 274.75
+        },
+        {
+          "position": "middlegame",
+          "nps_ratio": 1.3125877873770113,
+          "depths": [
+            3,
+            3
+          ],
+          "nps": 42590.60365444857,
+          "rss_mib": 275.75
+        },
+        {
+          "position": "tactical",
+          "nps_ratio": 2.011492724591042,
+          "depths": [
+            1,
+            1
+          ],
+          "nps": 14577.171379794947,
+          "rss_mib": 275.2109375
+        },
+        {
+          "position": "long-history",
+          "nps_ratio": 1.4166633034948486,
+          "depths": [
+            4,
+            4
+          ],
+          "nps": 58145.33813854087,
+          "rss_mib": 274.30078125
+        }
+      ],
+      "fixed_speedup": 1.250849794936362,
+      "micro": {
+        "forward_ns": {
+          "ns": 6895.703,
+          "speedup": 0.9781685058071671
+        },
+        "change_pair_ns": {
+          "ns": 414.06494140625,
+          "speedup": 8.597912748155967
+        },
+        "make_unmake_ns": {
+          "ns": 5851.6640625,
+          "speedup": 6.198647753777304
+        }
+      }
+    },
+    {
+      "width": 512,
+      "variant": "snapshot",
+      "relative_nps": 1.2263601475320638,
+      "positions": [
+        {
+          "position": "opening",
+          "nps_ratio": 1.192056067088726,
+          "depths": [
+            3,
+            3
+          ],
+          "nps": 18733.713638035537,
+          "rss_mib": 266.625
+        },
+        {
+          "position": "middlegame",
+          "nps_ratio": 1.186647589382173,
+          "depths": [
+            3,
+            3
+          ],
+          "nps": 38507.822319013765,
+          "rss_mib": 266.75
+        },
+        {
+          "position": "tactical",
+          "nps_ratio": 1.3617835384232244,
+          "depths": [
+            1,
+            1
+          ],
+          "nps": 9868.375838527907,
+          "rss_mib": 266.83984375
+        },
+        {
+          "position": "long-history",
+          "nps_ratio": 1.1742095067194025,
+          "depths": [
+            4,
+            4
+          ],
+          "nps": 48204.945677129086,
+          "rss_mib": 267.3046875
+        }
+      ],
+      "fixed_speedup": 1.1623511313921626,
+      "micro": {
+        "forward_ns": {
+          "ns": 6909.278,
+          "speedup": 0.9762466497946674
+        },
+        "change_pair_ns": {
+          "ns": 3505.150146484375,
+          "speedup": 1.0156752462806717
+        },
+        "make_unmake_ns": {
+          "ns": 18607.517578125,
+          "speedup": 1.9493413962707655
+        }
+      }
+    },
+    {
+      "width": 512,
+      "variant": "both",
+      "relative_nps": 1.552823029704977,
+      "positions": [
+        {
+          "position": "opening",
+          "nps_ratio": 1.38152789746352,
+          "depths": [
+            3,
+            3
+          ],
+          "nps": 21710.769097272238,
+          "rss_mib": 274.75
+        },
+        {
+          "position": "middlegame",
+          "nps_ratio": 1.349877114994307,
+          "depths": [
+            3,
+            3
+          ],
+          "nps": 43800.59749189521,
+          "rss_mib": 275.75
+        },
+        {
+          "position": "tactical",
+          "nps_ratio": 2.1249403537765037,
+          "depths": [
+            1,
+            1
+          ],
+          "nps": 15398.721899672484,
+          "rss_mib": 275.2109375
+        },
+        {
+          "position": "long-history",
+          "nps_ratio": 1.467192896614221,
+          "depths": [
+            4,
+            4
+          ],
+          "nps": 60227.2801971501,
+          "rss_mib": 274.3046875
+        }
+      ],
+      "fixed_speedup": 1.2822251983298003,
+      "micro": {
+        "forward_ns": {
+          "ns": 6452.846,
+          "speedup": 1.0452999343235527
+        },
+        "change_pair_ns": {
+          "ns": 405.9052734375,
+          "speedup": 8.77075138278395
+        },
+        "make_unmake_ns": {
+          "ns": 3081.693359375,
+          "speedup": 11.7702834341154
+        }
+      }
+    },
+    {
+      "width": 512,
+      "variant": "native-both",
+      "relative_nps": 1.780809625254303,
+      "positions": [
+        {
+          "position": "opening",
+          "nps_ratio": 1.5307269178749794,
+          "depths": [
+            3,
+            3
+          ],
+          "nps": 24057.540968170295,
+          "rss_mib": 274.75
+        },
+        {
+          "position": "middlegame",
+          "nps_ratio": 1.621338714831794,
+          "depths": [
+            3,
+            3
+          ],
+          "nps": 52614.38816132379,
+          "rss_mib": 275.875
+        },
+        {
+          "position": "tactical",
+          "nps_ratio": 2.4026139434003735,
+          "depths": [
+            1,
+            1
+          ],
+          "nps": 17411.41623064348,
+          "rss_mib": 275.46484375
+        },
+        {
+          "position": "long-history",
+          "nps_ratio": 1.6866093822238846,
+          "depths": [
+            4,
+            4
+          ],
+          "nps": 69225.32347779782,
+          "rss_mib": 274.30078125
+        }
+      ],
+      "fixed_speedup": 1.4433096755966504,
+      "micro": {
+        "forward_ns": {
+          "ns": 2950.4835,
+          "speedup": 2.2861200545605493
+        },
+        "change_pair_ns": {
+          "ns": 195.078857421875,
+          "speedup": 18.24951348050105
+        },
+        "make_unmake_ns": {
+          "ns": 1976.609375,
+          "speedup": 18.350820731524152
+        }
+      }
+    },
+    {
+      "width": 2048,
+      "variant": "baseline",
+      "relative_nps": 1.0,
+      "positions": [
+        {
+          "position": "opening",
+          "nps_ratio": 1.0,
+          "depths": [
+            2,
+            2
+          ],
+          "nps": 6890.99574364386,
+          "rss_mib": 965.25
+        },
+        {
+          "position": "middlegame",
+          "nps_ratio": 1.0,
+          "depths": [
+            2,
+            2
+          ],
+          "nps": 11166.349575476583,
+          "rss_mib": 965.375
+        },
+        {
+          "position": "tactical",
+          "nps_ratio": 1.0,
+          "depths": [
+            1,
+            1
+          ],
+          "nps": 3196.670674249326,
+          "rss_mib": 965.57421875
+        },
+        {
+          "position": "long-history",
+          "nps_ratio": 1.0,
+          "depths": [
+            2,
+            2
+          ],
+          "nps": 12750.668763264184,
+          "rss_mib": 965.91015625
+        }
+      ],
+      "fixed_speedup": 1.0,
+      "micro": {
+        "forward_ns": {
+          "ns": 27346.352,
+          "speedup": 1.0
+        },
+        "change_pair_ns": {
+          "ns": 14289.70166015625,
+          "speedup": 1.0
+        },
+        "make_unmake_ns": {
+          "ns": 143318.076171875,
+          "speedup": 1.0
+        }
+      }
+    },
+    {
+      "width": 2048,
+      "variant": "native",
+      "relative_nps": 1.882833694104794,
+      "positions": [
+        {
+          "position": "opening",
+          "nps_ratio": 2.068895205419594,
+          "depths": [
+            3,
+            3
+          ],
+          "nps": 14257.067419211933,
+          "rss_mib": 965.25
+        },
+        {
+          "position": "middlegame",
+          "nps_ratio": 1.9531502097204365,
+          "depths": [
+            3,
+            3
+          ],
+          "nps": 21817.776991334482,
+          "rss_mib": 965.375
+        },
+        {
+          "position": "tactical",
+          "nps_ratio": 1.6535750935142313,
+          "depths": [
+            1,
+            1
+          ],
+          "nps": 5288.21236468031,
+          "rss_mib": 965.5703125
+        },
+        {
+          "position": "long-history",
+          "nps_ratio": 1.880831052499673,
+          "depths": [
+            2,
+            2
+          ],
+          "nps": 24023.33575938669,
+          "rss_mib": 965.9140625
+        }
+      ],
+      "fixed_speedup": 1.8590130539819387,
+      "micro": {
+        "forward_ns": {
+          "ns": 11392.2705,
+          "speedup": 2.4004303619721807
+        },
+        "change_pair_ns": {
+          "ns": 4175.170654296875,
+          "speedup": 3.422543134961444
+        },
+        "make_unmake_ns": {
+          "ns": 50441.69921875,
+          "speedup": 2.8412618605560644
+        }
+      }
+    },
+    {
+      "width": 2048,
+      "variant": "fused",
+      "relative_nps": 2.0476252757090245,
+      "positions": [
+        {
+          "position": "opening",
+          "nps_ratio": 2.135763640540001,
+          "depths": [
+            3,
+            3
+          ],
+          "nps": 14716.491215954113,
+          "rss_mib": 996.75
+        },
+        {
+          "position": "middlegame",
+          "nps_ratio": 1.8524866218122704,
+          "depths": [
+            3,
+            3
+          ],
+          "nps": 20696.97220867666,
+          "rss_mib": 998.0
+        },
+        {
+          "position": "tactical",
+          "nps_ratio": 2.3539147896438832,
+          "depths": [
+            1,
+            1
+          ],
+          "nps": 7523.402223287218,
+          "rss_mib": 997.82421875
+        },
+        {
+          "position": "long-history",
+          "nps_ratio": 1.8875693666845894,
+          "depths": [
+            2,
+            2
+          ],
+          "nps": 24072.215163592744,
+          "rss_mib": 992.1640625
+        }
+      ],
+      "fixed_speedup": 1.696894309432434,
+      "micro": {
+        "forward_ns": {
+          "ns": 25523.4305,
+          "speedup": 1.071421492498824
+        },
+        "change_pair_ns": {
+          "ns": 1559.28955078125,
+          "speedup": 9.164238709222856
+        },
+        "make_unmake_ns": {
+          "ns": 18305.578125,
+          "speedup": 7.8292023990296675
+        }
+      }
+    },
+    {
+      "width": 2048,
+      "variant": "snapshot",
+      "relative_nps": 1.409079828603153,
+      "positions": [
+        {
+          "position": "opening",
+          "nps_ratio": 1.5479813856823845,
+          "depths": [
+            3,
+            3
+          ],
+          "nps": 10670.71273596507,
+          "rss_mib": 965.375
+        },
+        {
+          "position": "middlegame",
+          "nps_ratio": 1.3963438983857022,
+          "depths": [
+            3,
+            3
+          ],
+          "nps": 15592.911912668244,
+          "rss_mib": 965.5
+        },
+        {
+          "position": "tactical",
+          "nps_ratio": 1.3156776063779607,
+          "depths": [
+            1,
+            1
+          ],
+          "nps": 4216.544474071663,
+          "rss_mib": 965.5703125
+        },
+        {
+          "position": "long-history",
+          "nps_ratio": 1.3862283713221242,
+          "depths": [
+            2,
+            2
+          ],
+          "nps": 17676.022797063357,
+          "rss_mib": 966.03515625
+        }
+      ],
+      "fixed_speedup": 1.349426854068613,
+      "micro": {
+        "forward_ns": {
+          "ns": 23804.481,
+          "speedup": 1.1487900954446348
+        },
+        "change_pair_ns": {
+          "ns": 12596.740966796875,
+          "speedup": 1.1343967219633846
+        },
+        "make_unmake_ns": {
+          "ns": 63989.708984375,
+          "speedup": 2.2397050783098638
+        }
+      }
+    },
+    {
+      "width": 2048,
+      "variant": "both",
+      "relative_nps": 2.2588017082887517,
+      "positions": [
+        {
+          "position": "opening",
+          "nps_ratio": 2.33118928833699,
+          "depths": [
+            3,
+            3
+          ],
+          "nps": 16063.077911842687,
+          "rss_mib": 997.0
+        },
+        {
+          "position": "middlegame",
+          "nps_ratio": 2.000027512292212,
+          "depths": [
+            3,
+            3
+          ],
+          "nps": 22335.19580634455,
+          "rss_mib": 998.0
+        },
+        {
+          "position": "tactical",
+          "nps_ratio": 2.639469054958846,
+          "depths": [
+            1,
+            1
+          ],
+          "nps": 8435.698601529391,
+          "rss_mib": 997.94921875
+        },
+        {
+          "position": "long-history",
+          "nps_ratio": 2.1153505445306777,
+          "depths": [
+            2,
+            2
+          ],
+          "nps": 26973.92628527054,
+          "rss_mib": 992.28515625
+        }
+      ],
+      "fixed_speedup": 1.8024353952032721,
+      "micro": {
+        "forward_ns": {
+          "ns": 27168.0905,
+          "speedup": 1.006561429114792
+        },
+        "change_pair_ns": {
+          "ns": 1597.9599609375,
+          "speedup": 8.942465399303678
+        },
+        "make_unmake_ns": {
+          "ns": 11158.0625,
+          "speedup": 12.844351442902834
+        }
+      }
+    },
+    {
+      "width": 2048,
+      "variant": "native-both",
+      "relative_nps": 2.9543594547440706,
+      "positions": [
+        {
+          "position": "opening",
+          "nps_ratio": 2.930907765734838,
+          "depths": [
+            3,
+            3
+          ],
+          "nps": 20195.456263116863,
+          "rss_mib": 997.875
+        },
+        {
+          "position": "middlegame",
+          "nps_ratio": 2.840180895698511,
+          "depths": [
+            3,
+            3
+          ],
+          "nps": 31713.929138430198,
+          "rss_mib": 998.375
+        },
+        {
+          "position": "tactical",
+          "nps_ratio": 3.2890563064395253,
+          "depths": [
+            1,
+            2
+          ],
+          "nps": 10547.64504780695,
+          "rss_mib": 999.6953125
+        },
+        {
+          "position": "long-history",
+          "nps_ratio": 2.782491690745716,
+          "depths": [
+            2,
+            2
+          ],
+          "nps": 35480.084403109155,
+          "rss_mib": 993.0390625
+        }
+      ],
+      "fixed_speedup": 2.4316079705229297,
+      "micro": {
+        "forward_ns": {
+          "ns": 10727.903,
+          "speedup": 2.549086433760633
+        },
+        "change_pair_ns": {
+          "ns": 598.829345703125,
+          "speedup": 23.862727774935227
+        },
+        "make_unmake_ns": {
+          "ns": 6119.1171875,
+          "speedup": 23.42136484404026
+        }
+      }
+    }
+  ],
+  "max_elapsed_ms": 3020.727682,
+  "all_legal": true,
+  "source_directory": "/home/frank/taikyoku_shogi/data/nnue-speed-experiments-20260920",
+  "handcrafted_native_speedup": 1.0311473140117517,
+  "handcrafted_comparison": [
+    {
+      "width": 512,
+      "variant": "baseline",
+      "handcrafted_variant": "baseline",
+      "relative_nps": 0.5082225664437892
+    },
+    {
+      "width": 512,
+      "variant": "native-both",
+      "handcrafted_variant": "native",
+      "relative_nps": 0.8777093493784046
+    },
+    {
+      "width": 2048,
+      "variant": "baseline",
+      "handcrafted_variant": "baseline",
+      "relative_nps": 0.19271007613659552
+    },
+    {
+      "width": 2048,
+      "variant": "native-both",
+      "handcrafted_variant": "native",
+      "relative_nps": 0.5521372433620209
+    }
+  ],
+  "depth2_verified_runs": 24
+}

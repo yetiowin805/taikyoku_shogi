@@ -78,6 +78,8 @@ pub struct SearchUndo {
     /// Length of `rep_history` before this move was pushed.
     prev_rep_len: usize,
     prev_eval_inc: Option<crate::eval::EvalInc>,
+    #[cfg(feature = "nnue-speed-probes")]
+    nnue_snapshot: Option<crate::nnue::experiment::Snapshot>,
 }
 
 /// Occurrences of the same position (pieces + STM) that adjudicate a draw.
@@ -1280,6 +1282,10 @@ impl GameState {
             }
         }
 
+        #[cfg(feature = "nnue-speed-probes")]
+        let nnue_snapshot = if crate::nnue::experiment::snapshot() {
+            self.nnue.as_mut().map(|acc| acc.save_sums())
+        } else { None };
         if let Some(acc) = self.nnue.as_mut() {
             acc.change(&original_mover, -1);
             for (_, piece) in &removed { acc.change(piece, -1); }
@@ -1295,6 +1301,8 @@ impl GameState {
             prev_hash,
             prev_rep_len,
             prev_eval_inc,
+            #[cfg(feature = "nnue-speed-probes")]
+            nnue_snapshot,
         })
     }
 
@@ -1303,9 +1311,19 @@ impl GameState {
         #[cfg(feature = "search-profile")]
         let _make = crate::profile_timers::make_scope();
         if let Some(acc) = self.nnue.as_mut() {
+            #[cfg(feature = "nnue-speed-probes")]
+            if let Some(saved) = undo.nnue_snapshot { acc.restore_sums(saved); }
+            else {
+                if let Some(piece) = self.board.get_piece(undo.final_to) { acc.change(&piece, -1); }
+                acc.change(&undo.original_mover, 1);
+                for (_, piece) in &undo.removed { acc.change(piece, 1); }
+            }
+            #[cfg(not(feature = "nnue-speed-probes"))]
+            {
             if let Some(piece) = self.board.get_piece(undo.final_to) { acc.change(&piece, -1); }
             acc.change(&undo.original_mover, 1);
             for (_, piece) in &undo.removed { acc.change(piece, 1); }
+            }
         }
         self.board.remove_piece(undo.final_to);
         self.board.place_piece(undo.original_mover);
@@ -2233,4 +2251,3 @@ mod tests {
         assert_eq!(state.repetition_count(), 1);
     }
 }
-

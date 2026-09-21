@@ -1,0 +1,103 @@
+{
+  "format_version": 2,
+  "game_id": "nnue-forced-royal-fixture",
+  "seed": 0,
+  "black": {
+    "name": "fixture"
+  },
+  "white": {
+    "name": "fixture"
+  },
+  "start": {
+    "kind": "position",
+    "position": {
+      "turn": "Black",
+      "draw_counter": 0,
+      "pieces": [
+        {
+          "piece_type": "King",
+          "color": "Black",
+          "position": {
+            "file": 18,
+            "rank": 30
+          },
+          "is_promoted": false
+        },
+        {
+          "piece_type": "Rook",
+          "color": "Black",
+          "position": {
+            "file": 10,
+            "rank": 30
+          },
+          "is_promoted": false
+        },
+        {
+          "piece_type": "Bishop",
+          "color": "Black",
+          "position": {
+            "file": 24,
+            "rank": 28
+          },
+          "is_promoted": false
+        },
+        {
+          "piece_type": "Pawn",
+          "color": "Black",
+          "position": {
+            "file": 16,
+            "rank": 31
+          },
+          "is_promoted": false
+        },
+        {
+          "piece_type": "Pawn",
+          "color": "Black",
+          "position": {
+            "file": 20,
+            "rank": 31
+          },
+          "is_promoted": false
+        },
+        {
+          "piece_type": "King",
+          "color": "White",
+          "position": {
+            "file": 18,
+            "rank": 0
+          },
+          "is_promoted": false
+        },
+        {
+          "piece_type": "Rook",
+          "color": "White",
+          "position": {
+            "file": 18,
+            "rank": 20
+          },
+          "is_promoted": false
+        },
+        {
+          "piece_type": "Bishop",
+          "color": "White",
+          "position": {
+            "file": 8,
+            "rank": 20
+          },
+          "is_promoted": false
+        },
+        {
+          "piece_type": "Pawn",
+          "color": "White",
+          "position": {
+            "file": 14,
+            "rank": 25
+          },
+          "is_promoted": false
+        }
+      ]
+    }
+  },
+  "moves": [],
+  "result": null
+}

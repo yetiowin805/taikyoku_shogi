@@ -908,11 +908,19 @@ fn move_resolves_last_royal_check(state: &mut GameState, mv: &Move) -> bool {
         return true;
     }
     let us = state.get_current_turn();
-    let Some(undo) = state.make_move_for_search(mv.clone()) else {
-        return false;
-    };
-    let ok = color_last_royal_resolved(state, us);
-    state.unmake_move_for_search(undo);
+    #[cfg(feature = "nnue-speed-probes")]
+    crate::nnue::experiment::count(3);
+    // This probe consults only board/attack rules. Restore the exact accumulator
+    // object even on an invalid candidate; no evaluation is allowed in between.
+    #[cfg(feature = "nnue-speed-probes")]
+    let suspended = if crate::nnue::experiment::followup().royal { state.nnue.take() } else { None };
+    let ok = if let Some(undo) = state.make_move_for_search(mv.clone()) {
+        let ok = color_last_royal_resolved(state, us);
+        state.unmake_move_for_search(undo);
+        ok
+    } else { false };
+    #[cfg(feature = "nnue-speed-probes")]
+    if suspended.is_some() { state.nnue = suspended; }
     ok
 }
 

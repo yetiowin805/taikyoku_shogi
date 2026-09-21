@@ -1,0 +1,4473 @@
+{
+  "timed_runs": 144,
+  "fixed_depth_runs": 72,
+  "quality_search_runs": 48,
+  "speed": [
+    {
+      "pooled_nps_ratio": 0.9986360682314318,
+      "width": 512,
+      "variant": "head16",
+      "reference": "exact",
+      "nps_ratio": 1.015505247392988,
+      "positions": [
+        {
+          "position": "middlegame",
+          "nps_ratio": 0.8662150257237669,
+          "paired_ratios": [
+            0.8534693510569995,
+            0.8791510437490976
+          ],
+          "depths": [
+            3,
+            3
+          ],
+          "scores": [
+            -9938,
+            -9938
+          ]
+        },
+        {
+          "position": "opening",
+          "nps_ratio": 0.9419339858031363,
+          "paired_ratios": [
+            0.9495266145557787,
+            0.9344020694207336
+          ],
+          "depths": [
+            3,
+            3
+          ],
+          "scores": [
+            1151,
+            1151
+          ]
+        },
+        {
+          "position": "long-history",
+          "nps_ratio": 1.0549586439142529,
+          "paired_ratios": [
+            1.0940118727365367,
+            1.0172995084463954
+          ],
+          "depths": [
+            4,
+            4
+          ],
+          "scores": [
+            2357,
+            2357
+          ]
+        },
+        {
+          "position": "tactical",
+          "nps_ratio": 1.2355122982761872,
+          "paired_ratios": [
+            1.268444662442987,
+            1.2034349502103865
+          ],
+          "depths": [
+            2,
+            2
+          ],
+          "scores": [
+            -11747,
+            -11747
+          ]
+        }
+      ],
+      "peak_rss_mib": 275.875,
+      "max_search_ms": 3003.002775
+    },
+    {
+      "pooled_nps_ratio": 1.0,
+      "width": 512,
+      "variant": "control",
+      "reference": "control",
+      "nps_ratio": 1.0,
+      "positions": [
+        {
+          "position": "middlegame",
+          "nps_ratio": 1.0,
+          "paired_ratios": [
+            1.0,
+            1.0
+          ],
+          "depths": [
+            3,
+            3
+          ],
+          "scores": [
+            -10134,
+            -10134
+          ]
+        },
+        {
+          "position": "opening",
+          "nps_ratio": 1.0,
+          "paired_ratios": [
+            1.0,
+            1.0
+          ],
+          "depths": [
+            3,
+            3
+          ],
+          "scores": [
+            1424,
+            1424
+          ]
+        },
+        {
+          "position": "long-history",
+          "nps_ratio": 1.0,
+          "paired_ratios": [
+            1.0,
+            1.0
+          ],
+          "depths": [
+            4,
+            4
+          ],
+          "scores": [
+            1090,
+            1090
+          ]
+        },
+        {
+          "position": "tactical",
+          "nps_ratio": 1.0,
+          "paired_ratios": [
+            1.0,
+            1.0
+          ],
+          "depths": [
+            1,
+            1
+          ],
+          "scores": [
+            -11557,
+            -11557
+          ]
+        }
+      ],
+      "peak_rss_mib": 275.875,
+      "max_search_ms": 3005.151148
+    },
+    {
+      "pooled_nps_ratio": 1.0515701353640594,
+      "width": 512,
+      "variant": "exact",
+      "reference": "control",
+      "nps_ratio": 1.0754109490641774,
+      "positions": [
+        {
+          "position": "middlegame",
+          "nps_ratio": 1.091721266584794,
+          "paired_ratios": [
+            1.0723180393508667,
+            1.1114755885623284
+          ],
+          "depths": [
+            3,
+            3
+          ],
+          "scores": [
+            -10134,
+            -10134
+          ]
+        },
+        {
+          "position": "opening",
+          "nps_ratio": 0.9925626028933978,
+          "paired_ratios": [
+            1.0001328464018366,
+            0.9850496603595078
+          ],
+          "depths": [
+            3,
+            3
+          ],
+          "scores": [
+            1424,
+            1424
+          ]
+        },
+        {
+          "position": "long-history",
+          "nps_ratio": 0.9958704587718943,
+          "paired_ratios": [
+            0.9447428075195442,
+            1.0497650395015325
+          ],
+          "depths": [
+            4,
+            4
+          ],
+          "scores": [
+            1090,
+            1090
+          ]
+        },
+        {
+          "position": "tactical",
+          "nps_ratio": 1.239439369902755,
+          "paired_ratios": [
+            1.2164131292263047,
+            1.2629014886102385
+          ],
+          "depths": [
+            2,
+            2
+          ],
+          "scores": [
+            -11697,
+            -11697
+          ]
+        }
+      ],
+      "peak_rss_mib": 275.875,
+      "max_search_ms": 3002.210793
+    },
+    {
+      "pooled_nps_ratio": 1.0372036903393087,
+      "width": 512,
+      "variant": "packed",
+      "reference": "control",
+      "nps_ratio": 1.0159725255786463,
+      "positions": [
+        {
+          "position": "middlegame",
+          "nps_ratio": 1.0601168148153255,
+          "paired_ratios": [
+            1.0557123935899144,
+            1.064539611240695
+          ],
+          "depths": [
+            3,
+            3
+          ],
+          "scores": [
+            -10134,
+            -10134
+          ]
+        },
+        {
+          "position": "opening",
+          "nps_ratio": 1.010046143545357,
+          "paired_ratios": [
+            1.008109561478378,
+            1.0119864457934011
+          ],
+          "depths": [
+            3,
+            3
+          ],
+          "scores": [
+            1424,
+            1424
+          ]
+        },
+        {
+          "position": "long-history",
+          "nps_ratio": 1.0520130658287905,
+          "paired_ratios": [
+            1.037394290378301,
+            1.066837846457498
+          ],
+          "depths": [
+            4,
+            4
+          ],
+          "scores": [
+            1090,
+            1090
+          ]
+        },
+        {
+          "position": "tactical",
+          "nps_ratio": 0.9458271651827607,
+          "paired_ratios": [
+            0.9086374578703942,
+            0.984539013496469
+          ],
+          "depths": [
+            1,
+            1
+          ],
+          "scores": [
+            -11557,
+            -11557
+          ]
+        }
+      ],
+      "peak_rss_mib": 276.0,
+      "max_search_ms": 3003.569541
+    },
+    {
+      "pooled_nps_ratio": 0.9908573920040566,
+      "width": 512,
+      "variant": "head24",
+      "reference": "exact",
+      "nps_ratio": 1.0056613363921916,
+      "positions": [
+        {
+          "position": "middlegame",
+          "nps_ratio": 0.944797665387417,
+          "paired_ratios": [
+            0.9287448552792337,
+            0.9611279389032357
+          ],
+          "depths": [
+            3,
+            3
+          ],
+          "scores": [
+            -9737,
+            -9737
+          ]
+        },
+        {
+          "position": "opening",
+          "nps_ratio": 1.020092906486776,
+          "paired_ratios": [
+            1.0076562327669853,
+            1.0326830758613177
+          ],
+          "depths": [
+            3,
+            3
+          ],
+          "scores": [
+            1448,
+            1448
+          ]
+        },
+        {
+          "position": "long-history",
+          "nps_ratio": 0.9974123355547108,
+          "paired_ratios": [
+            1.0418331457349617,
+            0.9548855027211662
+          ],
+          "depths": [
+            4,
+            4
+          ],
+          "scores": [
+            1355,
+            1355
+          ]
+        },
+        {
+          "position": "tactical",
+          "nps_ratio": 1.0640296748542162,
+          "paired_ratios": [
+            1.127670960689365,
+            1.0039800513070414
+          ],
+          "depths": [
+            1,
+            1
+          ],
+          "scores": [
+            -11686,
+            -11686
+          ]
+        }
+      ],
+      "peak_rss_mib": 276.0,
+      "max_search_ms": 3001.891582
+    },
+    {
+      "pooled_nps_ratio": 0.9738986737398267,
+      "width": 512,
+      "variant": "memo",
+      "reference": "control",
+      "nps_ratio": 0.9868684181564297,
+      "positions": [
+        {
+          "position": "middlegame",
+          "nps_ratio": 0.9694778076523379,
+          "paired_ratios": [
+            0.9739370511050629,
+            0.9650389811784599
+          ],
+          "depths": [
+            3,
+            3
+          ],
+          "scores": [
+            -10134,
+            -10134
+          ]
+        },
+        {
+          "position": "opening",
+          "nps_ratio": 0.9924614443318345,
+          "paired_ratios": [
+            1.0002866824971832,
+            0.9846974229690443
+          ],
+          "depths": [
+            3,
+            3
+          ],
+          "scores": [
+            1424,
+            1424
+          ]
+        },
+        {
+          "position": "long-history",
+          "nps_ratio": 0.9554896553334149,
+          "paired_ratios": [
+            0.9259987676213485,
+            0.9859197586129921
+          ],
+          "depths": [
+            4,
+            4
+          ],
+          "scores": [
+            1090,
+            1090
+          ]
+        },
+        {
+          "position": "tactical",
+          "nps_ratio": 1.0317144134146938,
+          "paired_ratios": [
+            1.0639243514540364,
+            1.0004796199963766
+          ],
+          "depths": [
+            1,
+            1
+          ],
+          "scores": [
+            -11557,
+            -11557
+          ]
+        }
+      ],
+      "peak_rss_mib": 276.0,
+      "max_search_ms": 3002.92988
+    },
+    {
+      "pooled_nps_ratio": 0.9680745861472718,
+      "width": 512,
+      "variant": "quant",
+      "reference": "control",
+      "nps_ratio": 0.9674884852298591,
+      "positions": [
+        {
+          "position": "middlegame",
+          "nps_ratio": 0.9944194734271105,
+          "paired_ratios": [
+            0.9823582929127423,
+            1.0066287384809482
+          ],
+          "depths": [
+            3,
+            3
+          ],
+          "scores": [
+            -10134,
+            -10134
+          ]
+        },
+        {
+          "position": "opening",
+          "nps_ratio": 0.9827735110944004,
+          "paired_ratios": [
+            0.9980370601885976,
+            0.9677433961483367
+          ],
+          "depths": [
+            3,
+            3
+          ],
+          "scores": [
+            1424,
+            1424
+          ]
+        },
+        {
+          "position": "long-history",
+          "nps_ratio": 0.9479389105905768,
+          "paired_ratios": [
+            0.9149925586940958,
+            0.9820715695154295
+          ],
+          "depths": [
+            4,
+            4
+          ],
+          "scores": [
+            1090,
+            1090
+          ]
+        },
+        {
+          "position": "tactical",
+          "nps_ratio": 0.9457575270353111,
+          "paired_ratios": [
+            0.9079015011710097,
+            0.9851920046285615
+          ],
+          "depths": [
+            1,
+            1
+          ],
+          "scores": [
+            -11557,
+            -11557
+          ]
+        }
+      ],
+      "peak_rss_mib": 275.875,
+      "max_search_ms": 3002.708216
+    },
+    {
+      "pooled_nps_ratio": 0.9880437899192523,
+      "width": 512,
+      "variant": "legacy",
+      "reference": "control",
+      "nps_ratio": 0.9838248696086461,
+      "positions": [
+        {
+          "position": "middlegame",
+          "nps_ratio": 1.0061131757313544,
+          "paired_ratios": [
+            0.9816763627316981,
+            1.0311582929056355
+          ],
+          "depths": [
+            3,
+            3
+          ],
+          "scores": [
+            -10134,
+            -10134
+          ]
+        },
+        {
+          "position": "opening",
+          "nps_ratio": 0.988139808109625,
+          "paired_ratios": [
+            0.9903629176465505,
+            0.9859216888807221
+          ],
+          "depths": [
+            3,
+            3
+          ],
+          "scores": [
+            1424,
+            1424
+          ]
+        },
+        {
+          "position": "long-history",
+          "nps_ratio": 0.9820302370233194,
+          "paired_ratios": [
+            0.9769529197079546,
+            0.9871339416400585
+          ],
+          "depths": [
+            4,
+            4
+          ],
+          "scores": [
+            1090,
+            1090
+          ]
+        },
+        {
+          "position": "tactical",
+          "nps_ratio": 0.9595797944888835,
+          "paired_ratios": [
+            0.928089614172902,
+            0.9921384400060588
+          ],
+          "depths": [
+            1,
+            1
+          ],
+          "scores": [
+            -11557,
+            -11557
+          ]
+        }
+      ],
+      "peak_rss_mib": 275.875,
+      "max_search_ms": 3003.340354
+    },
+    {
+      "pooled_nps_ratio": 1.0096379116049976,
+      "width": 512,
+      "variant": "royal",
+      "reference": "control",
+      "nps_ratio": 1.0484798196166185,
+      "positions": [
+        {
+          "position": "middlegame",
+          "nps_ratio": 0.9743357224094784,
+          "paired_ratios": [
+            0.9715410898503555,
+            0.9771383937136653
+          ],
+          "depths": [
+            3,
+            3
+          ],
+          "scores": [
+            -10134,
+            -10134
+          ]
+        },
+        {
+          "position": "opening",
+          "nps_ratio": 0.9906929670813539,
+          "paired_ratios": [
+            0.9758674332697468,
+            1.0057437327690393
+          ],
+          "depths": [
+            3,
+            3
+          ],
+          "scores": [
+            1424,
+            1424
+          ]
+        },
+        {
+          "position": "long-history",
+          "nps_ratio": 0.9737735392125116,
+          "paired_ratios": [
+            0.9338589794745014,
+            1.0153941082239732
+          ],
+          "depths": [
+            4,
+            4
+          ],
+          "scores": [
+            1090,
+            1090
+          ]
+        },
+        {
+          "position": "tactical",
+          "nps_ratio": 1.2856851538126115,
+          "paired_ratios": [
+            1.3140780316603917,
+            1.2579057521002326
+          ],
+          "depths": [
+            2,
+            2
+          ],
+          "scores": [
+            -11697,
+            -11697
+          ]
+        }
+      ],
+      "peak_rss_mib": 276.0,
+      "max_search_ms": 3002.595697
+    },
+    {
+      "pooled_nps_ratio": 0.9854350543716773,
+      "width": 2048,
+      "variant": "head16",
+      "reference": "exact",
+      "nps_ratio": 0.9797773886678254,
+      "positions": [
+        {
+          "position": "middlegame",
+          "nps_ratio": 0.9963411924977473,
+          "paired_ratios": [
+            0.878579275741376,
+            1.1298875346566326
+          ],
+          "depths": [
+            3,
+            3
+          ],
+          "scores": [
+            -9475,
+            -9475
+          ]
+        },
+        {
+          "position": "opening",
+          "nps_ratio": 1.0237639989433198,
+          "paired_ratios": [
+            1.0147078512891978,
+            1.0329009716449953
+          ],
+          "depths": [
+            3,
+            3
+          ],
+          "scores": [
+            1135,
+            1135
+          ]
+        },
+        {
+          "position": "tactical",
+          "nps_ratio": 0.8700782906879697,
+          "paired_ratios": [
+            0.8712422158611471,
+            0.8689159204461122
+          ],
+          "depths": [
+            1,
+            1
+          ],
+          "scores": [
+            -11287,
+            -11287
+          ]
+        },
+        {
+          "position": "long-history",
+          "nps_ratio": 1.0383490697940254,
+          "paired_ratios": [
+            1.0399257162433144,
+            1.0367748137212673
+          ],
+          "depths": [
+            2,
+            2
+          ],
+          "scores": [
+            1533,
+            1533
+          ]
+        }
+      ],
+      "peak_rss_mib": 998.25,
+      "max_search_ms": 3002.143047
+    },
+    {
+      "pooled_nps_ratio": 1.0,
+      "width": 2048,
+      "variant": "control",
+      "reference": "control",
+      "nps_ratio": 1.0,
+      "positions": [
+        {
+          "position": "middlegame",
+          "nps_ratio": 1.0,
+          "paired_ratios": [
+            1.0,
+            1.0
+          ],
+          "depths": [
+            3,
+            3
+          ],
+          "scores": [
+            -9944,
+            -9944
+          ]
+        },
+        {
+          "position": "opening",
+          "nps_ratio": 1.0,
+          "paired_ratios": [
+            1.0,
+            1.0
+          ],
+          "depths": [
+            3,
+            3
+          ],
+          "scores": [
+            1088,
+            1088
+          ]
+        },
+        {
+          "position": "tactical",
+          "nps_ratio": 1.0,
+          "paired_ratios": [
+            1.0,
+            1.0
+          ],
+          "depths": [
+            1,
+            1
+          ],
+          "scores": [
+            -11432,
+            -11432
+          ]
+        },
+        {
+          "position": "long-history",
+          "nps_ratio": 1.0,
+          "paired_ratios": [
+            1.0,
+            1.0
+          ],
+          "depths": [
+            2,
+            2
+          ],
+          "scores": [
+            1058,
+            1058
+          ]
+        }
+      ],
+      "peak_rss_mib": 998.25,
+      "max_search_ms": 3005.537069
+    },
+    {
+      "pooled_nps_ratio": 1.2075631688884019,
+      "width": 2048,
+      "variant": "exact",
+      "reference": "control",
+      "nps_ratio": 1.3307740881043602,
+      "positions": [
+        {
+          "position": "middlegame",
+          "nps_ratio": 0.9764160846059681,
+          "paired_ratios": [
+            1.1152843848177343,
+            0.8548388045736486
+          ],
+          "depths": [
+            3,
+            3
+          ],
+          "scores": [
+            -9944,
+            -9944
+          ]
+        },
+        {
+          "position": "opening",
+          "nps_ratio": 1.0721105158488446,
+          "paired_ratios": [
+            1.0630012934296884,
+            1.0812977983170284
+          ],
+          "depths": [
+            3,
+            3
+          ],
+          "scores": [
+            1088,
+            1088
+          ]
+        },
+        {
+          "position": "tactical",
+          "nps_ratio": 2.767075820701554,
+          "paired_ratios": [
+            2.800713542328858,
+            2.7338421019467942
+          ],
+          "depths": [
+            3,
+            3
+          ],
+          "scores": [
+            -11384,
+            -11384
+          ]
+        },
+        {
+          "position": "long-history",
+          "nps_ratio": 1.0827340724912,
+          "paired_ratios": [
+            1.0682359124268173,
+            1.0974290024289854
+          ],
+          "depths": [
+            2,
+            2
+          ],
+          "scores": [
+            1058,
+            1058
+          ]
+        }
+      ],
+      "peak_rss_mib": 998.69140625,
+      "max_search_ms": 3002.536485
+    },
+    {
+      "pooled_nps_ratio": 1.0837286913377233,
+      "width": 2048,
+      "variant": "packed",
+      "reference": "control",
+      "nps_ratio": 1.0620969662874669,
+      "positions": [
+        {
+          "position": "middlegame",
+          "nps_ratio": 1.0959185408648864,
+          "paired_ratios": [
+            1.1169996183900899,
+            1.0752353254537845
+          ],
+          "depths": [
+            3,
+            3
+          ],
+          "scores": [
+            -9944,
+            -9944
+          ]
+        },
+        {
+          "position": "opening",
+          "nps_ratio": 1.092457316428147,
+          "paired_ratios": [
+            1.0647625885154808,
+            1.1208723907940314
+          ],
+          "depths": [
+            3,
+            3
+          ],
+          "scores": [
+            1088,
+            1088
+          ]
+        },
+        {
+          "position": "tactical",
+          "nps_ratio": 0.9688713123148873,
+          "paired_ratios": [
+            0.9387079122428514,
+            1.0000039496672737
+          ],
+          "depths": [
+            1,
+            1
+          ],
+          "scores": [
+            -11432,
+            -11432
+          ]
+        },
+        {
+          "position": "long-history",
+          "nps_ratio": 1.09700302327685,
+          "paired_ratios": [
+            1.0872435235849096,
+            1.106850127844948
+          ],
+          "depths": [
+            2,
+            2
+          ],
+          "scores": [
+            1058,
+            1058
+          ]
+        }
+      ],
+      "peak_rss_mib": 998.5,
+      "max_search_ms": 3002.541548
+    },
+    {
+      "pooled_nps_ratio": 1.1250541132424756,
+      "width": 2048,
+      "variant": "head24",
+      "reference": "exact",
+      "nps_ratio": 1.0956842123740356,
+      "positions": [
+        {
+          "position": "middlegame",
+          "nps_ratio": 1.4141297566828381,
+          "paired_ratios": [
+            1.2658442376859906,
+            1.579785971448985
+          ],
+          "depths": [
+            3,
+            3
+          ],
+          "scores": [
+            -9780,
+            -9780
+          ]
+        },
+        {
+          "position": "opening",
+          "nps_ratio": 0.9920976497022407,
+          "paired_ratios": [
+            0.9911552550627064,
+            0.9930409403746135
+          ],
+          "depths": [
+            3,
+            3
+          ],
+          "scores": [
+            994,
+            994
+          ]
+        },
+        {
+          "position": "tactical",
+          "nps_ratio": 0.938787484128946,
+          "paired_ratios": [
+            0.9578106833359248,
+            0.9201421070890868
+          ],
+          "depths": [
+            2,
+            2
+          ],
+          "scores": [
+            -11450,
+            -11450
+          ]
+        },
+        {
+          "position": "long-history",
+          "nps_ratio": 1.0942854965396722,
+          "paired_ratios": [
+            1.0928914050157916,
+            1.095681366365741
+          ],
+          "depths": [
+            2,
+            2
+          ],
+          "scores": [
+            1382,
+            1382
+          ]
+        }
+      ],
+      "peak_rss_mib": 1000.875,
+      "max_search_ms": 3002.422879
+    },
+    {
+      "pooled_nps_ratio": 0.9939224858378988,
+      "width": 2048,
+      "variant": "memo",
+      "reference": "control",
+      "nps_ratio": 0.9947606786043351,
+      "positions": [
+        {
+          "position": "middlegame",
+          "nps_ratio": 0.9819416422572614,
+          "paired_ratios": [
+            0.9884612156479653,
+            0.9754650698832125
+          ],
+          "depths": [
+            3,
+            3
+          ],
+          "scores": [
+            -9944,
+            -9944
+          ]
+        },
+        {
+          "position": "opening",
+          "nps_ratio": 0.9901288485886718,
+          "paired_ratios": [
+            0.9811001921218857,
+            0.999240592020734
+          ],
+          "depths": [
+            3,
+            3
+          ],
+          "scores": [
+            1088,
+            1088
+          ]
+        },
+        {
+          "position": "tactical",
+          "nps_ratio": 1.0020854087531679,
+          "paired_ratios": [
+            1.0042667082940986,
+            0.999908847064889
+          ],
+          "depths": [
+            1,
+            1
+          ],
+          "scores": [
+            -11432,
+            -11432
+          ]
+        },
+        {
+          "position": "long-history",
+          "nps_ratio": 1.00506074018207,
+          "paired_ratios": [
+            1.0082145660239725,
+            1.0019167799161828
+          ],
+          "depths": [
+            2,
+            2
+          ],
+          "scores": [
+            1058,
+            1058
+          ]
+        }
+      ],
+      "peak_rss_mib": 998.375,
+      "max_search_ms": 3007.184722
+    },
+    {
+      "pooled_nps_ratio": 0.9784452670199525,
+      "width": 2048,
+      "variant": "quant",
+      "reference": "control",
+      "nps_ratio": 0.9846902301826358,
+      "positions": [
+        {
+          "position": "middlegame",
+          "nps_ratio": 0.9393339264976971,
+          "paired_ratios": [
+            0.9839387600219157,
+            0.8967511610681218
+          ],
+          "depths": [
+            3,
+            3
+          ],
+          "scores": [
+            -9944,
+            -9944
+          ]
+        },
+        {
+          "position": "opening",
+          "nps_ratio": 1.0026631873565341,
+          "paired_ratios": [
+            0.9786769872548747,
+            1.0272372604773912
+          ],
+          "depths": [
+            3,
+            3
+          ],
+          "scores": [
+            1088,
+            1088
+          ]
+        },
+        {
+          "position": "tactical",
+          "nps_ratio": 1.0065476498962527,
+          "paired_ratios": [
+            1.070087969737728,
+            0.9467802649533414
+          ],
+          "depths": [
+            1,
+            1
+          ],
+          "scores": [
+            -11432,
+            -11432
+          ]
+        },
+        {
+          "position": "long-history",
+          "nps_ratio": 0.9917200607261849,
+          "paired_ratios": [
+            0.9804532549007672,
+            1.0031163382147066
+          ],
+          "depths": [
+            2,
+            2
+          ],
+          "scores": [
+            1058,
+            1058
+          ]
+        }
+      ],
+      "peak_rss_mib": 998.25,
+      "max_search_ms": 3002.201526
+    },
+    {
+      "pooled_nps_ratio": 0.9994429777033784,
+      "width": 2048,
+      "variant": "legacy",
+      "reference": "control",
+      "nps_ratio": 0.996892418334239,
+      "positions": [
+        {
+          "position": "middlegame",
+          "nps_ratio": 0.9949068256165028,
+          "paired_ratios": [
+            1.0099342099481845,
+            0.9801030422655856
+          ],
+          "depths": [
+            3,
+            3
+          ],
+          "scores": [
+            -9944,
+            -9944
+          ]
+        },
+        {
+          "position": "opening",
+          "nps_ratio": 0.9860286023920245,
+          "paired_ratios": [
+            0.9615859517665285,
+            1.0110925632274945
+          ],
+          "depths": [
+            3,
+            3
+          ],
+          "scores": [
+            1088,
+            1088
+          ]
+        },
+        {
+          "position": "tactical",
+          "nps_ratio": 0.9940117625732275,
+          "paired_ratios": [
+            0.9881011344398519,
+            0.9999577469304889
+          ],
+          "depths": [
+            1,
+            1
+          ],
+          "scores": [
+            -11432,
+            -11432
+          ]
+        },
+        {
+          "position": "long-history",
+          "nps_ratio": 1.0128140685068232,
+          "paired_ratios": [
+            1.0020179550534303,
+            1.0237265032946898
+          ],
+          "depths": [
+            2,
+            2
+          ],
+          "scores": [
+            1058,
+            1058
+          ]
+        }
+      ],
+      "peak_rss_mib": 998.25,
+      "max_search_ms": 3008.656615
+    },
+    {
+      "pooled_nps_ratio": 1.143114473117624,
+      "width": 2048,
+      "variant": "royal",
+      "reference": "control",
+      "nps_ratio": 1.2629166300337389,
+      "positions": [
+        {
+          "position": "middlegame",
+          "nps_ratio": 0.992391124376376,
+          "paired_ratios": [
+            1.0014603555832706,
+            0.9834040241836803
+          ],
+          "depths": [
+            3,
+            3
+          ],
+          "scores": [
+            -9944,
+            -9944
+          ]
+        },
+        {
+          "position": "opening",
+          "nps_ratio": 0.9997764086740373,
+          "paired_ratios": [
+            0.9634535635137217,
+            1.037468649444587
+          ],
+          "depths": [
+            3,
+            3
+          ],
+          "scores": [
+            1088,
+            1088
+          ]
+        },
+        {
+          "position": "tactical",
+          "nps_ratio": 2.6079450104125064,
+          "paired_ratios": [
+            2.6694972927225473,
+            2.5478119778870236
+          ],
+          "depths": [
+            3,
+            3
+          ],
+          "scores": [
+            -11384,
+            -11384
+          ]
+        },
+        {
+          "position": "long-history",
+          "nps_ratio": 0.9831381349113498,
+          "paired_ratios": [
+            0.9743171804532194,
+            0.9920389496440535
+          ],
+          "depths": [
+            2,
+            2
+          ],
+          "scores": [
+            1058,
+            1058
+          ]
+        }
+      ],
+      "peak_rss_mib": 998.4453125,
+      "max_search_ms": 3002.539825
+    }
+  ],
+  "quality_search": [
+    {
+      "width": 512,
+      "variant": "head24",
+      "positions": 12,
+      "changed_moves": 2,
+      "details": [
+        {
+          "position": "middlegame",
+          "game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0007-NNUE_W1024_v1-vs-C2K50A1-a-white.json",
+          "ply": 160,
+          "depth": 2,
+          "changed": true,
+          "original_score": -10024,
+          "variant_score": -9737,
+          "original_move": {
+            "data": "Standard",
+            "from": {
+              "file": 29,
+              "rank": 2
+            },
+            "promoted": false,
+            "to": {
+              "file": 29,
+              "rank": 35
+            }
+          },
+          "variant_move": {
+            "data": "Standard",
+            "from": {
+              "file": 14,
+              "rank": 3
+            },
+            "promoted": false,
+            "to": {
+              "file": 20,
+              "rank": 3
+            }
+          }
+        },
+        {
+          "position": "opening",
+          "game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0002-BASE_C2S2_A40_Lmate-vs-NNUE_W512_v1-a-white.json",
+          "ply": 0,
+          "depth": 2,
+          "changed": false,
+          "original_score": 1839,
+          "variant_score": 1781,
+          "original_move": {
+            "data": "Standard",
+            "from": {
+              "file": 18,
+              "rank": 3
+            },
+            "promoted": false,
+            "to": {
+              "file": 32,
+              "rank": 17
+            }
+          },
+          "variant_move": {
+            "data": "Standard",
+            "from": {
+              "file": 18,
+              "rank": 3
+            },
+            "promoted": false,
+            "to": {
+              "file": 32,
+              "rank": 17
+            }
+          }
+        },
+        {
+          "position": "long-history",
+          "game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0034-NNUE_W1024_v1-vs-C2K50A1-a-white.json",
+          "ply": 2000,
+          "depth": 2,
+          "changed": false,
+          "original_score": 897,
+          "variant_score": 1194,
+          "original_move": {
+            "data": "Standard",
+            "from": {
+              "file": 21,
+              "rank": 3
+            },
+            "promoted": false,
+            "to": {
+              "file": 20,
+              "rank": 2
+            }
+          },
+          "variant_move": {
+            "data": "Standard",
+            "from": {
+              "file": 21,
+              "rank": 3
+            },
+            "promoted": false,
+            "to": {
+              "file": 20,
+              "rank": 2
+            }
+          }
+        },
+        {
+          "position": "tactical",
+          "game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0041-BASE_C2S2_A80_Lflight-vs-NNUE_W2048_v1-a-white.json",
+          "ply": 360,
+          "depth": 2,
+          "changed": false,
+          "original_score": -11697,
+          "variant_score": -11775,
+          "original_move": {
+            "data": {
+              "TwoStep": {
+                "intermediate": {
+                  "file": 17,
+                  "rank": 7
+                }
+              }
+            },
+            "from": {
+              "file": 19,
+              "rank": 5
+            },
+            "promoted": false,
+            "to": {
+              "file": 16,
+              "rank": 6
+            }
+          },
+          "variant_move": {
+            "data": {
+              "TwoStep": {
+                "intermediate": {
+                  "file": 17,
+                  "rank": 7
+                }
+              }
+            },
+            "from": {
+              "file": 19,
+              "rank": 5
+            },
+            "promoted": false,
+            "to": {
+              "file": 16,
+              "rank": 6
+            }
+          }
+        },
+        {
+          "position": "heldout-6",
+          "game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-al-32-20260914T054159Z/slot0128-BASE_C2S2_A40_L0-vs-BASE_C2S2_A0_Lflight-a-black.json",
+          "ply": 79,
+          "depth": 1,
+          "changed": true,
+          "original_score": 5739,
+          "variant_score": 5708,
+          "original_move": {
+            "data": "Standard",
+            "from": {
+              "file": 16,
+              "rank": 33
+            },
+            "promoted": false,
+            "to": {
+              "file": 17,
+              "rank": 32
+            }
+          },
+          "variant_move": {
+            "data": "Standard",
+            "from": {
+              "file": 3,
+              "rank": 34
+            },
+            "promoted": false,
+            "to": {
+              "file": 6,
+              "rank": 31
+            }
+          }
+        },
+        {
+          "position": "heldout-3",
+          "game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-s2-champs-swiss-20260902T042955Z/slot0113-AVG_P120_SEED_C2LA-vs-AVG_P120_SEED_C2L-a-black.json",
+          "ply": 185,
+          "depth": 1,
+          "changed": false,
+          "original_score": 4980,
+          "variant_score": 5033,
+          "original_move": {
+            "data": "Standard",
+            "from": {
+              "file": 17,
+              "rank": 12
+            },
+            "promoted": false,
+            "to": {
+              "file": 12,
+              "rank": 7
+            }
+          },
+          "variant_move": {
+            "data": "Standard",
+            "from": {
+              "file": 17,
+              "rank": 12
+            },
+            "promoted": false,
+            "to": {
+              "file": 12,
+              "rank": 7
+            }
+          }
+        },
+        {
+          "position": "heldout-2",
+          "game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-s2-swiss-20260828T064125Z/slot1439-BASE_P120H50B75_C2S2L-vs-LOGIC_PRE_LRCHECK-a-white.json",
+          "ply": 211,
+          "depth": 1,
+          "changed": false,
+          "original_score": 5233,
+          "variant_score": 5216,
+          "original_move": {
+            "data": "Standard",
+            "from": {
+              "file": 21,
+              "rank": 32
+            },
+            "promoted": false,
+            "to": {
+              "file": 20,
+              "rank": 33
+            }
+          },
+          "variant_move": {
+            "data": "Standard",
+            "from": {
+              "file": 21,
+              "rank": 32
+            },
+            "promoted": false,
+            "to": {
+              "file": 20,
+              "rank": 33
+            }
+          }
+        },
+        {
+          "position": "heldout-4",
+          "game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-al-32-20260914T054159Z/slot0407-BASE_C2S2_A0_Lold-vs-BASE_C2S2_A0_Lmate-a-black.json",
+          "ply": 842,
+          "depth": 1,
+          "changed": false,
+          "original_score": -8094,
+          "variant_score": -8331,
+          "original_move": {
+            "data": "Standard",
+            "from": {
+              "file": 12,
+              "rank": 11
+            },
+            "promoted": false,
+            "to": {
+              "file": 14,
+              "rank": 13
+            }
+          },
+          "variant_move": {
+            "data": "Standard",
+            "from": {
+              "file": 12,
+              "rank": 11
+            },
+            "promoted": false,
+            "to": {
+              "file": 14,
+              "rank": 13
+            }
+          }
+        },
+        {
+          "position": "heldout-0",
+          "game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-s2-swiss-20260828T064125Z/slot0950-AVG_P120_SEED_C2S2-vs-BASE_P120H50B75_C2S2-a-black.json",
+          "ply": 760,
+          "depth": 1,
+          "changed": false,
+          "original_score": -7928,
+          "variant_score": -7756,
+          "original_move": {
+            "data": "Standard",
+            "from": {
+              "file": 29,
+              "rank": 2
+            },
+            "promoted": false,
+            "to": {
+              "file": 29,
+              "rank": 22
+            }
+          },
+          "variant_move": {
+            "data": "Standard",
+            "from": {
+              "file": 29,
+              "rank": 2
+            },
+            "promoted": false,
+            "to": {
+              "file": 29,
+              "rank": 22
+            }
+          }
+        },
+        {
+          "position": "heldout-1",
+          "game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-s2-champs-swiss-20260902T042955Z/slot0299-AVG_P120_SEED_C2LA-vs-AVG_P120_SEED_C2A-a-white.json",
+          "ply": 140,
+          "depth": 1,
+          "changed": false,
+          "original_score": 3436,
+          "variant_score": 3579,
+          "original_move": {
+            "data": "Standard",
+            "from": {
+              "file": 19,
+              "rank": 5
+            },
+            "promoted": false,
+            "to": {
+              "file": 19,
+              "rank": 4
+            }
+          },
+          "variant_move": {
+            "data": "Standard",
+            "from": {
+              "file": 19,
+              "rank": 5
+            },
+            "promoted": false,
+            "to": {
+              "file": 19,
+              "rank": 4
+            }
+          }
+        },
+        {
+          "position": "heldout-7",
+          "game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-s2-swiss-20260828T064125Z/slot0665-AVG_P120_SEED_C2S2-vs-AVG_P120_SEED_C2LA-a-black.json",
+          "ply": 263,
+          "depth": 1,
+          "changed": false,
+          "original_score": -8083,
+          "variant_score": -8036,
+          "original_move": {
+            "data": "Standard",
+            "from": {
+              "file": 14,
+              "rank": 32
+            },
+            "promoted": false,
+            "to": {
+              "file": 15,
+              "rank": 33
+            }
+          },
+          "variant_move": {
+            "data": "Standard",
+            "from": {
+              "file": 14,
+              "rank": 32
+            },
+            "promoted": false,
+            "to": {
+              "file": 15,
+              "rank": 33
+            }
+          }
+        },
+        {
+          "position": "heldout-5",
+          "game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-s2-swiss-20260828T064125Z/slot1768-AVG_P120_SEED_C2L-vs-AVG_P120_SEED_C2S2LA-a-black.json",
+          "ply": 129,
+          "depth": 1,
+          "changed": false,
+          "original_score": -7564,
+          "variant_score": -7425,
+          "original_move": {
+            "data": "Standard",
+            "from": {
+              "file": 29,
+              "rank": 35
+            },
+            "promoted": false,
+            "to": {
+              "file": 28,
+              "rank": 34
+            }
+          },
+          "variant_move": {
+            "data": "Standard",
+            "from": {
+              "file": 29,
+              "rank": 35
+            },
+            "promoted": false,
+            "to": {
+              "file": 28,
+              "rank": 34
+            }
+          }
+        }
+      ]
+    },
+    {
+      "width": 512,
+      "variant": "head16",
+      "positions": 12,
+      "changed_moves": 3,
+      "details": [
+        {
+          "position": "middlegame",
+          "game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0007-NNUE_W1024_v1-vs-C2K50A1-a-white.json",
+          "ply": 160,
+          "depth": 2,
+          "changed": false,
+          "original_score": -10024,
+          "variant_score": -9020,
+          "original_move": {
+            "data": "Standard",
+            "from": {
+              "file": 29,
+              "rank": 2
+            },
+            "promoted": false,
+            "to": {
+              "file": 29,
+              "rank": 35
+            }
+          },
+          "variant_move": {
+            "data": "Standard",
+            "from": {
+              "file": 29,
+              "rank": 2
+            },
+            "promoted": false,
+            "to": {
+              "file": 29,
+              "rank": 35
+            }
+          }
+        },
+        {
+          "position": "opening",
+          "game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0002-BASE_C2S2_A40_Lmate-vs-NNUE_W512_v1-a-white.json",
+          "ply": 0,
+          "depth": 2,
+          "changed": false,
+          "original_score": 1839,
+          "variant_score": 1018,
+          "original_move": {
+            "data": "Standard",
+            "from": {
+              "file": 18,
+              "rank": 3
+            },
+            "promoted": false,
+            "to": {
+              "file": 32,
+              "rank": 17
+            }
+          },
+          "variant_move": {
+            "data": "Standard",
+            "from": {
+              "file": 18,
+              "rank": 3
+            },
+            "promoted": false,
+            "to": {
+              "file": 32,
+              "rank": 17
+            }
+          }
+        },
+        {
+          "position": "long-history",
+          "game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0034-NNUE_W1024_v1-vs-C2K50A1-a-white.json",
+          "ply": 2000,
+          "depth": 2,
+          "changed": false,
+          "original_score": 897,
+          "variant_score": 2289,
+          "original_move": {
+            "data": "Standard",
+            "from": {
+              "file": 21,
+              "rank": 3
+            },
+            "promoted": false,
+            "to": {
+              "file": 20,
+              "rank": 2
+            }
+          },
+          "variant_move": {
+            "data": "Standard",
+            "from": {
+              "file": 21,
+              "rank": 3
+            },
+            "promoted": false,
+            "to": {
+              "file": 20,
+              "rank": 2
+            }
+          }
+        },
+        {
+          "position": "tactical",
+          "game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0041-BASE_C2S2_A80_Lflight-vs-NNUE_W2048_v1-a-white.json",
+          "ply": 360,
+          "depth": 2,
+          "changed": true,
+          "original_score": -11697,
+          "variant_score": -11747,
+          "original_move": {
+            "data": {
+              "TwoStep": {
+                "intermediate": {
+                  "file": 17,
+                  "rank": 7
+                }
+              }
+            },
+            "from": {
+              "file": 19,
+              "rank": 5
+            },
+            "promoted": false,
+            "to": {
+              "file": 16,
+              "rank": 6
+            }
+          },
+          "variant_move": {
+            "data": {
+              "TwoStep": {
+                "intermediate": {
+                  "file": 18,
+                  "rank": 6
+                }
+              }
+            },
+            "from": {
+              "file": 19,
+              "rank": 5
+            },
+            "promoted": false,
+            "to": {
+              "file": 17,
+              "rank": 5
+            }
+          }
+        },
+        {
+          "position": "heldout-6",
+          "game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-al-32-20260914T054159Z/slot0128-BASE_C2S2_A40_L0-vs-BASE_C2S2_A0_Lflight-a-black.json",
+          "ply": 79,
+          "depth": 1,
+          "changed": true,
+          "original_score": 5739,
+          "variant_score": 5739,
+          "original_move": {
+            "data": "Standard",
+            "from": {
+              "file": 16,
+              "rank": 33
+            },
+            "promoted": false,
+            "to": {
+              "file": 17,
+              "rank": 32
+            }
+          },
+          "variant_move": {
+            "data": "Standard",
+            "from": {
+              "file": 21,
+              "rank": 32
+            },
+            "promoted": false,
+            "to": {
+              "file": 21,
+              "rank": 31
+            }
+          }
+        },
+        {
+          "position": "heldout-3",
+          "game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-s2-champs-swiss-20260902T042955Z/slot0113-AVG_P120_SEED_C2LA-vs-AVG_P120_SEED_C2L-a-black.json",
+          "ply": 185,
+          "depth": 1,
+          "changed": false,
+          "original_score": 4980,
+          "variant_score": 4968,
+          "original_move": {
+            "data": "Standard",
+            "from": {
+              "file": 17,
+              "rank": 12
+            },
+            "promoted": false,
+            "to": {
+              "file": 12,
+              "rank": 7
+            }
+          },
+          "variant_move": {
+            "data": "Standard",
+            "from": {
+              "file": 17,
+              "rank": 12
+            },
+            "promoted": false,
+            "to": {
+              "file": 12,
+              "rank": 7
+            }
+          }
+        },
+        {
+          "position": "heldout-2",
+          "game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-s2-swiss-20260828T064125Z/slot1439-BASE_P120H50B75_C2S2L-vs-LOGIC_PRE_LRCHECK-a-white.json",
+          "ply": 211,
+          "depth": 1,
+          "changed": false,
+          "original_score": 5233,
+          "variant_score": 4886,
+          "original_move": {
+            "data": "Standard",
+            "from": {
+              "file": 21,
+              "rank": 32
+            },
+            "promoted": false,
+            "to": {
+              "file": 20,
+              "rank": 33
+            }
+          },
+          "variant_move": {
+            "data": "Standard",
+            "from": {
+              "file": 21,
+              "rank": 32
+            },
+            "promoted": false,
+            "to": {
+              "file": 20,
+              "rank": 33
+            }
+          }
+        },
+        {
+          "position": "heldout-4",
+          "game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-al-32-20260914T054159Z/slot0407-BASE_C2S2_A0_Lold-vs-BASE_C2S2_A0_Lmate-a-black.json",
+          "ply": 842,
+          "depth": 1,
+          "changed": true,
+          "original_score": -8094,
+          "variant_score": -8561,
+          "original_move": {
+            "data": "Standard",
+            "from": {
+              "file": 12,
+              "rank": 11
+            },
+            "promoted": false,
+            "to": {
+              "file": 14,
+              "rank": 13
+            }
+          },
+          "variant_move": {
+            "data": "Standard",
+            "from": {
+              "file": 12,
+              "rank": 11
+            },
+            "promoted": false,
+            "to": {
+              "file": 12,
+              "rank": 13
+            }
+          }
+        },
+        {
+          "position": "heldout-0",
+          "game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-s2-swiss-20260828T064125Z/slot0950-AVG_P120_SEED_C2S2-vs-BASE_P120H50B75_C2S2-a-black.json",
+          "ply": 760,
+          "depth": 1,
+          "changed": false,
+          "original_score": -7928,
+          "variant_score": -7273,
+          "original_move": {
+            "data": "Standard",
+            "from": {
+              "file": 29,
+              "rank": 2
+            },
+            "promoted": false,
+            "to": {
+              "file": 29,
+              "rank": 22
+            }
+          },
+          "variant_move": {
+            "data": "Standard",
+            "from": {
+              "file": 29,
+              "rank": 2
+            },
+            "promoted": false,
+            "to": {
+              "file": 29,
+              "rank": 22
+            }
+          }
+        },
+        {
+          "position": "heldout-1",
+          "game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-s2-champs-swiss-20260902T042955Z/slot0299-AVG_P120_SEED_C2LA-vs-AVG_P120_SEED_C2A-a-white.json",
+          "ply": 140,
+          "depth": 1,
+          "changed": false,
+          "original_score": 3436,
+          "variant_score": 3325,
+          "original_move": {
+            "data": "Standard",
+            "from": {
+              "file": 19,
+              "rank": 5
+            },
+            "promoted": false,
+            "to": {
+              "file": 19,
+              "rank": 4
+            }
+          },
+          "variant_move": {
+            "data": "Standard",
+            "from": {
+              "file": 19,
+              "rank": 5
+            },
+            "promoted": false,
+            "to": {
+              "file": 19,
+              "rank": 4
+            }
+          }
+        },
+        {
+          "position": "heldout-7",
+          "game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-s2-swiss-20260828T064125Z/slot0665-AVG_P120_SEED_C2S2-vs-AVG_P120_SEED_C2LA-a-black.json",
+          "ply": 263,
+          "depth": 1,
+          "changed": false,
+          "original_score": -8083,
+          "variant_score": -8749,
+          "original_move": {
+            "data": "Standard",
+            "from": {
+              "file": 14,
+              "rank": 32
+            },
+            "promoted": false,
+            "to": {
+              "file": 15,
+              "rank": 33
+            }
+          },
+          "variant_move": {
+            "data": "Standard",
+            "from": {
+              "file": 14,
+              "rank": 32
+            },
+            "promoted": false,
+            "to": {
+              "file": 15,
+              "rank": 33
+            }
+          }
+        },
+        {
+          "position": "heldout-5",
+          "game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-s2-swiss-20260828T064125Z/slot1768-AVG_P120_SEED_C2L-vs-AVG_P120_SEED_C2S2LA-a-black.json",
+          "ply": 129,
+          "depth": 1,
+          "changed": false,
+          "original_score": -7564,
+          "variant_score": -7223,
+          "original_move": {
+            "data": "Standard",
+            "from": {
+              "file": 29,
+              "rank": 35
+            },
+            "promoted": false,
+            "to": {
+              "file": 28,
+              "rank": 34
+            }
+          },
+          "variant_move": {
+            "data": "Standard",
+            "from": {
+              "file": 29,
+              "rank": 35
+            },
+            "promoted": false,
+            "to": {
+              "file": 28,
+              "rank": 34
+            }
+          }
+        }
+      ]
+    },
+    {
+      "width": 2048,
+      "variant": "head24",
+      "positions": 12,
+      "changed_moves": 3,
+      "details": [
+        {
+          "position": "middlegame",
+          "game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0007-NNUE_W1024_v1-vs-C2K50A1-a-white.json",
+          "ply": 160,
+          "depth": 2,
+          "changed": true,
+          "original_score": -10109,
+          "variant_score": -9694,
+          "original_move": {
+            "data": "Standard",
+            "from": {
+              "file": 29,
+              "rank": 2
+            },
+            "promoted": false,
+            "to": {
+              "file": 29,
+              "rank": 35
+            }
+          },
+          "variant_move": {
+            "data": "Standard",
+            "from": {
+              "file": 29,
+              "rank": 2
+            },
+            "promoted": true,
+            "to": {
+              "file": 29,
+              "rank": 35
+            }
+          }
+        },
+        {
+          "position": "opening",
+          "game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0002-BASE_C2S2_A40_Lmate-vs-NNUE_W512_v1-a-white.json",
+          "ply": 0,
+          "depth": 2,
+          "changed": false,
+          "original_score": 2867,
+          "variant_score": 2933,
+          "original_move": {
+            "data": "Standard",
+            "from": {
+              "file": 17,
+              "rank": 3
+            },
+            "promoted": false,
+            "to": {
+              "file": 3,
+              "rank": 17
+            }
+          },
+          "variant_move": {
+            "data": "Standard",
+            "from": {
+              "file": 17,
+              "rank": 3
+            },
+            "promoted": false,
+            "to": {
+              "file": 3,
+              "rank": 17
+            }
+          }
+        },
+        {
+          "position": "tactical",
+          "game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0041-BASE_C2S2_A80_Lflight-vs-NNUE_W2048_v1-a-white.json",
+          "ply": 360,
+          "depth": 2,
+          "changed": true,
+          "original_score": -11384,
+          "variant_score": -11450,
+          "original_move": {
+            "data": "Standard",
+            "from": {
+              "file": 29,
+              "rank": 7
+            },
+            "promoted": false,
+            "to": {
+              "file": 30,
+              "rank": 8
+            }
+          },
+          "variant_move": {
+            "data": "Standard",
+            "from": {
+              "file": 16,
+              "rank": 4
+            },
+            "promoted": false,
+            "to": {
+              "file": 17,
+              "rank": 3
+            }
+          }
+        },
+        {
+          "position": "long-history",
+          "game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0034-NNUE_W1024_v1-vs-C2K50A1-a-white.json",
+          "ply": 2000,
+          "depth": 2,
+          "changed": false,
+          "original_score": 1058,
+          "variant_score": 1382,
+          "original_move": {
+            "data": "Standard",
+            "from": {
+              "file": 21,
+              "rank": 3
+            },
+            "promoted": false,
+            "to": {
+              "file": 20,
+              "rank": 2
+            }
+          },
+          "variant_move": {
+            "data": "Standard",
+            "from": {
+              "file": 21,
+              "rank": 3
+            },
+            "promoted": false,
+            "to": {
+              "file": 20,
+              "rank": 2
+            }
+          }
+        },
+        {
+          "position": "heldout-0",
+          "game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-s2-swiss-20260828T064125Z/slot0950-AVG_P120_SEED_C2S2-vs-BASE_P120H50B75_C2S2-a-black.json",
+          "ply": 760,
+          "depth": 1,
+          "changed": false,
+          "original_score": -7569,
+          "variant_score": -7216,
+          "original_move": {
+            "data": "Standard",
+            "from": {
+              "file": 29,
+              "rank": 2
+            },
+            "promoted": false,
+            "to": {
+              "file": 29,
+              "rank": 22
+            }
+          },
+          "variant_move": {
+            "data": "Standard",
+            "from": {
+              "file": 29,
+              "rank": 2
+            },
+            "promoted": false,
+            "to": {
+              "file": 29,
+              "rank": 22
+            }
+          }
+        },
+        {
+          "position": "heldout-2",
+          "game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-s2-swiss-20260828T064125Z/slot1439-BASE_P120H50B75_C2S2L-vs-LOGIC_PRE_LRCHECK-a-white.json",
+          "ply": 211,
+          "depth": 1,
+          "changed": false,
+          "original_score": 5201,
+          "variant_score": 4947,
+          "original_move": {
+            "data": "Standard",
+            "from": {
+              "file": 21,
+              "rank": 32
+            },
+            "promoted": false,
+            "to": {
+              "file": 20,
+              "rank": 33
+            }
+          },
+          "variant_move": {
+            "data": "Standard",
+            "from": {
+              "file": 21,
+              "rank": 32
+            },
+            "promoted": false,
+            "to": {
+              "file": 20,
+              "rank": 33
+            }
+          }
+        },
+        {
+          "position": "heldout-5",
+          "game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-s2-swiss-20260828T064125Z/slot1768-AVG_P120_SEED_C2L-vs-AVG_P120_SEED_C2S2LA-a-black.json",
+          "ply": 129,
+          "depth": 1,
+          "changed": false,
+          "original_score": -6897,
+          "variant_score": -6701,
+          "original_move": {
+            "data": "Standard",
+            "from": {
+              "file": 29,
+              "rank": 35
+            },
+            "promoted": false,
+            "to": {
+              "file": 28,
+              "rank": 34
+            }
+          },
+          "variant_move": {
+            "data": "Standard",
+            "from": {
+              "file": 29,
+              "rank": 35
+            },
+            "promoted": false,
+            "to": {
+              "file": 28,
+              "rank": 34
+            }
+          }
+        },
+        {
+          "position": "heldout-3",
+          "game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-s2-champs-swiss-20260902T042955Z/slot0113-AVG_P120_SEED_C2LA-vs-AVG_P120_SEED_C2L-a-black.json",
+          "ply": 185,
+          "depth": 1,
+          "changed": false,
+          "original_score": 5157,
+          "variant_score": 5113,
+          "original_move": {
+            "data": "Standard",
+            "from": {
+              "file": 17,
+              "rank": 12
+            },
+            "promoted": false,
+            "to": {
+              "file": 12,
+              "rank": 7
+            }
+          },
+          "variant_move": {
+            "data": "Standard",
+            "from": {
+              "file": 17,
+              "rank": 12
+            },
+            "promoted": false,
+            "to": {
+              "file": 12,
+              "rank": 7
+            }
+          }
+        },
+        {
+          "position": "heldout-1",
+          "game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-s2-champs-swiss-20260902T042955Z/slot0299-AVG_P120_SEED_C2LA-vs-AVG_P120_SEED_C2A-a-white.json",
+          "ply": 140,
+          "depth": 1,
+          "changed": false,
+          "original_score": 3720,
+          "variant_score": 3475,
+          "original_move": {
+            "data": "Standard",
+            "from": {
+              "file": 19,
+              "rank": 5
+            },
+            "promoted": false,
+            "to": {
+              "file": 19,
+              "rank": 4
+            }
+          },
+          "variant_move": {
+            "data": "Standard",
+            "from": {
+              "file": 19,
+              "rank": 5
+            },
+            "promoted": false,
+            "to": {
+              "file": 19,
+              "rank": 4
+            }
+          }
+        },
+        {
+          "position": "heldout-4",
+          "game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-al-32-20260914T054159Z/slot0407-BASE_C2S2_A0_Lold-vs-BASE_C2S2_A0_Lmate-a-black.json",
+          "ply": 842,
+          "depth": 1,
+          "changed": true,
+          "original_score": -8485,
+          "variant_score": -8622,
+          "original_move": {
+            "data": "Standard",
+            "from": {
+              "file": 12,
+              "rank": 11
+            },
+            "promoted": false,
+            "to": {
+              "file": 14,
+              "rank": 11
+            }
+          },
+          "variant_move": {
+            "data": "Standard",
+            "from": {
+              "file": 12,
+              "rank": 11
+            },
+            "promoted": false,
+            "to": {
+              "file": 12,
+              "rank": 9
+            }
+          }
+        },
+        {
+          "position": "heldout-6",
+          "game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-al-32-20260914T054159Z/slot0128-BASE_C2S2_A40_L0-vs-BASE_C2S2_A0_Lflight-a-black.json",
+          "ply": 79,
+          "depth": 1,
+          "changed": false,
+          "original_score": 6057,
+          "variant_score": 5953,
+          "original_move": {
+            "data": "Standard",
+            "from": {
+              "file": 21,
+              "rank": 32
+            },
+            "promoted": false,
+            "to": {
+              "file": 21,
+              "rank": 31
+            }
+          },
+          "variant_move": {
+            "data": "Standard",
+            "from": {
+              "file": 21,
+              "rank": 32
+            },
+            "promoted": false,
+            "to": {
+              "file": 21,
+              "rank": 31
+            }
+          }
+        },
+        {
+          "position": "heldout-7",
+          "game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-s2-swiss-20260828T064125Z/slot0665-AVG_P120_SEED_C2S2-vs-AVG_P120_SEED_C2LA-a-black.json",
+          "ply": 263,
+          "depth": 1,
+          "changed": false,
+          "original_score": -8013,
+          "variant_score": -8097,
+          "original_move": {
+            "data": "Standard",
+            "from": {
+              "file": 14,
+              "rank": 32
+            },
+            "promoted": false,
+            "to": {
+              "file": 15,
+              "rank": 33
+            }
+          },
+          "variant_move": {
+            "data": "Standard",
+            "from": {
+              "file": 14,
+              "rank": 32
+            },
+            "promoted": false,
+            "to": {
+              "file": 15,
+              "rank": 33
+            }
+          }
+        }
+      ]
+    },
+    {
+      "width": 2048,
+      "variant": "head16",
+      "positions": 12,
+      "changed_moves": 3,
+      "details": [
+        {
+          "position": "middlegame",
+          "game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0007-NNUE_W1024_v1-vs-C2K50A1-a-white.json",
+          "ply": 160,
+          "depth": 2,
+          "changed": true,
+          "original_score": -10109,
+          "variant_score": -9305,
+          "original_move": {
+            "data": "Standard",
+            "from": {
+              "file": 29,
+              "rank": 2
+            },
+            "promoted": false,
+            "to": {
+              "file": 29,
+              "rank": 35
+            }
+          },
+          "variant_move": {
+            "data": "Standard",
+            "from": {
+              "file": 9,
+              "rank": 10
+            },
+            "promoted": false,
+            "to": {
+              "file": 24,
+              "rank": 25
+            }
+          }
+        },
+        {
+          "position": "opening",
+          "game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0002-BASE_C2S2_A40_Lmate-vs-NNUE_W512_v1-a-white.json",
+          "ply": 0,
+          "depth": 2,
+          "changed": false,
+          "original_score": 2867,
+          "variant_score": 2996,
+          "original_move": {
+            "data": "Standard",
+            "from": {
+              "file": 17,
+              "rank": 3
+            },
+            "promoted": false,
+            "to": {
+              "file": 3,
+              "rank": 17
+            }
+          },
+          "variant_move": {
+            "data": "Standard",
+            "from": {
+              "file": 17,
+              "rank": 3
+            },
+            "promoted": false,
+            "to": {
+              "file": 3,
+              "rank": 17
+            }
+          }
+        },
+        {
+          "position": "tactical",
+          "game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0041-BASE_C2S2_A80_Lflight-vs-NNUE_W2048_v1-a-white.json",
+          "ply": 360,
+          "depth": 2,
+          "changed": true,
+          "original_score": -11384,
+          "variant_score": -11405,
+          "original_move": {
+            "data": "Standard",
+            "from": {
+              "file": 29,
+              "rank": 7
+            },
+            "promoted": false,
+            "to": {
+              "file": 30,
+              "rank": 8
+            }
+          },
+          "variant_move": {
+            "data": "Standard",
+            "from": {
+              "file": 16,
+              "rank": 8
+            },
+            "promoted": false,
+            "to": {
+              "file": 15,
+              "rank": 9
+            }
+          }
+        },
+        {
+          "position": "long-history",
+          "game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0034-NNUE_W1024_v1-vs-C2K50A1-a-white.json",
+          "ply": 2000,
+          "depth": 2,
+          "changed": false,
+          "original_score": 1058,
+          "variant_score": 1533,
+          "original_move": {
+            "data": "Standard",
+            "from": {
+              "file": 21,
+              "rank": 3
+            },
+            "promoted": false,
+            "to": {
+              "file": 20,
+              "rank": 2
+            }
+          },
+          "variant_move": {
+            "data": "Standard",
+            "from": {
+              "file": 21,
+              "rank": 3
+            },
+            "promoted": false,
+            "to": {
+              "file": 20,
+              "rank": 2
+            }
+          }
+        },
+        {
+          "position": "heldout-0",
+          "game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-s2-swiss-20260828T064125Z/slot0950-AVG_P120_SEED_C2S2-vs-BASE_P120H50B75_C2S2-a-black.json",
+          "ply": 760,
+          "depth": 1,
+          "changed": false,
+          "original_score": -7569,
+          "variant_score": -7234,
+          "original_move": {
+            "data": "Standard",
+            "from": {
+              "file": 29,
+              "rank": 2
+            },
+            "promoted": false,
+            "to": {
+              "file": 29,
+              "rank": 22
+            }
+          },
+          "variant_move": {
+            "data": "Standard",
+            "from": {
+              "file": 29,
+              "rank": 2
+            },
+            "promoted": false,
+            "to": {
+              "file": 29,
+              "rank": 22
+            }
+          }
+        },
+        {
+          "position": "heldout-2",
+          "game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-s2-swiss-20260828T064125Z/slot1439-BASE_P120H50B75_C2S2L-vs-LOGIC_PRE_LRCHECK-a-white.json",
+          "ply": 211,
+          "depth": 1,
+          "changed": false,
+          "original_score": 5201,
+          "variant_score": 4855,
+          "original_move": {
+            "data": "Standard",
+            "from": {
+              "file": 21,
+              "rank": 32
+            },
+            "promoted": false,
+            "to": {
+              "file": 20,
+              "rank": 33
+            }
+          },
+          "variant_move": {
+            "data": "Standard",
+            "from": {
+              "file": 21,
+              "rank": 32
+            },
+            "promoted": false,
+            "to": {
+              "file": 20,
+              "rank": 33
+            }
+          }
+        },
+        {
+          "position": "heldout-5",
+          "game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-s2-swiss-20260828T064125Z/slot1768-AVG_P120_SEED_C2L-vs-AVG_P120_SEED_C2S2LA-a-black.json",
+          "ply": 129,
+          "depth": 1,
+          "changed": false,
+          "original_score": -6897,
+          "variant_score": -6302,
+          "original_move": {
+            "data": "Standard",
+            "from": {
+              "file": 29,
+              "rank": 35
+            },
+            "promoted": false,
+            "to": {
+              "file": 28,
+              "rank": 34
+            }
+          },
+          "variant_move": {
+            "data": "Standard",
+            "from": {
+              "file": 29,
+              "rank": 35
+            },
+            "promoted": false,
+            "to": {
+              "file": 28,
+              "rank": 34
+            }
+          }
+        },
+        {
+          "position": "heldout-3",
+          "game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-s2-champs-swiss-20260902T042955Z/slot0113-AVG_P120_SEED_C2LA-vs-AVG_P120_SEED_C2L-a-black.json",
+          "ply": 185,
+          "depth": 1,
+          "changed": false,
+          "original_score": 5157,
+          "variant_score": 5142,
+          "original_move": {
+            "data": "Standard",
+            "from": {
+              "file": 17,
+              "rank": 12
+            },
+            "promoted": false,
+            "to": {
+              "file": 12,
+              "rank": 7
+            }
+          },
+          "variant_move": {
+            "data": "Standard",
+            "from": {
+              "file": 17,
+              "rank": 12
+            },
+            "promoted": false,
+            "to": {
+              "file": 12,
+              "rank": 7
+            }
+          }
+        },
+        {
+          "position": "heldout-1",
+          "game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-s2-champs-swiss-20260902T042955Z/slot0299-AVG_P120_SEED_C2LA-vs-AVG_P120_SEED_C2A-a-white.json",
+          "ply": 140,
+          "depth": 1,
+          "changed": false,
+          "original_score": 3720,
+          "variant_score": 3444,
+          "original_move": {
+            "data": "Standard",
+            "from": {
+              "file": 19,
+              "rank": 5
+            },
+            "promoted": false,
+            "to": {
+              "file": 19,
+              "rank": 4
+            }
+          },
+          "variant_move": {
+            "data": "Standard",
+            "from": {
+              "file": 19,
+              "rank": 5
+            },
+            "promoted": false,
+            "to": {
+              "file": 19,
+              "rank": 4
+            }
+          }
+        },
+        {
+          "position": "heldout-4",
+          "game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-al-32-20260914T054159Z/slot0407-BASE_C2S2_A0_Lold-vs-BASE_C2S2_A0_Lmate-a-black.json",
+          "ply": 842,
+          "depth": 1,
+          "changed": true,
+          "original_score": -8485,
+          "variant_score": -8710,
+          "original_move": {
+            "data": "Standard",
+            "from": {
+              "file": 12,
+              "rank": 11
+            },
+            "promoted": false,
+            "to": {
+              "file": 14,
+              "rank": 11
+            }
+          },
+          "variant_move": {
+            "data": "Standard",
+            "from": {
+              "file": 12,
+              "rank": 11
+            },
+            "promoted": false,
+            "to": {
+              "file": 12,
+              "rank": 9
+            }
+          }
+        },
+        {
+          "position": "heldout-6",
+          "game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-al-32-20260914T054159Z/slot0128-BASE_C2S2_A40_L0-vs-BASE_C2S2_A0_Lflight-a-black.json",
+          "ply": 79,
+          "depth": 1,
+          "changed": false,
+          "original_score": 6057,
+          "variant_score": 6156,
+          "original_move": {
+            "data": "Standard",
+            "from": {
+              "file": 21,
+              "rank": 32
+            },
+            "promoted": false,
+            "to": {
+              "file": 21,
+              "rank": 31
+            }
+          },
+          "variant_move": {
+            "data": "Standard",
+            "from": {
+              "file": 21,
+              "rank": 32
+            },
+            "promoted": false,
+            "to": {
+              "file": 21,
+              "rank": 31
+            }
+          }
+        },
+        {
+          "position": "heldout-7",
+          "game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-s2-swiss-20260828T064125Z/slot0665-AVG_P120_SEED_C2S2-vs-AVG_P120_SEED_C2LA-a-black.json",
+          "ply": 263,
+          "depth": 1,
+          "changed": false,
+          "original_score": -8013,
+          "variant_score": -8086,
+          "original_move": {
+            "data": "Standard",
+            "from": {
+              "file": 14,
+              "rank": 32
+            },
+            "promoted": false,
+            "to": {
+              "file": 15,
+              "rank": 33
+            }
+          },
+          "variant_move": {
+            "data": "Standard",
+            "from": {
+              "file": 14,
+              "rank": 32
+            },
+            "promoted": false,
+            "to": {
+              "file": 15,
+              "rank": 33
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "micro": [
+    {
+      "width": 512,
+      "variant": "control",
+      "metrics": {
+        "forward_ns": {
+          "ns": 2765.985,
+          "speedup": 1.0
+        },
+        "change_pair_ns": {
+          "ns": 181.811279296875,
+          "speedup": 1.0
+        },
+        "make_unmake_ns": {
+          "ns": 1717.96484375,
+          "speedup": 1.0
+        }
+      }
+    },
+    {
+      "width": 512,
+      "variant": "head24",
+      "metrics": {
+        "forward_ns": {
+          "ns": 1029.922,
+          "speedup": 2.6856257075778553
+        },
+        "change_pair_ns": {
+          "ns": 148.428955078125,
+          "speedup": 1.2249043941674274
+        },
+        "make_unmake_ns": {
+          "ns": 1831.63671875,
+          "speedup": 0.9379397268921452
+        }
+      }
+    },
+    {
+      "width": 512,
+      "variant": "legacy",
+      "metrics": {
+        "forward_ns": {
+          "ns": 2534.5605,
+          "speedup": 1.0913075462195516
+        },
+        "change_pair_ns": {
+          "ns": 170.614501953125,
+          "speedup": 1.0656261760610843
+        },
+        "make_unmake_ns": {
+          "ns": 1795.771484375,
+          "speedup": 0.9566723041868104
+        }
+      }
+    },
+    {
+      "width": 512,
+      "variant": "exact",
+      "metrics": {
+        "forward_ns": {
+          "ns": 1119.4685,
+          "speedup": 2.470801992195404
+        },
+        "change_pair_ns": {
+          "ns": 174.32861328125,
+          "speedup": 1.0429227645122892
+        },
+        "make_unmake_ns": {
+          "ns": 1824.51171875,
+          "speedup": 0.9416025263608628
+        }
+      }
+    },
+    {
+      "width": 512,
+      "variant": "head16",
+      "metrics": {
+        "forward_ns": {
+          "ns": 972.1325,
+          "speedup": 2.84527572115941
+        },
+        "change_pair_ns": {
+          "ns": 156.1123046875,
+          "speedup": 1.164618507559787
+        },
+        "make_unmake_ns": {
+          "ns": 1927.40234375,
+          "speedup": 0.8913369070660601
+        }
+      }
+    },
+    {
+      "width": 512,
+      "variant": "packed",
+      "metrics": {
+        "forward_ns": {
+          "ns": 1122.41,
+          "speedup": 2.464326761165706
+        },
+        "change_pair_ns": {
+          "ns": 147.725341796875,
+          "speedup": 1.2307385928872567
+        },
+        "make_unmake_ns": {
+          "ns": 1685.08203125,
+          "speedup": 1.019514072247039
+        }
+      }
+    },
+    {
+      "width": 512,
+      "variant": "quant",
+      "metrics": {
+        "forward_ns": {
+          "ns": 2722.005,
+          "speedup": 1.0161572076465692
+        },
+        "change_pair_ns": {
+          "ns": 223.327392578125,
+          "speedup": 0.8141020104968686
+        },
+        "make_unmake_ns": {
+          "ns": 2038.443359375,
+          "speedup": 0.8427827223400208
+        }
+      }
+    },
+    {
+      "width": 2048,
+      "variant": "control",
+      "metrics": {
+        "forward_ns": {
+          "ns": 10434.1135,
+          "speedup": 1.0
+        },
+        "change_pair_ns": {
+          "ns": 671.167236328125,
+          "speedup": 1.0
+        },
+        "make_unmake_ns": {
+          "ns": 5794.638671875,
+          "speedup": 1.0
+        }
+      }
+    },
+    {
+      "width": 2048,
+      "variant": "exact",
+      "metrics": {
+        "forward_ns": {
+          "ns": 4311.127,
+          "speedup": 2.420275139192141
+        },
+        "change_pair_ns": {
+          "ns": 662.635498046875,
+          "speedup": 1.0128754621604146
+        },
+        "make_unmake_ns": {
+          "ns": 5361.732421875,
+          "speedup": 1.080739995198905
+        }
+      }
+    },
+    {
+      "width": 2048,
+      "variant": "packed",
+      "metrics": {
+        "forward_ns": {
+          "ns": 4258.129,
+          "speedup": 2.4503986375236635
+        },
+        "change_pair_ns": {
+          "ns": 739.44091796875,
+          "speedup": 0.9076685101114321
+        },
+        "make_unmake_ns": {
+          "ns": 4945.103515625,
+          "speedup": 1.1717931997916184
+        }
+      }
+    },
+    {
+      "width": 2048,
+      "variant": "head24",
+      "metrics": {
+        "forward_ns": {
+          "ns": 3987.5995,
+          "speedup": 2.6166402869696417
+        },
+        "change_pair_ns": {
+          "ns": 564.6591796875,
+          "speedup": 1.188623616638217
+        },
+        "make_unmake_ns": {
+          "ns": 5274.04296875,
+          "speedup": 1.098709037110554
+        }
+      }
+    },
+    {
+      "width": 2048,
+      "variant": "legacy",
+      "metrics": {
+        "forward_ns": {
+          "ns": 9968.323,
+          "speedup": 1.0467270673311848
+        },
+        "change_pair_ns": {
+          "ns": 828.882568359375,
+          "speedup": 0.809725360320438
+        },
+        "make_unmake_ns": {
+          "ns": 5927.548828125,
+          "speedup": 0.9775775518508817
+        }
+      }
+    },
+    {
+      "width": 2048,
+      "variant": "quant",
+      "metrics": {
+        "forward_ns": {
+          "ns": 10617.0965,
+          "speedup": 0.98276525036765
+        },
+        "change_pair_ns": {
+          "ns": 775.30126953125,
+          "speedup": 0.8656857181904464
+        },
+        "make_unmake_ns": {
+          "ns": 5805.18359375,
+          "speedup": 0.9981835334396051
+        }
+      }
+    },
+    {
+      "width": 2048,
+      "variant": "head16",
+      "metrics": {
+        "forward_ns": {
+          "ns": 3299.3005,
+          "speedup": 3.162522934785722
+        },
+        "change_pair_ns": {
+          "ns": 660.540283203125,
+          "speedup": 1.0160882740920316
+        },
+        "make_unmake_ns": {
+          "ns": 5280.666015625,
+          "speedup": 1.0973310288378781
+        }
+      }
+    }
+  ],
+  "counters": [
+    {
+      "width": 512,
+      "position": "middlegame",
+      "variant": "exact",
+      "counters": [
+        2588,
+        2,
+        17439,
+        0
+      ],
+      "nodes": 5953
+    },
+    {
+      "width": 512,
+      "position": "middlegame",
+      "variant": "royal",
+      "counters": [
+        2588,
+        0,
+        17439,
+        0
+      ],
+      "nodes": 5953
+    },
+    {
+      "width": 512,
+      "position": "middlegame",
+      "variant": "control",
+      "counters": [
+        2588,
+        0,
+        17439,
+        0
+      ],
+      "nodes": 5953
+    },
+    {
+      "width": 512,
+      "position": "middlegame",
+      "variant": "memo",
+      "counters": [
+        2588,
+        2,
+        17439,
+        0
+      ],
+      "nodes": 5953
+    },
+    {
+      "width": 2048,
+      "position": "middlegame",
+      "variant": "exact",
+      "counters": [
+        1810,
+        2,
+        12237,
+        0
+      ],
+      "nodes": 5121
+    },
+    {
+      "width": 2048,
+      "position": "middlegame",
+      "variant": "royal",
+      "counters": [
+        1810,
+        0,
+        12237,
+        0
+      ],
+      "nodes": 5121
+    },
+    {
+      "width": 2048,
+      "position": "middlegame",
+      "variant": "memo",
+      "counters": [
+        1810,
+        2,
+        12237,
+        0
+      ],
+      "nodes": 5121
+    },
+    {
+      "width": 2048,
+      "position": "middlegame",
+      "variant": "control",
+      "counters": [
+        1810,
+        0,
+        12237,
+        0
+      ],
+      "nodes": 5121
+    },
+    {
+      "width": 512,
+      "position": "opening",
+      "variant": "memo",
+      "counters": [
+        1477,
+        7,
+        23225,
+        0
+      ],
+      "nodes": 3312
+    },
+    {
+      "width": 512,
+      "position": "opening",
+      "variant": "royal",
+      "counters": [
+        1477,
+        0,
+        23225,
+        0
+      ],
+      "nodes": 3312
+    },
+    {
+      "width": 512,
+      "position": "opening",
+      "variant": "control",
+      "counters": [
+        1477,
+        0,
+        23225,
+        0
+      ],
+      "nodes": 3312
+    },
+    {
+      "width": 512,
+      "position": "opening",
+      "variant": "exact",
+      "counters": [
+        1477,
+        7,
+        23225,
+        0
+      ],
+      "nodes": 3312
+    },
+    {
+      "width": 2048,
+      "position": "opening",
+      "variant": "exact",
+      "counters": [
+        6751,
+        10,
+        114170,
+        0
+      ],
+      "nodes": 10473
+    },
+    {
+      "width": 2048,
+      "position": "opening",
+      "variant": "memo",
+      "counters": [
+        6751,
+        10,
+        114170,
+        0
+      ],
+      "nodes": 10473
+    },
+    {
+      "width": 2048,
+      "position": "opening",
+      "variant": "control",
+      "counters": [
+        6751,
+        0,
+        114170,
+        0
+      ],
+      "nodes": 10473
+    },
+    {
+      "width": 2048,
+      "position": "opening",
+      "variant": "royal",
+      "counters": [
+        6751,
+        0,
+        114170,
+        0
+      ],
+      "nodes": 10473
+    },
+    {
+      "width": 2048,
+      "position": "tactical",
+      "variant": "exact",
+      "counters": [
+        8842,
+        2,
+        43030,
+        403502
+      ],
+      "nodes": 29820
+    },
+    {
+      "width": 2048,
+      "position": "tactical",
+      "variant": "royal",
+      "counters": [
+        8842,
+        0,
+        43030,
+        403502
+      ],
+      "nodes": 29820
+    },
+    {
+      "width": 2048,
+      "position": "tactical",
+      "variant": "control",
+      "counters": [
+        8842,
+        0,
+        1115904,
+        403502
+      ],
+      "nodes": 29820
+    },
+    {
+      "width": 2048,
+      "position": "tactical",
+      "variant": "memo",
+      "counters": [
+        8842,
+        2,
+        1115904,
+        403502
+      ],
+      "nodes": 29820
+    },
+    {
+      "width": 512,
+      "position": "long-history",
+      "variant": "memo",
+      "counters": [
+        2461,
+        4,
+        18769,
+        0
+      ],
+      "nodes": 11776
+    },
+    {
+      "width": 512,
+      "position": "long-history",
+      "variant": "control",
+      "counters": [
+        2461,
+        0,
+        18769,
+        0
+      ],
+      "nodes": 11776
+    },
+    {
+      "width": 512,
+      "position": "long-history",
+      "variant": "exact",
+      "counters": [
+        2461,
+        4,
+        18769,
+        0
+      ],
+      "nodes": 11776
+    },
+    {
+      "width": 512,
+      "position": "long-history",
+      "variant": "royal",
+      "counters": [
+        2461,
+        0,
+        18769,
+        0
+      ],
+      "nodes": 11776
+    },
+    {
+      "width": 512,
+      "position": "tactical",
+      "variant": "royal",
+      "counters": [
+        25009,
+        0,
+        97886,
+        770742
+      ],
+      "nodes": 58287
+    },
+    {
+      "width": 512,
+      "position": "tactical",
+      "variant": "memo",
+      "counters": [
+        25009,
+        2,
+        2143882,
+        770742
+      ],
+      "nodes": 58287
+    },
+    {
+      "width": 512,
+      "position": "tactical",
+      "variant": "exact",
+      "counters": [
+        25009,
+        2,
+        97886,
+        770742
+      ],
+      "nodes": 58287
+    },
+    {
+      "width": 512,
+      "position": "tactical",
+      "variant": "control",
+      "counters": [
+        25009,
+        0,
+        2143882,
+        770742
+      ],
+      "nodes": 58287
+    },
+    {
+      "width": 2048,
+      "position": "long-history",
+      "variant": "control",
+      "counters": [
+        2425,
+        0,
+        21892,
+        0
+      ],
+      "nodes": 16660
+    },
+    {
+      "width": 2048,
+      "position": "long-history",
+      "variant": "memo",
+      "counters": [
+        2425,
+        6,
+        21892,
+        0
+      ],
+      "nodes": 16660
+    },
+    {
+      "width": 2048,
+      "position": "long-history",
+      "variant": "exact",
+      "counters": [
+        2425,
+        6,
+        21892,
+        0
+      ],
+      "nodes": 16660
+    },
+    {
+      "width": 2048,
+      "position": "long-history",
+      "variant": "royal",
+      "counters": [
+        2425,
+        0,
+        21892,
+        0
+      ],
+      "nodes": 16660
+    }
+  ],
+  "quality": {
+    "reports": [
+      {
+        "width": 512,
+        "head": 24,
+        "model_sha256": "c42dc7aa1811d9ebdcfca74c190a7234a292156f63ee0780b4e9a580cd2eb131",
+        "calibration_games": 256,
+        "validation_games": 124,
+        "calibration": {
+          "n": 256,
+          "mean_abs_delta": 118.9453125,
+          "p95_abs_delta": 337.5,
+          "max_abs_delta": 644,
+          "rms_delta": 160.2712056952215,
+          "mean_delta": 14.359375,
+          "sign_changes": 1,
+          "sign_changes_old_abs_gt_100": 0,
+          "original_target_mae": 409.6060047149658,
+          "variant_target_mae": 441.02980041503906,
+          "original_target_rmse": 587.882432458209,
+          "variant_target_rmse": 631.7807930500661
+        },
+        "validation": {
+          "n": 512,
+          "mean_abs_delta": 124.02734375,
+          "p95_abs_delta": 378.45,
+          "max_abs_delta": 639,
+          "rms_delta": 173.60823803178235,
+          "mean_delta": 24.87890625,
+          "sign_changes": 6,
+          "sign_changes_old_abs_gt_100": 1,
+          "original_target_mae": 870.0882704257965,
+          "variant_target_mae": 874.6191103458405,
+          "original_target_rmse": 1246.9968850568164,
+          "variant_target_rmse": 1252.935788516566
+        },
+        "accumulator_range": [
+          -2272,
+          4676
+        ]
+      },
+      {
+        "width": 512,
+        "head": 16,
+        "model_sha256": "c42dc7aa1811d9ebdcfca74c190a7234a292156f63ee0780b4e9a580cd2eb131",
+        "calibration_games": 256,
+        "validation_games": 124,
+        "calibration": {
+          "n": 256,
+          "mean_abs_delta": 311.40234375,
+          "p95_abs_delta": 988.0,
+          "max_abs_delta": 1455,
+          "rms_delta": 430.6058186947199,
+          "mean_delta": 71.73828125,
+          "sign_changes": 4,
+          "sign_changes_old_abs_gt_100": 1,
+          "original_target_mae": 409.6060047149658,
+          "variant_target_mae": 545.8437938690186,
+          "original_target_rmse": 587.882432458209,
+          "variant_target_rmse": 787.6894749061461
+        },
+        "validation": {
+          "n": 512,
+          "mean_abs_delta": 336.7265625,
+          "p95_abs_delta": 1057.45,
+          "max_abs_delta": 2278,
+          "rms_delta": 499.78627854188835,
+          "mean_delta": 133.0703125,
+          "sign_changes": 17,
+          "sign_changes_old_abs_gt_100": 9,
+          "original_target_mae": 870.0882704257965,
+          "variant_target_mae": 934.1996185779572,
+          "original_target_rmse": 1246.9968850568164,
+          "variant_target_rmse": 1340.6060804301105
+        },
+        "accumulator_range": [
+          -2272,
+          4676
+        ]
+      },
+      {
+        "width": 768,
+        "head": 24,
+        "model_sha256": "b8192956b9f204d7d3eaef1bc7c4e0c4311d9f4ef946f0b94d4a8227f61fda8b",
+        "calibration_games": 256,
+        "validation_games": 124,
+        "calibration": {
+          "n": 256,
+          "mean_abs_delta": 160.421875,
+          "p95_abs_delta": 499.25,
+          "max_abs_delta": 1112,
+          "rms_delta": 236.8236092010254,
+          "mean_delta": -18.9765625,
+          "sign_changes": 4,
+          "sign_changes_old_abs_gt_100": 2,
+          "original_target_mae": 301.0120334625244,
+          "variant_target_mae": 373.1818027496338,
+          "original_target_rmse": 469.2297742672122,
+          "variant_target_rmse": 570.4263890210293
+        },
+        "validation": {
+          "n": 512,
+          "mean_abs_delta": 149.65625,
+          "p95_abs_delta": 445.74999999999983,
+          "max_abs_delta": 1310,
+          "rms_delta": 230.9892617904564,
+          "mean_delta": 25.83203125,
+          "sign_changes": 10,
+          "sign_changes_old_abs_gt_100": 3,
+          "original_target_mae": 873.9672319889069,
+          "variant_target_mae": 901.204883813858,
+          "original_target_rmse": 1236.922924318448,
+          "variant_target_rmse": 1264.9134526423284
+        },
+        "accumulator_range": [
+          -2405,
+          6169
+        ]
+      },
+      {
+        "width": 768,
+        "head": 16,
+        "model_sha256": "b8192956b9f204d7d3eaef1bc7c4e0c4311d9f4ef946f0b94d4a8227f61fda8b",
+        "calibration_games": 256,
+        "validation_games": 124,
+        "calibration": {
+          "n": 256,
+          "mean_abs_delta": 439.46875,
+          "p95_abs_delta": 1311.0,
+          "max_abs_delta": 2474,
+          "rms_delta": 613.3912011310563,
+          "mean_delta": 24.765625,
+          "sign_changes": 6,
+          "sign_changes_old_abs_gt_100": 3,
+          "original_target_mae": 301.0120334625244,
+          "variant_target_mae": 598.6845092773438,
+          "original_target_rmse": 469.2297742672122,
+          "variant_target_rmse": 850.9575161400592
+        },
+        "validation": {
+          "n": 512,
+          "mean_abs_delta": 418.515625,
+          "p95_abs_delta": 1388.85,
+          "max_abs_delta": 3047,
+          "rms_delta": 621.7598794199012,
+          "mean_delta": 137.3203125,
+          "sign_changes": 21,
+          "sign_changes_old_abs_gt_100": 12,
+          "original_target_mae": 873.9672319889069,
+          "variant_target_mae": 1005.6779940128326,
+          "original_target_rmse": 1236.922924318448,
+          "variant_target_rmse": 1399.0754388669027
+        },
+        "accumulator_range": [
+          -2405,
+          6169
+        ]
+      },
+      {
+        "width": 1024,
+        "head": 24,
+        "model_sha256": "93987c133867d919917579d9ee97da034c630c0e09142354bb8c6b90ec083fa7",
+        "calibration_games": 256,
+        "validation_games": 124,
+        "calibration": {
+          "n": 256,
+          "mean_abs_delta": 161.97265625,
+          "p95_abs_delta": 483.25,
+          "max_abs_delta": 1260,
+          "rms_delta": 229.40119911685292,
+          "mean_delta": -21.51953125,
+          "sign_changes": 3,
+          "sign_changes_old_abs_gt_100": 0,
+          "original_target_mae": 449.4463634490967,
+          "variant_target_mae": 493.5777645111084,
+          "original_target_rmse": 649.71706528716,
+          "variant_target_rmse": 707.4785511016652
+        },
+        "validation": {
+          "n": 512,
+          "mean_abs_delta": 171.927734375,
+          "p95_abs_delta": 502.34999999999997,
+          "max_abs_delta": 1440,
+          "rms_delta": 248.9043765623156,
+          "mean_delta": -2.490234375,
+          "sign_changes": 6,
+          "sign_changes_old_abs_gt_100": 2,
+          "original_target_mae": 863.8283231258392,
+          "variant_target_mae": 894.7978084087372,
+          "original_target_rmse": 1224.7286472524784,
+          "variant_target_rmse": 1258.440894192193
+        },
+        "accumulator_range": [
+          -2418,
+          6344
+        ]
+      },
+      {
+        "width": 1024,
+        "head": 16,
+        "model_sha256": "93987c133867d919917579d9ee97da034c630c0e09142354bb8c6b90ec083fa7",
+        "calibration_games": 256,
+        "validation_games": 124,
+        "calibration": {
+          "n": 256,
+          "mean_abs_delta": 412.38671875,
+          "p95_abs_delta": 1262.75,
+          "max_abs_delta": 2005,
+          "rms_delta": 564.3419598578951,
+          "mean_delta": -11.89453125,
+          "sign_changes": 7,
+          "sign_changes_old_abs_gt_100": 1,
+          "original_target_mae": 449.4463634490967,
+          "variant_target_mae": 646.307315826416,
+          "original_target_rmse": 649.71706528716,
+          "variant_target_rmse": 923.0833971830688
+        },
+        "validation": {
+          "n": 512,
+          "mean_abs_delta": 403.541015625,
+          "p95_abs_delta": 1283.7999999999997,
+          "max_abs_delta": 2288,
+          "rms_delta": 574.7448329884097,
+          "mean_delta": 73.251953125,
+          "sign_changes": 17,
+          "sign_changes_old_abs_gt_100": 12,
+          "original_target_mae": 863.8283231258392,
+          "variant_target_mae": 955.1713435649872,
+          "original_target_rmse": 1224.7286472524784,
+          "variant_target_rmse": 1361.7372252105272
+        },
+        "accumulator_range": [
+          -2418,
+          6344
+        ]
+      },
+      {
+        "width": 1536,
+        "head": 24,
+        "model_sha256": "323c017c43c1b5991c271bb1fcd8f993b70405653d72422be4aef62fdeace77a",
+        "calibration_games": 256,
+        "validation_games": 124,
+        "calibration": {
+          "n": 256,
+          "mean_abs_delta": 196.2890625,
+          "p95_abs_delta": 564.25,
+          "max_abs_delta": 1381,
+          "rms_delta": 266.6242528118926,
+          "mean_delta": -7.796875,
+          "sign_changes": 2,
+          "sign_changes_old_abs_gt_100": 0,
+          "original_target_mae": 253.8031005859375,
+          "variant_target_mae": 339.16153717041016,
+          "original_target_rmse": 406.12909617329245,
+          "variant_target_rmse": 493.4634701779306
+        },
+        "validation": {
+          "n": 512,
+          "mean_abs_delta": 189.443359375,
+          "p95_abs_delta": 485.39999999999964,
+          "max_abs_delta": 1980,
+          "rms_delta": 282.7800015858176,
+          "mean_delta": 4.205078125,
+          "sign_changes": 4,
+          "sign_changes_old_abs_gt_100": 3,
+          "original_target_mae": 869.3207352161407,
+          "variant_target_mae": 893.6194965839386,
+          "original_target_rmse": 1226.287193058229,
+          "variant_target_rmse": 1249.6400192787735
+        },
+        "accumulator_range": [
+          -1777,
+          6689
+        ]
+      },
+      {
+        "width": 1536,
+        "head": 16,
+        "model_sha256": "323c017c43c1b5991c271bb1fcd8f993b70405653d72422be4aef62fdeace77a",
+        "calibration_games": 256,
+        "validation_games": 124,
+        "calibration": {
+          "n": 256,
+          "mean_abs_delta": 416.9765625,
+          "p95_abs_delta": 1248.25,
+          "max_abs_delta": 2036,
+          "rms_delta": 570.4747885533593,
+          "mean_delta": -22.84375,
+          "sign_changes": 8,
+          "sign_changes_old_abs_gt_100": 3,
+          "original_target_mae": 253.8031005859375,
+          "variant_target_mae": 498.4809036254883,
+          "original_target_rmse": 406.12909617329245,
+          "variant_target_rmse": 729.2973773923096
+        },
+        "validation": {
+          "n": 512,
+          "mean_abs_delta": 379.044921875,
+          "p95_abs_delta": 1078.2999999999997,
+          "max_abs_delta": 3058,
+          "rms_delta": 544.4404111820917,
+          "mean_delta": 49.556640625,
+          "sign_changes": 20,
+          "sign_changes_old_abs_gt_100": 18,
+          "original_target_mae": 869.3207352161407,
+          "variant_target_mae": 945.9413750171661,
+          "original_target_rmse": 1226.287193058229,
+          "variant_target_rmse": 1328.636457722776
+        },
+        "accumulator_range": [
+          -1777,
+          6689
+        ]
+      },
+      {
+        "width": 2048,
+        "head": 24,
+        "model_sha256": "bfb0ddf94230ab010cb0e818c653dc8ae9bcf0ab4c4992366eea31dcddb11ddd",
+        "calibration_games": 256,
+        "validation_games": 124,
+        "calibration": {
+          "n": 256,
+          "mean_abs_delta": 155.81640625,
+          "p95_abs_delta": 466.75,
+          "max_abs_delta": 789,
+          "rms_delta": 209.08123981780383,
+          "mean_delta": -7.92578125,
+          "sign_changes": 3,
+          "sign_changes_old_abs_gt_100": 2,
+          "original_target_mae": 410.8347339630127,
+          "variant_target_mae": 458.69956970214844,
+          "original_target_rmse": 621.9046922063941,
+          "variant_target_rmse": 678.343225442721
+        },
+        "validation": {
+          "n": 512,
+          "mean_abs_delta": 154.90625,
+          "p95_abs_delta": 487.45,
+          "max_abs_delta": 1048,
+          "rms_delta": 212.39909368921516,
+          "mean_delta": 2.63671875,
+          "sign_changes": 13,
+          "sign_changes_old_abs_gt_100": 6,
+          "original_target_mae": 905.7650063037872,
+          "variant_target_mae": 930.6250965595245,
+          "original_target_rmse": 1279.7146870843428,
+          "variant_target_rmse": 1303.5764969592362
+        },
+        "accumulator_range": [
+          -2136,
+          6645
+        ]
+      },
+      {
+        "width": 2048,
+        "head": 16,
+        "model_sha256": "bfb0ddf94230ab010cb0e818c653dc8ae9bcf0ab4c4992366eea31dcddb11ddd",
+        "calibration_games": 256,
+        "validation_games": 124,
+        "calibration": {
+          "n": 256,
+          "mean_abs_delta": 339.81640625,
+          "p95_abs_delta": 940.25,
+          "max_abs_delta": 1748,
+          "rms_delta": 456.28628708438083,
+          "mean_delta": -20.76953125,
+          "sign_changes": 4,
+          "sign_changes_old_abs_gt_100": 3,
+          "original_target_mae": 410.8347339630127,
+          "variant_target_mae": 596.0651016235352,
+          "original_target_rmse": 621.9046922063941,
+          "variant_target_rmse": 816.9068444571142
+        },
+        "validation": {
+          "n": 512,
+          "mean_abs_delta": 311.97265625,
+          "p95_abs_delta": 874.3499999999999,
+          "max_abs_delta": 1760,
+          "rms_delta": 428.98535358884925,
+          "mean_delta": 19.08203125,
+          "sign_changes": 17,
+          "sign_changes_old_abs_gt_100": 8,
+          "original_target_mae": 905.7650063037872,
+          "variant_target_mae": 969.3284094333649,
+          "original_target_rmse": 1279.7146870843428,
+          "variant_target_rmse": 1355.7024509118667
+        },
+        "accumulator_range": [
+          -2136,
+          6645
+        ]
+      }
+    ],
+    "calibration_samples": 256,
+    "validation_samples": 512,
+    "method": "Greedy mean replacement, no retraining. Validation held out from pruning fit, but used previously for original training early stopping. Search-score labels are imperfect teachers. Timings measured separately."
+  },
+  "confirmation": [
+    {
+      "width": 512,
+      "gain": 11.047424349434865,
+      "pooled": 7.79485375365927,
+      "positions": [
+        {
+          "position": "opening",
+          "gain": 0.3140493790184662,
+          "depths": [
+            3,
+            3
+          ],
+          "oldDepths": [
+            3,
+            3
+          ],
+          "paired_ratios": [
+            0.9982566650125351,
+            1.0080482160056299
+          ]
+        },
+        {
+          "position": "middlegame",
+          "gain": 5.262350521176717,
+          "depths": [
+            3,
+            3
+          ],
+          "oldDepths": [
+            3,
+            3
+          ],
+          "paired_ratios": [
+            1.045513408299755,
+            1.0597819549021337
+          ]
+        },
+        {
+          "position": "tactical",
+          "gain": 35.83961979332049,
+          "depths": [
+            1,
+            2
+          ],
+          "oldDepths": [
+            1,
+            1
+          ],
+          "paired_ratios": [
+            1.3285591237591297,
+            1.3889033597077103
+          ]
+        },
+        {
+          "position": "long-history",
+          "gain": 6.016308196144626,
+          "depths": [
+            4,
+            4
+          ],
+          "oldDepths": [
+            4,
+            4
+          ],
+          "paired_ratios": [
+            1.0736966942681108,
+            1.046800056621329
+          ]
+        }
+      ],
+      "per_repeat_gain": [
+        10.46090114402336,
+        11.637061864678412
+      ]
+    },
+    {
+      "width": 2048,
+      "gain": 33.808538227968164,
+      "pooled": 21.179696575127394,
+      "positions": [
+        {
+          "position": "opening",
+          "gain": 7.557159278356318,
+          "depths": [
+            3,
+            3
+          ],
+          "oldDepths": [
+            3,
+            3
+          ],
+          "paired_ratios": [
+            1.0902996486387835,
+            1.061042487399936
+          ]
+        },
+        {
+          "position": "middlegame",
+          "gain": 5.578379623275143,
+          "depths": [
+            3,
+            3
+          ],
+          "oldDepths": [
+            3,
+            3
+          ],
+          "paired_ratios": [
+            1.0955816599760817,
+            1.0174316211280636
+          ]
+        },
+        {
+          "position": "tactical",
+          "gain": 161.72263581000803,
+          "depths": [
+            2,
+            3
+          ],
+          "oldDepths": [
+            1,
+            1
+          ],
+          "paired_ratios": [
+            2.408354783877129,
+            2.844212927177793
+          ]
+        },
+        {
+          "position": "long-history",
+          "gain": 7.864790465438154,
+          "depths": [
+            2,
+            2
+          ],
+          "oldDepths": [
+            2,
+            2
+          ],
+          "paired_ratios": [
+            1.075381554181394,
+            1.0819241762994136
+          ]
+        }
+      ],
+      "per_repeat_gain": [
+        32.62286890121757,
+        35.00480762515943
+      ]
+    }
+  ],
+  "quality_checks": {
+    "checks": [
+      {
+        "width": 512,
+        "head": 24,
+        "game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-s2-swiss-20260828T064125Z/slot0950-AVG_P120_SEED_C2S2-vs-BASE_P120H50B75_C2S2-a-black.json",
+        "ply": 760,
+        "score": -7729
+      },
+      {
+        "width": 512,
+        "head": 24,
+        "game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-s2-champs-swiss-20260902T042955Z/slot0299-AVG_P120_SEED_C2LA-vs-AVG_P120_SEED_C2A-a-white.json",
+        "ply": 140,
+        "score": 3196
+      },
+      {
+        "width": 512,
+        "head": 16,
+        "game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-s2-swiss-20260828T064125Z/slot0950-AVG_P120_SEED_C2S2-vs-BASE_P120H50B75_C2S2-a-black.json",
+        "ply": 760,
+        "score": -7094
+      },
+      {
+        "width": 512,
+        "head": 16,
+        "game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-s2-champs-swiss-20260902T042955Z/slot0299-AVG_P120_SEED_C2LA-vs-AVG_P120_SEED_C2A-a-white.json",
+        "ply": 140,
+        "score": 3409
+      },
+      {
+        "width": 768,
+        "head": 24,
+        "game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-s2-swiss-20260828T064125Z/slot0950-AVG_P120_SEED_C2S2-vs-BASE_P120H50B75_C2S2-a-black.json",
+        "ply": 760,
+        "score": -8305
+      },
+      {
+        "width": 768,
+        "head": 24,
+        "game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-s2-champs-swiss-20260902T042955Z/slot0299-AVG_P120_SEED_C2LA-vs-AVG_P120_SEED_C2A-a-white.json",
+        "ply": 140,
+        "score": 3483
+      },
+      {
+        "width": 768,
+        "head": 16,
+        "game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-s2-swiss-20260828T064125Z/slot0950-AVG_P120_SEED_C2S2-vs-BASE_P120H50B75_C2S2-a-black.json",
+        "ply": 760,
+        "score": -7590
+      },
+      {
+        "width": 768,
+        "head": 16,
+        "game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-s2-champs-swiss-20260902T042955Z/slot0299-AVG_P120_SEED_C2LA-vs-AVG_P120_SEED_C2A-a-white.json",
+        "ply": 140,
+        "score": 3101
+      },
+      {
+        "width": 1024,
+        "head": 24,
+        "game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-s2-swiss-20260828T064125Z/slot0950-AVG_P120_SEED_C2S2-vs-BASE_P120H50B75_C2S2-a-black.json",
+        "ply": 760,
+        "score": -8276
+      },
+      {
+        "width": 1024,
+        "head": 24,
+        "game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-s2-champs-swiss-20260902T042955Z/slot0299-AVG_P120_SEED_C2LA-vs-AVG_P120_SEED_C2A-a-white.json",
+        "ply": 140,
+        "score": 3146
+      },
+      {
+        "width": 1024,
+        "head": 16,
+        "game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-s2-swiss-20260828T064125Z/slot0950-AVG_P120_SEED_C2S2-vs-BASE_P120H50B75_C2S2-a-black.json",
+        "ply": 760,
+        "score": -7391
+      },
+      {
+        "width": 1024,
+        "head": 16,
+        "game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-s2-champs-swiss-20260902T042955Z/slot0299-AVG_P120_SEED_C2LA-vs-AVG_P120_SEED_C2A-a-white.json",
+        "ply": 140,
+        "score": 3022
+      },
+      {
+        "width": 1536,
+        "head": 24,
+        "game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-s2-swiss-20260828T064125Z/slot0950-AVG_P120_SEED_C2S2-vs-BASE_P120H50B75_C2S2-a-black.json",
+        "ply": 760,
+        "score": -8204
+      },
+      {
+        "width": 1536,
+        "head": 24,
+        "game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-s2-champs-swiss-20260902T042955Z/slot0299-AVG_P120_SEED_C2LA-vs-AVG_P120_SEED_C2A-a-white.json",
+        "ply": 140,
+        "score": 3545
+      },
+      {
+        "width": 1536,
+        "head": 16,
+        "game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-s2-swiss-20260828T064125Z/slot0950-AVG_P120_SEED_C2S2-vs-BASE_P120H50B75_C2S2-a-black.json",
+        "ply": 760,
+        "score": -7440
+      },
+      {
+        "width": 1536,
+        "head": 16,
+        "game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-s2-champs-swiss-20260902T042955Z/slot0299-AVG_P120_SEED_C2LA-vs-AVG_P120_SEED_C2A-a-white.json",
+        "ply": 140,
+        "score": 3209
+      },
+      {
+        "width": 2048,
+        "head": 24,
+        "game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-s2-swiss-20260828T064125Z/slot0950-AVG_P120_SEED_C2S2-vs-BASE_P120H50B75_C2S2-a-black.json",
+        "ply": 760,
+        "score": -7710
+      },
+      {
+        "width": 2048,
+        "head": 24,
+        "game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-s2-champs-swiss-20260902T042955Z/slot0299-AVG_P120_SEED_C2LA-vs-AVG_P120_SEED_C2A-a-white.json",
+        "ply": 140,
+        "score": 2972
+      },
+      {
+        "width": 2048,
+        "head": 16,
+        "game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-s2-swiss-20260828T064125Z/slot0950-AVG_P120_SEED_C2S2-vs-BASE_P120H50B75_C2S2-a-black.json",
+        "ply": 760,
+        "score": -7319
+      },
+      {
+        "width": 2048,
+        "head": 16,
+        "game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-s2-champs-swiss-20260902T042955Z/slot0299-AVG_P120_SEED_C2LA-vs-AVG_P120_SEED_C2A-a-white.json",
+        "ply": 140,
+        "score": 2866
+      }
+    ],
+    "all_exact": true,
+    "bootstrap": [
+      {
+        "width": 512,
+        "head": 24,
+        "games": 124,
+        "mae_delta_95pct_cluster_bootstrap": [
+          -12.994369122362512,
+          23.4813273009731
+        ],
+        "mae_relative_pct_95pct_cluster_bootstrap": [
+          -1.511330246385827,
+          2.6883394876637143
+        ]
+      },
+      {
+        "width": 512,
+        "head": 16,
+        "games": 124,
+        "mae_delta_95pct_cluster_bootstrap": [
+          14.280768109056991,
+          119.38063952699063
+        ],
+        "mae_relative_pct_95pct_cluster_bootstrap": [
+          1.589185347748517,
+          13.782071384687743
+        ]
+      },
+      {
+        "width": 768,
+        "head": 24,
+        "games": 124,
+        "mae_delta_95pct_cluster_bootstrap": [
+          3.187172591246367,
+          54.08763939794457
+        ],
+        "mae_relative_pct_95pct_cluster_bootstrap": [
+          0.35695311885089953,
+          6.104250783418656
+        ]
+      },
+      {
+        "width": 768,
+        "head": 16,
+        "games": 124,
+        "mae_delta_95pct_cluster_bootstrap": [
+          73.07676294469458,
+          200.62481991038598
+        ],
+        "mae_relative_pct_95pct_cluster_bootstrap": [
+          8.241549186364768,
+          23.184744680289104
+        ]
+      },
+      {
+        "width": 1024,
+        "head": 24,
+        "games": 124,
+        "mae_delta_95pct_cluster_bootstrap": [
+          5.495534207742495,
+          59.45279125303734
+        ],
+        "mae_relative_pct_95pct_cluster_bootstrap": [
+          0.65409956810973,
+          6.918832708727949
+        ]
+      },
+      {
+        "width": 1024,
+        "head": 16,
+        "games": 124,
+        "mae_delta_95pct_cluster_bootstrap": [
+          31.65277357370473,
+          155.55195914078368
+        ],
+        "mae_relative_pct_95pct_cluster_bootstrap": [
+          3.682067047344373,
+          18.26557478955846
+        ]
+      },
+      {
+        "width": 1536,
+        "head": 24,
+        "games": 124,
+        "mae_delta_95pct_cluster_bootstrap": [
+          -1.4973127372577466,
+          54.49815240532438
+        ],
+        "mae_relative_pct_95pct_cluster_bootstrap": [
+          -0.1732467371263255,
+          6.322434931015213
+        ]
+      },
+      {
+        "width": 1536,
+        "head": 16,
+        "games": 124,
+        "mae_delta_95pct_cluster_bootstrap": [
+          17.49900496508201,
+          139.84797108520942
+        ],
+        "mae_relative_pct_95pct_cluster_bootstrap": [
+          2.0292365686119265,
+          16.199315821361694
+        ]
+      },
+      {
+        "width": 2048,
+        "head": 24,
+        "games": 124,
+        "mae_delta_95pct_cluster_bootstrap": [
+          3.589498198068214,
+          47.50353544619337
+        ],
+        "mae_relative_pct_95pct_cluster_bootstrap": [
+          0.390890362606714,
+          5.307940960239873
+        ]
+      },
+      {
+        "width": 2048,
+        "head": 16,
+        "games": 124,
+        "mae_delta_95pct_cluster_bootstrap": [
+          20.31961955394279,
+          107.87925933504565
+        ],
+        "mae_relative_pct_95pct_cluster_bootstrap": [
+          2.2210904503726288,
+          11.861805042704436
+        ]
+      }
+    ],
+    "note": "Paired bootstrap resamples validation games, conditional on these calibrated pruning plans. Labels were also used for original early stopping; this is not a new independent strength test."
+  },
+  "binary_sha256": "f33b5038bb5573f82a490942893d5066c979e99744b63291fdb26847143aefbf",
+  "total_timed_runs": 192,
+  "additional_fixed_depth_runs": 32
+}

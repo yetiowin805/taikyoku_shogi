@@ -1,0 +1,1409 @@
+{
+  "main_revision": "05b6ec7099d3767ad0c069016851dcfd6e5eb198",
+  "source_revision": "5f069c8f0f2999d906dbed3bf51378fa0cea7337",
+  "timed_searches": 96,
+  "verified_searches": 48,
+  "method": "Geometric mean of paired NPS ratios, equal weight per position; two balanced repetitions. No confidence claim from four positions.",
+  "widths": {
+    "512": {
+      "versus_main": {
+        "full": {
+          "numerator": "full",
+          "denominator": "main",
+          "pairs": 8,
+          "equal_position_nps_ratio": 1.3855941286428852,
+          "pooled_nps_ratio": 1.3052137186086255,
+          "per_position_ratio": {
+            "long-history": 1.2841102122471715,
+            "middlegame": 1.2061062890419108,
+            "opening": 1.2192871993592471,
+            "tactical": 1.9518670886136724
+          },
+          "per_repetition_ratio": [
+            1.3731202752655605,
+            1.398181298399614
+          ],
+          "single_fixed_depth_speed_ratio": 1.503767227364236,
+          "fixed_depth_per_position_ratio": {
+            "middlegame": 1.4515024010145574,
+            "opening": 1.3541153538354442,
+            "long-history": 1.022039598542372,
+            "tactical": 2.5455481668177193
+          },
+          "median_peak_rss_ratio": 1.027843959458336,
+          "median_peak_rss_delta_mib": 7.447265625,
+          "timed_best_move_changes": 2,
+          "depth_pairs": [
+            {
+              "position": "middlegame",
+              "rep": 0,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "opening",
+              "rep": 0,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "long-history",
+              "rep": 0,
+              "numerator": 4,
+              "denominator": 4
+            },
+            {
+              "position": "tactical",
+              "rep": 0,
+              "numerator": 2,
+              "denominator": 1
+            },
+            {
+              "position": "middlegame",
+              "rep": 1,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "long-history",
+              "rep": 1,
+              "numerator": 4,
+              "denominator": 4
+            },
+            {
+              "position": "tactical",
+              "rep": 1,
+              "numerator": 2,
+              "denominator": 1
+            },
+            {
+              "position": "opening",
+              "rep": 1,
+              "numerator": 3,
+              "denominator": 3
+            }
+          ]
+        },
+        "no-cache": {
+          "numerator": "no-cache",
+          "denominator": "main",
+          "pairs": 8,
+          "equal_position_nps_ratio": 1.2806096343912576,
+          "pooled_nps_ratio": 1.195561298058676,
+          "per_position_ratio": {
+            "long-history": 1.1761246314660687,
+            "middlegame": 1.069871872205343,
+            "opening": 1.0813587866621182,
+            "tactical": 1.976569686815474
+          },
+          "per_repetition_ratio": [
+            1.2557756092867702,
+            1.3059347733526547
+          ],
+          "single_fixed_depth_speed_ratio": 1.4288309104676318,
+          "fixed_depth_per_position_ratio": {
+            "middlegame": 1.3238336127208876,
+            "opening": 1.1773799497142539,
+            "long-history": 1.0308052480622396,
+            "tactical": 2.5941595735584637
+          },
+          "median_peak_rss_ratio": 1.0003365169289786,
+          "median_peak_rss_delta_mib": 0.08984375,
+          "timed_best_move_changes": 2,
+          "depth_pairs": [
+            {
+              "position": "middlegame",
+              "rep": 0,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "opening",
+              "rep": 0,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "long-history",
+              "rep": 0,
+              "numerator": 4,
+              "denominator": 4
+            },
+            {
+              "position": "tactical",
+              "rep": 0,
+              "numerator": 3,
+              "denominator": 1
+            },
+            {
+              "position": "middlegame",
+              "rep": 1,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "long-history",
+              "rep": 1,
+              "numerator": 4,
+              "denominator": 4
+            },
+            {
+              "position": "tactical",
+              "rep": 1,
+              "numerator": 2,
+              "denominator": 1
+            },
+            {
+              "position": "opening",
+              "rep": 1,
+              "numerator": 3,
+              "denominator": 3
+            }
+          ]
+        },
+        "no-snapshot": {
+          "numerator": "no-snapshot",
+          "denominator": "main",
+          "pairs": 8,
+          "equal_position_nps_ratio": 1.3244805558325414,
+          "pooled_nps_ratio": 1.244572212516264,
+          "per_position_ratio": {
+            "long-history": 1.2549066200632328,
+            "middlegame": 1.100916072899376,
+            "opening": 1.1374791774732955,
+            "tactical": 1.9582731530618571
+          },
+          "per_repetition_ratio": [
+            1.3396085542317606,
+            1.3095233956493395
+          ],
+          "single_fixed_depth_speed_ratio": 1.4945945188203813,
+          "fixed_depth_per_position_ratio": {
+            "middlegame": 1.4082151139876093,
+            "opening": 1.2837839736581418,
+            "long-history": 1.1576739460088041,
+            "tactical": 2.384220020775374
+          },
+          "median_peak_rss_ratio": 1.0281579369845883,
+          "median_peak_rss_delta_mib": 7.53125,
+          "timed_best_move_changes": 2,
+          "depth_pairs": [
+            {
+              "position": "middlegame",
+              "rep": 0,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "opening",
+              "rep": 0,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "long-history",
+              "rep": 0,
+              "numerator": 4,
+              "denominator": 4
+            },
+            {
+              "position": "tactical",
+              "rep": 0,
+              "numerator": 2,
+              "denominator": 1
+            },
+            {
+              "position": "middlegame",
+              "rep": 1,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "long-history",
+              "rep": 1,
+              "numerator": 4,
+              "denominator": 4
+            },
+            {
+              "position": "tactical",
+              "rep": 1,
+              "numerator": 2,
+              "denominator": 1
+            },
+            {
+              "position": "opening",
+              "rep": 1,
+              "numerator": 3,
+              "denominator": 3
+            }
+          ]
+        },
+        "no-packed": {
+          "numerator": "no-packed",
+          "denominator": "main",
+          "pairs": 8,
+          "equal_position_nps_ratio": 1.3401325028042832,
+          "pooled_nps_ratio": 1.249573921183283,
+          "per_position_ratio": {
+            "long-history": 1.2577271147949185,
+            "middlegame": 1.0480348731017732,
+            "opening": 1.2579636484141714,
+            "tactical": 1.9451841075929852
+          },
+          "per_repetition_ratio": [
+            1.3088089013500077,
+            1.3722057690927865
+          ],
+          "single_fixed_depth_speed_ratio": 1.5296771457277076,
+          "fixed_depth_per_position_ratio": {
+            "middlegame": 1.4671571588292585,
+            "opening": 1.36585280952404,
+            "long-history": 1.083440339753965,
+            "tactical": 2.5218170313558135
+          },
+          "median_peak_rss_ratio": 1.0279094673629565,
+          "median_peak_rss_delta_mib": 7.46484375,
+          "timed_best_move_changes": 2,
+          "depth_pairs": [
+            {
+              "position": "middlegame",
+              "rep": 0,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "opening",
+              "rep": 0,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "long-history",
+              "rep": 0,
+              "numerator": 4,
+              "denominator": 4
+            },
+            {
+              "position": "tactical",
+              "rep": 0,
+              "numerator": 2,
+              "denominator": 1
+            },
+            {
+              "position": "middlegame",
+              "rep": 1,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "long-history",
+              "rep": 1,
+              "numerator": 4,
+              "denominator": 4
+            },
+            {
+              "position": "tactical",
+              "rep": 1,
+              "numerator": 2,
+              "denominator": 1
+            },
+            {
+              "position": "opening",
+              "rep": 1,
+              "numerator": 3,
+              "denominator": 3
+            }
+          ]
+        },
+        "no-royal": {
+          "numerator": "no-royal",
+          "denominator": "main",
+          "pairs": 8,
+          "equal_position_nps_ratio": 1.2903694117031952,
+          "pooled_nps_ratio": 1.260808756143202,
+          "per_position_ratio": {
+            "long-history": 1.331506280981824,
+            "middlegame": 1.118318649971943,
+            "opening": 1.2340986709061161,
+            "tactical": 1.5086815054492098
+          },
+          "per_repetition_ratio": [
+            1.3000448060763186,
+            1.2807660250453736
+          ],
+          "single_fixed_depth_speed_ratio": 1.3711367968031398,
+          "fixed_depth_per_position_ratio": {
+            "middlegame": 1.4071409545401639,
+            "opening": 1.3380982439354088,
+            "long-history": 1.1241196916746423,
+            "tactical": 1.669878928267464
+          },
+          "median_peak_rss_ratio": 1.028594794528391,
+          "median_peak_rss_delta_mib": 7.650390625,
+          "timed_best_move_changes": 0,
+          "depth_pairs": [
+            {
+              "position": "middlegame",
+              "rep": 0,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "opening",
+              "rep": 0,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "long-history",
+              "rep": 0,
+              "numerator": 4,
+              "denominator": 4
+            },
+            {
+              "position": "tactical",
+              "rep": 0,
+              "numerator": 1,
+              "denominator": 1
+            },
+            {
+              "position": "middlegame",
+              "rep": 1,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "long-history",
+              "rep": 1,
+              "numerator": 4,
+              "denominator": 4
+            },
+            {
+              "position": "tactical",
+              "rep": 1,
+              "numerator": 1,
+              "denominator": 1
+            },
+            {
+              "position": "opening",
+              "rep": 1,
+              "numerator": 3,
+              "denominator": 3
+            }
+          ]
+        }
+      },
+      "marginal_contribution": {
+        "no-cache": {
+          "numerator": "full",
+          "denominator": "no-cache",
+          "pairs": 8,
+          "equal_position_nps_ratio": 1.0819800909131319,
+          "pooled_nps_ratio": 1.0917162681060355,
+          "per_position_ratio": {
+            "long-history": 1.0918147430060166,
+            "middlegame": 1.127337132955693,
+            "opening": 1.1275510167378204,
+            "tactical": 0.9875022882488899
+          },
+          "per_repetition_ratio": [
+            1.0934439760662633,
+            1.070636395422828
+          ],
+          "single_fixed_depth_speed_ratio": 1.052445895695299,
+          "fixed_depth_per_position_ratio": {
+            "middlegame": 1.0964386967266007,
+            "opening": 1.1501090656113884,
+            "long-history": 0.9914963087970831,
+            "tactical": 0.9812612118251219
+          },
+          "median_peak_rss_ratio": 1.0277479882564768,
+          "median_peak_rss_delta_mib": 7.423828125,
+          "timed_best_move_changes": 0,
+          "depth_pairs": [
+            {
+              "position": "middlegame",
+              "rep": 0,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "opening",
+              "rep": 0,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "long-history",
+              "rep": 0,
+              "numerator": 4,
+              "denominator": 4
+            },
+            {
+              "position": "tactical",
+              "rep": 0,
+              "numerator": 2,
+              "denominator": 3
+            },
+            {
+              "position": "middlegame",
+              "rep": 1,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "long-history",
+              "rep": 1,
+              "numerator": 4,
+              "denominator": 4
+            },
+            {
+              "position": "tactical",
+              "rep": 1,
+              "numerator": 2,
+              "denominator": 2
+            },
+            {
+              "position": "opening",
+              "rep": 1,
+              "numerator": 3,
+              "denominator": 3
+            }
+          ]
+        },
+        "no-snapshot": {
+          "numerator": "full",
+          "denominator": "no-snapshot",
+          "pairs": 8,
+          "equal_position_nps_ratio": 1.0461415401994552,
+          "pooled_nps_ratio": 1.0487247790706793,
+          "per_position_ratio": {
+            "long-history": 1.0232715261175906,
+            "middlegame": 1.0955478975481805,
+            "opening": 1.0719204566607305,
+            "tactical": 0.9967287176264615
+          },
+          "per_repetition_ratio": [
+            1.0250160548228344,
+            1.0677024198611684
+          ],
+          "single_fixed_depth_speed_ratio": 1.0061372555755754,
+          "fixed_depth_per_position_ratio": {
+            "middlegame": 1.030739115492357,
+            "opening": 1.0547844354037954,
+            "long-history": 0.8828389047416634,
+            "tactical": 1.0676649573598833
+          },
+          "median_peak_rss_ratio": 1.0000568012402027,
+          "median_peak_rss_delta_mib": 0.015625,
+          "timed_best_move_changes": 0,
+          "depth_pairs": [
+            {
+              "position": "middlegame",
+              "rep": 0,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "opening",
+              "rep": 0,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "long-history",
+              "rep": 0,
+              "numerator": 4,
+              "denominator": 4
+            },
+            {
+              "position": "tactical",
+              "rep": 0,
+              "numerator": 2,
+              "denominator": 2
+            },
+            {
+              "position": "middlegame",
+              "rep": 1,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "long-history",
+              "rep": 1,
+              "numerator": 4,
+              "denominator": 4
+            },
+            {
+              "position": "tactical",
+              "rep": 1,
+              "numerator": 2,
+              "denominator": 2
+            },
+            {
+              "position": "opening",
+              "rep": 1,
+              "numerator": 3,
+              "denominator": 3
+            }
+          ]
+        },
+        "no-packed": {
+          "numerator": "full",
+          "denominator": "no-packed",
+          "pairs": 8,
+          "equal_position_nps_ratio": 1.0339232320262897,
+          "pooled_nps_ratio": 1.0445270155547535,
+          "per_position_ratio": {
+            "long-history": 1.020976805812567,
+            "middlegame": 1.1508264848786072,
+            "opening": 0.9692547164588728,
+            "tactical": 1.0034356547509309
+          },
+          "per_repetition_ratio": [
+            1.0491373292535044,
+            1.018929762497647
+          ],
+          "single_fixed_depth_speed_ratio": 0.9830618386135687,
+          "fixed_depth_per_position_ratio": {
+            "middlegame": 0.9893298698639804,
+            "opening": 0.9914065003148574,
+            "long-history": 0.9433279905144236,
+            "tactical": 1.009410331981598
+          },
+          "median_peak_rss_ratio": 1.0,
+          "median_peak_rss_delta_mib": 0.0,
+          "timed_best_move_changes": 0,
+          "depth_pairs": [
+            {
+              "position": "middlegame",
+              "rep": 0,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "opening",
+              "rep": 0,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "long-history",
+              "rep": 0,
+              "numerator": 4,
+              "denominator": 4
+            },
+            {
+              "position": "tactical",
+              "rep": 0,
+              "numerator": 2,
+              "denominator": 2
+            },
+            {
+              "position": "middlegame",
+              "rep": 1,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "long-history",
+              "rep": 1,
+              "numerator": 4,
+              "denominator": 4
+            },
+            {
+              "position": "tactical",
+              "rep": 1,
+              "numerator": 2,
+              "denominator": 2
+            },
+            {
+              "position": "opening",
+              "rep": 1,
+              "numerator": 3,
+              "denominator": 3
+            }
+          ]
+        },
+        "no-royal": {
+          "numerator": "full",
+          "denominator": "no-royal",
+          "pairs": 8,
+          "equal_position_nps_ratio": 1.0737964772537503,
+          "pooled_nps_ratio": 1.0352194274104327,
+          "per_position_ratio": {
+            "long-history": 0.9644041718678912,
+            "middlegame": 1.0784996647173595,
+            "opening": 0.9879981464237426,
+            "tactical": 1.2937568874303287
+          },
+          "per_repetition_ratio": [
+            1.056209962031841,
+            1.0916758182667132
+          ],
+          "single_fixed_depth_speed_ratio": 1.096730268540914,
+          "fixed_depth_per_position_ratio": {
+            "middlegame": 1.0315259436741293,
+            "opening": 1.0119700552426767,
+            "long-history": 0.9091910817964609,
+            "tactical": 1.5243908547662084
+          },
+          "median_peak_rss_ratio": 0.9999857790924217,
+          "median_peak_rss_delta_mib": -0.00390625,
+          "timed_best_move_changes": 2,
+          "depth_pairs": [
+            {
+              "position": "middlegame",
+              "rep": 0,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "opening",
+              "rep": 0,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "long-history",
+              "rep": 0,
+              "numerator": 4,
+              "denominator": 4
+            },
+            {
+              "position": "tactical",
+              "rep": 0,
+              "numerator": 2,
+              "denominator": 1
+            },
+            {
+              "position": "middlegame",
+              "rep": 1,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "long-history",
+              "rep": 1,
+              "numerator": 4,
+              "denominator": 4
+            },
+            {
+              "position": "tactical",
+              "rep": 1,
+              "numerator": 2,
+              "denominator": 1
+            },
+            {
+              "position": "opening",
+              "rep": 1,
+              "numerator": 3,
+              "denominator": 3
+            }
+          ]
+        }
+      }
+    },
+    "2048": {
+      "versus_main": {
+        "full": {
+          "numerator": "full",
+          "denominator": "main",
+          "pairs": 8,
+          "equal_position_nps_ratio": 2.3363688456041896,
+          "pooled_nps_ratio": 2.05732717270478,
+          "per_position_ratio": {
+            "long-history": 1.8120085415277265,
+            "middlegame": 1.8294929077277,
+            "opening": 1.6603284490802452,
+            "tactical": 5.413531220607681
+          },
+          "per_repetition_ratio": [
+            2.4241337980777145,
+            2.2517813938481526
+          ],
+          "single_fixed_depth_speed_ratio": 2.400866360504924,
+          "fixed_depth_per_position_ratio": {
+            "opening": 2.47252132810506,
+            "tactical": 5.127292598956242,
+            "long-history": 1.609466787432988,
+            "middlegame": 1.6284025682957357
+          },
+          "median_peak_rss_ratio": 1.03309562702545,
+          "median_peak_rss_delta_mib": 31.994140625,
+          "timed_best_move_changes": 2,
+          "depth_pairs": [
+            {
+              "position": "opening",
+              "rep": 0,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "tactical",
+              "rep": 0,
+              "numerator": 3,
+              "denominator": 1
+            },
+            {
+              "position": "long-history",
+              "rep": 0,
+              "numerator": 2,
+              "denominator": 2
+            },
+            {
+              "position": "middlegame",
+              "rep": 0,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "long-history",
+              "rep": 1,
+              "numerator": 2,
+              "denominator": 2
+            },
+            {
+              "position": "tactical",
+              "rep": 1,
+              "numerator": 3,
+              "denominator": 1
+            },
+            {
+              "position": "middlegame",
+              "rep": 1,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "opening",
+              "rep": 1,
+              "numerator": 3,
+              "denominator": 3
+            }
+          ]
+        },
+        "no-cache": {
+          "numerator": "no-cache",
+          "denominator": "main",
+          "pairs": 8,
+          "equal_position_nps_ratio": 1.9048675786945755,
+          "pooled_nps_ratio": 1.6660370165824048,
+          "per_position_ratio": {
+            "long-history": 1.3600633516084764,
+            "middlegame": 1.5130592718551559,
+            "opening": 1.3316711596937072,
+            "tactical": 4.804487708075898
+          },
+          "per_repetition_ratio": [
+            1.981512236309752,
+            1.8311875273196752
+          ],
+          "single_fixed_depth_speed_ratio": 1.9473447788049043,
+          "fixed_depth_per_position_ratio": {
+            "opening": 1.52842041743268,
+            "tactical": 4.891084777958368,
+            "long-history": 1.3055706781841445,
+            "middlegame": 1.4734078964896677
+          },
+          "median_peak_rss_ratio": 1.0001290556415827,
+          "median_peak_rss_delta_mib": 0.125,
+          "timed_best_move_changes": 2,
+          "depth_pairs": [
+            {
+              "position": "opening",
+              "rep": 0,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "tactical",
+              "rep": 0,
+              "numerator": 2,
+              "denominator": 1
+            },
+            {
+              "position": "long-history",
+              "rep": 0,
+              "numerator": 2,
+              "denominator": 2
+            },
+            {
+              "position": "middlegame",
+              "rep": 0,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "long-history",
+              "rep": 1,
+              "numerator": 2,
+              "denominator": 2
+            },
+            {
+              "position": "tactical",
+              "rep": 1,
+              "numerator": 3,
+              "denominator": 1
+            },
+            {
+              "position": "middlegame",
+              "rep": 1,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "opening",
+              "rep": 1,
+              "numerator": 3,
+              "denominator": 3
+            }
+          ]
+        },
+        "no-snapshot": {
+          "numerator": "no-snapshot",
+          "denominator": "main",
+          "pairs": 8,
+          "equal_position_nps_ratio": 2.2876103685594855,
+          "pooled_nps_ratio": 2.0170518994956934,
+          "per_position_ratio": {
+            "long-history": 1.779668559158502,
+            "middlegame": 1.8122988838266407,
+            "opening": 1.6299317576960048,
+            "tactical": 5.2094257529625905
+          },
+          "per_repetition_ratio": [
+            2.3393308584563606,
+            2.237033371925012
+          ],
+          "single_fixed_depth_speed_ratio": 2.3142889728498184,
+          "fixed_depth_per_position_ratio": {
+            "opening": 2.400377130859585,
+            "tactical": 4.967029372807954,
+            "long-history": 1.5024534521041455,
+            "middlegame": 1.6013752408515798
+          },
+          "median_peak_rss_ratio": 1.0330834933775424,
+          "median_peak_rss_delta_mib": 31.98046875,
+          "timed_best_move_changes": 2,
+          "depth_pairs": [
+            {
+              "position": "opening",
+              "rep": 0,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "tactical",
+              "rep": 0,
+              "numerator": 3,
+              "denominator": 1
+            },
+            {
+              "position": "long-history",
+              "rep": 0,
+              "numerator": 2,
+              "denominator": 2
+            },
+            {
+              "position": "middlegame",
+              "rep": 0,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "long-history",
+              "rep": 1,
+              "numerator": 2,
+              "denominator": 2
+            },
+            {
+              "position": "tactical",
+              "rep": 1,
+              "numerator": 3,
+              "denominator": 1
+            },
+            {
+              "position": "middlegame",
+              "rep": 1,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "opening",
+              "rep": 1,
+              "numerator": 3,
+              "denominator": 3
+            }
+          ]
+        },
+        "no-packed": {
+          "numerator": "no-packed",
+          "denominator": "main",
+          "pairs": 8,
+          "equal_position_nps_ratio": 2.120960960133738,
+          "pooled_nps_ratio": 1.8705427562418107,
+          "per_position_ratio": {
+            "long-history": 1.640466923396385,
+            "middlegame": 1.674639156342474,
+            "opening": 1.5133734353030168,
+            "tactical": 4.867386939693014
+          },
+          "per_repetition_ratio": [
+            2.1381432480958513,
+            2.103916750394342
+          ],
+          "single_fixed_depth_speed_ratio": 2.189679950499143,
+          "fixed_depth_per_position_ratio": {
+            "opening": 2.066789421160754,
+            "tactical": 4.672988835695428,
+            "long-history": 1.530744149456589,
+            "middlegame": 1.5549949598583699
+          },
+          "median_peak_rss_ratio": 1.0328982684113324,
+          "median_peak_rss_delta_mib": 31.7890625,
+          "timed_best_move_changes": 2,
+          "depth_pairs": [
+            {
+              "position": "opening",
+              "rep": 0,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "tactical",
+              "rep": 0,
+              "numerator": 3,
+              "denominator": 1
+            },
+            {
+              "position": "long-history",
+              "rep": 0,
+              "numerator": 2,
+              "denominator": 2
+            },
+            {
+              "position": "middlegame",
+              "rep": 0,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "long-history",
+              "rep": 1,
+              "numerator": 2,
+              "denominator": 2
+            },
+            {
+              "position": "tactical",
+              "rep": 1,
+              "numerator": 3,
+              "denominator": 1
+            },
+            {
+              "position": "middlegame",
+              "rep": 1,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "opening",
+              "rep": 1,
+              "numerator": 3,
+              "denominator": 3
+            }
+          ]
+        },
+        "no-royal": {
+          "numerator": "no-royal",
+          "denominator": "main",
+          "pairs": 8,
+          "equal_position_nps_ratio": 1.8663252851983028,
+          "pooled_nps_ratio": 1.78807826604134,
+          "per_position_ratio": {
+            "long-history": 1.7133659832421901,
+            "middlegame": 1.8341572889921636,
+            "opening": 1.636122579732687,
+            "tactical": 2.3596457358988956
+          },
+          "per_repetition_ratio": [
+            1.9085619867904031,
+            1.8250232867878262
+          ],
+          "single_fixed_depth_speed_ratio": 1.868876900419229,
+          "fixed_depth_per_position_ratio": {
+            "opening": 2.388787603099193,
+            "tactical": 2.174273824167807,
+            "long-history": 1.3667874544940244,
+            "middlegame": 1.718422801380958
+          },
+          "median_peak_rss_ratio": 1.0335806112548513,
+          "median_peak_rss_delta_mib": 32.447265625,
+          "timed_best_move_changes": 1,
+          "depth_pairs": [
+            {
+              "position": "opening",
+              "rep": 0,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "tactical",
+              "rep": 0,
+              "numerator": 1,
+              "denominator": 1
+            },
+            {
+              "position": "long-history",
+              "rep": 0,
+              "numerator": 2,
+              "denominator": 2
+            },
+            {
+              "position": "middlegame",
+              "rep": 0,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "long-history",
+              "rep": 1,
+              "numerator": 2,
+              "denominator": 2
+            },
+            {
+              "position": "tactical",
+              "rep": 1,
+              "numerator": 2,
+              "denominator": 1
+            },
+            {
+              "position": "middlegame",
+              "rep": 1,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "opening",
+              "rep": 1,
+              "numerator": 3,
+              "denominator": 3
+            }
+          ]
+        }
+      },
+      "marginal_contribution": {
+        "no-cache": {
+          "numerator": "full",
+          "denominator": "no-cache",
+          "pairs": 8,
+          "equal_position_nps_ratio": 1.2265255977558955,
+          "pooled_nps_ratio": 1.2348628225110156,
+          "per_position_ratio": {
+            "long-history": 1.3322971605585565,
+            "middlegame": 1.2091349901214155,
+            "opening": 1.2468006361736717,
+            "tactical": 1.126765547033878
+          },
+          "per_repetition_ratio": [
+            1.2233756388970245,
+            1.2296836671578386
+          ],
+          "single_fixed_depth_speed_ratio": 1.2328922883282887,
+          "fixed_depth_per_position_ratio": {
+            "opening": 1.6176971335270476,
+            "tactical": 1.048293544626816,
+            "long-history": 1.232768791706871,
+            "middlegame": 1.1051946797457353
+          },
+          "median_peak_rss_ratio": 1.0330413186461291,
+          "median_peak_rss_delta_mib": 31.943359375,
+          "timed_best_move_changes": 0,
+          "depth_pairs": [
+            {
+              "position": "opening",
+              "rep": 0,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "tactical",
+              "rep": 0,
+              "numerator": 3,
+              "denominator": 2
+            },
+            {
+              "position": "long-history",
+              "rep": 0,
+              "numerator": 2,
+              "denominator": 2
+            },
+            {
+              "position": "middlegame",
+              "rep": 0,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "long-history",
+              "rep": 1,
+              "numerator": 2,
+              "denominator": 2
+            },
+            {
+              "position": "tactical",
+              "rep": 1,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "middlegame",
+              "rep": 1,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "opening",
+              "rep": 1,
+              "numerator": 3,
+              "denominator": 3
+            }
+          ]
+        },
+        "no-snapshot": {
+          "numerator": "full",
+          "denominator": "no-snapshot",
+          "pairs": 8,
+          "equal_position_nps_ratio": 1.0213141528447467,
+          "pooled_nps_ratio": 1.0199673955931208,
+          "per_position_ratio": {
+            "long-history": 1.0181719130805547,
+            "middlegame": 1.0094874107436156,
+            "opening": 1.0186490576925795,
+            "tactical": 1.0391800319889417
+          },
+          "per_repetition_ratio": [
+            1.0362509387309637,
+            1.006592669607986
+          ],
+          "single_fixed_depth_speed_ratio": 1.037409929646121,
+          "fixed_depth_per_position_ratio": {
+            "opening": 1.03005535935082,
+            "tactical": 1.0322654073731976,
+            "long-history": 1.0712257242838192,
+            "middlegame": 1.0168775729477266
+          },
+          "median_peak_rss_ratio": 1.000170595630113,
+          "median_peak_rss_delta_mib": 0.169921875,
+          "timed_best_move_changes": 0,
+          "depth_pairs": [
+            {
+              "position": "opening",
+              "rep": 0,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "tactical",
+              "rep": 0,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "long-history",
+              "rep": 0,
+              "numerator": 2,
+              "denominator": 2
+            },
+            {
+              "position": "middlegame",
+              "rep": 0,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "long-history",
+              "rep": 1,
+              "numerator": 2,
+              "denominator": 2
+            },
+            {
+              "position": "tactical",
+              "rep": 1,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "middlegame",
+              "rep": 1,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "opening",
+              "rep": 1,
+              "numerator": 3,
+              "denominator": 3
+            }
+          ]
+        },
+        "no-packed": {
+          "numerator": "full",
+          "denominator": "no-packed",
+          "pairs": 8,
+          "equal_position_nps_ratio": 1.1015614570561776,
+          "pooled_nps_ratio": 1.0998557321609939,
+          "per_position_ratio": {
+            "long-history": 1.1045687759288594,
+            "middlegame": 1.0924699215342826,
+            "opening": 1.0971042641222284,
+            "tactical": 1.1122048211250517
+          },
+          "per_repetition_ratio": [
+            1.1337564965474394,
+            1.0702806531798827
+          ],
+          "single_fixed_depth_speed_ratio": 1.096446245469636,
+          "fixed_depth_per_position_ratio": {
+            "opening": 1.1963102301522515,
+            "tactical": 1.0972190987897374,
+            "long-history": 1.051427691560569,
+            "middlegame": 1.047207618244661
+          },
+          "median_peak_rss_ratio": 1.0001450795147784,
+          "median_peak_rss_delta_mib": 0.14453125,
+          "timed_best_move_changes": 0,
+          "depth_pairs": [
+            {
+              "position": "opening",
+              "rep": 0,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "tactical",
+              "rep": 0,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "long-history",
+              "rep": 0,
+              "numerator": 2,
+              "denominator": 2
+            },
+            {
+              "position": "middlegame",
+              "rep": 0,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "long-history",
+              "rep": 1,
+              "numerator": 2,
+              "denominator": 2
+            },
+            {
+              "position": "tactical",
+              "rep": 1,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "middlegame",
+              "rep": 1,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "opening",
+              "rep": 1,
+              "numerator": 3,
+              "denominator": 3
+            }
+          ]
+        },
+        "no-royal": {
+          "numerator": "full",
+          "denominator": "no-royal",
+          "pairs": 8,
+          "equal_position_nps_ratio": 1.2518551102178006,
+          "pooled_nps_ratio": 1.1505800455030055,
+          "per_position_ratio": {
+            "long-history": 1.0575723804781485,
+            "middlegame": 0.9974569349681963,
+            "opening": 1.0147946551483402,
+            "tactical": 2.2942135500460723
+          },
+          "per_repetition_ratio": [
+            1.2701362674388899,
+            1.2338370749293022
+          ],
+          "single_fixed_depth_speed_ratio": 1.2846573040559053,
+          "fixed_depth_per_position_ratio": {
+            "opening": 1.0350528129404353,
+            "tactical": 2.3581632368308942,
+            "long-history": 1.1775545511052425,
+            "middlegame": 0.9476146190490021
+          },
+          "median_peak_rss_ratio": 0.9999824000813508,
+          "median_peak_rss_delta_mib": -0.017578125,
+          "timed_best_move_changes": 1,
+          "depth_pairs": [
+            {
+              "position": "opening",
+              "rep": 0,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "tactical",
+              "rep": 0,
+              "numerator": 3,
+              "denominator": 1
+            },
+            {
+              "position": "long-history",
+              "rep": 0,
+              "numerator": 2,
+              "denominator": 2
+            },
+            {
+              "position": "middlegame",
+              "rep": 0,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "long-history",
+              "rep": 1,
+              "numerator": 2,
+              "denominator": 2
+            },
+            {
+              "position": "tactical",
+              "rep": 1,
+              "numerator": 3,
+              "denominator": 2
+            },
+            {
+              "position": "middlegame",
+              "rep": 1,
+              "numerator": 3,
+              "denominator": 3
+            },
+            {
+              "position": "opening",
+              "rep": 1,
+              "numerator": 3,
+              "denominator": 3
+            }
+          ]
+        }
+      }
+    }
+  },
+  "max_search_overshoot_ms": 11.59725299999991,
+  "all_legal": true
+}

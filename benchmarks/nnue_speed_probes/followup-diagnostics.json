@@ -1,0 +1,65 @@
+{
+  "rows": [
+    {
+      "width": 512,
+      "positions": 32,
+      "zero_pct": 0.360107421875,
+      "zero_block_pct": 0.0,
+      "unchanged_pct": 38.047572544642854,
+      "range": [
+        -2038,
+        4475
+      ],
+      "observed_i16_overflows": 0
+    },
+    {
+      "width": 768,
+      "positions": 32,
+      "zero_pct": 0.19327799479166666,
+      "zero_block_pct": 0.0,
+      "unchanged_pct": 38.076636904761905,
+      "range": [
+        -2192,
+        5867
+      ],
+      "observed_i16_overflows": 0
+    },
+    {
+      "width": 1024,
+      "positions": 32,
+      "zero_pct": 0.2197265625,
+      "zero_block_pct": 0.0,
+      "unchanged_pct": 39.426967075892854,
+      "range": [
+        -2315,
+        6096
+      ],
+      "observed_i16_overflows": 0
+    },
+    {
+      "width": 1536,
+      "positions": 32,
+      "zero_pct": 0.17903645833333331,
+      "zero_block_pct": 0.0,
+      "unchanged_pct": 39.36709449404762,
+      "range": [
+        -1669,
+        6551
+      ],
+      "observed_i16_overflows": 0
+    },
+    {
+      "width": 2048,
+      "positions": 32,
+      "zero_pct": 0.20599365234375,
+      "zero_block_pct": 0.0,
+      "unchanged_pct": 39.553397042410715,
+      "range": [
+        -2058,
+        6462
+      ],
+      "observed_i16_overflows": 0
+    }
+  ],
+  "notes": "32 correlated saved positions from four eight-ply windows; no search-leaf sample; no runtime speedup measured; ranges are not an overflow proof."
+}
