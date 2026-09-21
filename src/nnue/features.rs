@@ -107,7 +107,7 @@ fn abilities(piece: &Piece) -> BTreeSet<String> {
     }
     out
 }
-fn key(p: &Piece) -> usize {
+pub(super) fn key(p: &Piece) -> usize {
     (p.piece_type as usize * 4
         + usize::from(p.is_promoted)
         + 2 * usize::from(p.base_piece_type == Some(PieceType::ReverseChariot)))

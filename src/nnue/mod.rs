@@ -1,5 +1,8 @@
 //! Versioned, content-verified NNUE residual on a fixed material baseline.
 pub mod features;
+mod storage;
+mod packed;
+pub(crate) use storage::Snapshot;
 use crate::{
     board::Board,
     piece::{Color, Piece},
@@ -196,13 +199,14 @@ impl Network {
 pub struct Accumulator {
     pub net: Arc<Network>,
     sums: Vec<i32>,
+    storage: storage::Storage,
 }
 thread_local! {static INPUT:std::cell::RefCell<Vec<u8>>=const{std::cell::RefCell::new(Vec::new())};}
 impl Accumulator {
     pub fn new(net: Arc<Network>, board: &Board) -> Self {
         let mut sums = net.bias.clone();
         sums.extend_from_slice(&net.bias);
-        let mut a = Self { net, sums };
+        let mut a = Self { net, sums, storage: storage::Storage::default() };
         for c in [Color::Black, Color::White] {
             for p in board.pieces_by_color(c) {
                 a.change(p, 1);
@@ -214,17 +218,7 @@ impl Accumulator {
         Arc::ptr_eq(&self.net, net)
     }
     pub fn change(&mut self, p: &Piece, sign: i32) {
-        let w = self.net.width;
-        for (side, c) in [Color::Black, Color::White].into_iter().enumerate() {
-            features::visit(p, c, |i| {
-                for (a, &b) in self.sums[side * w..(side + 1) * w]
-                    .iter_mut()
-                    .zip(&self.net.weights[i * w..(i + 1) * w])
-                {
-                    *a += sign * i32::from(b);
-                }
-            });
-        }
+        self.change_cached(p, sign);
     }
     pub fn residual(&self, stm: Color) -> i32 {
         let w = self.net.width;
@@ -242,11 +236,7 @@ impl Accumulator {
             }
             let mut h = [0i32; 32];
             for (j, y) in h.iter_mut().enumerate() {
-                let sum: i32 = x
-                    .iter()
-                    .zip(&self.net.h1[j * 2 * w..(j + 1) * 2 * w])
-                    .map(|(&a, &b)| i32::from(a) * i32::from(b))
-                    .sum();
+                let sum = packed::dot(&x, &self.net.h1[j * 2 * w..(j + 1) * 2 * w]);
                 *y = ((sum + self.net.b1[j] + 32) / 64).clamp(0, 127);
             }
             let mut result = self.net.out_bias;
@@ -277,7 +267,7 @@ pub fn material(board: &Board, weights: &crate::eval::EvalWeights) -> f32 {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use crate::{
         eval::{self, EvalWeights},
@@ -286,7 +276,7 @@ mod tests {
         position::Position,
         search::{search, SearchConfig},
     };
-    fn net(width: usize, tag: &str) -> Arc<Network> {
+    pub(crate) fn net(width: usize, tag: &str) -> Arc<Network> {
         Arc::new(Network {
             width,
             sha256: tag.into(),
@@ -398,6 +388,28 @@ mod tests {
         s.remove_piece(Position::new(35, 35).unwrap());
         assert_eq!(eval::evaluate(&s, &w), w.mate_score);
         assert!(s.nnue.is_none());
+    }
+    #[test]
+    fn undo_after_model_rebinding_invalidates_the_old_snapshot() {
+        for initially_bound in [false, true] {
+            let mut s = state();
+            let mut w = EvalWeights::seed();
+            if initially_bound {
+                w.nnue_runtime = Some(net(32, "before"));
+                s.ensure_eval_inc(&w);
+            }
+            let undo = s.make_move_for_search(Move::new(
+                Position::new(5, 5).unwrap(), Position::new(5, 8).unwrap(),
+            )).unwrap();
+            w.nnue_runtime = Some(net(64, "after"));
+            s.ensure_eval_inc(&w);
+            s.unmake_move_for_search(undo);
+            assert!(s.nnue.is_none());
+            let score = eval::evaluate(&s, &w);
+            s.ensure_eval_inc(&w);
+            assert!(s.nnue.as_ref().unwrap().matches_rebuild(s.get_board()));
+            assert_eq!(score, eval::evaluate(&s, &w));
+        }
     }
     #[test]
     fn schema_stable_and_color_rotation_equivalent() {

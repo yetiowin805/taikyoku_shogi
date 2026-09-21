@@ -908,11 +908,17 @@ fn move_resolves_last_royal_check(state: &mut GameState, mv: &Move) -> bool {
         return true;
     }
     let us = state.get_current_turn();
-    let Some(undo) = state.make_move_for_search(mv.clone()) else {
-        return false;
+    // This rule-only probe never evaluates a position. Keep the original
+    // accumulator (and its caches) untouched while simulating board changes.
+    let nnue = state.nnue.take();
+    let ok = if let Some(undo) = state.make_move_for_search(mv.clone()) {
+        let ok = color_last_royal_resolved(state, us);
+        state.unmake_move_for_search(undo);
+        ok
+    } else {
+        false
     };
-    let ok = color_last_royal_resolved(state, us);
-    state.unmake_move_for_search(undo);
+    state.nnue = nnue;
     ok
 }
 
@@ -7070,6 +7076,37 @@ mod tests {
             Position::new(18, 34).unwrap(),
         );
         (state, weights, take)
+    }
+
+    #[test]
+    fn royal_probe_preserves_nnue_and_matches_normal_simulation() {
+        let (mut initial, mut weights, _) = last_royal_check_hanging_dragon();
+        weights.nnue_runtime = Some(crate::nnue::tests::net(32, "royal-probe"));
+        initial.ensure_eval_inc(&weights);
+        let mut moves = initial.generate_legal_moves();
+        // Also exercise the failed-make path, which must restore the accumulator.
+        moves.push(Move::new(Position::new(34, 0).unwrap(), Position::new(33, 0).unwrap()));
+        for mv in moves {
+            let mut fast = initial.clone();
+            let mut reference = initial.clone();
+            let us = reference.get_current_turn();
+            let before = [Color::Black, Color::White].map(|c| fast.nnue.as_ref().unwrap().residual(c));
+            let expected = if capture_takes_last_enemy_royal(&reference, &mv) {
+                true
+            } else if let Some(undo) = reference.make_move_for_search(mv.clone()) {
+                let resolved = color_last_royal_resolved(&reference, us);
+                reference.unmake_move_for_search(undo);
+                resolved
+            } else { false };
+            assert_eq!(move_resolves_last_royal_check(&mut fast, &mv), expected);
+            assert!(fast.nnue.as_ref().unwrap().matches_rebuild(fast.get_board()));
+            assert_eq!(before, [Color::Black, Color::White].map(|c| fast.nnue.as_ref().unwrap().residual(c)));
+            assert_eq!(fast.hash(), reference.hash());
+            assert_eq!(fast.repetition_count(), reference.repetition_count());
+            for color in [Color::Black, Color::White] {
+                assert_eq!(fast.get_board().pieces_by_color(color), reference.get_board().pieces_by_color(color));
+            }
+        }
     }
 
     #[test]
