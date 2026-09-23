@@ -467,3 +467,54 @@ game workers immediately; `--sidecar analysis` restores the original analyzer.
 Change modes through stop/resume, never by starting a second supervisor.
 Rollback to analysis requires the same stop/resume with `--sidecar analysis`;
 the existing catalogue continues from its saved state.
+
+### Training-label analysis (adaptive three games / one analyzer)
+
+Use the existing analysis sidecar with `--label-teacher NNUE_W512_v2` to collect
+training labels rather than only the largest swings. This is label collection,
+not online training: deployed models remain immutable. Stop/resume is required
+when changing modes; unfinished games restart, completed results are preserved.
+
+```sh
+python3 deploy/tourney_analysis.py stop --run-dir "$run"
+# Back up state.json and analysis/ before resuming.
+python3 deploy/tourney_analysis.py resume --run-dir "$run" --sidecar analysis \
+  --label-teacher NNUE_W512_v2
+python3 deploy/tourney_analysis.py status --run-dir "$run"
+```
+
+Each newly discovered completed game contributes up to 20 unique positions:
+12 hash-selected progress-stratified samples, up to five spaced finite-score
+swings >=1000, and up to three pre-ending samples in decisive games. Endings are
+a cheap proxy, **not a royal-threat detector**. Missing/nonfinite/mate-range
+scores are excluded. Historical-engine games are excluded from this new sampler;
+the original analyzer still supports them. No new engine comparisons or attack
+map computation are needed to select samples. Candidates are processed in hash
+order, not swing order, so ordinary positions receive most of the analysis.
+The actual proportions depend on eligibility and overlap.
+
+A single frozen teacher evaluates each position before the selected move for
+10 seconds (depth ceiling 64), retaining the deepest completed iteration and
+the existing five-minute external watchdog. Full original game prefixes are
+replayed. The helper retains the original agent's optional quiescence-depth
+setting; that context is recorded. Labels are black-absolute. Per-iteration
+scores/best moves/nodes/times are stored; the helper does not emit full PVs.
+Teacher model and analyzer identities are pinned and included in cache keys.
+Changing the teacher or analyzer binding requires a new run/catalogue.
+
+The separate `analysis/training-labels.sqlite` leaves the original catalogue
+untouched. Completed records are also written under `analysis/moments/`, with
+policy-specific IDs, game hashes, result, original agent/evaluation, teacher,
+selection reason/pool/quota, and deterministic train/validation group. The group
+hash uses the original start and first 64 move routes, excluding evaluations and
+agent names. It is a conservative initial split, not a guarantee against every
+opening-family overlap. Selection is deterministic; pool/quota metadata is not
+an unbiased inclusion-probability estimate. Consumers must deduplicate identical
+trajectories and can select only representative records or reweight per game.
+No dataset is automatically published or model trained from these labels.
+
+Resume keeps this policy/teacher. Errors remain visible in the catalogue/log;
+interrupted searches retry and completed searches persist immediately. A worker
+failure or empty backlog returns the shared CPU to games. `--sidecar none`
+pauses collection and runs four game workers. Carried older catalogues are kept,
+but this initial training sampler processes only this run's completed games.

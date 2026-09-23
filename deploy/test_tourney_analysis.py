@@ -73,7 +73,7 @@ print(json.dumps(dict(completed_depth=2,score=37,best_move='test',args=sys.argv[
 if 'watchdog' in sys.argv[0]: time.sleep(10)
 """)
         engine.chmod(0o755)
-        cfg = dict(run=str(self.run), models=models, analyzer_bin=str(engine), analyzer_sha256="fake")
+        cfg = dict(run=str(self.run), label_teacher=None, models=models, analyzer_bin=str(engine), analyzer_sha256="fake")
         moment = {"game": str(path), "game_hash": a.digest(path.read_bytes())}
         first = a.search_position(cfg, moment, 2, self.db)
         self.assertEqual(first["agent"], game["white"])

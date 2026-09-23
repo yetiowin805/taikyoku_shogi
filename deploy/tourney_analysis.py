@@ -17,6 +17,7 @@ import time
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import training_sidecar
+import training_labels
 
 ROOT = Path(__file__).resolve().parent.parent
 STOPPING = False
@@ -49,8 +50,12 @@ def absolute(path):
     return p if p.is_absolute() else ROOT / p
 
 
-def connect(run):
-    db = sqlite3.connect(run / "analysis/catalogue.sqlite")
+def catalogue(config):
+    return "training-labels.sqlite" if config.get("label_teacher") else "catalogue.sqlite"
+
+
+def connect(run, filename="catalogue.sqlite"):
+    db = sqlite3.connect(run / "analysis" / filename)
     db.row_factory = sqlite3.Row
     db.executescript("""
         PRAGMA journal_mode=WAL;
@@ -81,7 +86,7 @@ def candidates(game):
                        plies=list(range(max(1, i - 3), min(len(moves), i + 3) + 1)))
 
 
-def scan(db, run):
+def scan(db, run, labels=False):
     state = read(run / "state.json")  # caller retries transient/incomplete state reads
     for slot in state["slots"]:
         if slot["status"] != "done" or not slot.get("game_path"):
@@ -95,8 +100,9 @@ def scan(db, run):
             if game.get("abort_reason") or game.get("result") is None:
                 continue
             game_hash = digest(data)
-            for moment in candidates(game):
-                key = digest(f"{POLICY}:{game_hash}:{moment['center_ply']}".encode())
+            for moment in (training_labels.candidates(game) if labels else candidates(game)):
+                policy = training_labels.POLICY if labels else POLICY
+                key = digest(f"{policy}:{game_hash}:{moment['center_ply']}".encode())
                 moment.update(id=key, game=str(path), game_hash=game_hash,
                               game_id=game["game_id"], slot_id=slot["id"])
                 db.execute("INSERT OR IGNORE INTO moments VALUES(?,?,'pending',?,NULL)",
@@ -216,7 +222,7 @@ def search_position(config, moment, ply, db):
     # Carried games keep their original analysis engine/checkpoint bindings while
     # results are written into the new run's catalogue and CPU lease.
     destination = config["run"]
-    for source in config.get("analysis_sources", []):
+    for source in ([] if config.get("label_teacher") else config.get("analysis_sources", [])):
         if Path(moment["game"]).resolve().parent == Path(source["run"]).resolve():
             config = dict(source, run=destination)
             break
@@ -225,7 +231,8 @@ def search_position(config, moment, ply, db):
         raise ValueError("game changed since scan")
     game = json.loads(data)
     move = game["moves"][ply - 1]
-    agent = game["black" if move["color"].lower() == "black" else "white"]
+    original_agent = game["black" if move["color"].lower() == "black" else "white"]
+    agent = config.get("label_teacher") or original_agent
     if agent["name"] != "ab":
         raise ValueError("only ab agents are supported")
     helper = analyzer_for_agent(config, agent)
@@ -236,7 +243,9 @@ def search_position(config, moment, ply, db):
     recorded_depth = move.get("completed_depth")
     depth = recorded_depth + 1 if isinstance(recorded_depth, int) and recorded_depth > 0 else 64
     budget = 300_000 if isinstance(recorded_depth, int) and recorded_depth > 0 else 30_000
-    identity = dict(policy=POLICY, game=moment["game_hash"], ply=ply, agent=agent,
+    if config.get("label_teacher"):
+        depth, budget = 64, 10_000
+    identity = dict(policy=training_labels.POLICY if config.get("label_teacher") else POLICY, game=moment["game_hash"], ply=ply, agent=agent,
                     model=model["sha256"], binary=helper["analyzer_sha256"],
                     depth=depth, budget=budget)
     key = digest(json.dumps(identity, sort_keys=True).encode())
@@ -247,6 +256,7 @@ def search_position(config, moment, ply, db):
     log_path = run / "analysis/search.stderr.log"
     start = time.monotonic()
     best = None
+    iterations = []
     hard_timeout = False
     env = {k: v for k, v in os.environ.items() if not k.startswith("TAIKYOKU_AB_")}
     command = [helper["analyzer_bin"], moment["game"], str(ply), model["snapshot"], str(depth), str(budget)]
@@ -272,6 +282,7 @@ def search_position(config, moment, ply, db):
                     result = json.loads(line)
                     if result["completed_depth"] > 0 or result.get("terminal"):
                         best = result
+                        iterations.append(dict(result))
                         # Durable iteration output even if this controller is interrupted.
                         atomic(run / "analysis" / (key + ".progress.json"), result)
             proc.wait(timeout=5)
@@ -287,7 +298,10 @@ def search_position(config, moment, ply, db):
         raise ValueError(f"no completed iteration (exit {proc.returncode}); see {log_path}")
     if proc.returncode != 0 and not hard_timeout:
         raise ValueError(f"search failed (exit {proc.returncode}); see {log_path}")
-    best.update(key=key, ply=ply, agent=agent, model_sha256=model["sha256"],
+    best.update(key=key, ply=ply, agent=agent, original_agent=original_agent,
+                iterations=iterations, score_perspective="black-absolute",
+                game_hash=moment["game_hash"], game_result=game.get("result"),
+                original_quiescence_depth=original_agent.get("quiescence_depth"), model_sha256=model["sha256"],
                 analyzer_sha256=helper["analyzer_sha256"], engine_sha256=helper.get("engine_sha256"),
                 original_eval=move.get("eval"), original_static_eval=move.get("static_eval"),
                 original_depth=recorded_depth, original_move=move, target_depth=depth,
@@ -301,18 +315,19 @@ def analyzer(config):
     run = Path(config["run"])
     control = run / "analysis"
     os.sched_setaffinity(0, {config["cpus"][3]})
-    db = connect(run)
+    db = connect(run, catalogue(config))
     request = control / "analysis.request"
     try:
         while not STOPPING:
             try:
-                scan(db, run)
-                for source in config.get("analysis_sources", []):
+                scan(db, run, labels=bool(config.get("label_teacher")))
+                for source in ([] if config.get("label_teacher") else config.get("analysis_sources", [])):
                     scan(db, Path(source["run"]))
             except (OSError, ValueError, KeyError) as e:
                 print(f"scan state retry: {e}", file=sys.stderr, flush=True)
+            order = "id" if config.get("label_teacher") else "magnitude DESC,id"
             batch = db.execute(
-                "SELECT * FROM moments WHERE status='pending' ORDER BY magnitude DESC,id LIMIT 20"
+                f"SELECT * FROM moments WHERE status='pending' ORDER BY {order} LIMIT 20"
             ).fetchall()
             backlog = db.execute("SELECT count(*) FROM moments WHERE status='pending'").fetchone()[0]
             atomic(control / "analyzer-status.json", {"state": "waiting_for_cpu" if batch else "idle",
@@ -556,7 +571,23 @@ def prepare(args, run):
         command.append("--resume")
     if budget is not None:
         command += ["--time-ms", str(budget)]
-    return dict(run=str(run), cpus=cpus, sidecar=mode, training=training, models=model_map, command=command, historical_engines=historical_map, analysis_sources=sources,
+    teacher_id = getattr(args, 'label_teacher', None) or previous.get('label_teacher_id')
+    teacher = None
+    if previous.get('label_teacher_id') and teacher_id != previous['label_teacher_id']:
+        raise ValueError('label teacher is immutable within a run; use a new run for a different teacher')
+    if teacher_id:
+        matches = [e for e in entrants if e['id'] == teacher_id and not e.get('engine')]
+        if len(matches) != 1:
+            raise ValueError('label teacher must name one non-historical entrant')
+        teacher = dict(name='ab', model=str(absolute(matches[0]['model']).resolve()))
+        if previous.get('label_teacher'):
+            old_key = previous['label_teacher']['model']
+            if (teacher != previous['label_teacher'] or
+                    model_map[teacher['model']] != previous['models'][old_key] or
+                    digest(frozen[1].read_bytes()) != previous['analyzer_sha256']):
+                raise ValueError('label teacher/model/search binding changed; use a new run')
+    return dict(label_teacher=teacher, label_teacher_id=teacher_id,
+                run=str(run), cpus=cpus, sidecar=mode, training=training, models=model_map, command=command, historical_engines=historical_map, analysis_sources=sources,
                 analyzer_bin=str(frozen[1]), analyzer_sha256=digest(frozen[1].read_bytes()))
 
 
@@ -569,6 +600,7 @@ def main():
     parser.add_argument("--cpus", help="four CPU IDs; defaults to first four allowed")
     parser.add_argument('--sidecar', choices=['analysis', 'training', 'none'], help='resume keeps the saved mode unless overridden')
     parser.add_argument('--training-config', help='configuration generated by training/nnue/continuation.py prepare')
+    parser.add_argument("--label-teacher", help="collect training labels with this frozen entrant (10s/position)")
     parser.add_argument("--depth", type=int, default=8)
     parser.add_argument("--time-ms", type=int, default=3000)
     args = parser.parse_args()
@@ -590,8 +622,10 @@ def main():
     meta = read(control / "supervisor.json") if (control / "supervisor.json").exists() else None
     if args.action == "status":
         counts = {}
-        if (control / "catalogue.sqlite").exists():
-            with sqlite3.connect(f"file:{control / 'catalogue.sqlite'}?mode=ro", uri=True) as db:
+        config = read(control / 'config.json') if (control / 'config.json').exists() else {}
+        db_path = control / catalogue(config)
+        if db_path.exists():
+            with sqlite3.connect(f"file:{db_path}?mode=ro", uri=True) as db:
                 counts = dict(db.execute("SELECT status,count(*) FROM moments GROUP BY status"))
                 counts["cached_searches"] = db.execute("SELECT count(*) FROM searches").fetchone()[0]
         config = read(control / 'config.json') if (control / 'config.json').exists() else {}
@@ -606,7 +640,7 @@ def main():
             trainer['current'] = read(detail) if width and detail.exists() else None
         requested = (control / 'analysis.request').exists()
         print(json.dumps({'supervisor': meta, 'alive': bool(alive(meta)), 'catalogue': counts,
-                          'sidecar': mode, 'allocation': ('3/1' if requested else '4/0') if alive(meta) else 'stopped', 'training': trainer,
+                          'sidecar': mode, 'label_teacher': config.get('label_teacher_id'), 'allocation': ('3/1' if requested else '4/0') if alive(meta) else 'stopped', 'training': trainer,
                           'analyzer': (read(control / 'analyzer-status.json') if (control / 'analyzer-status.json').exists() else None)
                                       if mode == 'analysis' else {'state': 'paused'}}, indent=2))
         return
