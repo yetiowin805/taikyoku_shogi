@@ -30,3 +30,16 @@ In **Play**, the **Alpha-beta** panel sets depth / model / time for `ab`. **Runs
 The game list includes `games/` and `data/raw/games/`. Loading a v2 training game applies its embedded start position (not always the opening).
 
 Coordinates in the UI are shogi-style (file 1 = rightmost, rank 1 = top). Engine JSON / TSFEN stay 0-based — see [`src/README.md`](../src/README.md).
+
+### Playing with NNUE
+
+The model selectors discover checkpoint JSON files recursively under `models/`.
+Place each NNUE descriptor beside its referenced weights (for example,
+`models/nnue-v2/NNUE_W512_v2.json` and its content-addressed `.bin`). Missing
+weight files are omitted from the list; manifests and metrics are not models.
+Click the models refresh button after adding files.
+
+Choose **Alpha-beta / NNUE** as a side's controller and select its model under
+**Engine models**. Set the other side to **Human** to play yourself, or select
+another engine/model and use **Start with controllers** to watch a match.
+The initial search settings are depth 8 with a 3,000 ms time limit.

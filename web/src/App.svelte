@@ -22,9 +22,9 @@
   let models = $state(['ab-seed.json']);
   let blackAbModel = $state('ab-seed.json');
   let whiteAbModel = $state('ab-seed.json');
-  let abDepth = $state(2);
+  let abDepth = $state(8);
   let abQDepth = $state(2);
-  let abTimeMs = $state(0); // 0 = unlimited
+  let abTimeMs = $state(3000); // tournament-style three-second searches
   let runActive = $state(false);
   let runLabel = $state('');
   let blackSearch = $state(null);
@@ -609,23 +609,23 @@
         <div class="panel">
           <h3>Controllers</h3>
           <div class="row">
-            <label>Black</label>
-            <select bind:value={blackController}>
+            <label for="black-controller">Black</label>
+            <select id="black-controller" bind:value={blackController}>
               <option value="human">Human</option>
               <option value="mi">mi</option>
               <option value="random">random</option>
               <option value="royal">royal</option>
-              <option value="ab">ab</option>
+              <option value="ab">Alpha-beta / NNUE</option>
             </select>
           </div>
           <div class="row">
-            <label>White</label>
-            <select bind:value={whiteController}>
+            <label for="white-controller">White</label>
+            <select id="white-controller" bind:value={whiteController}>
               <option value="human">Human</option>
               <option value="mi">mi</option>
               <option value="random">random</option>
               <option value="royal">royal</option>
-              <option value="ab">ab</option>
+              <option value="ab">Alpha-beta / NNUE</option>
             </select>
           </div>
           <div class="row">
@@ -641,18 +641,19 @@
         </div>
 
         <div class="panel">
-          <h3>Alpha-beta (ab)</h3>
+          <h3>Engine models</h3>
+          <p class="hint">Select Alpha-beta / NNUE above, then choose a model for each side. Use Human for your side to play against an engine.</p>
           <div class="row">
-            <label>Black model</label>
-            <select bind:value={blackAbModel}>
+            <label for="black-model">Black model</label>
+            <select id="black-model" bind:value={blackAbModel}>
               {#each models as m}
                 <option value={m}>{m}</option>
               {/each}
             </select>
           </div>
           <div class="row">
-            <label>White model</label>
-            <select bind:value={whiteAbModel}>
+            <label for="white-model">White model</label>
+            <select id="white-model" bind:value={whiteAbModel}>
               {#each models as m}
                 <option value={m}>{m}</option>
               {/each}
@@ -664,7 +665,7 @@
             <input
               type="number"
               min="1"
-              max="4"
+              max="64"
               bind:value={abDepth}
               style="width:4rem"
             />
