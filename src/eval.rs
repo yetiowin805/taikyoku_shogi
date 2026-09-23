@@ -2040,22 +2040,35 @@ fn noise_component(board: &Board, weights: &EvalWeights, ply: usize) -> i32 {
 /// Default on-disk seed path (canonical checkpoint).
 pub const DEFAULT_MODEL_PATH: &str = "models/ab-seed.json";
 
-/// List `*.json` checkpoint filenames under `dir` (e.g. `models`).
+/// List checkpoint paths relative to `dir`, including nested model collections.
+/// Parse descriptors only: listing NNUE models must not load gigabytes of weights.
 pub fn list_model_files(dir: impl AsRef<Path>) -> Result<Vec<String>, String> {
-    let dir = dir.as_ref();
-    if !dir.exists() {
-        return Ok(Vec::new());
+    fn visit(root: &Path, dir: &Path, names: &mut Vec<String>) -> Result<(), String> {
+        for entry in fs::read_dir(dir).map_err(|e| e.to_string())? {
+            let entry = entry.map_err(|e| e.to_string())?;
+            let kind = entry.file_type().map_err(|e| e.to_string())?;
+            let path = entry.path();
+            if kind.is_dir() {
+                visit(root, &path, names)?;
+            } else if kind.is_file() && path.extension().and_then(|s| s.to_str()) == Some("json") {
+                let text = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+                if let Ok(cp) = serde_json::from_str::<EvalCheckpoint>(&text) {
+                    // Hide unstaged NNUE descriptors whose weights are unavailable.
+                    if let Some(net) = &cp.weights.nnue {
+                        if !path.parent().unwrap().join(&net.file).is_file() {
+                            continue;
+                        }
+                    }
+                    names.push(path.strip_prefix(root).unwrap().to_string_lossy().replace('\\', "/"));
+                }
+            }
+        }
+        Ok(())
     }
+    let dir = dir.as_ref();
     let mut names = Vec::new();
-    for entry in fs::read_dir(dir).map_err(|e| e.to_string())? {
-        let entry = entry.map_err(|e| e.to_string())?;
-        let path = entry.path();
-        if path.extension().and_then(|s| s.to_str()) != Some("json") {
-            continue;
-        }
-        if let Some(name) = path.file_name().and_then(|s| s.to_str()) {
-            names.push(name.to_string());
-        }
+    if dir.exists() {
+        visit(dir, dir, &mut names)?;
     }
     names.sort();
     Ok(names)
@@ -2379,6 +2392,23 @@ mod tests {
                 "{pt:?} promo rank should be unscaled"
             );
         }
+    }
+
+    #[test]
+    fn list_model_files_discovers_nested_checkpoints_without_loading_networks() {
+        let fixture = crate::test_support::TempDir::new();
+        let root = fixture.path();
+        let mut cp = EvalCheckpoint::seed("seed");
+        cp.save_path(root.join("seed.json")).unwrap();
+        fs::write(root.join("manifest.json"), r#"{"entrants": []}"#).unwrap();
+        fs::write(root.join("invalid.json"), "invalid").unwrap();
+        cp.weights.nnue = Some(crate::nnue::Descriptor {
+            file: "weights.bin".into(), sha256: "unused-by-discovery".into(), feature_hash: "unused".into(), width: 512,
+        });
+        cp.save_path(root.join("nnue-v2/model.json")).unwrap();
+        assert_eq!(list_model_files(&root).unwrap(), vec!["seed.json"]);
+        fs::write(root.join("nnue-v2/weights.bin"), b"not loaded during discovery").unwrap();
+        assert_eq!(list_model_files(&root).unwrap(), vec!["nnue-v2/model.json", "seed.json"]);
     }
 
     #[test]
