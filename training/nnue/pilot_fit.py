@@ -17,9 +17,46 @@ from quantized import Quantized
 from train import Net, batch, export, atomic_json
 
 
+def rounded(value, scale, half_up=False):
+    scaled = value*scale
+    discrete = (torch.floor(scaled+.5) if half_up else torch.round(scaled))/scale
+    return value + (discrete-value).detach()
+
+
+class PilotNet(Net):
+    """Use deployed quantization in the forward pass and floating sparse gradients.
+
+    Only active embedding rows are quantized, avoiding a full-table copy per batch.
+    Floating master weights accumulate updates smaller than a quantization step.
+    """
+    def forward(self, indices, offsets):
+        continuous = self.embedding(indices, offsets)+self.bias
+        with torch.no_grad():
+            unique, inverse = torch.unique(indices,return_inverse=True)
+            rows = torch.round(self.embedding.weight.index_select(0,unique)*4096).clamp(-2048,2048)/4096
+            discrete = torch.nn.functional.embedding_bag(inverse,rows,offsets,mode='sum',
+                                                         include_last_offset=True)
+            discrete += torch.round(self.bias*4096)/4096
+        x = continuous+(discrete-continuous).detach()
+        x = x.clamp(0,1).reshape(-1,self.width*2)
+        x = rounded(x,127,half_up=True)
+        for layer in (self.h1,self.h2):
+            w = rounded(layer.weight,64)
+            if layer is self.h1:
+                # Export folds the centering offset into the integer bias.
+                shift = w.sum(dim=1)*.5
+                bias = rounded(layer.bias-shift,127*64)+shift
+                x = x-.5
+            else:
+                bias = rounded(layer.bias,127*64)
+            x = torch.nn.functional.linear(x,w,bias).clamp(0,1)
+            x = rounded(x,127,half_up=True)
+        return self.output(x).squeeze(-1)
+
+
 def from_quantized(path, features):
     q = Quantized(path, features)
-    net = Net(features, q.width)
+    net = PilotNet(features, q.width)
     with torch.no_grad():
         for first in range(0, features, 1024):
             net.embedding.weight[first:first+1024].copy_(torch.from_numpy(
@@ -155,7 +192,8 @@ def main():
     recipe = dict(dataset=identity, parent_sha256=digest(a.parent), init=a.init, loss=a.loss,
                   mix=a.mix, batch=a.batch, seed=a.seed, epochs=a.epochs, limit=a.limit,
                   epoch_samples=a.epoch_samples,
-                  code_sha256=digest(__file__), scale=cal['scale'])
+                  code_sha256=digest(__file__), scale=cal['scale'],
+                  quantization='active-feature-and-head-aware; sparse floating master weights')
     a.out.mkdir(parents=True, exist_ok=True)
     if (a.out/'recipe.json').exists():
         assert a.resume and json.loads((a.out/'recipe.json').read_text())==recipe
@@ -168,12 +206,12 @@ def main():
     if a.resume and (a.out/'training.pt').exists():
         state = torch.load(a.out/'training.pt', weights_only=True, mmap=True)
         with torch.device('meta'):
-            net = Net(schema['features'], 512)
+            net = PilotNet(schema['features'], 512)
         net.load_state_dict(state['net'], assign=True)
         first, best, metrics = state['epoch'], state['best'], state['metrics']
         tracker = Plateau(**state['plateau'])
     else:
-        net = from_quantized(blob, schema['features']) if a.init=='parent' else Net(schema['features'],512)
+        net = from_quantized(blob, schema['features']) if a.init=='parent' else PilotNet(schema['features'],512)
         initial = evaluate(net,samples,data,val,a.batch,a.loss,cal['scale'],a.mix)
         metrics.append(dict(epoch=0, validation=initial))
         tracker = Plateau(initial['objective'])

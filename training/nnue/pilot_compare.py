@@ -11,6 +11,18 @@ from pilot_data import digest, hashed
 from quantized import Quantized
 
 
+def game_path(sample):
+    """Relocate frozen local paths without rewriting the corpus identity."""
+    path = Path(sample['game'])
+    if not path.exists():
+        marker = '/taikyoku_shogi/'
+        if marker in str(path):
+            path = Path(str(path).split(marker, 1)[1])
+    if digest(path) != sample['game_sha256']:
+        raise ValueError(f'Frozen game contents changed: {path}')
+    return str(path.resolve())
+
+
 def freeze(root):
     samples=[json.loads(x) for x in (root/'dataset/samples.jsonl').read_text().splitlines()]
     test=[s for s in samples if s['split']=='test']
@@ -55,7 +67,7 @@ def verify(root, model, cpu):
         begin=s['offset'];middle=begin+s['us'];end=middle+s['them']
         expected=round(s['material'])+q.residual(data[begin:middle],data[middle:end])
         raw=subprocess.run(['taskset','-c',str(cpu),'target/release/nnue_tool','evaluate',str(model),
-                            s['game'],str(s['ply']),'3000'],check=True,capture_output=True,text=True,timeout=60)
+                            game_path(s),str(s['ply']),'3000'],check=True,capture_output=True,text=True,timeout=60)
         result=json.loads(raw.stdout)
         assert abs(result['score']-expected)<=1,(result['score'],expected)
         assert result['search']['legal'] and result['search']['depth']>=1,result
@@ -71,7 +83,7 @@ def matches(root, model, parent, cpu):
         for black in (True,False):
             name=f'{i}-'+('black' if black else 'white')
             result=out/(name+'.result.json')
-            job=dict(game=s['game'],ply=s['ply'],candidate=str(model.resolve()),
+            job=dict(game=game_path(s),ply=s['ply'],candidate=str(model.resolve()),
                      parent=str(parent.resolve()),candidate_black=black,time_ms=manifest['time_ms'],
                      max_plies=manifest['max_plies'],out=str((out/(name+'.game.json')).resolve()),
                      candidate_sha256=digest(model),parent_sha256=digest(parent),
