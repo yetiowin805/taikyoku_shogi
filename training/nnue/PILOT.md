@@ -17,6 +17,15 @@ calibration, not a claim that score alone captures all outcome probabilities.
 Draws have no outcome component because saved records do not distinguish rules
 draws from move-limit draws. They can still supply search-score labels.
 
+All four arms use quantization-aware forward passes: active feature rows, biases,
+dense weights and activations follow the deployed rounding rules. Floating master
+weights and straight-through sparse gradients retain sub-quantum updates. Only
+active rows are quantized per batch, avoiding a full embedding-table copy.
+This was necessary after ordinary floating-point continuation failed the existing
+export-error gate. The gate was retained, and the corrected recipe was restarted
+consistently for every arm; preliminary rejected models are not compared as final
+candidates. The production inference implementation is unchanged.
+
 ## Data
 
 `pilot_snapshot.py` streams completed immutable game files and a consistent
@@ -102,3 +111,25 @@ can be resumed only with matching model, binary and settings identities.
 OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 data/nnue-venv/bin/python \
   -m unittest discover -s training/nnue -p 'test_*.py'
 ```
+
+### Bounded VPS run (2026-09-24)
+
+`pilot_vps.py` runs an isolated copy under systemd, pinned to CPU 3. It pauses the
+existing analyzer only when it has no child search and holds no lock, reserves
+`analysis.request`, and takes the existing shared lease after any fourth game
+finishes. Three tournament workers remain untouched. `ExecStopPost` resumes the
+same analyzer PID/start-time identity on success, failure, or service timeout;
+normal adaptive analysis/game sharing then resumes. No model is deployed.
+
+This screen uses six sampling passes per arm, a 65-minute per-arm training limit,
+and a 10.5-hour service limit including CPU handoff. Saved best completed exports
+from budget-limited training are eligible for comparison and marked incomplete
+in `vps-status.json`. All four arms run sequentially, followed by sequential
+3-second paired games. Capped games remain unresolved. The service must set
+`KillMode=control-group`, `CPUAffinity=3`, one-thread math-library environment,
+and `ExecStopPost=... pilot_vps.py restore .../vps-config.json`.
+
+`vps-status.json`, `restoration.json`, `common-test.json`, each arm's
+`comparison.json`, and final `comparison.json` are the durable records. Game
+paths relocate without modifying dataset identities; selected game hashes are
+checked before replay. Portable binaries use `target-cpu=x86-64-v3`.

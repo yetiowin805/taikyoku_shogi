@@ -6,7 +6,7 @@ import numpy as np
 import torch
 
 from pilot_data import position_key, stratified
-from pilot_fit import calibration, from_quantized, losses, weights_for
+from pilot_fit import PilotNet, calibration, from_quantized, losses, weights_for
 from quantized import Quantized
 from train import Net, export
 
@@ -49,6 +49,20 @@ class PilotTests(unittest.TestCase):
                 with torch.no_grad():
                     result=restored(torch.tensor(np.concatenate([us,them])),torch.tensor([0,20,50])).item()*1000
                 self.assertLess(abs(result-q.residual(us,them)),20)
+
+    def test_quantized_forward_after_updates_preserves_sparse_gradients(self):
+        torch.manual_seed(42); net=PilotNet(256,32)
+        x=torch.tensor([1,2,3,4,4,5,6,7]); off=torch.tensor([0,4,8])
+        opt=torch.optim.SGD(net.parameters(),lr=.01)
+        for _ in range(20):
+            opt.zero_grad(set_to_none=True)
+            (net(x,off)-.3).square().sum().backward()
+            self.assertTrue(net.embedding.weight.grad.is_sparse)
+            opt.step()
+        with tempfile.TemporaryDirectory() as d:
+            path=Path(d)/'model.bin';export(net,path,dict(channels=92,hash='00'*32))
+            q=Quantized(path,256)
+            self.assertLess(abs(net(x,off).item()*1000-q.residual(x[:4].numpy(),x[4:].numpy())),2)
 
     def test_position_dedup_ignores_traversal_order_but_not_perspective(self):
         sample=dict(offset=0,us=2,them=2)

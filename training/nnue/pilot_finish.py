@@ -17,10 +17,17 @@ def main():
     p=argparse.ArgumentParser()
     p.add_argument('root',type=Path)
     p.add_argument('--wait-hours',type=float,default=5)
+    p.add_argument('--cpus',default='4,6,8,10')
+    p.add_argument('--available-models',action='store_true',
+                   help='Evaluate saved best checkpoints, including budget-limited training')
     a=p.parse_args()
+    cpus=[int(x) for x in a.cpus.split(',')]
     names=['warm-huber','fresh-huber','warm-wdl','warm-wdl10']
+    if a.available_models:
+        names=[name for name in names if (a.root/name/'model.json').exists()]
+        if not names:raise RuntimeError('No valid exported models to compare')
     deadline=time.monotonic()+a.wait_hours*3600
-    while True:
+    while not a.available_models:
         complete=True
         for name in names:
             path=a.root/name/'status.json'
@@ -42,7 +49,7 @@ def main():
     from pilot_fit import from_quantized, calibration, evaluate
     torch.set_num_threads(1)
     torch.set_num_interop_threads(1)
-    os.sched_setaffinity(0,{4})
+    os.sched_setaffinity(0,{cpus[0]})
     samples=[json.loads(x) for x in (a.root/'dataset/samples.jsonl').read_text().splitlines()]
     schema=json.loads((a.root/'dataset/schema.json').read_text())
     data=np.memmap(a.root/'dataset/features.bin',mode='r',dtype='<u4')
@@ -56,19 +63,30 @@ def main():
         common[name]=evaluate(net,samples,data,test,8,'huber',scale,0)
         del net
     (a.root/'common-test.json').write_text(json.dumps(common,indent=2)+'\n')
+    baseline_dir=a.root/'parent';baseline_dir.mkdir(exist_ok=True)
+    descriptor=json.loads(parent.read_text())
+    descriptor['weights']['nnue']['file']=str((parent.parent/descriptor['weights']['nnue']['file']).resolve())
+    baseline_model=baseline_dir/'model.json'
+    baseline_model.write_text(json.dumps(descriptor,indent=2)+'\n')
+    verify(a.root,baseline_model,cpus[0])
     # Homogeneous efficiency cores; one game thread per physical CPU, after training.
     def check_and_play(item):
         name,cpu=item
         model=a.root/name/'model.json'
-        verify(a.root,model,cpu)
-        matches(a.root,model,parent,cpu)
-    with ThreadPoolExecutor(max_workers=4) as pool:
-        list(pool.map(check_and_play,zip(names,[4,6,8,10])))
-    report={name:dict(test=json.loads((a.root/name/'test.json').read_text()),
-                      matches=json.loads((a.root/name/'matches-summary.json').read_text()))
-            for name in names}
+        try:
+            verify(a.root,model,cpu)
+            matches(a.root,model,parent,cpu)
+            result=dict(test=common[name],matches=json.loads((a.root/name/'matches-summary.json').read_text()))
+        except Exception as exc:
+            result=dict(test=common[name],error=str(exc))
+        (a.root/name/'comparison.json').write_text(json.dumps(result,indent=2)+'\n')
+        return name,result
+    with ThreadPoolExecutor(max_workers=len(cpus)) as pool:
+        report=dict(pool.map(check_and_play,[(name,cpus[i%len(cpus)]) for i,name in enumerate(names)]))
     (a.root/'comparison.json').write_text(json.dumps(report,indent=2)+'\n')
     print(json.dumps(report),flush=True)
+    if any('error' in result for result in report.values()):
+        raise RuntimeError('One or more comparisons failed; see comparison.json')
 
 
 if __name__=='__main__':main()
