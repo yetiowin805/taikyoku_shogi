@@ -32,6 +32,12 @@ def restore(config):
         if identity(config['analyzer_pid']) == config['analyzer_identity']:
             os.kill(config['analyzer_pid'], signal.SIGCONT)
             write(ROOT/'restoration.json', dict(state='analyzer_resumed', time=time.time()))
+            service_result = os.environ.get('SERVICE_RESULT')
+            if service_result and service_result != 'success' and (ROOT/'vps-status.json').exists():
+                status = json.loads((ROOT/'vps-status.json').read_text())
+                if status['state'] not in ('completed', 'failed'):
+                    status.update(state='stopped', service_result=service_result, finished=time.time())
+                    write(ROOT/'vps-status.json', status)
         else:
             raise RuntimeError('Analyzer PID changed; refusing to signal unrelated process')
     except Exception as exc:
@@ -89,16 +95,17 @@ def run(config):
     write(ROOT/'vps-status.json', report)
     try:
         pause_at_boundary(config)
+        write(ROOT/'restoration.json', dict(state='analyzer_paused', time=time.time()))
         (control/'analysis.request').touch()
         with (control/'shared.lock').open('a+') as lease:
-            until=time.monotonic()+1200
+            until=time.monotonic()+7200
             while True:
                 try:
                     fcntl.flock(lease, fcntl.LOCK_EX | fcntl.LOCK_NB)
                     break
                 except BlockingIOError:
                     if time.monotonic()>until:
-                        raise TimeoutError('Fourth game did not finish within 20 minutes')
+                        raise TimeoutError('Fourth game did not finish within two hours')
                     time.sleep(.2)
             report.update(state='training', acquired=time.time())
             write(ROOT/'vps-status.json', report)
@@ -108,9 +115,10 @@ def run(config):
                 report['active']=name
                 write(ROOT/'vps-status.json',report)
                 try:
+                    resume=['--resume'] if (ROOT/name/'recipe.json').exists() else []
                     command([sys.executable,'training/nnue/pilot_fit.py',str(ROOT/'dataset'),
                              '--parent',str(PARENT),'--out',str(ROOT/name),'--init',init,
-                             '--loss',loss,'--mix',str(mix),'--epochs','6'],ROOT/(name+'.log'),65*60)
+                             '--loss',loss,'--mix',str(mix),'--epochs','6']+resume,ROOT/(name+'.log'),65*60)
                     report['arms'][name]={'training':'completed'}
                 except Exception as exc:
                     report['arms'][name]={'training':'incomplete','error':str(exc)}
