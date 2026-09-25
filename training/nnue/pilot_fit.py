@@ -7,6 +7,8 @@ import os
 from pathlib import Path
 import random
 import time
+import gc
+import shutil
 
 import numpy as np
 import torch
@@ -119,6 +121,23 @@ def losses(pred, target, material, outcome, mode, scale, mix):
     return loss, huber, p, q, mask
 
 
+def backward_batch(net,samples,data,ids,microbatch,mode,scale,mix):
+    """Preserve one optimizer update per effective batch with bounded sparse gradients."""
+    value=0.; touched=[]
+    for chunk in range(0,len(ids),microbatch):
+        part=ids[chunk:chunk+microbatch]
+        x,off,target=batch(samples,data,part);touched.append(x)
+        material=torch.tensor([samples[i]['material'] for i in part])
+        outcome=torch.tensor([float('nan') if samples[i]['outcome'] is None else samples[i]['outcome'] for i in part])
+        pred=net(x,off)
+        loss=losses(pred,target,material,outcome,mode,scale,mix)[0].sum()/len(ids)
+        assert torch.isfinite(loss)
+        loss.backward()
+        net.embedding.weight.grad=net.embedding.weight.grad.coalesce()
+        value+=loss.item()*len(ids)
+    return value,torch.unique(torch.cat(touched))
+
+
 def evaluate(net, samples, data, ids, batch_size, mode, scale, mix):
     weights = weights_for(samples, ids)
     totals = Counter()
@@ -158,15 +177,23 @@ def main():
     p.add_argument('--loss', choices=['huber','wdl'], required=True)
     p.add_argument('--mix', type=float, default=0)
     p.add_argument('--epochs', type=int, default=12)
+    p.add_argument('--width', type=int, default=512)
+    p.add_argument('--patience', type=int, default=2)
+    p.add_argument('--lr-reductions', type=int, default=1)
     p.add_argument('--batch', type=int, default=8)
+    p.add_argument('--microbatch', type=int, default=8,
+                   help='Accumulate gradients across smaller chunks without changing effective batch size')
     p.add_argument('--epoch-samples', type=int, default=32768,
                    help='Weighted draws per pass; all arms use the same deterministic draws')
     p.add_argument('--seed', type=int, default=20260924)
     p.add_argument('--resume', action='store_true')
     p.add_argument('--limit', type=int)
+    p.add_argument('--defer-test', action='store_true',
+                   help='Evaluate the exported model in a separate process to bound peak memory')
     a = p.parse_args()
     if not 0 <= a.mix <= 1 or (a.loss=='huber' and a.mix):
         raise ValueError('Invalid mixture')
+    assert a.batch > 0 and a.microbatch > 0
     torch.set_num_threads(1)
     torch.set_num_interop_threads(1)
     torch.manual_seed(a.seed)
@@ -188,10 +215,16 @@ def main():
     parent = json.loads(a.parent.read_text())
     desc = parent['weights']['nnue']
     blob = (a.parent.parent/desc['file']).resolve()
-    assert digest(blob)==desc['sha256'] and desc['width']==512 and desc['feature_hash']==schema['names_hash']
+    assert a.width >= 32 and a.width <= 4096 and a.width % 32 == 0
+    assert digest(blob)==desc['sha256'] and desc['feature_hash']==schema['names_hash']
+    if a.init=='parent':
+        assert desc['width']==a.width, 'Warm start requires the same network width'
     recipe = dict(dataset=identity, parent_sha256=digest(a.parent), init=a.init, loss=a.loss,
                   mix=a.mix, batch=a.batch, seed=a.seed, epochs=a.epochs, limit=a.limit,
                   epoch_samples=a.epoch_samples,
+                  width=a.width, patience=a.patience, lr_reductions=a.lr_reductions,
+                  microbatch=a.microbatch,
+                  defer_test=a.defer_test,
                   code_sha256=digest(__file__), scale=cal['scale'],
                   quantization='active-feature-and-head-aware; sparse floating master weights')
     a.out.mkdir(parents=True, exist_ok=True)
@@ -200,22 +233,29 @@ def main():
     else:
         atomic_json(a.out/'recipe.json', recipe)
     atomic_json(a.out/'calibration.json', cal)
-    policy = Policy(min_epochs=4, max_epochs=a.epochs, patience=2, lr_reductions=1)
+    policy = Policy(min_epochs=4, max_epochs=a.epochs, patience=a.patience, lr_reductions=a.lr_reductions)
     first, best, metrics = 0, math.inf, []
     state = None
     if a.resume and (a.out/'training.pt').exists():
         state = torch.load(a.out/'training.pt', weights_only=True, mmap=True)
         with torch.device('meta'):
-            net = PilotNet(schema['features'], 512)
+            net = PilotNet(schema['features'], a.width)
         net.load_state_dict(state['net'], assign=True)
         first, best, metrics = state['epoch'], state['best'], state['metrics']
         tracker = Plateau(**state['plateau'])
     else:
-        net = from_quantized(blob, schema['features']) if a.init=='parent' else PilotNet(schema['features'],512)
+        net = from_quantized(blob, schema['features']) if a.init=='parent' else PilotNet(schema['features'],a.width)
         initial = evaluate(net,samples,data,val,a.batch,a.loss,cal['scale'],a.mix)
         metrics.append(dict(epoch=0, validation=initial))
         tracker = Plateau(initial['objective'])
         print(json.dumps(metrics[-1]), flush=True)
+        if a.init=='parent':
+            best=initial['objective']
+            saved=a.out/f"nnue-{desc['sha256']}.bin"
+            shutil.copyfile(blob,saved)
+            cp=json.loads(a.parent.read_text());cp['name']=a.out.name
+            cp['weights']['nnue']['file']=saved.name
+            atomic_json(a.out/'model.json',cp)
     emb = torch.optim.SGD([net.embedding.weight], lr=.0002)
     dense = torch.optim.Adam([v for k,v in net.named_parameters() if k!='embedding.weight'], lr=.0003)
     if state:
@@ -230,22 +270,15 @@ def main():
         total = 0
         for start in range(0, len(order), a.batch):
             ids = order[start:start+a.batch]
-            x, off, target = batch(samples,data,ids)
-            material = torch.tensor([samples[i]['material'] for i in ids])
-            outcome = torch.tensor([float('nan') if samples[i]['outcome'] is None else samples[i]['outcome'] for i in ids])
             emb.zero_grad(set_to_none=True); dense.zero_grad(set_to_none=True)
-            pred = net(x,off)
-            loss = losses(pred,target,material,outcome,a.loss,cal['scale'],a.mix)[0]
-            loss = loss.mean()  # Sampling already supplies the category weights.
-            assert torch.isfinite(loss)
-            loss.backward(); emb.step(); dense.step()
+            value,touched=backward_batch(net,samples,data,ids,a.microbatch,a.loss,cal['scale'],a.mix)
+            total+=value
+            emb.step(); dense.step()
             with torch.no_grad():
-                touched = torch.unique(x)
                 net.embedding.weight[touched] = net.embedding.weight[touched].clamp(-.5,.5)
                 net.bias.clamp_(-2,2)
                 for layer in [net.h1,net.h2]:
                     layer.weight.clamp_(-127/64,127/64); layer.bias.clamp_(-8,8)
-            total += loss.item()*len(ids)
             if start % (a.batch*100)==0:
                 atomic_json(a.out/'status.json',dict(state='training',epoch=epoch+1,samples=start+len(ids),
                     total=len(order),elapsed_s=time.monotonic()-started))
@@ -268,7 +301,8 @@ def main():
             record['quantization'] = dict(mean=float(np.mean(errors)),max=float(max(errors)))
             published = a.out/f'nnue-{sha}.bin'; candidate.replace(published)
             cp = json.loads(a.parent.read_text()); cp['name']=a.out.name
-            cp['weights']['nnue'].update(file=published.name,sha256=sha)
+            cp['weights']['nnue'].update(file=published.name,sha256=sha,width=a.width)
+            cp['created_at']=f'unix:{int(time.time())}'
             old_blob = None
             if (a.out/'model.json').exists():
                 old_blob = a.out/json.loads((a.out/'model.json').read_text())['weights']['nnue']['file']
@@ -287,7 +321,13 @@ def main():
                         epoch=epoch+1,best=best,metrics=metrics,plateau=tracker.__dict__),tmp)
         tmp.replace(a.out/'training.pt')
         print(json.dumps(record),flush=True)
+    if a.defer_test:
+        atomic_json(a.out/'status.json',dict(state='trained',reason=tracker.stopped,test=None))
+        return
+    # The last autograd graph can retain embedding parameters after deleting net.
+    if 'pred' in locals():del pred,loss
     del net,emb,dense
+    gc.collect()
     cp=json.loads((a.out/'model.json').read_text())
     best_net=from_quantized(a.out/cp['weights']['nnue']['file'],schema['features'])
     # Untouched test set is evaluated once after all checkpoint selection is complete.
