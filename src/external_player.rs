@@ -24,7 +24,24 @@ pub struct ExternalAbPlayer {
 
 impl ExternalAbPlayer {
     pub fn spawn(engine: &str, spec: &AgentSpec) -> Result<Self, String> {
-        let mut child = Command::new(engine)
+        let mut command = Command::new(engine);
+        #[cfg(target_os = "linux")]
+        {
+            use std::os::unix::process::CommandExt;
+            let parent = unsafe { libc::getpid() };
+            unsafe {
+                command.pre_exec(move || {
+                    if libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGKILL) != 0 {
+                        return Err(std::io::Error::last_os_error());
+                    }
+                    if libc::getppid() != parent {
+                        return Err(std::io::Error::other("game worker exited"));
+                    }
+                    Ok(())
+                });
+            }
+        }
+        let mut child = command
             .arg("think-loop")
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())

@@ -18,6 +18,7 @@ import time
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import training_sidecar
 import training_labels
+import engine_updates
 
 ROOT = Path(__file__).resolve().parent.parent
 STOPPING = False
@@ -128,12 +129,19 @@ def parent_death_guard(parent):
 
 
 def analyzer_for_agent(config, agent):
+    if not agent.get("engine") and agent.get("engine_build"):
+        bundle = engine_updates.verify(sys.modules[__name__], agent['engine_build'])
+        if agent.get('engine_sha256') not in (None, bundle['engine_sha256']):
+            raise ValueError('game engine hash differs from recorded bundle')
+        return bundle
     if not agent.get("engine"):
         return config
     path = absolute(agent["engine"]).resolve()
     entry = config.get("historical_engines", {}).get(str(path))
     if not entry:
         raise ValueError(f"no matching historical analyzer for {path}")
+    if agent.get("engine_sha256") not in (None, entry["engine_sha256"]):
+        raise ValueError(f"game engine hash differs from historical binding: {path}")
     if digest(path.read_bytes()) != entry["engine_sha256"]:
         raise ValueError(f"historical engine changed: {path}")
     if digest(Path(entry["analyzer_bin"]).read_bytes()) != entry["analyzer_sha256"]:
@@ -236,6 +244,9 @@ def search_position(config, moment, ply, db):
     if agent["name"] != "ab":
         raise ValueError("only ab agents are supported")
     helper = analyzer_for_agent(config, agent)
+    if config.get('label_teacher') and config.get('rolling_engines'):
+        # Freeze once for this request; an in-flight search keeps its helper.
+        helper = engine_updates.active(sys.modules[__name__], Path(destination))
     model_key = str(absolute(agent["model"]).resolve())
     model = config["models"][model_key]
     if digest(Path(model_key).read_bytes()) != model["sha256"]:
@@ -407,6 +418,10 @@ def supervise(config):
         (ROOT / "data/run/TOURNEY_STOP").unlink(missing_ok=True)
         env = dict(os.environ, TAIKYOKU_COMPUTE_DIR=str(control),
                    TAIKYOKU_COMPUTE_CPUS=",".join(map(str, config["cpus"])))
+        if config.get('rolling_engines'):
+            env['TAIKYOKU_ENGINE_POINTER'] = str(control / 'active-engine.json')
+        else:
+            env.pop('TAIKYOKU_ENGINE_POINTER', None)
         if mode != "none":
             request.touch()  # Reserve before a fourth game can be admitted.
         log_path = run / "training/trainer.log" if mode == "training" else control / "analyzer.log"
@@ -464,6 +479,9 @@ def prepare(args, run):
         raise ValueError("run already exists; use resume")
     state = read(run / "state.json") if args.action == "resume" else None
     previous = read(run / "analysis/config.json") if state and (run / "analysis/config.json").exists() else {}
+    rolling = getattr(args, 'rolling_engines', False) or previous.get('rolling_engines', False)
+    if rolling and previous:
+        validate_source(previous)
     mode = getattr(args, 'sidecar', None) or previous.get('sidecar', 'analysis')
     training = None
     if mode != 'training' and getattr(args, 'training_config', None):
@@ -520,6 +538,9 @@ def prepare(args, run):
         json.loads(data)
         subprocess.run([str(validator), "--validate-model", str(source)],
                        check=True, capture_output=True, text=True)
+        if rolling and not ent.get('engine'):
+            subprocess.run([str(binaries[0]), 'tournament-game-validate', str(source)],
+                           check=True, capture_output=True, text=True, timeout=120)
         validated.append((source, data))
     control = run / "analysis"
     control.mkdir(parents=True, exist_ok=True)
@@ -548,6 +569,10 @@ def prepare(args, run):
             target.chmod(0o755)
         return target
     frozen = [freeze(binary) for binary in binaries]
+    # Keep legacy game analysis bound to its original engine when enabling or
+    # resuming rolling updates. New records carry their own exact build.
+    base_helper = previous.get('analyzer_bin', str(frozen[1])) if rolling else str(frozen[1])
+    base_hash = previous.get('analyzer_sha256', digest(frozen[1].read_bytes())) if rolling else digest(frozen[1].read_bytes())
     historical_map = {}
     for ent in entrants:
         if not ent.get("engine"):
@@ -584,16 +609,31 @@ def prepare(args, run):
             old_key = previous['label_teacher']['model']
             if (teacher != previous['label_teacher'] or
                     model_map[teacher['model']] != previous['models'][old_key] or
-                    digest(frozen[1].read_bytes()) != previous['analyzer_sha256']):
+                    base_hash != previous['analyzer_sha256']):
                 raise ValueError('label teacher/model/search binding changed; use a new run')
-    return dict(label_teacher=teacher, label_teacher_id=teacher_id,
+    if rolling:
+        with (control / 'update.lock').open('a+') as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            if previous.get('rolling_engines'):
+                engine_updates.active(sys.modules[__name__], run)
+            else:
+                revision = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=ROOT,
+                                          check=True, capture_output=True, text=True).stdout.strip()
+                bundle = engine_updates.snapshot(sys.modules[__name__], run, frozen[0], frozen[1], revision)
+                engine_updates.publish(sys.modules[__name__], run, bundle)
+        # A resume may have a newer coordinator, but must understand the protocol.
+        probe = subprocess.run([str(frozen[0]), 'tournament-game-protocol'], check=True,
+                               capture_output=True, text=True, timeout=30)
+        if probe.stdout.strip() != '1':
+            raise ValueError('coordinator does not support rolling game processes')
+    return dict(rolling_engines=rolling, label_teacher=teacher, label_teacher_id=teacher_id,
                 run=str(run), cpus=cpus, sidecar=mode, training=training, models=model_map, command=command, historical_engines=historical_map, analysis_sources=sources,
-                analyzer_bin=str(frozen[1]), analyzer_sha256=digest(frozen[1].read_bytes()))
+                analyzer_bin=base_helper, analyzer_sha256=base_hash)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=["start", "resume", "stop", "status", "check-training", "_supervise", "_analyze", "_train"])
+    parser.add_argument("action", choices=["start", "resume", "stop", "status", "check-training", "update-engine", "_supervise", "_analyze", "_train"])
     parser.add_argument("--run-dir", required=True)
     parser.add_argument("--manifest", default="models/royal-s2-twins-grid/manifest.json")
     parser.add_argument("--carry-analysis-from", help="continue a previous run catalogue with its original engine bindings")
@@ -601,6 +641,12 @@ def main():
     parser.add_argument('--sidecar', choices=['analysis', 'training', 'none'], help='resume keeps the saved mode unless overridden')
     parser.add_argument('--training-config', help='configuration generated by training/nnue/continuation.py prepare')
     parser.add_argument("--label-teacher", help="collect training labels with this frozen entrant (10s/position)")
+    parser.add_argument('--rolling-engines', action='store_true', help='launch each game with an immutable engine bundle; resume preserves this mode')
+    parser.add_argument('--engine', default='target/release/taikyoku_shogi')
+    parser.add_argument('--analyzer', default='target/release/analyze_position')
+    parser.add_argument('--revision', help='revision/build description for update-engine')
+    parser.add_argument('--compatible-speedup', action='store_true', help='attest this update preserves fixed-depth search behavior')
+    parser.add_argument('--rollback-build', help='select a previously published build ID for future work')
     parser.add_argument("--depth", type=int, default=8)
     parser.add_argument("--time-ms", type=int, default=3000)
     args = parser.parse_args()
@@ -608,6 +654,8 @@ def main():
     control = run / "analysis"
     signal.signal(signal.SIGTERM, stop_handler)
     signal.signal(signal.SIGINT, stop_handler)
+    if args.action == 'update-engine':
+        return engine_updates.update(sys.modules[__name__], args, run)
     if args.action == 'check-training':
         training_sidecar.prepare(sys.modules[__name__], args.training_config, run, dry_run=True)
         print('Training prerequisites passed; live processes are unchanged.')
@@ -640,6 +688,7 @@ def main():
             trainer['current'] = read(detail) if width and detail.exists() else None
         requested = (control / 'analysis.request').exists()
         print(json.dumps({'supervisor': meta, 'alive': bool(alive(meta)), 'catalogue': counts,
+                          'engine_updates': engine_updates.status(sys.modules[__name__], run) if config.get('rolling_engines') else None,
                           'sidecar': mode, 'label_teacher': config.get('label_teacher_id'), 'allocation': ('3/1' if requested else '4/0') if alive(meta) else 'stopped', 'training': trainer,
                           'analyzer': (read(control / 'analyzer-status.json') if (control / 'analyzer-status.json').exists() else None)
                                       if mode == 'analysis' else {'state': 'paused'}}, indent=2))

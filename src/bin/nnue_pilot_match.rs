@@ -66,6 +66,8 @@ fn run() -> Result<(), String> {
         max_time_ms: Some(job.time_ms),
         quiescence_depth: None,
         engine: None,
+        engine_sha256: None,
+        engine_build: None,
     };
     record.black = agent(if job.candidate_black {
         &job.candidate

@@ -86,6 +86,32 @@ fn main() {
     
     if args.len() > 1 {
         match args[1].as_str() {
+            "tournament-game-protocol" => println!("1"),
+            "tournament-game-validate" => {
+                let result = args
+                    .get(2)
+                    .ok_or_else(|| "model path required".to_string())
+                    .and_then(|p| EvalCheckpoint::load_path(p).map(|_| ()));
+                if let Err(e) = result {
+                    eprintln!("model validation failed: {e}");
+                    std::process::exit(1);
+                }
+            }
+            "tournament-game" => {
+                let result = if args.len() == 4 {
+                    taikyoku_shogi::training::game_process::child_main(
+                        std::path::Path::new(&args[2]),
+                        std::path::Path::new(&args[3]),
+                    )
+                } else {
+                    Err("usage: tournament-game REQUEST OUTPUT".into())
+                };
+                if let Err(e) = result {
+                    eprintln!("game worker failed: {e}");
+                    std::process::exit(1);
+                }
+            }
+
             "play" => {
                 match parse_play_args(&args) {
                     Ok((agent, depth, model)) => {
