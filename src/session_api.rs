@@ -184,6 +184,9 @@ impl DebugTool {
             }
         }
 
+        let black_in_check = self.check_color(Color::Black);
+        let white_in_check = self.check_color(Color::White);
+        let legal_move_count = self.game_state_ref().generate_legal_moves().len();
         let winner = self.game_state_ref().get_winner().map(color_name);
         let draw = if self.game_state_ref().is_draw_by_progress_rule() {
             Some("100-move rule".to_string())
@@ -200,12 +203,12 @@ impl DebugTool {
             timeline_len: self.timeline_length(),
             turn: color_name(self.game_state_ref().get_current_turn()),
             pieces,
-            black_in_check: self.check_color(Color::Black),
-            white_in_check: self.check_color(Color::White),
+            black_in_check,
+            white_in_check,
             winner,
             draw,
-            legal_move_count: self.game_state_ref().generate_legal_moves().len(),
-            status_text: self.status_summary(),
+            legal_move_count,
+            status_text: self.status_summary_with(black_in_check, white_in_check, legal_move_count),
             recorded: self.recorded_evals(),
         }
     }
@@ -359,9 +362,10 @@ impl DebugTool {
                 Color::White => "White",
             };
             let result = player.analyze(self.game_state_ref());
-            let info = crate::search::search_info_from_result(
+            let info = crate::search::search_info_for_display(
                 "ab",
                 side,
+                self.game_state_ref(),
                 player.config().depth,
                 &result,
             );

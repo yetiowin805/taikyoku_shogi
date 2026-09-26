@@ -4,7 +4,7 @@ use crate::eval::{load_checkpoint_or_seed, EvalCheckpoint, EvalWeights, DEFAULT_
 use crate::game_state::{GameState, Move};
 use crate::piece::Color;
 use crate::player::{AgentOptions, MoveAnnotation};
-use crate::search::{search, QPruneMode, SearchConfig};
+use crate::search::{search, search_info_for_display, QPruneMode, SearchConfig};
 use std::env;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
@@ -207,10 +207,11 @@ impl AlphaBetaPlayer {
         ))
     }
 
-    /// Full search with eval / tree trace for the GUI.
+    /// GUI search for Play and Suggest. Root lines come from the main search.
+    /// The reply-tree trace stays off so these actions do not run a second search.
     pub fn analyze(&self, game_state: &GameState) -> crate::search::SearchResult {
         let mut cfg = self.config.clone();
-        cfg.collect_trace = true;
+        cfg.collect_trace = false;
         search(game_state, &self.weights, &cfg)
     }
 
@@ -220,7 +221,7 @@ impl AlphaBetaPlayer {
             crate::piece::Color::White => "White",
         };
         let result = self.analyze(game_state);
-        crate::search::search_info_from_result("ab", side, self.config.depth, &result)
+        search_info_for_display("ab", side, game_state, self.config.depth, &result)
     }
 
     pub fn weights(&self) -> &EvalWeights {

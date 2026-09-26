@@ -116,7 +116,8 @@
     if (commit) onGoto(ply);
   }
 
-  let cursorEval = $derived(nearestEval(cursor));
+  let markerPly = $derived(dragging && hoverPly != null ? hoverPly : cursor);
+  let cursorEval = $derived(nearestEval(markerPly));
   let hoverEval = $derived(hoverPly != null ? nearestEval(hoverPly) : null);
   let labelEval = $derived(hoverEval || cursorEval);
   let gradId = $derived(`evalGrad-${series?.game_id || 'x'}`);
@@ -143,10 +144,15 @@
       onpointerdown={(e) => {
         dragging = true;
         e.currentTarget.setPointerCapture(e.pointerId);
-        onPointer(e, true);
+        onPointer(e, false);
       }}
-      onpointermove={(e) => onPointer(e, dragging)}
-      onpointerup={() => (dragging = false)}
+      onpointermove={(e) => {
+        if (dragging) onPointer(e, false);
+      }}
+      onpointerup={(e) => {
+        if (dragging) onPointer(e, true);
+        dragging = false;
+      }}
       onpointerleave={() => {
         if (!dragging) hoverPly = null;
       }}
@@ -172,7 +178,7 @@
         <line class="focus" x1={xOf(fp)} x2={xOf(fp)} y1={PAD.t} y2={H - PAD.b} />
       {/each}
       <path class="line" d={pathD()} />
-      <line class="cursor" x1={xOf(cursor)} x2={xOf(cursor)} y1={PAD.t} y2={H - PAD.b} />
+      <line class="cursor" x1={xOf(markerPly)} x2={xOf(markerPly)} y1={PAD.t} y2={H - PAD.b} />
       {#if cursorEval}
         <circle class="dot" cx={xOf(cursorEval.ply)} cy={yOf(cursorEval.eval)} r="3.5" />
       {/if}
