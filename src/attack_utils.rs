@@ -195,6 +195,27 @@ enum ReachClass {
 
 const PIECE_TYPE_CACHE_LEN: usize = 303;
 
+/// Window radius for [`needs_global_scan`]: every piece that
+/// [`should_check_piece_for_target_position`] can accept is either within this
+/// Chebyshev distance of the target, aligned with it on one of the eight rays,
+/// or flagged by [`needs_global_scan`]. Matches [`is_within_9x9_square`].
+pub(crate) const CANDIDATE_WINDOW: u8 = 5;
+
+/// Pieces the filter may accept without being near or aligned with the
+/// target: two-leg movers with special probes, Lion Hawk, Cannon Soldier, and
+/// short-range pieces whose reach exceeds [`CANDIDATE_WINDOW`].
+pub(crate) fn needs_global_scan(piece: &Piece) -> bool {
+    if is_tengu_or_promoted_peacock(piece)
+        || is_unpromoted_peacock(piece)
+        || is_hook_mover_like_piece(piece)
+        || is_lion_hawk(piece)
+        || is_cannon_soldier(piece)
+    {
+        return true;
+    }
+    matches!(reach_class_of(piece), ReachClass::Short(m) if m > CANDIDATE_WINDOW)
+}
+
 fn reach_class_table() -> &'static [[ReachClass; 2]] {
     static TABLE: OnceLock<Vec<[ReachClass; 2]>> = OnceLock::new();
     TABLE.get_or_init(|| {

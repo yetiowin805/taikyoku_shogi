@@ -4,6 +4,68 @@ use crate::position::Position;
 use crate::movement::MovementConfig;
 use crate::path_utils;
 
+/// First-step directions of pieces that only have Simple / non-jumping Range
+/// moves, per piece type and colour (`None` for anything that can leap, jump,
+/// sweep, or move in two legs, and for the promotion-dependent Whale / Rain
+/// Dragon configs).
+fn step_only_dirs(piece: &Piece) -> Option<u8> {
+    use crate::movement::types::{BlockingMode, MovementCapability};
+    use std::sync::OnceLock;
+    static TABLE: OnceLock<Vec<[Option<u8>; 2]>> = OnceLock::new();
+    if matches!(piece.piece_type, PieceType::Whale | PieceType::RainDragon) {
+        return None;
+    }
+    let table = TABLE.get_or_init(|| {
+        let mut t = vec![[None; 2]; 303];
+        for &pt in crate::eval::ALL_PIECE_TYPES {
+            let mut dirs = 0u8;
+            let mut ok = true;
+            for cap in &MovementConfig::for_piece_type(pt).capabilities {
+                match cap {
+                    MovementCapability::Simple { directions, .. }
+                    | MovementCapability::Range {
+                        directions,
+                        blocking: BlockingMode::NoJump,
+                        ..
+                    } => dirs |= *directions,
+                    _ => ok = false,
+                }
+            }
+            if ok && (pt as usize) < t.len() {
+                for (i, c) in [Color::Black, Color::White].into_iter().enumerate() {
+                    t[pt as usize][i] = Some(
+                        crate::movement::MovementGenerator::adjust_directions_for_color(dirs, c),
+                    );
+                }
+            }
+        }
+        t
+    });
+    table
+        .get(piece.piece_type as usize)?
+        .get((piece.color == Color::White) as usize)
+        .copied()
+        .flatten()
+}
+
+/// True when a step/slide-only piece has no empty or enemy square on any of its
+/// first steps, so it has no moves. Exact shortcut for move generation.
+fn is_boxed_in(piece: &Piece, board: &Board) -> bool {
+    let Some(dirs) = step_only_dirs(piece) else {
+        return false;
+    };
+    for dir in crate::movement::direction::direction_iter(dirs) {
+        let (df, dr) = dir.to_offset();
+        if let Some(sq) = piece.position.offset(df, dr) {
+            match board.get_piece(sq) {
+                Some(q) if q.color == piece.color => {}
+                _ => return false,
+            }
+        }
+    }
+    true
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum MoveData {
     Standard,
@@ -817,6 +879,9 @@ impl GameState {
         let captures_only = matches!(mode, LegalMoveGen::CapturesOnly);
 
         for piece in pieces {
+            if is_boxed_in(piece, &self.board) {
+                continue;
+            }
             if piece.piece_type == PieceType::FreeEagle {
                 #[cfg(feature = "search-profile")]
                 let _fe = crate::profile_timers::fe_gen_scope();
@@ -2225,6 +2290,46 @@ mod tests {
         play_cycle(&mut state);
         assert_eq!(state.repetition_count(), 5);
         assert!(state.is_draw_by_fivefold_repetition());
+    }
+
+    #[test]
+    fn boxed_in_shortcut_only_skips_pieces_without_moves() {
+        use rand::{rngs::StdRng, Rng, SeedableRng};
+        let mut state = GameState::new();
+        state.setup_initial_position();
+        let mut rng = StdRng::seed_from_u64(7);
+        let (mut skipped, mut checked) = (0, 0);
+        for ply in 0..150 {
+            for color in [Color::Black, Color::White] {
+                let pieces = state.get_board().pieces_by_color(color).to_vec();
+                for piece in &pieces {
+                    checked += 1;
+                    if is_boxed_in(piece, state.get_board()) {
+                        skipped += 1;
+                        let config = MovementConfig::for_piece(piece);
+                        let targets = crate::movement::MovementGenerator::generate_targets(
+                            piece,
+                            state.get_board(),
+                            &config.capabilities,
+                        );
+                        assert!(
+                            targets.is_empty(),
+                            "ply {ply}: {piece:?} has {targets:?}"
+                        );
+                    }
+                }
+            }
+            let moves = state.generate_legal_moves();
+            if moves.is_empty() {
+                break;
+            }
+            let mv = moves[rng.gen_range(0..moves.len())].clone();
+            state.make_move(mv);
+        }
+        assert!(
+            skipped > checked / 4,
+            "shortcut should fire often: {skipped}/{checked}"
+        );
     }
 
     #[test]

@@ -78,6 +78,140 @@ estimates elsewhere in this document remain hypotheses.
 See [the experiment report](benchmarks/search_light_20260926/REPORT.md) for raw
 results, exact tested patches, limitations and the follow-up acceptance record.
 
+## Follow-up 3 — two-step dedup, lazy labels, ID time waste (2026-09-26, cloud session)
+
+Base: `a3ae944`. Measured in a shared 4-vCPU cloud container with the seed
+weights and a throwaway bench (`search_speed.rs` opening + pawn-push middlegame,
+self-play plies 120/240, an "open" start position without pawns/front ranks, and
+a "sparse" position keeping royals, two-movers, capturing-range pieces and every
+third other piece). **Wall-time noise here is ±20–40% run to run**, so only node
+counts and exact parity are reliable. Timings below are indicative at best.
+Re-measure with the pinned-CPU harness before accepting any speed claim.
+
+- [ ] **D2.2 two-step route dedup (measured in that session; not in this tree).** For two-step pieces,
+  a route whose intermediate square is empty is dropped if the plain move or an
+  earlier empty route already reaches the same `(to, promoted)`. Capturing
+  intermediates are always kept. Stage B also checks against stage A's first-leg
+  plain moves. Results:
+  - Opening, pawn-push middlegame, open, ply 120, ply 240: **identical** move
+    lists, nodes, q-nodes, scores and routes (no duplicates arise there).
+  - Sparse (free Hook Mover / Tengu / Capricorn class pieces): legal moves
+    **2604 → 1929 (−26%)**, d2 nodes **54,486 → 43,162 (−21%)**, q-nodes
+    27,146 → 23,099, **same score and same chosen route**. Wall time 641 → 580 ms
+    in the one paired run, which is inside the noise band.
+  - Caveats: the node order changes wherever duplicates existed, so this is
+    position-exact, not node-exact. Routes can differ in the progress-draw counter
+    (a leg's directional irreversibility), and the first route is kept. Plain moves
+    emitted twice by overlapping capabilities are left unchanged. Free Eagle paths
+    are not deduplicated. Needs a tournament or paired-harness check on real
+    middlegames with free two-movers, and a `kind: logic` freeze if merged.
+  - Tests from that session: `open_two_step_routes_are_generated_once_per_result`
+    (not in this tree). The release library suite ran 368 passed; the 13 failures
+    are all `git show <old rev>` history lookups that cannot work in that shallow clone.
+- [ ] **A7 lazy q progress label (measured in that session; not in this tree).** `quiesce` stored a
+  formatted `String` (`move_label`) for every searched q-move, only for 3-second
+  progress logs. The experiment stored the piece and squares and formatted only when a log
+  line was printed. It was **exact** on all six positions (nodes, scores, routes).
+  The bounded gain is ≈ q-nodes × ~150 ns ≈ 0.5–1% of search time, below this
+  machine's noise, so no speedup is claimed.
+- [x] **B8 measurement: half of each timed move is discarded.** Timed searches (1 s,
+  depth cap 8, q2) on seven self-play positions (plies 0–240). Each ID iteration
+  took **2.5–6.8× longer** than the previous one (median ≈3.5–4×). The time
+  after the last completed iteration, which the search throws away, was **5–98%
+  of the budget, 52% overall**. For example: ply 0 completed d3 at 430 ms, then
+  spent 570 ms on an unfinished d4. Ply 80 completed only d1 at 25 ms and spent
+  975 ms on d2. A "don't start iteration d+1 unless `elapsed × ~4 < budget`" rule
+  would have returned the same moves in about half the clock on 6 of 7 samples.
+  Using partial iterations (keep a root move that finished at depth d+1 and beat
+  the previous best) is the other option. This is the cheapest remaining lever
+  for tournament throughput. Not implemented, because it changes timed
+  behaviour and needs a games-per-hour and strength check.
+- [ ] Not attempted in follow-up 3: D2.1 blocked-piece skip, line-occupancy masks (A1),
+  blocker-bitset NNUE follow-up (already merged in #121), time-management change
+  (B8 above). D2.1 was measured in follow-up 4 and is in this tree.
+
+## Follow-up 4 — deterministic profiling, candidate scan, soft stop (2026-09-26)
+
+**Method.** Wall time on the cloud box is too noisy, so this round used
+**instruction counts (valgrind cachegrind, `Ir`)**. They are deterministic and
+only exclude cache and branch effects. Six cached positions (opening, pawn-push
+middlegame, open, sparse, self-play plies 120/240), seed weights, fixed depth
+(d3; d2 for open/sparse), q2 PathAware. `callgrind` gave function-level profiles.
+
+**Where instructions go (callgrind, opening d3, at `a3ae944` + dedup):**
+`generate_captures_hitting_square` was **75% inclusive**. Its per-piece filter
+`should_check_piece_for_target_position` alone was **51% self time** (48% in
+the pawn-push middlegame): **39.4 M calls** at ~71 instructions each, meaning
+every victim square scans all ~400 own pieces. The callers are quiescence victim
+generation (38%), `stm_has_large_hang_take` (32%, still, after lazy leaf checks)
+and `stm_has_royal_capture` (9%). Full move generation is only ~4.5%. The filter
+is cheap per call; the problem is how many times it is called. That explains
+why the earlier "cached movement properties" screen was neutral.
+
+**Results (Ir, millions; each row adds to the one above):**
+
+| Change | opening | pawnmid | open | sparse | sp120 | sp240 | exact? |
+|---|---:|---:|---:|---:|---:|---:|---|
+| `a3ae944` baseline | 5752 | 10051 | 20182 | 9213 | 7109 | 6314 | — |
+| + two-step dedup + lazy q label | 5724 | 9999 | 20002 | 8379 | 7097 | 6306 | position-exact (sparse nodes −21%) |
+| + boxed-in piece skip (D2.1) | 5704 | 9943 | 19908 | 8385 | 7066 | 6292 | **exact** |
+| + self-sweep ordering (D2.7) | 5532 | 9286 | 20133 | 8451 | 6916 | 6348 | nodes −2/−5/0/0/−2/+1%, same scores+moves |
+| + **reverse candidate scan** | **3706** | **6515** | **16398** | **7914** | **5194** | **4346** | **exact** |
+| cumulative vs baseline | **−36%** | **−35%** | **−19%** | **−14%** | **−27%** | **−31%** | |
+
+The cumulative row stacks every experiment, including ones not merged here.
+This tree has the boxed-in skip and the reverse candidate scan only.
+
+- [x] **Reverse candidate scan (in this tree).** `generate_captures_hitting_square`
+  first builds a bitset of piece-list indices that could pass the filter. These
+  are own pieces in the short-reach window around the victim, own pieces anywhere
+  on its 8 rays, and the few unaligned movers (Tengu/Peacock/Hook family, Lion
+  Hawk, Cannon Soldier). It then runs the unchanged per-piece code on that set in
+  index order. Same pieces, same order, so results are **node-exact on all six
+  positions**. It gives −6% to −33% instructions on its own. After it, the next
+  hotspot is building the candidate set itself (35% self): an 11×11–15×15 window,
+  8 rays and a full-army pass for exotics. Next steps: fix the window at radius 5
+  and move the single 7-square stepper into the exotic group, precompute the
+  exotic flag per type, keep an incremental exotic list, then line-occupancy
+  masks (A1). The same trick applies to `is_position_attacked_by_pieces` (~7%
+  inclusive). Test: `candidate_attackers_include_every_piece_the_filter_accepts`.
+- [x] **Boxed-in skip (D2.1, in this tree).** A step/slide-only piece whose first step in every
+  direction is own-occupied or off-board has no moves, so it is skipped before
+  config lookup. Exact, with a parity test over 150 random plies. Opening movegen
+  wall time drops about 26 → 15 µs, but it saves only **0.2–0.6%** of search
+  instructions: interior-node full generation is a small share of the search.
+  Test: `boxed_in_shortcut_only_skips_pieces_without_moves`.
+- [ ] **Self-sweep ordering (D2.7, measured; not in this tree).** Quiet moves by capturing-range pieces are
+  ordered after other quiets, by the material of their own pieces swept. Mixed
+  results (−3% to −7% on three positions, +1% on three); same scores and moves.
+  This is a behaviour change with small payoff. Consider dropping it, or test it
+  in tournaments before keeping it.
+- [ ] **ID soft stop (B8), measured with `SearchConfig::id_soft_stop`, off by default; not in this tree.** Before
+  starting depth d+1, predict its time as the last iteration × the observed
+  growth (clamped to 2–8×), and skip it if that would pass the deadline.
+  - At **1 s**: **same move 16/16**, **32% less clock used**, one sample stopped
+    a depth shallower (same move).
+  - At **3 s**: 28% less clock, but **2/16 moves differed** and 3/16 were
+    shallower. The predictor is too aggressive when growth is erratic (d1→d2
+    can grow 40×).
+
+  Both runs had background valgrind load, but each pair ran under the same
+  conditions. Suggested follow-up: a more conservative predictor (for example,
+  use the smaller of the last two growth ratios), or use completed root moves
+  from the partial iteration instead. Measure games per hour and strength.
+- **Tests in that cloud session.** Release and debug library suites: **370 passed**, 4 ignored. The 13
+  failures in each are `git show <old rev>` history tests that cannot work in a
+  shallow clone. That session's new tests were
+  `open_two_step_routes_are_generated_once_per_result` (not in this tree)
+  and `boxed_in_shortcut_only_skips_pieces_without_moves` (in this tree).
+  This tree also has `candidate_attackers_include_every_piece_the_filter_accepts`.
+- **Caveats.** These are seed weights only; the NNUE agents and the handcrafted
+  checkpoints in the pinned harness were not measured here. Instruction counts
+  are not wall time (cache effects are excluded). Before merging, confirm with
+  the `search_speed_20260920` / `engine_speed_20260926` harness on the reference
+  corpus. The −14% to −36% cumulative row includes the unmerged dedup, label,
+  and self-sweep experiments, so it is not the gain of this tree alone.
+
 ---
 
 ## 0. Where the time goes today (sanity measurements)

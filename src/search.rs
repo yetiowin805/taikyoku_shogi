@@ -1938,6 +1938,81 @@ fn append_full_gen_hits(state: &GameState, piece: Piece, victim: Position, out: 
     out.truncate(w);
 }
 
+/// Bitset over a colour's piece-list indices.
+struct SlotSet(Vec<u64>);
+
+impl SlotSet {
+    fn set(&mut self, i: usize) {
+        self.0[i / 64] |= 1u64 << (i % 64);
+    }
+
+    fn iter_ones(&self) -> impl Iterator<Item = usize> + '_ {
+        self.0.iter().enumerate().flat_map(|(w, &word)| {
+            let mut bits = word;
+            std::iter::from_fn(move || {
+                if bits == 0 {
+                    return None;
+                }
+                let b = bits.trailing_zeros() as usize;
+                bits &= bits - 1;
+                Some(w * 64 + b)
+            })
+        })
+    }
+}
+
+/// Superset of `army` pieces that can pass
+/// [`crate::attack_utils::should_check_piece_for_target_position`] for `victim`:
+/// pieces within the short-reach window, pieces on any of the eight rays
+/// through `victim`, and the few movers accepted regardless of alignment.
+/// Iterating it in index order visits accepted pieces in the same order as a
+/// full army scan.
+fn attacker_candidates(
+    board: &crate::board::Board,
+    army: &[Piece],
+    us: Color,
+    victim: Position,
+) -> SlotSet {
+    let mut set = SlotSet(vec![0; army.len().div_ceil(64)]);
+    let mut add = |pos: Position| {
+        if board.get_piece(pos).is_some_and(|p| p.color == us) {
+            if let Some(i) = board.slot_at(pos) {
+                set.set(i);
+            }
+        }
+    };
+    let r = crate::attack_utils::CANDIDATE_WINDOW as i8;
+    for df in -r..=r {
+        for dr in -r..=r {
+            if let Some(pos) = victim.offset(df, dr) {
+                add(pos);
+            }
+        }
+    }
+    for dir in crate::movement::direction::Direction::all() {
+        let (df, dr) = dir.to_offset();
+        let mut k = i16::from(r) + 1;
+        loop {
+            let file = i16::from(victim.file) + i16::from(df) * k;
+            let rank = i16::from(victim.rank) + i16::from(dr) * k;
+            if !(0..36).contains(&file) || !(0..36).contains(&rank) {
+                break;
+            }
+            add(Position {
+                file: file as u8,
+                rank: rank as u8,
+            });
+            k += 1;
+        }
+    }
+    for (i, p) in army.iter().enumerate() {
+        if crate::attack_utils::needs_global_scan(p) {
+            set.set(i);
+        }
+    }
+    set
+}
+
 /// Captures that take an enemy on `victim` (dest, path-clear, multi-leg, FE).
 ///
 /// Standard pieces use directed landing emit; TwoStep uses directed first/second
@@ -1949,7 +2024,9 @@ pub(crate) fn generate_captures_hitting_square(state: &GameState, victim: Positi
     let us = state.get_current_turn();
     let board = state.get_board();
     let mut out = Vec::new();
-    for piece in board.iter_pieces_by_color(us) {
+    let army = board.pieces_by_color(us);
+    for idx in attacker_candidates(board, army, us, victim).iter_ones() {
+        let piece = army[idx];
         if !crate::attack_utils::should_check_piece_for_target_position(&piece, victim, false) {
             continue;
         }
@@ -4629,6 +4706,60 @@ mod tests {
     use crate::eval::EvalWeights;
     use crate::piece::{Color, Piece, PieceType};
     use crate::position::Position;
+
+    #[test]
+    fn candidate_attackers_include_every_piece_the_filter_accepts() {
+        use rand::{rngs::StdRng, Rng, SeedableRng};
+        let mut state = GameState::new();
+        state.setup_initial_position();
+        let mut rng = StdRng::seed_from_u64(11);
+
+        let check = |state: &GameState, victims: &[Position]| {
+            for &us in &[Color::Black, Color::White] {
+                let board = state.get_board();
+                let army = board.pieces_by_color(us);
+                for &victim in victims {
+                    let got: Vec<usize> = attacker_candidates(board, army, us, victim)
+                        .iter_ones()
+                        .filter(|&i| {
+                            crate::attack_utils::should_check_piece_for_target_position(
+                                &army[i], victim, false,
+                            )
+                        })
+                        .collect();
+                    let expected: Vec<usize> = army
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, p)| {
+                            crate::attack_utils::should_check_piece_for_target_position(
+                                p, victim, false,
+                            )
+                        })
+                        .map(|(i, _)| i)
+                        .collect();
+                    assert_eq!(got, expected, "{us:?} {victim:?}");
+                }
+            }
+        };
+
+        let all_squares: Vec<Position> = (0..1296).filter_map(Position::from_index).collect();
+        check(&state, &all_squares);
+        for _ in 0..20 {
+            let moves = state.generate_legal_moves();
+            if moves.is_empty() {
+                break;
+            }
+            let mv = moves[rng.gen_range(0..moves.len())].clone();
+            state.make_move(mv);
+            let victims: Vec<Position> = state
+                .get_board()
+                .pieces_by_color(state.get_current_turn().opposite())
+                .iter()
+                .map(|p| p.position)
+                .collect();
+            check(&state, &victims);
+        }
+    }
 
     #[test]
     fn wipe_group_key_empty_beyond_shares_occupied_set() {
