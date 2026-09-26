@@ -10,11 +10,10 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{
-    collections::HashMap,
     fs::File,
     io::{BufReader, Read, Seek, SeekFrom},
     path::Path,
-    sync::{Arc, Mutex, OnceLock, Weak},
+    sync::{Arc, Mutex, OnceLock},
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -105,16 +104,22 @@ impl Network {
             .join(&d.file)
             .canonicalize()
             .map_err(|e| format!("NNUE blob {}: {e}", d.file))?;
-        static CACHE: OnceLock<Mutex<HashMap<(std::path::PathBuf, String), Weak<Network>>>> =
-            OnceLock::new();
+        // Keep the active network alive between GUI/API requests. A weak-only
+        // cache caused every analysis update to re-hash and parse hundreds of
+        // megabytes after the previous AlphaBetaPlayer was dropped. Retaining
+        // just the most recently used network avoids unbounded RAM growth when
+        // users switch among the large NNUE models.
+        type CacheEntry = ((std::path::PathBuf, String), Arc<Network>);
+        static CACHE: OnceLock<Mutex<Option<CacheEntry>>> = OnceLock::new();
         let mut cache = CACHE
             .get_or_init(Default::default)
             .lock()
             .map_err(|_| "NNUE cache poisoned")?;
-        cache.retain(|_, v| v.strong_count() > 0);
         let key = (path.clone(), d.sha256.clone());
-        if let Some(n) = cache.get(&key).and_then(Weak::upgrade) {
-            return Ok(n);
+        if let Some((cached_key, network)) = cache.as_ref() {
+            if cached_key == &key {
+                return Ok(Arc::clone(network));
+            }
         }
         // Hash and parse the same open file: an atomic path replacement cannot
         // mix one checkpoint's identity with another checkpoint's bytes.
@@ -191,7 +196,7 @@ impl Network {
         {
             return Err("NNUE quantized parameter out of bounds".into());
         }
-        cache.insert(key, Arc::downgrade(&net));
+        *cache = Some((key, Arc::clone(&net)));
         Ok(net)
     }
 }
@@ -499,7 +504,15 @@ pub(crate) mod tests {
         };
         let loaded = Network::load(&dir.join("model.json"), &d).unwrap();
         assert_eq!(loaded.weights, n.weights);
+        let retained = Arc::downgrade(&loaded);
         drop(loaded);
+        let still_cached = retained
+            .upgrade()
+            .expect("active NNUE should remain cached between analysis requests");
+        let loaded_again = Network::load(&dir.join("model.json"), &d).unwrap();
+        assert!(Arc::ptr_eq(&still_cached, &loaded_again));
+        drop(still_cached);
+        drop(loaded_again);
         let mut wrong = d.clone();
         wrong.sha256 = "wrong".into();
         assert!(Network::load(&dir.join("model.json"), &wrong)

@@ -35,14 +35,13 @@
   let analysisActive = $state(false);
   let analysisSearch = $state(null);
   let analysisModel = $state('ab-seed.json');
-  let analysisStartDepth = $state(1);
   let analysisMaxDepth = $state(16);
   let analysisQDepth = $state(2);
-  let analysisSliceMs = $state(1250);
   let analysisCpuPercent = $state(100);
   let analysisLineCount = $state(3);
   let analysisElapsedMs = $state(0);
   let analysisStatus = $state('Ready');
+  let analysisJobId = $state(null);
   let analysisEpoch = 0;
 
   let analysisArrows = $derived.by(() =>
@@ -57,57 +56,50 @@
   }
 
   function stopAnalysis(message = 'Analysis paused') {
+    const jobId = analysisJobId;
     analysisActive = false;
+    analysisJobId = null;
     analysisEpoch += 1;
     analysisStatus = message;
+    if (jobId != null) void api.stopAnalysis(jobId).catch(() => {});
   }
 
   async function runAnalysis(epoch) {
-    let targetDepth = Math.max(1, Number(analysisStartDepth) || 1);
-    while (analysisActive && epoch === analysisEpoch && mode === 'analysis') {
-      const maxDepth = Math.max(targetDepth, Number(analysisMaxDepth) || targetDepth);
-      const started = performance.now();
-      analysisStatus = `Searching depth ${targetDepth}…`;
-      let res;
-      try {
-        res = await api.suggest('ab', {
-          depth: targetDepth,
-          quiescence_depth: Math.max(0, Number(analysisQDepth) || 0),
-          model: `models/${analysisModel}`,
-          max_time_ms: Math.max(100, Number(analysisSliceMs) || 1200),
-        });
-      } catch (error) {
-        if (epoch !== analysisEpoch) return;
-        stopAnalysis(`Analysis failed: ${String(error)}`);
-        log(String(error), 'err');
+    try {
+      const started = await api.startAnalysis({
+        depth: Math.max(1, Number(analysisMaxDepth) || 16),
+        quiescence_depth: Math.max(0, Number(analysisQDepth) || 0),
+        model: `models/${analysisModel}`,
+        cpu_percent: Math.min(100, Math.max(10, Number(analysisCpuPercent) || 100)),
+      });
+      if (!started?.ok || started.job_id == null) {
+        throw new Error(started?.message || 'Could not start analysis');
+      }
+      if (!analysisActive || epoch !== analysisEpoch || mode !== 'analysis') {
+        void api.stopAnalysis(started.job_id).catch(() => {});
         return;
       }
-
-      const elapsed = Math.max(1, performance.now() - started);
-      if (!analysisActive || epoch !== analysisEpoch || mode !== 'analysis') return;
-      if (!res?.ok || !res.search) {
-        stopAnalysis(res?.message || 'Engine returned no analysis');
-        if (res?.message) log(res.message, 'err');
-        return;
+      analysisJobId = started.job_id;
+      while (analysisActive && epoch === analysisEpoch && mode === 'analysis') {
+        const view = await api.getAnalysis(started.job_id);
+        if (!analysisActive || epoch !== analysisEpoch || mode !== 'analysis') return;
+        if (!view?.ok) throw new Error(view?.message || 'Analysis update failed');
+        if (view.search) analysisSearch = view.search;
+        analysisElapsedMs = Number(view.elapsed_ms) || 0;
+        analysisStatus = view.message || 'Analyzing…';
+        if (!view.running) {
+          analysisActive = false;
+          analysisJobId = null;
+          return;
+        }
+        await delay(200);
       }
-
-      applyResult(res, true);
-      analysisSearch = res.search;
-      analysisElapsedMs = elapsed;
-      const complete = Number(res.search.depth) || 0;
-      analysisStatus = complete >= maxDepth
-        ? `Depth ${complete} reached · refreshing at ceiling`
-        : `Depth ${complete} complete · deepening`;
-      // Keep working on the first unfinished depth. This avoids claiming to
-      // advance while a short time slice only completes a shallower iteration.
-      targetDepth = Math.min(
-        maxDepth,
-        Math.max(Number(analysisStartDepth) || 1, complete + 1),
-      );
-
-      const cpu = Math.min(100, Math.max(10, Number(analysisCpuPercent) || 100));
-      const cooldown = cpu >= 100 ? 25 : elapsed * (100 / cpu - 1);
-      await delay(Math.min(10000, Math.max(25, cooldown)));
+    } catch (error) {
+      if (epoch !== analysisEpoch) return;
+      analysisActive = false;
+      analysisJobId = null;
+      analysisStatus = `Analysis failed: ${String(error)}`;
+      log(String(error), 'err');
     }
   }
 
@@ -124,7 +116,10 @@
 
   function restartAnalysis() {
     if (!analysisActive || mode !== 'analysis') return;
+    const oldJobId = analysisJobId;
     analysisEpoch += 1;
+    analysisJobId = null;
+    if (oldJobId != null) void api.stopAnalysis(oldJobId).catch(() => {});
     const epoch = analysisEpoch;
     analysisStatus = 'Applying settings…';
     void runAnalysis(epoch);
@@ -596,10 +591,8 @@
           bind:active={analysisActive}
           {models}
           bind:model={analysisModel}
-          bind:startDepth={analysisStartDepth}
           bind:maxDepth={analysisMaxDepth}
           bind:qDepth={analysisQDepth}
-          bind:sliceMs={analysisSliceMs}
           bind:cpuPercent={analysisCpuPercent}
           bind:lineCount={analysisLineCount}
           search={analysisSearch}

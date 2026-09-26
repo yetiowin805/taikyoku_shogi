@@ -69,6 +69,24 @@ export async function playAgent(agent = 'mi', opts = {}) {
   });
 }
 
+export async function startAnalysis(opts = {}) {
+  return req('/analysis/start', {
+    method: 'POST',
+    body: JSON.stringify({ agent: 'ab', ...opts }),
+  });
+}
+
+export async function getAnalysis(jobId) {
+  return req(`/analysis/state?job_id=${encodeURIComponent(jobId)}`);
+}
+
+export async function stopAnalysis(jobId) {
+  return req('/analysis/stop', {
+    method: 'POST',
+    body: JSON.stringify({ job_id: jobId }),
+  });
+}
+
 export async function saveGame(filename) {
   return req('/save', {
     method: 'POST',

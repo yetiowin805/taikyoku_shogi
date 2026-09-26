@@ -71,11 +71,13 @@ fn run() -> Result<(), String> {
         depth: Some(a[4].parse().map_err(|_| "invalid depth")?),
         max_time_ms: Some(a[5].parse().map_err(|_| "invalid time")?),
         quiescence_depth: agent.quiescence_depth,
+        cpu_percent: None,
+        cancel: None,
     };
     let player = AlphaBetaPlayer::from_options(&opts);
     let sign = if color == Color::Black { 1 } else { -1 };
     let start = Instant::now();
-    let mut emit = |depth, score, mv: &taikyoku_shogi::game_state::Move, nodes| {
+    let mut emit = |depth, score, mv: &taikyoku_shogi::game_state::Move, nodes, _lines: &[(taikyoku_shogi::game_state::Move, i32)]| {
         println!(
             "{}",
             serde_json::json!({
