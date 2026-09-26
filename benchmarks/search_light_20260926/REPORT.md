@@ -87,7 +87,46 @@ untested lazy-label prototype. `rules_probe.rs` and
 `repetition_micro_unrun.txt` were prepared but not executed; they supply no
 experimental evidence. None should be described as verified improvements.
 
-Next priority: independently confirm lazy leaf checks and run its correctness
-suite. Then retest blocker-bitset NNUE compatibility before measuring it. Keep
+At the end of the initial screen, the next priority was to independently confirm
+lazy leaf checks and run its correctness suite (see the acceptance addendum below).
+Then retest blocker-bitset NNUE compatibility before measuring it. Keep
 line masks behind that work because their integration is substantially larger.
 Do not add the component speedup factors together.
+
+
+## Acceptance addendum: production lazy leaf checks
+
+The user selected lazy leaf checks for production after the screen. The change
+in commit `8c9c45d` uses the measured implementation with explanatory comments
+and two regression tests. It preserves last-royal handling ahead of the
+zero-budget shortcut. Other prototypes remain disabled/unintegrated.
+
+- Debug library correctness suite: **379 passed, 0 failed, 4 ignored**.
+- Release library correctness suite: **379 passed, 0 failed, 4 ignored**.
+- New tests cover zero-budget leaves with a hanging major or a royal capture
+  available, and a last royal with no evasion. Existing tests cover zero-budget
+  scarce-defense extensions, promotion tactics and capture-entry policy flags.
+- Independent confirmation used the six previously reserved positions
+  **1,4,5,8,9,10**, all four agents, and the final release binary. All **24 warmup
+  pairs and 48 measured pairs matched exactly**, including full routes, scores,
+  ordered root lines, depth, static evaluation and ordinary/quiescence nodes.
+- Equal-case geometric mean candidate/baseline CPU ratio: **0.8286**, or **17.1%
+  less search CPU time**. Total CPU time: **24.402 -> 20.353 seconds** (16.6%
+  reduction). Per-agent reductions: 23.6%, 9.0%, 20.9%, 14.3%. Every reserved
+  position improved, with reductions between 7.8% and 31.7%.
+- Reported peak process RSS was effectively unchanged (baseline 1,252,584 KiB;
+  candidate 1,252,400 KiB). This includes loaded NNUE models and replayed states.
+
+The independent sample supports the direction of the original 9.9% screen
+result; it is not a universal 17.1% speedup or an Elo estimate. Both runs used
+process CPU timings under the same low-priority quarter-core cap. Actual gains
+will depend on position and engine settings. Fixed-time move choices can change
+because less overhead permits more searching; no search policy was changed.
+
+Acceptance logs, resource measurements, complete raw pairs and source/compiler/
+model identities are in `results/acceptance/`. Reproduction uses `cargo test
+--offline --locked --lib` and the release equivalent, with `-j 1` and
+`-- --test-threads=1`, then `run_pairs.py` against the pinned `61c2875` baseline
+and `results/confirm-cases.json` with two repetitions. The accepted implementation
+is in `src/search.rs`; the experiment driver must still only be used in a
+throwaway baseline worktree because it restores source files.

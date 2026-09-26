@@ -45,6 +45,10 @@ for parity tests, paired search measurements and reproduction instructions.
   The initial six-position/four-agent screen measured **9.9% less search CPU
   time** (equal-case geometric mean; 9.3% less summed CPU time), with exact
   scores, routes, root lines and node counts in all 48 measured pairs.
+  A follow-up on six reserved positions saved **17.1% CPU time** (16.6% summed),
+  again with exact parity in all 48 pairs and improvement for every agent and
+  position. Debug and release library suites each passed 379 tests (4 ignored).
+  These are two small samples, not a universal speedup guarantee.
 - [ ] **A3/D3: blocker bitsets — next small prototype to finish.** Actual-set
   component membership queries were roughly 13 times faster for nonempty sets,
   but the integrated prototype changed Debug formatting in nested two-step
