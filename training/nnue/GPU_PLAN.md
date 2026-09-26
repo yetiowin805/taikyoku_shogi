@@ -337,3 +337,38 @@ validation metrics and final weight hashes. It reports update time, validation
 time and process peak RSS separately, including per-update input preparation.
 These short runs
 exclude whole-pass checkpoint/export timing; they are not GPU speedup estimates.
+
+### CPU measurement record
+
+[Raw paired results](benchmarks/cpu-bookkeeping-20260925.json) record the final
+implementation against `6b3397c`, using an Intel i7-1255U, one pinned logical CPU,
+PyTorch 2.14 CPU and NumPy 2.5.2. This run used `--pairs 3 --steps 16
+--validation-samples 256 --seed 20260929`. Each process starts from the same fresh
+weights, performs one warmup update, then measures 128 training positions and 256
+validation positions. The benchmark required exact equality of every training
+loss, validation metric and final parameter hash; all six pairs passed.
+
+- Width 512 median candidate/baseline ratios: training **1.016**, validation
+  **0.956**, process peak RSS **0.998**. Treat training as neutral/inconclusive.
+- Width 1536: training **0.851**, validation **0.968**, process peak RSS **0.979**.
+  These samples favor the change, but do not establish a repeatable 15% saving.
+- Individual training ratios ranged from 0.998 to 1.711 at width 512, and 0.763
+  to 0.893 at width 1536. This variability prevents a defensible general speedup
+  claim. No CPU/GPU speed ratio or expected Elo improvement was measured.
+- A metadata-cache prototype was removed. In its last separate-process batch,
+  width-1536 validation was 1.116x baseline; a same-model follow-up still showed
+  inconsistent gains. Its additional state and array-gather paths were not
+  justified for the CPU default. Revisit caching with measured GPU transfer costs.
+
+The accepted changes remove identifiable redundant work with little maintenance
+cost: one intermediate feature array, the final touched-feature concatenate/sort,
+unused objective diagnostics, and per-position tensor scalar extraction. Their
+contribution can be small because the feature transformer and sparse backward
+dominate. No model-sized cache was added; the validation list is only batch-sized.
+The gradient-index reuse retains a small fallback for callers that already have
+accumulated gradients, covered along with zero-valued gradient rows by tests.
+
+Local correctness checks: **26 NNUE tests** and **4 deployment training-sidecar
+tests** passed. The recovery fixture terminates after the first checkpoint's
+atomic publication and verifies that resume reaches the same final weights,
+validation history, plateau state and exported model hash as an uninterrupted run.
