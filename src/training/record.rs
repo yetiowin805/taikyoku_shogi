@@ -11,7 +11,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 pub const FORMAT_VERSION: u32 = 2;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct AgentSpec {
     pub name: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -25,6 +25,12 @@ pub struct AgentSpec {
     /// Path to a pinned historical binary (`think-loop`). None = in-process.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub engine: Option<String>,
+    /// Exact executable used by this side; absent in legacy records.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub engine_sha256: Option<String>,
+    /// Immutable rolling build, including its matching analysis helper.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub engine_build: Option<super::game_process::EngineBundle>,
 }
 
 impl AgentSpec {
@@ -36,6 +42,8 @@ impl AgentSpec {
             max_time_ms: None,
             quiescence_depth: None,
             engine: None,
+            engine_sha256: None,
+            engine_build: None,
         }
     }
 }

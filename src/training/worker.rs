@@ -18,7 +18,7 @@ use std::time::Instant;
 
 pub const DEFAULT_MAX_MOVES: usize = 20_000;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct WorkerConfig {
     pub black: AgentSpec,
     pub white: AgentSpec,
@@ -28,6 +28,7 @@ pub struct WorkerConfig {
     /// When true, print move progress to stdout.
     pub verbose: bool,
     /// When set and true, abort the game between moves.
+    #[serde(skip)]
     pub stop: Option<Arc<AtomicBool>>,
 }
 

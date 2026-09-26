@@ -1256,7 +1256,10 @@ fn claim_or_schedule_slot(st: &mut TourneyState, cfg: &TourneyConfig) -> Option<
     }
     let idx = match st.format {
         TourneyFormat::Knockout => pending_slot_claim_index(st),
-        _ => st.slots.iter().position(|s| s.status == SlotStatus::Pending),
+        _ => st
+            .slots
+            .iter()
+            .position(|s| s.status == SlotStatus::Pending),
     };
     if let Some(idx) = idx {
         st.slots[idx].status = SlotStatus::Running;
@@ -1278,6 +1281,9 @@ fn abort_claimed_slot(cfg: &TourneyConfig, st: &mut TourneyState, slot_id: usize
 
 /// Run or resume a tournament. Returns final state (possibly partial on stop).
 pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
+    if let Some(pointer) = std::env::var_os("TAIKYOKU_ENGINE_POINTER") {
+        crate::training::game_process::EngineBundle::load(Path::new(&pointer))?;
+    }
     ensure_data_dirs()?;
     let dir = run_dir(cfg);
     fs::create_dir_all(&dir).map_err(|e| format!("create {}: {e}", dir.display()))?;
@@ -1316,6 +1322,9 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
     let jobs = cfg.jobs.max(1);
     let compute_gate = crate::training::compute_gate::ComputeGate::from_env(jobs)?;
     let state_mu = Arc::new(Mutex::new(state));
+    // A broken rolling build drains other games rather than aborting them or
+    // repeatedly claiming slots with a known-bad executable.
+    let admission_failed = Arc::new(AtomicBool::new(false));
     let cfg_stop = cfg.stop.clone();
     let games_dir = dir.clone();
 
@@ -1328,6 +1337,7 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
     loop {
         std::thread::scope(|scope| {
             for worker_index in 0..jobs {
+                let admission_failed = Arc::clone(&admission_failed);
                 let compute_gate = &compute_gate;
                 let state_mu = Arc::clone(&state_mu);
                 let cfg_stop = Arc::clone(&cfg_stop);
@@ -1344,6 +1354,9 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
                     // Hold this descriptor through one game, never through idle queue waits.
                     let mut shared_lease = None;
                     let slot_id = loop {
+                        if admission_failed.load(Ordering::Relaxed) {
+                            return;
+                        }
                         poll_stop_file(cfg);
                         if cfg_stop.load(Ordering::Relaxed) {
                             return;
@@ -1467,7 +1480,18 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
                         verbose: cfg.verbose && jobs == 1,
                         stop: Some(Arc::clone(&cfg_stop)),
                     };
-                    let play = catch_unwind(AssertUnwindSafe(|| play_one_game(&play_cfg)));
+                    let play = catch_unwind(AssertUnwindSafe(|| {
+                        if let Some(pointer) = std::env::var_os("TAIKYOKU_ENGINE_POINTER") {
+                            crate::training::game_process::play(
+                                &play_cfg,
+                                Path::new(&pointer),
+                                &games_dir.join("analysis/game-workers"),
+                                slot_id as u64,
+                            )
+                        } else {
+                            play_one_game(&play_cfg).map_err(|e| e.message)
+                        }
+                    }));
                     match play {
                         Ok(Ok(rec)) => {
                             let path = games_dir.join(format!(
@@ -1477,7 +1501,13 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
                                 model_b,
                                 if a_is_black { "a-black" } else { "a-white" }
                             ));
-                            let _ = rec.save_path(&path);
+                            if let Err(e) = rec.save_path(&path) {
+                                eprintln!("slot {slot_id} could not save game: {e}");
+                                let mut st = state_mu.lock().unwrap();
+                                abort_claimed_slot(cfg, &mut st, slot_id);
+                                admission_failed.store(true, Ordering::Relaxed);
+                                return;
+                            }
                             let score_a = score_from_result(a_is_black, &rec.result);
                             let mut st = state_mu.lock().unwrap();
                             ensure_ratings(&mut st);
@@ -1510,8 +1540,12 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
                         Ok(Err(e)) => {
                             let mut st = state_mu.lock().unwrap();
                             abort_claimed_slot(cfg, &mut st, slot_id);
-                            if e.message != "stopped" {
-                                eprintln!("slot {slot_id} failed: {}", e.message);
+                            if e != "stopped" {
+                                eprintln!("slot {slot_id} failed: {e}");
+                                if std::env::var_os("TAIKYOKU_ENGINE_POINTER").is_some() {
+                                    admission_failed.store(true, Ordering::Relaxed);
+                                    return;
+                                }
                             }
                             if cfg_stop.load(Ordering::Relaxed) {
                                 return;
@@ -1532,6 +1566,10 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
 
         if cfg_stop.load(Ordering::Relaxed) {
             break;
+        }
+
+        if admission_failed.load(Ordering::Relaxed) {
+            return Err("game worker/save failed; other games drained; fix build and resume to retry aborted slots".into());
         }
 
         // RR drained; Swiss/knockout must never exit until cooperative stop.
