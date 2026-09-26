@@ -166,41 +166,6 @@ impl MinimalIntelligencePlayer {
             None
         }
     }
-
-
-
-    /// Determine if a piece should be checked for attack potential
-    /// Returns true if piece is Tengu/promoted Peacock/Capricorn, unpromoted Peacock, Hook Mover/promoted forms, within 9x9 square of any royal piece, or has range movement toward any royal piece
-    fn should_check_piece_for_attack(piece: &Piece, royal_pieces: &[Piece]) -> bool {
-        // Always check Tengu/promoted Peacock/Capricorn and unpromoted Peacock due to highly mobile two-step movement
-        if attack_utils::is_tengu_or_promoted_peacock(piece) || attack_utils::is_unpromoted_peacock(piece) {
-            return true;
-        }
-        
-        // Always check Hook Mover and its promoted forms due to highly mobile two-step movement
-        if attack_utils::is_hook_mover_like_piece(piece) {
-            return true;
-        }
-        
-        // Check if piece is within 9x9 square of any royal piece
-        for royal in royal_pieces {
-            if attack_utils::is_within_9x9_square(piece.position, royal.position) {
-                return true;
-            }
-        }
-        
-        // Check if piece has range movement in direction toward any royal piece
-        for royal in royal_pieces {
-            if let Some(direction) = attack_utils::get_direction_toward(piece.position, royal.position) {
-                if attack_utils::has_range_movement_in_direction(piece, direction) {
-                    return true;
-                }
-            }
-        }
-        
-        false
-    }
-
     /// Check if a position is under attack by opponent pieces
     /// Uses optimized Board-level attack detection
     /// Optimized for check detection on royal pieces
@@ -341,56 +306,6 @@ impl MinimalIntelligencePlayer {
 
         // Check if attacked by opponent (defender_color.opposite()), not by defender's own color
         !BoardLike::is_position_attacked_by_color_for_check(&virtual_board, royal_piece_final_pos, defender_color.opposite())
-    }
-
-    /// Check if a position is under attack on a specific board
-    /// Uses optimized Board-level attack detection
-    /// Optimized for check detection on royal pieces
-    fn is_under_attack_on_board(board: &Board, position: Position, defender_color: Color) -> bool {
-        let attacker_color = defender_color.opposite();
-        board.is_position_attacked_by_color_for_check(position, attacker_color)
-    }
-
-    /// Check if a position is under attack on a specific board
-    /// Uses optimized Board-level attack detection
-    fn is_position_under_attack_on_board(board: &Board, position: Position, defender_color: Color) -> bool {
-        let attacker_color = defender_color.opposite();
-        board.is_position_attacked_by_color_for_check(position, attacker_color)
-    }
-
-    /// Apply a move to a board (handles capturing range movements, piece movement, and promotion)
-    /// This is a helper function to factor out move application logic
-    fn apply_move_to_board(board: &mut Board, mv: &Move, moving_piece: &Piece) {
-        // First, handle capturing range movements
-        let config = MovementConfig::for_piece(moving_piece);
-        let uses_capturing = config.capabilities.iter().any(|cap| {
-            if let crate::movement::types::MovementCapability::Range { blocking, .. } = cap {
-                *blocking == crate::movement::BlockingMode::Capturing
-            } else {
-                false
-            }
-        });
-
-        if uses_capturing {
-            let path_positions = path_utils::get_path_positions(mv.from, mv.to);
-            for pos in path_positions {
-                if pos != mv.from && pos != mv.to {
-                    board.remove_piece(pos);
-                }
-            }
-        }
-
-        // Move the piece
-        board.move_piece(mv.from, mv.to);
-
-        // Handle promotion
-        if mv.promoted {
-            if let Some(mut piece) = board.get_piece(mv.to) {
-                piece.promote();
-                board.remove_piece(mv.to);
-                board.place_piece(piece);
-            }
-        }
     }
 
     /// After simulating `mv`, true if any royal of `moving_piece`'s color is in check.

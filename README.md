@@ -22,8 +22,12 @@ cd web && npm install && npm run build && cd ..
 **GUI (recommended):**
 
 ```bash
-cargo run -- serve          # http://127.0.0.1:3000
+cargo serve                 # optimized, fast-link GUI build
+# http://127.0.0.1:3000
 ```
+
+Use `cargo run --release -- serve` only when benchmarking the fully tuned
+engine. Its ThinLTO/single-codegen-unit link is deliberately slower.
 
 See [`web/README.md`](web/README.md) for hot-reload and Play / Debug usage.
 

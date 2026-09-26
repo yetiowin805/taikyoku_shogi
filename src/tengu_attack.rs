@@ -1,4 +1,3 @@
-use crate::board::Board;
 use crate::piece::{Piece, Color};
 use crate::position::Position;
 use crate::path_utils;

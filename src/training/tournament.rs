@@ -2543,7 +2543,6 @@ mod tests {
 
 #[cfg(test)]
 mod start_seed_tests {
-    use super::*;
     use crate::training::pool::parse_starts_spec;
     use crate::training::record::GameStart;
 
