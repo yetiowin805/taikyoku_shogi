@@ -63,8 +63,16 @@ button {
   min-height: 0;
 }
 
+.main.analysis {
+  grid-template-columns: minmax(0, 1fr) 380px;
+}
+
 @media (max-width: 900px) {
   .main {
+    grid-template-columns: 1fr;
+  }
+
+  .main.analysis {
     grid-template-columns: 1fr;
   }
 }

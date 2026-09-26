@@ -1,10 +1,11 @@
 <script>
   import Board from './lib/Board.svelte';
+  import AnalysisPanel from './lib/AnalysisPanel.svelte';
   import EvalSparkline from './lib/EvalSparkline.svelte';
   import SearchPanel from './lib/SearchPanel.svelte';
   import * as api from './lib/api.js';
 
-  let mode = $state('play'); // play | debug
+  let mode = $state('play'); // play | analysis | debug
   let snapshot = $state(null);
   let games = $state([]);
   let selectedGame = $state('');
@@ -31,6 +32,114 @@
   let whiteSearch = $state(null);
   let blackSearchExpanded = $state(false);
   let whiteSearchExpanded = $state(false);
+  let analysisActive = $state(false);
+  let analysisSearch = $state(null);
+  let analysisModel = $state('ab-seed.json');
+  let analysisStartDepth = $state(1);
+  let analysisMaxDepth = $state(16);
+  let analysisQDepth = $state(2);
+  let analysisSliceMs = $state(1250);
+  let analysisCpuPercent = $state(100);
+  let analysisLineCount = $state(3);
+  let analysisElapsedMs = $state(0);
+  let analysisStatus = $state('Ready');
+  let analysisEpoch = 0;
+
+  let analysisArrows = $derived.by(() =>
+    (analysisSearch?.root_moves || [])
+      .slice(0, Math.max(1, Number(analysisLineCount) || 1))
+      .filter((candidate) => candidate.mv)
+      .map((candidate) => ({ ...candidate.mv, best: candidate.best })),
+  );
+
+  function delay(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  function stopAnalysis(message = 'Analysis paused') {
+    analysisActive = false;
+    analysisEpoch += 1;
+    analysisStatus = message;
+  }
+
+  async function runAnalysis(epoch) {
+    let targetDepth = Math.max(1, Number(analysisStartDepth) || 1);
+    while (analysisActive && epoch === analysisEpoch && mode === 'analysis') {
+      const maxDepth = Math.max(targetDepth, Number(analysisMaxDepth) || targetDepth);
+      const started = performance.now();
+      analysisStatus = `Searching depth ${targetDepth}…`;
+      let res;
+      try {
+        res = await api.suggest('ab', {
+          depth: targetDepth,
+          quiescence_depth: Math.max(0, Number(analysisQDepth) || 0),
+          model: `models/${analysisModel}`,
+          max_time_ms: Math.max(100, Number(analysisSliceMs) || 1200),
+        });
+      } catch (error) {
+        if (epoch !== analysisEpoch) return;
+        stopAnalysis(`Analysis failed: ${String(error)}`);
+        log(String(error), 'err');
+        return;
+      }
+
+      const elapsed = Math.max(1, performance.now() - started);
+      if (!analysisActive || epoch !== analysisEpoch || mode !== 'analysis') return;
+      if (!res?.ok || !res.search) {
+        stopAnalysis(res?.message || 'Engine returned no analysis');
+        if (res?.message) log(res.message, 'err');
+        return;
+      }
+
+      applyResult(res, true);
+      analysisSearch = res.search;
+      analysisElapsedMs = elapsed;
+      const complete = Number(res.search.depth) || 0;
+      analysisStatus = complete >= maxDepth
+        ? `Depth ${complete} reached · refreshing at ceiling`
+        : `Depth ${complete} complete · deepening`;
+      // Keep working on the first unfinished depth. This avoids claiming to
+      // advance while a short time slice only completes a shallower iteration.
+      targetDepth = Math.min(
+        maxDepth,
+        Math.max(Number(analysisStartDepth) || 1, complete + 1),
+      );
+
+      const cpu = Math.min(100, Math.max(10, Number(analysisCpuPercent) || 100));
+      const cooldown = cpu >= 100 ? 25 : elapsed * (100 / cpu - 1);
+      await delay(Math.min(10000, Math.max(25, cooldown)));
+    }
+  }
+
+  function startAnalysis() {
+    if (!snapshot) return;
+    autoPlay = false;
+    mode = 'analysis';
+    analysisActive = true;
+    analysisEpoch += 1;
+    const epoch = analysisEpoch;
+    analysisStatus = 'Starting engine…';
+    void runAnalysis(epoch);
+  }
+
+  function restartAnalysis() {
+    if (!analysisActive || mode !== 'analysis') return;
+    analysisEpoch += 1;
+    const epoch = analysisEpoch;
+    analysisStatus = 'Applying settings…';
+    void runAnalysis(epoch);
+  }
+
+  function positionChanged() {
+    analysisSearch = null;
+    analysisElapsedMs = 0;
+    if (analysisActive && mode === 'analysis') restartAnalysis();
+  }
+
+  function setMode(next) {
+    if (next !== 'analysis' && analysisActive) stopAnalysis();
+    mode = next;
+  }
 
   function abOpts(modelFile) {
     const opts = {
@@ -175,6 +284,7 @@
           whiteAbModel =
             models.find((m) => m !== blackAbModel) || models[0];
         }
+        if (!models.includes(analysisModel)) analysisModel = models[0];
       }
     } catch (e) {
       log(String(e), 'err');
@@ -187,6 +297,7 @@
     highlights = [];
     pendingMoves = [];
     applyResult(res);
+    if (res.ok) positionChanged();
   }
 
   async function onLoad() {
@@ -196,6 +307,7 @@
     highlights = [];
     pendingMoves = [];
     applyResult(res, false, { clearSearch: true });
+    if (res.ok) positionChanged();
     if (res.ok && res.eval_series) {
       log(
         `Eval chart: ${res.eval_series.source} (${res.eval_series.points?.length || 0} pts)`,
@@ -347,6 +459,7 @@
     };
     const res = await api.applyMove(body);
     applyResult(res);
+    if (res.ok) positionChanged();
     selected = null;
     highlights = [];
     pendingMoves = [];
@@ -357,6 +470,7 @@
     selected = null;
     highlights = [];
     applyResult(res, false, { clearSearch: true });
+    if (res.ok) positionChanged();
   }
 
   async function stepForward() {
@@ -364,6 +478,7 @@
     selected = null;
     highlights = [];
     applyResult(res, false, { clearSearch: true });
+    if (res.ok) positionChanged();
   }
 
   async function doGoto(ply) {
@@ -373,6 +488,7 @@
     selected = null;
     highlights = [];
     applyResult(res, false, { clearSearch: true });
+    if (res.ok) positionChanged();
   }
 
   async function playOnce() {
@@ -383,9 +499,11 @@
     selected = null;
     highlights = [];
     applyResult(res);
+    if (res.ok) positionChanged();
   }
 
   async function startRun(black, white, label, modelsPair) {
+    if (analysisActive) stopAnalysis();
     mode = 'play';
     blackController = black;
     whiteController = white;
@@ -434,12 +552,17 @@
     <button
       class="mode-btn"
       class:active={mode === 'play'}
-      onclick={() => (mode = 'play')}>Play</button
+      onclick={() => setMode('play')}>Play</button
+    >
+    <button
+      class="mode-btn"
+      class:active={mode === 'analysis'}
+      onclick={() => setMode('analysis')}>Analysis</button
     >
     <button
       class="mode-btn"
       class:active={mode === 'debug'}
-      onclick={() => (mode = 'debug')}>Debug</button
+      onclick={() => setMode('debug')}>Debug</button
     >
     <button onclick={onNew}>New game</button>
     <button onclick={onSave}>Save</button>
@@ -451,12 +574,13 @@
     {/if}
   </div>
 
-  <div class="main">
+  <div class="main" class:analysis={mode === 'analysis'}>
     <div class="board-wrap">
       <Board
         pieces={snapshot?.pieces || []}
         {selected}
         {highlights}
+        arrows={mode === 'analysis' ? analysisArrows : []}
         {onCellClick}
       />
       <EvalSparkline
@@ -467,6 +591,27 @@
     </div>
 
     <div class="side">
+      {#if mode === 'analysis'}
+        <AnalysisPanel
+          bind:active={analysisActive}
+          {models}
+          bind:model={analysisModel}
+          bind:startDepth={analysisStartDepth}
+          bind:maxDepth={analysisMaxDepth}
+          bind:qDepth={analysisQDepth}
+          bind:sliceMs={analysisSliceMs}
+          bind:cpuPercent={analysisCpuPercent}
+          bind:lineCount={analysisLineCount}
+          search={analysisSearch}
+          elapsedMs={analysisElapsedMs}
+          status={analysisStatus}
+          onStart={startAnalysis}
+          onStop={() => stopAnalysis()}
+          onRestart={restartAnalysis}
+        />
+      {/if}
+
+      {#if mode !== 'analysis'}
       <div class="panel games-panel">
         <h3>
           Games
@@ -503,6 +648,7 @@
           <p class="hint path-hint" title={selectedGame}>{selectedGame}</p>
         {/if}
       </div>
+      {/if}
 
       <div class="panel review-panel">
         <h3>
@@ -661,8 +807,9 @@
             <button onclick={refreshModels} title="Refresh models">↻</button>
           </div>
           <div class="row">
-            <label>Depth</label>
+            <label for="play-depth">Depth</label>
             <input
+              id="play-depth"
               type="number"
               min="1"
               max="64"
@@ -671,8 +818,9 @@
             />
           </div>
           <div class="row">
-            <label>Q-depth</label>
+            <label for="play-q-depth">Q-depth</label>
             <input
+              id="play-q-depth"
               type="number"
               min="0"
               max="8"
@@ -683,8 +831,9 @@
             <span class="hint">0=off</span>
           </div>
           <div class="row">
-            <label>Time ms</label>
+            <label for="play-time-ms">Time ms</label>
             <input
+              id="play-time-ms"
               type="number"
               min="0"
               step="100"
@@ -730,6 +879,7 @@
         </div>
       {/if}
 
+      {#if mode !== 'analysis'}
       <div class="panel status">
         <h3>Status</h3>
         <pre>{snapshot?.status_text || 'Loading…'}</pre>
@@ -746,7 +896,9 @@
           </p>
         {/if}
       </div>
+      {/if}
 
+      {#if mode !== 'analysis'}
       <SearchPanel
         title="Black search"
         search={blackSearch}
@@ -757,9 +909,11 @@
         search={whiteSearch}
         bind:expanded={whiteSearchExpanded}
       />
+      {/if}
     </div>
   </div>
 
+  {#if mode !== 'analysis'}
   <div class="log">
     {#each logLines as line}
       <div class={line.includes('ERROR') ? 'err' : 'ok'}>{line}</div>
@@ -767,4 +921,5 @@
       <div>Log: moves, agents, errors…</div>
     {/each}
   </div>
+  {/if}
 </div>

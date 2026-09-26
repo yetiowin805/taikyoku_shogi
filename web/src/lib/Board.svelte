@@ -7,6 +7,7 @@
     pieces = [],
     selected = null,
     highlights = [],
+    arrows = [],
     onCellClick = () => {},
   } = $props();
 
@@ -19,6 +20,54 @@
 
   function pieceAt(file, rank) {
     return pieces.find((p) => p.file === file && p.rank === rank);
+  }
+
+  function squareCenter(file, rank) {
+    return {
+      x: PAD + (N - file) * CELL + CELL / 2,
+      y: PAD + (rank - 1) * CELL + CELL / 2,
+    };
+  }
+
+  function drawArrow(ctx, arrow, index) {
+    const from = squareCenter(arrow.from_file, arrow.from_rank);
+    const to = squareCenter(arrow.to_file, arrow.to_rank);
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    const length = Math.hypot(dx, dy);
+    if (length < 1) return;
+    const ux = dx / length;
+    const uy = dy / length;
+    const head = arrow.best ? 10 : 8;
+    const width = arrow.best ? 5 : 3;
+    const color = arrow.best ? '#18a36b' : '#3578c5';
+
+    ctx.save();
+    ctx.globalAlpha = arrow.best ? 0.9 : Math.max(0.38, 0.7 - index * 0.1);
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.lineWidth = width;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(from.x + ux * 4, from.y + uy * 4);
+    ctx.lineTo(to.x - ux * (head * 0.65), to.y - uy * (head * 0.65));
+    ctx.stroke();
+
+    const baseX = to.x - ux * head;
+    const baseY = to.y - uy * head;
+    const px = -uy;
+    const py = ux;
+    ctx.beginPath();
+    ctx.moveTo(to.x, to.y);
+    ctx.lineTo(baseX + px * head * 0.55, baseY + py * head * 0.55);
+    ctx.lineTo(baseX - px * head * 0.55, baseY - py * head * 0.55);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(from.x, from.y, width * 0.8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
   }
 
   function draw() {
@@ -80,12 +129,18 @@
       const row = rank - 1;
       ctx.fillText(String(rank), PAD - 3, PAD + row * CELL + CELL / 2 + 3);
     }
+
+    // Candidate arrows are drawn last so they remain legible over dense pieces.
+    [...arrows]
+      .sort((a, b) => Number(a.best) - Number(b.best))
+      .forEach((arrow, index) => drawArrow(ctx, arrow, index));
   }
 
   $effect(() => {
     pieces;
     selected;
     highlights;
+    arrows;
     draw();
   });
 
