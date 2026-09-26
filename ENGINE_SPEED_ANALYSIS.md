@@ -78,6 +78,30 @@ estimates elsewhere in this document remain hypotheses.
 See [the experiment report](benchmarks/search_light_20260926/REPORT.md) for raw
 results, exact tested patches, limitations and the follow-up acceptance record.
 
+## Landed from the 2026-09-26 cachegrind screen
+
+Instruction counts (cachegrind `Ir`) on six positions, seed weights, fixed depth.
+Two changes from that screen are exact and are in the tree. Two-step route
+dedup, lazy q-label formatting, self-sweep quiet ordering, and the
+iterative-deepening soft stop were measured in the same session and left out:
+dedup changes which route is kept, the label change had no measured speedup,
+self-sweep ordering was mixed and reorders moves, and the soft stop changed
+chosen moves at 3s.
+
+- **Boxed-in skip (D2.1).** A step/slide-only piece whose first step in every
+  direction is own-occupied or off-board has no moves, so generation skips it
+  before the config lookup. Exact. Opening movegen wall time was about
+  26 → 15 µs; search instructions fell 0.2–0.6%. Test:
+  `boxed_in_shortcut_only_skips_pieces_without_moves`.
+- **Candidate attacker scan.** `generate_captures_hitting_square` builds a
+  bitset of piece-list indices that can pass
+  `should_check_piece_for_target_position` (Chebyshev window of 5, the eight
+  rays past that window, and the unaligned movers), then runs the existing
+  per-piece code on that set in list order. Node-exact on all six positions.
+  On its own, −6% to −33% instructions. The −14% to −36% cumulative row in
+  that screen also included the experiments left out above. Test:
+  `candidate_attackers_include_every_piece_the_filter_accepts`.
+
 ---
 
 ## 0. Where the time goes today (sanity measurements)

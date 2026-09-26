@@ -28,6 +28,14 @@ impl Board {
         self.squares.get(pos.to_index()).copied().flatten()
     }
 
+    /// Index of the piece on `pos` within its colour's piece list.
+    pub(crate) fn slot_at(&self, pos: Position) -> Option<usize> {
+        match self.piece_slots.get(pos.to_index()) {
+            Some(&slot) if slot != u16::MAX => Some(slot as usize),
+            _ => None,
+        }
+    }
+
     /// Place a piece on the board
     /// If a piece already exists at this position, it will be removed first
     pub fn place_piece(&mut self, piece: Piece) {
