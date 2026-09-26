@@ -2,6 +2,9 @@
   /**
    * Canvas board: shogi-style coords (file 1 rightmost, rank 1 top).
    * Props use the same numbering as the Rust API.
+   *
+   * Squares and pieces sit on the base canvas. Arrows sit on an overlay so
+   * analysis updates do not repaint every piece.
    */
   let {
     pieces = [],
@@ -11,15 +14,18 @@
     onCellClick = () => {},
   } = $props();
 
-  let canvas;
+  let base;
+  let overlay;
   const N = 36;
   const CELL = 22;
   const PAD = 18;
   const W = PAD + N * CELL + 4;
   const H = PAD + N * CELL + 4;
+  const FONT = `${Math.floor(CELL * 0.45)}px sans-serif`;
+  const FONT_BOLD = `bold ${Math.floor(CELL * 0.45)}px sans-serif`;
 
-  function pieceAt(file, rank) {
-    return pieces.find((p) => p.file === file && p.rank === rank);
+  function cellIndex(file, rank) {
+    return (file - 1) * N + (rank - 1);
   }
 
   function squareCenter(file, rank) {
@@ -70,10 +76,26 @@
     ctx.restore();
   }
 
-  function draw() {
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+  function drawBase() {
+    if (!base) return;
+    const ctx = base.getContext('2d');
+    const occupied = new Array(N * N);
+    for (const piece of pieces) {
+      if (piece.file >= 1 && piece.file <= N && piece.rank >= 1 && piece.rank <= N) {
+        occupied[cellIndex(piece.file, piece.rank)] = piece;
+      }
+    }
+    const marks = new Array(N * N);
+    for (const mark of highlights) {
+      if (mark.file >= 1 && mark.file <= N && mark.rank >= 1 && mark.rank <= N) {
+        marks[cellIndex(mark.file, mark.rank)] = mark;
+      }
+    }
+
     ctx.clearRect(0, 0, W, H);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    let bold = null;
 
     // ranks top→bottom = 1..36, files right→left = 1..36 in shogi display
     // Our canvas x increases left→right; file 36 is leftmost, file 1 rightmost.
@@ -88,7 +110,7 @@
         ctx.fillRect(x, y, CELL, CELL);
 
         const isSel = selected && selected.file === file && selected.rank === rank;
-        const hi = highlights.find((h) => h.file === file && h.rank === rank);
+        const hi = marks[cellIndex(file, rank)];
         if (isSel) {
           ctx.fillStyle = 'rgba(47, 93, 80, 0.45)';
           ctx.fillRect(x, y, CELL, CELL);
@@ -99,14 +121,14 @@
           ctx.fillRect(x, y, CELL, CELL);
         }
 
-        const p = pieceAt(file, rank);
+        const p = occupied[cellIndex(file, rank)];
         if (p) {
+          const nextBold = !!p.promoted;
+          if (nextBold !== bold) {
+            ctx.font = nextBold ? FONT_BOLD : FONT;
+            bold = nextBold;
+          }
           ctx.fillStyle = p.color === 'Black' ? '#111' : '#b33';
-          ctx.font = p.promoted
-            ? `bold ${Math.floor(CELL * 0.45)}px sans-serif`
-            : `${Math.floor(CELL * 0.45)}px sans-serif`;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
           const label = (p.promoted ? '+' : '') + (p.symbol || '?');
           ctx.fillText(label, x + CELL / 2, y + CELL / 2);
         }
@@ -116,10 +138,10 @@
     ctx.strokeStyle = '#8a8170';
     ctx.strokeRect(PAD, PAD, N * CELL, N * CELL);
 
-    // light axis labels every 6
     ctx.fillStyle = '#555';
     ctx.font = '9px sans-serif';
     ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
     for (let file = 1; file <= N; file += 6) {
       const col = N - file;
       ctx.fillText(String(file), PAD + col * CELL + CELL / 2, PAD - 4);
@@ -129,8 +151,12 @@
       const row = rank - 1;
       ctx.fillText(String(rank), PAD - 3, PAD + row * CELL + CELL / 2 + 3);
     }
+  }
 
-    // Candidate arrows are drawn last so they remain legible over dense pieces.
+  function drawArrows() {
+    if (!overlay) return;
+    const ctx = overlay.getContext('2d');
+    ctx.clearRect(0, 0, W, H);
     [...arrows]
       .sort((a, b) => Number(a.best) - Number(b.best))
       .forEach((arrow, index) => drawArrow(ctx, arrow, index));
@@ -140,14 +166,18 @@
     pieces;
     selected;
     highlights;
+    drawBase();
+  });
+
+  $effect(() => {
     arrows;
-    draw();
+    drawArrows();
   });
 
   function handleClick(ev) {
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
+    const rect = overlay.getBoundingClientRect();
+    const scaleX = overlay.width / rect.width;
+    const scaleY = overlay.height / rect.height;
     const mx = (ev.clientX - rect.left) * scaleX;
     const my = (ev.clientY - rect.top) * scaleY;
     const col = Math.floor((mx - PAD) / CELL);
@@ -159,10 +189,34 @@
   }
 </script>
 
-<canvas
-  bind:this={canvas}
-  width={W}
-  height={H}
-  onclick={handleClick}
-  style="image-rendering: pixelated; max-width: 100%; cursor: pointer;"
-></canvas>
+<div class="board-stack">
+  <canvas bind:this={base} width={W} height={H}></canvas>
+  <canvas
+    bind:this={overlay}
+    width={W}
+    height={H}
+    onclick={handleClick}
+  ></canvas>
+</div>
+
+<style>
+  .board-stack {
+    position: relative;
+    width: fit-content;
+    max-width: 100%;
+  }
+
+  canvas {
+    display: block;
+    max-width: 100%;
+    height: auto;
+  }
+
+  canvas:last-child {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+  }
+</style>

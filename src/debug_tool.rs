@@ -306,6 +306,20 @@ impl DebugTool {
     }
 
     fn status_text(&self) -> String {
+        self.status_summary_with(
+            self.is_in_check(Color::Black),
+            self.is_in_check(Color::White),
+            self.game_state.generate_legal_moves().len(),
+        )
+    }
+
+    /// Status block for a snapshot that already computed check and legal-move count.
+    pub fn status_summary_with(
+        &self,
+        black_in_check: bool,
+        white_in_check: bool,
+        legal_moves: usize,
+    ) -> String {
         let mut lines = Vec::new();
         lines.push(format!(
             "Cursor ply: {} / {}",
@@ -339,18 +353,9 @@ impl DebugTool {
         if self.game_state.is_draw_by_insufficient_material() {
             lines.push("Draw: insufficient material".to_string());
         }
-        lines.push(format!(
-            "Black in check: {}",
-            self.is_in_check(Color::Black)
-        ));
-        lines.push(format!(
-            "White in check: {}",
-            self.is_in_check(Color::White)
-        ));
-        lines.push(format!(
-            "Legal moves: {}",
-            self.game_state.generate_legal_moves().len()
-        ));
+        lines.push(format!("Black in check: {}", black_in_check));
+        lines.push(format!("White in check: {}", white_in_check));
+        lines.push(format!("Legal moves: {}", legal_moves));
         lines.join("\n")
     }
 
@@ -1082,6 +1087,15 @@ mod tests {
             board2.get_pieces_by_color(Color::Black).len()
         );
         assert_eq!(tool.cursor, 0);
+    }
+
+    #[test]
+    fn status_summary_with_uses_supplied_check_and_count() {
+        let tool = DebugTool::new();
+        let text = tool.status_summary_with(true, false, 12345);
+        assert!(text.contains("Black in check: true"));
+        assert!(text.contains("White in check: false"));
+        assert!(text.lines().any(|line| line == "Legal moves: 12345"));
     }
 
     #[test]

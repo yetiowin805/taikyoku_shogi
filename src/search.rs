@@ -4566,21 +4566,11 @@ fn move_coordinates(mv: &Move) -> MoveCoordinates {
     }
 }
 
-/// Build the live GUI payload for one completed iterative-deepening pass.
-/// Reply-tree expansion is deferred until the search ends; root candidates and
-/// the best-move arrow are available immediately at every completed depth.
-pub fn search_info_from_iteration(
-    agent: &str,
-    side: &str,
+fn display_root(
     state: &GameState,
-    weights: &EvalWeights,
-    requested_depth: u32,
-    depth: u32,
-    score: i32,
     best_move: &Move,
-    nodes: u64,
     root_lines: &[(Move, i32)],
-) -> SearchInfo {
+) -> (String, Vec<RootMoveInfo>, Vec<SearchTreeNode>) {
     let best_move_label = move_label(state, best_move);
     let root_moves: Vec<RootMoveInfo> = root_lines
         .iter()
@@ -4603,6 +4593,25 @@ pub fn search_info_from_iteration(
             children: vec![],
         })
         .collect();
+    (best_move_label, root_moves, tree_children)
+}
+
+/// Build the live GUI payload for one completed iterative-deepening pass.
+/// Reply-tree expansion is deferred until the search ends; root candidates and
+/// the best-move arrow are available immediately at every completed depth.
+pub fn search_info_from_iteration(
+    agent: &str,
+    side: &str,
+    state: &GameState,
+    weights: &EvalWeights,
+    requested_depth: u32,
+    depth: u32,
+    score: i32,
+    best_move: &Move,
+    nodes: u64,
+    root_lines: &[(Move, i32)],
+) -> SearchInfo {
+    let (best_move_label, root_moves, tree_children) = display_root(state, best_move, root_lines);
     SearchInfo {
         agent: agent.to_string(),
         side: side.to_string(),
@@ -4618,6 +4627,42 @@ pub fn search_info_from_iteration(
             label: "root".into(),
             score: Some(score),
             static_eval: None,
+            best: true,
+            cutoff: false,
+            children: tree_children,
+        },
+    }
+}
+
+/// GUI payload for Play and Suggest. Uses root lines from the main search and
+/// does not require a reply-tree trace. `static_eval` is the search's value.
+pub fn search_info_for_display(
+    agent: &str,
+    side: &str,
+    state: &GameState,
+    requested_depth: u32,
+    result: &SearchResult,
+) -> SearchInfo {
+    let Some(best_move) = result.best_move.as_ref() else {
+        return search_info_from_result(agent, side, requested_depth, result);
+    };
+    let (best_move_label, root_moves, tree_children) =
+        display_root(state, best_move, &result.root_lines);
+    SearchInfo {
+        agent: agent.to_string(),
+        side: side.to_string(),
+        depth: result.completed_depth,
+        requested_depth,
+        nodes: result.nodes,
+        static_eval: result.static_eval,
+        score: result.score,
+        best_move: Some(best_move_label),
+        best_move_coords: Some(move_coordinates(best_move)),
+        root_moves,
+        tree: SearchTreeNode {
+            label: "root".into(),
+            score: Some(result.score),
+            static_eval: Some(result.static_eval),
             best: true,
             cutoff: false,
             children: tree_children,
@@ -4706,6 +4751,56 @@ mod tests {
     use crate::eval::EvalWeights;
     use crate::piece::{Color, Piece, PieceType};
     use crate::position::Position;
+
+    fn bare_result(best: Option<Move>, root_lines: Vec<(Move, i32)>, static_eval: i32) -> SearchResult {
+        SearchResult {
+            royal_extensions: 0,
+            royal_probe: None,
+            completed_depth: 2,
+            best_move: best,
+            score: 15,
+            nodes: 40,
+            static_eval,
+            root_lines,
+            tree: SearchTreeNode {
+                label: "root".into(),
+                score: Some(15),
+                static_eval: Some(static_eval),
+                best: true,
+                cutoff: false,
+                children: vec![],
+            },
+            q_nodes: 0,
+            q_caps_generated: 0,
+            q_caps_searched: 0,
+            q_tt_hits: 0,
+            q_tt_probes: 0,
+            q_kind_path: 0,
+            q_kind_simple: 0,
+            q_kind_multi: 0,
+            q_unique: 0,
+            q_unique_saturated: false,
+            root_moves_scored: 0,
+            aborted: false,
+        }
+    }
+
+    #[test]
+    fn display_info_lists_root_lines_without_a_trace_tree() {
+        let state = GameState::new();
+        let best = Move::new(Position::new(1, 1).unwrap(), Position::new(2, 2).unwrap());
+        let other = Move::new(Position::new(3, 3).unwrap(), Position::new(4, 4).unwrap());
+        let result = bare_result(Some(best.clone()), vec![(best, 15), (other, 4)], 77);
+        let info = search_info_for_display("ab", "Black", &state, 8, &result);
+        assert_eq!(info.static_eval, 77);
+        assert_eq!(info.score, 15);
+        assert_eq!(info.depth, 2);
+        assert_eq!(info.root_moves.len(), 2);
+        assert!(info.root_moves[0].best);
+        assert!(!info.root_moves[1].best);
+        assert_eq!(info.tree.children.len(), 2);
+        assert!(info.tree.children.iter().all(|child| child.children.is_empty()));
+    }
 
     #[test]
     fn candidate_attackers_include_every_piece_the_filter_accepts() {

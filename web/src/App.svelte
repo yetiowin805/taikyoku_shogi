@@ -51,8 +51,60 @@
       .map((candidate) => ({ ...candidate.mv, best: candidate.best })),
   );
 
+  let navEpoch = 0;
+
   function delay(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  function beginNav() {
+    navEpoch += 1;
+    return navEpoch;
+  }
+
+  function navIsCurrent(epoch) {
+    return epoch === navEpoch;
+  }
+
+  function sameAnalysis(prev, next) {
+    if (!prev || !next) return false;
+    if (
+      prev.depth !== next.depth ||
+      prev.nodes !== next.nodes ||
+      prev.score !== next.score ||
+      prev.best_move !== next.best_move ||
+      prev.side !== next.side
+    ) {
+      return false;
+    }
+    const left = prev.root_moves || [];
+    const right = next.root_moves || [];
+    if (left.length !== right.length) return false;
+    for (let i = 0; i < left.length; i++) {
+      if (
+        left[i].label !== right[i].label ||
+        left[i].score !== right[i].score ||
+        left[i].best !== right[i].best
+      ) {
+        return false;
+      }
+      const a = left[i].mv;
+      const b = right[i].mv;
+      if (!a || !b) {
+        if (a !== b) return false;
+        continue;
+      }
+      if (
+        a.from_file !== b.from_file ||
+        a.from_rank !== b.from_rank ||
+        a.to_file !== b.to_file ||
+        a.to_rank !== b.to_rank ||
+        a.promoted !== b.promoted
+      ) {
+        return false;
+      }
+    }
+    return true;
   }
 
   function stopAnalysis(message = 'Analysis paused') {
@@ -84,7 +136,9 @@
         const view = await api.getAnalysis(started.job_id);
         if (!analysisActive || epoch !== analysisEpoch || mode !== 'analysis') return;
         if (!view?.ok) throw new Error(view?.message || 'Analysis update failed');
-        if (view.search) analysisSearch = view.search;
+        if (view.search && !sameAnalysis(analysisSearch, view.search)) {
+          analysisSearch = view.search;
+        }
         analysisElapsedMs = Number(view.elapsed_ms) || 0;
         analysisStatus = view.message || 'Analyzing…';
         if (!view.running) {
@@ -287,7 +341,9 @@
   }
 
   async function onNew() {
+    const epoch = beginNav();
     const res = await api.newGame();
+    if (!navIsCurrent(epoch)) return;
     selected = null;
     highlights = [];
     pendingMoves = [];
@@ -297,7 +353,9 @@
 
   async function onLoad() {
     if (!selectedGame) return;
+    const epoch = beginNav();
     const res = await api.loadGame(selectedGame);
+    if (!navIsCurrent(epoch)) return;
     selected = null;
     highlights = [];
     pendingMoves = [];
@@ -319,10 +377,12 @@
   }
 
   async function onSuggest() {
+    const epoch = beginNav();
     const side = snapshot?.turn || 'Black';
     const agent = side === 'White' ? whiteController : blackController;
     const name = agent === 'human' ? 'mi' : agent;
     const res = await api.suggest(name, agentOptsFor(name, side));
+    if (!navIsCurrent(epoch)) return;
     applyResult(res);
   }
 
@@ -339,9 +399,11 @@
     const turn = snapshot.turn;
     const ctrl = turn === 'Black' ? blackController : whiteController;
     if (ctrl === 'human') return;
+    const epoch = beginNav();
     busy = true;
     try {
       const res = await api.playAgent(ctrl, agentOptsFor(ctrl, turn));
+      if (!navIsCurrent(epoch)) return;
       applyResult(res);
       selected = null;
       highlights = [];
@@ -383,7 +445,9 @@
         return;
       }
       selected = { file, rank };
+      const epoch = beginNav();
       const res = await api.getMoves(file, rank);
+      if (!navIsCurrent(epoch)) return;
       applyResult(res, true);
       if (!res.ok) {
         log(res.message, 'err');
@@ -413,7 +477,9 @@
 
     if (piece && piece.color === snapshot.turn) {
       selected = { file, rank };
+      const epoch = beginNav();
       const res = await api.getMoves(file, rank);
+      if (!navIsCurrent(epoch)) return;
       applyResult(res, true);
       const occ = new Set(
         (snapshot.pieces || []).map((p) => `${p.file},${p.rank}`),
@@ -452,7 +518,9 @@
       promote,
       path_index: pathIndex,
     };
+    const epoch = beginNav();
     const res = await api.applyMove(body);
+    if (!navIsCurrent(epoch)) return;
     applyResult(res);
     if (res.ok) positionChanged();
     selected = null;
@@ -461,7 +529,9 @@
   }
 
   async function stepBack() {
+    const epoch = beginNav();
     const res = await api.back(1);
+    if (!navIsCurrent(epoch)) return;
     selected = null;
     highlights = [];
     applyResult(res, false, { clearSearch: true });
@@ -469,7 +539,9 @@
   }
 
   async function stepForward() {
+    const epoch = beginNav();
     const res = await api.forward(1);
+    if (!navIsCurrent(epoch)) return;
     selected = null;
     highlights = [];
     applyResult(res, false, { clearSearch: true });
@@ -477,9 +549,11 @@
   }
 
   async function doGoto(ply) {
+    const epoch = beginNav();
     const p = ply != null && ply !== '' ? Number(ply) : Number(gotoPly) || 0;
     gotoPly = p;
     const res = await api.gotoPly(p);
+    if (!navIsCurrent(epoch)) return;
     selected = null;
     highlights = [];
     applyResult(res, false, { clearSearch: true });
@@ -487,10 +561,12 @@
   }
 
   async function playOnce() {
+    const epoch = beginNav();
     const turn = snapshot?.turn || 'Black';
     const ctrl = turn === 'Black' ? blackController : whiteController;
     const agent = ctrl === 'human' ? 'mi' : ctrl;
     const res = await api.playAgent(agent, agentOptsFor(agent, turn));
+    if (!navIsCurrent(epoch)) return;
     selected = null;
     highlights = [];
     applyResult(res);
@@ -515,7 +591,9 @@
     selected = null;
     highlights = [];
     pendingMoves = [];
+    const epoch = beginNav();
     const res = await api.newGame();
+    if (!navIsCurrent(epoch)) return;
     applyResult(res);
     autoPlay = true;
     log(
