@@ -413,7 +413,7 @@ struct SearchContext {
     /// Root move currently being searched (1-based index / total).
     root_index: usize,
     root_total: usize,
-    root_label: String,
+    root_label: Option<LazyMoveLabel>,
     best_score: i32,
     /// Short phase tag for logs: "root", "search", "quiesce", "trace".
     phase: &'static str,
@@ -445,7 +445,7 @@ struct SearchContext {
     q_depth_left: u32,
     q_caps_at_node: usize,
     q_cap_index: usize,
-    q_label: String,
+    q_label: Option<LazyMoveLabel>,
     q_stand_pat: i32,
     q_prune_mode: QPruneMode,
     q_caps_generated: u64,
@@ -1939,15 +1939,18 @@ fn append_full_gen_hits(state: &GameState, piece: Piece, victim: Position, out: 
 }
 
 /// Bitset over a colour's piece-list indices.
-struct SlotSet(Vec<u64>);
+struct SlotSet {
+    words: [u64; 21],
+    used: usize,
+}
 
 impl SlotSet {
     fn set(&mut self, i: usize) {
-        self.0[i / 64] |= 1u64 << (i % 64);
+        self.words[i / 64] |= 1u64 << (i % 64);
     }
 
     fn iter_ones(&self) -> impl Iterator<Item = usize> + '_ {
-        self.0.iter().enumerate().flat_map(|(w, &word)| {
+        self.words[..self.used].iter().enumerate().flat_map(|(w, &word)| {
             let mut bits = word;
             std::iter::from_fn(move || {
                 if bits == 0 {
@@ -1973,7 +1976,9 @@ fn attacker_candidates(
     us: Color,
     victim: Position,
 ) -> SlotSet {
-    let mut set = SlotSet(vec![0; army.len().div_ceil(64)]);
+    let used = army.len().div_ceil(64);
+    assert!(used <= 21, "army exceeds board-sized candidate set");
+    let mut set = SlotSet { words: [0; 21], used };
     let mut add = |pos: Position| {
         if board.get_piece(pos).is_some_and(|p| p.color == us) {
             if let Some(i) = board.slot_at(pos) {
@@ -2115,7 +2120,7 @@ pub fn search_with_progress(
         search_depth: max_depth,
         root_index: 0,
         root_total: 0,
-        root_label: String::new(),
+        root_label: None,
         best_score: i32::MIN + 1,
         phase: "root",
         tt: tt_from_config(1 << 20, config),
@@ -2133,7 +2138,7 @@ pub fn search_with_progress(
         q_depth_left: 0,
         q_caps_at_node: 0,
         q_cap_index: 0,
-        q_label: String::new(),
+        q_label: None,
         q_stand_pat: 0,
         q_prune_mode: config.q_prune_mode,
         q_caps_generated: 0,
@@ -2282,7 +2287,7 @@ pub fn search_with_progress(
                 break;
             }
             ctx.root_index = i + 1;
-            ctx.root_label = move_label(state, mv);
+            ctx.root_label = Some(LazyMoveLabel::new(state, mv));
             ctx.phase = "root";
             ctx.q_nodes_at_root_start = ctx.q_nodes;
             ctx.root_move_started = Instant::now();
@@ -2323,7 +2328,7 @@ pub fn search_with_progress(
                 ctx.nodes += 1;
                 ctx.ply = root_ply + 1;
                 ctx.phase = "search";
-                ctx.q_label.clear();
+                ctx.q_label = None;
                 ctx.q_caps_at_node = 0;
                 ctx.q_cap_index = 0;
 
@@ -2634,7 +2639,7 @@ pub fn probe_quiescence(
         search_depth: 0,
         root_index: 0,
         root_total: 0,
-        root_label: String::new(),
+        root_label: None,
         best_score: i32::MIN + 1,
         phase: "quiesce",
         tt: TranspositionTable::new(1024),
@@ -2652,7 +2657,7 @@ pub fn probe_quiescence(
         q_depth_left: 0,
         q_caps_at_node: 0,
         q_cap_index: 0,
-        q_label: String::new(),
+        q_label: None,
         q_stand_pat: 0,
         q_prune_mode: mode,
         q_caps_generated: 0,
@@ -2766,7 +2771,7 @@ fn probe_quiesce_window(
         search_depth: 0,
         root_index: 0,
         root_total: 0,
-        root_label: String::new(),
+        root_label: None,
         best_score: i32::MIN + 1,
         phase: "quiesce",
         tt: TranspositionTable::new(1024),
@@ -2784,7 +2789,7 @@ fn probe_quiesce_window(
         q_depth_left: 0,
         q_caps_at_node: 0,
         q_cap_index: 0,
-        q_label: String::new(),
+        q_label: None,
         q_stand_pat: 0,
         q_prune_mode: QPruneMode::PathAware,
         q_caps_generated: 0,
@@ -2874,7 +2879,7 @@ fn probe_quiet_parent_leaf_stats(
         search_depth: 0,
         root_index: 0,
         root_total: 0,
-        root_label: String::new(),
+        root_label: None,
         best_score: i32::MIN + 1,
         phase: "leaf",
         tt: TranspositionTable::new(1024),
@@ -2892,7 +2897,7 @@ fn probe_quiet_parent_leaf_stats(
         q_depth_left: 0,
         q_caps_at_node: 0,
         q_cap_index: 0,
-        q_label: String::new(),
+        q_label: None,
         q_stand_pat: 0,
         q_prune_mode: QPruneMode::PathAware,
         q_caps_generated: 0,
@@ -2977,7 +2982,7 @@ fn probe_capture_parent_leaf_or_quiesce_rs(
         search_depth: 0,
         root_index: 0,
         root_total: 0,
-        root_label: String::new(),
+        root_label: None,
         best_score: i32::MIN + 1,
         phase: "leaf",
         tt: TranspositionTable::new(1024),
@@ -2995,7 +3000,7 @@ fn probe_capture_parent_leaf_or_quiesce_rs(
         q_depth_left: 0,
         q_caps_at_node: 0,
         q_cap_index: 0,
-        q_label: String::new(),
+        q_label: None,
         q_stand_pat: 0,
         q_prune_mode: QPruneMode::PathAware,
         q_caps_generated: 0,
@@ -4065,7 +4070,7 @@ fn quiesce(
             continue;
         }
         ctx.q_cap_index = i + 1;
-        ctx.q_label = move_label(state, &c.mv);
+        ctx.q_label = Some(LazyMoveLabel::new(state, &c.mv));
         ctx.phase = "quiesce";
         // Periodic progress while a single loud capture line is exploding.
         if ctx.q_nodes & 0xff == 0 {
@@ -4364,7 +4369,8 @@ impl SearchContext {
         let root = if self.root_total > 0 {
             format!(
                 "{}/{} {}",
-                self.root_index, self.root_total, self.root_label
+                self.root_index, self.root_total,
+                self.root_label.as_ref().map(LazyMoveLabel::format).unwrap_or_default()
             )
         } else {
             "-".into()
@@ -4401,11 +4407,7 @@ impl SearchContext {
                 self.q_depth_left,
                 self.q_cap_index,
                 self.q_caps_at_node,
-                if self.q_label.is_empty() {
-                    "-"
-                } else {
-                    &self.q_label
-                },
+                self.q_label.as_ref().map(LazyMoveLabel::format).unwrap_or_else(|| "-".into()),
                 self.q_stand_pat
             )
         } else {
@@ -4531,10 +4533,34 @@ fn move_order_score_fresh(state: &GameState, weights: &EvalWeights, mv: &Move) -
     move_order_score(state, weights, mv, opponent, &mut cache, true)
 }
 
+struct LazyMoveLabel {
+    piece: Option<Piece>,
+    from: Position,
+    to: Position,
+    promoted: bool,
+}
+
+impl LazyMoveLabel {
+    fn new(state: &GameState, mv: &Move) -> Self {
+        Self {
+            piece: state.get_board().get_piece(mv.from),
+            from: mv.from,
+            to: mv.to,
+            promoted: mv.promoted,
+        }
+    }
+
+    fn format(&self) -> String {
+        move_label_parts(self.piece.as_ref(), self.from, self.to, self.promoted)
+    }
+}
+
 fn move_label(state: &GameState, mv: &Move) -> String {
-    let board = state.get_board();
-    let sym = board
-        .get_piece(mv.from)
+    move_label_parts(state.get_board().get_piece(mv.from).as_ref(), mv.from, mv.to, mv.promoted)
+}
+
+fn move_label_parts(piece: Option<&Piece>, from: Position, to: Position, promoted: bool) -> String {
+    let sym = piece
         .map(|p| {
             let s = p.base_symbol();
             if p.is_promoted {
@@ -4544,14 +4570,14 @@ fn move_label(state: &GameState, mv: &Move) -> String {
             }
         })
         .unwrap_or_else(|| "?".into());
-    let promo = if mv.promoted { "+" } else { "" };
+    let promo = if promoted { "+" } else { "" };
     format!(
         "{} {},{}→{},{}{}",
         sym,
-        36 - mv.from.file,
-        36 - mv.from.rank,
-        36 - mv.to.file,
-        36 - mv.to.rank,
+        36 - from.file,
+        36 - from.rank,
+        36 - to.file,
+        36 - to.rank,
         promo
     )
 }

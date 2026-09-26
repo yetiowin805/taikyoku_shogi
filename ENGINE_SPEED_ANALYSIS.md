@@ -12,6 +12,25 @@ Speed-up estimates are **order-of-magnitude guesses with the reasoning shown**. 
 
 ## Implementation status — 2026-09-26
 
+### Candidate scan and progress labels, latest follow-up
+
+An exact search hot-path patch now caches the rare pieces requiring a global
+attack-candidate scan, uses a fixed stack bitset for candidate indices, and
+formats root/quiescence progress labels only when the periodic log fires.
+Against `198b2c0`, the final patch matched all search signatures in 48 warmups
+and 48 paired measurements (12 positions, four agents). Its geometric-mean
+wall-time ratio was **0.9380** (6.2% less time); all four agents and all 12
+position aggregates improved in this pass. This is a short paired screen, not
+a strength result. The full measurements and reproduction details are in
+[the candidate follow-up](benchmarks/engine_speed_20260926/CANDIDATE_FOLLOWUP.md).
+
+Two other proposals were explored without merging them. A two-step-route
+deduplication prototype reduced legal-move and node counts in sparse positions,
+but changes search order and needs state/strength validation. A depth-based B8
+soft-stop trace suggested sizable clock savings; its live timed comparison was
+interrupted, so it remains a hypothesis. Neither behavior-changing prototype
+is in this patch.
+
 This follow-up checks off four bounded parts of the proposals below:
 
 - [x] **D3: limited-range path rescanning.** `generate_simple` visits each ray
@@ -667,4 +686,3 @@ Compounding phases 1–3 is plausibly **3–6× nodes/s with identical trees**. 
 - **H.G. Muller's HaChu** (Chu/Dai/Tenjiku Shogi) and his notes on large variants: attack-map / view-distance representations for boards with many sliders, jump-capturing generals (the Tenjiku analogue of capturing range), and lion-type double moves.
 - **Chess rank-attack / line bitboards**: one machine word per line to find blockers in O(1). A 36-square line still fits a `u64`.
 - **dlshogi / AlphaZero-style PUCT**: the non-αβ option for very wide games.
-

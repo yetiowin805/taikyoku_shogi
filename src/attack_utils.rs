@@ -205,6 +205,32 @@ pub(crate) const CANDIDATE_WINDOW: u8 = 5;
 /// target: two-leg movers with special probes, Lion Hawk, Cannon Soldier, and
 /// short-range pieces whose reach exceeds [`CANDIDATE_WINDOW`].
 pub(crate) fn needs_global_scan(piece: &Piece) -> bool {
+    if piece.base_piece_type.is_none() {
+        return global_scan_table()
+            .get(piece.piece_type as usize)
+            .map(|row| row[piece.is_promoted as usize])
+            .unwrap_or(true);
+    }
+    needs_global_scan_uncached(piece)
+}
+
+fn global_scan_table() -> &'static [[bool; 2]] {
+    static TABLE: OnceLock<Vec<[bool; 2]>> = OnceLock::new();
+    TABLE.get_or_init(|| {
+        let mut table = vec![[true; 2]; PIECE_TYPE_CACHE_LEN];
+        for &kind in crate::eval::ALL_PIECE_TYPES {
+            let idx = kind as usize;
+            if idx >= table.len() { continue; }
+            let mut piece = Piece::new(kind, Color::Black, Position::new(0, 0).unwrap());
+            table[idx][0] = needs_global_scan_uncached(&piece);
+            piece.is_promoted = true;
+            table[idx][1] = needs_global_scan_uncached(&piece);
+        }
+        table
+    })
+}
+
+fn needs_global_scan_uncached(piece: &Piece) -> bool {
     if is_tengu_or_promoted_peacock(piece)
         || is_unpromoted_peacock(piece)
         || is_hook_mover_like_piece(piece)
@@ -359,3 +385,22 @@ pub fn should_check_piece_for_target_position(
     false
 }
 
+#[cfg(test)]
+mod global_scan_cache_tests {
+    use super::*;
+
+    #[test]
+    fn cached_flags_match_classifier_for_all_piece_types_and_variants() {
+        for &kind in crate::eval::ALL_PIECE_TYPES {
+            for color in [Color::Black, Color::White] {
+                for promoted in [false, true] {
+                    let mut piece = Piece::new(kind, color, Position::new(18, 18).unwrap());
+                    piece.is_promoted = promoted;
+                    assert_eq!(needs_global_scan(&piece), needs_global_scan_uncached(&piece), "{kind:?} {color:?} {promoted}");
+                    piece.base_piece_type = Some(PieceType::Pawn);
+                    assert_eq!(needs_global_scan(&piece), needs_global_scan_uncached(&piece), "base {kind:?} {color:?} {promoted}");
+                }
+            }
+        }
+    }
+}
