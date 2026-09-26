@@ -1,8 +1,10 @@
 # Low-CPU search experiments, 2026-09-26
 
 Starting revision: `61c2875` (includes the small mechanical changes from PR #117
-and the NNUE session changes from PR #118). These are **experimental source
-transformations**, not enabled production changes. The provided driver restores
+and the NNUE session changes from PR #118). The scripts preserve **experimental source
+transformations** against that baseline. The later acceptance change enables only
+lazy leaf checks in production; bitsets, cached properties and labels remain
+prototypes. The provided driver restores
 its six modified source files to the pinned baseline when it exits. Run it only
 in a disposable, dedicated worktree.
 
