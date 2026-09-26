@@ -109,43 +109,6 @@ def weights_for(samples, ids):
             for i in ids}
 
 
-class PreparedSamples:
-    """Cache small immutable metadata, retaining the original memory-mapped features.
-
-    Sample order, repeated indices, feature multiplicity and perspective boundaries
-    are preserved. This does not cache model outputs or copy the feature corpus.
-    """
-    def __init__(self, samples, data):
-        self.data = data
-        self.spans = np.array([(s['offset'], s['offset']+s['us']+s['them'])
-                              for s in samples], dtype=np.int64)
-        self.lengths = np.array([(s['us'], s['them']) for s in samples], dtype=np.int64)
-        self.target = torch.tensor([(s['score']-s['material'])/1000 for s in samples],
-                                   dtype=torch.float32).clamp(-100, 100)
-        self.material = torch.tensor([s['material'] for s in samples])
-        self.outcome = torch.tensor([float('nan') if s['outcome'] is None else s['outcome']
-                                     for s in samples])
-
-    def batch(self, ids):
-        if len(ids) == 1:
-            # The current memory-limited launcher uses single-position
-            # microbatches: avoid concatenation and metadata gather allocations.
-            i = ids[0]
-            start, end = self.spans[i]
-            x = torch.from_numpy(self.data[start:end].astype(np.int64))
-            offsets = torch.tensor([0, self.lengths[i,0], end-start], dtype=torch.long)
-            return (x, offsets, self.target[i:i+1],
-                    self.material[i:i+1], self.outcome[i:i+1])
-        spans = self.spans[ids]
-        x = torch.from_numpy(np.concatenate([self.data[a:b] for a,b in spans], dtype=np.int64))
-        offsets = np.empty(2*len(ids)+1, dtype=np.int64)
-        offsets[0] = 0
-        np.cumsum(self.lengths[ids].reshape(-1), out=offsets[1:])
-        index = torch.tensor(ids, dtype=torch.long)
-        return (x, torch.from_numpy(offsets), self.target[index],
-                self.material[index], self.outcome[index])
-
-
 def probabilities(pred, target, material, outcome, scale, mix):
     total = pred*1000 + material
     teacher = target*1000 + material
@@ -171,7 +134,7 @@ def losses(pred, target, material, outcome, mode, scale, mix):
     return loss, huber, p, q, mask
 
 
-def backward_batch(net,samples,data,ids,microbatch,mode,scale,mix,prepared=None):
+def backward_batch(net,samples,data,ids,microbatch,mode,scale,mix):
     """Preserve one optimizer update per effective batch with bounded sparse gradients."""
     value=0.
     # External callers may intentionally accumulate across effective batches.
@@ -179,12 +142,9 @@ def backward_batch(net,samples,data,ids,microbatch,mode,scale,mix,prepared=None)
     touched=[] if net.embedding.weight.grad is not None else None
     for chunk in range(0,len(ids),microbatch):
         part=ids[chunk:chunk+microbatch]
-        if prepared is None:
-            x,off,target=batch(samples,data,part)
-            material=torch.tensor([samples[i]['material'] for i in part])
-            outcome=torch.tensor([float('nan') if samples[i]['outcome'] is None else samples[i]['outcome'] for i in part])
-        else:
-            x,off,target,material,outcome=prepared.batch(part)
+        x,off,target=batch(samples,data,part)
+        material=torch.tensor([samples[i]['material'] for i in part])
+        outcome=torch.tensor([float('nan') if samples[i]['outcome'] is None else samples[i]['outcome'] for i in part])
         if touched is not None:
             touched.append(x)
         pred=net(x,off)
@@ -201,15 +161,16 @@ def backward_batch(net,samples,data,ids,microbatch,mode,scale,mix,prepared=None)
     return value,indices
 
 
-def evaluate(net, samples, data, ids, batch_size, mode, scale, mix, prepared=None):
-    prepared = prepared if prepared is not None else PreparedSamples(samples, data)
+def evaluate(net, samples, data, ids, batch_size, mode, scale, mix):
     weights = weights_for(samples, ids)
     totals = Counter()
     by_source = {k:Counter() for k in ('historical','recent','analysis')}
     with torch.no_grad():
         for start in range(0, len(ids), batch_size):
             group = ids[start:start+batch_size]
-            x, off, target, material, outcome = prepared.batch(group)
+            x, off, target = batch(samples, data, group)
+            material = torch.tensor([samples[i]['material'] for i in group])
+            outcome = torch.tensor([float('nan') if samples[i]['outcome'] is None else samples[i]['outcome'] for i in group])
             pred = net(x, off)
             loss, huber, probability, teacher, mask = losses(pred, target, material, outcome, mode, scale, mix)
             w = torch.tensor([weights[i] for i in group])
@@ -276,7 +237,6 @@ def main():
     assert train and val and test
     assert not ({samples[i]['group'] for i in train} & {samples[i]['group'] for i in val+test})
     cal = calibration(samples)
-    prepared = PreparedSamples(samples, data)
     parent = json.loads(a.parent.read_text())
     desc = parent['weights']['nnue']
     blob = (a.parent.parent/desc['file']).resolve()
@@ -310,7 +270,7 @@ def main():
         tracker = Plateau(**state['plateau'])
     else:
         net = from_quantized(blob, schema['features']) if a.init=='parent' else PilotNet(schema['features'],a.width)
-        initial = evaluate(net,samples,data,val,a.batch,a.loss,cal['scale'],a.mix,prepared)
+        initial = evaluate(net,samples,data,val,a.batch,a.loss,cal['scale'],a.mix)
         metrics.append(dict(epoch=0, validation=initial))
         tracker = Plateau(initial['objective'])
         print(json.dumps(metrics[-1]), flush=True)
@@ -336,7 +296,7 @@ def main():
         for start in range(0, len(order), a.batch):
             ids = order[start:start+a.batch]
             emb.zero_grad(set_to_none=True); dense.zero_grad(set_to_none=True)
-            value,touched=backward_batch(net,samples,data,ids,a.microbatch,a.loss,cal['scale'],a.mix,prepared)
+            value,touched=backward_batch(net,samples,data,ids,a.microbatch,a.loss,cal['scale'],a.mix)
             total+=value
             emb.step(); dense.step()
             with torch.no_grad():
@@ -347,7 +307,7 @@ def main():
             if start % (a.batch*100)==0:
                 atomic_json(a.out/'status.json',dict(state='training',epoch=epoch+1,samples=start+len(ids),
                     total=len(order),elapsed_s=time.monotonic()-started))
-        validation = evaluate(net,samples,data,val,a.batch,a.loss,cal['scale'],a.mix,prepared)
+        validation = evaluate(net,samples,data,val,a.batch,a.loss,cal['scale'],a.mix)
         record = dict(epoch=epoch+1, train_objective=total/len(order), validation=validation,
                       elapsed_s=time.monotonic()-started)
         if validation['objective'] < best:
@@ -396,7 +356,7 @@ def main():
     cp=json.loads((a.out/'model.json').read_text())
     best_net=from_quantized(a.out/cp['weights']['nnue']['file'],schema['features'])
     # Untouched test set is evaluated once after all checkpoint selection is complete.
-    test_result=evaluate(best_net,samples,data,test,a.batch,a.loss,cal['scale'],a.mix,prepared)
+    test_result=evaluate(best_net,samples,data,test,a.batch,a.loss,cal['scale'],a.mix)
     atomic_json(a.out/'test.json',test_result)
     atomic_json(a.out/'status.json',dict(state='completed',reason=tracker.stopped,test=test_result))
     print(json.dumps(dict(test=test_result)),flush=True)

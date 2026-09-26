@@ -218,7 +218,9 @@ numerical comparisons. Do not run profilers or concurrent builds during timing.
 
 ### A. Low-maintenance improvements first
 
-- Reuse the current metadata preparation and coalesced touched-row indices.
+- Reuse the current coalesced touched-row indices; benchmark prepacked immutable
+  metadata on the GPU. A CPU metadata-cache prototype was held out because the
+  timing evidence was mixed and validation regressions were not resolved.
   Keep the input as a flat list plus offsets; never build a dense
   batch-by-238464 input matrix.
 - Prefetch packed batches into reusable pinned host buffers, transfer
@@ -304,9 +306,9 @@ Further references: [PyTorch tuning](https://docs.pytorch.org/tutorials/recipes/
 
 ## CPU changes available now
 
-`PreparedSamples` keeps small immutable offsets/targets/material/outcome metadata
-and packs each position's two contiguous perspective lists in one slice. Training
-computes only its requested objective. Touched rows reuse the already-coalesced
+Both CPU trainers pack feature indices directly into their destination dtype,
+avoiding an intermediate array and copy. Training computes only its requested
+objective. Touched rows reuse the already-coalesced
 gradient index, retaining the original fallback for callers accumulating prior
 gradients. Validation converts each Huber vector once while keeping the original
 Python accumulation order. Quantized forward, optimizer policy, microbatch size,
@@ -332,5 +334,6 @@ data/nnue-venv/bin/python training/nnue/benchmark_training.py \
 The benchmark alternates isolated baseline/candidate processes on one pinned CPU,
 uses the same initialization and sampled positions, and requires identical losses,
 validation metrics and final weight hashes. It reports update time, validation
-time, preparation overhead and process peak RSS separately. These short runs
+time and process peak RSS separately, including per-update input preparation.
+These short runs
 exclude whole-pass checkpoint/export timing; they are not GPU speedup estimates.

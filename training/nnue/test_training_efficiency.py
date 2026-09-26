@@ -12,7 +12,7 @@ import unittest
 import numpy as np
 import torch
 
-from pilot_fit import (PilotNet, PreparedSamples, backward_batch, evaluate,
+from pilot_fit import (PilotNet, backward_batch, evaluate,
                        losses, training_loss, weights_for)
 from train import batch, export
 
@@ -46,19 +46,26 @@ class EfficiencyTests(unittest.TestCase):
                             (4, 0, 2, -300000, 20.5, 0., 'saved', 'recent'),
                             (6, 2, 2, 300000, -100, 1., 'analysis', 'recent'),
                             (10, 0, 0, 20, 20, .5, 'saved', 'recent')]]
-        self.prepared = PreparedSamples(self.samples, self.data)
 
     def test_packing_preserves_repeats_empty_bags_and_clipped_targets(self):
-        self.assertIs(self.prepared.data, self.data)
-        for ids in ([2, 0, 2, 1, 3], [0], [1], [3]):
-            actual = self.prepared.batch(ids)
-            for a, b in zip(actual[:3], batch(self.samples, self.data, ids)):
-                self.assertTrue(torch.equal(a, b))
-            expected_material = torch.tensor([self.samples[i]['material'] for i in ids])
-            torch.testing.assert_close(actual[3], expected_material.to(actual[3].dtype), rtol=0, atol=0)
+        for ids in ([2, 0, 2, 1, 3], [0], [1], [3], [-1]):
+            arrays, offsets = [], [0]
+            for i in ids:
+                s = self.samples[i]
+                start, middle = s['offset'], s['offset']+s['us']
+                arrays.extend([self.data[start:middle], self.data[middle:middle+s['them']]])
+                offsets.extend([offsets[-1]+s['us'], offsets[-1]+s['us']+s['them']])
+            actual = batch(self.samples, self.data, ids)
+            expected = (torch.from_numpy(np.concatenate(arrays).astype(np.int64)),
+                        torch.tensor(offsets), torch.tensor([(self.samples[i]['score']-
+                        self.samples[i]['material'])/1000 for i in ids]).clamp(-100,100))
+            for a,b in zip(actual, expected):
+                self.assertTrue(torch.equal(a,b))
 
     def test_objective_and_gradient_match_full_diagnostics(self):
-        _, _, target, material, outcome = self.prepared.batch([0, 1, 2, 3])
+        _, _, target = batch(self.samples, self.data, [0, 1, 2, 3])
+        material = torch.tensor([s['material'] for s in self.samples])
+        outcome = torch.tensor([float('nan'), 0., 1., .5])
         for mode, mix in [('huber', 0), ('wdl', 0), ('wdl', .1), ('wdl', 1)]:
             pred = torch.tensor([.2, -4., 8., 0.], requires_grad=True)
             old = losses(pred, target, material, outcome, mode, 2000, mix)[0]
@@ -67,6 +74,16 @@ class EfficiencyTests(unittest.TestCase):
             a, = torch.autograd.grad(old.sum(), pred)
             b, = torch.autograd.grad(new.sum(), pred)
             self.assertTrue(torch.equal(a, b))
+
+    def test_zero_gradients_retain_touched_rows(self):
+        net = PilotNet(16, 32)
+        with torch.no_grad():
+            net.output.weight.zero_()
+        _, touched = backward_batch(net, self.samples, self.data, [0, 2],
+                                    1, 'wdl', 2000, 0)
+        x, _, _ = batch(self.samples, self.data, [0, 2])
+        self.assertTrue(torch.equal(touched, torch.unique(x)))
+        self.assertEqual(net.embedding.weight.grad.values().count_nonzero().item(), 0)
 
     def test_updates_and_touched_rows_match_with_and_without_prior_gradients(self):
         for mode, mix in [('huber', 0), ('wdl', 0), ('wdl', .1)]:
@@ -78,7 +95,7 @@ class EfficiencyTests(unittest.TestCase):
                     old, old_rows = legacy_backward(a, self.samples, self.data, ids,
                                                    microbatch, mode, 2000, mix)
                     new, new_rows = backward_batch(b, self.samples, self.data, ids,
-                                                  microbatch, mode, 2000, mix, self.prepared)
+                                                  microbatch, mode, 2000, mix)
                     self.assertEqual(old, new)
                     self.assertTrue(torch.equal(old_rows, new_rows))
                     for x, y in zip(a.parameters(), b.parameters()):

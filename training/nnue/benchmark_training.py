@@ -45,14 +45,11 @@ def worker(a):
     emb = torch.optim.SGD([net.embedding.weight], lr=.0002)
     dense = torch.optim.Adam([v for k,v in net.named_parameters() if k != 'embedding.weight'], lr=.0003)
     scale = fit.calibration(samples)['scale']
-    start = time.perf_counter()
-    extra = [fit.PreparedSamples(samples, data)] if hasattr(fit, 'PreparedSamples') else []
-    setup_s = time.perf_counter()-start
 
     def step(ids):
         emb.zero_grad(set_to_none=True)
         dense.zero_grad(set_to_none=True)
-        value, touched = fit.backward_batch(net, samples, data, ids, 1, 'wdl', scale, 0, *extra)
+        value, touched = fit.backward_batch(net, samples, data, ids, 1, 'wdl', scale, 0)
         emb.step()
         dense.step()
         with torch.no_grad():
@@ -68,12 +65,12 @@ def worker(a):
     losses = [step(order[i:i+8]) for i in range(8, len(order), 8)]
     train_s = time.perf_counter()-start
     start = time.perf_counter()
-    metrics = fit.evaluate(net, samples, data, validation, 8, 'wdl', scale, 0, *extra)
+    metrics = fit.evaluate(net, samples, data, validation, 8, 'wdl', scale, 0)
     validation_s = time.perf_counter()-start
     sha = hashlib.sha256()
     for param in net.parameters():
         sha.update(memoryview(param.detach().numpy()))
-    print(json.dumps(dict(train_s=train_s, validation_s=validation_s, setup_s=setup_s,
+    print(json.dumps(dict(train_s=train_s, validation_s=validation_s,
                           peak_rss_kib=resource.getrusage(resource.RUSAGE_SELF).ru_maxrss,
                           weights_sha256=sha.hexdigest(), losses=losses, metrics=metrics,
                           torch=torch.__version__, numpy=np.__version__, cpu=a.cpu)))
