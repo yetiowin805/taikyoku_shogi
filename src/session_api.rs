@@ -26,6 +26,11 @@ pub struct MoveDto {
     pub to_rank: u8,
     pub promoted: bool,
     pub label: String,
+    /// First landing of a two-step move, in shogi coordinates. Absent for direct moves.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub via_file: Option<u8>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub via_rank: Option<u8>,
 }
 
 /// One ply's recorded AB telemetry from a saved game (black-absolute scores).
@@ -264,14 +269,24 @@ impl DebugTool {
         Ok(moves
             .into_iter()
             .enumerate()
-            .map(|(index, mv)| MoveDto {
-                index,
-                from_file: Self::to_shogi_file(mv.from.file),
-                from_rank: Self::to_shogi_rank(mv.from.rank),
-                to_file: Self::to_shogi_file(mv.to.file),
-                to_rank: Self::to_shogi_rank(mv.to.rank),
-                promoted: mv.promoted,
-                label: Self::format_move_public(&mv),
+            .map(|(index, mv)| {
+                let via = mv.intermediate().map(|pos| {
+                    (
+                        Self::to_shogi_file(pos.file),
+                        Self::to_shogi_rank(pos.rank),
+                    )
+                });
+                MoveDto {
+                    index,
+                    from_file: Self::to_shogi_file(mv.from.file),
+                    from_rank: Self::to_shogi_rank(mv.from.rank),
+                    to_file: Self::to_shogi_file(mv.to.file),
+                    to_rank: Self::to_shogi_rank(mv.to.rank),
+                    promoted: mv.promoted,
+                    label: Self::format_move_public(&mv),
+                    via_file: via.map(|v| v.0),
+                    via_rank: via.map(|v| v.1),
+                }
             })
             .collect())
     }
@@ -284,10 +299,16 @@ impl DebugTool {
         to_rank: u8,
         promote: Option<bool>,
         path_index: Option<usize>,
+        via: Option<(u8, u8)>,
+        direct: bool,
     ) -> Result<String, String> {
         let from = self.parse_shogi_position(from_file, from_rank)?;
         let to = self.parse_shogi_position(to_file, to_rank)?;
-        let matches = self.find_matching_moves_pub(from, to, promote);
+        let via = match via {
+            Some((file, rank)) => Some(self.parse_shogi_position(file, rank)?),
+            None => None,
+        };
+        let matches = self.find_matching_moves_pub(from, to, promote, via, direct);
         if matches.is_empty() {
             return Err("No legal move matches those squares".to_string());
         }
