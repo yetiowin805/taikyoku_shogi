@@ -30,7 +30,7 @@ pub fn can_tengu_attack_target<B: BoardLike>(tengu: &Piece, target: Position, bo
     // Find the 2 potential intermediate positions
     let intermediates = find_potential_intermediates(tengu.position, target);
     
-    for intermediate in intermediates {
+    for intermediate in intermediates.into_iter().flatten() {
         // Check if first step (Tengu -> intermediate) is legal
         if !can_reach_via_diagonal_range(tengu, tengu.position, intermediate, board) {
             continue;
@@ -64,8 +64,8 @@ fn is_on_same_diagonal(from: Position, to: Position) -> bool {
 
 /// Find the 2 potential intermediate positions for a two-step diagonal move
 /// Returns 0, 1, or 2 valid intermediate positions
-fn find_potential_intermediates(tengu_pos: Position, target: Position) -> Vec<Position> {
-    let mut intermediates = Vec::new();
+fn find_potential_intermediates(tengu_pos: Position, target: Position) -> [Option<Position>; 2] {
+    let mut intermediates = [None; 2];
     
     let f_t = tengu_pos.file as i16;
     let r_t = tengu_pos.rank as i16;
@@ -83,7 +83,7 @@ fn find_potential_intermediates(tengu_pos: Position, target: Position) -> Vec<Po
         if f_i >= 0 && f_i < 36 && r_i >= 0 && r_i < 36 {
             if let Some(intermediate) = Position::new(f_i as u8, r_i as u8) {
                 if intermediate != tengu_pos && intermediate != target {
-                    intermediates.push(intermediate);
+                    intermediates[0] = Some(intermediate);
                 }
             }
         }
@@ -101,8 +101,8 @@ fn find_potential_intermediates(tengu_pos: Position, target: Position) -> Vec<Po
             if let Some(intermediate) = Position::new(f_i as u8, r_i as u8) {
                 if intermediate != tengu_pos && intermediate != target {
                     // Avoid duplicates (in case both cases yield the same result)
-                    if !intermediates.contains(&intermediate) {
-                        intermediates.push(intermediate);
+                    if !intermediates.contains(&Some(intermediate)) {
+                        intermediates[1] = Some(intermediate);
                     }
                 }
             }
@@ -235,7 +235,7 @@ pub fn can_peacock_attack_target<B: BoardLike>(peacock: &Piece, target: Position
     // Find the 2 potential intermediate positions
     let intermediates = find_potential_intermediates(peacock.position, target);
     
-    for intermediate in intermediates {
+    for intermediate in intermediates.into_iter().flatten() {
         // Check if first step (Peacock -> intermediate) is forward diagonal range
         if !can_reach_via_forward_diagonal_range(peacock, peacock.position, intermediate, board) {
             continue;
@@ -386,7 +386,7 @@ pub fn can_hook_mover_attack_target<B: BoardLike>(hook_mover: &Piece, target: Po
     // Find the 2 potential intermediate positions
     let intermediates = find_potential_intermediates_orthogonal(hook_mover.position, target);
     
-    for intermediate in intermediates {
+    for intermediate in intermediates.into_iter().flatten() {
         // Check if first step (Hook Mover -> intermediate) is legal
         if !can_reach_via_orthogonal_range(hook_mover, hook_mover.position, intermediate, board) {
             continue;
@@ -420,8 +420,8 @@ fn is_on_same_orthogonal(from: Position, to: Position) -> bool {
 /// Returns 0, 1, or 2 valid intermediate positions
 /// Only calculates intermediates for L-shaped paths (different file and rank)
 /// Same file/rank cases are handled by single-step or blocker-capture checks
-fn find_potential_intermediates_orthogonal(hook_mover_pos: Position, target: Position) -> Vec<Position> {
-    let mut intermediates = Vec::new();
+fn find_potential_intermediates_orthogonal(hook_mover_pos: Position, target: Position) -> [Option<Position>; 2] {
+    let mut intermediates = [None; 2];
     
     let f_h = hook_mover_pos.file as i16;
     let r_h = hook_mover_pos.rank as i16;
@@ -438,15 +438,15 @@ fn find_potential_intermediates_orthogonal(hook_mover_pos: Position, target: Pos
         // Intermediate 1: (f_h, r_t) - same file as hook_mover, same rank as target
         if let Some(intermediate1) = Position::new(f_h as u8, r_t as u8) {
             if intermediate1 != hook_mover_pos && intermediate1 != target {
-                intermediates.push(intermediate1);
+                intermediates[0] = Some(intermediate1);
             }
         }
         
         // Intermediate 2: (f_t, r_h) - same file as target, same rank as hook_mover
         if let Some(intermediate2) = Position::new(f_t as u8, r_h as u8) {
             if intermediate2 != hook_mover_pos && intermediate2 != target {
-                if !intermediates.contains(&intermediate2) {
-                    intermediates.push(intermediate2);
+                if !intermediates.contains(&Some(intermediate2)) {
+                    intermediates[1] = Some(intermediate2);
                 }
             }
         }
@@ -723,6 +723,56 @@ mod tests {
     use super::*;
     use crate::board::Board;
     use crate::piece::{Color, Piece, PieceType};
+
+    #[test]
+    fn intermediate_order_matches_geometry_for_every_square_pair() {
+        for from_index in 0..1296 {
+            let from = Position::new((from_index % 36) as u8, (from_index / 36) as u8).unwrap();
+            for to_index in 0..1296 {
+                let to = Position::new((to_index % 36) as u8, (to_index / 36) as u8).unwrap();
+                let (x, y, u, v) = (
+                    from.file as i16,
+                    from.rank as i16,
+                    to.file as i16,
+                    to.rank as i16,
+                );
+                let mut diagonal = Vec::new();
+                for (a, b) in [
+                    (x - y + u + v, u + v - x + y),
+                    (x + y + u - v, x + y - u + v),
+                ] {
+                    if a % 2 == 0 && b % 2 == 0 && (0..72).contains(&a) && (0..72).contains(&b) {
+                        let mid = Position::new((a / 2) as u8, (b / 2) as u8).unwrap();
+                        if mid != from && mid != to && !diagonal.contains(&mid) {
+                            diagonal.push(mid);
+                        }
+                    }
+                }
+                let orthogonal = if x != u && y != v {
+                    vec![
+                        Position::new(from.file, to.rank).unwrap(),
+                        Position::new(to.file, from.rank).unwrap(),
+                    ]
+                } else {
+                    Vec::new()
+                };
+                assert_eq!(
+                    find_potential_intermediates(from, to)
+                        .into_iter()
+                        .flatten()
+                        .collect::<Vec<_>>(),
+                    diagonal
+                );
+                assert_eq!(
+                    find_potential_intermediates_orthogonal(from, to)
+                        .into_iter()
+                        .flatten()
+                        .collect::<Vec<_>>(),
+                    orthogonal
+                );
+            }
+        }
+    }
 
     #[test]
     fn lion_hawk_attacks_clear_long_diagonal() {

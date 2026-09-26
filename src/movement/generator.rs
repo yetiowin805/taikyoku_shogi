@@ -224,21 +224,6 @@ impl MovementGenerator {
                     ) else {
                         return false;
                     };
-                    if *max_distance > 1 && distance > 1 {
-                        if !path_utils::is_path_clear_for_boardlike(board, piece.position, pos)
-                        {
-                            // Blocked before this square — only capturable if first blocker.
-                            let path_positions =
-                                path_utils::path_positions(piece.position, pos);
-                            for path_pos in path_positions {
-                                if let Some(blocking_piece) = board.get_piece(path_pos) {
-                                    return path_pos == target
-                                        && blocking_piece.color != piece.color;
-                                }
-                            }
-                            return false;
-                        }
-                    }
                     if pos == target {
                         if let Some(tp) = board.get_piece(pos) {
                             return tp.color != piece.color;
@@ -335,7 +320,11 @@ impl MovementGenerator {
                 }
             }
             MovementCapability::Jumping { offsets } => {
-                Self::generate_jumping(piece, board, offsets, false).contains(&target)
+                let df = target.file as i8 - piece.position.file as i8;
+                let dr = target.rank as i8 - piece.position.rank as i8;
+                let dr = if piece.color == Color::White { -dr } else { dr };
+                offsets.contains(&(df, dr))
+                    && !board.get_piece(target).is_some_and(|p| p.color == piece.color)
             }
             MovementCapability::TwoStep { .. }
             | MovementCapability::ConditionalDiagonalJump { .. }
@@ -449,24 +438,6 @@ impl MovementGenerator {
                     break; // Out of bounds, stop in this direction
                 };
                 
-                // For simple movement with max_distance > 1, check if path is clear
-                if max_distance > 1 {
-                    if !path_utils::is_path_clear_for_boardlike(board, piece.position, target) {
-                        // Path is blocked - find the first blocking piece along the path
-                        let path_positions = path_utils::path_positions(piece.position, target);
-                        for path_pos in path_positions {
-                            if let Some(blocking_piece) = board.get_piece(path_pos) {
-                                // Found the first blocking piece
-                                if blocking_piece.color != piece.color {
-                                    targets.push(path_pos); // Can capture enemy blocking piece
-                                }
-                                break; // Stop in this direction
-                            }
-                        }
-                        break; // Stop in this direction
-                    }
-                }
-                
                 // Check if target has a friendly piece - cannot land on friendly
                 if let Some(target_piece) = board.get_piece(target) {
                     if target_piece.color == piece.color {
@@ -474,6 +445,13 @@ impl MovementGenerator {
                         break;
                     }
                     targets.push(target); // enemy
+                    // Preserve the legacy raw list: on the next in-bounds step,
+                    // its path scan emitted this enemy a second time, then stopped.
+                    // Downstream deduplication/order must not change in a speed fix.
+                    if distance < max_distance && target.offset(file_delta, rank_delta).is_some() {
+                        targets.push(target);
+                    }
+                    break;
                 } else if !captures_only {
                     targets.push(target);
                 }
@@ -993,3 +971,152 @@ impl MovementGenerator {
     }
 }
 
+#[cfg(test)]
+mod linear_simple_tests {
+    use super::*;
+    use crate::{board::Board, piece::PieceType};
+
+    // Original repeated-path implementation, including its duplicate capture.
+    fn reference(
+        piece: &Piece,
+        board: &Board,
+        directions: DirectionSet,
+        max: u8,
+        captures: bool,
+    ) -> Vec<Position> {
+        let mut result = Vec::new();
+        for direction in direction_iter(MovementGenerator::adjust_directions_for_color(
+            directions,
+            piece.color,
+        )) {
+            let (df, dr) = direction.to_offset();
+            for distance in 1..=max {
+                let Some(to) = piece
+                    .position
+                    .offset(df * distance as i8, dr * distance as i8)
+                else {
+                    break;
+                };
+                if max > 1 && !path_utils::is_path_clear_for_boardlike(board, piece.position, to) {
+                    for pos in path_utils::path_positions(piece.position, to) {
+                        if let Some(blocker) = board.get_piece(pos) {
+                            if blocker.color != piece.color {
+                                result.push(pos);
+                            }
+                            break;
+                        }
+                    }
+                    break;
+                }
+                if let Some(occupant) = board.get_piece(to) {
+                    if occupant.color == piece.color {
+                        break;
+                    }
+                    result.push(to);
+                } else if !captures {
+                    result.push(to);
+                }
+            }
+        }
+        result
+    }
+
+    #[test]
+    fn direct_reach_matches_original_generated_landings() {
+        let jumps = [
+            vec![],
+            vec![(1, 2), (-1, 2)],
+            vec![(2, 2), (-3, -3)],
+            vec![(0, 0), (35, 0), (-35, 0), (0, 35), (0, -35)],
+            (-5..=5)
+                .flat_map(|x| (-5..=5).map(move |y| (x, y)))
+                .collect(),
+        ];
+        for pattern in 0..3 {
+            let mut board = Board::new();
+            for i in 0..1296 {
+                if pattern > 0 && (i * 13 + i / 36) % (pattern * 11) == 0 {
+                    let pos = Position::new((i % 36) as u8, (i / 36) as u8).unwrap();
+                    board.place_piece(Piece::new(
+                        PieceType::Pawn,
+                        if i % 3 == 0 {
+                            Color::Black
+                        } else {
+                            Color::White
+                        },
+                        pos,
+                    ));
+                }
+            }
+            for (file, rank) in [(0, 0), (35, 35), (17, 17), (1, 34)] {
+                for color in [Color::Black, Color::White] {
+                    let piece =
+                        Piece::new(PieceType::King, color, Position::new(file, rank).unwrap());
+                    let mut cases = Vec::new();
+                    for directions in [1, 5, 0xaa, 0xff] {
+                        for max in [1, 2, 5, 36] {
+                            cases.push((
+                                MovementCapability::Simple {
+                                    directions,
+                                    max_distance: max,
+                                },
+                                reference(&piece, &board, directions, max, false),
+                            ));
+                        }
+                    }
+                    for offsets in &jumps {
+                        cases.push((
+                            MovementCapability::Jumping {
+                                offsets: offsets.clone(),
+                            },
+                            MovementGenerator::generate_jumping(&piece, &board, offsets, false),
+                        ));
+                    }
+                    for (cap, expected) in cases {
+                        for i in 0..1296 {
+                            let to = Position::new((i % 36) as u8, (i / 36) as u8).unwrap();
+                            assert_eq!(
+                                MovementGenerator::capability_reaches(&piece, &board, &cap, to),
+                                expected.contains(&to),
+                                "{piece:?} {cap:?} -> {to:?}"
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn simple_raw_order_matches_legacy_paths_and_blockers() {
+        for pattern in 0..4 {
+            let mut board = Board::new();
+            for i in 0..1296 {
+                if pattern > 0 && (i * 17 + i / 36) % (pattern * 7) == 0 {
+                    let pos = Position::new((i % 36) as u8, (i / 36) as u8).unwrap();
+                    let color = if i % 3 == 0 {
+                        Color::Black
+                    } else {
+                        Color::White
+                    };
+                    board.place_piece(Piece::new(PieceType::Pawn, color, pos));
+                }
+            }
+            for (file, rank) in [(0, 0), (35, 35), (17, 17), (1, 34)] {
+                for color in [Color::Black, Color::White] {
+                    let piece =
+                        Piece::new(PieceType::King, color, Position::new(file, rank).unwrap());
+                    for mask in 0..=255 {
+                        for max in [0, 1, 2, 5, 36] {
+                            for captures in [false, true] {
+                                assert_eq!(MovementGenerator::generate_simple(&piece, &board, mask, max, captures),
+                                    reference(&piece, &board, mask, max, captures),
+                                    "pattern={pattern} from={:?} color={color:?} mask={mask} max={max} captures={captures}", piece.position);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
