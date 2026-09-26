@@ -1,0 +1,30 @@
+{
+  "command": [
+    "/home/frank/miniconda3/bin/python3",
+    "/tmp/taikyoku-search-light/benchmarks/search_light_20260926/run_pairs.py",
+    "--baseline",
+    "/tmp/search-light-results/baseline",
+    "--candidate",
+    "/tmp/search-light-results/lazy-gates",
+    "--corpus",
+    "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/corpus.json",
+    "--cases",
+    "/tmp/search-light-results/screen-cases.json",
+    "--cpu",
+    "11",
+    "--repeats",
+    "2",
+    "--variant",
+    "lazy-gates",
+    "--out",
+    "/tmp/search-light-results/pairs-lazy-gates"
+  ],
+  "cpu": 11,
+  "nice": 19,
+  "duty": 0.25,
+  "timeout": false,
+  "exit_code": 0,
+  "wall_seconds": 222.9481623619995,
+  "child_cpu_seconds": 54.770562,
+  "peak_child_rss_kib": 1248100
+}

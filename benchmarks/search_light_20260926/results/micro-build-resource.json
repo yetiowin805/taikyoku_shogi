@@ -1,0 +1,20 @@
+{
+  "command": [
+    "rustc",
+    "--edition",
+    "2021",
+    "-C",
+    "opt-level=3",
+    "/tmp/search-light-results/micro/main.rs",
+    "-o",
+    "/tmp/search-light-results/micro/bench"
+  ],
+  "cpu": 11,
+  "nice": 19,
+  "duty": 0.25,
+  "timeout": false,
+  "exit_code": 0,
+  "wall_seconds": 10.014930237999579,
+  "child_cpu_seconds": 2.4640589999999998,
+  "peak_child_rss_kib": 182828
+}

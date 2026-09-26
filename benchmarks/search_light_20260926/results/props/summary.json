@@ -1,0 +1,28 @@
+{
+  "variant": "props",
+  "pairs": 48,
+  "candidate_over_baseline_cpu": 0.9957345059744676,
+  "by_model": {
+    "0": 0.9989895684578695,
+    "1": 1.0049085548795251,
+    "2": 0.9731997800432195,
+    "3": 1.006200967352862
+  },
+  "by_position": {
+    "0": 0.9813697911639413,
+    "2": 1.0129067453030751,
+    "3": 1.003845405108262,
+    "6": 0.9679200304180055,
+    "7": 0.9973594398953342,
+    "11": 1.0118151552997536
+  },
+  "total_cpu_ms": {
+    "baseline": 18078.822,
+    "candidate": 17931.926
+  },
+  "peak_rss_kib": {
+    "baseline": 1248248,
+    "candidate": 1248200
+  },
+  "caveat": "CPU-time smoke screen under duty-cycling and concurrent user workload; no normal-load wall speedup or strength claim."
+}

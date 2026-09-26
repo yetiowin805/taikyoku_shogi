@@ -1,0 +1,8 @@
+ab search: 3.0s nodes=19600 nps=6526 depth=3 q=2 phase=quiesce root=9/280 D 22,25→23,24 best=14 rms=7 qnodes=15872 q%=80 qroot=227 qlast=333 quniq=0 qTThit=3% fh=2% qPC/ST/ML=10986/1668/6 qleft=1 qcaps=1/21 qmv=RO 31,34→31,4+ spat=54
+ab diag: root=280 scored=600 fh=1% near20=28% spread(max-med)=106 qnodes=17173 quniq=0 qTThit=4%/700/17173 sib=0/0 abort=false
+ab search: 3.0s nodes=21521 nps=7173 depth=3 q=2 phase=root root=20/280 P 36,26→36,25 best=15 rms=0 qnodes=17310 q%=80 qroot=0 qlast=1 quniq=0 qTThit=2% fh=2% qPC/ST/ML=11901/1721/6 qleft=1 qcaps=0/0 qmv=- spat=70
+ab diag: root=280 scored=600 fh=1% near20=26% spread(max-med)=105 qnodes=17491 quniq=0 qTThit=4%/700/17491 sib=0/0 abort=false
+
+thread 'main' (255) panicked at examples/speed_experiment.rs:32:102:
+called `Result::unwrap()` on an `Err` value: "NNUE descriptor feature names differ"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

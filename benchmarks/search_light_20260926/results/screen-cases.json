@@ -1,0 +1,923 @@
+[
+  {
+    "position": 0,
+    "model": 0,
+    "depth": 3,
+    "pilot": {
+      "aborted": true,
+      "agent": "BASE_C2S2_A40_Lmate",
+      "best": {
+        "data": "Standard",
+        "from": {
+          "file": 17,
+          "rank": 9
+        },
+        "promoted": false,
+        "to": {
+          "file": 14,
+          "rank": 12
+        }
+      },
+      "completed_depth": 3,
+      "cpu_ms": 1001.113,
+      "depth": 4,
+      "hash": 18006879535909912716,
+      "legal": 280,
+      "model": 0,
+      "ms": 1001.4298200000001,
+      "name": "opening",
+      "nnue": false,
+      "nodes": 34169,
+      "pieces": 804,
+      "ply": 0,
+      "position": 0,
+      "q_nodes": 27734,
+      "score": 14,
+      "signature": "864311df604c4ab866b3a5f5fe592cdb5dd4e9bd356863aa6e546362e6560484"
+    }
+  },
+  {
+    "position": 0,
+    "model": 1,
+    "depth": 3,
+    "pilot": {
+      "aborted": true,
+      "agent": "C2K50A1",
+      "best": {
+        "data": "Standard",
+        "from": {
+          "file": 17,
+          "rank": 9
+        },
+        "promoted": false,
+        "to": {
+          "file": 14,
+          "rank": 12
+        }
+      },
+      "completed_depth": 3,
+      "cpu_ms": 1000.078,
+      "depth": 4,
+      "hash": 18006879535909912716,
+      "legal": 280,
+      "model": 1,
+      "ms": 1000.0765009999999,
+      "name": "opening",
+      "nnue": false,
+      "nodes": 36549,
+      "pieces": 804,
+      "ply": 0,
+      "position": 0,
+      "q_nodes": 29105,
+      "score": 15,
+      "signature": "ec05579b8605ef8e71cab33330d6cfc94cc379ded1642766f64eaa15e73ab234"
+    }
+  },
+  {
+    "position": 0,
+    "model": 2,
+    "depth": 3,
+    "pilot": {
+      "aborted": true,
+      "agent": "NNUE512",
+      "best": {
+        "data": "Standard",
+        "from": {
+          "file": 18,
+          "rank": 3
+        },
+        "promoted": false,
+        "to": {
+          "file": 32,
+          "rank": 17
+        }
+      },
+      "completed_depth": 3,
+      "cpu_ms": 1000.12,
+      "depth": 4,
+      "hash": 18006879535909912716,
+      "legal": 280,
+      "model": 2,
+      "ms": 1000.1133069999998,
+      "name": "opening",
+      "nnue": true,
+      "nodes": 21026,
+      "pieces": 804,
+      "ply": 0,
+      "position": 0,
+      "q_nodes": 16790,
+      "score": 1424,
+      "signature": "1d66a5881d4e0c7621132a874ee6bdc991c88a400d6eedf96270623bed7259ab"
+    }
+  },
+  {
+    "position": 0,
+    "model": 3,
+    "depth": 1,
+    "pilot": {
+      "aborted": true,
+      "agent": "NNUE2048",
+      "best": {
+        "data": "Standard",
+        "from": {
+          "file": 18,
+          "rank": 3
+        },
+        "promoted": false,
+        "to": {
+          "file": 32,
+          "rank": 17
+        }
+      },
+      "completed_depth": 1,
+      "cpu_ms": 1000.171,
+      "depth": 4,
+      "hash": 18006879535909912716,
+      "legal": 280,
+      "model": 3,
+      "ms": 1000.169759,
+      "name": "opening",
+      "nnue": true,
+      "nodes": 6629,
+      "pieces": 804,
+      "ply": 0,
+      "position": 0,
+      "q_nodes": 5440,
+      "score": 316,
+      "signature": "75aa77c5669feaa305360d05eec99b9b113bdcd34c4fc9c2f8b8e4a7f458111a"
+    }
+  },
+  {
+    "position": 2,
+    "model": 0,
+    "depth": 1,
+    "pilot": {
+      "aborted": true,
+      "agent": "BASE_C2S2_A40_Lmate",
+      "best": {
+        "data": {
+          "TwoStep": {
+            "intermediate": {
+              "file": 20,
+              "rank": 6
+            }
+          }
+        },
+        "from": {
+          "file": 19,
+          "rank": 5
+        },
+        "promoted": false,
+        "to": {
+          "file": 17,
+          "rank": 9
+        }
+      },
+      "completed_depth": 1,
+      "cpu_ms": 1000.03,
+      "depth": 4,
+      "hash": 2320586195346004270,
+      "legal": 777,
+      "model": 0,
+      "ms": 1000.133827,
+      "name": "tactical",
+      "nnue": false,
+      "nodes": 24085,
+      "pieces": 474,
+      "ply": 360,
+      "position": 2,
+      "q_nodes": 13276,
+      "score": -16192,
+      "signature": "265da65d6b4877597979a2cbaeea484841af6862c2bb555cf2a31a801f8a2db5"
+    }
+  },
+  {
+    "position": 2,
+    "model": 1,
+    "depth": 1,
+    "pilot": {
+      "aborted": true,
+      "agent": "C2K50A1",
+      "best": {
+        "data": {
+          "TwoStep": {
+            "intermediate": {
+              "file": 20,
+              "rank": 6
+            }
+          }
+        },
+        "from": {
+          "file": 19,
+          "rank": 5
+        },
+        "promoted": false,
+        "to": {
+          "file": 17,
+          "rank": 9
+        }
+      },
+      "completed_depth": 1,
+      "cpu_ms": 1000.089,
+      "depth": 4,
+      "hash": 2320586195346004270,
+      "legal": 777,
+      "model": 1,
+      "ms": 1000.153091,
+      "name": "tactical",
+      "nnue": false,
+      "nodes": 25339,
+      "pieces": 474,
+      "ply": 360,
+      "position": 2,
+      "q_nodes": 13898,
+      "score": -16251,
+      "signature": "0d6dd054bb6533dcac8239d4b291c14f0759e696820e6d6e4a0f1d58a7d8bb6e"
+    }
+  },
+  {
+    "position": 2,
+    "model": 2,
+    "depth": 1,
+    "pilot": {
+      "aborted": true,
+      "agent": "NNUE512",
+      "best": {
+        "data": {
+          "TwoStep": {
+            "intermediate": {
+              "file": 18,
+              "rank": 6
+            }
+          }
+        },
+        "from": {
+          "file": 19,
+          "rank": 5
+        },
+        "promoted": false,
+        "to": {
+          "file": 17,
+          "rank": 5
+        }
+      },
+      "completed_depth": 1,
+      "cpu_ms": 1006.913,
+      "depth": 4,
+      "hash": 2320586195346004270,
+      "legal": 777,
+      "model": 2,
+      "ms": 1007.112164,
+      "name": "tactical",
+      "nnue": true,
+      "nodes": 10923,
+      "pieces": 474,
+      "ply": 360,
+      "position": 2,
+      "q_nodes": 6067,
+      "score": -11557,
+      "signature": "bca277ca87b675fd0cda1f469a7f952a2edbc422d7b71d7aa196c6dc0f18ee7e"
+    }
+  },
+  {
+    "position": 2,
+    "model": 3,
+    "depth": 1,
+    "pilot": {
+      "aborted": true,
+      "agent": "NNUE2048",
+      "best": {
+        "data": "Standard",
+        "from": {
+          "file": 35,
+          "rank": 6
+        },
+        "promoted": false,
+        "to": {
+          "file": 35,
+          "rank": 7
+        }
+      },
+      "completed_depth": 1,
+      "cpu_ms": 1000.063,
+      "depth": 4,
+      "hash": 2320586195346004270,
+      "legal": 777,
+      "model": 3,
+      "ms": 1000.2061980000001,
+      "name": "tactical",
+      "nnue": true,
+      "nodes": 3867,
+      "pieces": 474,
+      "ply": 360,
+      "position": 2,
+      "q_nodes": 1779,
+      "score": -11432,
+      "signature": "82293f7c0c6c139ffdcd90369059334beb1d5631591905265bb941c26c9c1322"
+    }
+  },
+  {
+    "position": 3,
+    "model": 0,
+    "depth": 1,
+    "pilot": {
+      "aborted": true,
+      "agent": "BASE_C2S2_A40_Lmate",
+      "best": {
+        "data": "Standard",
+        "from": {
+          "file": 10,
+          "rank": 4
+        },
+        "promoted": false,
+        "to": {
+          "file": 9,
+          "rank": 3
+        }
+      },
+      "completed_depth": 1,
+      "cpu_ms": 1000.075,
+      "depth": 4,
+      "hash": 7909381408151382253,
+      "legal": 1697,
+      "model": 0,
+      "ms": 1000.1523649999999,
+      "name": "long-history",
+      "nnue": false,
+      "nodes": 74857,
+      "pieces": 430,
+      "ply": 2000,
+      "position": 3,
+      "q_nodes": 42300,
+      "score": 6373,
+      "signature": "89c716ac55a153a022ff36b9b9cfc7edce30b06c247257b1bdd6eb288536172d"
+    }
+  },
+  {
+    "position": 3,
+    "model": 1,
+    "depth": 1,
+    "pilot": {
+      "aborted": true,
+      "agent": "C2K50A1",
+      "best": {
+        "data": "Standard",
+        "from": {
+          "file": 10,
+          "rank": 4
+        },
+        "promoted": false,
+        "to": {
+          "file": 9,
+          "rank": 3
+        }
+      },
+      "completed_depth": 1,
+      "cpu_ms": 1000.031,
+      "depth": 4,
+      "hash": 7909381408151382253,
+      "legal": 1697,
+      "model": 1,
+      "ms": 1000.068049,
+      "name": "long-history",
+      "nnue": false,
+      "nodes": 84982,
+      "pieces": 430,
+      "ply": 2000,
+      "position": 3,
+      "q_nodes": 49411,
+      "score": 6376,
+      "signature": "05880837eb5dcbe6c56d42483214736dcd9ca013e2b6894130ba18831aed3996"
+    }
+  },
+  {
+    "position": 3,
+    "model": 2,
+    "depth": 3,
+    "pilot": {
+      "aborted": true,
+      "agent": "NNUE512",
+      "best": {
+        "data": "Standard",
+        "from": {
+          "file": 21,
+          "rank": 3
+        },
+        "promoted": false,
+        "to": {
+          "file": 20,
+          "rank": 2
+        }
+      },
+      "completed_depth": 3,
+      "cpu_ms": 1000.066,
+      "depth": 4,
+      "hash": 7909381408151382253,
+      "legal": 1697,
+      "model": 2,
+      "ms": 1000.0878749999999,
+      "name": "long-history",
+      "nnue": true,
+      "nodes": 48839,
+      "pieces": 430,
+      "ply": 2000,
+      "position": 3,
+      "q_nodes": 25021,
+      "score": 776,
+      "signature": "5efedef52c5ab8ef686a7c027200df1e517d4a77a90608218cb63c0ca8bf492a"
+    }
+  },
+  {
+    "position": 3,
+    "model": 3,
+    "depth": 2,
+    "pilot": {
+      "aborted": true,
+      "agent": "NNUE2048",
+      "best": {
+        "data": "Standard",
+        "from": {
+          "file": 21,
+          "rank": 3
+        },
+        "promoted": false,
+        "to": {
+          "file": 20,
+          "rank": 2
+        }
+      },
+      "completed_depth": 2,
+      "cpu_ms": 999.519,
+      "depth": 4,
+      "hash": 7909381408151382253,
+      "legal": 1697,
+      "model": 3,
+      "ms": 1000.1225959999999,
+      "name": "long-history",
+      "nnue": true,
+      "nodes": 21153,
+      "pieces": 430,
+      "ply": 2000,
+      "position": 3,
+      "q_nodes": 10030,
+      "score": 1058,
+      "signature": "29ae0d54ee97b96512f3729d209eb39ca402ac72a17069f04ec51847d50cccd0"
+    }
+  },
+  {
+    "position": 6,
+    "model": 0,
+    "depth": 2,
+    "pilot": {
+      "aborted": true,
+      "agent": "BASE_C2S2_A40_Lmate",
+      "best": {
+        "data": "Standard",
+        "from": {
+          "file": 20,
+          "rank": 2
+        },
+        "promoted": false,
+        "to": {
+          "file": 17,
+          "rank": 5
+        }
+      },
+      "completed_depth": 2,
+      "cpu_ms": 1000.109,
+      "depth": 4,
+      "hash": 18124887825513169646,
+      "legal": 526,
+      "model": 0,
+      "ms": 1000.1292189999999,
+      "name": "late-independent",
+      "nnue": false,
+      "nodes": 36532,
+      "pieces": 540,
+      "ply": 792,
+      "position": 6,
+      "q_nodes": 23493,
+      "score": -7558,
+      "signature": "98f0fe81847d8dbf345bb19b2f918f2edb4283a99e22008c22a78515b4575826"
+    }
+  },
+  {
+    "position": 6,
+    "model": 1,
+    "depth": 2,
+    "pilot": {
+      "aborted": true,
+      "agent": "C2K50A1",
+      "best": {
+        "data": "Standard",
+        "from": {
+          "file": 20,
+          "rank": 2
+        },
+        "promoted": false,
+        "to": {
+          "file": 17,
+          "rank": 5
+        }
+      },
+      "completed_depth": 2,
+      "cpu_ms": 1000.12,
+      "depth": 4,
+      "hash": 18124887825513169646,
+      "legal": 526,
+      "model": 1,
+      "ms": 1000.1379370000001,
+      "name": "late-independent",
+      "nnue": false,
+      "nodes": 38486,
+      "pieces": 540,
+      "ply": 792,
+      "position": 6,
+      "q_nodes": 25692,
+      "score": -7883,
+      "signature": "d25aea78a8fc4ff1f666e505b5a7100caee4c89a369b03eaf298293f43589c5e"
+    }
+  },
+  {
+    "position": 6,
+    "model": 2,
+    "depth": 1,
+    "pilot": {
+      "aborted": true,
+      "agent": "NNUE512",
+      "best": {
+        "data": "Standard",
+        "from": {
+          "file": 17,
+          "rank": 3
+        },
+        "promoted": false,
+        "to": {
+          "file": 16,
+          "rank": 4
+        }
+      },
+      "completed_depth": 1,
+      "cpu_ms": 999.968,
+      "depth": 4,
+      "hash": 18124887825513169646,
+      "legal": 526,
+      "model": 2,
+      "ms": 1000.0874850000001,
+      "name": "late-independent",
+      "nnue": true,
+      "nodes": 30649,
+      "pieces": 540,
+      "ply": 792,
+      "position": 6,
+      "q_nodes": 26270,
+      "score": -8743,
+      "signature": "4b81261209f4f89e6c2ee69bfb079bf74e7618f8152d07952f31e7643a9bbc68"
+    }
+  },
+  {
+    "position": 6,
+    "model": 3,
+    "depth": 1,
+    "pilot": {
+      "aborted": true,
+      "agent": "NNUE2048",
+      "best": {
+        "data": "Standard",
+        "from": {
+          "file": 17,
+          "rank": 3
+        },
+        "promoted": false,
+        "to": {
+          "file": 0,
+          "rank": 20
+        }
+      },
+      "completed_depth": 1,
+      "cpu_ms": 1000.126,
+      "depth": 4,
+      "hash": 18124887825513169646,
+      "legal": 526,
+      "model": 3,
+      "ms": 1000.136221,
+      "name": "late-independent",
+      "nnue": true,
+      "nodes": 10342,
+      "pieces": 540,
+      "ply": 792,
+      "position": 6,
+      "q_nodes": 7698,
+      "score": -8386,
+      "signature": "839a7984ec1e6e5e024037d09e3a52c006d9693b232c77a50541377ee902982d"
+    }
+  },
+  {
+    "position": 7,
+    "model": 0,
+    "depth": 3,
+    "pilot": {
+      "aborted": true,
+      "agent": "BASE_C2S2_A40_Lmate",
+      "best": {
+        "data": "Standard",
+        "from": {
+          "file": 12,
+          "rank": 11
+        },
+        "promoted": false,
+        "to": {
+          "file": 11,
+          "rank": 10
+        }
+      },
+      "completed_depth": 3,
+      "cpu_ms": 1000.111,
+      "depth": 4,
+      "hash": 7076088185625907000,
+      "legal": 884,
+      "model": 0,
+      "ms": 1000.1257189999999,
+      "name": "late-royal",
+      "nnue": false,
+      "nodes": 59935,
+      "pieces": 306,
+      "ply": 842,
+      "position": 7,
+      "q_nodes": 25491,
+      "score": -7896,
+      "signature": "631f378d61160c899ac1022e52e7780e98275d387e00b445b8b7a7f480199538"
+    }
+  },
+  {
+    "position": 7,
+    "model": 1,
+    "depth": 3,
+    "pilot": {
+      "aborted": true,
+      "agent": "C2K50A1",
+      "best": {
+        "data": "Standard",
+        "from": {
+          "file": 12,
+          "rank": 11
+        },
+        "promoted": false,
+        "to": {
+          "file": 11,
+          "rank": 10
+        }
+      },
+      "completed_depth": 3,
+      "cpu_ms": 1000.854,
+      "depth": 4,
+      "hash": 7076088185625907000,
+      "legal": 884,
+      "model": 1,
+      "ms": 1000.858148,
+      "name": "late-royal",
+      "nnue": false,
+      "nodes": 60809,
+      "pieces": 306,
+      "ply": 842,
+      "position": 7,
+      "q_nodes": 25403,
+      "score": -7401,
+      "signature": "844436ad64f41d1d4ffca86ec840280d5cc35c60b0761cdb7864435cd8f80cf1"
+    }
+  },
+  {
+    "position": 7,
+    "model": 2,
+    "depth": 3,
+    "pilot": {
+      "aborted": true,
+      "agent": "NNUE512",
+      "best": {
+        "data": "Standard",
+        "from": {
+          "file": 12,
+          "rank": 11
+        },
+        "promoted": false,
+        "to": {
+          "file": 13,
+          "rank": 12
+        }
+      },
+      "completed_depth": 3,
+      "cpu_ms": 1008.157,
+      "depth": 4,
+      "hash": 7076088185625907000,
+      "legal": 884,
+      "model": 2,
+      "ms": 1008.3250889999999,
+      "name": "late-royal",
+      "nnue": true,
+      "nodes": 26139,
+      "pieces": 306,
+      "ply": 842,
+      "position": 7,
+      "q_nodes": 11960,
+      "score": -8070,
+      "signature": "2b24b257f22a7a0da414145dfc6f79f3595a4f49eaf1cfae9ddfc582464f12d3"
+    }
+  },
+  {
+    "position": 7,
+    "model": 3,
+    "depth": 2,
+    "pilot": {
+      "aborted": true,
+      "agent": "NNUE2048",
+      "best": {
+        "data": "Standard",
+        "from": {
+          "file": 12,
+          "rank": 11
+        },
+        "promoted": false,
+        "to": {
+          "file": 14,
+          "rank": 11
+        }
+      },
+      "completed_depth": 2,
+      "cpu_ms": 1031.609,
+      "depth": 4,
+      "hash": 7076088185625907000,
+      "legal": 884,
+      "model": 3,
+      "ms": 1031.956734,
+      "name": "late-royal",
+      "nnue": true,
+      "nodes": 8047,
+      "pieces": 306,
+      "ply": 842,
+      "position": 7,
+      "q_nodes": 3976,
+      "score": -8357,
+      "signature": "d24fa70f96635a10da9fbae54e501adf586d2a4ed75b3cd3217311ab7a717aed"
+    }
+  },
+  {
+    "position": 11,
+    "model": 0,
+    "depth": 3,
+    "pilot": {
+      "aborted": true,
+      "agent": "BASE_C2S2_A40_Lmate",
+      "best": {
+        "data": "Standard",
+        "from": {
+          "file": 32,
+          "rank": 4
+        },
+        "promoted": false,
+        "to": {
+          "file": 33,
+          "rank": 5
+        }
+      },
+      "completed_depth": 3,
+      "cpu_ms": 999.935,
+      "depth": 4,
+      "hash": 9328761023618933731,
+      "legal": 575,
+      "model": 0,
+      "ms": 1000.055299,
+      "name": "late-endgame",
+      "nnue": false,
+      "nodes": 134505,
+      "pieces": 192,
+      "ply": 1146,
+      "position": 11,
+      "q_nodes": 30450,
+      "score": -3609,
+      "signature": "0d0d0d8331521c21431942bddbdd14a30df4f1c784aef4b4de98b52fc43edd41",
+      "pid": 498,
+      "rss_kib": 1238572,
+      "peak_rss_kib": 1238572
+    }
+  },
+  {
+    "position": 11,
+    "model": 1,
+    "depth": 3,
+    "pilot": {
+      "aborted": true,
+      "agent": "C2K50A1",
+      "best": {
+        "data": "Standard",
+        "from": {
+          "file": 26,
+          "rank": 2
+        },
+        "promoted": false,
+        "to": {
+          "file": 25,
+          "rank": 3
+        }
+      },
+      "completed_depth": 3,
+      "cpu_ms": 1000.33,
+      "depth": 4,
+      "hash": 9328761023618933731,
+      "legal": 575,
+      "model": 1,
+      "ms": 1000.3506669999999,
+      "name": "late-endgame",
+      "nnue": false,
+      "nodes": 141007,
+      "pieces": 192,
+      "ply": 1146,
+      "position": 11,
+      "q_nodes": 21791,
+      "score": -3588,
+      "signature": "942daba1fa7045b7367183a86f937a74885e5d342480f430d92784a6ef433b91",
+      "pid": 498,
+      "rss_kib": 1238572,
+      "peak_rss_kib": 1238572
+    }
+  },
+  {
+    "position": 11,
+    "model": 2,
+    "depth": 2,
+    "pilot": {
+      "aborted": true,
+      "agent": "NNUE512",
+      "best": {
+        "data": "Standard",
+        "from": {
+          "file": 17,
+          "rank": 5
+        },
+        "promoted": false,
+        "to": {
+          "file": 22,
+          "rank": 0
+        }
+      },
+      "completed_depth": 2,
+      "cpu_ms": 1000.02,
+      "depth": 4,
+      "hash": 9328761023618933731,
+      "legal": 575,
+      "model": 2,
+      "ms": 1000.100591,
+      "name": "late-endgame",
+      "nnue": true,
+      "nodes": 19659,
+      "pieces": 192,
+      "ply": 1146,
+      "position": 11,
+      "q_nodes": 7640,
+      "score": -2936,
+      "signature": "168cdd0e434761c59e1c19dd231b77873e364ea0a69c07b70f1f076faf22823a",
+      "pid": 498,
+      "rss_kib": 1238572,
+      "peak_rss_kib": 1238572
+    }
+  },
+  {
+    "position": 11,
+    "model": 3,
+    "depth": 1,
+    "pilot": {
+      "aborted": true,
+      "agent": "NNUE2048",
+      "best": {
+        "data": "Standard",
+        "from": {
+          "file": 17,
+          "rank": 5
+        },
+        "promoted": false,
+        "to": {
+          "file": 22,
+          "rank": 0
+        }
+      },
+      "completed_depth": 1,
+      "cpu_ms": 1000.103,
+      "depth": 4,
+      "hash": 9328761023618933731,
+      "legal": 575,
+      "model": 3,
+      "ms": 1000.1357959999999,
+      "name": "late-endgame",
+      "nnue": true,
+      "nodes": 5417,
+      "pieces": 192,
+      "ply": 1146,
+      "position": 11,
+      "q_nodes": 911,
+      "score": -2728,
+      "signature": "d18d76cc738737669bd4da84333722b8aa19e59970dc68932118b96178a1d794",
+      "pid": 498,
+      "rss_kib": 1238572,
+      "peak_rss_kib": 1238572
+    }
+  }
+]

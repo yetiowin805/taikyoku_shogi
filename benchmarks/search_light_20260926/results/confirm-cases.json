@@ -1,0 +1,926 @@
+[
+  {
+    "position": 1,
+    "model": 0,
+    "depth": 3,
+    "pilot": {
+      "aborted": true,
+      "agent": "BASE_C2S2_A40_Lmate",
+      "best": {
+        "data": "Standard",
+        "from": {
+          "file": 29,
+          "rank": 2
+        },
+        "promoted": true,
+        "to": {
+          "file": 29,
+          "rank": 35
+        }
+      },
+      "completed_depth": 3,
+      "cpu_ms": 1000.034,
+      "depth": 4,
+      "hash": 5652808288074920477,
+      "legal": 564,
+      "model": 0,
+      "ms": 1000.111829,
+      "name": "middlegame",
+      "nnue": false,
+      "nodes": 37912,
+      "pieces": 621,
+      "ply": 160,
+      "position": 1,
+      "q_nodes": 22103,
+      "score": -7114,
+      "signature": "680e45ecf4b5b1cb952cd710b1c72fd0f77e3510b66d8413fa891953703cd145"
+    }
+  },
+  {
+    "position": 1,
+    "model": 1,
+    "depth": 3,
+    "pilot": {
+      "aborted": true,
+      "agent": "C2K50A1",
+      "best": {
+        "data": "Standard",
+        "from": {
+          "file": 29,
+          "rank": 2
+        },
+        "promoted": true,
+        "to": {
+          "file": 29,
+          "rank": 35
+        }
+      },
+      "completed_depth": 3,
+      "cpu_ms": 999.639,
+      "depth": 4,
+      "hash": 5652808288074920477,
+      "legal": 564,
+      "model": 1,
+      "ms": 1000.116628,
+      "name": "middlegame",
+      "nnue": false,
+      "nodes": 41129,
+      "pieces": 621,
+      "ply": 160,
+      "position": 1,
+      "q_nodes": 23095,
+      "score": -6737,
+      "signature": "a43299ef0bea1cd8ecf6db0a885c545ac35faa9d69fa49660658e825637c58ef"
+    }
+  },
+  {
+    "position": 1,
+    "model": 2,
+    "depth": 3,
+    "pilot": {
+      "aborted": true,
+      "agent": "NNUE512",
+      "best": {
+        "data": "Standard",
+        "from": {
+          "file": 29,
+          "rank": 0
+        },
+        "promoted": false,
+        "to": {
+          "file": 9,
+          "rank": 20
+        }
+      },
+      "completed_depth": 3,
+      "cpu_ms": 999.911,
+      "depth": 4,
+      "hash": 5652808288074920477,
+      "legal": 564,
+      "model": 2,
+      "ms": 1000.1565640000001,
+      "name": "middlegame",
+      "nnue": true,
+      "nodes": 29148,
+      "pieces": 621,
+      "ply": 160,
+      "position": 1,
+      "q_nodes": 18734,
+      "score": -10134,
+      "signature": "4aa1f615d30bff9ebe1130a82a07ca956e02c5cf90a16590cfbfffb59a6d8143"
+    }
+  },
+  {
+    "position": 1,
+    "model": 3,
+    "depth": 2,
+    "pilot": {
+      "aborted": true,
+      "agent": "NNUE2048",
+      "best": {
+        "data": "Standard",
+        "from": {
+          "file": 29,
+          "rank": 2
+        },
+        "promoted": false,
+        "to": {
+          "file": 29,
+          "rank": 35
+        }
+      },
+      "completed_depth": 2,
+      "cpu_ms": 1000.248,
+      "depth": 4,
+      "hash": 5652808288074920477,
+      "legal": 564,
+      "model": 3,
+      "ms": 1000.245691,
+      "name": "middlegame",
+      "nnue": true,
+      "nodes": 11752,
+      "pieces": 621,
+      "ply": 160,
+      "position": 1,
+      "q_nodes": 8045,
+      "score": -10109,
+      "signature": "425a6abc3242867eceb5ef7f26f8f5a89d1dd1d0f3a38c6acc94a52ad01e261d"
+    }
+  },
+  {
+    "position": 4,
+    "model": 0,
+    "depth": 1,
+    "pilot": {
+      "aborted": true,
+      "agent": "BASE_C2S2_A40_Lmate",
+      "best": {
+        "data": "Standard",
+        "from": {
+          "file": 17,
+          "rank": 33
+        },
+        "promoted": false,
+        "to": {
+          "file": 18,
+          "rank": 32
+        }
+      },
+      "completed_depth": 1,
+      "cpu_ms": 1000.025,
+      "depth": 4,
+      "hash": 14281953399044108355,
+      "legal": 383,
+      "model": 0,
+      "ms": 1000.1103710000001,
+      "name": "early-development",
+      "nnue": false,
+      "nodes": 44398,
+      "pieces": 781,
+      "ply": 21,
+      "position": 4,
+      "q_nodes": 36860,
+      "score": -45,
+      "signature": "2bff6466c4827a3587c6b75ad77cc08093e61672e611ba470e3589555865696b"
+    }
+  },
+  {
+    "position": 4,
+    "model": 1,
+    "depth": 2,
+    "pilot": {
+      "aborted": true,
+      "agent": "C2K50A1",
+      "best": {
+        "data": "Standard",
+        "from": {
+          "file": 18,
+          "rank": 24
+        },
+        "promoted": false,
+        "to": {
+          "file": 9,
+          "rank": 15
+        }
+      },
+      "completed_depth": 2,
+      "cpu_ms": 1000.083,
+      "depth": 4,
+      "hash": 14281953399044108355,
+      "legal": 383,
+      "model": 1,
+      "ms": 1000.106978,
+      "name": "early-development",
+      "nnue": false,
+      "nodes": 50888,
+      "pieces": 781,
+      "ply": 21,
+      "position": 4,
+      "q_nodes": 42197,
+      "score": 1912,
+      "signature": "0a52759f6ea6326c334a7c012b7e0a87ecb796a01fb338e8e4b0281db5685ad3"
+    }
+  },
+  {
+    "position": 4,
+    "model": 2,
+    "depth": 2,
+    "pilot": {
+      "aborted": true,
+      "agent": "NNUE512",
+      "best": {
+        "data": "Standard",
+        "from": {
+          "file": 17,
+          "rank": 32
+        },
+        "promoted": false,
+        "to": {
+          "file": 3,
+          "rank": 18
+        }
+      },
+      "completed_depth": 2,
+      "cpu_ms": 1000.028,
+      "depth": 4,
+      "hash": 14281953399044108355,
+      "legal": 383,
+      "model": 2,
+      "ms": 1000.111953,
+      "name": "early-development",
+      "nnue": true,
+      "nodes": 17257,
+      "pieces": 781,
+      "ply": 21,
+      "position": 4,
+      "q_nodes": 13173,
+      "score": 2028,
+      "signature": "5f39e97dd8a7bdc0e67042e2ae4c45349cd7cad80550ea5afd4006f56e645c0f"
+    }
+  },
+  {
+    "position": 4,
+    "model": 3,
+    "depth": 2,
+    "pilot": {
+      "aborted": true,
+      "agent": "NNUE2048",
+      "best": {
+        "data": "Standard",
+        "from": {
+          "file": 17,
+          "rank": 32
+        },
+        "promoted": false,
+        "to": {
+          "file": 3,
+          "rank": 18
+        }
+      },
+      "completed_depth": 2,
+      "cpu_ms": 999.269,
+      "depth": 4,
+      "hash": 14281953399044108355,
+      "legal": 383,
+      "model": 3,
+      "ms": 1000.3025260000001,
+      "name": "early-development",
+      "nnue": true,
+      "nodes": 7684,
+      "pieces": 781,
+      "ply": 21,
+      "position": 4,
+      "q_nodes": 5394,
+      "score": 2127,
+      "signature": "d53bc42dc77b1ede818ab8a26a3110acf415d128565d86d46ba69bd51f0cae98"
+    }
+  },
+  {
+    "position": 5,
+    "model": 0,
+    "depth": 2,
+    "pilot": {
+      "aborted": true,
+      "agent": "BASE_C2S2_A40_Lmate",
+      "best": {
+        "data": "Standard",
+        "from": {
+          "file": 17,
+          "rank": 29
+        },
+        "promoted": false,
+        "to": {
+          "file": 18,
+          "rank": 28
+        }
+      },
+      "completed_depth": 2,
+      "cpu_ms": 1000.143,
+      "depth": 4,
+      "hash": 10778272738342888278,
+      "legal": 541,
+      "model": 0,
+      "ms": 1000.1445600000001,
+      "name": "midgame-independent",
+      "nnue": false,
+      "nodes": 34036,
+      "pieces": 589,
+      "ply": 187,
+      "position": 5,
+      "q_nodes": 18810,
+      "score": -14535,
+      "signature": "d92fa08515b1601af47e80aea1c6bd1d1d2bbebb8e26a0e0f1998e0a8bcedcc2"
+    }
+  },
+  {
+    "position": 5,
+    "model": 1,
+    "depth": 2,
+    "pilot": {
+      "aborted": true,
+      "agent": "C2K50A1",
+      "best": {
+        "data": "Standard",
+        "from": {
+          "file": 19,
+          "rank": 6
+        },
+        "promoted": false,
+        "to": {
+          "file": 15,
+          "rank": 2
+        }
+      },
+      "completed_depth": 2,
+      "cpu_ms": 1000.105,
+      "depth": 4,
+      "hash": 10778272738342888278,
+      "legal": 541,
+      "model": 1,
+      "ms": 1000.1644990000001,
+      "name": "midgame-independent",
+      "nnue": false,
+      "nodes": 40270,
+      "pieces": 589,
+      "ply": 187,
+      "position": 5,
+      "q_nodes": 30096,
+      "score": -15052,
+      "signature": "408582cfdfa50f2ce159eed7c37971a5fc8ee0dbfd01c07935310146a815164b"
+    }
+  },
+  {
+    "position": 5,
+    "model": 2,
+    "depth": 2,
+    "pilot": {
+      "aborted": true,
+      "agent": "NNUE512",
+      "best": {
+        "data": "Standard",
+        "from": {
+          "file": 21,
+          "rank": 32
+        },
+        "promoted": false,
+        "to": {
+          "file": 20,
+          "rank": 33
+        }
+      },
+      "completed_depth": 2,
+      "cpu_ms": 1000.086,
+      "depth": 4,
+      "hash": 10778272738342888278,
+      "legal": 541,
+      "model": 2,
+      "ms": 1000.092873,
+      "name": "midgame-independent",
+      "nnue": true,
+      "nodes": 21513,
+      "pieces": 589,
+      "ply": 187,
+      "position": 5,
+      "q_nodes": 14072,
+      "score": -12000,
+      "signature": "d42b81e23d39051b49241d0bacf27e425e42916e5e6bea8fc811bf83b529052d"
+    }
+  },
+  {
+    "position": 5,
+    "model": 3,
+    "depth": 1,
+    "pilot": {
+      "aborted": true,
+      "agent": "NNUE2048",
+      "best": {
+        "data": "Standard",
+        "from": {
+          "file": 21,
+          "rank": 32
+        },
+        "promoted": false,
+        "to": {
+          "file": 20,
+          "rank": 33
+        }
+      },
+      "completed_depth": 1,
+      "cpu_ms": 1016.985,
+      "depth": 4,
+      "hash": 10778272738342888278,
+      "legal": 541,
+      "model": 3,
+      "ms": 1017.0054909999999,
+      "name": "midgame-independent",
+      "nnue": true,
+      "nodes": 11041,
+      "pieces": 589,
+      "ply": 187,
+      "position": 5,
+      "q_nodes": 3451,
+      "score": -12216,
+      "signature": "80c090fa4f723fdbf96b6f34484e26743d0a5a8bef1f6341f37ecb8e2c02a693"
+    }
+  },
+  {
+    "position": 8,
+    "model": 0,
+    "depth": 1,
+    "pilot": {
+      "aborted": true,
+      "agent": "BASE_C2S2_A40_Lmate",
+      "best": {
+        "data": "Standard",
+        "from": {
+          "file": 24,
+          "rank": 15
+        },
+        "promoted": false,
+        "to": {
+          "file": 15,
+          "rank": 6
+        }
+      },
+      "completed_depth": 1,
+      "cpu_ms": 1001.479,
+      "depth": 4,
+      "hash": 10641969254352142186,
+      "legal": 4477,
+      "model": 0,
+      "ms": 1001.4955709999999,
+      "name": "champs-midgame",
+      "nnue": false,
+      "nodes": 22480,
+      "pieces": 682,
+      "ply": 151,
+      "position": 8,
+      "q_nodes": 11514,
+      "score": 283,
+      "signature": "7ebc660b732700e3d37242b24ceff95cdc3d8895adfd7d29b47c0cdd8d59ce1e",
+      "pid": 498,
+      "rss_kib": 21556,
+      "peak_rss_kib": 35156
+    }
+  },
+  {
+    "position": 8,
+    "model": 1,
+    "depth": 1,
+    "pilot": {
+      "aborted": true,
+      "agent": "C2K50A1",
+      "best": {
+        "data": "Standard",
+        "from": {
+          "file": 24,
+          "rank": 15
+        },
+        "promoted": false,
+        "to": {
+          "file": 15,
+          "rank": 6
+        }
+      },
+      "completed_depth": 1,
+      "cpu_ms": 1000.062,
+      "depth": 4,
+      "hash": 10641969254352142186,
+      "legal": 4477,
+      "model": 1,
+      "ms": 1000.098623,
+      "name": "champs-midgame",
+      "nnue": false,
+      "nodes": 23571,
+      "pieces": 682,
+      "ply": 151,
+      "position": 8,
+      "q_nodes": 12481,
+      "score": 1228,
+      "signature": "58e3d2d4e77f46ebc91096f1d08e08369f90eb09a2ff4e19b05875ab67030f17",
+      "pid": 498,
+      "rss_kib": 45564,
+      "peak_rss_kib": 45564
+    }
+  },
+  {
+    "position": 8,
+    "model": 2,
+    "depth": 1,
+    "pilot": {
+      "aborted": true,
+      "agent": "NNUE512",
+      "best": {
+        "data": "Standard",
+        "from": {
+          "file": 24,
+          "rank": 15
+        },
+        "promoted": false,
+        "to": {
+          "file": 15,
+          "rank": 6
+        }
+      },
+      "completed_depth": 1,
+      "cpu_ms": 1029.981,
+      "depth": 4,
+      "hash": 10641969254352142186,
+      "legal": 4477,
+      "model": 2,
+      "ms": 1029.995504,
+      "name": "champs-midgame",
+      "nnue": true,
+      "nodes": 17701,
+      "pieces": 682,
+      "ply": 151,
+      "position": 8,
+      "q_nodes": 8425,
+      "score": 426,
+      "signature": "823f670cda79d3db1145cb8c009d66976807e5e04148eca1807d20c7621c787a",
+      "pid": 498,
+      "rss_kib": 284236,
+      "peak_rss_kib": 284236
+    }
+  },
+  {
+    "position": 8,
+    "model": 3,
+    "depth": 1,
+    "pilot": {
+      "aborted": true,
+      "agent": "NNUE2048",
+      "best": {
+        "data": "Standard",
+        "from": {
+          "file": 24,
+          "rank": 15
+        },
+        "promoted": false,
+        "to": {
+          "file": 15,
+          "rank": 6
+        }
+      },
+      "completed_depth": 1,
+      "cpu_ms": 1000.146,
+      "depth": 4,
+      "hash": 10641969254352142186,
+      "legal": 4477,
+      "model": 3,
+      "ms": 1000.1950989999999,
+      "name": "champs-midgame",
+      "nnue": true,
+      "nodes": 15162,
+      "pieces": 682,
+      "ply": 151,
+      "position": 8,
+      "q_nodes": 6532,
+      "score": 306,
+      "signature": "8eb5549467039b8ff9cdbe26ba020eebaf26039be5a7785fab18bf76c333bcdf",
+      "pid": 498,
+      "rss_kib": 1238424,
+      "peak_rss_kib": 1238424
+    }
+  },
+  {
+    "position": 9,
+    "model": 0,
+    "depth": 1,
+    "pilot": {
+      "aborted": true,
+      "agent": "BASE_C2S2_A40_Lmate",
+      "best": {
+        "data": "Standard",
+        "from": {
+          "file": 5,
+          "rank": 8
+        },
+        "promoted": false,
+        "to": {
+          "file": 3,
+          "rank": 10
+        }
+      },
+      "completed_depth": 1,
+      "cpu_ms": 1000.072,
+      "depth": 4,
+      "hash": 13655624684366827340,
+      "legal": 2612,
+      "model": 0,
+      "ms": 1000.1206739999999,
+      "name": "twins-midgame-a",
+      "nnue": false,
+      "nodes": 29934,
+      "pieces": 622,
+      "ply": 162,
+      "position": 9,
+      "q_nodes": 17790,
+      "score": 580,
+      "signature": "9608c2d2a137b139c30d075887c8e6b216ff537b03142c6d1fbef15d65b4ba14",
+      "pid": 498,
+      "rss_kib": 1238572,
+      "peak_rss_kib": 1238572
+    }
+  },
+  {
+    "position": 9,
+    "model": 1,
+    "depth": 1,
+    "pilot": {
+      "aborted": true,
+      "agent": "C2K50A1",
+      "best": {
+        "data": "Standard",
+        "from": {
+          "file": 5,
+          "rank": 8
+        },
+        "promoted": false,
+        "to": {
+          "file": 3,
+          "rank": 10
+        }
+      },
+      "completed_depth": 1,
+      "cpu_ms": 1000.136,
+      "depth": 4,
+      "hash": 13655624684366827340,
+      "legal": 2612,
+      "model": 1,
+      "ms": 1000.166686,
+      "name": "twins-midgame-a",
+      "nnue": false,
+      "nodes": 31019,
+      "pieces": 622,
+      "ply": 162,
+      "position": 9,
+      "q_nodes": 18601,
+      "score": 978,
+      "signature": "a09a5cdef4245cf8fa75b52d6c1fb40aade8431fe83a91f5e07adbeb8d1e8240",
+      "pid": 498,
+      "rss_kib": 1238572,
+      "peak_rss_kib": 1238572
+    }
+  },
+  {
+    "position": 9,
+    "model": 2,
+    "depth": 2,
+    "pilot": {
+      "aborted": true,
+      "agent": "NNUE512",
+      "best": {
+        "data": "Standard",
+        "from": {
+          "file": 13,
+          "rank": 2
+        },
+        "promoted": false,
+        "to": {
+          "file": 14,
+          "rank": 1
+        }
+      },
+      "completed_depth": 2,
+      "cpu_ms": 999.911,
+      "depth": 4,
+      "hash": 13655624684366827340,
+      "legal": 2612,
+      "model": 2,
+      "ms": 1000.139911,
+      "name": "twins-midgame-a",
+      "nnue": true,
+      "nodes": 27395,
+      "pieces": 622,
+      "ply": 162,
+      "position": 9,
+      "q_nodes": 13891,
+      "score": 2276,
+      "signature": "6ba829e64a5cd58ee1225e49b427811ed17d5eb35e6facc8edcb625982aa2c7f",
+      "pid": 498,
+      "rss_kib": 1238572,
+      "peak_rss_kib": 1238572
+    }
+  },
+  {
+    "position": 9,
+    "model": 3,
+    "depth": 1,
+    "pilot": {
+      "aborted": true,
+      "agent": "NNUE2048",
+      "best": {
+        "data": "Standard",
+        "from": {
+          "file": 13,
+          "rank": 2
+        },
+        "promoted": false,
+        "to": {
+          "file": 14,
+          "rank": 1
+        }
+      },
+      "completed_depth": 1,
+      "cpu_ms": 1000.129,
+      "depth": 4,
+      "hash": 13655624684366827340,
+      "legal": 2612,
+      "model": 3,
+      "ms": 1000.1624790000001,
+      "name": "twins-midgame-a",
+      "nnue": true,
+      "nodes": 13130,
+      "pieces": 622,
+      "ply": 162,
+      "position": 9,
+      "q_nodes": 6688,
+      "score": 2129,
+      "signature": "bfd8b76f8528d506abffaf07680c93b0e8315d25b41cc96c07175c1f61bd685b",
+      "pid": 498,
+      "rss_kib": 1238572,
+      "peak_rss_kib": 1238572
+    }
+  },
+  {
+    "position": 10,
+    "model": 0,
+    "depth": 2,
+    "pilot": {
+      "aborted": true,
+      "agent": "BASE_C2S2_A40_Lmate",
+      "best": {
+        "data": "Standard",
+        "from": {
+          "file": 12,
+          "rank": 25
+        },
+        "promoted": false,
+        "to": {
+          "file": 0,
+          "rank": 13
+        }
+      },
+      "completed_depth": 2,
+      "cpu_ms": 1000.029,
+      "depth": 4,
+      "hash": 15435263636104588142,
+      "legal": 1780,
+      "model": 0,
+      "ms": 1000.1016579999999,
+      "name": "twins-midgame-b",
+      "nnue": false,
+      "nodes": 44193,
+      "pieces": 611,
+      "ply": 128,
+      "position": 10,
+      "q_nodes": 28161,
+      "score": 1213,
+      "signature": "c7c8ad18c25ae3b5d88dddde6ec6db4ef8302a3d3f26938ad333049d7c7bbddb",
+      "pid": 498,
+      "rss_kib": 1238572,
+      "peak_rss_kib": 1238572
+    }
+  },
+  {
+    "position": 10,
+    "model": 1,
+    "depth": 2,
+    "pilot": {
+      "aborted": true,
+      "agent": "C2K50A1",
+      "best": {
+        "data": "Standard",
+        "from": {
+          "file": 12,
+          "rank": 25
+        },
+        "promoted": false,
+        "to": {
+          "file": 5,
+          "rank": 18
+        }
+      },
+      "completed_depth": 2,
+      "cpu_ms": 1000.063,
+      "depth": 4,
+      "hash": 15435263636104588142,
+      "legal": 1780,
+      "model": 1,
+      "ms": 1000.0934859999999,
+      "name": "twins-midgame-b",
+      "nnue": false,
+      "nodes": 41276,
+      "pieces": 611,
+      "ply": 128,
+      "position": 10,
+      "q_nodes": 27222,
+      "score": 1218,
+      "signature": "9fdd2ae5c75c192fc2d8e34f751bfc5591b3a05ea5e5f252d4574e987b040eaa",
+      "pid": 498,
+      "rss_kib": 1238572,
+      "peak_rss_kib": 1238572
+    }
+  },
+  {
+    "position": 10,
+    "model": 2,
+    "depth": 1,
+    "pilot": {
+      "aborted": true,
+      "agent": "NNUE512",
+      "best": {
+        "data": "Standard",
+        "from": {
+          "file": 23,
+          "rank": 1
+        },
+        "promoted": false,
+        "to": {
+          "file": 5,
+          "rank": 19
+        }
+      },
+      "completed_depth": 1,
+      "cpu_ms": 999.76,
+      "depth": 4,
+      "hash": 15435263636104588142,
+      "legal": 1780,
+      "model": 2,
+      "ms": 1000.0799069999999,
+      "name": "twins-midgame-b",
+      "nnue": true,
+      "nodes": 29828,
+      "pieces": 611,
+      "ply": 128,
+      "position": 10,
+      "q_nodes": 23509,
+      "score": 1031,
+      "signature": "7f7ad5101bd716680a4fffe3de4eca1aa601eb2b947f4b493d35f93816978f55",
+      "pid": 498,
+      "rss_kib": 1238572,
+      "peak_rss_kib": 1238572
+    }
+  },
+  {
+    "position": 10,
+    "model": 3,
+    "depth": 1,
+    "pilot": {
+      "aborted": true,
+      "agent": "NNUE2048",
+      "best": {
+        "data": "Standard",
+        "from": {
+          "file": 23,
+          "rank": 1
+        },
+        "promoted": false,
+        "to": {
+          "file": 5,
+          "rank": 19
+        }
+      },
+      "completed_depth": 1,
+      "cpu_ms": 1000.062,
+      "depth": 4,
+      "hash": 15435263636104588142,
+      "legal": 1780,
+      "model": 3,
+      "ms": 1000.1502380000001,
+      "name": "twins-midgame-b",
+      "nnue": true,
+      "nodes": 14478,
+      "pieces": 611,
+      "ply": 128,
+      "position": 10,
+      "q_nodes": 10301,
+      "score": 1388,
+      "signature": "b948662be68307492e818412fb9f25c48b133eb7bc1c686b8294f94cfcb22c9a",
+      "pid": 498,
+      "rss_kib": 1238572,
+      "peak_rss_kib": 1238572
+    }
+  }
+]

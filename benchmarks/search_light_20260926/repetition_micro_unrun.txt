@@ -1,0 +1,22 @@
+    for length in [8usize, 64, 512, 2048] {
+        let prefix: Vec<u64> = (0..length).map(|_|next() as u64).collect();
+        let queries: Vec<u64> = (0..1024).map(|i| if i%16==0 {prefix[next()%length]} else {next() as u64}).collect();
+        pair(&format!("repetition-history-{length}"), 16*queries.len(), || {
+            let mut history=prefix.clone();let mut total=0;
+            for _ in 0..16 { for &key in black_box(&queries) {
+                history.push(key);total += history.iter().filter(|&&k|k==key).count();history.pop();
+            } } total
+        }, || {
+            let mut counts=std::collections::HashMap::new();
+            for &key in &prefix { *counts.entry(key).or_insert(0usize) += 1; }
+            let mut total=0;
+            for _ in 0..16 { for &key in black_box(&queries) {
+                *counts.entry(key).or_insert(0) += 1;
+                total += counts[&key];
+                let count=counts.get_mut(&key).unwrap();*count -= 1;
+                if *count==0 { counts.remove(&key); }
+            } } total
+        });
+    }
+
+}
