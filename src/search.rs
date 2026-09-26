@@ -14,7 +14,10 @@ use crate::piece::{Color, Piece};
 use crate::position::Position;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
-use std::sync::OnceLock;
+use std::sync::{
+    atomic::{AtomicBool, Ordering as AtomicOrdering},
+    Arc, OnceLock,
+};
 use std::time::{Duration, Instant};
 
 /// Max root moves kept in the GUI tree (best + alternatives).
@@ -235,6 +238,10 @@ enum CaptureKind {
 pub struct SearchConfig {
     pub depth: u32,
     pub max_time_ms: Option<u64>,
+    /// Cooperative cancellation for interactive/background analysis.
+    pub cancel: Option<Arc<AtomicBool>>,
+    /// Approximate single-thread CPU duty cycle (10..=100).
+    pub cpu_percent: u8,
     /// When true, build multipv root lines + reply trees for the GUI.
     /// Does not change which move is selected as best.
     pub collect_trace: bool,
@@ -278,6 +285,8 @@ impl Default for SearchConfig {
         Self {
             depth: 2,
             max_time_ms: None,
+            cancel: None,
+            cpu_percent: 100,
             collect_trace: false,
             quiescence_depth: 2,
             // PathAware: net-gain + top-N with SimpleTake hang + deep taper.
@@ -385,6 +394,10 @@ pub struct SearchResult {
 
 struct SearchContext {
     deadline: Option<Instant>,
+    cancel: Option<Arc<AtomicBool>>,
+    cpu_percent: u8,
+    last_throttle: Instant,
+    last_throttle_nodes: u64,
     nodes: u64,
     abort: bool,
     /// Ply counter for eval noise (does not rely on move_history during search).
@@ -1978,13 +1991,13 @@ pub(crate) fn generate_captures_hitting_square(state: &GameState, victim: Positi
 /// Uses iterative deepening from depth 1..=`config.depth`. On timeout mid-iteration,
 /// returns the last **completed** iteration's result.
 pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -> SearchResult {
-    search_with_progress(state, weights, config, &mut |_, _, _, _| {})
+    search_with_progress(state, weights, config, &mut |_, _, _, _, _| {})
 }
 
 /// Report each completed iteration before starting deeper work.
 pub fn search_with_progress(
     state: &GameState, weights: &EvalWeights, config: &SearchConfig,
-    progress: &mut dyn FnMut(u32, i32, &Move, u64),
+    progress: &mut dyn FnMut(u32, i32, &Move, u64, &[(Move, i32)]),
 ) -> SearchResult {
     // Search eval skips deterministic noise (hashes every piece when enabled).
     let mut weights_buf;
@@ -2007,6 +2020,10 @@ pub fn search_with_progress(
 
     let mut ctx = SearchContext {
         deadline,
+        cancel: config.cancel.clone(),
+        cpu_percent: config.cpu_percent.clamp(10, 100),
+        last_throttle: now,
+        last_throttle_nodes: 0,
         nodes: 0,
         abort: false,
         ply: root_ply,
@@ -2394,7 +2411,13 @@ pub fn search_with_progress(
             completed_score = iter_score;
             completed_depth = d;
             actual_completed_depth = d;
-            progress(d, completed_score, &completed_best, ctx.nodes);
+            progress(
+                d,
+                completed_score,
+                &completed_best,
+                ctx.nodes,
+                &completed_lines,
+            );
             ctx.best_score = completed_score;
 
             if d < max_depth {
@@ -2516,6 +2539,10 @@ pub fn probe_quiescence(
     let now = Instant::now();
     let mut ctx = SearchContext {
         deadline,
+        cancel: None,
+        cpu_percent: 100,
+        last_throttle: now,
+        last_throttle_nodes: 0,
         nodes: 0,
         abort: false,
         ply: root_ply,
@@ -2644,6 +2671,10 @@ fn probe_quiesce_window(
     let now = Instant::now();
     let mut ctx = SearchContext {
         deadline: None,
+        cancel: None,
+        cpu_percent: 100,
+        last_throttle: now,
+        last_throttle_nodes: 0,
         nodes: 0,
         abort: false,
         ply: root_ply,
@@ -2748,6 +2779,10 @@ fn probe_quiet_parent_leaf_stats(
     let now = Instant::now();
     let mut ctx = SearchContext {
         deadline: None,
+        cancel: None,
+        cpu_percent: 100,
+        last_throttle: now,
+        last_throttle_nodes: 0,
         nodes: 0,
         abort: false,
         ply: root_ply,
@@ -2847,6 +2882,10 @@ fn probe_capture_parent_leaf_or_quiesce_rs(
     let now = Instant::now();
     let mut ctx = SearchContext {
         deadline: None,
+        cancel: None,
+        cpu_percent: 100,
+        last_throttle: now,
+        last_throttle_nodes: 0,
         nodes: 0,
         abort: false,
         ply: root_ply,
@@ -4322,8 +4361,29 @@ impl SearchContext {
         if self.nodes & 0xff == 0 {
             self.maybe_log_progress();
         }
+        if self
+            .cancel
+            .as_ref()
+            .is_some_and(|cancel| cancel.load(AtomicOrdering::Relaxed))
+        {
+            self.abort = true;
+            return true;
+        }
         if self.abort {
             return true;
+        }
+        if self.cpu_percent < 100
+            && self.nodes & 0xff == 0
+            && self.nodes != self.last_throttle_nodes
+        {
+            let work = self.last_throttle.elapsed();
+            let ratio = f64::from(100 - self.cpu_percent) / f64::from(self.cpu_percent);
+            let rest = work.mul_f64(ratio).min(Duration::from_millis(50));
+            if !rest.is_zero() {
+                std::thread::sleep(rest);
+            }
+            self.last_throttle = Instant::now();
+            self.last_throttle_nodes = self.nodes;
         }
         if let Some(deadline) = self.deadline {
             if Instant::now() >= deadline {
@@ -4432,6 +4492,65 @@ fn move_coordinates(mv: &Move) -> MoveCoordinates {
         to_file: 36 - mv.to.file,
         to_rank: 36 - mv.to.rank,
         promoted: mv.promoted,
+    }
+}
+
+/// Build the live GUI payload for one completed iterative-deepening pass.
+/// Reply-tree expansion is deferred until the search ends; root candidates and
+/// the best-move arrow are available immediately at every completed depth.
+pub fn search_info_from_iteration(
+    agent: &str,
+    side: &str,
+    state: &GameState,
+    weights: &EvalWeights,
+    requested_depth: u32,
+    depth: u32,
+    score: i32,
+    best_move: &Move,
+    nodes: u64,
+    root_lines: &[(Move, i32)],
+) -> SearchInfo {
+    let best_move_label = move_label(state, best_move);
+    let root_moves: Vec<RootMoveInfo> = root_lines
+        .iter()
+        .take(MAX_TREE_ROOT_CHILDREN)
+        .map(|(mv, candidate_score)| RootMoveInfo {
+            label: move_label(state, mv),
+            score: *candidate_score,
+            best: same_root_move(mv, best_move),
+            mv: move_coordinates(mv),
+        })
+        .collect();
+    let tree_children = root_moves
+        .iter()
+        .map(|candidate| SearchTreeNode {
+            label: candidate.label.clone(),
+            score: Some(candidate.score),
+            static_eval: None,
+            best: candidate.best,
+            cutoff: false,
+            children: vec![],
+        })
+        .collect();
+    SearchInfo {
+        agent: agent.to_string(),
+        side: side.to_string(),
+        depth,
+        requested_depth,
+        nodes,
+        static_eval: evaluate_with_ply(state, weights, state.get_move_history().len()),
+        score,
+        best_move: Some(best_move_label),
+        best_move_coords: Some(move_coordinates(best_move)),
+        root_moves,
+        tree: SearchTreeNode {
+            label: "root".into(),
+            score: Some(score),
+            static_eval: None,
+            best: true,
+            cutoff: false,
+            children: tree_children,
+        },
     }
 }
 
@@ -7382,6 +7501,24 @@ impl Drop for TranspositionTable {
 #[cfg(test)]
 mod reusable_tt_tests {
     use super::*;
+
+    #[test]
+    fn cancelled_analysis_stops_before_starting_a_depth() {
+        let mut state = GameState::new();
+        state.setup_initial_position();
+        let cancel = Arc::new(AtomicBool::new(true));
+        let result = search(
+            &state,
+            &EvalWeights::seed(),
+            &SearchConfig {
+                depth: 8,
+                cancel: Some(cancel),
+                ..Default::default()
+            },
+        );
+        assert!(result.aborted);
+        assert_eq!(result.completed_depth, 0);
+    }
 
     #[test]
     fn move_coordinates_use_gui_shogi_axes() {

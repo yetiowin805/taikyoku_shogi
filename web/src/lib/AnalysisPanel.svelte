@@ -3,10 +3,8 @@
     active = $bindable(false),
     models = [],
     model = $bindable('ab-seed.json'),
-    startDepth = $bindable(2),
     maxDepth = $bindable(16),
     qDepth = $bindable(2),
-    sliceMs = $bindable(1200),
     cpuPercent = $bindable(100),
     lineCount = $bindable(3),
     search = null,
@@ -128,16 +126,10 @@
     <div class="setting">
       <div><label for="analysis-cpu">CPU budget</label><output>{cpuPercent}%</output></div>
       <input id="analysis-cpu" type="range" min="10" max="100" step="10" bind:value={cpuPercent} onchange={onRestart} />
-      <p>Lower values pause between searches so the machine stays responsive.</p>
-    </div>
-    <div class="setting">
-      <div><label for="analysis-slice">Update interval</label><output>{sliceMs} ms</output></div>
-      <input id="analysis-slice" type="range" min="250" max="5000" step="250" bind:value={sliceMs} onchange={onRestart} />
-      <p>Short is more live; long reaches deeper before each update.</p>
+      <p>Throttles the running search without discarding its transposition table or completed depths.</p>
     </div>
     <div class="setting split">
-      <label>Depth <input type="number" min="1" max="64" bind:value={startDepth} onchange={onRestart} /></label>
-      <label>Max <input type="number" min="1" max="64" bind:value={maxDepth} onchange={onRestart} /></label>
+      <label>Max depth <input type="number" min="1" max="64" bind:value={maxDepth} onchange={onRestart} /></label>
       <label>Q-depth <input type="number" min="0" max="8" bind:value={qDepth} onchange={onRestart} /></label>
       <label>Lines <input type="number" min="1" max="5" bind:value={lineCount} /></label>
     </div>

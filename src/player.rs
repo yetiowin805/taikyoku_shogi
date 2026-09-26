@@ -3,6 +3,7 @@ use crate::game_state::{GameState, Move};
 use crate::minimal_intelligence_player::MinimalIntelligencePlayer;
 use crate::random_player::RandomPlayer;
 use crate::royal_capture_player::RoyalCapturePlayer;
+use std::sync::{atomic::AtomicBool, Arc};
 
 /// Optional overrides when constructing an agent (mainly for `ab`).
 #[derive(Debug, Clone, Default)]
@@ -11,6 +12,10 @@ pub struct AgentOptions {
     pub model: Option<String>,
     pub max_time_ms: Option<u64>,
     pub quiescence_depth: Option<u32>,
+    /// Approximate single-thread CPU duty cycle for interactive analysis.
+    pub cpu_percent: Option<u8>,
+    /// Cooperative cancellation shared with a long-running analysis job.
+    pub cancel: Option<Arc<AtomicBool>>,
 }
 
 /// Optional search telemetry attached to a chosen move (AB fills these).

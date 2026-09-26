@@ -52,8 +52,8 @@ impl AlphaBetaPlayer {
     /// Build from explicit options (GUI/API), falling back to env then checkpoint defaults.
     pub fn from_options(opts: &AgentOptions) -> Self {
         let using_default_model = opts.model.is_none() && env::var("TAIKYOKU_AB_MODEL").is_err();
-        let weights = if using_default_model {
-            cached_seed_weights().clone()
+        let checkpoint = if using_default_model {
+            None
         } else {
             let model_path = opts
                 .model
@@ -61,24 +61,22 @@ impl AlphaBetaPlayer {
                 .map(PathBuf::from)
                 .or_else(|| env::var("TAIKYOKU_AB_MODEL").ok().map(PathBuf::from))
                 .unwrap_or_else(|| PathBuf::from(DEFAULT_MODEL_PATH));
-            load_checkpoint_or_seed(&model_path).weights
+            Some(load_checkpoint_or_seed(&model_path))
         };
-
-        let checkpoint_defaults = if using_default_model {
-            crate::eval::SearchDefaults::default()
-        } else {
-            let model_path = opts
-                .model
-                .as_ref()
-                .map(PathBuf::from)
-                .or_else(|| env::var("TAIKYOKU_AB_MODEL").ok().map(PathBuf::from))
-                .unwrap_or_else(|| PathBuf::from(DEFAULT_MODEL_PATH));
-            load_checkpoint_or_seed(&model_path).search_defaults
-        };
+        let weights = checkpoint
+            .as_ref()
+            .map(|cp| cp.weights.clone())
+            .unwrap_or_else(|| cached_seed_weights().clone());
+        let checkpoint_defaults = checkpoint
+            .as_ref()
+            .map(|cp| cp.search_defaults.clone())
+            .unwrap_or_default();
 
         let mut config = SearchConfig {
             depth: checkpoint_defaults.depth.max(1),
             max_time_ms: checkpoint_defaults.max_time_ms,
+            cancel: opts.cancel.clone(),
+            cpu_percent: opts.cpu_percent.unwrap_or(100).clamp(10, 100),
             collect_trace: false,
             quiescence_depth: checkpoint_defaults.quiescence_depth,
             q_prune_mode: QPruneMode::PathAware,
@@ -125,6 +123,8 @@ impl AlphaBetaPlayer {
         let mut config = SearchConfig {
             depth: checkpoint.search_defaults.depth.max(1),
             max_time_ms: checkpoint.search_defaults.max_time_ms,
+            cancel: opts.cancel.clone(),
+            cpu_percent: opts.cpu_percent.unwrap_or(100).clamp(10, 100),
             collect_trace: false,
             quiescence_depth: checkpoint.search_defaults.quiescence_depth,
             q_prune_mode: QPruneMode::PathAware,
