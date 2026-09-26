@@ -5,6 +5,10 @@ data collection and mate-position experiments are recorded in the
 [NNUE data-quality roadmap](DATA_ROADMAP.md); these proposals are not enabled by
 this document.
 
+The [GPU setup and optimization plan](GPU_PLAN.md) records the rental setup,
+correctness gates, bounded experiments, recovery requirements and CPU improvements
+to complete before the next GPU training session. CUDA training is not yet enabled.
+
 Five evaluators share the handcrafted engines' search (including S2, swap-removal
 and aspiration 500), but replace positional evaluation with a trained residual
 on **fixed material**. Accumulator widths: **512, 768, 1024, 1536, 2048** per

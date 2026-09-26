@@ -109,45 +109,107 @@ def weights_for(samples, ids):
             for i in ids}
 
 
-def losses(pred, target, material, outcome, mode, scale, mix):
-    huber = torch.nn.functional.smooth_l1_loss(pred, target, reduction='none')
+class PreparedSamples:
+    """Cache small immutable metadata, retaining the original memory-mapped features.
+
+    Sample order, repeated indices, feature multiplicity and perspective boundaries
+    are preserved. This does not cache model outputs or copy the feature corpus.
+    """
+    def __init__(self, samples, data):
+        self.data = data
+        self.spans = np.array([(s['offset'], s['offset']+s['us']+s['them'])
+                              for s in samples], dtype=np.int64)
+        self.lengths = np.array([(s['us'], s['them']) for s in samples], dtype=np.int64)
+        self.target = torch.tensor([(s['score']-s['material'])/1000 for s in samples],
+                                   dtype=torch.float32).clamp(-100, 100)
+        self.material = torch.tensor([s['material'] for s in samples])
+        self.outcome = torch.tensor([float('nan') if s['outcome'] is None else s['outcome']
+                                     for s in samples])
+
+    def batch(self, ids):
+        if len(ids) == 1:
+            # The current memory-limited launcher uses single-position
+            # microbatches: avoid concatenation and metadata gather allocations.
+            i = ids[0]
+            start, end = self.spans[i]
+            x = torch.from_numpy(self.data[start:end].astype(np.int64))
+            offsets = torch.tensor([0, self.lengths[i,0], end-start], dtype=torch.long)
+            return (x, offsets, self.target[i:i+1],
+                    self.material[i:i+1], self.outcome[i:i+1])
+        spans = self.spans[ids]
+        x = torch.from_numpy(np.concatenate([self.data[a:b] for a,b in spans], dtype=np.int64))
+        offsets = np.empty(2*len(ids)+1, dtype=np.int64)
+        offsets[0] = 0
+        np.cumsum(self.lengths[ids].reshape(-1), out=offsets[1:])
+        index = torch.tensor(ids, dtype=torch.long)
+        return (x, torch.from_numpy(offsets), self.target[index],
+                self.material[index], self.outcome[index])
+
+
+def probabilities(pred, target, material, outcome, scale, mix):
     total = pred*1000 + material
     teacher = target*1000 + material
     p, q = torch.sigmoid(total/scale), torch.sigmoid(teacher/scale)
     mask = torch.isfinite(outcome)
     blended = torch.where(mask, (1-mix)*q+mix*torch.nan_to_num(outcome), q)
+    return p, q, mask, blended
+
+
+def training_loss(pred, target, material, outcome, mode, scale, mix):
+    """Compute only the objective; diagnostic losses are needed at validation."""
+    if mode == 'huber':
+        return torch.nn.functional.smooth_l1_loss(pred, target, reduction='none')
+    p, _, _, blended = probabilities(pred, target, material, outcome, scale, mix)
+    return (p-blended).square() * (8*(scale/1000)**2)
+
+
+def losses(pred, target, material, outcome, mode, scale, mix):
+    huber = torch.nn.functional.smooth_l1_loss(pred, target, reduction='none')
+    p, q, mask, blended = probabilities(pred, target, material, outcome, scale, mix)
     # Match the Huber curvature near equality at score zero; preserve native engine score units.
     loss = huber if mode=='huber' else (p-blended).square() * (8*(scale/1000)**2)
     return loss, huber, p, q, mask
 
 
-def backward_batch(net,samples,data,ids,microbatch,mode,scale,mix):
+def backward_batch(net,samples,data,ids,microbatch,mode,scale,mix,prepared=None):
     """Preserve one optimizer update per effective batch with bounded sparse gradients."""
-    value=0.; touched=[]
+    value=0.
+    # External callers may intentionally accumulate across effective batches.
+    # In that case the existing gradient also contains previously touched rows.
+    touched=[] if net.embedding.weight.grad is not None else None
     for chunk in range(0,len(ids),microbatch):
         part=ids[chunk:chunk+microbatch]
-        x,off,target=batch(samples,data,part);touched.append(x)
-        material=torch.tensor([samples[i]['material'] for i in part])
-        outcome=torch.tensor([float('nan') if samples[i]['outcome'] is None else samples[i]['outcome'] for i in part])
+        if prepared is None:
+            x,off,target=batch(samples,data,part)
+            material=torch.tensor([samples[i]['material'] for i in part])
+            outcome=torch.tensor([float('nan') if samples[i]['outcome'] is None else samples[i]['outcome'] for i in part])
+        else:
+            x,off,target,material,outcome=prepared.batch(part)
+        if touched is not None:
+            touched.append(x)
         pred=net(x,off)
-        loss=losses(pred,target,material,outcome,mode,scale,mix)[0].sum()/len(ids)
+        loss=training_loss(pred,target,material,outcome,mode,scale,mix).sum()/len(ids)
         assert torch.isfinite(loss)
         loss.backward()
         net.embedding.weight.grad=net.embedding.weight.grad.coalesce()
         value+=loss.item()*len(ids)
-    return value,torch.unique(torch.cat(touched))
+    # EmbeddingBag retains rows even for zero contributions. Coalescing already
+    # gives the sorted unique feature indices, so a second concatenation/sort is
+    # redundant. Keep per-microbatch coalescing to bound peak memory.
+    indices = (torch.unique(torch.cat(touched)) if touched is not None
+               else net.embedding.weight.grad.indices()[0])
+    return value,indices
 
 
-def evaluate(net, samples, data, ids, batch_size, mode, scale, mix):
+def evaluate(net, samples, data, ids, batch_size, mode, scale, mix, prepared=None):
+    prepared = prepared if prepared is not None else PreparedSamples(samples, data)
     weights = weights_for(samples, ids)
     totals = Counter()
     by_source = {k:Counter() for k in ('historical','recent','analysis')}
     with torch.no_grad():
         for start in range(0, len(ids), batch_size):
             group = ids[start:start+batch_size]
-            x, off, target = batch(samples, data, group)
-            material = torch.tensor([samples[i]['material'] for i in group])
-            outcome = torch.tensor([float('nan') if samples[i]['outcome'] is None else samples[i]['outcome'] for i in group])
+            x, off, target, material, outcome = prepared.batch(group)
             pred = net(x, off)
             loss, huber, probability, teacher, mask = losses(pred, target, material, outcome, mode, scale, mix)
             w = torch.tensor([weights[i] for i in group])
@@ -157,10 +219,12 @@ def evaluate(net, samples, data, ids, batch_size, mode, scale, mix):
             totals['teacher_brier'] += (probability-teacher).square().sum().item()
             totals['outcome_brier'] += (probability[mask]-outcome[mask]).square().sum().item()
             totals['outcome_count'] += mask.sum().item()
-            for j, i in enumerate(group):
+            # One conversion keeps the same Python summation order while avoiding
+            # a separate tensor indexing/scalar extraction for every position.
+            for i, error in zip(group, huber.tolist()):
                 key = 'analysis' if samples[i]['label_source']=='analysis' else samples[i]['source']
                 by_source[key]['count'] += 1
-                by_source[key]['huber'] += huber[j].item()
+                by_source[key]['huber'] += error
     result = {k: v/(totals['outcome_count'] if k=='outcome_brier' else len(ids))
               for k,v in totals.items() if k!='outcome_count'}
     result.update(count=len(ids), outcome_count=totals['outcome_count'],
@@ -212,6 +276,7 @@ def main():
     assert train and val and test
     assert not ({samples[i]['group'] for i in train} & {samples[i]['group'] for i in val+test})
     cal = calibration(samples)
+    prepared = PreparedSamples(samples, data)
     parent = json.loads(a.parent.read_text())
     desc = parent['weights']['nnue']
     blob = (a.parent.parent/desc['file']).resolve()
@@ -245,7 +310,7 @@ def main():
         tracker = Plateau(**state['plateau'])
     else:
         net = from_quantized(blob, schema['features']) if a.init=='parent' else PilotNet(schema['features'],a.width)
-        initial = evaluate(net,samples,data,val,a.batch,a.loss,cal['scale'],a.mix)
+        initial = evaluate(net,samples,data,val,a.batch,a.loss,cal['scale'],a.mix,prepared)
         metrics.append(dict(epoch=0, validation=initial))
         tracker = Plateau(initial['objective'])
         print(json.dumps(metrics[-1]), flush=True)
@@ -271,7 +336,7 @@ def main():
         for start in range(0, len(order), a.batch):
             ids = order[start:start+a.batch]
             emb.zero_grad(set_to_none=True); dense.zero_grad(set_to_none=True)
-            value,touched=backward_batch(net,samples,data,ids,a.microbatch,a.loss,cal['scale'],a.mix)
+            value,touched=backward_batch(net,samples,data,ids,a.microbatch,a.loss,cal['scale'],a.mix,prepared)
             total+=value
             emb.step(); dense.step()
             with torch.no_grad():
@@ -282,7 +347,7 @@ def main():
             if start % (a.batch*100)==0:
                 atomic_json(a.out/'status.json',dict(state='training',epoch=epoch+1,samples=start+len(ids),
                     total=len(order),elapsed_s=time.monotonic()-started))
-        validation = evaluate(net,samples,data,val,a.batch,a.loss,cal['scale'],a.mix)
+        validation = evaluate(net,samples,data,val,a.batch,a.loss,cal['scale'],a.mix,prepared)
         record = dict(epoch=epoch+1, train_objective=total/len(order), validation=validation,
                       elapsed_s=time.monotonic()-started)
         if validation['objective'] < best:
@@ -331,7 +396,7 @@ def main():
     cp=json.loads((a.out/'model.json').read_text())
     best_net=from_quantized(a.out/cp['weights']['nnue']['file'],schema['features'])
     # Untouched test set is evaluated once after all checkpoint selection is complete.
-    test_result=evaluate(best_net,samples,data,test,a.batch,a.loss,cal['scale'],a.mix)
+    test_result=evaluate(best_net,samples,data,test,a.batch,a.loss,cal['scale'],a.mix,prepared)
     atomic_json(a.out/'test.json',test_result)
     atomic_json(a.out/'status.json',dict(state='completed',reason=tracker.stopped,test=test_result))
     print(json.dumps(dict(test=test_result)),flush=True)
