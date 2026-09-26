@@ -1,7 +1,6 @@
-use crate::movement::types::{MovementCapability, BlockingMode};
+use crate::movement::types::{BlockingMode, MovementCapability, PieceTypeSet};
 use crate::movement::direction::DIRECTION_SET_ALL;
 use crate::piece::PieceType;
-use std::collections::HashSet;
 
 /// Movement configuration for a piece type
 /// Contains a list of movement capabilities that the piece can use
@@ -16,7 +15,7 @@ fn range_capability(directions: crate::movement::direction::DirectionSet, blocki
     MovementCapability::Range {
         directions,
         blocking,
-        cannot_jump_over: HashSet::new(),
+        cannot_jump_over: PieceTypeSet::new(),
     }
 }
 
@@ -25,7 +24,7 @@ fn range_capability(directions: crate::movement::direction::DirectionSet, blocki
 fn range_capability_with_restrictions(
     directions: crate::movement::direction::DirectionSet,
     blocking: BlockingMode,
-    cannot_jump_over: HashSet<PieceType>,
+    cannot_jump_over: PieceTypeSet,
 ) -> MovementCapability {
     MovementCapability::Range {
         directions,
@@ -35,8 +34,8 @@ fn range_capability_with_restrictions(
 }
 
 /// Blocking Set 1: King, CrownPrince, GreatGeneral
-fn blocking_set_1() -> HashSet<PieceType> {
-    let mut set = HashSet::new();
+fn blocking_set_1() -> PieceTypeSet {
+    let mut set = PieceTypeSet::new();
     set.insert(PieceType::King);
     set.insert(PieceType::CrownPrince);
     set.insert(PieceType::GreatGeneral);
@@ -44,7 +43,7 @@ fn blocking_set_1() -> HashSet<PieceType> {
 }
 
 /// Blocking Set 2: Blocking Set 1 + ViceGeneral
-fn blocking_set_2() -> HashSet<PieceType> {
+fn blocking_set_2() -> PieceTypeSet {
     let mut set = blocking_set_1();
     set.insert(PieceType::ViceGeneral);
     set
@@ -53,8 +52,8 @@ fn blocking_set_2() -> HashSet<PieceType> {
 /// Blocking Set 3: Pieces that cannot be jumped over by Flying General, Flying Crocodile, Bishop General, and Rain Demon
 /// Includes: King, CrownPrince, GreatGeneral, FlyingGeneral, FlyingCrocodile, BishopGeneral, ViceGeneral, FierceDragon
 
-pub fn blocking_set_3() -> HashSet<PieceType> {
-    let mut set = HashSet::new();
+pub fn blocking_set_3() -> PieceTypeSet {
+    let mut set = PieceTypeSet::new();
     set.insert(PieceType::King);
     set.insert(PieceType::CrownPrince);
     set.insert(PieceType::GreatGeneral);
@@ -2105,7 +2104,6 @@ pub fn poisonous_serpent_movement() -> MovementConfig {
 ///                       For White: S (16) | E (4) | N (1) | W (64) | SE (8) | SW (32) = 125 = 0x7D (adjusted automatically)
 pub fn roaring_dog_movement() -> MovementConfig {
     use crate::movement::types::{MovementCapability, BlockingMode};
-    use std::collections::HashSet;
     
     MovementConfig {
         capabilities: vec![
@@ -2122,7 +2120,7 @@ pub fn roaring_dog_movement() -> MovementConfig {
             MovementCapability::Range {
                 directions: 0xC7,  // N, E, S, W, NE, NW (for Black) - will be adjusted for White
                 blocking: BlockingMode::NoJump,
-                cannot_jump_over: HashSet::new(),
+                cannot_jump_over: PieceTypeSet::new(),
             },
             // Jump movement: 3 spaces in all other directions
             // For Black: N (0, -3), S (0, 3), E (3, 0), W (-3, 0), NE (3, -3), NW (-3, -3)
@@ -2199,7 +2197,6 @@ pub fn crossbow_soldier_movement() -> MovementConfig {
 ///                   For White: S (16) = 0x10 (adjusted automatically)
 pub fn crossbow_general_movement() -> MovementConfig {
     use crate::movement::types::{MovementCapability, BlockingMode};
-    use std::collections::HashSet;
     
     MovementConfig {
         capabilities: vec![
@@ -2229,7 +2226,7 @@ pub fn crossbow_general_movement() -> MovementConfig {
             MovementCapability::Range {
                 directions: 0x01,  // N (for Black) - will be adjusted for White
                 blocking: BlockingMode::NoJump,
-                cannot_jump_over: HashSet::new(),
+                cannot_jump_over: PieceTypeSet::new(),
             },
         ],
     }
@@ -2289,7 +2286,6 @@ pub fn cannon_soldier_movement() -> MovementConfig {
 ///                            For White: S (16) | SE (8) | SW (32) = 56 = 0x38 (adjusted automatically)
 pub fn cannon_general_movement() -> MovementConfig {
     use crate::movement::types::{MovementCapability, BlockingMode};
-    use std::collections::HashSet;
     
     MovementConfig {
         capabilities: vec![
@@ -2312,7 +2308,7 @@ pub fn cannon_general_movement() -> MovementConfig {
             MovementCapability::Range {
                 directions: 0x83,  // N, NE, NW (for Black) - will be adjusted for White
                 blocking: BlockingMode::NoJump,
-                cannot_jump_over: HashSet::new(),
+                cannot_jump_over: PieceTypeSet::new(),
             },
         ],
     }
@@ -2326,7 +2322,6 @@ pub fn cannon_general_movement() -> MovementConfig {
 ///                   For White: S (16) = 0x10 (adjusted automatically)
 pub fn vertical_horse_movement() -> MovementConfig {
     use crate::movement::types::{MovementCapability, BlockingMode};
-    use std::collections::HashSet;
     
     MovementConfig {
         capabilities: vec![
@@ -2343,7 +2338,7 @@ pub fn vertical_horse_movement() -> MovementConfig {
             MovementCapability::Range {
                 directions: 0x01,  // N (for Black) - will be adjusted for White
                 blocking: BlockingMode::NoJump,
-                cannot_jump_over: HashSet::new(),
+                cannot_jump_over: PieceTypeSet::new(),
             },
         ],
     }
@@ -2357,7 +2352,6 @@ pub fn vertical_horse_movement() -> MovementConfig {
 ///                   For White: S (16) = 0x10 (adjusted automatically)
 pub fn vertical_pup_movement() -> MovementConfig {
     use crate::movement::types::{MovementCapability, BlockingMode};
-    use std::collections::HashSet;
     
     MovementConfig {
         capabilities: vec![
@@ -2374,7 +2368,7 @@ pub fn vertical_pup_movement() -> MovementConfig {
             MovementCapability::Range {
                 directions: 0x01,  // N (for Black) - will be adjusted for White
                 blocking: BlockingMode::NoJump,
-                cannot_jump_over: HashSet::new(),
+                cannot_jump_over: PieceTypeSet::new(),
             },
         ],
     }
@@ -2409,7 +2403,6 @@ pub fn leopard_king_movement() -> MovementConfig {
 ///                   For White: S (16) = 0x10 (adjusted automatically)
 pub fn longbow_soldier_movement() -> MovementConfig {
     use crate::movement::types::{MovementCapability, BlockingMode};
-    use std::collections::HashSet;
     
     MovementConfig {
         capabilities: vec![
@@ -2439,7 +2432,7 @@ pub fn longbow_soldier_movement() -> MovementConfig {
             MovementCapability::Range {
                 directions: 0x01,  // N (for Black) - will be adjusted for White
                 blocking: BlockingMode::NoJump,
-                cannot_jump_over: HashSet::new(),
+                cannot_jump_over: PieceTypeSet::new(),
             },
         ],
     }
@@ -2452,7 +2445,6 @@ pub fn longbow_soldier_movement() -> MovementConfig {
 ///                                                  For White: S (16) | SE (8) | SW (32) | N (1) = 57 = 0x39 (adjusted automatically)
 pub fn longbow_general_movement() -> MovementConfig {
     use crate::movement::types::{MovementCapability, BlockingMode};
-    use std::collections::HashSet;
     
     MovementConfig {
         capabilities: vec![
@@ -2468,7 +2460,7 @@ pub fn longbow_general_movement() -> MovementConfig {
             MovementCapability::Range {
                 directions: 0x93,  // N, NE, NW, S (for Black) - will be adjusted for White
                 blocking: BlockingMode::NoJump,
-                cannot_jump_over: HashSet::new(),
+                cannot_jump_over: PieceTypeSet::new(),
             },
         ],
     }
@@ -2481,7 +2473,6 @@ pub fn longbow_general_movement() -> MovementConfig {
 /// Sideways: E (4), W (64) = 68 = 0x44 (same for both colors)
 pub fn side_monkey_movement() -> MovementConfig {
     use crate::movement::types::{MovementCapability, BlockingMode};
-    use std::collections::HashSet;
     
     MovementConfig {
         capabilities: vec![
@@ -2497,7 +2488,7 @@ pub fn side_monkey_movement() -> MovementConfig {
             MovementCapability::Range {
                 directions: 0x44,  // E, W (same for both colors)
                 blocking: BlockingMode::NoJump,
-                cannot_jump_over: HashSet::new(),
+                cannot_jump_over: PieceTypeSet::new(),
             },
         ],
     }
@@ -2511,7 +2502,6 @@ pub fn side_monkey_movement() -> MovementConfig {
 ///                                                      For White: S (16) | SE (8) | NW (128) = 152 = 0x98 (adjusted automatically)
 pub fn left_chariot_movement() -> MovementConfig {
     use crate::movement::types::{MovementCapability, BlockingMode};
-    use std::collections::HashSet;
     
     MovementConfig {
         capabilities: vec![
@@ -2528,7 +2518,7 @@ pub fn left_chariot_movement() -> MovementConfig {
             MovementCapability::Range {
                 directions: 0x23,  // N, NE, SW (for Black) - will be adjusted for White
                 blocking: BlockingMode::NoJump,
-                cannot_jump_over: HashSet::new(),
+                cannot_jump_over: PieceTypeSet::new(),
             },
         ],
     }
@@ -2542,7 +2532,6 @@ pub fn left_chariot_movement() -> MovementConfig {
 ///                                  For White: NW (128) | NE (2) | SW (32) = 162 = 0xA2 (excludes SE (8), adjusted automatically)
 pub fn left_iron_chariot_movement() -> MovementConfig {
     use crate::movement::types::{MovementCapability, BlockingMode};
-    use std::collections::HashSet;
     
     MovementConfig {
         capabilities: vec![
@@ -2559,7 +2548,7 @@ pub fn left_iron_chariot_movement() -> MovementConfig {
             MovementCapability::Range {
                 directions: 0x2A,  // NE, SE, SW (for Black) - will be adjusted for White
                 blocking: BlockingMode::NoJump,
-                cannot_jump_over: HashSet::new(),
+                cannot_jump_over: PieceTypeSet::new(),
             },
         ],
     }
@@ -2573,7 +2562,6 @@ pub fn left_iron_chariot_movement() -> MovementConfig {
 ///                                                       For White: S (16) | SW (32) | NE (2) = 50 = 0x32 (adjusted automatically)
 pub fn right_chariot_movement() -> MovementConfig {
     use crate::movement::types::{MovementCapability, BlockingMode};
-    use std::collections::HashSet;
     
     MovementConfig {
         capabilities: vec![
@@ -2590,7 +2578,7 @@ pub fn right_chariot_movement() -> MovementConfig {
             MovementCapability::Range {
                 directions: 0x89,  // N, NW, SE (for Black) - will be adjusted for White
                 blocking: BlockingMode::NoJump,
-                cannot_jump_over: HashSet::new(),
+                cannot_jump_over: PieceTypeSet::new(),
             },
         ],
     }
@@ -2604,7 +2592,6 @@ pub fn right_chariot_movement() -> MovementConfig {
 ///                                   For White: NE (2) | SW (32) | SE (8) = 42 = 0x2A (excludes NW (128), adjusted automatically)
 pub fn right_iron_chariot_movement() -> MovementConfig {
     use crate::movement::types::{MovementCapability, BlockingMode};
-    use std::collections::HashSet;
     
     MovementConfig {
         capabilities: vec![
@@ -2621,7 +2608,7 @@ pub fn right_iron_chariot_movement() -> MovementConfig {
             MovementCapability::Range {
                 directions: 0xA8,  // NW, SE, SW (for Black) - will be adjusted for White
                 blocking: BlockingMode::NoJump,
-                cannot_jump_over: HashSet::new(),
+                cannot_jump_over: PieceTypeSet::new(),
             },
         ],
     }
@@ -2633,7 +2620,6 @@ pub fn right_iron_chariot_movement() -> MovementConfig {
 ///                   For White: S (16) = 0x10 (adjusted automatically)
 pub fn fierce_tiger_movement() -> MovementConfig {
     use crate::movement::types::{MovementCapability, BlockingMode};
-    use std::collections::HashSet;
     
     MovementConfig {
         capabilities: vec![
@@ -2643,7 +2629,7 @@ pub fn fierce_tiger_movement() -> MovementConfig {
             MovementCapability::Range {
                 directions: 0x01,  // N (for Black) - will be adjusted for White
                 blocking: BlockingMode::NoJump,
-                cannot_jump_over: HashSet::new(),
+                cannot_jump_over: PieceTypeSet::new(),
             },
         ],
     }
@@ -2657,7 +2643,6 @@ pub fn fierce_tiger_movement() -> MovementConfig {
 ///                              For White: E (4) | N (1) | W (64) = 69 = 0x45 (adjusted automatically)
 pub fn great_tiger_movement() -> MovementConfig {
     use crate::movement::types::{MovementCapability, BlockingMode};
-    use std::collections::HashSet;
     
     MovementConfig {
         capabilities: vec![
@@ -2674,7 +2659,7 @@ pub fn great_tiger_movement() -> MovementConfig {
             MovementCapability::Range {
                 directions: 0x54,  // E, S, W (for Black) - will be adjusted for White
                 blocking: BlockingMode::NoJump,
-                cannot_jump_over: HashSet::new(),
+                cannot_jump_over: PieceTypeSet::new(),
             },
         ],
     }
@@ -2693,7 +2678,6 @@ pub fn great_tiger_movement() -> MovementConfig {
 ///                   For White: S (16) = 0x10 (adjusted automatically)
 pub fn vertical_leopard_movement() -> MovementConfig {
     use crate::movement::types::{MovementCapability, BlockingMode};
-    use std::collections::HashSet;
     
     MovementConfig {
         capabilities: vec![
@@ -2710,7 +2694,7 @@ pub fn vertical_leopard_movement() -> MovementConfig {
             MovementCapability::Range {
                 directions: 0x01,  // N (for Black) - will be adjusted for White
                 blocking: BlockingMode::NoJump,
-                cannot_jump_over: HashSet::new(),
+                cannot_jump_over: PieceTypeSet::new(),
             },
         ],
     }
@@ -2727,7 +2711,6 @@ pub fn vertical_leopard_movement() -> MovementConfig {
 ///                   For White: S (16) = 0x10 (adjusted automatically)
 pub fn great_leopard_movement() -> MovementConfig {
     use crate::movement::types::{MovementCapability, BlockingMode};
-    use std::collections::HashSet;
     
     MovementConfig {
         capabilities: vec![
@@ -2757,7 +2740,7 @@ pub fn great_leopard_movement() -> MovementConfig {
             MovementCapability::Range {
                 directions: 0x01,  // N (for Black) - will be adjusted for White
                 blocking: BlockingMode::NoJump,
-                cannot_jump_over: HashSet::new(),
+                cannot_jump_over: PieceTypeSet::new(),
             },
         ],
     }
@@ -2774,7 +2757,6 @@ pub fn great_leopard_movement() -> MovementConfig {
 ///                   For White: S (16) = 0x10 (adjusted automatically)
 pub fn spear_soldier_movement() -> MovementConfig {
     use crate::movement::types::{MovementCapability, BlockingMode};
-    use std::collections::HashSet;
     
     MovementConfig {
         capabilities: vec![
@@ -2791,7 +2773,7 @@ pub fn spear_soldier_movement() -> MovementConfig {
             MovementCapability::Range {
                 directions: 0x01,  // N (for Black) - will be adjusted for White
                 blocking: BlockingMode::NoJump,
-                cannot_jump_over: HashSet::new(),
+                cannot_jump_over: PieceTypeSet::new(),
             },
         ],
     }
@@ -2806,7 +2788,6 @@ pub fn spear_soldier_movement() -> MovementConfig {
 ///                   For White: S (16) = 0x10 (adjusted automatically)
 pub fn spear_general_movement() -> MovementConfig {
     use crate::movement::types::{MovementCapability, BlockingMode};
-    use std::collections::HashSet;
     
     MovementConfig {
         capabilities: vec![
@@ -2829,7 +2810,7 @@ pub fn spear_general_movement() -> MovementConfig {
             MovementCapability::Range {
                 directions: 0x01,  // N (for Black) - will be adjusted for White
                 blocking: BlockingMode::NoJump,
-                cannot_jump_over: HashSet::new(),
+                cannot_jump_over: PieceTypeSet::new(),
             },
         ],
     }
@@ -2843,7 +2824,6 @@ pub fn spear_general_movement() -> MovementConfig {
 ///                       For White: S (16) | E (4) | N (1) | W (64) | NE (2) | NW (128) = 199 = 0xC7 (adjusted automatically)
 pub fn great_eagle_movement() -> MovementConfig {
     use crate::movement::types::{MovementCapability, BlockingMode};
-    use std::collections::HashSet;
     
     MovementConfig {
         capabilities: vec![
@@ -2853,7 +2833,7 @@ pub fn great_eagle_movement() -> MovementConfig {
             MovementCapability::Range {
                 directions: 0x82,  // NE, NW (for Black) - will be adjusted for White
                 blocking: BlockingMode::Jump,  // Can jump over pieces
-                cannot_jump_over: HashSet::new(),
+                cannot_jump_over: PieceTypeSet::new(),
             },
             // Range movement (normal): in all other directions
             // For Black: N (1) | E (4) | S (16) | W (64) | SE (8) | SW (32) = 125 = 0x7D
@@ -2861,7 +2841,7 @@ pub fn great_eagle_movement() -> MovementConfig {
             MovementCapability::Range {
                 directions: 0x7D,  // N, E, S, W, SE, SW (for Black) - will be adjusted for White
                 blocking: BlockingMode::NoJump,
-                cannot_jump_over: HashSet::new(),
+                cannot_jump_over: PieceTypeSet::new(),
             },
         ],
     }
@@ -2875,7 +2855,6 @@ pub fn great_eagle_movement() -> MovementConfig {
 ///                       For White: SE (8) | E (4) | NE (2) | S (16) | NW (128) | W (64) | SW (32) = 254 = 0xFE (same for both colors)
 pub fn great_hawk_movement() -> MovementConfig {
     use crate::movement::types::{BlockingMode};
-    use std::collections::HashSet;
     
     MovementConfig {
         capabilities: vec![
@@ -2885,14 +2864,14 @@ pub fn great_hawk_movement() -> MovementConfig {
             MovementCapability::Range {
                 directions: 0x01,  // N (for Black) - will be adjusted for White
                 blocking: BlockingMode::Jump,  // Can jump over pieces
-                cannot_jump_over: HashSet::new(),
+                cannot_jump_over: PieceTypeSet::new(),
             },
             // Range movement (normal): in all other directions
             // NE (2) | E (4) | SE (8) | S (16) | SW (32) | W (64) | NW (128) = 254 = 0xFE (same for both colors)
             MovementCapability::Range {
                 directions: 0xFE,  // All directions except N (for Black) - will be adjusted for White
                 blocking: BlockingMode::NoJump,
-                cannot_jump_over: HashSet::new(),
+                cannot_jump_over: PieceTypeSet::new(),
             },
         ],
     }
@@ -5189,7 +5168,7 @@ pub fn flying_general_movement() -> MovementConfig {
     use crate::movement::types::{BlockingMode};
     use crate::movement::direction::DIRECTION_SET_ORTHOGONAL;
     
-    let mut cannot_jump_over = HashSet::new();
+    let mut cannot_jump_over = PieceTypeSet::new();
     cannot_jump_over.insert(PieceType::King);
     cannot_jump_over.insert(PieceType::CrownPrince);
     cannot_jump_over.insert(PieceType::GreatGeneral);
@@ -7393,7 +7372,7 @@ pub fn buddhist_spirit_movement() -> MovementConfig {
     let first_step = MovementCapability::Range {
         directions: DIRECTION_SET_ALL,  // All 8 directions
         blocking: BlockingMode::NoJump,
-        cannot_jump_over: std::collections::HashSet::new(),
+        cannot_jump_over: PieceTypeSet::new(),
     };
     let second_step = MovementCapability::Simple {
         directions: DIRECTION_SET_ALL,  // All 8 directions
@@ -7544,7 +7523,6 @@ pub fn flying_ox_movement() -> MovementConfig {
 /// All other directions: N (1) | NE (2) | SE (8) | S (16) | SW (32) | NW (128) = 187 = 0xBB (same for both colors)
 pub fn fire_ox_movement() -> MovementConfig {
     use crate::movement::types::{BlockingMode};
-    use std::collections::HashSet;
     
     MovementConfig {
         capabilities: vec![
@@ -7559,7 +7537,7 @@ pub fn fire_ox_movement() -> MovementConfig {
             MovementCapability::Range {
                 directions: 0xBB,  // All directions except E, W (same for both colors)
                 blocking: BlockingMode::NoJump,
-                cannot_jump_over: HashSet::new(),
+                cannot_jump_over: PieceTypeSet::new(),
             },
         ],
     }

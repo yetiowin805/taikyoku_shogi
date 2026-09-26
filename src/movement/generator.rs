@@ -469,7 +469,7 @@ impl MovementGenerator {
         board: &B,
         directions: DirectionSet,
         blocking: BlockingMode,
-        cannot_jump_over: &std::collections::HashSet<crate::piece::PieceType>,
+        cannot_jump_over: &crate::movement::types::PieceTypeSet,
         captures_only: bool,
     ) -> Vec<Position> {
         let mut targets = Vec::new();
