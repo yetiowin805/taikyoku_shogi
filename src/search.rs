@@ -3542,30 +3542,21 @@ fn leaf_or_quiesce(
         };
     }
 
-    // Q after loud AB captures/promos, loud promos, a free take of a hanging
-    // large enemy, or any King/CP capture (two-step dest included — one ply).
-    // Optional R/S1/S2 flags open q after sub-loud captures or own-large dest takes.
-    let loud_parent = ctx.last_ab_capture_enemy >= min_quiescence_enemy_material();
-    let loud_promos = generate_loud_promotions(state);
-    let hang_opts = QHangOpts::from_ctx(ctx);
-    let hang_caps = !loud_parent && stm_has_large_hang_take(state, weights, hang_opts);
-    let royal_caps = !loud_parent && stm_has_royal_capture(state);
-    let capture_parent = ctx.last_ab_capture_enemy > 0.0;
-    let large_mover_open = ctx.q_open_large_mover && ctx.last_ab_mover_large && capture_parent;
-    let any_cap_open = ctx.q_open_any_capture && capture_parent;
-    let own_large_open =
-        ctx.q_own_large_only && stm_has_dest_take_of_prev_large(state, ctx.last_ab_to);
-    let include_caps = loud_parent
-        || hang_caps
-        || royal_caps
-        || large_mover_open
-        || any_cap_open
-        || own_large_open;
-    if !include_caps && loud_promos.is_empty() {
-        return evaluate_with_ply(state, weights, ctx.ply);
-    }
     let q = leaf_quiescence_depth(ctx, is_pv);
     if q == 0 {
+        return evaluate_with_ply(state, weights, ctx.ply);
+    }
+    // These read-only gates only decide whether to include captures. Try cheap
+    // sufficient conditions first; quiesce still generates the same ordered
+    // candidates. Promo discovery is needed here only for a promo-only entry.
+    let capture_parent = ctx.last_ab_capture_enemy > 0.0;
+    let include_caps = ctx.last_ab_capture_enemy >= min_quiescence_enemy_material()
+        || (ctx.q_open_large_mover && ctx.last_ab_mover_large && capture_parent)
+        || (ctx.q_open_any_capture && capture_parent)
+        || (ctx.q_own_large_only && stm_has_dest_take_of_prev_large(state, ctx.last_ab_to))
+        || stm_has_large_hang_take(state, weights, QHangOpts::from_ctx(ctx))
+        || stm_has_royal_capture(state);
+    if !include_caps && generate_loud_promotions(state).is_empty() {
         evaluate_with_ply(state, weights, ctx.ply)
     } else {
         ctx.phase = "quiesce";
@@ -5634,6 +5625,30 @@ mod tests {
         assert!(
             score > stand,
             "taking hung GG in q should beat stand-pat: stand={stand} q={score}"
+        );
+    }
+
+    #[test]
+    fn zero_q_budget_stand_pats_even_with_tactics_available() {
+        let (hang, weights, _) = hung_gg_by_gold();
+        let (royal, royal_weights, _) = hook_two_step_mates_king();
+        assert!(stm_has_large_hang_take(&hang, &weights, QHangOpts::default()));
+        assert!(stm_has_royal_capture(&royal));
+        for (state, weights) in [(hang, weights), (royal, royal_weights)] {
+            assert!(!stm_last_royal_in_check(&state));
+            let stand = evaluate_with_ply(&state, &weights, 0);
+            assert_eq!(probe_quiet_parent_leaf_or_quiesce(&state, &weights, 0), (stand, 0));
+        }
+    }
+
+    #[test]
+    fn zero_q_budget_still_detects_no_last_royal_evasion() {
+        let state = last_royal_check_no_evasion();
+        let weights = EvalWeights::seed();
+        assert!(stm_last_royal_in_check(&state));
+        assert_eq!(
+            probe_quiet_parent_leaf_or_quiesce(&state, &weights, 0),
+            (-weights.mate_score, 0),
         );
     }
 

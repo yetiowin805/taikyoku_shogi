@@ -1,0 +1,31 @@
+{
+  "command": [
+    "python3",
+    "benchmarks/search_light_20260926/run_pairs.py",
+    "--baseline",
+    "/tmp/search-light-results/baseline",
+    "--candidate",
+    "/tmp/taikyoku-engine-speed/target/release/examples/speed_experiment",
+    "--corpus",
+    "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/corpus.json",
+    "--cases",
+    "/tmp/search-light-results/confirm-cases.json",
+    "--out",
+    "/tmp/lazy-leaf-confirm",
+    "--variant",
+    "lazy-leaf-production",
+    "--cpu",
+    "11",
+    "--repeats",
+    "2"
+  ],
+  "cpu": 11,
+  "nice": 19,
+  "duty": 0.25,
+  "timeout": false,
+  "interrupted": false,
+  "exit_code": 0,
+  "wall_seconds": 302.9506844969983,
+  "child_cpu_seconds": 74.24475199999999,
+  "peak_child_rss_kib": 1252584
+}

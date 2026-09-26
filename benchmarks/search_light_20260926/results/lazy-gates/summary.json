@@ -1,0 +1,28 @@
+{
+  "variant": "lazy-gates",
+  "pairs": 48,
+  "candidate_over_baseline_cpu": 0.9010967252381406,
+  "by_model": {
+    "0": 0.8870655691944371,
+    "1": 0.9144674688731579,
+    "2": 0.8843976614364766,
+    "3": 0.9189969640770248
+  },
+  "by_position": {
+    "0": 0.9271443609813311,
+    "2": 0.8805839700607869,
+    "3": 0.9233373593745684,
+    "6": 0.84303000544457,
+    "7": 0.9012927844376181,
+    "11": 0.9346327545719586
+  },
+  "total_cpu_ms": {
+    "baseline": 17251.585,
+    "candidate": 15647.25
+  },
+  "peak_rss_kib": {
+    "baseline": 1248100,
+    "candidate": 1248060
+  },
+  "caveat": "CPU-time smoke screen under duty-cycling and concurrent user workload; no normal-load wall speedup or strength claim."
+}

@@ -1,0 +1,24 @@
+{
+  "command": [
+    "cargo",
+    "test",
+    "--offline",
+    "--locked",
+    "--lib",
+    "-j",
+    "1",
+    "--target-dir",
+    "/tmp/taikyoku-engine-speed/target",
+    "--",
+    "--test-threads=1"
+  ],
+  "cpu": 11,
+  "nice": 19,
+  "duty": 0.25,
+  "timeout": false,
+  "interrupted": false,
+  "exit_code": 0,
+  "wall_seconds": 165.65146993800045,
+  "child_cpu_seconds": 40.393129,
+  "peak_child_rss_kib": 784532
+}

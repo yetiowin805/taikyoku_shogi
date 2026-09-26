@@ -1,0 +1,25 @@
+{
+  "screen_positions": [
+    0,
+    2,
+    3,
+    6,
+    7,
+    11
+  ],
+  "confirmation_positions": [
+    1,
+    4,
+    5,
+    8,
+    9,
+    10
+  ],
+  "models": "all four",
+  "repeats": 2,
+  "clock": "process CPU time",
+  "screen_before_variant_results": true,
+  "selection": "Consider only exact-parity mechanical candidates; combine promising candidates and check untouched positions, no strength claim.",
+  "cpu": 11,
+  "duty": 0.25
+}

@@ -1,0 +1,28 @@
+{
+  "variant": "lazy-leaf-production",
+  "pairs": 48,
+  "candidate_over_baseline_cpu": 0.8286172269888433,
+  "by_model": {
+    "0": 0.7641039679510785,
+    "1": 0.9100551103090994,
+    "2": 0.7914292102502816,
+    "3": 0.8566109255764554
+  },
+  "by_position": {
+    "1": 0.9217882954875087,
+    "4": 0.8981844820985512,
+    "5": 0.882209292636806,
+    "8": 0.6828483460274964,
+    "9": 0.783966373068244,
+    "10": 0.8278157536175967
+  },
+  "total_cpu_ms": {
+    "baseline": 24401.564,
+    "candidate": 20352.701
+  },
+  "peak_rss_kib": {
+    "baseline": 1252584,
+    "candidate": 1252400
+  },
+  "caveat": "CPU-time smoke screen under duty-cycling and concurrent user workload; no normal-load wall speedup or strength claim."
+}

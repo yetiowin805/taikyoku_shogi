@@ -1,0 +1,179 @@
+{
+  "revision": "aee552ee96416f3b6d5471e8f2498a64742eec03",
+  "positions": [
+    {
+      "name": "opening",
+      "game": "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/position-00.json",
+      "sha256": "315684a55724ccb297bc7205f719abf7701a99b9dddbd12bad26a23953a5670d",
+      "ply": 0,
+      "source_game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0002-BASE_C2S2_A40_Lmate-vs-NNUE_W512_v1-a-white.json"
+    },
+    {
+      "name": "middlegame",
+      "game": "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/position-01.json",
+      "sha256": "5aca746fc7cdaf325a04d61847c470636cf391a79a755bfe06cb7f41ae7eba9a",
+      "ply": 160,
+      "source_game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0007-NNUE_W1024_v1-vs-C2K50A1-a-white.json"
+    },
+    {
+      "name": "tactical",
+      "game": "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/position-02.json",
+      "sha256": "48db53e7f60f96e79cf58d35a624698f970d125b3e981ee450db9c6edffd5cd2",
+      "ply": 360,
+      "source_game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0041-BASE_C2S2_A80_Lflight-vs-NNUE_W2048_v1-a-white.json"
+    },
+    {
+      "name": "long-history",
+      "game": "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/position-03.json",
+      "sha256": "97f5b99c5a0ec6e53508b014940fd6aad9cf4fb97f062a264b282f8770d97846",
+      "ply": 2000,
+      "source_game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0034-NNUE_W1024_v1-vs-C2K50A1-a-white.json"
+    },
+    {
+      "name": "early-development",
+      "game": "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/position-04.json",
+      "ply": 21,
+      "source_game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-s2-swiss-20260828T064125Z/slot1513-AVG_P120_SEED_C2S2A-vs-AVG_P120_SEED_C2S2L-a-black.json",
+      "sha256": "5a3f40d64295571d454d5c856635b5f49d1301361336cda2529ea24f43c0dde1"
+    },
+    {
+      "name": "midgame-independent",
+      "game": "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/position-05.json",
+      "ply": 187,
+      "source_game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-s2-swiss-20260828T064125Z/slot2080-AVG_P120_SEED_C2A-vs-AVG_P120_SEED_C2S2LA-a-black.json",
+      "sha256": "468d7bc1c6618013e30ac33182c252dbc69a5344f93739927a5f7b08d8c426a1"
+    },
+    {
+      "name": "late-independent",
+      "game": "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/position-06.json",
+      "ply": 792,
+      "source_game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-s2-swiss-20260828T064125Z/slot1081-BASE_P120H50B75_C2LA-vs-BASE_H105O105-a-white.json",
+      "sha256": "ce881048d9fdf4e56811972641d5b83c3f47c4413c63347901cee9df932bbe82"
+    },
+    {
+      "name": "late-royal",
+      "game": "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/position-07.json",
+      "ply": 842,
+      "source_game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-al-32-20260914T054159Z/slot0407-BASE_C2S2_A0_Lold-vs-BASE_C2S2_A0_Lmate-a-black.json",
+      "sha256": "b8b71afea7529335b921b32e1c7b1a409ccc18b2a33747df6ea437b73abd08c0"
+    },
+    {
+      "name": "champs-midgame",
+      "game": "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/position-08.json",
+      "ply": 151,
+      "source_game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-s2-champs-swiss-20260902T042955Z/slot0307-AVG_P120_SEED_C2S2-vs-AVG_P120_SEED_C2L-a-white.json",
+      "sha256": "64b9a20a4dffb15292c8067ca77bc86c2c73e2f6be32013ac2a8421a65766be9"
+    },
+    {
+      "name": "twins-midgame-a",
+      "game": "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/position-09.json",
+      "ply": 162,
+      "source_game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-s2-twins-swiss-20260904T070539Z/slot1115-BASE_P120H50B75_C2S2A-vs-BASE_P120H50B75_C2L-a-white.json",
+      "sha256": "7ba0f8d23be24c200dce91decf5c0863655e1541cefe38af3e90715ff685f73c"
+    },
+    {
+      "name": "twins-midgame-b",
+      "game": "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/position-10.json",
+      "ply": 128,
+      "source_game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-s2-twins-swiss-20260904T070539Z/slot0732-BASE_P120H50B75_C2S2A-vs-AVG_P120_SEED_C2S2-a-black.json",
+      "sha256": "38eb51646e505a62d13ee219a5e57c6d0f551c470831f65cba63a627af8c12a9"
+    },
+    {
+      "name": "late-endgame",
+      "game": "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/position-11.json",
+      "ply": 1146,
+      "source_game": "/home/frank/taikyoku_shogi/data/nnue-training/games/royal-al-32-20260914T054159Z/slot0674-T150_P120_T12_C2R-vs-BASE_C2S2_A40_Ldefense-a-white.json",
+      "sha256": "100938bf9b66480300e8b307b24fd83a60722603fe194ebd80804b9c6e64133f"
+    }
+  ],
+  "models": [
+    {
+      "name": "BASE_C2S2_A40_Lmate",
+      "path": "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/BASE_C2S2_A40_Lmate.json",
+      "source_model": "/home/frank/taikyoku_shogi/data/nnue-speed-probe-20260920/models/BASE_C2S2_A40_Lmate.json",
+      "sha256": "5d61f7a75ef2503cc01754eff5d46b845198e35d2b7359b95755703d974694bb",
+      "search_defaults": {
+        "depth": 2,
+        "max_time_ms": null,
+        "quiescence_depth": 2,
+        "sibling_mode": 0,
+        "q_loud_promo_simple_only": false,
+        "hang_q_dest_multileg": true,
+        "hang_q_dest_pathclear": true,
+        "q_open_large_mover": false,
+        "q_open_any_capture": false,
+        "q_recapture_only": false,
+        "q_own_large_only": true
+      }
+    },
+    {
+      "name": "C2K50A1",
+      "path": "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/C2K50A1.json",
+      "source_model": "/home/frank/taikyoku_shogi/data/nnue-speed-probe-20260920/models/C2K50A1.json",
+      "sha256": "cedf5cf23ca6b9bbd2d5d5f8a247375dca3bce276578b14be07fcddd40d7586c",
+      "search_defaults": {
+        "depth": 2,
+        "max_time_ms": null,
+        "quiescence_depth": 2,
+        "sibling_mode": 0,
+        "q_loud_promo_simple_only": false,
+        "hang_q_dest_multileg": true,
+        "hang_q_dest_pathclear": true,
+        "q_open_large_mover": false,
+        "q_open_any_capture": false,
+        "q_recapture_only": false,
+        "q_own_large_only": false
+      }
+    },
+    {
+      "name": "NNUE512",
+      "path": "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/NNUE_W512_v2.json",
+      "source_model": "/home/frank/taikyoku_shogi/data/nnue-admission-v2/NNUE_W512_v2.json",
+      "sha256": "cc35f156f63ce898da757b2ef000e45d5f7d4d97b41d0bed4ca10c435a0f0f42",
+      "search_defaults": {
+        "depth": 2,
+        "max_time_ms": null,
+        "quiescence_depth": 2,
+        "sibling_mode": 0,
+        "q_loud_promo_simple_only": false,
+        "hang_q_dest_multileg": true,
+        "hang_q_dest_pathclear": true,
+        "q_open_large_mover": false,
+        "q_open_any_capture": false,
+        "q_recapture_only": false,
+        "q_own_large_only": true
+      },
+      "nnue": {
+        "file": "nnue-c42dc7aa1811d9ebdcfca74c190a7234a292156f63ee0780b4e9a580cd2eb131.bin",
+        "sha256": "c42dc7aa1811d9ebdcfca74c190a7234a292156f63ee0780b4e9a580cd2eb131",
+        "width": 512,
+        "feature_hash": "126bc08ca9871740d5cc545d4c1723d21e7705089bf98a79b8714a598409ca72"
+      }
+    },
+    {
+      "name": "NNUE2048",
+      "path": "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/NNUE_W2048_v2.json",
+      "source_model": "/home/frank/taikyoku_shogi/data/nnue-admission-v2/NNUE_W2048_v2.json",
+      "sha256": "0f5d5754a7ec378ba73fc646bd0a9757d273d776e17c3e6b5523dcb76f8b5c7d",
+      "search_defaults": {
+        "depth": 2,
+        "max_time_ms": null,
+        "quiescence_depth": 2,
+        "sibling_mode": 0,
+        "q_loud_promo_simple_only": false,
+        "hang_q_dest_multileg": true,
+        "hang_q_dest_pathclear": true,
+        "q_open_large_mover": false,
+        "q_open_any_capture": false,
+        "q_recapture_only": false,
+        "q_own_large_only": true
+      },
+      "nnue": {
+        "file": "nnue-bfb0ddf94230ab010cb0e818c653dc8ae9bcf0ab4c4992366eea31dcddb11ddd.bin",
+        "sha256": "bfb0ddf94230ab010cb0e818c653dc8ae9bcf0ab4c4992366eea31dcddb11ddd",
+        "width": 2048,
+        "feature_hash": "126bc08ca9871740d5cc545d4c1723d21e7705089bf98a79b8714a598409ca72"
+      }
+    }
+  ]
+}

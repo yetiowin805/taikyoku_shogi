@@ -1,0 +1,219 @@
+{
+  "variant": "lazy-gates",
+  "base": "61c2875",
+  "cases": [
+    {
+      "position": 0,
+      "model": 0,
+      "depth": 3
+    },
+    {
+      "position": 0,
+      "model": 1,
+      "depth": 3
+    },
+    {
+      "position": 0,
+      "model": 2,
+      "depth": 3
+    },
+    {
+      "position": 0,
+      "model": 3,
+      "depth": 1
+    },
+    {
+      "position": 2,
+      "model": 0,
+      "depth": 1
+    },
+    {
+      "position": 2,
+      "model": 1,
+      "depth": 1
+    },
+    {
+      "position": 2,
+      "model": 2,
+      "depth": 1
+    },
+    {
+      "position": 2,
+      "model": 3,
+      "depth": 1
+    },
+    {
+      "position": 3,
+      "model": 0,
+      "depth": 1
+    },
+    {
+      "position": 3,
+      "model": 1,
+      "depth": 1
+    },
+    {
+      "position": 3,
+      "model": 2,
+      "depth": 3
+    },
+    {
+      "position": 3,
+      "model": 3,
+      "depth": 2
+    },
+    {
+      "position": 6,
+      "model": 0,
+      "depth": 2
+    },
+    {
+      "position": 6,
+      "model": 1,
+      "depth": 2
+    },
+    {
+      "position": 6,
+      "model": 2,
+      "depth": 1
+    },
+    {
+      "position": 6,
+      "model": 3,
+      "depth": 1
+    },
+    {
+      "position": 7,
+      "model": 0,
+      "depth": 3
+    },
+    {
+      "position": 7,
+      "model": 1,
+      "depth": 3
+    },
+    {
+      "position": 7,
+      "model": 2,
+      "depth": 3
+    },
+    {
+      "position": 7,
+      "model": 3,
+      "depth": 2
+    },
+    {
+      "position": 11,
+      "model": 0,
+      "depth": 3
+    },
+    {
+      "position": 11,
+      "model": 1,
+      "depth": 3
+    },
+    {
+      "position": 11,
+      "model": 2,
+      "depth": 2
+    },
+    {
+      "position": 11,
+      "model": 3,
+      "depth": 1
+    }
+  ],
+  "repeats": 2,
+  "cpu": 11,
+  "clock": "process CPU milliseconds",
+  "source_hashes": {
+    "src/search.rs": "20ae6584c84b445ddf220b70ff963fd221acbd6ca452a170eaaa7b1f82d8cb29",
+    "src/game_state.rs": "2dd33c3f139fe69b3e5fe6ef2107301966ede77a7d847997c1973d300336eab6",
+    "src/parity.rs": "658d28c6c7f25782d1512451b938db4a78b276ecb49433318984abf791dbb3d6",
+    "src/zobrist.rs": "587ad9792f12038434987651fa9b0dea03edd15ba7e811a58bc857ba9c0f631a",
+    "src/random_player.rs": "b4e3123d006e492d17ea7db51f5a19e15ec7f3f30c42a8ffd00a4c706f7c3439",
+    "src/eval.rs": "eab18e11e5f718e0994d1d2644b5db73ccec4c2cfd6f8f7ec2bc5013c1c09ad3",
+    "src/profile_timers.rs": "d63dc96c1947f500850629c3a611b883cd9b9d45b8b28ee3f93b898add26d7f0",
+    "src/board.rs": "1dda40f50a9df46bd72e81bda1e8272aa122fe8d1faaa2ba7030ed787238c0e5",
+    "src/tengu_attack.rs": "fb02fb0da4bacec9684ca0d11ef672e1bd34ca5854ed1e1a2cd320de4faf690b",
+    "src/main.rs": "25aa4212c2f42bb4a06e3127dbe7a01a242903d03d4d16e399fc24b1b9869cfa",
+    "src/debug_tool.rs": "1204517f27fd3b82ffdf85664690018df13c107c563b50214babc758312a2e6c",
+    "src/lib.rs": "618d18deecac595483fb8441abe09c2b16f178cd25d12ffce430830a3d641a96",
+    "src/external_player.rs": "bbdcb1d312e113cd9731217180c8d0c6c6b71f4da71e72cb9735ed4b0b2b2d94",
+    "src/notation.rs": "46b4362bbb0778060831b067cd3f8cdceac5aa242696a2841e9b9fd155dff40c",
+    "src/server.rs": "3bada6d700b11ec49296ed7dae1fbd2e8df47e3e56c69fe10696710ba3aaccce",
+    "src/attack_utils.rs": "6327544b923b51fd465ea2699308260258ec5ba06e997c245c973a5058993d95",
+    "src/think_loop.rs": "5240be6c91bcbc18db562de4f219b0ab73025e975770758c9114696e0aa4f5d2",
+    "src/test_support.rs": "8d95e1d319be8ace5c18f67b4e50945e5b4456fa6c607d40545cd893622259d7",
+    "src/position.rs": "251fd2a75d1940533f35b7980af5b858bb314145f3922ba26eeea3e8ab074f2f",
+    "src/royal_capture_player.rs": "e455e018610a4bb83fae7b88c66f86a37540324fb8064127f2dedb93931849a0",
+    "src/player.rs": "c51f3198edc00a69490b5530f31245f4af0533da85d29ef5c12b4fa4335de29c",
+    "src/board_position.rs": "bce5f9cc9ae5e3bddd805fbbc6f1762795107e8e7cb2e9f84e5702e536eb5b27",
+    "src/piece.rs": "9345638c31b974967fbfa02672382d5e569b36485a9b8178d25c5855467a05f4",
+    "src/alphabeta_player.rs": "e52f6259e5207b10be35141fda1c94cd98d2958f95997a6d06ceb4064bdce299",
+    "src/path_utils.rs": "ac943091cc72cabaf07ae7a07d14a1bf1a48141eea9a64654bac702f84422fd2",
+    "src/uci.rs": "d56625bb7bdc8b73fa9f1189f202d4625b09ce89853e4e2c5d4b3cdbb3568070",
+    "src/session_api.rs": "337fe9306372d165c52cd927732abf612cba5fe616526470de7ad95b95f14158",
+    "src/minimal_intelligence_player.rs": "5d5966ffc767254f67bf9ca9fc88a70673c8640dde8d2a952b2f9c9362d872b2",
+    "src/game_history.rs": "4c4e141de8efb8c649480e28a94f7ba3b9dc7b3e6f9e42f309a65a8714fc94de",
+    "src/move_simulation.rs": "1473319a1706870f7884edf2826221046bc2a5e4b05818a26a7842cc8c266d8e",
+    "src/nnue/mod.rs": "9513f7f71db8fefe2924700cbf79328f4c6fb81091d0e3872c6de4a8243c3148",
+    "src/nnue/packed.rs": "aeb50d9fb6615a8d508898551294b6aeb351281e7e6fc397ff22ff6fef81b4bf",
+    "src/nnue/storage.rs": "226484dd9b276c19de131896828aba00ae09ee5eecaed895f680f558da0bc85c",
+    "src/nnue/features.rs": "21709cf4210730f905669b692dede19348173114ab01a179ea6d7cb5c13ff167",
+    "src/training/compute_gate.rs": "52c6e292a808f418d4936e2294d1ffdccdcdf3112482e5aaa5dc208ede6a3aba",
+    "src/training/match_harness.rs": "699992770f7aeddfd82aa6c9669bdaab037ba35594203bbe0c11f883916cec39",
+    "src/training/paths.rs": "436ea549877a4abb0e0d7da5e8dc88cbab69d413195c49712afd68b4c83e2887",
+    "src/training/run_status.rs": "7eb201510d86460fe6bcd22787a0cbaa2026ece5d0df238d3cb06a84dbd147aa",
+    "src/training/royal_al_grid.rs": "454749d4b0f2da11160ab72ada451b5084baacb78061ee20ad02b093c424eb0a",
+    "src/training/mobility_seed.rs": "89c37ad1e915f70934edb68b3ad0152cc4e234d2e33f81d454af140f39722376",
+    "src/training/eval_trace.rs": "bbe4148c89cf59119c43a8e12e3d9cdeb6b979328e64da56612a2a5659c0bd6c",
+    "src/training/tournament.rs": "04495e91504afa8205c6de21fa798ac02191957a3cc35309e353a0195de7a56f",
+    "src/training/record.rs": "feaa385f6e571807558448fcd41b69ce13938a7e965f66c9cec4b518a6829672",
+    "src/training/start_gen.rs": "fa8963faf8d6ff11280fa6bb010dfa93cbf3bbddbc6b9dd45cf87a791a278146",
+    "src/training/two_mob_grid.rs": "3737cd6bacad1a2202a8dff9edc824b968cfe1a578cb4b398783281e09eb397c",
+    "src/training/top4_mix_grid.rs": "70183e41e511230d1677ccb3e2db5745dee972afe67c186f780bfbc05681d819",
+    "src/training/pst_grid.rs": "5d36a93ba8d5351b0dd2f2a827c1d2e14d89ed4695fd7cd63b786b89a86f72cb",
+    "src/training/two_mob_q_grid.rs": "9b27410ea2501168af8657140debc3f4a194011fd993231733ccc7cd7b144be3",
+    "src/training/texel.rs": "09abc18b14d454a7ad9b0325ff3fafc910bb52894edac72574dc9ff44d3a9436",
+    "src/training/pool.rs": "6e577878bf4c224549eb2ea101214906e2cf764e38634934f9bfe262d6236132",
+    "src/training/knockout.rs": "45063e88bcf5761ff6c726f9b8446ac119abec6f57a169b9d5fdaa5564079994",
+    "src/training/q_rs_grid.rs": "fb0e2c1d3681297e1945baba782ccd75ba7e5dfea51cd1376ced90177103ba58",
+    "src/training/mod.rs": "533060f39f9265e09e0f372660272466e17174e83c8c4095b72de65bd1c3f80c",
+    "src/training/hang_q_ab_grid.rs": "dce1c7fb22df176a2c23175e7e8957f08ef91dc7b3e9bd66b7dee3df8308ce97",
+    "src/training/worker.rs": "6c2902f2cb6bff6472f7b3d276bd6b4cb86830739bb57da5a21c4f8c5024d5cd",
+    "src/training/royal_s2_grid.rs": "ddf4b2a179392071e38575f0bc979fe066f8791bc2402342316c52721c029533",
+    "src/training/featurize.rs": "8c42ec759db2b5056ca7bfef384739972e916b92f3e16cc01234386a05b4a9b8",
+    "src/training/cli.rs": "f32778e17a48a3a39b7473d6e08b3c2473c5a8f77e8f1c2bd0fad12ddfa3bf0d",
+    "src/training/scale_sample.rs": "7b7d4dcfe54ec5eb0c522fd88102bc35a7a60b78ce4c3cc8d7af39138d72536c",
+    "src/training/top11_c2_grid.rs": "9333264045c38862a0c00ba1c77ffbef91db59c85643bd70917d2ec6c9782fbb",
+    "src/training/file_pst_grid.rs": "a721e75938509fcdbda75c2faf4c36da586b08899beaf7035f6bfc2ef3628e23",
+    "src/training/loud_grid.rs": "df763136b82269d6b6a563a3c83a1c0837b22bde23b823debb086e50b101dbad",
+    "src/training/history.rs": "db844376b78e692fda71bfe687643d6a4c8b94161828dc74899438b241ad0c4e",
+    "src/eval/royal_probes.rs": "e136e08a3a08a3d89b48299be7f2044947600d0caa97acac349d710c07ad7cdf",
+    "src/bin/search_speed.rs": "121c762d5fc4cc347a8816afe0b9856734bb865c82c441f352cfadb1c894285a",
+    "src/bin/analyze_position.rs": "7811503be083b049595bb4701cf9e7657a0faa0a620eaed1dd443a87b9e90add",
+    "src/bin/nnue_pilot_match.rs": "cc1fbe978cc25834ef10d610aa15cb7eb02eea75dbe1cca279124e525433e3ca",
+    "src/bin/nnue_tool.rs": "455fbed41d6867243d68a5ab0ff62c00d86ba0fc671147fec30300065ca824fc",
+    "src/bin/q_blowup_exp.rs": "e66cb07cb325e6c255458bd02f9684d1aaa091231cc59e67c98f29846a00e93b",
+    "src/bin/test_free_eagle.rs": "6e0945e5799660c8d986f960e28cdbc71e6c10b2b379265971a0224d5f539668",
+    "src/movement/generator.rs": "9bafb9b9efc5ed72e6fa10b6ba65b33673baaa9e8cf885597c20b86c773cf3c4",
+    "src/movement/direction.rs": "abf16bbf067b0c9c721ba7c9cfe328a30161f692398e2b952d7dca4d307309c3",
+    "src/movement/types.rs": "c3d05d246a379dabb34621868889804e96e30429244a2fb55119c8df1c0d227c",
+    "src/movement/config.rs": "fb7e0dfbd4b2980d8e473f766a69b3c3d941a3573f15dedd78b8735e788610d2",
+    "src/movement/mod.rs": "9c731f40bbc370b1d586d7585c108c3ff8283aea6f1dbdba79071ece4e1dedee",
+    "src/movement/irreversible.rs": "165f4fb2f95b8667ee8da8f06ce7bdaf5f8402e095f1240049b7301093f7a8de",
+    "src/eval/royal_probes/tests.rs": "a71086bc910cbeb45bda76497c7caa89ffe7da8752e0dfe2ada6bcf089bfc73f"
+  },
+  "compiler": "rustc 1.92.0 (ded5c06cf 2025-12-08)\nbinary: rustc\ncommit-hash: ded5c06cf21d2b93bffd5d884aa6e96934ee4234\ncommit-date: 2025-12-08\nhost: x86_64-unknown-linux-gnu\nrelease: 1.92.0\nLLVM version: 21.1.3\n",
+  "binaries": {
+    "baseline": {
+      "path": "/tmp/search-light-results/baseline",
+      "sha256": "e6c664ae5e99de454a468859db8b40928cc044e0808796c7f02cfd3388f9cedf"
+    },
+    "candidate": {
+      "path": "/tmp/search-light-results/lazy-gates",
+      "sha256": "274f666121585348df6c6f64c26104514f93880bc91bfa1d3060fdd6cd1561df"
+    }
+  }
+}

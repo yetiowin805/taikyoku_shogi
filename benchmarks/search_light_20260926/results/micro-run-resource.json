@@ -1,0 +1,13 @@
+{
+  "command": [
+    "/tmp/search-light-results/micro/bench"
+  ],
+  "cpu": 11,
+  "nice": 19,
+  "duty": 0.25,
+  "timeout": false,
+  "exit_code": 0,
+  "wall_seconds": 1.8038369469995814,
+  "child_cpu_seconds": 0.41416000000000003,
+  "peak_child_rss_kib": 12544
+}

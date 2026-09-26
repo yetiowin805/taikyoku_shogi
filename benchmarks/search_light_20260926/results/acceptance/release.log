@@ -1,0 +1,503 @@
+   Compiling taikyoku_shogi v0.1.0 (/tmp/taikyoku-search-light)
+warning: unused import: `crate::board::Board`
+ --> src/tengu_attack.rs:1:5
+  |
+1 | use crate::board::Board;
+  |     ^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `std::collections::HashMap`
+  --> src/training/mobility_seed.rs:13:5
+   |
+13 | use std::collections::HashMap;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `super::*`
+    --> src/training/tournament.rs:2546:9
+     |
+2546 |     use super::*;
+     |         ^^^^^^^^
+
+warning: unused variable: `distance`
+    --> src/game_state.rs:1741:17
+     |
+1741 |             for distance in 1..=4 {
+     |                 ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_distance`
+     |
+     = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `distance`
+    --> src/game_state.rs:1775:17
+     |
+1775 |             for distance in 1..=3 {
+     |                 ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_distance`
+
+warning: variable does not need to be mutable
+    --> src/game_state.rs:2160:13
+     |
+2160 |         let mut at_mid = Piece::new(PieceType::Peacock, Color::Black, mid);
+     |             ----^^^^^^
+     |             |
+     |             help: remove this `mut`
+     |
+     = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `required_jump_positions`
+   --> src/movement/generator.rs:633:9
+    |
+633 |         required_jump_positions: u8,
+    |         ^^^^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_required_jump_positions`
+
+warning: unused variable: `empty_after_jump`
+   --> src/movement/generator.rs:634:9
+    |
+634 |         empty_after_jump: u8,
+    |         ^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_empty_after_jump`
+
+warning: unused variable: `distance`
+   --> src/movement/generator.rs:759:17
+    |
+759 |             for distance in 1..=max_distance_forward_diagonal {
+    |                 ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_distance`
+
+warning: unused variable: `distance`
+   --> src/movement/generator.rs:787:17
+    |
+787 |             for distance in 1..=max_distance_other {
+    |                 ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_distance`
+
+warning: value assigned to `alpha` is never read
+    --> src/search.rs:3260:13
+     |
+3260 |             alpha = a2;
+     |             ^^^^^^^^^^
+     |
+     = help: maybe it is overwritten before being read?
+     = note: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
+
+warning: value assigned to `disagree` is never read
+   --> src/training/eval_trace.rs:392:24
+    |
+392 |     let mut disagree = 0.0f32;
+    |                        ^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+
+warning: associated functions `should_check_piece_for_attack`, `is_under_attack_on_board`, `is_position_under_attack_on_board`, and `apply_move_to_board` are never used
+   --> src/minimal_intelligence_player.rs:174:8
+    |
+ 13 | impl MinimalIntelligencePlayer {
+    | ------------------------------ associated functions in this implementation
+...
+174 |     fn should_check_piece_for_attack(piece: &Piece, royal_pieces: &[Piece]) -> bool {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+349 |     fn is_under_attack_on_board(board: &Board, position: Position, defender_color: Color) -> bool {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^
+...
+356 |     fn is_position_under_attack_on_board(board: &Board, position: Position, defender_color: Color) -> bool {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+363 |     fn apply_move_to_board(board: &mut Board, mv: &Move, moving_piece: &Piece) {
+    |        ^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `calculate_direction_steps` is never used
+ --> src/path_utils.rs:7:4
+  |
+7 | fn calculate_direction_steps(from: Position, to: Position) -> Option<(i8, i8)> {
+  |    ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `taikyoku_shogi` (lib test) generated 14 warnings (run `cargo fix --lib -p taikyoku_shogi --tests` to apply 10 suggestions)
+    Finished `release` profile [optimized] target(s) in 6m 37s
+     Running unittests src/lib.rs (/tmp/taikyoku-engine-speed/target/release/deps/taikyoku_shogi-fd51acdce593196c)
+
+running 383 tests
+test board::dense_list_tests::same_square_move_keeps_index_consistent ... ok
+test board::dense_list_tests::square_indices_survive_replacements_moves_removals_and_clone ... ok
+test board::tests::test_adjacent_simple_attack ... ok
+test board::tests::test_adjacent_simple_attack_diagonal ... ok
+test board::tests::test_board_creation ... ok
+test board::tests::test_enemy_piece_blocking_attack ... ok
+test board::tests::test_friendly_piece_blocking_attack ... ok
+test board::tests::test_great_eagle_jumping_range_attack_forward_diagonal ... ok
+test board::tests::test_great_eagle_no_jump_range_attack_other_directions ... ok
+test board::tests::test_hook_mover_attack ... ok
+test board::tests::test_hook_mover_two_step_attack_with_virtual_board ... ok
+test board::tests::test_move_piece ... ok
+test board::tests::test_peacock_two_step_attack_with_virtual_board ... ok
+test board::tests::test_place_and_get_piece ... ok
+test board::tests::test_range_attack_adjacent ... ok
+test board::tests::test_range_attack_blocked ... ok
+test board::tests::test_range_attack_from_distance ... ok
+test board::tests::test_range_attack_jump_mode ... ok
+test board::tests::test_shitenno_jumping_range_attack_diagonal ... ok
+test board::tests::test_shitenno_jumping_range_attack_empty_target ... ok
+test board::tests::test_shitenno_jumping_range_attack_enemy_target ... ok
+test board::tests::test_shitenno_jumping_range_attack_same_file ... ok
+test board::tests::test_shitenno_jumping_range_attack_same_rank ... ok
+test board::tests::test_simple_attack_blocked ... ok
+test board::tests::test_simple_attack_can_capture_blocker ... ok
+test board::tests::test_simple_attack_max_distance_2 ... ok
+test board::tests::test_simple_attack_max_distance_2_blocked ... ok
+test board::tests::test_tengu_attack_adjacent ... ok
+test board::tests::test_tengu_attack_from_distance ... ok
+test board::tests::test_tengu_two_step_attack_with_virtual_board ... ok
+test board::tests::test_unpin_scenario_1 ... ok
+test board::tests::test_unpin_scenario_2 ... ok
+test board::tests::test_unpin_scenario_3_no_threat ... ok
+test board_position::tests::opening_round_trip ... ok
+test debug_tool::tests::test_ai_move_after_scrub_into_loaded_prefix ... ok
+test debug_tool::tests::test_gamestate_clone_round_trip ... ok
+test debug_tool::tests::test_play_mi_extends_branch ... ok
+test debug_tool::tests::test_rebuild_to_idempotent_on_initial ... ok
+test debug_tool::tests::test_successive_ai_moves_accumulate_from_current_position ... ok
+test eval::royal_probes::tests::alignment_weights_blockers_direction_and_cap ... ok
+test eval::royal_probes::tests::checkpoint_modes_drive_search_and_survive_model_switching ... ok
+test eval::royal_probes::tests::checkpoint_modes_preserve_full_and_incremental_eval_parity ... ok
+test eval::royal_probes::tests::incremental_evaluation_agrees_and_history_survives_probe ... ok
+test eval::royal_probes::tests::king_two_square_escape_is_not_a_mating_net ... ok
+test eval::royal_probes::tests::mating_probe_proves_check_and_restores_state_on_all_paths ... ok
+test eval::royal_probes::tests::moving_royal_exposes_a_previously_blocked_ray ... ok
+test eval::royal_probes::tests::no_flight_is_not_no_defense ... ok
+test eval::royal_probes::tests::probes_are_color_symmetric_and_modes_restore ... ok
+test eval::royal_probes::tests::unthreatened_box_and_spare_royal_do_not_trigger_verified_l ... ok
+test eval::royal_probes::tests::verified_flights_include_safe_captures_for_both_royal_types ... ok
+test eval::tests::advance_prefers_forward_non_royal ... ok
+test eval::tests::eg_tropism_at_d_ref_is_near_zero_when_gated_on ... ok
+test eval::tests::eg_tropism_density_delta_no_free_lunch_at_neutral ... ok
+test eval::tests::eg_tropism_ignores_own_royals ... ok
+test eval::tests::eg_tropism_losing_side_damped ... ok
+test eval::tests::eg_tropism_one_short_step_about_sigma ... ok
+test eval::tests::eg_tropism_opening_density_gate_near_zero ... ok
+test eval::tests::eg_tropism_prefers_cluster_near_lone_royal ... ok
+test eval::tests::eg_tropism_tail_step_uses_tail_scale ... ok
+test eval::tests::fast_slow_pst_multiplies_purely ... ok
+test eval::tests::file_pst_eligibility_and_symmetry ... ok
+test eval::tests::file_pst_multiplies_positional ... ok
+test eval::tests::first_leg_count_hook_tengu_not_gold ... ok
+test eval::tests::incremental_eval_matches_full_opening_and_pawn_pushes ... ok
+test eval::tests::incremental_eval_matches_full_when_tropism_gated_on ... ok
+test eval::tests::incremental_eval_matches_full_with_l_and_align ... ok
+test eval::tests::jump_and_capturing_range_skip_rank_pst ... ok
+test eval::tests::list_model_files_discovers_nested_checkpoints_without_loading_networks ... ok
+test eval::tests::loud_capture_floor_tracks_capturing_tariff ... ok
+test eval::tests::lr_flight_zero_flight_in_check_pays_k ... ok
+test eval::tests::lr_flight_zero_when_two_flights_not_in_check ... ok
+test eval::tests::phase_blend_near_beats_promo_park_with_real_pst ... ok
+test eval::tests::prefers_side_with_extra_royal_material ... ok
+test eval::tests::range_two_mover_and_capturer_classes ... ok
+test eval::tests::search_defaults_old_json_defaults_q_blowup_off ... ok
+test eval::tests::seed_checkpoint_file_roundtrip ... ok
+test eval::tests::seed_material_values_match_tariffs ... ok
+test eval::tests::seed_round_trip_json ... ok
+test eval::tests::tropism_class_scales_short_range_capturing ... ok
+test eval::tests::two_mover_align_hook_file_not_diag ... ok
+test eval::tests::two_mover_align_tengu_diag_not_file ... ok
+test eval::tests::two_mover_mob_k0_matches_seed ... ok
+test eval::tests::two_mover_mob_linear_k100_per_landing ... ok
+test eval::tests::undeveloped_home_penalizes_home_rank_or_behind ... ok
+test eval::tests::zero_enemy_royals_is_mate ... ok
+test game_history::tests::list_game_rel_paths_recurses_and_skips_metadata ... ok
+test game_history::tests::list_tourney_paths_only_slot_json ... ok
+test game_state::tests::fivefold_repetition_draw_after_five_occurrences ... ok
+test game_state::tests::make_move_accepts_peacock_two_step_second_leg_only ... ok
+test game_state::tests::make_unmake_restores_rep_history ... ok
+test game_state::tests::progress_draw_at_limit_not_before ... ok
+test game_state::tests::test_capturing_range_movement ... ok
+test game_state::tests::test_initial_position_setup ... ok
+test game_state::tests::test_initial_state ... ok
+test game_state::tests::test_king_move_generation ... ok
+test game_state::tests::test_king_path_blocking ... ok
+test game_state::tests::test_pawn_cannot_move_diagonally_to_empty ... ok
+test game_state::tests::test_pawn_move_generation ... ok
+test game_state::tests::test_pawn_promotion ... ok
+test minimal_intelligence_player::tests::rejects_move_that_opens_lance_discovered_check ... ok
+test minimal_intelligence_player::tests::rejects_move_that_opens_lion_hawk_discovered_check ... ok
+test move_simulation::tests::test_capturing_checker_clears_check_in_simulation ... ok
+test move_simulation::tests::test_move_delta_new ... ok
+test move_simulation::tests::test_move_delta_piece_moved ... ok
+test move_simulation::tests::test_move_to_delta ... ok
+test move_simulation::tests::test_move_to_delta_records_destination_capture ... ok
+test move_simulation::tests::test_virtual_board_capturing_range ... ok
+test move_simulation::tests::test_virtual_board_get_piece ... ok
+test move_simulation::tests::test_virtual_board_get_pieces_by_color ... ok
+test move_simulation::tests::test_virtual_board_promotion ... ok
+test movement::direction::tests::test_all_directions ... ok
+test movement::direction::tests::test_direction_offsets ... ok
+test movement::direction::tests::test_direction_set ... ok
+test movement::generator::linear_simple_tests::direct_reach_matches_original_generated_landings ... ok
+test movement::generator::linear_simple_tests::simple_raw_order_matches_legacy_paths_and_blockers ... ok
+test movement::irreversible::tests::capture_still_resets_draw_counter ... ok
+test movement::irreversible::tests::king_orthogonal_is_reversible ... ok
+test movement::irreversible::tests::king_quiet_step_increments_draw_counter ... ok
+test movement::irreversible::tests::pawn_forward_is_irreversible ... ok
+test movement::irreversible::tests::pawn_quiet_forward_resets_draw_counter ... ok
+test movement::irreversible::tests::peacock_forward_diagonal_reversible_via_simple_back ... ok
+test movement::irreversible::tests::reverse_reach_matches_original_union_for_all_piece_configs ... ok
+test movement::irreversible::tests::white_pawn_forward_is_irreversible ... ok
+test nnue::packed::tests::packed_and_scalar_agree_at_extremes_and_supported_widths ... ok
+test nnue::storage::tests::fused_rows_and_snapshots_match_scalar_with_collisions ... ok
+test nnue::tests::checkpoint_hash_length_and_schema_validation ... ok
+test nnue::tests::deltas_promotions_null_clone_and_model_switch ... ok
+test nnue::tests::schema_stable_and_color_rotation_equivalent ... ok
+test nnue::tests::score_replaces_handcrafted_terms_but_preserves_rules_and_timeout ... ok
+test nnue::tests::undo_after_model_rebinding_invalidates_the_old_snapshot ... ok
+test notation::tests::comments_and_multiline ... ok
+test notation::tests::move_free_eagle ... ok
+test notation::tests::move_standard_and_promote ... ok
+test notation::tests::move_two_step ... ok
+test notation::tests::opening_tsfen_round_trip ... ok
+test notation::tests::promoted_with_base_round_trip ... ok
+test notation::tests::reject_unknown_piece ... ok
+test notation::tests::startpos_alias ... ok
+test parity::tests::attack_implies_can_reach_for_simple_captures ... ok
+test parity::tests::directed_reach_matches_full_gen_on_opening ... ok
+test parity::tests::make_unmake_fuzz_opening_captures ... ok
+test parity::tests::should_check_covers_all_generated_landings_opening ... ok
+test parity::tests::staged_gen_union_matches_all_on_opening ... ok
+test parity::tests::victim_square_filters_piece_subset ... ok
+test parity::tests::victim_square_gen_matches_oracle_midgame_pawn_pushes ... ok
+test parity::tests::victim_square_gen_matches_oracle_opening_samples ... ok
+test path_utils::iterator_parity::every_direction_mask_matches_old_order ... ok
+test path_utils::iterator_parity::every_square_pair_matches_old_path ... ok
+test path_utils::tests::test_get_path_positions_adjacent ... ok
+test path_utils::tests::test_get_path_positions_diagonal ... ok
+test path_utils::tests::test_get_path_positions_horizontal ... ok
+test path_utils::tests::test_get_path_positions_same_position ... ok
+test path_utils::tests::test_get_path_positions_vertical ... ok
+test path_utils::tests::test_is_diagonal_path_clear_not_diagonal ... ok
+test path_utils::tests::test_is_diagonal_path_clear_valid ... ok
+test path_utils::tests::test_is_orthogonal_path_clear_not_orthogonal ... ok
+test path_utils::tests::test_is_orthogonal_path_clear_same_position ... ok
+test path_utils::tests::test_is_orthogonal_path_clear_valid ... ok
+test path_utils::tests::test_is_path_clear_blocked ... ok
+test path_utils::tests::test_is_path_clear_empty ... ok
+test piece::tests::test_king_movement ... ok
+test piece::tests::test_knight_must_promote_on_last_two_ranks ... ok
+test piece::tests::test_pawn_movement_black ... ok
+test piece::tests::test_pawn_movement_white ... ok
+test player::tests::ab_annotated_move_includes_black_abs_eval ... ok
+test player::tests::non_ab_annotated_has_empty_eval ... ok
+test player::tests::test_player_by_name_and_choose_move ... ok
+test position::tests::test_position_creation ... ok
+test position::tests::test_position_index_conversion ... ok
+test position::tests::test_position_offset ... ok
+test random_player::tests::test_random_player_returns_move ... ok
+test random_player::tests::test_random_player_returns_none_when_no_moves ... ok
+test search::reusable_tt_tests::cancelled_analysis_stops_before_starting_a_depth ... ok
+test search::reusable_tt_tests::move_coordinates_use_gui_shogi_axes ... ok
+test search::reusable_tt_tests::table_pool_never_retains_bounds_across_searches ... ok
+test search::royal_al_search_tests::aspiration_windows_expand_safely_and_keep_full_mate_window ... ok
+test search::royal_al_search_tests::scarce_defenses_extend_search_without_static_penalty ... ok
+test search::tests::ab_hang_interior_keeps_pathclear_when_victim_was_sole_defender ... ok
+test search::tests::ab_hang_keeps_royal_capture_even_when_hook_hangs ... ok
+test search::tests::ab_hang_keeps_safe_high_victim_capture ... ok
+test search::tests::ab_hang_prunes_high_value_guarded_capture ... ok
+test search::tests::capturable_max_gain_ignores_untouchable_board_pieces ... ok
+test search::tests::capture_gen_keeps_capturing_two_step_omits_quiet ... ok
+test search::tests::capture_gen_matches_filtered_full_generation_on_opening ... ok
+test search::tests::capturing_range_path_capture_detected ... ok
+test search::tests::cheap_capture_ab_leaf_skips_quiescence ... ok
+test search::tests::deep_id_searches_full_root_not_narrowed ... ok
+test search::tests::depth1_q_refuses_quiet_that_allows_hook_king_mate ... ok
+test search::tests::depth1_search_plays_two_step_king_mate ... ok
+test search::tests::depth_one_prefers_capturing_lone_royal ... ok
+test search::tests::dest_capture_detected_self_capture_excluded ... ok
+test search::tests::dest_multileg_hang_includes_equal_hook_trade ... ok
+test search::tests::dest_multileg_hang_on_by_default ... ok
+test search::tests::dest_multileg_hang_opens_q_when_a_set ... ok
+test search::tests::dest_pathclear_hang_does_not_admit_corridor ... ok
+test search::tests::dest_pathclear_hang_opens_q_when_b_set ... ok
+test search::tests::free_king_promo_is_loud_and_enters_q_gen ... ok
+test search::tests::id_timeout_returns_last_completed_depth ... ok
+test search::tests::id_tiny_budget_high_ceiling_returns_a_move ... ok
+test search::tests::large_hang_ignores_equal_or_higher_attacker ... ok
+test search::tests::large_hang_simple_take_detects_lesser_attacker ... ok
+test search::tests::large_mover_subloud_capture_opens_q_only_with_r ... ok
+test search::tests::last_royal_check_filters_to_hanging_dragon_recapture ... ok
+test search::tests::last_royal_check_with_no_evasion_still_returns_a_move ... ok
+test search::tests::midgame_d4_q_ablation_release ... ignored, manual release performance experiment; run serially
+test search::tests::opening_depth2_play_search_completes ... ok
+test search::tests::opening_depth3_q2_completes_quickly_release ... ignored, manual release performance experiment; run serially
+test search::tests::opening_depth4_makes_root_progress_in_budget_release ... ignored, manual release performance experiment; run serially
+test search::tests::opening_q_gen_drops_mop_pathclear_without_dest_prev ... ok
+test search::tests::opening_worthwhile_quiescence_captures_far_fewer_than_raw ... ok
+test search::tests::path_sum_outranks_landing_victim_in_sort_key ... ok
+test search::tests::pathaware_quiesce_budgets_are_tight ... ok
+test search::tests::pathclear_mop_and_loud_landing_need_dest_recapture ... ok
+test search::tests::pathclear_q_allows_dest_recapture_only ... ok
+test search::tests::play_and_trace_agree_on_best_move ... ok
+test search::tests::q_includes_hook_two_step_king_take_off_prev_to ... ok
+test search::tests::q_tries_dest_recapture_of_major_before_stand_pat_cutoff ... ok
+test search::tests::qprune_mode_matrix ... ignored
+test search::tests::quiescence_avoids_hanging_capture ... ok
+test search::tests::quiescence_floors_track_seed_loud_capture_floor ... ok
+test search::tests::quiescence_includes_big_piece_captures ... ok
+test search::tests::quiescence_skips_low_value_enemy_captures ... ok
+test search::tests::quiet_ab_leaf_skips_quiescence ... ok
+test search::tests::quiet_parent_leaf_enters_q_for_large_hang_take ... ok
+test search::tests::quiet_parent_leaf_stand_pats_without_large_hang ... ok
+test search::tests::quiet_parent_q_sees_two_step_king_mate ... ok
+test search::tests::recapture_below_floor_is_quiescence_candidate ... ok
+test search::tests::reorder_root_moves_puts_best_first ... ok
+test search::tests::root_lmr_reduces_quiets_not_captures ... ok
+test search::tests::royal_probe_preserves_nnue_and_matches_normal_simulation ... ok
+test search::tests::search_apply_matches_make_move_on_opening_moves ... ok
+test search::tests::search_prefers_capture_over_repeating_quiet ... ok
+test search::tests::search_prefers_progress_reset_over_walking_into_draw ... ok
+test search::tests::see_lva_prefers_cheaper_attacker_equal_gain ... ok
+test search::tests::see_orders_safe_landing_above_guarded ... ok
+test search::tests::two_royals_does_not_force_check_evasions ... ok
+test search::tests::two_step_royal_take_is_one_search_ply ... ok
+test search::tests::wipe_group_key_empty_beyond_shares_occupied_set ... ok
+test search::tests::zero_q_budget_stand_pats_even_with_tactics_available ... ok
+test search::tests::zero_q_budget_still_detects_no_last_royal_evasion ... ok
+test session_api::tests::recorded_series_empty_without_scores ... ok
+test session_api::tests::recorded_series_prefers_search_eval ... ok
+test session_api::tests::snapshot_exposes_recorded_evals_at_cursor ... ok
+test tengu_attack::tests::intermediate_order_matches_geometry_for_every_square_pair ... ok
+test tengu_attack::tests::lion_hawk_attacks_clear_long_diagonal ... ok
+test tengu_attack::tests::lion_hawk_attacks_via_diagonal_then_orthogonal_step ... ok
+test tengu_attack::tests::lion_hawk_blocked_on_diagonal ... ok
+test tengu_attack::tests::lion_hawk_jumps_chebyshev_two ... ok
+test think_loop::tests::think_loop_startpos_returns_legal_move ... ok
+test training::cli::timed_id_cli_tests::agent_spec_carries_time_ms ... ok
+test training::cli::timed_id_cli_tests::depth_only_leaves_time_none_and_depth ... ok
+test training::cli::timed_id_cli_tests::explicit_depth_kept_with_time ... ok
+test training::cli::timed_id_cli_tests::time_without_depth_defaults_ceiling_8 ... ok
+test training::compute_gate::tests::request_drains_existing_lease_and_blocks_new_games ... ok
+test training::eval_trace::tests::free_king_promotes_to_great_general_is_loud ... ok
+test training::eval_trace::tests::interestingness_ranks_swingy_higher ... ok
+test training::eval_trace::tests::mate_clip_limits_interestingness_input ... ok
+test training::eval_trace::tests::metrics_detect_drawdown_and_reversal ... ok
+test training::eval_trace::tests::recorded_eval_prefers_search_then_static ... ok
+test training::eval_trace::tests::search_probe_plies_every_five ... ok
+test training::eval_trace::tests::select_quiet_excludes_tail_plies ... ok
+test training::eval_trace::tests::select_quiet_keeps_loud_promotion ... ok
+test training::eval_trace::tests::select_quiet_skips_capture_mid_burst ... ok
+test training::eval_trace::tests::snapshot_prefers_recorded_search_eval ... ok
+test training::eval_trace::tests::stm_to_black_abs_flips_for_white ... ok
+test training::featurize::tests::candidates_include_burst_ends_and_ply0 ... ok
+test training::featurize::tests::decided_ply_requires_stable_lead ... ok
+test training::featurize::tests::evenly_subsample_respects_target_and_endpoints ... ok
+test training::featurize::tests::featurize_dir_skips_nongame_json ... ok
+test training::featurize::tests::featurize_does_not_treat_standard_make_move_none_as_failure ... ok
+test training::file_pst_grid::tests::apply_touches_file_back_tropism ... ok
+test training::file_pst_grid::tests::cell_ids_cover_45 ... ok
+test training::hang_q_ab_grid::tests::grid_is_four_by_four ... ok
+test training::hang_q_ab_grid::tests::search_defaults_set_only_requested_flags ... ok
+test training::hang_q_ab_grid::tests::variant_ids ... ok
+test training::history::tests::append_except_skips_listed_ids ... ok
+test training::history::tests::h105_seed_loads_even_file_tables ... ok
+test training::history::tests::history_manifest_lists_expected_ids ... ok
+test training::knockout::tests::bye_is_not_a_play_in_appearance ... ok
+test training::knockout::tests::claim_prefers_earlier_round_in_same_tree ... ok
+test training::knockout::tests::claim_prefers_older_tree_over_newer_pending ... ok
+test training::knockout::tests::fill_spawns_second_tree_when_final_inflight ... ok
+test training::knockout::tests::final_period_sit_out_gets_one_rd_tick ... ok
+test training::knockout::tests::match_1_1_enqueues_another_pair ... ok
+test training::knockout::tests::match_2_0_has_winner ... ok
+test training::knockout::tests::nineteen_play_in_and_known_r16 ... ok
+test training::knockout::tests::play_in_19_is_six_bottom ... ok
+test training::knockout::tests::play_in_period_waits_for_r16 ... ok
+test training::knockout::tests::seed_bracket_16_is_ncaa ... ok
+test training::knockout::tests::seed_order_sorts_by_r ... ok
+test training::knockout::tests::seed_order_tie_shuffle_is_deterministic ... ok
+test training::knockout::tests::seventeen_play_in_is_bottom_two ... ok
+test training::knockout::tests::sixteen_is_1v16_no_play_in ... ok
+test training::knockout::tests::ten_all_then_four_draws_picks_lower_r ... ok
+test training::loud_grid::tests::cell_ids_cover_27 ... ok
+test training::loud_grid::tests::center_matches_seed_scaled_types ... ok
+test training::loud_grid::tests::class_partitions ... ok
+test training::loud_grid::tests::corner_scales_axes_independently ... ok
+test training::pool::tests::fischer_start_varies_by_seed ... ok
+test training::pool::tests::parse_starts_fischer_aliases ... ok
+test training::pst_grid::tests::apply_only_touches_fast_pst ... ok
+test training::pst_grid::tests::cell_ids_cover_27 ... ok
+test training::pst_grid::tests::center_params_match_seed_fast_pst ... ok
+test training::pst_grid::tests::opp_half_interpolates_mid_to_promo ... ok
+test training::q_rs_grid::tests::grid_writes_33_unique_entrants ... ok
+test training::q_rs_grid::tests::search_defaults_set_only_requested_flags ... ok
+test training::q_rs_grid::tests::variant_ids ... ok
+test training::record::tests::legacy_loads ... ok
+test training::record::tests::move_record_with_eval_round_trips ... ok
+test training::record::tests::move_record_without_eval_fields_deserializes ... ok
+test training::record::tests::v2_round_trip ... ok
+test training::royal_al_grid::tests::full_factorial_is_unique_and_round_trips ... ok
+test training::royal_al_grid::tests::grid_preserves_references_and_refuses_overwrite ... ok
+test training::royal_s2_grid::tests::champs_grid_writes_title_winners_only ... ok
+test training::royal_s2_grid::tests::grid_writes_22_unique_entrants ... ok
+test training::royal_s2_grid::tests::twins_grid_writes_16_experimental_only ... ok
+test training::royal_s2_grid::tests::variant_ids ... ok
+test training::run_status::tests::status_roundtrip_json ... ok
+test training::scale_sample::tests::big_piece_count_is_fifteen ... ok
+test training::scale_sample::tests::param_names_seventeen ... ok
+test training::scale_sample::tests::royal_3_linked_to_six_fifths ... ok
+test training::scale_sample::tests::sample_rejects_seed_and_dupes ... ok
+test training::start_gen::tests::ablations_never_zero_royals_and_seed_deterministic ... ok
+test training::start_gen::tests::forced_shuffle_preserves_mirror_and_file_tied ... ok
+test training::start_gen::tests::light_fischer_no_ablation_and_skips_powerful_ranks ... ok
+test training::start_gen::tests::opening_has_fifteen_powerful_per_side ... ok
+test training::start_gen::tests::powerful_removal_counts_match_recipe ... ok
+test training::texel::tests::calibrate_k_targets_unit_scale ... ok
+test training::texel::tests::filter_drops_draws_and_early ... ok
+test training::texel::tests::fit_moves_weights_when_label_correlates_with_material ... ok
+test training::texel::tests::only_large_freezes_mid_table_and_moves_hook ... ok
+test training::texel::tests::texel_large_is_two_movers_and_capturers ... ok
+test training::top11_c2_grid::tests::grid_writes_unique_entrants_with_history ... ok
+test training::top11_c2_grid::tests::twin_ids_skip_c2_and_seed ... ok
+test training::top4_mix_grid::tests::apply_and_mix_are_distinct_from_parents ... ok
+test training::top4_mix_grid::tests::eighteen_cells_and_aliases ... ok
+test training::top4_mix_grid::tests::grid_writes_unique_entrants_with_history ... ok
+test training::top4_mix_grid::tests::pairwise_ids_are_six_and_ordered ... ok
+test training::top4_mix_grid::tests::two_mob_extra_ids_and_discount ... ok
+test training::tournament::start_seed_tests::light_start_is_deterministic_for_seed ... ok
+test training::tournament::tests::agent_for_sets_max_time_ms ... ok
+test training::tournament::tests::elite_blowout_still_schedules_then_fills_field ... ok
+test training::tournament::tests::elite_pool_excludes_low_uci_agents ... ok
+test training::tournament::tests::glicko_favors_winner_and_shrinks_rd ... ok
+test training::tournament::tests::glicko_high_rd_moves_more ... ok
+test training::tournament::tests::glicko_period_one_game_matches_one ... ok
+test training::tournament::tests::imported_ratings_seed_first_knockout ... ok
+test training::tournament::tests::inflight_game_does_not_lock_agents ... ok
+test training::tournament::tests::informational_pair_hits_leader_vs_uci_ineligible ... ok
+test training::tournament::tests::informational_pair_rate_is_one_in_denom ... ok
+test training::tournament::tests::informational_pair_waits_for_minimum_games ... ok
+test training::tournament::tests::load_ratings_file_accepts_ratings_and_elo ... ok
+test training::tournament::tests::migrate_legacy_elo_into_ratings ... ok
+test training::tournament::tests::minimum_games_catchup_overrides_elite ... ok
+test training::tournament::tests::opponent_pool_empty_window_still_has_two ... ok
+test training::tournament::tests::opponent_pool_expands_to_two_closer_side_first ... ok
+test training::tournament::tests::opponent_pool_leader_takes_next_two_lower ... ok
+test training::tournament::tests::opponent_pool_singleton_outside_window_is_kept ... ok
+test training::tournament::tests::passive_rd_tick_inflates_sitouts_every_n ... ok
+test training::tournament::tests::rematch_cap_skips_over_half_after_four_games ... ok
+test training::tournament::tests::schedule_interleaves_matchups_each_round ... ok
+test training::tournament::tests::schedule_size ... ok
+test training::tournament::tests::swiss_build_starts_empty ... ok
+test training::tournament::tests::swiss_color_balances_matchup ... ok
+test training::tournament::tests::swiss_first_two_opening_then_light ... ok
+test training::tournament::tests::swiss_schedules_least_games_first ... ok
+test training::tournament::tests::top2_floor_used_when_uci_elite_is_singleton ... ok
+test training::tournament::tests::tournament_complete_rr_only ... ok
+test training::tournament::tests::tourney_entrant_engine_field_round_trips ... ok
+test training::two_mob_grid::tests::apply_sets_mobility_knobs ... ok
+test training::two_mob_grid::tests::cell_ids_cover_18_plus_seed ... ok
+test training::two_mob_grid::tests::grid_writes_seed_base_and_logic_engine_fields ... ok
+test training::two_mob_q_grid::tests::apply_matches_two_mob_cell ... ok
+test training::two_mob_q_grid::tests::finalist_ids_and_q_twins ... ok
+test training::two_mob_q_grid::tests::grid_pairs_finalists_and_keeps_history ... ok
+test training::two_mob_q_grid::tests::q_defaults_set_lmr2_and_loud_st ... ok
+test training::worker::tests::deterministic_seed_base_plus_index ... ok
+test training::worker::tests::zero_seed_base_draws_os_entropy ... ok
+test zobrist::tests::capture_and_quiet_match_recompute ... ok
+test zobrist::tests::empty_and_opening_hashes_stable ... ok
+test zobrist::tests::make_unmake_restores_hash ... ok
+test zobrist::tests::repetition_key_ignores_draw_counter ... ok
+test zobrist::tests::side_to_move_flip_updates_hash ... ok
+
+test result: ok. 379 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 8.81s
+

@@ -1,6 +1,6 @@
 # Engine & search speed analysis
 
-Findings from a code read of `board.rs`, `movement/`, `game_state.rs`, `attack_utils.rs`, `move_simulation.rs`, `eval.rs` and `search.rs` (main at `2598690`), plus a few small sanity measurements. This is an analysis document. No engine code was changed. Items are grouped as follows:
+Findings from a code read of `board.rs`, `movement/`, `game_state.rs`, `attack_utils.rs`, `move_simulation.rs`, `eval.rs` and `search.rs` (main at `2598690`), plus a few small sanity measurements. The original analysis made no engine changes; subsequent implementation status and measured results are recorded below. Items are grouped as follows:
 
 - **A. Fundamental engine changes.** Representation, move generation and attack detection. These help any algorithm (alpha-beta, MCTS, self-play data generation, featurization), and most can be verified as *exact* (identical nodes, scores and routes) with the existing `benchmarks/search_speed_20260920` harness.
 - **D. Core engine deep dive** (placed after A). This covers game-state representation, legal move generation, path checking, make/unmake and attack detection at the function level, with per-piece-class measurements. It turns A1–A5 into concrete changes and adds new findings: duplicate two-step moves, blocked-piece cost, self-capture sweeps, and a Vice General rules bug.
@@ -33,6 +33,50 @@ This follow-up checks off four bounded parts of the proposals below:
 
 See [the follow-up validation record](benchmarks/engine_speed_20260926/README.md)
 for parity tests, paired search measurements and reproduction instructions.
+
+## Follow-up experiments and next steps — 2026-09-26
+
+- [x] **A2/A7 (bounded part): lazy leaf entry checks.** Resolve last-royal evasions before any
+  zero-budget return. Otherwise, test cheap sufficient capture-entry flags
+  before tactical discovery, short-circuit remaining capture checks, and only
+  discover loud promotions at entry when captures have not already opened q.
+  Quiescence still generates its original ordered candidates with unchanged
+  eligibility flags. This removes redundant discovery; it does not prune moves.
+  The initial six-position/four-agent screen measured **9.9% less search CPU
+  time** (equal-case geometric mean; 9.3% less summed CPU time), with exact
+  scores, routes, root lines and node counts in all 48 measured pairs.
+  A follow-up on six reserved positions saved **17.1% CPU time** (16.6% summed),
+  again with exact parity in all 48 pairs and improvement for every agent and
+  position. Debug and release library suites each passed 379 tests (4 ignored).
+  These are two small samples, not a universal speedup guarantee.
+- [ ] **A3/D3: blocker bitsets — next small prototype to finish.** Actual-set
+  component membership queries were roughly 13 times faster for nonempty sets,
+  but the integrated prototype changed Debug formatting in nested two-step
+  NNUE feature names. Model loading correctly rejected it. Preserve the exact
+  descriptor schema and verify existing checkpoints load before measuring
+  whole searches. The prepared formatting fix is not yet tested; no integrated
+  speedup is established.
+- [ ] **A1/D3: line occupancy masks — promising, larger follow-up.** Synthetic
+  ray-clear queries were 1.5–5.6 times faster. Prototype mask maintenance and
+  make/unmake parity, including intermediate captures and special movers,
+  before drawing any whole-engine conclusion. Current figures omit those costs.
+- [ ] **A4/D1/D5: cached movement properties — low priority.** Despite cheaper
+  isolated lookups, full searches saved only 0.4% CPU time in the same screen,
+  with mixed per-agent results. All searches matched; the gain is inconclusive.
+  Added config fields/invariants are hard to justify on speed alone at present.
+- [ ] Lazy progress-label formatting, repetition-count maintenance and broader
+  move-generation proposals remain unverified in this experiment. In particular,
+  do not assume a progress-counter reset makes earlier repetition history
+  irrelevant; that requires a separate rules/correctness proof.
+
+Tests used two handcrafted and two NNUE agents, sequentially at low priority,
+limited to approximately one quarter of one logical CPU. The timings measure
+process CPU time under throttling, not normal-load wall time or playing strength.
+Component factors cannot be compounded into whole-engine speedups. The larger
+estimates elsewhere in this document remain hypotheses.
+
+See [the experiment report](benchmarks/search_light_20260926/REPORT.md) for raw
+results, exact tested patches, limitations and the follow-up acceptance record.
 
 ---
 

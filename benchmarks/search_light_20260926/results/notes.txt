@@ -1,0 +1,1 @@
+Observed bitset failure was descriptor feature names, before weight loading. NNUE TwoStep abilities interpolate MovementCapability Debug, including empty blocker sets; deriving Debug for a new bitset changed '{}' into a struct dump. Compatibility fix uses set-shaped Debug. No schema checks bypassed.
