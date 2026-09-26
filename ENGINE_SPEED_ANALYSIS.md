@@ -9,6 +9,31 @@ Findings from a code read of `board.rs`, `movement/`, `game_state.rs`, `attack_u
 
 Speed-up estimates are **order-of-magnitude guesses with the reasoning shown**. They are not measurements. Each one needs the paired, held-out protocol from `benchmarks/search_speed_20260920/README.md` before anyone claims it.
 
+
+## Implementation status — 2026-09-26
+
+This follow-up checks off four bounded parts of the proposals below:
+
+- [x] **D3: limited-range path rescanning.** `generate_simple` visits each ray
+  square once instead of checking every prefix again. The direct Simple reach
+  query likewise stops rescanning already-checked squares. It preserves the original
+  ordered raw output, including the duplicate enemy landing emitted when another
+  in-bounds step remains. Removing that duplicate is a separate behavior review.
+- [x] **D3: direct jump reach.** Check the requested offset and landing occupancy
+  instead of generating a vector of every legal jump and searching it.
+- [x] **D4: temporary reach/jump lists.** Directional-irreversibility checks query
+  the needed reverse direction/offset directly and short-circuit. They preserve
+  the existing color adjustment, promotion-specific configurations and progress
+  counter semantics. This does not implement the larger compiled-spec proposal.
+- [x] **D5.5: two-leg intermediate allocations.** Tengu/Peacock diagonal and Hook
+  Mover orthogonal attack checks use two stack slots instead of a heap vector,
+  preserving candidate order and duplicate suppression.
+- [ ] The remaining proposals require separate implementation and validation;
+  their estimates below remain the original analysis, not measured PR gains.
+
+See [the follow-up validation record](benchmarks/engine_speed_20260926/README.md)
+for parity tests, paired search measurements and reproduction instructions.
+
 ---
 
 ## 0. Where the time goes today (sanity measurements)
