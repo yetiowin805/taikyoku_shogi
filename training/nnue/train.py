@@ -58,7 +58,7 @@ def batch(samples,data,indices):
   s=samples[i];start=s['offset'];middle=start+s['us'];end=middle+s['them']
   for begin,stop in [(start,middle),(middle,end)]:
    arrays.append(data[begin:stop]);offsets.append(offsets[-1]+stop-begin)
- x=torch.from_numpy(np.concatenate(arrays).astype(np.int64));off=torch.tensor(offsets,dtype=torch.long)
+ x=torch.from_numpy(np.concatenate(arrays,dtype=np.int64));off=torch.tensor(offsets,dtype=torch.long)
  target=torch.tensor([(samples[i]['score']-samples[i]['material'])/1000 for i in indices],dtype=torch.float32).clamp(-100,100)
  return x,off,target
 

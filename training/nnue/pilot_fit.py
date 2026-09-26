@@ -109,13 +109,26 @@ def weights_for(samples, ids):
             for i in ids}
 
 
-def losses(pred, target, material, outcome, mode, scale, mix):
-    huber = torch.nn.functional.smooth_l1_loss(pred, target, reduction='none')
+def probabilities(pred, target, material, outcome, scale, mix):
     total = pred*1000 + material
     teacher = target*1000 + material
     p, q = torch.sigmoid(total/scale), torch.sigmoid(teacher/scale)
     mask = torch.isfinite(outcome)
     blended = torch.where(mask, (1-mix)*q+mix*torch.nan_to_num(outcome), q)
+    return p, q, mask, blended
+
+
+def training_loss(pred, target, material, outcome, mode, scale, mix):
+    """Compute only the objective; diagnostic losses are needed at validation."""
+    if mode == 'huber':
+        return torch.nn.functional.smooth_l1_loss(pred, target, reduction='none')
+    p, _, _, blended = probabilities(pred, target, material, outcome, scale, mix)
+    return (p-blended).square() * (8*(scale/1000)**2)
+
+
+def losses(pred, target, material, outcome, mode, scale, mix):
+    huber = torch.nn.functional.smooth_l1_loss(pred, target, reduction='none')
+    p, q, mask, blended = probabilities(pred, target, material, outcome, scale, mix)
     # Match the Huber curvature near equality at score zero; preserve native engine score units.
     loss = huber if mode=='huber' else (p-blended).square() * (8*(scale/1000)**2)
     return loss, huber, p, q, mask
@@ -123,19 +136,29 @@ def losses(pred, target, material, outcome, mode, scale, mix):
 
 def backward_batch(net,samples,data,ids,microbatch,mode,scale,mix):
     """Preserve one optimizer update per effective batch with bounded sparse gradients."""
-    value=0.; touched=[]
+    value=0.
+    # External callers may intentionally accumulate across effective batches.
+    # In that case the existing gradient also contains previously touched rows.
+    touched=[] if net.embedding.weight.grad is not None else None
     for chunk in range(0,len(ids),microbatch):
         part=ids[chunk:chunk+microbatch]
-        x,off,target=batch(samples,data,part);touched.append(x)
+        x,off,target=batch(samples,data,part)
         material=torch.tensor([samples[i]['material'] for i in part])
         outcome=torch.tensor([float('nan') if samples[i]['outcome'] is None else samples[i]['outcome'] for i in part])
+        if touched is not None:
+            touched.append(x)
         pred=net(x,off)
-        loss=losses(pred,target,material,outcome,mode,scale,mix)[0].sum()/len(ids)
+        loss=training_loss(pred,target,material,outcome,mode,scale,mix).sum()/len(ids)
         assert torch.isfinite(loss)
         loss.backward()
         net.embedding.weight.grad=net.embedding.weight.grad.coalesce()
         value+=loss.item()*len(ids)
-    return value,torch.unique(torch.cat(touched))
+    # EmbeddingBag retains rows even for zero contributions. Coalescing already
+    # gives the sorted unique feature indices, so a second concatenation/sort is
+    # redundant. Keep per-microbatch coalescing to bound peak memory.
+    indices = (torch.unique(torch.cat(touched)) if touched is not None
+               else net.embedding.weight.grad.indices()[0])
+    return value,indices
 
 
 def evaluate(net, samples, data, ids, batch_size, mode, scale, mix):
@@ -157,10 +180,12 @@ def evaluate(net, samples, data, ids, batch_size, mode, scale, mix):
             totals['teacher_brier'] += (probability-teacher).square().sum().item()
             totals['outcome_brier'] += (probability[mask]-outcome[mask]).square().sum().item()
             totals['outcome_count'] += mask.sum().item()
-            for j, i in enumerate(group):
+            # One conversion keeps the same Python summation order while avoiding
+            # a separate tensor indexing/scalar extraction for every position.
+            for i, error in zip(group, huber.tolist()):
                 key = 'analysis' if samples[i]['label_source']=='analysis' else samples[i]['source']
                 by_source[key]['count'] += 1
-                by_source[key]['huber'] += huber[j].item()
+                by_source[key]['huber'] += error
     result = {k: v/(totals['outcome_count'] if k=='outcome_brier' else len(ids))
               for k,v in totals.items() if k!='outcome_count'}
     result.update(count=len(ids), outcome_count=totals['outcome_count'],
