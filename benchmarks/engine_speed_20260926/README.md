@@ -66,3 +66,35 @@ per-position/model ratios. A ratio below one means less elapsed time.
 This is a quick regression/benefit screen, not a new held-out experiment or a
 playing-strength test. Timing noise and code layout may mask small gains; do not
 apply the original analysis's estimated multipliers to these four changes.
+
+## Recorded result
+
+The complete debug and release library suites each passed **376 tests**, with
+four pre-existing ignored tests. All 48 warmup comparisons and **96 measured
+pairs** passed exact search-signature parity. No search aborted or reached the
+120-second external safety limit.
+
+Two repetitions on one pinned CPU gave a candidate/baseline geometric-mean
+elapsed ratio of **0.9929** (about 0.7% less time). Total measured search time was
+28.488 seconds for baseline and 28.288 seconds for candidate. Peak process RSS
+was 1,252,612 versus 1,252,356 KiB. Model ratios were:
+
+- `BASE_C2S2_A40_Lmate`: **1.0184**.
+- `C2K50A1`: **0.9986**.
+- `NNUE512`: **0.9895**.
+- `NNUE2048`: **0.9658**.
+
+Position means ranged from **0.9244 to 1.0772**; individual pairs were noisier.
+Treat aggregate timing as **neutral/inconclusive**, not evidence of a repeatable
+0.7% speedup. These changes were retained for removing identifiable redundant
+work with little additional state: two stack slots, short-circuit reach queries,
+and linear ray traversal. No new cache or persistent memory is needed. A comment
+and parity tests protect the retained duplicate-landing quirk. This screen does
+not attribute savings to individual changes or establish playing strength.
+
+[Raw pairs](results/pairs.jsonl.gz), [summary](results/summary.json), and
+[build/corpus identities](results/plan.json) are included. The candidate was
+built before its code commit; source hashes were checked against commit
+`3a0cefa` before recording that identity. The baseline is `c34366b` (document-only
+on top of `2598690`). Source correctness is unchanged by the later result/docs
+commit. The broader estimates in the original analysis remain unverified.
