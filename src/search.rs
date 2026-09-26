@@ -306,6 +306,20 @@ pub struct RootMoveInfo {
     pub label: String,
     pub score: i32,
     pub best: bool,
+    pub mv: MoveCoordinates,
+}
+
+/// Board-space coordinates for drawing a search move in the GUI.
+///
+/// The engine stores zero-based array coordinates; the HTTP workbench uses
+/// one-based shogi coordinates (file 1 is the right edge of the board).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct MoveCoordinates {
+    pub from_file: u8,
+    pub from_rank: u8,
+    pub to_file: u8,
+    pub to_rank: u8,
+    pub promoted: bool,
 }
 
 /// Compact node for GUI tree visualization.
@@ -324,13 +338,17 @@ pub struct SearchInfo {
     pub agent: String,
     /// Side that performed this search (Black / White).
     pub side: String,
+    /// Deepest fully completed iterative-deepening iteration.
     pub depth: u32,
+    /// Depth ceiling requested by the caller.
+    pub requested_depth: u32,
     pub nodes: u64,
     /// Static eval before the move (side-to-move perspective).
     pub static_eval: i32,
     /// Search score of the chosen move (STM perspective).
     pub score: i32,
     pub best_move: Option<String>,
+    pub best_move_coords: Option<MoveCoordinates>,
     /// Root candidates, best first, capped for display.
     pub root_moves: Vec<RootMoveInfo>,
     pub tree: SearchTreeNode,
@@ -4399,12 +4417,22 @@ fn move_label(state: &GameState, mv: &Move) -> String {
     format!(
         "{} {},{}→{},{}{}",
         sym,
-        mv.from.file + 1,
-        mv.from.rank + 1,
-        mv.to.file + 1,
-        mv.to.rank + 1,
+        36 - mv.from.file,
+        36 - mv.from.rank,
+        36 - mv.to.file,
+        36 - mv.to.rank,
         promo
     )
+}
+
+fn move_coordinates(mv: &Move) -> MoveCoordinates {
+    MoveCoordinates {
+        from_file: 36 - mv.from.file,
+        from_rank: 36 - mv.from.rank,
+        to_file: 36 - mv.to.file,
+        to_rank: 36 - mv.to.rank,
+        promoted: mv.promoted,
+    }
 }
 
 /// Convert a search result into a GUI/API payload.
@@ -4414,6 +4442,7 @@ pub fn search_info_from_result(
     depth: u32,
     result: &SearchResult,
 ) -> SearchInfo {
+    let best_move_coords = result.best_move.as_ref().map(move_coordinates);
     let best_move = result
         .tree
         .children
@@ -4424,10 +4453,10 @@ pub fn search_info_from_result(
             result.best_move.as_ref().map(|mv| {
                 format!(
                     "{},{}→{},{}",
-                    mv.from.file + 1,
-                    mv.from.rank + 1,
-                    mv.to.file + 1,
-                    mv.to.rank + 1
+                    36 - mv.from.file,
+                    36 - mv.from.rank,
+                    36 - mv.to.file,
+                    36 - mv.to.rank
                 )
             })
         });
@@ -4441,13 +4470,14 @@ pub fn search_info_from_result(
             .map(|(i, (mv, score))| RootMoveInfo {
                 label: format!(
                     "{},{}→{},{}",
-                    mv.from.file + 1,
-                    mv.from.rank + 1,
-                    mv.to.file + 1,
-                    mv.to.rank + 1
+                    36 - mv.from.file,
+                    36 - mv.from.rank,
+                    36 - mv.to.file,
+                    36 - mv.to.rank
                 ),
                 score: *score,
                 best: i == 0,
+                mv: move_coordinates(mv),
             })
             .collect()
     } else {
@@ -4455,10 +4485,12 @@ pub fn search_info_from_result(
             .tree
             .children
             .iter()
-            .map(|c| RootMoveInfo {
+            .zip(result.root_lines.iter())
+            .map(|(c, (mv, _))| RootMoveInfo {
                 label: c.label.clone(),
                 score: c.score.unwrap_or(0),
                 best: c.best,
+                mv: move_coordinates(mv),
             })
             .collect()
     };
@@ -4466,11 +4498,13 @@ pub fn search_info_from_result(
     SearchInfo {
         agent: agent.to_string(),
         side: side.to_string(),
-        depth,
+        depth: result.completed_depth,
+        requested_depth: depth,
         nodes: result.nodes,
         static_eval: result.static_eval,
         score: result.score,
         best_move,
+        best_move_coords,
         root_moves,
         tree: result.tree.clone(),
     }
@@ -7348,6 +7382,26 @@ impl Drop for TranspositionTable {
 #[cfg(test)]
 mod reusable_tt_tests {
     use super::*;
+
+    #[test]
+    fn move_coordinates_use_gui_shogi_axes() {
+        let mv = Move::new_with_promotion(
+            Position::new(0, 35).unwrap(),
+            Position::new(35, 0).unwrap(),
+            true,
+        );
+        assert_eq!(
+            move_coordinates(&mv),
+            MoveCoordinates {
+                from_file: 36,
+                from_rank: 1,
+                to_file: 1,
+                to_rank: 36,
+                promoted: true,
+            }
+        );
+    }
+
     #[test]
     fn table_pool_never_retains_bounds_across_searches() {
         for clusters in [1, 2, 4, 8] {
