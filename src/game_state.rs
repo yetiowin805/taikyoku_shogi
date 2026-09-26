@@ -1738,7 +1738,7 @@ impl GameState {
             let mut path = vec![piece.position];
             let mut current = piece.position;
             
-            for distance in 1..=4 {
+            for _ in 1..=4 {
                 let Some(next) = current.offset(file_delta, rank_delta) else {
                     break;
                 };
@@ -1772,7 +1772,7 @@ impl GameState {
             let mut path = vec![piece.position];
             let mut current = piece.position;
             
-            for distance in 1..=3 {
+            for _ in 1..=3 {
                 let Some(next) = current.offset(file_delta, rank_delta) else {
                     break;
                 };
@@ -2157,7 +2157,7 @@ mod tests {
         state.place_piece(Piece::new(PieceType::Pawn, Color::Black, Position::new(13, 13).unwrap()));
         state.place_piece(Piece::new(PieceType::Pawn, Color::Black, Position::new(11, 13).unwrap()));
 
-        let mut at_mid = Piece::new(PieceType::Peacock, Color::Black, mid);
+        let at_mid = Piece::new(PieceType::Peacock, Color::Black, mid);
         assert!(
             !at_mid.can_reach(to, &state.board),
             "precondition: full can_reach from intermediate must fail"

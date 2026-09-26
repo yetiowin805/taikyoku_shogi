@@ -1360,6 +1360,7 @@ struct QHangOpts {
 }
 
 impl QHangOpts {
+    #[cfg(test)]
     const OFF: Self = Self {
         dest_multileg: false,
         dest_pathclear: false,
@@ -1565,6 +1566,7 @@ fn dest_victim_is_big(state: &GameState, mv: &Move) -> bool {
 ///   CapturesOnly), plus loud promotions.
 /// - Entry without `prev_to`: full CapturesOnly fallback + loud promotions.
 /// - `captures`: when false, loud promotions **and** royal takes (leaf after quiet AB).
+#[cfg(test)]
 fn generate_quiescence_captures(
     state: &GameState,
     weights: &EvalWeights,
@@ -1784,6 +1786,7 @@ fn is_large_hang_victim(piece: &crate::piece::Piece, weights: &EvalWeights) -> b
 }
 
 /// True when `mv` is a SimpleTake of a large enemy by a strictly cheaper mover.
+#[cfg(test)]
 pub(crate) fn is_large_hang_simple_take(
     state: &GameState,
     weights: &EvalWeights,
@@ -1809,6 +1812,7 @@ pub(crate) fn is_large_hang_simple_take(
 ///
 /// Used to open quiescence after quiet AB parents (classical engines resolve
 /// free hanging heavies in q; we previously stand-pat and missed them).
+#[cfg(test)]
 pub(crate) fn stm_has_large_hang_simple_take(state: &GameState, weights: &EvalWeights) -> bool {
     stm_has_large_hang_take(state, weights, QHangOpts::OFF)
 }
@@ -3232,7 +3236,7 @@ fn alphabeta(
 
     let parent_ply = ctx.ply;
     let stage_a_len = moves.len();
-    let (mut best, mut best_move_key, mut alpha, did_cutoff) = search_move_list(
+    let (mut best, mut best_move_key, alpha, did_cutoff) = search_move_list(
         state, weights, depth, alpha, beta, is_pv, ctx, parent_ply, &moves, 0,
     );
 
@@ -3241,7 +3245,7 @@ fn alphabeta(
         if !stage_b.is_empty() {
             order_moves_with_heuristics(state, weights, &mut stage_b, ctx, parent_ply, true, false);
             prefer_tt_move(&mut stage_b, tt_move);
-            let (b2, k2, a2, _cut2) = search_move_list(
+            let (b2, k2, _a2, _cut2) = search_move_list(
                 state,
                 weights,
                 depth,
@@ -3257,7 +3261,6 @@ fn alphabeta(
                 best = b2;
                 best_move_key = k2;
             }
-            alpha = a2;
         }
     }
 

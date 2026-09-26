@@ -19,7 +19,9 @@ use crate::training::top4_mix_grid::{
 };
 use crate::training::tournament::{TourneyEntrant, TourneyManifest};
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
+#[cfg(test)]
+use std::collections::HashSet;
 use std::fs;
 use std::path::PathBuf;
 

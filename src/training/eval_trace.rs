@@ -389,8 +389,7 @@ pub fn compute_metrics(
         && late_med != 0.0
         && early_med.signum() != late_med.signum();
 
-    let mut disagree = 0.0f32;
-    if let Some(ws) = winner_sign(result) {
+    let disagree = if let Some(ws) = winner_sign(result) {
         let mut bad = 0usize;
         let mut tot = 0usize;
         for &v in &vals {
@@ -402,15 +401,15 @@ pub fn compute_metrics(
                 bad += 1;
             }
         }
-        disagree = if tot == 0 {
+        if tot == 0 {
             0.0
         } else {
             bad as f32 / tot as f32
-        };
+        }
     } else {
         // Draws: down-weight disagreement term by leaving it near 0
-        disagree = 0.0;
-    }
+        0.0
+    };
 
     let mut deltas = Vec::new();
     for w in vals.windows(2) {

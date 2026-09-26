@@ -3,7 +3,9 @@
 use crate::eval::{
     is_range_capturer, is_range_two_mover, EvalCheckpoint, EvalWeights, ALL_PIECE_TYPES,
 };
-use crate::piece::{Color, PieceType};
+use crate::piece::PieceType;
+#[cfg(test)]
+use crate::piece::Color;
 use crate::training::featurize::{load_labeled_dir, LabeledPosition};
 use crate::training::mobility_seed::{run_mobility_seed, MobilitySeedConfig};
 use crate::training::paths;

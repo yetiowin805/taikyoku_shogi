@@ -27,6 +27,14 @@ royal-probes = []
 lto = "thin"
 codegen-units = 1
 
+# Fast production-like builds for the local web GUI. Keep `release` tuned for
+# tournaments and benchmarks; this profile favors short incremental links.
+[profile.gui]
+inherits = "release"
+lto = false
+codegen-units = 16
+incremental = true
+
 
 [[example]]
 name = "royal_probe_smoke"

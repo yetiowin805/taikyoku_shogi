@@ -3,6 +3,7 @@ use crate::piece::{Piece, Color};
 use crate::position::Position;
 use crate::movement::types::{MovementCapability, BlockingMode};
 use crate::movement::direction::{Direction, DirectionSet, direction_iter};
+#[cfg(test)]
 use crate::path_utils;
 
 pub struct MovementGenerator;
@@ -630,8 +631,8 @@ impl MovementGenerator {
         directions: DirectionSet,
         base_jump: u8,
         conditional_jumps: &[u8],
-        required_jump_positions: u8,
-        empty_after_jump: u8,
+        _required_jump_positions: u8,
+        _empty_after_jump: u8,
         captures_only: bool,
     ) -> Vec<Position> {
         let mut targets = Vec::new();
@@ -756,7 +757,7 @@ impl MovementGenerator {
             let mut path = vec![piece.position];
             let mut current = piece.position;
             
-            for distance in 1..=max_distance_forward_diagonal {
+            for _ in 1..=max_distance_forward_diagonal {
                 let Some(next) = current.offset(file_delta, rank_delta) else {
                     break; // Out of bounds
                 };
@@ -784,7 +785,7 @@ impl MovementGenerator {
             let (file_delta, rank_delta) = direction.to_offset();
             let mut current = piece.position;
             
-            for distance in 1..=max_distance_other {
+            for _ in 1..=max_distance_other {
                 let Some(next) = current.offset(file_delta, rank_delta) else {
                     break; // Out of bounds
                 };

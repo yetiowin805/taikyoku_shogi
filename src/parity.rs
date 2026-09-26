@@ -2,14 +2,21 @@
 //!
 //! Faster paths (victim-square capture gen, directed reach) must match these checks.
 
+#[cfg(test)]
 use crate::game_state::{GameState, LegalMoveGen, Move, MoveData};
+#[cfg(test)]
 use crate::movement::{MovementConfig, MovementGenerator};
+#[cfg(test)]
 use crate::piece::Color;
+#[cfg(test)]
 use crate::position::Position;
+#[cfg(test)]
 use crate::search::{capture_hits_square, generate_captures_hitting_square};
+#[cfg(test)]
 use std::collections::BTreeSet;
 
 /// Canonical move identity for parity (includes two-step / FE structure).
+#[cfg(test)]
 fn move_key(mv: &Move) -> String {
     let kind = match &mv.data {
         MoveData::Standard => "S",
@@ -35,11 +42,13 @@ fn move_key(mv: &Move) -> String {
     s
 }
 
+#[cfg(test)]
 fn move_set(moves: &[Move]) -> BTreeSet<String> {
     moves.iter().map(move_key).collect()
 }
 
 /// Full-board CapturesOnly filtered to hits on `victim` (oracle for victim-square gen).
+#[cfg(test)]
 pub fn oracle_captures_hitting_square(state: &GameState, victim: Position) -> Vec<Move> {
     state
         .generate_legal_moves_mode(LegalMoveGen::CapturesOnly)
@@ -48,6 +57,7 @@ pub fn oracle_captures_hitting_square(state: &GameState, victim: Position) -> Ve
         .collect()
 }
 
+#[cfg(test)]
 fn assert_same_moves(label: &str, a: &[Move], b: &[Move]) {
     let sa = move_set(a);
     let sb = move_set(b);

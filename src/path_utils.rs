@@ -1,22 +1,6 @@
+#[cfg(test)]
 use crate::board::Board;
 use crate::position::Position;
-
-/// Calculate normalized direction steps from one position to another
-/// Returns Some((file_step, rank_step)) if positions are aligned, None otherwise
-/// Steps are normalized to -1, 0, or 1
-fn calculate_direction_steps(from: Position, to: Position) -> Option<(i8, i8)> {
-    let file_diff = to.file as i8 - from.file as i8;
-    let rank_diff = to.rank as i8 - from.rank as i8;
-    
-    if file_diff == 0 && rank_diff == 0 {
-        return None; // Same position
-    }
-    
-    let file_step = if file_diff == 0 { 0 } else if file_diff > 0 { 1 } else { -1 };
-    let rank_step = if rank_diff == 0 { 0 } else if rank_diff > 0 { 1 } else { -1 };
-    
-    Some((file_step, rank_step))
-}
 
 /// Get all positions along a path between two positions
 /// Returns positions excluding start, including end

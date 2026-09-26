@@ -1,6 +1,7 @@
 # Web GUI
 
-Svelte + Vite frontend for Play and Debug. The Rust binary (`cargo run -- serve`) serves the API and, in production, the built `web/dist`.
+Svelte + Vite frontend for Play and Debug. The Rust binary (`cargo serve`)
+serves the API and, in production, the built `web/dist`.
 
 ## Build
 
@@ -8,14 +9,14 @@ From the repo root (after `npm install` in `web/`):
 
 ```bash
 cd web && npm run build && cd ..
-cargo run -- serve          # http://127.0.0.1:3000
+cargo serve                 # http://127.0.0.1:3000
 ```
 
 ## Development (hot reload)
 
 ```bash
 # terminal 1
-cargo run -- serve
+cargo serve
 
 # terminal 2
 cd web && npm run dev       # http://127.0.0.1:5173 (proxies /api)

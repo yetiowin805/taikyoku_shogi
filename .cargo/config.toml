@@ -1,0 +1,2 @@
+[alias]
+serve = "run --profile gui -- serve"
