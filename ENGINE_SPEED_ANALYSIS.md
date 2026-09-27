@@ -24,23 +24,24 @@ across 12 positions and four agents. All 192 pairs chose the same complete
 move, score and completed depth. Main-search nodes fell from 3,211,208 to
 2,667,200 (16.9% less), and the paired wall-time geometric-mean ratio was
 **0.6658 (33.4% less time)**. Individual trial percentages should not be
-added together. The [final summary](benchmarks/engine_speed_20260926/results/combined-final-third-hour-20260927/summary.json)
-and [paired records](benchmarks/engine_speed_20260926/results/combined-final-third-hour-20260927/pairs.jsonl.gz)
-contain the measurements.
+added together. The benchmark runners and per-change measurements are in
+[the benchmark directory](benchmarks/engine_speed_20260926/README.md).
 
 Under equal clocks, the branch completed an extra depth in 11 of 48
 one-second searches and 4 of 24 three-second searches, with none shallower.
 Chosen moves changed in four and two cases respectively. These are throughput
-results on the local corpus, not an Elo or strength estimate. The
-[timed summary](benchmarks/engine_speed_20260926/results/combined-final-third-hour-timed-20260927/summary.json)
-records each case. Debug and release library suites passed 390 tests each
-(4 ignored), including board mutation and capture/attack parity checks.
+results on the local corpus, not an Elo or strength estimate. Debug and release
+library suites passed 390 tests each (4 ignored), including board mutation and
+capture/attack parity checks.
 
 The two-step deduplication changes legal-route counts and search node counts,
 so it still needs a strength tournament before merge. At merge time, record
 the parent of the merge as a `kind: logic` history entry and run
 `./deploy/freeze_history.sh`, as required by `AGENTS.md`. The sections below
-keep each intermediate experiment and rejected prototype for reproducibility.
+record each intermediate experiment and rejected prototype. Generated plans,
+logs and paired records are omitted from this PR. The retained comparisons can
+be rerun with the benchmark scripts; discarded prototypes and their measured
+conclusions are summarized here.
 
 
 ## Implementation details and experiment history — 2026-09-26 to 2026-09-27
@@ -73,7 +74,7 @@ all chosen complete moves, scores and depths matched. Main nodes fell from
 1,605,604 to 1,333,600 (−16.9%); the paired CPU-time geometric mean was
 0.9354 (6.5% less). Legal-move counts changed in 56/96 and node counts in
 76/96 pairs, as expected. The full [deduplication report](benchmarks/engine_speed_20260926/DEDUP_FOLLOWUP.md)
-contains the raw results and limitations. This changes move ordering and
+contains the measured results and limitations. This changes move ordering and
 still needs strength testing before merge.
 
 ### D2.5 Free Eagle reachability checks, 2026-09-27
@@ -102,8 +103,7 @@ position/agent results; the whole-search gain is inconclusive. See the
 - **Reuse the mover's movement configuration for dedup progress checks:**
   48 warmups and 96 measured pairs matched exact search signatures, but the
   wall-time ratio was **0.9990** with mixed results. The extra parameter flow
-  was removed. Patch and raw pairs are saved under
-  `benchmarks/engine_speed_20260926/results/config-reuse-20260927/`.
+  was removed.
 - **B8 conservative soft stop, actual timed trial:** after completing depth
   two or deeper, stop when twice that iteration's duration exceeds remaining
   clock. At 1 second (48 paired cases), every chosen move matched and summed
@@ -111,13 +111,11 @@ position/agent results; the whole-search gain is inconclusive. See the
   (24 paired cases), every chosen move matched and summed clock fell 72.02 →
   62.32 s; two cases were shallower. Scores changed in three total cases.
   This is a clock/strength tradeoff, so the prototype is **not enabled**.
-  Patch, timed pairs and trial details are in the
+  Trial details are in the
   [soft-stop report](benchmarks/engine_speed_20260926/SOFT_STOP_FOLLOWUP.md).
 - **Unstable target sort (D2.3):** exact in both runs, but a 96-pair screen
   measured 1.6% less time and a 192-pair confirmation measured 0.4% more.
-  The signal did not replicate, so the stable sort was retained. Both runs
-  and the patch are under
-  `benchmarks/engine_speed_20260926/results/unstable-sort-20260927/`.
+  The signal did not replicate, so the stable sort was retained.
 
 ### Precomputed attack-candidate squares, 2026-09-27
 
@@ -169,8 +167,8 @@ In a separate clock-matched trial, the final branch completed one additional
 depth in 6/48 one-second cases and 3/24 three-second cases. The chosen move
 changed in 2 and 1 cases respectively. Both variants used their full clock;
 these are extra completed depths from higher throughput, not a strength/Elo
-result. Raw timed pairs are under
-`benchmarks/engine_speed_20260926/results/combined-timed-20260927/`.
+result. See the [combined report](benchmarks/engine_speed_20260926/COMBINED_FOLLOWUP.md)
+for both measured trials.
 
 ### Follow-up attack and allocation trials, 2026-09-27
 
@@ -178,9 +176,7 @@ The next three exact prototypes were set aside after paired timing: direct
 piece-slot candidate iteration for board attack scans (192 pairs, 0.9980
 wall ratio), appending common capability landings into one target buffer
 (96 pairs, 0.9990), and a 1.68-million-entry flat from/to history table
-(192 pairs, 1.0004, with ~6.7 MB extra per search context). Patches and
-pair data are in `benchmarks/engine_speed_20260926/results/` under their
-respective trial names.
+(192 pairs, 1.0004, with ~6.7 MB extra per search context).
 
 **Retained: incremental global-attacker mask.** `Board` now keeps a second
 per-color occupancy mask for the few pieces whose attack probes cannot be
@@ -218,14 +214,12 @@ agent aggregate faster. See
 file and diagonal line words passed board-mask and path-clear parity tests,
 but their first 96-pair integrated search run was 0.3% slower. Caching
 promotion reach in a type table was exact but effectively flat in 192 pairs
-(0.9994 ratio). Patches and paired data are under their trial names in
-`benchmarks/engine_speed_20260926/results/`.
+(0.9994 ratio).
 
 Before the hang prefilter, the cumulative `a9b102a` branch versus original
 `198b2c0` matched best complete move, score and depth in 192/192 fixed-depth
 searches; node totals were 3,211,208 → 2,667,200 (−16.9%) and paired wall
-ratio was **0.6934** (30.7% less). The local trial is in
-`results/combined-latest-20260927/`.
+ratio was **0.6934** (30.7% less).
 
 With the hang prefilter included (`2b64287`), a fresh 192-pair cumulative
 check against `198b2c0` again matched all complete chosen moves, scores and
@@ -234,8 +228,6 @@ improved to **0.6658** (33.4% less). At equal clocks, the new branch completed
 an extra depth in 11/48 one-second and 4/24 three-second cases, with no
 shallower cases; chosen moves changed in 4 and 2 cases respectively. These
 clock-matched differences are throughput effects, not an Elo estimate.
-See `results/combined-final-third-hour-20260927/` and
-`results/combined-final-third-hour-timed-20260927/`.
 
 This follow-up checks off four bounded parts of the proposals below:
 

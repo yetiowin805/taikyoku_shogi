@@ -23,10 +23,8 @@ were 0.9200, 0.9250, 0.9479 and 0.9599. All 12 position aggregates were below
 one, ranging from 0.8975 to 0.9866. This is a short paired speed screen; it does
 not measure playing strength or guarantee the same gain on other hardware.
 
-[Plan and build identities](results/candidate-20260926/plan.json),
-[paired records](results/candidate-20260926/pairs.jsonl.gz), and
-[summary](results/candidate-20260926/summary.json) are saved here. The corpus
-and model files are local and are described in `../search_speed_20260920/README.md`.
+The measured results are recorded above. The corpus and model files are local
+and are described in `../search_speed_20260920/README.md`.
 To reproduce, build `../search_speed_20260920/harness.rs` as example
 `speed_experiment` on `198b2c0` and this branch, then run this directory's
 `run.py` with the local `corpus.json` and `cases.json` as in the main README.
@@ -58,6 +56,5 @@ To reproduce, build `../search_speed_20260920/harness.rs` as example
   `kind: logic` history snapshot under `AGENTS.md`.
 
 The exploratory screens above were completed before a temporary experiment
-checkout was removed during a session transition; their raw files are not part
-of this branch. The final paired check was rerun in a persistent checkout and
-its raw outputs are included.
+checkout was removed during a session transition. The final paired check was
+rerun in a persistent checkout; its results are recorded above.

@@ -22,10 +22,8 @@ playing strength under a clock. Two-step deduplication changes move indices
 and thus can change selective-search choices in untested positions. The
 separate soft-stop prototype was not retained.
 
-[Build and corpus plan](results/combined-20260927/plan.json),
-[raw paired records](results/combined-20260927/pairs.jsonl.gz), and
-[summary](results/combined-20260927/summary.json) are saved here. Reproduce
-with `run_dedup.py` and the local corpus described in the main README.
+The paired measurements are recorded above. Reproduce with `run_dedup.py` and
+the local corpus described in the main README.
 
 ## Clock-matched follow-up
 
@@ -38,6 +36,5 @@ chose a different move in **1/24**. Scores changed in six and three cases,
 respectively. The extra depth is an observed consequence of higher throughput;
 this trial does not determine whether the changed moves are stronger.
 
-[Timed plan](results/combined-timed-20260927/plan.json),
-[raw pairs](results/combined-timed-20260927/pairs.jsonl.gz), and
-[summary](results/combined-timed-20260927/summary.json) are saved here.
+Reproduce the clock-matched comparison with `run_timed.py` and the same local
+corpus.

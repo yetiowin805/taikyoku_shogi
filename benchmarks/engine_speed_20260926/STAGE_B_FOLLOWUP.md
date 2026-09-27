@@ -13,6 +13,5 @@ geometric mean was **0.9943** (about 0.6% less). Position and agent results
 were mixed, so this screen is inconclusive for whole-search speed. The filter
 is retained as an exact bounded reduction in stage-B work.
 
-[Plan and binary identities](results/stage-b-20260927/plan.json),
-[raw pairs](results/stage-b-20260927/pairs.jsonl.gz), and
-[summary](results/stage-b-20260927/summary.json) are saved here.
+The paired measurements are recorded above. Use this directory's `run.py` with
+the local corpus to repeat them.

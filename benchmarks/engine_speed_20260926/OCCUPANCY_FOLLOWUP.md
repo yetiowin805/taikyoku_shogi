@@ -22,10 +22,5 @@ Confirmation was **0.9404** (6.0% less), with every agent and all 12 position
 aggregates faster. This is a pinned-CPU speed result, not a playing-strength
 study.
 
-[Screen plan](results/occupancy-20260927/screen-plan.json),
-[screen pairs](results/occupancy-20260927/screen-pairs.jsonl.gz),
-[confirmation plan](results/occupancy-20260927/confirm-plan.json),
-[confirmation pairs](results/occupancy-20260927/confirm-pairs.jsonl.gz), and
-[confirmation summary](results/occupancy-20260927/confirm-summary.json)
-are saved here. Use this directory's `run.py` with the local search-speed
-corpus to reproduce.
+The screen and confirmation measurements are recorded above. Use this
+directory's `run.py` with the local search-speed corpus to reproduce them.

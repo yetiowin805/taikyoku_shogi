@@ -28,5 +28,5 @@ runs. The confirmation per-agent ratios were 0.8695, 0.8585, 0.8872 and
 These are fixed-depth timing and parity results on the local corpus, not a
 strength tournament or a guarantee for other positions.
 
-Raw plans, stderr, summaries and compressed pair records are in
-`results/global-attacker-mask-20260927/{screen,confirm}/`.
+The screen and confirmation measurements are recorded above. Use this
+directory's `run.py` with the local corpus to repeat them.

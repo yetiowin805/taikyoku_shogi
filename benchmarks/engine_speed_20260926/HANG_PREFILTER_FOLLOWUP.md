@@ -25,5 +25,5 @@ aggregates improved (ratios 0.9621, 0.9353, 0.9618, 0.9677), as did 11 of
 12 position aggregates. This is a throughput/parity result, not a strength
 tournament.
 
-Raw plans, summaries, stderr and compressed paired records are in
-`results/hang-prefilter-20260927/{screen,confirm}/`.
+The screen and confirmation measurements are recorded above. Use this
+directory's `run.py` with the local corpus to repeat them.

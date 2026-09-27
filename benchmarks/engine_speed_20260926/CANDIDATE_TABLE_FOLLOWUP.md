@@ -18,10 +18,5 @@ every agent and position aggregate faster. Search signatures include complete
 chosen route, score, main/q nodes, depth, static evaluation and ordered root
 lines. The measurements are a pinned-CPU speed screen, not a strength study.
 
-[Screen plan](results/candidate-table-20260927/screen-plan.json),
-[screen pairs](results/candidate-table-20260927/screen-pairs.jsonl.gz),
-[confirmation plan](results/candidate-table-20260927/confirm-plan.json),
-[confirmation pairs](results/candidate-table-20260927/confirm-pairs.jsonl.gz), and
-[confirmation summary](results/candidate-table-20260927/confirm-summary.json)
-are saved here. Use this directory's `run.py` with the local search-speed
-corpus to reproduce.
+The screen and confirmation measurements are recorded above. Use this
+directory's `run.py` with the local search-speed corpus to reproduce them.

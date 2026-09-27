@@ -17,7 +17,5 @@ confirmation** (0.9746). The final code-layout check is the most directly
 applicable timing; the other runs confirm the direction. All four agent
 aggregates improved in the final check.
 
-[Final plan](results/attack-filter-20260927/final-plan.json),
-[final pairs](results/attack-filter-20260927/final-pairs.jsonl.gz), and
-[final summary](results/attack-filter-20260927/final-summary.json) are saved
-alongside the prototype screen and confirmation data.
+The measured screen and confirmation results are recorded above. Use this
+directory's `run.py` with the local corpus to repeat the paired comparison.

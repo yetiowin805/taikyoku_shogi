@@ -18,8 +18,5 @@ evaluation and ordered root lines. The wall-time geometric mean was **0.9945**
 speed result as inconclusive. The shortcut is retained because it removes a
 known quadratic check from constructed paths and preserves exact output.
 
-[Plan and binary identities](results/free-eagle-20260927/plan.json),
-[raw pairs](results/free-eagle-20260927/pairs.jsonl.gz), and
-[summary](results/free-eagle-20260927/summary.json) are saved here. The
-comparison used `run.py` and the local search-speed corpus described in this
-directory's README.
+The paired measurements are recorded above. The comparison used `run.py` and
+the local search-speed corpus described in this directory's README.

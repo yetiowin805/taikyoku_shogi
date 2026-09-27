@@ -26,7 +26,5 @@ All four agent aggregates improved in confirmation (0.9774, 0.9905, 0.9886,
 about 1.2% wall time on this fixed-depth corpus. This is a throughput result,
 not a strength tournament.
 
-Raw plans, summaries, stderr and compressed paired records are in
-`results/royal-count-20260927/screen/` and
-`results/royal-bookkeeping-20260927/{screen,confirm}/`. The count-only patch
-is `results/royal-count-20260927/trial.patch.gz`.
+The count-only, screen and confirmation measurements are recorded above. Use
+this directory's `run.py` with the local corpus to repeat them.

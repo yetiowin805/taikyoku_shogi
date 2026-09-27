@@ -30,11 +30,8 @@ mean was **0.9354** (6.5% less); summed process CPU time was 16.835 → 16.032 s
 Results varied by position: positions without duplicate routes had a small
 overhead, while the most affected position used 46.5% as many main nodes.
 
-[Plan/binary identities](results/dedup-20260927/plan.json),
-[raw paired records](results/dedup-20260927/pairs.jsonl.gz), and
-[summary](results/dedup-20260927/summary.json) are saved here. Run the
-`run_dedup.py` script with the local corpus described in the earlier README
-to repeat the comparison.
+The paired measurements are recorded above. Run the `run_dedup.py` script with
+the local corpus described in the earlier README to repeat the comparison.
 
 The result establishes state equivalence for the tested fixtures and unchanged
 best move/score in this fixed-depth corpus. Removing routes changes move indices

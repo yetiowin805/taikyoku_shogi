@@ -4,8 +4,8 @@ This B8 trial ran on top of `ccf5ecd`. After a completed iteration at depth
 two or deeper, the prototype stopped when twice the just-completed iteration's
 elapsed time exceeded the clock remaining before the hard deadline. It left
 untimed searches unchanged. This was an actual timed-search comparison, not
-a trace-only counterfactual. The source patch is saved with the results and
-was removed from the working branch after measurement.
+a trace-only counterfactual. The prototype was removed from the working branch
+after measurement.
 
 The existing 12-position/four-agent corpus supplied 48 one-second searches.
 Every other position supplied 24 three-second searches. Both variants used
@@ -25,8 +25,5 @@ does not establish equal playing strength: the shallower searches could choose
 different moves elsewhere. The prototype remains unmerged pending a game-level
 comparison or a safer adaptive rule.
 
-[Source patch](results/soft-stop-20260927/source.patch),
-[trial plan](results/soft-stop-20260927/plan.json),
-[raw timed pairs](results/soft-stop-20260927/pairs.jsonl.gz), and
-[summary](results/soft-stop-20260927/summary.json) are saved here. The
-`run_timed.py` script repeats the trial with the local search-speed corpus.
+The timed measurements are recorded above. The `run_timed.py` script can repeat
+the trial with the local search-speed corpus after applying the soft-stop rule.
