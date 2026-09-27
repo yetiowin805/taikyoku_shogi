@@ -1979,15 +1979,19 @@ fn attacker_candidates(
     let used = army.len().div_ceil(64);
     assert!(used <= 21, "army exceeds board-sized candidate set");
     let mut set = SlotSet { words: [0; 21], used };
-    let mut add = |pos: Position| {
-        if board.get_piece(pos).is_some_and(|p| p.color == us) {
-            if let Some(i) = board.slot_at(pos) {
-                set.set(i);
+    let region = &candidate_square_masks()[victim.to_index()];
+    let occupied = board.occupied_by_color(us);
+    for word in 0..21 {
+        let mut bits = region[word] & occupied[word];
+        while bits != 0 {
+            let square = word * 64 + bits.trailing_zeros() as usize;
+            bits &= bits - 1;
+            if let Some(pos) = Position::from_index(square) {
+                if let Some(i) = board.slot_at(pos) {
+                    set.set(i);
+                }
             }
         }
-    };
-    for &pos in candidate_square_table()[victim.to_index()].iter() {
-        add(pos);
     }
     for (i, p) in army.iter().enumerate() {
         if crate::attack_utils::needs_global_scan(p) {
@@ -1997,20 +2001,21 @@ fn attacker_candidates(
     set
 }
 
-/// All near-window and distant-ray squares, in the legacy scan order.
-fn candidate_square_table() -> &'static [Box<[Position]>] {
-    static TABLE: std::sync::OnceLock<Vec<Box<[Position]>>> = std::sync::OnceLock::new();
+/// Near-window and distant-ray square masks for each victim.
+fn candidate_square_masks() -> &'static [[u64; 21]] {
+    static TABLE: std::sync::OnceLock<Vec<[u64; 21]>> = std::sync::OnceLock::new();
     TABLE.get_or_init(|| {
         let r = crate::attack_utils::CANDIDATE_WINDOW as i8;
         let mut table = Vec::with_capacity(36 * 36);
         for rank in 0..36 {
             for file in 0..36 {
                 let victim = Position { file, rank };
-                let mut squares = Vec::new();
+                let mut mask = [0u64; 21];
                 for df in -r..=r {
                     for dr in -r..=r {
                         if let Some(pos) = victim.offset(df, dr) {
-                            squares.push(pos);
+                            let square = pos.to_index();
+                            mask[square / 64] |= 1u64 << (square % 64);
                         }
                     }
                 }
@@ -2023,11 +2028,12 @@ fn candidate_square_table() -> &'static [Box<[Position]>] {
                         if !(0..36).contains(&next_file) || !(0..36).contains(&next_rank) {
                             break;
                         }
-                        squares.push(Position { file: next_file as u8, rank: next_rank as u8 });
+                        let square = Position { file: next_file as u8, rank: next_rank as u8 }.to_index();
+                        mask[square / 64] |= 1u64 << (square % 64);
                         k += 1;
                     }
                 }
-                table.push(squares.into_boxed_slice());
+                table.push(mask);
             }
         }
         table

@@ -8,6 +8,7 @@ use crate::tengu_attack;
 /// Maintains separate piece lists by color for fast iteration
 pub struct Board {
     piece_slots: Box<[u16]>, // square → index in its color list; empty = u16::MAX
+    occupied: [[u64; 21]; 2], // occupied squares by color
     squares: Vec<Option<Piece>>, // 36 * 36 = 1296 squares
     black_pieces: Vec<Piece>, // Fast iteration over black pieces
     white_pieces: Vec<Piece>, // Fast iteration over white pieces
@@ -17,6 +18,7 @@ impl Board {
     pub fn new() -> Board {
         Board {
             piece_slots: vec![u16::MAX; 1296].into_boxed_slice(),
+            occupied: [[0; 21]; 2],
             squares: vec![None; 1296],
             black_pieces: Vec::new(),
             white_pieces: Vec::new(),
@@ -36,6 +38,10 @@ impl Board {
         }
     }
 
+    pub(crate) fn occupied_by_color(&self, color: Color) -> &[u64; 21] {
+        &self.occupied[(color == Color::White) as usize]
+    }
+
     /// Place a piece on the board
     /// If a piece already exists at this position, it will be removed first
     pub fn place_piece(&mut self, piece: Piece) {
@@ -51,6 +57,7 @@ impl Board {
             Color::White => &mut self.white_pieces,
         };
         self.piece_slots[index] = list.len() as u16;
+        self.occupied[(piece.color == Color::White) as usize][index / 64] |= 1u64 << (index % 64);
         list.push(piece);
         self.squares[index] = Some(piece);
     }
@@ -69,6 +76,7 @@ impl Board {
             self.piece_slots[moved.position.to_index()] = index as u16;
         }
         self.piece_slots[square] = u16::MAX;
+        self.occupied[(piece.color == Color::White) as usize][square / 64] &= !(1u64 << (square % 64));
     }
 
     /// Remove piece from position. Returns the removed piece, if any.
@@ -139,6 +147,9 @@ impl Board {
         self.squares[to.to_index()] = Some(piece);
         self.piece_slots[from.to_index()] = u16::MAX;
         self.piece_slots[to.to_index()] = index as u16;
+        let mask = &mut self.occupied[(piece.color == Color::White) as usize];
+        mask[from.to_index() / 64] &= !(1u64 << (from.to_index() % 64));
+        mask[to.to_index() / 64] |= 1u64 << (to.to_index() % 64);
         captured
     }
 
@@ -173,6 +184,7 @@ impl Clone for Board {
     fn clone(&self) -> Board {
         Board {
             piece_slots: self.piece_slots.clone(),
+            occupied: self.occupied,
             squares: self.squares.clone(),
             black_pieces: self.black_pieces.clone(),
             white_pieces: self.white_pieces.clone(),
@@ -1039,6 +1051,10 @@ mod dense_list_tests {
         }
         assert_eq!(b.squares.iter().flatten().count(), count);
         for (i, sq) in b.squares.iter().enumerate() {
+            for color in [Color::Black, Color::White] {
+                let marked = b.occupied_by_color(color)[i / 64] & (1u64 << (i % 64)) != 0;
+                assert_eq!(marked, sq.is_some_and(|p| p.color == color), "square {i} {color:?}");
+            }
             if sq.is_none() {
                 assert_eq!(b.piece_slots[i], u16::MAX);
             }

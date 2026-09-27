@@ -98,6 +98,18 @@ All four agents and all 12 position aggregates improved. The table holds
 238,736 two-byte positions plus about 31 KB of slice metadata (~0.5 MB).
 See the [candidate-square report](benchmarks/engine_speed_20260926/CANDIDATE_TABLE_FOLLOWUP.md).
 
+### Per-color occupancy masks for attack candidates, 2026-09-27
+
+`Board` now maintains one 1,296-square bitmask per color through placement,
+removal, moves and cloning. `attacker_candidates` intersects that occupancy
+with a precomputed near-window/ray mask, then maps only occupied squares to
+piece-list indices. Board mutation tests validate the masks after replacements,
+captures, moves and clones. The 96-pair screen and separate **192-pair
+confirmation** both matched every complete search signature. Confirmation
+wall-time geometric mean was **0.9404** (6.0% less than the candidate-square
+list version), with every agent and position aggregate faster. See the
+[occupancy-mask report](benchmarks/engine_speed_20260926/OCCUPANCY_FOLLOWUP.md).
+
 This follow-up checks off four bounded parts of the proposals below:
 
 - [x] **D3: limited-range path rescanning.** `generate_simple` visits each ray
