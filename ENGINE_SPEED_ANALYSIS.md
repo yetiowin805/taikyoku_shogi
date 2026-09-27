@@ -132,6 +132,13 @@ fell 3,211,208 → 2,667,200 (−16.9%); the paired wall-time geometric mean was
 is the measured net result on the local corpus. See the
 [combined report](benchmarks/engine_speed_20260926/COMBINED_FOLLOWUP.md).
 
+In a separate clock-matched trial, the final branch completed one additional
+depth in 6/48 one-second cases and 3/24 three-second cases. The chosen move
+changed in 2 and 1 cases respectively. Both variants used their full clock;
+these are extra completed depths from higher throughput, not a strength/Elo
+result. Raw timed pairs are under
+`benchmarks/engine_speed_20260926/results/combined-timed-20260927/`.
+
 This follow-up checks off four bounded parts of the proposals below:
 
 - [x] **D3: limited-range path rescanning.** `generate_simple` visits each ray

@@ -26,3 +26,18 @@ separate soft-stop prototype was not retained.
 [raw paired records](results/combined-20260927/pairs.jsonl.gz), and
 [summary](results/combined-20260927/summary.json) are saved here. Reproduce
 with `run_dedup.py` and the local corpus described in the main README.
+
+## Clock-matched follow-up
+
+The same two release builds also ran a depth-eight timed trial: 48 paired
+one-second cases and 24 paired three-second cases. Both used approximately
+their full allotted clock. At one second, the final engine completed one
+additional depth in **6/48** cases and chose a different move in **2/48**.
+At three seconds, it completed one additional depth in **3/24** cases and
+chose a different move in **1/24**. Scores changed in six and three cases,
+respectively. The extra depth is an observed consequence of higher throughput;
+this trial does not determine whether the changed moves are stronger.
+
+[Timed plan](results/combined-timed-20260927/plan.json),
+[raw pairs](results/combined-timed-20260927/pairs.jsonl.gz), and
+[summary](results/combined-timed-20260927/summary.json) are saved here.
