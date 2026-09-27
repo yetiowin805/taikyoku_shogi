@@ -1981,8 +1981,9 @@ fn attacker_candidates(
     let mut set = SlotSet { words: [0; 21], used };
     let region = &crate::attack_utils::candidate_square_masks()[victim.to_index()];
     let occupied = board.occupied_by_color(us);
+    let global = board.global_attackers_by_color(us);
     for word in 0..21 {
-        let mut bits = region[word] & occupied[word];
+        let mut bits = (region[word] & occupied[word]) | global[word];
         while bits != 0 {
             let square = word * 64 + bits.trailing_zeros() as usize;
             bits &= bits - 1;
@@ -1991,11 +1992,6 @@ fn attacker_candidates(
                     set.set(i);
                 }
             }
-        }
-    }
-    for (i, p) in army.iter().enumerate() {
-        if crate::attack_utils::needs_global_scan(p) {
-            set.set(i);
         }
     }
     set

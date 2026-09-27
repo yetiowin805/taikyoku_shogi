@@ -139,6 +139,27 @@ these are extra completed depths from higher throughput, not a strength/Elo
 result. Raw timed pairs are under
 `benchmarks/engine_speed_20260926/results/combined-timed-20260927/`.
 
+### Follow-up attack and allocation trials, 2026-09-27
+
+The next three exact prototypes were set aside after paired timing: direct
+piece-slot candidate iteration for board attack scans (192 pairs, 0.9980
+wall ratio), appending common capability landings into one target buffer
+(96 pairs, 0.9990), and a 1.68-million-entry flat from/to history table
+(192 pairs, 1.0004, with ~6.7 MB extra per search context). Patches and
+pair data are in `benchmarks/engine_speed_20260926/results/` under their
+respective trial names.
+
+**Retained: incremental global-attacker mask.** `Board` now keeps a second
+per-color occupancy mask for the few pieces whose attack probes cannot be
+bounded by the target's near window or rays. Both board attack checks and
+`generate_captures_hitting_square` combine this mask with the precomputed
+candidate region, then visit candidate pieces in their original list order.
+The 96-pair screen and separate 192-pair confirmation matched complete
+search signatures. Confirmation wall-time ratio was **0.8937** (10.6% less),
+with all four agents and all 12 position aggregates faster. Debug and release
+library suites each passed 389 tests (4 ignored), including board mutation
+mask invariants. See `benchmarks/engine_speed_20260926/GLOBAL_ATTACKER_FOLLOWUP.md`.
+
 This follow-up checks off four bounded parts of the proposals below:
 
 - [x] **D3: limited-range path rescanning.** `generate_simple` visits each ray
