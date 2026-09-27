@@ -38,6 +38,11 @@ checks the cached movement flags against every live movement config; an attack
 test compares the direct candidate iterator with a full army scan across board
 targets, colors and check modes.
 
+A small clock-matched check used one agent per position: 12 one-second and six
+three-second paired searches. Every pair chose the same complete move, score
+and completed depth. This sample found no extra completed iteration; it is too
+small for a strength conclusion.
+
 **Tried and removed:** a direct yes/no royal-capture path was 0.4% slower in
 192 exact pairs; a one-entry cache for repeated quiescence landing attacks was
 0.6% slower in 192 exact pairs. The existing per-node landing cache already
