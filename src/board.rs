@@ -234,24 +234,15 @@ impl Board {
         let army = self.pieces_by_color(attacker_color);
         let occupied = self.occupied_by_color(attacker_color);
         let global = self.global_attackers_by_color(attacker_color);
-        let mut candidate_slots = [0u64; 21];
-        for word in 0..21 {
+        let candidates = (0..21).flat_map(|word| {
             let mut squares = (region[word] & occupied[word]) | global[word];
-            while squares != 0 {
+            std::iter::from_fn(move || {
+                if squares == 0 { return None; }
                 let square = word * 64 + squares.trailing_zeros() as usize;
                 squares &= squares - 1;
                 let slot = self.piece_slots[square] as usize;
                 debug_assert!(slot < army.len());
-                candidate_slots[slot / 64] |= 1u64 << (slot % 64);
-            }
-        }
-        let candidates = candidate_slots.iter().enumerate().flat_map(|(word, &mask)| {
-            let mut bits = mask;
-            std::iter::from_fn(move || {
-                if bits == 0 { return None; }
-                let bit = bits.trailing_zeros() as usize;
-                bits &= bits - 1;
-                Some(&army[word * 64 + bit])
+                Some(&army[slot])
             })
         });
         is_position_attacked_by_piece_iter(self, position, candidates, for_check)
@@ -1158,6 +1149,30 @@ mod dense_list_tests {
             }
             if sq.is_none() {
                 assert_eq!(b.piece_slots[i], u16::MAX);
+            }
+        }
+    }
+
+    #[test]
+    fn attack_candidate_iteration_matches_full_army_scan() {
+        let mut board = Board::new();
+        for (i, &kind) in crate::eval::ALL_PIECE_TYPES.iter().enumerate() {
+            let pos = Position::from_index((i * 37) % (36 * 36)).unwrap();
+            let color = if i % 2 == 0 { Color::Black } else { Color::White };
+            let mut piece = Piece::new(kind, color, pos);
+            piece.is_promoted = i % 3 == 0;
+            board.place_piece(piece);
+        }
+        for square in (0..36 * 36).step_by(7) {
+            let pos = Position::from_index(square).unwrap();
+            for color in [Color::Black, Color::White] {
+                for for_check in [false, true] {
+                    assert_eq!(
+                        board.is_position_attacked_by_color_filtered(pos, color, for_check),
+                        is_position_attacked_by_color_impl(&board, pos, color, for_check),
+                        "square {square}, {color:?}, for_check={for_check}"
+                    );
+                }
             }
         }
     }

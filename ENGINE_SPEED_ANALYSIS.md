@@ -9,6 +9,53 @@ The original analysis was a code read of `board.rs`, `movement/`, `game_state.rs
 
 The original proposal estimates are **historical guesses**, not remaining gains from current `main`. Validate new exact changes with paired held-out searches and behavior-changing changes with games. Component estimates overlap and must not be added.
 
+## 2026-09-27 attack-filter follow-up (candidate branch)
+
+Starting from `main` at `25e1fdc` (after PR #129), this round tested exact
+attack and quiescence hot paths. The same 12-position, four-agent fixed-depth
+corpus ran on CPU 2. Each screen had 48 warmup comparisons and 192 measured
+pairs; all retained trials matched complete routes, scores, main/q nodes,
+depths, static evaluations and ordered root lines. Ratios below are candidate
+over its immediate predecessor; lower is faster.
+
+| Retained change | Paired wall ratio | Effect |
+|---|---:|---:|
+| Cache range-direction and capturing-only flags by type, promotion and color, with a fallback for base-piece rewrites | 0.9883 | 1.2% less time |
+| Iterate board attack candidates directly in square order instead of building a second per-query slot bitset | 0.9821 / 0.9730 in two runs | 1.8–2.7% less time |
+| Reuse each quiescence candidate's already-computed royal-capture flag | 0.9871 | 1.3% less time |
+
+Two direct 192-pair comparisons of the combined build against `25e1fdc`
+measured **0.9592 and 0.9603**, or about **4% less fixed-depth wall time**.
+All 12 position aggregates were faster in both runs. NNUE-2048 was near
+neutral: 0.9945 in the first and 1.0079 in the final committed-source build.
+An identical-binary 192-pair A/A control measured 0.9935, so the individual
+roughly 1% screens are modest signals. A position-cluster bootstrap of the
+final direct run gave a 95% ratio interval of 0.951–0.970; this describes
+variation within these 12 positions, not all games.
+Individual percentages should not be added. These local timings do not
+establish game strength or a universal speedup. A per-type/variant test
+checks the cached movement flags against every live movement config; an attack
+test compares the direct candidate iterator with a full army scan across board
+targets, colors and check modes.
+
+A small clock-matched check used one agent per position: 12 one-second and six
+three-second paired searches. Every pair chose the same complete move, score
+and completed depth. This sample found no extra completed iteration; it is too
+small for a strength conclusion.
+
+**Tried and removed:** a direct yes/no royal-capture path was 0.4% slower in
+192 exact pairs; a one-entry cache for repeated quiescence landing attacks was
+0.6% slower in 192 exact pairs. The existing per-node landing cache already
+covers move ordering and the high-value hang gate. A broader cache should be
+attempted only after measuring repeated queries across leaf gates and their
+board-lifetime boundaries. The ignored local run records are under
+`data/derived/engine-speed-round4/` and are not part of the PR.
+
+**Next:** direct promotion-zone generation remains the clearest exact proposal
+not implemented. Attack-query reuse across the leaf gates is still possible,
+but the single-entry q cache did not help. The staged TT picker and search-tree
+changes below require move/strength evaluation.
+
 ## 2026-09-27 hot-path follow-up (candidate branch)
 
 Starting from `main` at `afb1915`, this round tested the next exact hot paths.

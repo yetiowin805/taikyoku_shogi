@@ -2,7 +2,7 @@ use crate::piece::{Piece, PieceType, Color};
 use crate::position::Position;
 use crate::movement::{
     MovementConfig,
-    direction::{Direction, direction_set_contains},
+    direction::Direction,
     types::MovementCapability,
 };
 use std::sync::OnceLock;
@@ -136,51 +136,82 @@ pub fn adjust_directions_for_color(directions: crate::movement::direction::Direc
 /// The direction is absolute (from get_direction_toward), and we need to check against
 /// the color-adjusted direction set from the config
 pub fn has_range_movement_in_direction(piece: &Piece, direction: Direction) -> bool {
-    let config = MovementConfig::for_piece(piece);
-    
-    for capability in &config.capabilities {
-        if let crate::movement::types::MovementCapability::Range { directions, .. } = capability {
-            // Adjust directions for color (same as movement generation does)
-            let adjusted_directions = adjust_directions_for_color(*directions, piece.color);
-            
-            // Check if the adjusted direction set contains the given direction
-            if direction_set_contains(adjusted_directions, direction) {
-                return true;
-            }
-        }
-    }
-    
-    false
+    range_filter_info(piece).directions & direction.to_bit() != 0
 }
 
 /// Check if a piece has ONLY capturing range movement (no other range movement types)
 /// Such pieces cannot attack royal pieces at range since royal pieces are in their cannot_jump_over set
 pub fn has_only_capturing_range_movement(piece: &Piece) -> bool {
-    use crate::movement::types::BlockingMode;
-    
-    let config = MovementConfig::for_piece(piece);
-    
-    let mut has_capturing_range = false;
-    let mut has_other_range = false;
-    
-    for capability in &config.capabilities {
-        match capability {
-            crate::movement::types::MovementCapability::Range { blocking, .. } => {
-                if *blocking == BlockingMode::Capturing {
-                    has_capturing_range = true;
-                } else {
-                    has_other_range = true; // Has NoJump or Jump range movement
-                }
-            }
-            _ => {
-                // Has other movement types (Simple, Jumping, TwoStep, etc.)
-                // These are fine, we only care about range movement types
+    range_filter_info(piece).only_capturing
+}
+
+#[derive(Clone, Copy, Default)]
+struct RangeFilterInfo {
+    directions: u8,
+    only_capturing: bool,
+    valid: bool,
+}
+
+fn range_filter_info(piece: &Piece) -> RangeFilterInfo {
+    if piece.base_piece_type.is_none() {
+        if let Some(row) = range_filter_table().get(piece.piece_type as usize) {
+            let info = row[piece.is_promoted as usize][(piece.color == Color::White) as usize];
+            if info.valid {
+                return info;
             }
         }
     }
-    
-    // Has capturing range but no other range movement types
-    has_capturing_range && !has_other_range
+    range_filter_info_uncached(piece)
+}
+
+fn range_filter_table() -> &'static [[[RangeFilterInfo; 2]; 2]] {
+    static TABLE: OnceLock<Vec<[[RangeFilterInfo; 2]; 2]>> = OnceLock::new();
+    TABLE.get_or_init(|| {
+        let mut table = vec![[[RangeFilterInfo::default(); 2]; 2]; PIECE_TYPE_CACHE_LEN];
+        for &kind in crate::eval::ALL_PIECE_TYPES {
+            let idx = kind as usize;
+            if idx >= table.len() {
+                continue;
+            }
+            for promoted in [false, true] {
+                for color in [Color::Black, Color::White] {
+                    let mut piece = Piece::new(kind, color, Position::new(0, 0).unwrap());
+                    piece.is_promoted = promoted;
+                    table[idx][promoted as usize][(color == Color::White) as usize] =
+                        range_filter_info_uncached(&piece);
+                }
+            }
+        }
+        table
+    })
+}
+
+fn range_filter_info_uncached(piece: &Piece) -> RangeFilterInfo {
+    use crate::movement::types::BlockingMode;
+    let config = MovementConfig::for_piece(piece);
+    let mut directions = 0u8;
+    let mut has_capturing_range = false;
+    let mut has_other_range = false;
+    for capability in &config.capabilities {
+        if let MovementCapability::Range {
+            directions: dirs,
+            blocking,
+            ..
+        } = capability
+        {
+            directions |= adjust_directions_for_color(*dirs, piece.color);
+            if *blocking == BlockingMode::Capturing {
+                has_capturing_range = true;
+            } else {
+                has_other_range = true;
+            }
+        }
+    }
+    RangeFilterInfo {
+        directions,
+        only_capturing: has_capturing_range && !has_other_range,
+        valid: true,
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -438,6 +469,29 @@ mod global_scan_cache_tests {
                     assert_eq!(needs_global_scan(&piece), needs_global_scan_uncached(&piece), "{kind:?} {color:?} {promoted}");
                     piece.base_piece_type = Some(PieceType::Pawn);
                     assert_eq!(needs_global_scan(&piece), needs_global_scan_uncached(&piece), "base {kind:?} {color:?} {promoted}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn range_filter_table_matches_movement_configs() {
+        for &kind in crate::eval::ALL_PIECE_TYPES {
+            for color in [Color::Black, Color::White] {
+                for promoted in [false, true] {
+                    let mut piece = Piece::new(kind, color, Position::new(18, 18).unwrap());
+                    piece.is_promoted = promoted;
+                    for base in [None, Some(PieceType::Pawn)] {
+                        piece.base_piece_type = base;
+                        let expected = range_filter_info_uncached(&piece);
+                        assert_eq!(has_only_capturing_range_movement(&piece), expected.only_capturing,
+                            "{kind:?} {color:?} {promoted} {base:?}");
+                        for direction in Direction::all() {
+                            assert_eq!(has_range_movement_in_direction(&piece, direction),
+                                expected.directions & direction.to_bit() != 0,
+                                "{kind:?} {color:?} {promoted} {base:?} {direction:?}");
+                        }
+                    }
                 }
             }
         }
