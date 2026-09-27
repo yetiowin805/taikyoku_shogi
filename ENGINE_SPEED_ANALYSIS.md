@@ -170,6 +170,30 @@ all four agents improved. Board mutation invariants and both debug/release
 library suites passed. See
 `benchmarks/engine_speed_20260926/ROYAL_BOOKKEEPING_FOLLOWUP.md`.
 
+**Retained: large-hang attack prefilter.** Before generating captures onto a
+large enemy at a quiet-parent leaf, ask the fast board attack query whether
+any side-to-move piece attacks that square. Only destination captures matter
+to this gate. A targeted game-state test checked that generated destination
+captures imply a board attack. The 96-pair screen and separate 192-pair
+confirmation matched complete search signatures; confirmation wall ratio
+was **0.9566** (4.3% less) versus the royal-bookkeeping branch, with every
+agent aggregate faster. See
+`benchmarks/engine_speed_20260926/HANG_PREFILTER_FOLLOWUP.md`.
+
+**Set aside:** a Stage-B multi-leg occupancy mask was exact but saved only
+0.5% in 192 pairs while adding mutation and cloning work. Incremental rank,
+file and diagonal line words passed board-mask and path-clear parity tests,
+but their first 96-pair integrated search run was 0.3% slower. Caching
+promotion reach in a type table was exact but effectively flat in 192 pairs
+(0.9994 ratio). Patches and paired data are under their trial names in
+`benchmarks/engine_speed_20260926/results/`.
+
+Before the hang prefilter, the cumulative `a9b102a` branch versus original
+`198b2c0` matched best complete move, score and depth in 192/192 fixed-depth
+searches; node totals were 3,211,208 → 2,667,200 (−16.9%) and paired wall
+ratio was **0.6934** (30.7% less). The local trial is in
+`results/combined-latest-20260927/`.
+
 This follow-up checks off four bounded parts of the proposals below:
 
 - [x] **D3: limited-range path rescanning.** `generate_simple` visits each ray
