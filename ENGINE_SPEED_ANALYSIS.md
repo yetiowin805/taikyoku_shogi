@@ -9,10 +9,43 @@ Findings from a code read of `board.rs`, `movement/`, `game_state.rs`, `attack_u
 
 Speed-up estimates are **order-of-magnitude guesses with the reasoning shown**. They are not measurements. Each one needs the paired, held-out protocol from `benchmarks/search_speed_20260920/README.md` before anyone claims it.
 
+## Current pull-request result — 2026-09-27
 
-## Implementation status — 2026-09-26
+This branch collects the retained speed changes since `main` at `198b2c0`.
+It includes direct reach and irreversibility checks, lazy leaf-gate discovery,
+candidate-region tables and board occupancy masks, Free Eagle and stage-B
+shortcuts, cached royal bookkeeping, and the large-hang attack prefilter.
+Two-step route deduplication also removes routes with the same destination,
+promotion choice and progress-reset effect when the intermediate is empty;
+routes that capture at the intermediate remain distinct.
 
-### Candidate scan and progress labels, latest follow-up
+The **final cumulative** fixed-depth comparison used 192 paired searches
+across 12 positions and four agents. All 192 pairs chose the same complete
+move, score and completed depth. Main-search nodes fell from 3,211,208 to
+2,667,200 (16.9% less), and the paired wall-time geometric-mean ratio was
+**0.6658 (33.4% less time)**. Individual trial percentages should not be
+added together. The [final summary](benchmarks/engine_speed_20260926/results/combined-final-third-hour-20260927/summary.json)
+and [paired records](benchmarks/engine_speed_20260926/results/combined-final-third-hour-20260927/pairs.jsonl.gz)
+contain the measurements.
+
+Under equal clocks, the branch completed an extra depth in 11 of 48
+one-second searches and 4 of 24 three-second searches, with none shallower.
+Chosen moves changed in four and two cases respectively. These are throughput
+results on the local corpus, not an Elo or strength estimate. The
+[timed summary](benchmarks/engine_speed_20260926/results/combined-final-third-hour-timed-20260927/summary.json)
+records each case. Debug and release library suites passed 390 tests each
+(4 ignored), including board mutation and capture/attack parity checks.
+
+The two-step deduplication changes legal-route counts and search node counts,
+so it still needs a strength tournament before merge. At merge time, record
+the parent of the merge as a `kind: logic` history entry and run
+`./deploy/freeze_history.sh`, as required by `AGENTS.md`. The sections below
+keep each intermediate experiment and rejected prototype for reproducibility.
+
+
+## Implementation details and experiment history — 2026-09-26 to 2026-09-27
+
+### Initial candidate scan and progress labels
 
 An exact search hot-path patch now caches the rare pieces requiring a global
 attack-candidate scan, uses a fixed stack bitset for candidate indices, and
@@ -122,9 +155,9 @@ wall-time ratio (2.0% less). The pre-refactor prototype also matched 96 and
 `attack_utils` so board and search share the same region mask. See the
 [attack-filter report](benchmarks/engine_speed_20260926/ATTACK_FILTER_FOLLOWUP.md).
 
-### Combined retained changes versus the original baseline
+### Intermediate combined changes versus the original baseline
 
-The final branch at `7fed1be` was compared directly with the original
+The intermediate branch at `7fed1be` was compared directly with the original
 `198b2c0` baseline across **192 paired fixed-depth searches**. Every pair
 returned the same complete chosen move, score and completed depth. Main nodes
 fell 3,211,208 → 2,667,200 (−16.9%); the paired wall-time geometric mean was
