@@ -1865,10 +1865,7 @@ impl GameState {
     /// Check if a player has lost (all their royal pieces are captured)
     /// A player loses when ALL their royal pieces (King and Crown Prince) are captured
     pub fn has_lost(&self, color: Color) -> bool {
-        !self
-            .board
-            .iter_pieces_by_color(color)
-            .any(|p| p.piece_type.is_royal())
+        self.board.royal_count(color) == 0
     }
     
     /// Check if a piece type is King, CrownPrince, GreatGeneral, or can promote into one of these

@@ -160,6 +160,16 @@ with all four agents and all 12 position aggregates faster. Debug and release
 library suites each passed 389 tests (4 ignored), including board mutation
 mask invariants. See `benchmarks/engine_speed_20260926/GLOBAL_ATTACKER_FOLLOWUP.md`.
 
+**Retained: cached royal bookkeeping.** `Board` now maintains the royal count
+and sole-royal square for each color. `has_lost` and the search's last-royal
+check gates use the cached values. A count-only screen was exact but only
+0.4% faster; the combined count-and-square version matched all complete
+search signatures in 96-pair and separate 192-pair runs. Confirmation wall
+ratio was **0.9879** (1.2% less) versus the global-attacker-mask branch, and
+all four agents improved. Board mutation invariants and both debug/release
+library suites passed. See
+`benchmarks/engine_speed_20260926/ROYAL_BOOKKEEPING_FOLLOWUP.md`.
+
 This follow-up checks off four bounded parts of the proposals below:
 
 - [x] **D3: limited-range path rescanning.** `generate_simple` visits each ray

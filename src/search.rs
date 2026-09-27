@@ -894,18 +894,7 @@ fn stm_last_royal_in_check(state: &GameState) -> bool {
 
 fn color_has_last_royal_in_check(state: &GameState, color: Color) -> bool {
     let board = state.get_board();
-    let mut pos = None;
-    let mut n = 0u8;
-    for p in board.iter_pieces_by_color(color) {
-        if p.piece_type.is_royal() {
-            n += 1;
-            if n > 1 {
-                return false;
-            }
-            pos = Some(p.position);
-        }
-    }
-    let Some(sq) = pos else {
+    let Some(sq) = board.single_royal(color) else {
         return false;
     };
     board.is_position_attacked_by_color_for_check(sq, color.opposite())
@@ -917,21 +906,11 @@ fn color_last_royal_resolved(state: &GameState, color: Color) -> bool {
         return true;
     }
     let board = state.get_board();
-    let mut pos = None;
-    let mut n = 0u8;
-    for p in board.iter_pieces_by_color(color) {
-        if p.piece_type.is_royal() {
-            n += 1;
-            if n > 1 {
-                return true;
-            }
-            pos = Some(p.position);
-        }
+    if board.royal_count(color) > 1 {
+        return true;
     }
-    match (n, pos) {
-        (1, Some(sq)) => !board.is_position_attacked_by_color_for_check(sq, color.opposite()),
-        _ => false,
-    }
+    board.single_royal(color)
+        .is_some_and(|sq| !board.is_position_attacked_by_color_for_check(sq, color.opposite()))
 }
 
 fn move_resolves_last_royal_check(state: &mut GameState, mv: &Move) -> bool {

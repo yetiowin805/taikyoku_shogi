@@ -10,6 +10,8 @@ pub struct Board {
     piece_slots: Box<[u16]>, // square → index in its color list; empty = u16::MAX
     occupied: [[u64; 21]; 2], // occupied squares by color
     global_attackers: [[u64; 21]; 2], // movers that need unaligned attack probes
+    royal_count: [u16; 2], // kings and crown princes by color
+    single_royal: [Option<Position>; 2], // royal square when count is exactly one
     squares: Vec<Option<Piece>>, // 36 * 36 = 1296 squares
     black_pieces: Vec<Piece>, // Fast iteration over black pieces
     white_pieces: Vec<Piece>, // Fast iteration over white pieces
@@ -21,6 +23,8 @@ impl Board {
             piece_slots: vec![u16::MAX; 1296].into_boxed_slice(),
             occupied: [[0; 21]; 2],
             global_attackers: [[0; 21]; 2],
+            royal_count: [0; 2],
+            single_royal: [None; 2],
             squares: vec![None; 1296],
             black_pieces: Vec::new(),
             white_pieces: Vec::new(),
@@ -48,6 +52,14 @@ impl Board {
         &self.global_attackers[(color == Color::White) as usize]
     }
 
+    pub(crate) fn royal_count(&self, color: Color) -> u16 {
+        self.royal_count[(color == Color::White) as usize]
+    }
+
+    pub(crate) fn single_royal(&self, color: Color) -> Option<Position> {
+        self.single_royal[(color == Color::White) as usize]
+    }
+
     /// Place a piece on the board
     /// If a piece already exists at this position, it will be removed first
     pub fn place_piece(&mut self, piece: Piece) {
@@ -66,6 +78,11 @@ impl Board {
         self.occupied[(piece.color == Color::White) as usize][index / 64] |= 1u64 << (index % 64);
         if crate::attack_utils::needs_global_scan(&piece) {
             self.global_attackers[(piece.color == Color::White) as usize][index / 64] |= 1u64 << (index % 64);
+        }
+        if piece.piece_type.is_royal() {
+            let color = (piece.color == Color::White) as usize;
+            self.royal_count[color] += 1;
+            self.single_royal[color] = if self.royal_count[color] == 1 { Some(piece.position) } else { None };
         }
         list.push(piece);
         self.squares[index] = Some(piece);
@@ -87,6 +104,15 @@ impl Board {
         self.piece_slots[square] = u16::MAX;
         self.occupied[(piece.color == Color::White) as usize][square / 64] &= !(1u64 << (square % 64));
         self.global_attackers[(piece.color == Color::White) as usize][square / 64] &= !(1u64 << (square % 64));
+        if piece.piece_type.is_royal() {
+            let color = (piece.color == Color::White) as usize;
+            self.royal_count[color] -= 1;
+            self.single_royal[color] = if self.royal_count[color] == 1 {
+                list.iter().find(|p| p.piece_type.is_royal()).map(|p| p.position)
+            } else {
+                None
+            };
+        }
     }
 
     /// Remove piece from position. Returns the removed piece, if any.
@@ -153,6 +179,9 @@ impl Board {
         };
         piece.position = to;
         list[index] = piece;
+        if piece.piece_type.is_royal() && self.royal_count[(piece.color == Color::White) as usize] == 1 {
+            self.single_royal[(piece.color == Color::White) as usize] = Some(to);
+        }
         self.squares[from.to_index()] = None;
         self.squares[to.to_index()] = Some(piece);
         self.piece_slots[from.to_index()] = u16::MAX;
@@ -235,6 +264,8 @@ impl Clone for Board {
             piece_slots: self.piece_slots.clone(),
             occupied: self.occupied,
             global_attackers: self.global_attackers,
+            royal_count: self.royal_count,
+            single_royal: self.single_royal,
             squares: self.squares.clone(),
             black_pieces: self.black_pieces.clone(),
             white_pieces: self.white_pieces.clone(),
@@ -1106,6 +1137,10 @@ mod dense_list_tests {
     fn check(b: &Board) {
         let mut count = 0;
         for color in [Color::Black, Color::White] {
+            assert_eq!(b.royal_count(color) as usize,
+                b.pieces_by_color(color).iter().filter(|p| p.piece_type.is_royal()).count());
+            let royals: Vec<_> = b.pieces_by_color(color).iter().filter(|p| p.piece_type.is_royal()).collect();
+            assert_eq!(b.single_royal(color), if royals.len() == 1 { Some(royals[0].position) } else { None });
             for (i, p) in b.pieces_by_color(color).iter().enumerate() {
                 assert_eq!(b.get_piece(p.position), Some(*p));
                 assert_eq!(b.piece_slots[p.position.to_index()] as usize, i);
@@ -1137,7 +1172,7 @@ mod dense_list_tests {
             } else {
                 Color::White
             };
-            let kind = if i % 5 == 0 { PieceType::Tengu } else { PieceType::Pawn };
+            let kind = if i % 17 == 0 { PieceType::King } else if i % 5 == 0 { PieceType::Tengu } else { PieceType::Pawn };
             b.place_piece(Piece::new(kind, color, from));
             b.place_piece(Piece::new(PieceType::Rook, color.opposite(), to));
             check(&b);
