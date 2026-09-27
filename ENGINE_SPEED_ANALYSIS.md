@@ -64,6 +64,23 @@ search signatures. Wall-time geometric mean was **0.9943**, with mixed
 position/agent results; the whole-search gain is inconclusive. See the
 [stage-B follow-up](benchmarks/engine_speed_20260926/STAGE_B_FOLLOWUP.md).
 
+### Additional 2026-09-27 probes
+
+- **Reuse the mover's movement configuration for dedup progress checks:**
+  48 warmups and 96 measured pairs matched exact search signatures, but the
+  wall-time ratio was **0.9990** with mixed results. The extra parameter flow
+  was removed. Patch and raw pairs are saved under
+  `benchmarks/engine_speed_20260926/results/config-reuse-20260927/`.
+- **B8 conservative soft stop, actual timed trial:** after completing depth
+  two or deeper, stop when twice that iteration's duration exceeds remaining
+  clock. At 1 second (48 paired cases), every chosen move matched and summed
+  clock fell 48.03 → 39.59 s; two cases stopped one depth earlier. At 3 seconds
+  (24 paired cases), every chosen move matched and summed clock fell 72.02 →
+  62.32 s; two cases were shallower. Scores changed in three total cases.
+  This is a clock/strength tradeoff, so the prototype is **not enabled**.
+  Patch, timed pairs and trial details are in the
+  [soft-stop report](benchmarks/engine_speed_20260926/SOFT_STOP_FOLLOWUP.md).
+
 This follow-up checks off four bounded parts of the proposals below:
 
 - [x] **D3: limited-range path rescanning.** `generate_simple` visits each ray

@@ -1,0 +1,31 @@
+diff --git a/src/search.rs b/src/search.rs
+index 39624f7..c6fe42e 100644
+--- a/src/search.rs
++++ b/src/search.rs
+@@ -2261,6 +2261,7 @@ pub fn search_with_progress(
+         if ctx.timed_out() {
+             break;
+         }
++        let depth_started = Instant::now();
+         ctx.search_depth = d;
+         ctx.phase = "root";
+         ctx.best_score = completed_score;
+@@ -2509,6 +2510,18 @@ pub fn search_with_progress(
+             if d < max_depth {
+                 reorder_root_moves(&mut moves, &completed_best, &completed_lines);
+             }
++            // Conservative soft stop: a new iteration is usually much slower
++            // than the one just completed. Keep the completed result when even
++            // twice the last iteration would run past the hard deadline.
++            if d >= 2 {
++                if let Some(deadline) = ctx.deadline {
++                    if depth_started.elapsed().saturating_mul(2)
++                        >= deadline.saturating_duration_since(Instant::now())
++                    {
++                        break 'depths;
++                    }
++                }
++            }
+             break;
+         }
+     }

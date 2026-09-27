@@ -1,0 +1,124 @@
+{
+  "1000": {
+    "pairs": 48,
+    "same_complete_move": 48,
+    "same_score": 46,
+    "same_depth": 46,
+    "sum_wall_ms": {
+      "baseline": 48026.838552,
+      "candidate": 39591.472333
+    },
+    "wall_geomean_ratio": 0.7920469099901771,
+    "changed": [
+      {
+        "position": 4,
+        "model": 1,
+        "baseline_best": {
+          "data": "Standard",
+          "from": {
+            "file": 18,
+            "rank": 24
+          },
+          "promoted": false,
+          "to": {
+            "file": 9,
+            "rank": 15
+          }
+        },
+        "candidate_best": {
+          "data": "Standard",
+          "from": {
+            "file": 18,
+            "rank": 24
+          },
+          "promoted": false,
+          "to": {
+            "file": 9,
+            "rank": 15
+          }
+        },
+        "baseline_score": 1069,
+        "candidate_score": 1912,
+        "baseline_depth": 3,
+        "candidate_depth": 2
+      },
+      {
+        "position": 4,
+        "model": 0,
+        "baseline_best": {
+          "data": "Standard",
+          "from": {
+            "file": 18,
+            "rank": 24
+          },
+          "promoted": false,
+          "to": {
+            "file": 9,
+            "rank": 15
+          }
+        },
+        "candidate_best": {
+          "data": "Standard",
+          "from": {
+            "file": 18,
+            "rank": 24
+          },
+          "promoted": false,
+          "to": {
+            "file": 9,
+            "rank": 15
+          }
+        },
+        "baseline_score": 1033,
+        "candidate_score": 4356,
+        "baseline_depth": 3,
+        "candidate_depth": 2
+      }
+    ]
+  },
+  "3000": {
+    "pairs": 24,
+    "same_complete_move": 24,
+    "same_score": 23,
+    "same_depth": 22,
+    "sum_wall_ms": {
+      "baseline": 72022.828689,
+      "candidate": 62317.982063999996
+    },
+    "wall_geomean_ratio": 0.8267940220979724,
+    "changed": [
+      {
+        "position": 10,
+        "model": 0,
+        "baseline_best": {
+          "data": "Standard",
+          "from": {
+            "file": 23,
+            "rank": 1
+          },
+          "promoted": false,
+          "to": {
+            "file": 5,
+            "rank": 19
+          }
+        },
+        "candidate_best": {
+          "data": "Standard",
+          "from": {
+            "file": 23,
+            "rank": 1
+          },
+          "promoted": false,
+          "to": {
+            "file": 5,
+            "rank": 19
+          }
+        },
+        "baseline_score": 1658,
+        "candidate_score": 1324,
+        "baseline_depth": 4,
+        "candidate_depth": 3
+      }
+    ]
+  }
+}
