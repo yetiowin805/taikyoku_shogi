@@ -64,6 +64,13 @@ and are intentionally omitted from the PR, as with the previous round.
 full promotion-zone generation and compiled move-generation specs. The staged
 TT move picker and the search-tree changes below require move/strength checks.
 
+A small post-change `search-profile` run at depth three on the built-in opening
+and pawn-push midgame fixtures (seed weights, CPU 2) reported attack scopes at
+31% / 34%, generation at 24% / 21%, ordering at 14% / 24%, and make/unmake at
+6% / 6%. These scoped wall timers can overlap, and two synthetic positions do
+not replace a representative function-level profile. They do suggest attack
+queries and ordering remain worth investigating next.
+
 ## Profile that guided this round — after PR #127
 
 This pre-round profile has no single function above about
