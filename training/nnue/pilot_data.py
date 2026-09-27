@@ -67,7 +67,10 @@ def main():
             for search in m['searches']:
                 if search.get('completed_depth', 0) >= 1 and abs(search['score']) < 900000:
                     # Analyzer plies are one-based BEFORE-move indices; exporter uses zero-based.
-                    labels[m['game_hash'], search['ply']-1] = dict(
+                    key = (m['game_hash'], search['ply']-1)
+                    if key in labels and labels[key]['teacher'] != search['model_sha256']:
+                        raise ValueError('Multiple teachers for one position; pilot_data needs an explicit dual-teacher recipe')
+                    labels[key] = dict(
                         score=search['score'], selection=m['selection'], depth=search['completed_depth'],
                         teacher=search['model_sha256'], watchdog=search.get('hard_timeout', False))
     records = {}

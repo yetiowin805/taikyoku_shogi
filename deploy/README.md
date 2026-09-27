@@ -518,3 +518,45 @@ interrupted searches retry and completed searches persist immediately. A worker
 failure or empty backlog returns the shared CPU to games. `--sidecar none`
 pauses collection and runs four game workers. Carried older catalogues are kept,
 but this initial training sampler processes only this run's completed games.
+
+#### Add the 2048v3 teacher to an already-running v3 tournament
+
+`deploy/dual_label_sidecar.py` keeps the tournament supervisor and all game
+processes running. It replaces only the 512v2 analysis process with a separate
+service on the same fourth CPU. Each selected position gets a 512v2 and a 2048v3
+search with a 30-second maximum per teacher. The engine stops before a deeper
+iteration when the last iteration took more than half the remaining time; it
+also returns the last fully completed iteration at the deadline. Earlier 10-second
+512v2 searches remain in the cache, while both 30-second searches get new keys.
+The two scores are stored separately in each moment's
+`searches` array with model and analyzer hashes; they are never averaged.
+
+On the VPS, first run the read-only preflight:
+
+```sh
+run=$(cat data/run/royal-nnue-current-run.txt)
+model=/opt/nnue-generation3-20260925/results/NNUE_W2048_v3/model.json
+python3 deploy/dual_label_sidecar.py check --run-dir "$run" --model "$model"
+```
+
+Prepare the pinned second model while the original analyzer still runs. Then
+signal **only** the analyzer PID shown by `tourney_analysis.py status`. Wait
+until it has exited and `analysis.request` is absent; the supervisor keeps the
+tournament alive. Launch the new sidecar:
+
+```sh
+python3 deploy/tourney_analysis.py status --run-dir "$run"
+python3 deploy/dual_label_sidecar.py prepare --run-dir "$run" --model "$model"
+kill -TERM ANALYZER_PID
+# Wait for the old analyzer to exit and its request to clear.
+systemd-run --unit=taikyoku-dual-labels --property=Restart=on-failure \
+  --property=RestartSec=10 --property=WorkingDirectory=/opt/taikyoku_shogi \
+  /usr/bin/python3 /opt/taikyoku_shogi/deploy/dual_label_sidecar.py run --run-dir "$run"
+python3 deploy/dual_label_sidecar.py status --run-dir "$run"
+```
+
+The separate `dual_paired` table tracks completed pairs, and `dual_failures`
+retains errors for investigation. A restart resumes from committed labels. When
+the tournament stops, the sidecar exits. `pilot_snapshot.py` preserves both
+searches in its label archive; downstream training recipes must select their
+teacher policy explicitly.

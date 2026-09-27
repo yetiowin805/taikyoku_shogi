@@ -255,7 +255,7 @@ def search_position(config, moment, ply, db):
     depth = recorded_depth + 1 if isinstance(recorded_depth, int) and recorded_depth > 0 else 64
     budget = 300_000 if isinstance(recorded_depth, int) and recorded_depth > 0 else 30_000
     if config.get("label_teacher"):
-        depth, budget = 64, 10_000
+        depth, budget = 64, config.get("label_budget_ms", 10_000)
     identity = dict(policy=training_labels.POLICY if config.get("label_teacher") else POLICY, game=moment["game_hash"], ply=ply, agent=agent,
                     model=model["sha256"], binary=helper["analyzer_sha256"],
                     depth=depth, budget=budget)
