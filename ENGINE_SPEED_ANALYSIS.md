@@ -28,6 +28,10 @@ Two direct 192-pair comparisons of the combined build against `25e1fdc`
 measured **0.9592 and 0.9603**, or about **4% less fixed-depth wall time**.
 All 12 position aggregates were faster in both runs. NNUE-2048 was near
 neutral: 0.9945 in the first and 1.0079 in the final committed-source build.
+An identical-binary 192-pair A/A control measured 0.9935, so the individual
+roughly 1% screens are modest signals. A position-cluster bootstrap of the
+final direct run gave a 95% ratio interval of 0.951–0.970; this describes
+variation within these 12 positions, not all games.
 Individual percentages should not be added. These local timings do not
 establish game strength or a universal speedup. A per-type/variant test
 checks the cached movement flags against every live movement config; an attack
