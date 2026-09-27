@@ -24,11 +24,12 @@ over its immediate predecessor; lower is faster.
 | Iterate board attack candidates directly in square order instead of building a second per-query slot bitset | 0.9821 / 0.9730 in two runs | 1.8–2.7% less time |
 | Reuse each quiescence candidate's already-computed royal-capture flag | 0.9871 | 1.3% less time |
 
-The final combined build measured **0.9592** against `25e1fdc`, or **4.1% less
-fixed-depth wall time** across 192 exact pairs. All 12 position aggregates and
-all four agent aggregates were faster, although the NNUE-2048 aggregate was
-near neutral. Individual percentages should not be added. These local timings
-do not establish game strength or a universal speedup. A per-type/variant test
+Two direct 192-pair comparisons of the combined build against `25e1fdc`
+measured **0.9592 and 0.9603**, or about **4% less fixed-depth wall time**.
+All 12 position aggregates were faster in both runs. NNUE-2048 was near
+neutral: 0.9945 in the first and 1.0079 in the final committed-source build.
+Individual percentages should not be added. These local timings do not
+establish game strength or a universal speedup. A per-type/variant test
 checks the cached movement flags against every live movement config; an attack
 test compares the direct candidate iterator with a full army scan across board
 targets, colors and check modes.
