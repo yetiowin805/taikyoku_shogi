@@ -1,29 +1,78 @@
 # Engine & search speed analysis
 
-Findings from a code read of `board.rs`, `movement/`, `game_state.rs`, `attack_utils.rs`, `move_simulation.rs`, `eval.rs` and `search.rs` (main at `2598690`), plus a few small sanity measurements. The original analysis made no engine changes; subsequent implementation status and measured results are recorded below. Items are grouped as follows:
+The original analysis was a code read of `board.rs`, `movement/`, `game_state.rs`, `attack_utils.rs`, `move_simulation.rs`, `eval.rs` and `search.rs` at `2598690`, plus small sanity measurements. Start with the current profile and next experiments below. The dated experiment log preserves what was measured on each earlier checkout; descriptions such as “this tree” in that log refer to the checkout used for that experiment. The original proposals follow the log and retain their A/D/B/C identifiers:
 
 - **A. Fundamental engine changes.** Representation, move generation and attack detection. These help any algorithm (alpha-beta, MCTS, self-play data generation, featurization), and most can be verified as *exact* (identical nodes, scores and routes) with the existing `benchmarks/search_speed_20260920` harness.
 - **D. Core engine deep dive** (placed after A). This covers game-state representation, legal move generation, path checking, make/unmake and attack detection at the function level, with per-piece-class measurements. It turns A1–A5 into concrete changes and adds new findings: duplicate two-step moves, blocked-piece cost, self-capture sweeps, and a Vice General rules bug.
 - **B. Generic alpha-beta improvements.** Standard techniques from chess and shogi engines that apply to almost any αβ searcher. Some are exact; most change the tree and need strength testing.
 - **C. Taikyoku-specific experiments.** These depend on this game's rules (804 pieces at the start, capturing-range sweeps, 36×36 board) or on this engine's selective search design.
 
-Speed-up estimates are **order-of-magnitude guesses with the reasoning shown**. They are not measurements. Each one needs the paired, held-out protocol from `benchmarks/search_speed_20260920/README.md` before anyone claims it.
+The original proposal estimates are **historical guesses**, not remaining gains from current `main`. Validate new exact changes with paired held-out searches and behavior-changing changes with games. Component estimates overlap and must not be added.
 
-## B8 follow-up after PR #126
+## Current profile and next experiments — after PR #127
+
+The newer profile supplied for this update has no single function above about
+9% of search time. The shares below are for the **opening / ply 240**; the
+estimated whole-search gains are hypotheses, not measured improvements. The
+profile command, hardware and raw samples were not supplied, so rerun the
+profile before relying on small differences between rows.
+
+| Current cost center (opening / ply 240) | Proposed experiment | Estimated whole-search gain |
+|---|---|---:|
+| Captures on a square at quiescence entry (23% / 13%) | Reuse the attack-query prefilter already used by the large-hang gate for loud takes and royal captures. Preserve generated move order. | 10–15% |
+| Hanging-piece gate at leaves (15% / 21%) | Test cached attack results or incremental per-square attack counts, including make/unmake cost. | 5–10% |
+| Finding loud promotions (8% / 18%) | Generate only promotion-zone landings instead of generating every move of each eligible piece and filtering afterward. | 5–12% |
+| Move ordering (13% / 16%) | Try the transposition-table move before generating and scoring the rest; score later stages lazily. | 5–10% |
+| Full move generation (10% / 16%) | Generate from precomputed per-type movement specs. | 5–8% |
+| Make/unmake (9% / 6%) | Replace the home-rank hash-map lookup in `undeveloped_penalty_for_piece` with a flat table. | 3–5% |
+| Hashing and buffer growth (about 6–7%) | Try flat tables and reused buffers where profiling identifies allocation or hashing cost. | 2–5% |
+
+Even if the profile buckets are separate, the potential gains overlap because
+one change can alter how often another path runs. Changes can also shift cost
+into another area. Measure one patch at a time against current `main`; do not
+sum the estimates or apply the original multi-phase multiplier below.
+
+**Suggested order:** start with quiescence capture prefiltering, then
+promotion-zone generation. Both target large current costs without a new board
+invariant. Try the small home-rank lookup change next. Use a new profile to
+choose between attack-count maintenance and compiled specs. For exact patches,
+preserve full routes, scores, ordered root lines and node counts.
+
+The staged picker needs a separate parity check: searching a TT move earlier
+can change LMR decisions and chosen moves. Treat it as a search-behavior change
+if it does not preserve the current order.
+
+**Search-behavior experiments, each requiring strength tests:** retain the
+transposition table across game moves after separating the progress-draw
+counter from its key; tune late-move reductions and move-count pruning for
+roughly 300 legal moves (the largest proposed search lever); then test interior
+null-window search, frontier futility pruning and null-move reduction tuning.
+These affect the tree or timed decisions, so nodes per second alone cannot
+establish benefit.
+
+**Outstanding validation:** the merged two-step route deduplication needs a
+game-level strength check, as does the B8 timed soft stop. Confirm the Vice
+General jump rule before changing its path-capture behavior. Incremental line
+words passed parity tests but were 0.3% slower in the first integrated screen;
+do not assume the original A1 multiplier is still available.
+
+## Merged results — PRs #126 and #127
+
+### B8 timed soft stop, PR #127
 
 The conservative iterative-deepening soft stop is now enabled for timed
 searches. After completing depth two or deeper, the engine skips the next
 iteration when twice the last iteration's duration exceeds the clock left.
-Untimed searches, including fixed-depth benchmarks, are unaffected. A fresh 72-case comparison
-against merged `main` saved 20.3% summed clock at one second and 5.1% at
-three seconds. Chosen moves matched in 48/48 and 23/24 cases respectively;
+Untimed searches, including fixed-depth benchmarks, are unaffected. A fresh
+72-case comparison against pre-#127 `main` saved 20.3% summed clock at one second
+and 5.1% at three seconds. Chosen moves matched in 48/48 and 23/24 cases respectively;
 the differing three-second search stopped one depth shallower. This is a
 tournament-throughput choice, not an established strength gain. See the
 [soft-stop follow-up](benchmarks/engine_speed_20260926/SOFT_STOP_FOLLOWUP.md).
 
-## Current pull-request result — 2026-09-27
+### Exact hot-path changes and route deduplication, PR #126
 
-This branch collects the retained speed changes since `main` at `198b2c0`.
+PR #126 collected the retained speed changes since `main` at `198b2c0`.
 It includes direct reach and irreversibility checks, lazy leaf-gate discovery,
 candidate-region tables and board occupancy masks, Free Eagle and stage-B
 shortcuts, cached royal bookkeeping, and the large-hang attack prefilter.
@@ -46,17 +95,14 @@ results on the local corpus, not an Elo or strength estimate. Debug and release
 library suites passed 390 tests each (4 ignored), including board mutation and
 capture/attack parity checks.
 
-The two-step deduplication changes legal-route counts and search node counts,
-so it still needs a strength tournament before merge. At merge time, record
-the parent of the merge as a `kind: logic` history entry and run
-`./deploy/freeze_history.sh`, as required by `AGENTS.md`. The sections below
-record each intermediate experiment and rejected prototype. Generated plans,
-logs and paired records are omitted from this PR. The retained comparisons can
-be rerun with the benchmark scripts; discarded prototypes and their measured
-conclusions are summarized here.
+The two-step deduplication changes legal-route counts and search node counts;
+its fixed-depth parity result does not replace a strength tournament. The
+sections below record intermediate experiments and rejected prototypes.
+Generated plans, logs and paired records were omitted from that PR; the
+retained comparisons can be rerun with the benchmark scripts.
 
 
-## Implementation details and experiment history — 2026-09-26 to 2026-09-27
+## PR #126 experiment log — 2026-09-26 to 2026-09-27
 
 ### Initial candidate scan and progress labels
 
@@ -72,8 +118,8 @@ a strength result. The full measurements and reproduction details are in
 
 The first pass also explored two-step deduplication and B8 soft stopping.
 Deduplication was added in the follow-up below. The soft-stop trace suggested
-clock savings, but its live timed comparison was interrupted; that change is
-not in this branch.
+clock savings, but its live timed comparison was interrupted. A later B8 trial
+and PR #127 completed that work.
 
 ### D2.2 two-step route dedup follow-up, 2026-09-27
 
@@ -86,8 +132,8 @@ all chosen complete moves, scores and depths matched. Main nodes fell from
 1,605,604 to 1,333,600 (−16.9%); the paired CPU-time geometric mean was
 0.9354 (6.5% less). Legal-move counts changed in 56/96 and node counts in
 76/96 pairs, as expected. The full [deduplication report](benchmarks/engine_speed_20260926/DEDUP_FOLLOWUP.md)
-contains the measured results and limitations. This changes move ordering and
-still needs strength testing before merge.
+contains the measured results and limitations. This changes move ordering;
+the merged change still needs strength testing.
 
 ### D2.5 Free Eagle reachability checks, 2026-09-27
 
@@ -257,13 +303,13 @@ This follow-up checks off four bounded parts of the proposals below:
 - [x] **D5.5: two-leg intermediate allocations.** Tengu/Peacock diagonal and Hook
   Mover orthogonal attack checks use two stack slots instead of a heap vector,
   preserving candidate order and duplicate suppression.
-- [ ] The remaining proposals require separate implementation and validation;
-  their estimates below remain the original analysis, not measured PR gains.
+The remaining proposals below require separate implementation and validation;
+their original estimates are not measured PR gains.
 
 See [the follow-up validation record](benchmarks/engine_speed_20260926/README.md)
 for parity tests, paired search measurements and reproduction instructions.
 
-## Follow-up experiments and next steps — 2026-09-26
+## Early follow-up experiments — 2026-09-26
 
 - [x] **A2/A7 (bounded part): lazy leaf entry checks.** Resolve last-royal evasions before any
   zero-budget return. Otherwise, test cheap sufficient capture-entry flags
@@ -278,25 +324,21 @@ for parity tests, paired search measurements and reproduction instructions.
   again with exact parity in all 48 pairs and improvement for every agent and
   position. Debug and release library suites each passed 379 tests (4 ignored).
   These are two small samples, not a universal speedup guarantee.
-- [ ] **A3/D3: blocker bitsets — next small prototype to finish.** Actual-set
-  component membership queries were roughly 13 times faster for nonempty sets,
-  but the integrated prototype changed Debug formatting in nested two-step
-  NNUE feature names. Model loading correctly rejected it. Preserve the exact
-  descriptor schema and verify existing checkpoints load before measuring
-  whole searches. The prepared formatting fix is not yet tested; no integrated
-  speedup is established.
-- [ ] **A1/D3: line occupancy masks — promising, larger follow-up.** Synthetic
-  ray-clear queries were 1.5–5.6 times faster. Prototype mask maintenance and
-  make/unmake parity, including intermediate captures and special movers,
-  before drawing any whole-engine conclusion. Current figures omit those costs.
-- [ ] **A4/D1/D5: cached movement properties — low priority.** Despite cheaper
+- [x] **A3/D3: blocker bitsets.** The early prototype changed nested two-step
+  NNUE feature names and was rejected by model loading. The descriptor schema
+  was preserved in the corrected implementation, which merged in PR #121.
+- [x] **A1/D3: line occupancy masks, prototype only.** Synthetic ray-clear
+  queries were 1.5–5.6 times faster. A later integrated prototype passed board
+  and path-clear parity checks but was 0.3% slower in 96 paired searches, so it
+  was set aside.
+- [x] **A4/D1/D5: cached movement properties, tested but not retained.** Despite cheaper
   isolated lookups, full searches saved only 0.4% CPU time in the same screen,
   with mixed per-agent results. All searches matched; the gain is inconclusive.
   Added config fields/invariants are hard to justify on speed alone at present.
-- [ ] Lazy progress-label formatting, repetition-count maintenance and broader
-  move-generation proposals remain unverified in this experiment. In particular,
-  do not assume a progress-counter reset makes earlier repetition history
-  irrelevant; that requires a separate rules/correctness proof.
+- [x] **Lazy progress-label formatting** was subsequently merged in PR #126.
+- [ ] **Repetition-count maintenance and broader move-generation proposals**
+  remain open. In particular, a progress-counter reset does not by itself prove
+  that earlier repetition history is irrelevant; that needs a rules proof.
 
 Tests used two handcrafted and two NNUE agents, sequentially at low priority,
 limited to approximately one quarter of one logical CPU. The timings measure
@@ -317,7 +359,7 @@ third other piece). **Wall-time noise here is ±20–40% run to run**, so only n
 counts and exact parity are reliable. Timings below are indicative at best.
 Re-measure with the pinned-CPU harness before accepting any speed claim.
 
-- [ ] **D2.2 two-step route dedup (measured in that session; not in this tree).** For two-step pieces,
+- [x] **D2.2 two-step route dedup (early prototype; later merged in PR #126).** For two-step pieces,
   a route whose intermediate square is empty is dropped if the plain move or an
   earlier empty route already reaches the same `(to, promoted)`. Capturing
   intermediates are always kept. Stage B also checks against stage A's first-leg
@@ -337,7 +379,7 @@ Re-measure with the pinned-CPU harness before accepting any speed claim.
   - Tests from that session: `open_two_step_routes_are_generated_once_per_result`
     (not in this tree). The release library suite ran 368 passed; the 13 failures
     are all `git show <old rev>` history lookups that cannot work in that shallow clone.
-- [ ] **A7 lazy q progress label (measured in that session; not in this tree).** `quiesce` stored a
+- [x] **A7 lazy q progress label (early prototype; later merged in PR #126).** `quiesce` stored a
   formatted `String` (`move_label`) for every searched q-move, only for 3-second
   progress logs. The experiment stored the piece and squares and formatted only when a log
   line was printed. It was **exact** on all six positions (nodes, scores, routes).
@@ -353,8 +395,8 @@ Re-measure with the pinned-CPU harness before accepting any speed claim.
   would have returned the same moves in about half the clock on 6 of 7 samples.
   Using partial iterations (keep a root move that finished at depth d+1 and beat
   the previous best) is the other option. This is the cheapest remaining lever
-  for tournament throughput. Not implemented, because it changes timed
-  behaviour and needs a games-per-hour and strength check.
+  for tournament throughput. The conservative version was later implemented
+  in PR #127; a games-per-hour and strength check is still outstanding.
 - [ ] Not attempted in follow-up 3: D2.1 blocked-piece skip, line-occupancy masks (A1),
   blocker-bitset NNUE follow-up (already merged in #121), time-management change
   (B8 above). D2.1 was measured in follow-up 4 and is in this tree.
@@ -410,12 +452,12 @@ This tree has the boxed-in skip and the reverse candidate scan only.
   wall time drops about 26 → 15 µs, but it saves only **0.2–0.6%** of search
   instructions: interior-node full generation is a small share of the search.
   Test: `boxed_in_shortcut_only_skips_pieces_without_moves`.
-- [ ] **Self-sweep ordering (D2.7, measured; not in this tree).** Quiet moves by capturing-range pieces are
+- [x] **Self-sweep ordering (D2.7, measured but not retained).** Quiet moves by capturing-range pieces are
   ordered after other quiets, by the material of their own pieces swept. Mixed
   results (−3% to −7% on three positions, +1% on three); same scores and moves.
   This is a behaviour change with small payoff. Consider dropping it, or test it
   in tournaments before keeping it.
-- [ ] **ID soft stop (B8), measured with `SearchConfig::id_soft_stop`, off by default; not in this tree.** Before
+- [x] **Early adaptive ID soft-stop prototype (B8, not retained).** Before
   starting depth d+1, predict its time as the last iteration × the observed
   growth (clamped to 2–8×), and skip it if that would pass the deadline.
   - At **1 s**: **same move 16/16**, **32% less clock used**, one sample stopped
@@ -425,9 +467,9 @@ This tree has the boxed-in skip and the reverse candidate scan only.
     can grow 40×).
 
   Both runs had background valgrind load, but each pair ran under the same
-  conditions. Suggested follow-up: a more conservative predictor (for example,
-  use the smaller of the last two growth ratios), or use completed root moves
-  from the partial iteration instead. Measure games per hour and strength.
+  conditions. A different, conservative two-times-last-iteration rule was
+  later merged in PR #127. Using completed root moves from a partial iteration
+  remains untested. Measure games per hour and strength.
 - **Tests in that cloud session.** Release and debug library suites: **370 passed**, 4 ignored. The 13
   failures in each are `git show <old rev>` history tests that cannot work in a
   shallow clone. That session's new tests were
@@ -443,7 +485,7 @@ This tree has the boxed-in skip and the reverse candidate scan only.
 
 ---
 
-## 0. Where the time goes today (sanity measurements)
+## Original baseline profile at `2598690` (historical)
 
 Environment: 4-vCPU cloud container, `cargo build --release` (thin LTO, no `target-cpu=native`), `EvalWeights::seed()`, `src/bin/search_speed.rs` positions. These are single runs and noisy, so read them as rough numbers.
 
@@ -455,7 +497,7 @@ Environment: 4-vCPU cloud container, `cargo build --release` (thin LTO, no `targ
 | `CapturesOnly` gen, opening | ≈26 µs (almost as expensive as full gen) |
 | `is_position_attacked_by_color` (avg over all 1296 squares) | **≈3 µs**/query (scans up to ~400 attacker pieces) |
 | Attack scans over the 20 "large" enemy pieces (≈ what the leaf hang gate does) | ≈44 µs |
-| `generate_loud_promotions`, opening | ≈4.6 µs, returns **16 moves** (see C6) |
+| `generate_loud_promotions`, opening | ≈4.6 µs, returns **16 moves** (see C4) |
 | `make_move_for_search` + `unmake` | ≈0.23 µs (already cheap) |
 | `size_of::<Move>()` | 32 bytes, not `Copy` (holds a `Vec` for Free Eagle) |
 
@@ -470,13 +512,18 @@ Environment: 4-vCPU cloud container, `cargo build --release` (thin LTO, no `targ
 
 (The change was reverted. It changes behaviour whenever a gate *would* fire, so it is a measurement, not a proposal.)
 
-Summary: search cost is dominated by **"who attacks square X?" queries** (leaf gates, hang pruning, ordering), all built on one scan of the whole opposing army, followed by full move generation at interior nodes. Evaluation (handcrafted, incremental) and make/unmake are already cheap. The main lever is to make attack queries cheap, so group A comes first.
+At this original baseline, search cost was dominated by **"who attacks square X?" queries** (leaf gates, hang pruning, ordering), all built on one scan of the whole opposing army, followed by full move generation at interior nodes. Many of those attack paths were changed by PR #126; use the current profile at the top of this document for new priorities.
 
 ---
 
-## A. Fundamental engine changes (benefit any algorithm)
+## A. Fundamental engine changes (original proposals)
 
-### A1. Reverse ("from the target") attack detection with line-occupancy bitboards — **highest value**
+### A1. Reverse ("from the target") attack detection with line-occupancy bitboards
+
+**Current status:** PR #126 merged candidate-region tables, occupancy masks
+and cached global-attacker masks, addressing part of this original bottleneck.
+An incremental line-word prototype was exact but 0.3% slower in its first
+integrated search screen. The estimates below were made before those changes.
 
 **Now.** `is_position_attacked_by_pieces` loops over every attacker (~400 pieces at the start), runs `should_check_piece_for_target_position`, then runs a per-piece reach test. `generate_captures_hitting_square` does the same and also materializes moves. Each query costs ~3 µs, and the leaf gates make one per large enemy piece (≈20) at **every** AB leaf.
 
@@ -494,6 +541,10 @@ Summary: search cost is dominated by **"who attacks square X?" queries** (leaf g
 Precedent: H.G. Muller's HaChu (Chu/Dai/Tenjiku Shogi) and his published notes on large-variant engines rely on cheap attack information, and on "view distance"/neighbour tables that give the next occupied square in each direction, rather than on per-piece scans. The line-bitboard trick is the 64-bit analogue of chess rank attacks: 36 squares still fit in one machine word.
 
 ### A2. Cheap interim fix for the leaf gates (before A1 lands)
+
+**Current status:** lazy leaf entry checks and the large-hang attack prefilter
+are merged. The current profile still identifies quiescence capture queries
+and the hanging-piece gate as follow-ups; see the current queue above.
 
 If A1 is too large a first step, most of the gate cost can be removed without changing behaviour:
 
@@ -526,6 +577,10 @@ The allocation-free iterators from the 2026-09-20 study removed some of this, bu
 **Estimate.** Chess mailbox generators run at 5–15 ns/move. Here it is ~100 ns/move, and many opening pieces are fully blocked yet still pay the setup cost. A **3–5× faster movegen** is realistic. Full-list generation is maybe 20–30% of time once A1/A2 remove the gate cost, so this is worth **≈1.15–1.3× overall**. It is also a direct win for anything else that calls movegen (MCTS rollouts, featurization, self-play data generation, the `mi` player). Exact, provided emission order is kept or intentionally re-baselined (ordering is by score with stable sort, so emission order only affects ties).
 
 ### A4. Incremental piece bookkeeping
+
+**Current status:** PR #126 caches royal counts, sole-royal squares and global
+attack candidates. The list and counter ideas below describe the original
+proposal; some are still open.
 
 Keep these in `Board` (or `GameState`), updated in make/unmake:
 
@@ -564,7 +619,7 @@ Keep these in `Board` (or `GameState`), updated in make/unmake:
 
 ---
 
-## D. Core engine deep dive: state, move generation, path checking
+## D. Core engine deep dive (original proposals)
 
 This section goes function by function through `position.rs`, `board.rs`, `piece.rs`, `game_state.rs` (generation, `apply_move`, `execute_single_move`), `movement/generator.rs`, `movement/irreversible.rs`, `path_utils.rs`, `attack_utils.rs`, `tengu_attack.rs` and `move_simulation.rs`.
 
@@ -719,7 +774,7 @@ Interim improvements that do not need line words:
 
 ---
 
-## B. Generic alpha-beta improvements
+## B. Generic alpha-beta improvements (original proposals)
 
 Unless noted, these change the searched tree. They need a strength check (Swiss or knockout against the current seed) and, per `AGENTS.md`, a `kind: logic` history freeze if merged.
 
@@ -783,13 +838,20 @@ Null move is already very effective here (zugzwang is rare). Try adaptive `R = 3
 
 ### B8. Time management: stop wasting the incomplete iteration
 
+**Current status:** the conservative two-times-last-iteration rule merged in
+PR #127 for timed search. It saved clock in paired trials but changed one of
+24 three-second moves in the later run. The alternatives and original estimate
+below are historical; partial-iteration reuse remains untested.
+
 `search()` returns the **last completed** iteration and discards the incomplete one, apart from a partial best when no iteration finished. With 1 s per move and each ID iteration taking several times longer than the last, a large fraction of every move's budget (often 30–60%) goes into an iteration that is thrown away.
 
-- **Do not start an iteration that cannot finish.** Stop if `elapsed > budget / k`, where `k` is the observed time ratio between consecutive iterations (≈3–5 here). This gives the same move and saves the time, directly raising tournament games per hour.
+- **Do not start an iteration that is unlikely to finish.** The original proposal was to stop if `elapsed > budget / k`, where `k` is the observed time ratio between consecutive iterations (≈3–5 here). The merged rule uses the last iteration's duration instead. It can return a shallower result and change the move.
 - **Or use the partial iteration**, as chess engines do. Root moves are searched best-first, so once the first (previous best) move is fully searched at the new depth, any later root move that completed with a better score is a valid, deeper result.
 - Add a soft/hard limit split, and extend time when the best move changes or the score drops.
 
-**Estimate.** 1.3–1.7× more useful search per second of clock, or the same strength at lower `--time-ms`, which means more games per hour. Minimal code.
+**Original estimate.** 1.3–1.7× more useful search per second of clock. Equal
+strength at lower `--time-ms` has not been demonstrated; measure games per hour
+and playing strength separately.
 
 ### B9. Aspiration and TT hygiene
 
@@ -805,7 +867,7 @@ Tournaments already run `--jobs $(nproc)` single-threaded games, so Lazy SMP wou
 
 ---
 
-## C. Taikyoku-specific experiments
+## C. Taikyoku-specific experiments (original proposals)
 
 ### C1. Incremental per-piece move caches ("dirty-piece" generation)
 
@@ -872,7 +934,13 @@ The NNUE pipeline makes a policy + value network plausible, and PUCT/MCTS (as in
 
 ---
 
-## Suggested order and combined expectation
+## Original proposed order and combined expectation (historical)
+
+This phase plan predates PRs #121, #122, #126 and #127. Some steps are merged,
+some prototypes measured neutral, and the original cumulative multipliers are
+**not** estimates of speed remaining on current `main`. The current experiment
+queue is at the top of this document. The table is retained to explain the
+original sequencing and its untested assumptions.
 
 | Phase | Items | Kind | Rough gain | Risk |
 |---|---|---|---|---|
@@ -885,7 +953,7 @@ The NNUE pipeline makes a policy + value network plausible, and PUCT/MCTS (as in
 | 5 | B1 persistent TT, B3 LMP/LMR, B6 frontier pruning, C4 promo pruning, D2.7 self-sweep pruning | changes play | 2–4× effective depth-time | Needs tournaments |
 | 6 | C1 incremental caches, C2 SEE, C3 locality pruning, C5 lazy NNUE | changes play / large | open-ended | Research |
 
-Compounding phases 1–3 is plausibly **3–6× nodes/s with identical trees**. Phase 3b collapses duplicate positions on top of that, and phase 5 adds a similar factor in time-to-depth. The gains do not multiply cleanly: each fix shrinks the share of the others. Validate each step with the following:
+The original hypothesis was **3–6× nodes/s** from phases 1–3 at the old baseline, with phase 3b collapsing duplicate positions and phase 5 changing time-to-depth. It has not been measured as a combined result, and already-merged gains cannot be counted again. Validate remaining steps with the following:
 
 - **Exact items:** the `search_speed_20260920` harness (identical routes, scores and node counts; held-out positions; paired timing). The parity approach in `src/parity.rs` (e.g. A1 vs the old per-piece scan over all 1296 squares × a corpus of game positions, and all exotic movers) should gate A1/A3/C1/D1/D2. For D1 in particular, a spec-vs-`MovementConfig` parity test over every (type, promoted, base, colour) and every square of a few corpus positions is cheap and catches most migration mistakes.
 - **Behaviour-changing items:** fixed-time Swiss/knockout vs the current seed, one idea at a time (per `IDEAS_TO_TRY.md`), with a `kind: logic` history-freeze entry on merge (`AGENTS.md`).
