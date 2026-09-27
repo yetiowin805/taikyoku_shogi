@@ -54,6 +54,16 @@ top of deduplication. Wall-time geometric mean was **0.9945**; position and
 agent results were mixed, so the whole-search gain is inconclusive. See the
 [Free Eagle follow-up](benchmarks/engine_speed_20260926/FREE_EAGLE_FOLLOWUP.md).
 
+### D2.6 stage-B scan filter, 2026-09-27
+
+Stage B now skips pieces whose movement configuration cannot produce a quiet
+multi-leg move before running the boxed-in and capability checks. A table
+parity test covers all declared types, colors, promotion states and base-type
+variants. All 48 warmups and 96 paired fixed-depth searches matched complete
+search signatures. Wall-time geometric mean was **0.9943**, with mixed
+position/agent results; the whole-search gain is inconclusive. See the
+[stage-B follow-up](benchmarks/engine_speed_20260926/STAGE_B_FOLLOWUP.md).
+
 This follow-up checks off four bounded parts of the proposals below:
 
 - [x] **D3: limited-range path rescanning.** `generate_simple` visits each ray

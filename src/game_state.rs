@@ -3,6 +3,41 @@ use crate::piece::{Piece, PieceType, Color};
 use crate::position::Position;
 use crate::movement::MovementConfig;
 use crate::path_utils;
+use std::sync::OnceLock;
+
+/// Stage B only needs Free Eagles and pieces with a TwoStep capability.
+/// Base-type variants keep the dynamic path because their movement identity
+/// need not match the displayed piece type.
+fn has_multi_leg_moves(piece: &Piece) -> bool {
+    if piece.piece_type == PieceType::FreeEagle {
+        return true;
+    }
+    if piece.base_piece_type.is_some() {
+        return MovementConfig::for_piece(piece).capabilities.iter().any(|cap| {
+            matches!(cap, crate::movement::types::MovementCapability::TwoStep { .. })
+        });
+    }
+    static TABLE: OnceLock<Vec<[bool; 2]>> = OnceLock::new();
+    let table = TABLE.get_or_init(|| {
+        let mut flags = vec![[false; 2]; 303];
+        for &kind in crate::eval::ALL_PIECE_TYPES {
+            let idx = kind as usize;
+            if idx >= flags.len() { continue; }
+            let mut candidate = Piece::new(kind, Color::Black, Position::new(0, 0).unwrap());
+            for promoted in [false, true] {
+                candidate.is_promoted = promoted;
+                flags[idx][promoted as usize] = MovementConfig::for_piece(&candidate)
+                    .capabilities.iter().any(|cap| {
+                        matches!(cap, crate::movement::types::MovementCapability::TwoStep { .. })
+                    });
+            }
+        }
+        flags
+    });
+    table.get(piece.piece_type as usize)
+        .map(|entry| entry[piece.is_promoted as usize])
+        .unwrap_or(true)
+}
 
 /// First-step directions of pieces that only have Simple / non-jumping Range
 /// moves, per piece type and colour (`None` for anything that can leap, jump,
@@ -51,6 +86,27 @@ fn step_only_dirs(piece: &Piece) -> Option<u8> {
 #[cfg(test)]
 mod two_step_dedup_tests {
     use super::*;
+
+    #[test]
+    fn stage_b_filter_matches_movement_configurations() {
+        for &kind in crate::eval::ALL_PIECE_TYPES {
+            for color in [Color::Black, Color::White] {
+                for promoted in [false, true] {
+                    let mut piece = Piece::new(kind, color, Position::new(18, 18).unwrap());
+                    piece.is_promoted = promoted;
+                    for base in [None, Some(PieceType::Pawn)] {
+                        piece.base_piece_type = base;
+                        let expected = kind == PieceType::FreeEagle || MovementConfig::for_piece(&piece)
+                            .capabilities.iter().any(|cap| {
+                                matches!(cap, crate::movement::types::MovementCapability::TwoStep { .. })
+                            });
+                        assert_eq!(has_multi_leg_moves(&piece), expected,
+                            "{kind:?} {color:?} {promoted} base={base:?}");
+                    }
+                }
+            }
+        }
+    }
 
     fn raw_two_step_moves(state: &GameState, piece: &Piece) -> Vec<Move> {
         let mut out = Vec::new();
@@ -933,6 +989,9 @@ impl GameState {
         let captures_only = matches!(mode, LegalMoveGen::CapturesOnly);
 
         for piece in pieces {
+            if matches!(mode, LegalMoveGen::QuietMultiLegOnly) && !has_multi_leg_moves(piece) {
+                continue;
+            }
             if is_boxed_in(piece, &self.board) {
                 continue;
             }
