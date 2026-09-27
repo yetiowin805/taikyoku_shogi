@@ -43,6 +43,17 @@ all chosen complete moves, scores and depths matched. Main nodes fell from
 contains the raw results and limitations. This changes move ordering and
 still needs strength testing before merge.
 
+### D2.5 Free Eagle reachability checks, 2026-09-27
+
+The Free Eagle path builder no longer reruns full `can_reach` for each
+constructed ordinary path or standard range target. It keeps the original
+reachability check for in-place captures: a targeted parity test found that
+one constructed return path is rejected by the old gate. The bounded change
+matched all signatures in 48 warmups and 96 paired fixed-depth searches on
+top of deduplication. Wall-time geometric mean was **0.9945**; position and
+agent results were mixed, so the whole-search gain is inconclusive. See the
+[Free Eagle follow-up](benchmarks/engine_speed_20260926/FREE_EAGLE_FOLLOWUP.md).
+
 This follow-up checks off four bounded parts of the proposals below:
 
 - [x] **D3: limited-range path rescanning.** `generate_simple` visits each ray

@@ -1878,6 +1878,15 @@ impl GameState {
         moves
     }
 
+    /// The Free Eagle path builders below already check reach, blockers and
+    /// the destination. This preserves the two remaining `is_legal_move`
+    /// conditions without regenerating every potential target per candidate.
+    fn free_eagle_candidate_allowed(&self, piece: &Piece, target: Position) -> bool {
+        piece.color == self.current_turn
+            && (target == piece.position
+                || !self.board.get_piece(target).is_some_and(|p| p.color == piece.color))
+    }
+
     fn generate_free_eagle_moves_unfiltered(&self, piece: &Piece) -> Vec<Move> {
         use crate::movement::direction::Direction;
         
@@ -1914,7 +1923,7 @@ impl GameState {
                     path.push(next);
                     current = next;
                     // Generate move to this position
-                    if self.is_legal_move(piece.position, next) {
+                    if self.free_eagle_candidate_allowed(piece, next) {
                         moves.push(Move::new_free_eagle(piece.position, next, path.clone()));
                     }
                 } else {
@@ -1922,7 +1931,7 @@ impl GameState {
                     path.push(next);
                     current = next;
                     // Generate move to this position
-                    if self.is_legal_move(piece.position, next) {
+                    if self.free_eagle_candidate_allowed(piece, next) {
                         moves.push(Move::new_free_eagle(piece.position, next, path.clone()));
                     }
                 }
@@ -1948,7 +1957,7 @@ impl GameState {
                     path.push(next);
                     current = next;
                     // Generate move to this position
-                    if self.is_legal_move(piece.position, next) {
+                    if self.free_eagle_candidate_allowed(piece, next) {
                         moves.push(Move::new_free_eagle(piece.position, next, path.clone()));
                     }
                 } else {
@@ -1956,7 +1965,7 @@ impl GameState {
                     path.push(next);
                     current = next;
                     // Generate move to this position
-                    if self.is_legal_move(piece.position, next) {
+                    if self.free_eagle_candidate_allowed(piece, next) {
                         moves.push(Move::new_free_eagle(piece.position, next, path.clone()));
                     }
                 }
@@ -2006,7 +2015,7 @@ impl GameState {
                         let mut path = forward_path.clone();
                         path.push(final_pos);
                         
-                        if self.is_legal_move(piece.position, final_pos) {
+                        if self.free_eagle_candidate_allowed(piece, final_pos) {
                             moves.push(Move::new_free_eagle(piece.position, final_pos, path));
                         }
                     }
@@ -2058,7 +2067,7 @@ impl GameState {
                         let mut path = forward_path.clone();
                         path.push(final_pos);
                         
-                        if self.is_legal_move(piece.position, final_pos) {
+                        if self.free_eagle_candidate_allowed(piece, final_pos) {
                             moves.push(Move::new_free_eagle(piece.position, final_pos, path));
                         }
                     }
@@ -2105,7 +2114,7 @@ impl GameState {
                 let potential_targets = crate::movement::MovementGenerator::generate_targets(piece, &self.board, &cap_vec);
                 
                 for target in potential_targets {
-                    if self.is_legal_move(piece.position, target) {
+                    if self.free_eagle_candidate_allowed(piece, target) {
                         // Standard range move - no path needed
                         moves.push(Move::new(piece.position, target));
                     }
@@ -2114,6 +2123,40 @@ impl GameState {
         }
         
         moves
+    }
+}
+
+#[cfg(test)]
+mod free_eagle_gate_tests {
+    use super::*;
+
+    #[test]
+    fn constructed_paths_pass_the_original_reachability_gate() {
+        let origins = [(0, 0), (1, 34), (18, 18), (30, 5)];
+        for color in [Color::Black, Color::White] {
+            for (file, rank) in origins {
+                for pattern in 0..64 {
+                    let mut state = GameState::new();
+                    let origin = Position::new(file, rank).unwrap();
+                    let eagle = Piece::new(PieceType::FreeEagle, color, origin);
+                    state.place_piece(eagle);
+                    for (i, (df, dr)) in [(1, 1), (2, 2), (-1, 0), (0, 2), (3, -3), (-2, -2), (0, -1), (2, 0), (-3, 3), (3, 3)].into_iter().enumerate() {
+                        if let Some(pos) = origin.offset(df, dr) {
+                            if (pattern >> (i % 6)) & 1 != 0 {
+                                let occupant = if i % 3 == 0 { color } else { color.opposite() };
+                                state.place_piece(Piece::new(PieceType::Pawn, occupant, pos));
+                            }
+                        }
+                    }
+                    state.set_current_turn(color);
+                    for mv in state.generate_free_eagle_moves(&eagle) {
+                        assert!(state.is_legal_move(mv.from, mv.to), "{color:?} {origin:?} {pattern} {mv:?}");
+                    }
+                    state.set_current_turn(color.opposite());
+                    assert!(state.generate_free_eagle_moves(&eagle).is_empty());
+                }
+            }
+        }
     }
 }
 
