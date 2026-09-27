@@ -238,6 +238,8 @@ enum CaptureKind {
 pub struct SearchConfig {
     pub depth: u32,
     pub max_time_ms: Option<u64>,
+    /// Sustainable Fischer budget; permit only one additional completed depth.
+    pub fischer_soft_ms: Option<u64>,
     /// Cooperative cancellation for interactive/background analysis.
     pub cancel: Option<Arc<AtomicBool>>,
     /// Approximate single-thread CPU duty cycle (10..=100).
@@ -285,6 +287,7 @@ impl Default for SearchConfig {
         Self {
             depth: 2,
             max_time_ms: None,
+            fischer_soft_ms: None,
             cancel: None,
             cpu_percent: 100,
             collect_trace: false,
@@ -2075,9 +2078,10 @@ pub fn search_with_progress(
     };
     let _wbind = bind_search_weights(weights);
 
+    let clock_started = Instant::now();
     let deadline = config
         .max_time_ms
-        .map(|ms| Instant::now() + Duration::from_millis(ms));
+        .map(|ms| clock_started + Duration::from_millis(ms));
     let root_ply = state.get_move_history().len();
     let static_eval = evaluate_with_ply(state, weights, root_ply);
     let now = Instant::now();
@@ -2234,6 +2238,7 @@ pub fn search_with_progress(
     let mut completed_depth = 0u32;
     let mut actual_completed_depth = 0u32;
     let mut last_iteration_duration = None;
+    let mut iteration_budget = crate::training::clock::IterationBudget::default();
 
     // Working copy already cloned above for last-royal evasion filtering.
 
@@ -2241,7 +2246,19 @@ pub fn search_with_progress(
         if ctx.timed_out() {
             break;
         }
-        if actual_completed_depth >= 2 {
+        if let (Some(soft_ms), Some(hard_ms), Some(last)) = (
+            config.fischer_soft_ms,
+            config.max_time_ms,
+            last_iteration_duration,
+        ) {
+            if !iteration_budget.start_next(
+                last,
+                clock_started.elapsed(),
+                crate::training::clock::MoveBudget { soft_ms, hard_ms },
+            ) {
+                break;
+            }
+        } else if actual_completed_depth >= 2 {
             if let (Some(deadline), Some(last_duration)) = (deadline, last_iteration_duration) {
                 let remaining = deadline.saturating_duration_since(Instant::now());
                 if soft_stop_before_next_iteration(last_duration, remaining) {

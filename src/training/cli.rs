@@ -132,6 +132,7 @@ pub fn print_training_usage() {
     println!(
         "  tournament --manifest PATH [--run-id ID] [--resume] [--games-per-pair N] [--jobs J]"
     );
+    println!("             [--initial-time-ms MS --increment-ms MS] (Fischer, one extra depth)");
     println!("             [--starts light] [--depth N] [--time-ms MS] [--outdir DIR]");
     println!("             [--format round_robin|swiss|knockout]");
     println!("             [--init-ratings PATH]");
@@ -325,6 +326,7 @@ fn cmd_worker_run(args: &[String]) -> Result<(), String> {
 
     let depth = resolve_ab_depth(depth, depth_explicit, time_ms);
     let cfg = WorkerConfig {
+        time_control: None,
         black: agent_spec(&black, depth, model.clone(), qdepth, time_ms),
         white: agent_spec(&white, depth, model, qdepth, time_ms),
         start,
@@ -1445,6 +1447,8 @@ pub fn cmd_tournament(args: &[String]) -> Result<(), String> {
     let mut cfg = TourneyConfig::default();
     let mut manifest: Option<String> = None;
     let mut depth_explicit = false;
+    let mut initial_ms = None;
+    let mut increment_ms = None;
     let mut i = 2;
     while i < args.len() {
         if args[i] == "--verbose" {
@@ -1498,6 +1502,14 @@ pub fn cmd_tournament(args: &[String]) -> Result<(), String> {
             cfg.max_time_ms = Some(v);
             continue;
         }
+        if let Some(v) = take_u64(args, &mut i, "--initial-time-ms")? {
+            initial_ms = Some(v);
+            continue;
+        }
+        if let Some(v) = take_u64(args, &mut i, "--increment-ms")? {
+            increment_ms = Some(v);
+            continue;
+        }
         if let Some(v) = take_usize(args, &mut i, "--max-moves")? {
             cfg.max_moves = v;
             continue;
@@ -1528,6 +1540,24 @@ pub fn cmd_tournament(args: &[String]) -> Result<(), String> {
     if let Some(d) = resolve_ab_depth(Some(cfg.depth), depth_explicit, cfg.max_time_ms) {
         cfg.depth = d;
     }
+    cfg.time_control = match (initial_ms, increment_ms) {
+        (Some(initial_ms), Some(increment_ms)) => {
+            if cfg.max_time_ms.is_some() {
+                return Err("cannot combine Fischer clocks with --time-ms".into());
+            }
+            let control = super::clock::FischerControl {
+                initial_ms,
+                increment_ms,
+            };
+            control.validate()?;
+            if !depth_explicit {
+                cfg.depth = 64;
+            }
+            Some(control)
+        }
+        (None, None) => None,
+        _ => return Err("--initial-time-ms and --increment-ms must be supplied together".into()),
+    };
     let manifest_path = manifest.ok_or("tournament requires --manifest PATH")?;
     let man = load_manifest(Path::new(&manifest_path))?;
     cfg.entrants = man.entrants;

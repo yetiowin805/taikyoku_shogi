@@ -20,6 +20,8 @@ pub const DEFAULT_MAX_MOVES: usize = 20_000;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct WorkerConfig {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub time_control: Option<super::clock::FischerControl>,
     pub black: AgentSpec,
     pub white: AgentSpec,
     pub start: GameStart,
@@ -35,6 +37,7 @@ pub struct WorkerConfig {
 impl Default for WorkerConfig {
     fn default() -> Self {
         Self {
+            time_control: None,
             black: AgentSpec::new("ab"),
             white: AgentSpec::new("ab"),
             start: GameStart::Opening,
@@ -109,6 +112,7 @@ fn build_record(
         moves,
         result,
         stats: GameStats {
+            clock: None,
             move_count,
             elapsed_ms: Some(started.elapsed().as_millis() as u64),
         },
@@ -121,6 +125,27 @@ fn build_record(
 ///
 /// On mid-game failure, returns [`PlayFailure`] with a partial record (moves so far).
 pub fn play_one_game(config: &WorkerConfig) -> Result<GameRecordV2, PlayFailure> {
+    if let Some(control) = config.time_control {
+        let valid = control.validate().and_then(|_| {
+            if config.black.engine.is_some() || config.white.engine.is_some() {
+                Err("Fischer clocks require in-process agents; historical think-loop engines do not support per-move clock budgets".into())
+            } else { Ok(()) }
+        });
+        if let Err(message) = valid {
+            return Err(PlayFailure {
+                message: message.clone(),
+                partial: build_record(
+                    config,
+                    GameRecordV2::new_id(config.seed),
+                    0,
+                    Instant::now(),
+                    vec![],
+                    None,
+                    Some(message),
+                ),
+            });
+        }
+    }
     let black = make_player(&config.black).map_err(|message| PlayFailure {
         message,
         partial: build_record(
@@ -153,22 +178,32 @@ pub fn play_one_game(config: &WorkerConfig) -> Result<GameRecordV2, PlayFailure>
         .map(|d| d.as_secs())
         .unwrap_or(0);
 
+    let mut banks = [config.time_control.map_or(0, |c| c.initial_ms); 2];
+    let mut clock_record = config
+        .time_control
+        .map(|control| super::clock::ClockRecord {
+            control,
+            moves: vec![],
+            flag_fell: None,
+        });
     let mut moves = Vec::new();
     let mut move_number = 1usize;
     let mut result: Option<GameResult> = None;
 
-    let abort = |message: String, moves: Vec<_>| -> PlayFailure {
-        let partial = build_record(
-            config,
-            game_id.clone(),
-            timestamp,
-            started,
-            moves,
-            None,
-            Some(message.clone()),
-        );
-        PlayFailure { message, partial }
-    };
+    let abort =
+        |message: String, moves: Vec<_>, clock: Option<super::clock::ClockRecord>| -> PlayFailure {
+            let mut partial = build_record(
+                config,
+                game_id.clone(),
+                timestamp,
+                started,
+                moves,
+                None,
+                Some(message.clone()),
+            );
+            partial.stats.clock = clock;
+            PlayFailure { message, partial }
+        };
 
     while move_number <= config.max_moves {
         if config
@@ -176,7 +211,7 @@ pub fn play_one_game(config: &WorkerConfig) -> Result<GameRecordV2, PlayFailure>
             .as_ref()
             .is_some_and(|s| s.load(Ordering::Relaxed))
         {
-            return Err(abort("stopped".into(), moves));
+            return Err(abort("stopped".into(), moves, clock_record));
         }
         if state.is_draw_by_progress_rule() {
             result = Some(GameResult::Draw);
@@ -198,6 +233,7 @@ pub fn play_one_game(config: &WorkerConfig) -> Result<GameRecordV2, PlayFailure>
             break;
         }
 
+        let turn_started = Instant::now();
         let legal = state.generate_legal_moves();
         if legal.is_empty() {
             result = Some(match state.get_current_turn() {
@@ -212,7 +248,20 @@ pub fn play_one_game(config: &WorkerConfig) -> Result<GameRecordV2, PlayFailure>
             Color::Black => black.as_ref(),
             Color::White => white.as_ref(),
         };
-        let Some((mv, ann)) = player.choose_move_annotated(&state) else {
+        let clock_index = if color == Color::Black { 0 } else { 1 };
+        let choice = if let Some(control) = config.time_control {
+            let spent = turn_started.elapsed().as_millis() as u64;
+            let mut budget = control.budget(banks[clock_index].saturating_sub(spent));
+            budget.soft_ms = budget.soft_ms.min(control.increment_ms.saturating_sub(spent));
+            if budget.hard_ms == 0 {
+                Some((legal[0].clone(), Default::default()))
+            } else {
+                player.choose_move_clocked(&state, budget, config.stop.clone())
+            }
+        } else {
+            player.choose_move_annotated(&state)
+        };
+        let Some((mv, ann)) = choice else {
             return Err(abort(
                 format!(
                     "Player {} returned no move with {} legal moves",
@@ -220,6 +269,7 @@ pub fn play_one_game(config: &WorkerConfig) -> Result<GameRecordV2, PlayFailure>
                     legal.len()
                 ),
                 moves,
+                clock_record,
             ));
         };
 
@@ -232,9 +282,31 @@ pub fn play_one_game(config: &WorkerConfig) -> Result<GameRecordV2, PlayFailure>
                     move_number, mv
                 ),
                 moves,
+                clock_record,
             ));
         }
 
+        if let Some(control) = config.time_control {
+            let elapsed_ms = turn_started.elapsed().as_millis() as u64;
+            let Some(remaining_ms) = control.finish_move(banks[clock_index], elapsed_ms) else {
+                clock_record.as_mut().unwrap().flag_fell = Some(format!("{color:?}"));
+                result = Some(if color == Color::Black {
+                    GameResult::WhiteWins
+                } else {
+                    GameResult::BlackWins
+                });
+                break;
+            };
+            banks[clock_index] = remaining_ms;
+            clock_record
+                .as_mut()
+                .unwrap()
+                .moves
+                .push(super::clock::ClockMove {
+                    elapsed_ms,
+                    remaining_ms,
+                });
+        }
         moves.push(move_to_record_with_eval(
             &mv,
             color,
@@ -266,15 +338,9 @@ pub fn play_one_game(config: &WorkerConfig) -> Result<GameRecordV2, PlayFailure>
         result = Some(GameResult::Draw);
     }
 
-    Ok(build_record(
-        config,
-        game_id,
-        timestamp,
-        started,
-        moves,
-        result,
-        None,
-    ))
+    let mut record = build_record(config, game_id, timestamp, started, moves, result, None);
+    record.stats.clock = clock_record;
+    Ok(record)
 }
 
 /// Replay recorded moves onto a fresh start position (for featurization).
@@ -441,6 +507,7 @@ pub fn run_batch(cfg: &BatchConfig) -> Result<BatchOutcome, String> {
                     }
                 };
                 let worker_cfg = WorkerConfig {
+                    time_control: None,
                     black: cfg.black.clone(),
                     white: cfg.white.clone(),
                     start,

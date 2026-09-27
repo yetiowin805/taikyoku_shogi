@@ -57,6 +57,8 @@ pub enum GameStart {
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct GameStats {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub clock: Option<super::clock::ClockRecord>,
     pub move_count: usize,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub elapsed_ms: Option<u64>,
@@ -139,6 +141,7 @@ pub fn legacy_to_v2(legacy: GameRecord) -> GameRecordV2 {
         moves: legacy.moves,
         result: legacy.result,
         stats: GameStats {
+            clock: None,
             move_count: 0,
             elapsed_ms: None,
         },
@@ -185,6 +188,7 @@ mod tests {
             moves: vec![],
             result: Some(GameResult::Draw),
             stats: GameStats {
+                clock: None,
                 move_count: 0,
                 elapsed_ms: Some(10),
             },

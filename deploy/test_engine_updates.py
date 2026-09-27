@@ -63,6 +63,12 @@ class Updates(unittest.TestCase):
         Path(self.bundle['engine_bin']).write_text('corrupt')
         with self.assertRaisesRegex(ValueError,'changed'):u.active(a,self.run)
 
+    def test_clock_run_rejects_incompatible_update_before_publication(self):
+        a.atomic(self.control/'config.json', dict(self.config, time_control=dict(initial_ms=900000, increment_ms=5000)))
+        with self.assertRaisesRegex(ValueError, 'support Fischer'):
+            u.update(a, self.args, self.run)
+        self.assertEqual(u.active(a, self.run), self.bundle)
+
     def test_game_analysis_remains_pinned_after_update(self):
         agent=dict(name='ab',engine_build=self.bundle)
         helper=a.analyzer_for_agent({},agent)
