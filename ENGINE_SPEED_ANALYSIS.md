@@ -71,14 +71,17 @@ and pawn-push midgame fixtures (seed weights, CPU 2) reported attack scopes at
 not replace a representative function-level profile. They do suggest attack
 queries and ordering remain worth investigating next.
 
-A post-change `callgrind` sample of the opening at depth three collected
-2.115 billion instructions inside `search_with_progress`. The largest **self**
-costs were `should_check_piece_for_target_position` (11.1%),
-`MovementGenerator::capability_reaches` (9.5%), the board attack query (8.7%),
-`generate_for_capability` (6.6%), and `captured_enemy_royal_count` (6.4%). This
-is one seed-weight fixture under instruction counting, not a wall-time share
-across the corpus. The royal-count path is a concrete next probe alongside
-attack-query caching; it is also relevant to move ordering and q filtering.
+Post-change `callgrind` samples of the opening / pawn-push midgame at depth
+three collected 2.115 / 4.002 billion instructions inside
+`search_with_progress`. Largest **self** costs were
+`should_check_piece_for_target_position` (11.1% / 10.2%),
+`MovementGenerator::capability_reaches` (9.5% / 8.9%), the board attack query
+(8.7% / 8.5%), `captured_enemy_royal_count` (6.4% / 7.3%),
+`generate_for_capability` (6.6% / 6.3%), and `move_order_score` (4.3% / 7.1%).
+These are two seed-weight fixtures under instruction counting, not wall-time
+shares across the corpus. The royal-count path is a concrete next probe
+alongside attack-query caching; it is also relevant to move ordering and q
+filtering.
 
 ## Profile that guided this round — after PR #127
 
