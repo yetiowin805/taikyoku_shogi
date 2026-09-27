@@ -413,7 +413,7 @@ struct SearchContext {
     /// Root move currently being searched (1-based index / total).
     root_index: usize,
     root_total: usize,
-    root_label: String,
+    root_label: Option<LazyMoveLabel>,
     best_score: i32,
     /// Short phase tag for logs: "root", "search", "quiesce", "trace".
     phase: &'static str,
@@ -445,7 +445,7 @@ struct SearchContext {
     q_depth_left: u32,
     q_caps_at_node: usize,
     q_cap_index: usize,
-    q_label: String,
+    q_label: Option<LazyMoveLabel>,
     q_stand_pat: i32,
     q_prune_mode: QPruneMode,
     q_caps_generated: u64,
@@ -894,18 +894,7 @@ fn stm_last_royal_in_check(state: &GameState) -> bool {
 
 fn color_has_last_royal_in_check(state: &GameState, color: Color) -> bool {
     let board = state.get_board();
-    let mut pos = None;
-    let mut n = 0u8;
-    for p in board.iter_pieces_by_color(color) {
-        if p.piece_type.is_royal() {
-            n += 1;
-            if n > 1 {
-                return false;
-            }
-            pos = Some(p.position);
-        }
-    }
-    let Some(sq) = pos else {
+    let Some(sq) = board.single_royal(color) else {
         return false;
     };
     board.is_position_attacked_by_color_for_check(sq, color.opposite())
@@ -917,21 +906,11 @@ fn color_last_royal_resolved(state: &GameState, color: Color) -> bool {
         return true;
     }
     let board = state.get_board();
-    let mut pos = None;
-    let mut n = 0u8;
-    for p in board.iter_pieces_by_color(color) {
-        if p.piece_type.is_royal() {
-            n += 1;
-            if n > 1 {
-                return true;
-            }
-            pos = Some(p.position);
-        }
+    if board.royal_count(color) > 1 {
+        return true;
     }
-    match (n, pos) {
-        (1, Some(sq)) => !board.is_position_attacked_by_color_for_check(sq, color.opposite()),
-        _ => false,
-    }
+    board.single_royal(color)
+        .is_some_and(|sq| !board.is_position_attacked_by_color_for_check(sq, color.opposite()))
 }
 
 fn move_resolves_last_royal_check(state: &mut GameState, mv: &Move) -> bool {
@@ -1818,9 +1797,13 @@ pub(crate) fn stm_has_large_hang_simple_take(state: &GameState, weights: &EvalWe
 }
 
 fn stm_has_large_hang_take(state: &GameState, weights: &EvalWeights, opts: QHangOpts) -> bool {
+    let us = state.get_current_turn();
     let them = state.get_current_turn().opposite();
     for enemy in state.get_board().iter_pieces_by_color(them) {
         if !is_large_hang_victim(&enemy, weights) {
+            continue;
+        }
+        if !state.get_board().is_position_attacked_by_color(enemy.position, us) {
             continue;
         }
         for mv in generate_captures_hitting_square(state, enemy.position) {
@@ -1939,15 +1922,18 @@ fn append_full_gen_hits(state: &GameState, piece: Piece, victim: Position, out: 
 }
 
 /// Bitset over a colour's piece-list indices.
-struct SlotSet(Vec<u64>);
+struct SlotSet {
+    words: [u64; 21],
+    used: usize,
+}
 
 impl SlotSet {
     fn set(&mut self, i: usize) {
-        self.0[i / 64] |= 1u64 << (i % 64);
+        self.words[i / 64] |= 1u64 << (i % 64);
     }
 
     fn iter_ones(&self) -> impl Iterator<Item = usize> + '_ {
-        self.0.iter().enumerate().flat_map(|(w, &word)| {
+        self.words[..self.used].iter().enumerate().flat_map(|(w, &word)| {
             let mut bits = word;
             std::iter::from_fn(move || {
                 if bits == 0 {
@@ -1973,41 +1959,22 @@ fn attacker_candidates(
     us: Color,
     victim: Position,
 ) -> SlotSet {
-    let mut set = SlotSet(vec![0; army.len().div_ceil(64)]);
-    let mut add = |pos: Position| {
-        if board.get_piece(pos).is_some_and(|p| p.color == us) {
-            if let Some(i) = board.slot_at(pos) {
-                set.set(i);
+    let used = army.len().div_ceil(64);
+    assert!(used <= 21, "army exceeds board-sized candidate set");
+    let mut set = SlotSet { words: [0; 21], used };
+    let region = &crate::attack_utils::candidate_square_masks()[victim.to_index()];
+    let occupied = board.occupied_by_color(us);
+    let global = board.global_attackers_by_color(us);
+    for word in 0..21 {
+        let mut bits = (region[word] & occupied[word]) | global[word];
+        while bits != 0 {
+            let square = word * 64 + bits.trailing_zeros() as usize;
+            bits &= bits - 1;
+            if let Some(pos) = Position::from_index(square) {
+                if let Some(i) = board.slot_at(pos) {
+                    set.set(i);
+                }
             }
-        }
-    };
-    let r = crate::attack_utils::CANDIDATE_WINDOW as i8;
-    for df in -r..=r {
-        for dr in -r..=r {
-            if let Some(pos) = victim.offset(df, dr) {
-                add(pos);
-            }
-        }
-    }
-    for dir in crate::movement::direction::Direction::all() {
-        let (df, dr) = dir.to_offset();
-        let mut k = i16::from(r) + 1;
-        loop {
-            let file = i16::from(victim.file) + i16::from(df) * k;
-            let rank = i16::from(victim.rank) + i16::from(dr) * k;
-            if !(0..36).contains(&file) || !(0..36).contains(&rank) {
-                break;
-            }
-            add(Position {
-                file: file as u8,
-                rank: rank as u8,
-            });
-            k += 1;
-        }
-    }
-    for (i, p) in army.iter().enumerate() {
-        if crate::attack_utils::needs_global_scan(p) {
-            set.set(i);
         }
     }
     set
@@ -2115,7 +2082,7 @@ pub fn search_with_progress(
         search_depth: max_depth,
         root_index: 0,
         root_total: 0,
-        root_label: String::new(),
+        root_label: None,
         best_score: i32::MIN + 1,
         phase: "root",
         tt: tt_from_config(1 << 20, config),
@@ -2133,7 +2100,7 @@ pub fn search_with_progress(
         q_depth_left: 0,
         q_caps_at_node: 0,
         q_cap_index: 0,
-        q_label: String::new(),
+        q_label: None,
         q_stand_pat: 0,
         q_prune_mode: config.q_prune_mode,
         q_caps_generated: 0,
@@ -2282,7 +2249,7 @@ pub fn search_with_progress(
                 break;
             }
             ctx.root_index = i + 1;
-            ctx.root_label = move_label(state, mv);
+            ctx.root_label = Some(LazyMoveLabel::new(state, mv));
             ctx.phase = "root";
             ctx.q_nodes_at_root_start = ctx.q_nodes;
             ctx.root_move_started = Instant::now();
@@ -2323,7 +2290,7 @@ pub fn search_with_progress(
                 ctx.nodes += 1;
                 ctx.ply = root_ply + 1;
                 ctx.phase = "search";
-                ctx.q_label.clear();
+                ctx.q_label = None;
                 ctx.q_caps_at_node = 0;
                 ctx.q_cap_index = 0;
 
@@ -2634,7 +2601,7 @@ pub fn probe_quiescence(
         search_depth: 0,
         root_index: 0,
         root_total: 0,
-        root_label: String::new(),
+        root_label: None,
         best_score: i32::MIN + 1,
         phase: "quiesce",
         tt: TranspositionTable::new(1024),
@@ -2652,7 +2619,7 @@ pub fn probe_quiescence(
         q_depth_left: 0,
         q_caps_at_node: 0,
         q_cap_index: 0,
-        q_label: String::new(),
+        q_label: None,
         q_stand_pat: 0,
         q_prune_mode: mode,
         q_caps_generated: 0,
@@ -2766,7 +2733,7 @@ fn probe_quiesce_window(
         search_depth: 0,
         root_index: 0,
         root_total: 0,
-        root_label: String::new(),
+        root_label: None,
         best_score: i32::MIN + 1,
         phase: "quiesce",
         tt: TranspositionTable::new(1024),
@@ -2784,7 +2751,7 @@ fn probe_quiesce_window(
         q_depth_left: 0,
         q_caps_at_node: 0,
         q_cap_index: 0,
-        q_label: String::new(),
+        q_label: None,
         q_stand_pat: 0,
         q_prune_mode: QPruneMode::PathAware,
         q_caps_generated: 0,
@@ -2874,7 +2841,7 @@ fn probe_quiet_parent_leaf_stats(
         search_depth: 0,
         root_index: 0,
         root_total: 0,
-        root_label: String::new(),
+        root_label: None,
         best_score: i32::MIN + 1,
         phase: "leaf",
         tt: TranspositionTable::new(1024),
@@ -2892,7 +2859,7 @@ fn probe_quiet_parent_leaf_stats(
         q_depth_left: 0,
         q_caps_at_node: 0,
         q_cap_index: 0,
-        q_label: String::new(),
+        q_label: None,
         q_stand_pat: 0,
         q_prune_mode: QPruneMode::PathAware,
         q_caps_generated: 0,
@@ -2977,7 +2944,7 @@ fn probe_capture_parent_leaf_or_quiesce_rs(
         search_depth: 0,
         root_index: 0,
         root_total: 0,
-        root_label: String::new(),
+        root_label: None,
         best_score: i32::MIN + 1,
         phase: "leaf",
         tt: TranspositionTable::new(1024),
@@ -2995,7 +2962,7 @@ fn probe_capture_parent_leaf_or_quiesce_rs(
         q_depth_left: 0,
         q_caps_at_node: 0,
         q_cap_index: 0,
-        q_label: String::new(),
+        q_label: None,
         q_stand_pat: 0,
         q_prune_mode: QPruneMode::PathAware,
         q_caps_generated: 0,
@@ -4065,7 +4032,7 @@ fn quiesce(
             continue;
         }
         ctx.q_cap_index = i + 1;
-        ctx.q_label = move_label(state, &c.mv);
+        ctx.q_label = Some(LazyMoveLabel::new(state, &c.mv));
         ctx.phase = "quiesce";
         // Periodic progress while a single loud capture line is exploding.
         if ctx.q_nodes & 0xff == 0 {
@@ -4364,7 +4331,8 @@ impl SearchContext {
         let root = if self.root_total > 0 {
             format!(
                 "{}/{} {}",
-                self.root_index, self.root_total, self.root_label
+                self.root_index, self.root_total,
+                self.root_label.as_ref().map(LazyMoveLabel::format).unwrap_or_default()
             )
         } else {
             "-".into()
@@ -4401,11 +4369,7 @@ impl SearchContext {
                 self.q_depth_left,
                 self.q_cap_index,
                 self.q_caps_at_node,
-                if self.q_label.is_empty() {
-                    "-"
-                } else {
-                    &self.q_label
-                },
+                self.q_label.as_ref().map(LazyMoveLabel::format).unwrap_or_else(|| "-".into()),
                 self.q_stand_pat
             )
         } else {
@@ -4531,10 +4495,34 @@ fn move_order_score_fresh(state: &GameState, weights: &EvalWeights, mv: &Move) -
     move_order_score(state, weights, mv, opponent, &mut cache, true)
 }
 
+struct LazyMoveLabel {
+    piece: Option<Piece>,
+    from: Position,
+    to: Position,
+    promoted: bool,
+}
+
+impl LazyMoveLabel {
+    fn new(state: &GameState, mv: &Move) -> Self {
+        Self {
+            piece: state.get_board().get_piece(mv.from),
+            from: mv.from,
+            to: mv.to,
+            promoted: mv.promoted,
+        }
+    }
+
+    fn format(&self) -> String {
+        move_label_parts(self.piece.as_ref(), self.from, self.to, self.promoted)
+    }
+}
+
 fn move_label(state: &GameState, mv: &Move) -> String {
-    let board = state.get_board();
-    let sym = board
-        .get_piece(mv.from)
+    move_label_parts(state.get_board().get_piece(mv.from).as_ref(), mv.from, mv.to, mv.promoted)
+}
+
+fn move_label_parts(piece: Option<&Piece>, from: Position, to: Position, promoted: bool) -> String {
+    let sym = piece
         .map(|p| {
             let s = p.base_symbol();
             if p.is_promoted {
@@ -4544,14 +4532,14 @@ fn move_label(state: &GameState, mv: &Move) -> String {
             }
         })
         .unwrap_or_else(|| "?".into());
-    let promo = if mv.promoted { "+" } else { "" };
+    let promo = if promoted { "+" } else { "" };
     format!(
         "{} {},{}→{},{}{}",
         sym,
-        36 - mv.from.file,
-        36 - mv.from.rank,
-        36 - mv.to.file,
-        36 - mv.to.rank,
+        36 - from.file,
+        36 - from.rank,
+        36 - to.file,
+        36 - to.rank,
         promo
     )
 }
@@ -4853,6 +4841,29 @@ mod tests {
                 .map(|p| p.position)
                 .collect();
             check(&state, &victims);
+        }
+    }
+
+    #[test]
+    fn destination_capture_implies_board_attack_on_victim() {
+        use rand::{rngs::StdRng, Rng, SeedableRng};
+        for seed in [73, 101, 211] {
+            let mut state = GameState::new();
+            state.setup_initial_position();
+            let mut rng = StdRng::seed_from_u64(seed);
+            for _ in 0..100 {
+                let us = state.get_current_turn();
+                for enemy in state.get_board().pieces_by_color(us.opposite()) {
+                    let hits = generate_captures_hitting_square(&state, enemy.position);
+                    if hits.iter().any(|mv| mv.to == enemy.position) {
+                        assert!(state.get_board().is_position_attacked_by_color(enemy.position, us),
+                            "unreported destination attack on {enemy:?}, seed {seed}");
+                    }
+                }
+                let moves = state.generate_legal_moves();
+                if moves.is_empty() { break; }
+                state.make_move(moves[rng.gen_range(0..moves.len())].clone());
+            }
         }
     }
 

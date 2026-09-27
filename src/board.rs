@@ -8,6 +8,10 @@ use crate::tengu_attack;
 /// Maintains separate piece lists by color for fast iteration
 pub struct Board {
     piece_slots: Box<[u16]>, // square → index in its color list; empty = u16::MAX
+    occupied: [[u64; 21]; 2], // occupied squares by color
+    global_attackers: [[u64; 21]; 2], // movers that need unaligned attack probes
+    royal_count: [u16; 2], // kings and crown princes by color
+    single_royal: [Option<Position>; 2], // royal square when count is exactly one
     squares: Vec<Option<Piece>>, // 36 * 36 = 1296 squares
     black_pieces: Vec<Piece>, // Fast iteration over black pieces
     white_pieces: Vec<Piece>, // Fast iteration over white pieces
@@ -17,6 +21,10 @@ impl Board {
     pub fn new() -> Board {
         Board {
             piece_slots: vec![u16::MAX; 1296].into_boxed_slice(),
+            occupied: [[0; 21]; 2],
+            global_attackers: [[0; 21]; 2],
+            royal_count: [0; 2],
+            single_royal: [None; 2],
             squares: vec![None; 1296],
             black_pieces: Vec::new(),
             white_pieces: Vec::new(),
@@ -36,6 +44,22 @@ impl Board {
         }
     }
 
+    pub(crate) fn occupied_by_color(&self, color: Color) -> &[u64; 21] {
+        &self.occupied[(color == Color::White) as usize]
+    }
+
+    pub(crate) fn global_attackers_by_color(&self, color: Color) -> &[u64; 21] {
+        &self.global_attackers[(color == Color::White) as usize]
+    }
+
+    pub(crate) fn royal_count(&self, color: Color) -> u16 {
+        self.royal_count[(color == Color::White) as usize]
+    }
+
+    pub(crate) fn single_royal(&self, color: Color) -> Option<Position> {
+        self.single_royal[(color == Color::White) as usize]
+    }
+
     /// Place a piece on the board
     /// If a piece already exists at this position, it will be removed first
     pub fn place_piece(&mut self, piece: Piece) {
@@ -51,6 +75,15 @@ impl Board {
             Color::White => &mut self.white_pieces,
         };
         self.piece_slots[index] = list.len() as u16;
+        self.occupied[(piece.color == Color::White) as usize][index / 64] |= 1u64 << (index % 64);
+        if crate::attack_utils::needs_global_scan(&piece) {
+            self.global_attackers[(piece.color == Color::White) as usize][index / 64] |= 1u64 << (index % 64);
+        }
+        if piece.piece_type.is_royal() {
+            let color = (piece.color == Color::White) as usize;
+            self.royal_count[color] += 1;
+            self.single_royal[color] = if self.royal_count[color] == 1 { Some(piece.position) } else { None };
+        }
         list.push(piece);
         self.squares[index] = Some(piece);
     }
@@ -69,6 +102,17 @@ impl Board {
             self.piece_slots[moved.position.to_index()] = index as u16;
         }
         self.piece_slots[square] = u16::MAX;
+        self.occupied[(piece.color == Color::White) as usize][square / 64] &= !(1u64 << (square % 64));
+        self.global_attackers[(piece.color == Color::White) as usize][square / 64] &= !(1u64 << (square % 64));
+        if piece.piece_type.is_royal() {
+            let color = (piece.color == Color::White) as usize;
+            self.royal_count[color] -= 1;
+            self.single_royal[color] = if self.royal_count[color] == 1 {
+                list.iter().find(|p| p.piece_type.is_royal()).map(|p| p.position)
+            } else {
+                None
+            };
+        }
     }
 
     /// Remove piece from position. Returns the removed piece, if any.
@@ -135,10 +179,22 @@ impl Board {
         };
         piece.position = to;
         list[index] = piece;
+        if piece.piece_type.is_royal() && self.royal_count[(piece.color == Color::White) as usize] == 1 {
+            self.single_royal[(piece.color == Color::White) as usize] = Some(to);
+        }
         self.squares[from.to_index()] = None;
         self.squares[to.to_index()] = Some(piece);
         self.piece_slots[from.to_index()] = u16::MAX;
         self.piece_slots[to.to_index()] = index as u16;
+        let mask = &mut self.occupied[(piece.color == Color::White) as usize];
+        mask[from.to_index() / 64] &= !(1u64 << (from.to_index() % 64));
+        mask[to.to_index() / 64] |= 1u64 << (to.to_index() % 64);
+        let global = &mut self.global_attackers[(piece.color == Color::White) as usize];
+        let was_global = global[from.to_index() / 64] & (1u64 << (from.to_index() % 64)) != 0;
+        global[from.to_index() / 64] &= !(1u64 << (from.to_index() % 64));
+        if was_global {
+            global[to.to_index() / 64] |= 1u64 << (to.to_index() % 64);
+        }
         captured
     }
 
@@ -153,7 +209,7 @@ impl Board {
     pub fn is_position_attacked_by_color(&self, position: Position, attacker_color: Color) -> bool {
         #[cfg(feature = "search-profile")]
         let _prof = crate::profile_timers::atk_scope();
-        is_position_attacked_by_pieces(self, position, self.pieces_by_color(attacker_color), false)
+        self.is_position_attacked_by_color_filtered(position, attacker_color, false)
     }
 
     /// Check if a position is attacked by pieces of a given color, optimized for check detection
@@ -165,7 +221,40 @@ impl Board {
         position: Position,
         attacker_color: Color,
     ) -> bool {
-        is_position_attacked_by_pieces(self, position, self.pieces_by_color(attacker_color), true)
+        self.is_position_attacked_by_color_filtered(position, attacker_color, true)
+    }
+
+    fn is_position_attacked_by_color_filtered(
+        &self,
+        position: Position,
+        attacker_color: Color,
+        for_check: bool,
+    ) -> bool {
+        let region = &crate::attack_utils::candidate_square_masks()[position.to_index()];
+        let army = self.pieces_by_color(attacker_color);
+        let occupied = self.occupied_by_color(attacker_color);
+        let global = self.global_attackers_by_color(attacker_color);
+        let mut candidate_slots = [0u64; 21];
+        for word in 0..21 {
+            let mut squares = (region[word] & occupied[word]) | global[word];
+            while squares != 0 {
+                let square = word * 64 + squares.trailing_zeros() as usize;
+                squares &= squares - 1;
+                let slot = self.piece_slots[square] as usize;
+                debug_assert!(slot < army.len());
+                candidate_slots[slot / 64] |= 1u64 << (slot % 64);
+            }
+        }
+        let candidates = candidate_slots.iter().enumerate().flat_map(|(word, &mask)| {
+            let mut bits = mask;
+            std::iter::from_fn(move || {
+                if bits == 0 { return None; }
+                let bit = bits.trailing_zeros() as usize;
+                bits &= bits - 1;
+                Some(&army[word * 64 + bit])
+            })
+        });
+        is_position_attacked_by_piece_iter(self, position, candidates, for_check)
     }
 }
 
@@ -173,6 +262,10 @@ impl Clone for Board {
     fn clone(&self) -> Board {
         Board {
             piece_slots: self.piece_slots.clone(),
+            occupied: self.occupied,
+            global_attackers: self.global_attackers,
+            royal_count: self.royal_count,
+            single_royal: self.single_royal,
             squares: self.squares.clone(),
             black_pieces: self.black_pieces.clone(),
             white_pieces: self.white_pieces.clone(),
@@ -199,6 +292,19 @@ pub(crate) fn is_position_attacked_by_pieces<B: move_simulation::BoardLike>(
     attacker_pieces: &[Piece],
     for_check: bool,
 ) -> bool {
+    is_position_attacked_by_piece_iter(board, position, attacker_pieces.iter(), for_check)
+}
+
+fn is_position_attacked_by_piece_iter<'a, B, I>(
+    board: &B,
+    position: Position,
+    attacker_pieces: I,
+    for_check: bool,
+) -> bool
+where
+    B: move_simulation::BoardLike,
+    I: IntoIterator<Item = &'a Piece>,
+{
     use crate::attack_utils;
 
     for piece in attacker_pieces {
@@ -1031,6 +1137,10 @@ mod dense_list_tests {
     fn check(b: &Board) {
         let mut count = 0;
         for color in [Color::Black, Color::White] {
+            assert_eq!(b.royal_count(color) as usize,
+                b.pieces_by_color(color).iter().filter(|p| p.piece_type.is_royal()).count());
+            let royals: Vec<_> = b.pieces_by_color(color).iter().filter(|p| p.piece_type.is_royal()).collect();
+            assert_eq!(b.single_royal(color), if royals.len() == 1 { Some(royals[0].position) } else { None });
             for (i, p) in b.pieces_by_color(color).iter().enumerate() {
                 assert_eq!(b.get_piece(p.position), Some(*p));
                 assert_eq!(b.piece_slots[p.position.to_index()] as usize, i);
@@ -1039,6 +1149,13 @@ mod dense_list_tests {
         }
         assert_eq!(b.squares.iter().flatten().count(), count);
         for (i, sq) in b.squares.iter().enumerate() {
+            for color in [Color::Black, Color::White] {
+                let marked = b.occupied_by_color(color)[i / 64] & (1u64 << (i % 64)) != 0;
+                assert_eq!(marked, sq.is_some_and(|p| p.color == color), "square {i} {color:?}");
+                let global = b.global_attackers_by_color(color)[i / 64] & (1u64 << (i % 64)) != 0;
+                assert_eq!(global, sq.is_some_and(|p| p.color == color && crate::attack_utils::needs_global_scan(&p)),
+                    "global attacker square {i} {color:?}");
+            }
             if sq.is_none() {
                 assert_eq!(b.piece_slots[i], u16::MAX);
             }
@@ -1055,7 +1172,8 @@ mod dense_list_tests {
             } else {
                 Color::White
             };
-            b.place_piece(Piece::new(PieceType::Pawn, color, from));
+            let kind = if i % 17 == 0 { PieceType::King } else if i % 5 == 0 { PieceType::Tengu } else { PieceType::Pawn };
+            b.place_piece(Piece::new(kind, color, from));
             b.place_piece(Piece::new(PieceType::Rook, color.opposite(), to));
             check(&b);
             b.move_piece(from, to);

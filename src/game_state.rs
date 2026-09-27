@@ -3,6 +3,41 @@ use crate::piece::{Piece, PieceType, Color};
 use crate::position::Position;
 use crate::movement::MovementConfig;
 use crate::path_utils;
+use std::sync::OnceLock;
+
+/// Stage B only needs Free Eagles and pieces with a TwoStep capability.
+/// Base-type variants keep the dynamic path because their movement identity
+/// need not match the displayed piece type.
+fn has_multi_leg_moves(piece: &Piece) -> bool {
+    if piece.piece_type == PieceType::FreeEagle {
+        return true;
+    }
+    if piece.base_piece_type.is_some() {
+        return MovementConfig::for_piece(piece).capabilities.iter().any(|cap| {
+            matches!(cap, crate::movement::types::MovementCapability::TwoStep { .. })
+        });
+    }
+    static TABLE: OnceLock<Vec<[bool; 2]>> = OnceLock::new();
+    let table = TABLE.get_or_init(|| {
+        let mut flags = vec![[false; 2]; 303];
+        for &kind in crate::eval::ALL_PIECE_TYPES {
+            let idx = kind as usize;
+            if idx >= flags.len() { continue; }
+            let mut candidate = Piece::new(kind, Color::Black, Position::new(0, 0).unwrap());
+            for promoted in [false, true] {
+                candidate.is_promoted = promoted;
+                flags[idx][promoted as usize] = MovementConfig::for_piece(&candidate)
+                    .capabilities.iter().any(|cap| {
+                        matches!(cap, crate::movement::types::MovementCapability::TwoStep { .. })
+                    });
+            }
+        }
+        flags
+    });
+    table.get(piece.piece_type as usize)
+        .map(|entry| entry[piece.is_promoted as usize])
+        .unwrap_or(true)
+}
 
 /// First-step directions of pieces that only have Simple / non-jumping Range
 /// moves, per piece type and colour (`None` for anything that can leap, jump,
@@ -46,6 +81,81 @@ fn step_only_dirs(piece: &Piece) -> Option<u8> {
         .get((piece.color == Color::White) as usize)
         .copied()
         .flatten()
+}
+
+#[cfg(test)]
+mod two_step_dedup_tests {
+    use super::*;
+
+    #[test]
+    fn stage_b_filter_matches_movement_configurations() {
+        for &kind in crate::eval::ALL_PIECE_TYPES {
+            for color in [Color::Black, Color::White] {
+                for promoted in [false, true] {
+                    let mut piece = Piece::new(kind, color, Position::new(18, 18).unwrap());
+                    piece.is_promoted = promoted;
+                    for base in [None, Some(PieceType::Pawn)] {
+                        piece.base_piece_type = base;
+                        let expected = kind == PieceType::FreeEagle || MovementConfig::for_piece(&piece)
+                            .capabilities.iter().any(|cap| {
+                                matches!(cap, crate::movement::types::MovementCapability::TwoStep { .. })
+                            });
+                        assert_eq!(has_multi_leg_moves(&piece), expected,
+                            "{kind:?} {color:?} {promoted} base={base:?}");
+                    }
+                }
+            }
+        }
+    }
+
+    fn raw_two_step_moves(state: &GameState, piece: &Piece) -> Vec<Move> {
+        let mut out = Vec::new();
+        for capability in &MovementConfig::for_piece(piece).capabilities {
+            if let crate::movement::types::MovementCapability::TwoStep { first, second } = capability {
+                for mid in crate::movement::MovementGenerator::capability_landings(piece, &state.board, first.as_ref()) {
+                    let mut at_mid = *piece;
+                    at_mid.position = mid;
+                    for target in crate::movement::MovementGenerator::capability_landings(&at_mid, &state.board, second.as_ref()) {
+                        state.push_two_step_moves(&mut out, piece, mid, target, None);
+                    }
+                }
+            }
+        }
+        out
+    }
+
+    #[test]
+    fn omitted_empty_routes_reach_the_same_search_state() {
+        for kind in [PieceType::HookMover, PieceType::Tengu, PieceType::Capricorn, PieceType::Peacock] {
+            let mut state = GameState::new();
+            let piece = Piece::new(kind, Color::Black, Position::new(18, 18).unwrap());
+            state.place_piece(piece);
+            state.place_piece(Piece::new(PieceType::Pawn, Color::White, Position::new(22, 22).unwrap()));
+            state.set_turns_without_capture_or_promotion(PROGRESS_DRAW_LIMIT - 1);
+            let kept = state.generate_legal_moves_for_pieces(&[piece]);
+            let raw = raw_two_step_moves(&state, &piece);
+            let mut omitted = 0;
+            for mv in raw {
+                if kept.contains(&mv) { continue; }
+                omitted += 1;
+                assert!(state.board.get_piece(mv.intermediate().unwrap()).is_none(), "capturing intermediate was omitted: {mv:?}");
+                let mut omitted_state = state.clone();
+                omitted_state.make_move_for_search(mv.clone()).expect("raw route applies");
+                assert!(kept.iter().any(|candidate| {
+                    if candidate.from != mv.from || candidate.to != mv.to || candidate.promoted != mv.promoted { return false; }
+                    let mut kept_state = state.clone();
+                    if kept_state.make_move_for_search(candidate.clone()).is_none() { return false; }
+                    kept_state.hash == omitted_state.hash
+                        && kept_state.current_turn == omitted_state.current_turn
+                        && kept_state.turns_without_capture_or_promotion == omitted_state.turns_without_capture_or_promotion
+                        && kept_state.rep_history == omitted_state.rep_history
+                        && kept_state.board.pieces_by_color(Color::Black) == omitted_state.board.pieces_by_color(Color::Black)
+                        && kept_state.board.pieces_by_color(Color::White) == omitted_state.board.pieces_by_color(Color::White)
+                }), "no equivalent route kept for {mv:?}");
+            }
+            assert!(omitted > 0, "fixture did not exercise dedup for {kind:?}");
+        }
+    }
 }
 
 /// True when a step/slide-only piece has no empty or enemy square on any of its
@@ -879,6 +989,9 @@ impl GameState {
         let captures_only = matches!(mode, LegalMoveGen::CapturesOnly);
 
         for piece in pieces {
+            if matches!(mode, LegalMoveGen::QuietMultiLegOnly) && !has_multi_leg_moves(piece) {
+                continue;
+            }
             if is_boxed_in(piece, &self.board) {
                 continue;
             }
@@ -923,6 +1036,11 @@ impl GameState {
                 );
                 let emit_two_step_captures = !matches!(mode, LegalMoveGen::QuietMultiLegOnly);
                 let emit_first_leg_and_other = !matches!(mode, LegalMoveGen::QuietMultiLegOnly);
+                // Two empty-intermediate routes with the same destination,
+                // promotion and progress-clock effect reach the same state.
+                // One byte per board square tracks those four outcomes for
+                // this mover. Capturing intermediates are never coalesced.
+                let mut seen_empty_routes = [0u8; 36 * 36];
 
                 for capability in &config.capabilities {
                     if let crate::movement::types::MovementCapability::TwoStep { first, second } =
@@ -946,6 +1064,15 @@ impl GameState {
                                     continue;
                                 }
                                 self.push_standard_moves(moves, piece, *target);
+                                self.mark_standard_route_seen(piece, *target, &mut seen_empty_routes);
+                            }
+                        } else {
+                            // Stage A has already searched these plain moves.
+                            // Do not revisit their equivalent quiet multi-leg routes in B.
+                            for target in &first_targets {
+                                if self.board.get_piece(*target).is_none() {
+                                    self.mark_standard_route_seen(piece, *target, &mut seen_empty_routes);
+                                }
                             }
                         }
 
@@ -1001,6 +1128,7 @@ impl GameState {
                                         piece,
                                         intermediate,
                                         target,
+                                        Some(&mut seen_empty_routes),
                                     );
                                 }
                             }
@@ -1073,7 +1201,7 @@ impl GameState {
         if !self.is_legal_move_assuming_reachable(&temp, intermediate, target, false) {
             return;
         }
-        self.push_two_step_moves(moves, piece, intermediate, target);
+        self.push_two_step_moves(moves, piece, intermediate, target, None);
     }
 
     fn push_standard_moves(&self, moves: &mut Vec<Move>, piece: &Piece, target: Position) {
@@ -1099,37 +1227,66 @@ impl GameState {
         piece: &Piece,
         intermediate: Position,
         target: Position,
+        mut seen_empty_routes: Option<&mut [u8; 36 * 36]>,
     ) {
         let can_promote = self.can_promote(piece, piece.position, target)
             || self.can_promote(piece, piece.position, intermediate);
         if !can_promote {
-            moves.push(Move::new_two_step(piece.position, intermediate, target));
+            self.push_two_step_variant(moves, piece, intermediate, target, false, seen_empty_routes.as_deref_mut());
         } else {
             let must_promote = piece
                 .piece_type
                 .must_promote_on_rank(target.rank, piece.color);
             if must_promote {
-                moves.push(Move::new_two_step_with_promotion(
-                    piece.position,
-                    intermediate,
-                    target,
-                    true,
-                ));
+                self.push_two_step_variant(moves, piece, intermediate, target, true, seen_empty_routes.as_deref_mut());
             } else {
-                moves.push(Move::new_two_step_with_promotion(
-                    piece.position,
-                    intermediate,
-                    target,
-                    true,
-                ));
-                moves.push(Move::new_two_step_with_promotion(
-                    piece.position,
-                    intermediate,
-                    target,
-                    false,
-                ));
+                self.push_two_step_variant(moves, piece, intermediate, target, true, seen_empty_routes.as_deref_mut());
+                self.push_two_step_variant(moves, piece, intermediate, target, false, seen_empty_routes.as_deref_mut());
             }
         }
+    }
+
+    fn mark_standard_route_seen(&self, piece: &Piece, target: Position, seen: &mut [u8; 36 * 36]) {
+        let capture = self.board.get_piece(target).is_some_and(|p| p.color != piece.color);
+        let irreversible = crate::movement::move_is_directionally_irreversible(piece, piece.position, target);
+        let mark = |promoted: bool, seen: &mut [u8; 36 * 36]| {
+            let reset = capture || promoted || irreversible;
+            seen[target.to_index()] |= 1 << ((promoted as u8) * 2 + reset as u8);
+        };
+        if self.can_promote(piece, piece.position, target) {
+            mark(true, seen);
+            if !piece.piece_type.must_promote_on_rank(target.rank, piece.color) {
+                mark(false, seen);
+            }
+        } else {
+            mark(false, seen);
+        }
+    }
+
+    fn push_two_step_variant(
+        &self,
+        moves: &mut Vec<Move>,
+        piece: &Piece,
+        intermediate: Position,
+        target: Position,
+        promoted: bool,
+        seen_empty_routes: Option<&mut [u8; 36 * 36]>,
+    ) {
+        if let Some(seen) = seen_empty_routes {
+            if self.board.get_piece(intermediate).is_none() {
+                let capture = self.board.get_piece(target).is_some_and(|p| p.color != piece.color);
+                let reset = capture || promoted
+                    || crate::movement::move_is_directionally_irreversible(piece, piece.position, intermediate)
+                    || crate::movement::move_is_directionally_irreversible(piece, intermediate, target);
+                let bit = 1 << ((promoted as u8) * 2 + reset as u8);
+                let slot = &mut seen[target.to_index()];
+                if *slot & bit != 0 {
+                    return;
+                }
+                *slot |= bit;
+            }
+        }
+        moves.push(Move::new_two_step_with_promotion(piece.position, intermediate, target, promoted));
     }
 
     /// Lightweight enemy-capture check used during move generation filtering.
@@ -1708,10 +1865,7 @@ impl GameState {
     /// Check if a player has lost (all their royal pieces are captured)
     /// A player loses when ALL their royal pieces (King and Crown Prince) are captured
     pub fn has_lost(&self, color: Color) -> bool {
-        !self
-            .board
-            .iter_pieces_by_color(color)
-            .any(|p| p.piece_type.is_royal())
+        self.board.royal_count(color) == 0
     }
     
     /// Check if a piece type is King, CrownPrince, GreatGeneral, or can promote into one of these
@@ -1780,6 +1934,15 @@ impl GameState {
         moves
     }
 
+    /// The Free Eagle path builders below already check reach, blockers and
+    /// the destination. This preserves the two remaining `is_legal_move`
+    /// conditions without regenerating every potential target per candidate.
+    fn free_eagle_candidate_allowed(&self, piece: &Piece, target: Position) -> bool {
+        piece.color == self.current_turn
+            && (target == piece.position
+                || !self.board.get_piece(target).is_some_and(|p| p.color == piece.color))
+    }
+
     fn generate_free_eagle_moves_unfiltered(&self, piece: &Piece) -> Vec<Move> {
         use crate::movement::direction::Direction;
         
@@ -1816,7 +1979,7 @@ impl GameState {
                     path.push(next);
                     current = next;
                     // Generate move to this position
-                    if self.is_legal_move(piece.position, next) {
+                    if self.free_eagle_candidate_allowed(piece, next) {
                         moves.push(Move::new_free_eagle(piece.position, next, path.clone()));
                     }
                 } else {
@@ -1824,7 +1987,7 @@ impl GameState {
                     path.push(next);
                     current = next;
                     // Generate move to this position
-                    if self.is_legal_move(piece.position, next) {
+                    if self.free_eagle_candidate_allowed(piece, next) {
                         moves.push(Move::new_free_eagle(piece.position, next, path.clone()));
                     }
                 }
@@ -1850,7 +2013,7 @@ impl GameState {
                     path.push(next);
                     current = next;
                     // Generate move to this position
-                    if self.is_legal_move(piece.position, next) {
+                    if self.free_eagle_candidate_allowed(piece, next) {
                         moves.push(Move::new_free_eagle(piece.position, next, path.clone()));
                     }
                 } else {
@@ -1858,7 +2021,7 @@ impl GameState {
                     path.push(next);
                     current = next;
                     // Generate move to this position
-                    if self.is_legal_move(piece.position, next) {
+                    if self.free_eagle_candidate_allowed(piece, next) {
                         moves.push(Move::new_free_eagle(piece.position, next, path.clone()));
                     }
                 }
@@ -1908,7 +2071,7 @@ impl GameState {
                         let mut path = forward_path.clone();
                         path.push(final_pos);
                         
-                        if self.is_legal_move(piece.position, final_pos) {
+                        if self.free_eagle_candidate_allowed(piece, final_pos) {
                             moves.push(Move::new_free_eagle(piece.position, final_pos, path));
                         }
                     }
@@ -1960,7 +2123,7 @@ impl GameState {
                         let mut path = forward_path.clone();
                         path.push(final_pos);
                         
-                        if self.is_legal_move(piece.position, final_pos) {
+                        if self.free_eagle_candidate_allowed(piece, final_pos) {
                             moves.push(Move::new_free_eagle(piece.position, final_pos, path));
                         }
                     }
@@ -2007,7 +2170,7 @@ impl GameState {
                 let potential_targets = crate::movement::MovementGenerator::generate_targets(piece, &self.board, &cap_vec);
                 
                 for target in potential_targets {
-                    if self.is_legal_move(piece.position, target) {
+                    if self.free_eagle_candidate_allowed(piece, target) {
                         // Standard range move - no path needed
                         moves.push(Move::new(piece.position, target));
                     }
@@ -2016,6 +2179,40 @@ impl GameState {
         }
         
         moves
+    }
+}
+
+#[cfg(test)]
+mod free_eagle_gate_tests {
+    use super::*;
+
+    #[test]
+    fn constructed_paths_pass_the_original_reachability_gate() {
+        let origins = [(0, 0), (1, 34), (18, 18), (30, 5)];
+        for color in [Color::Black, Color::White] {
+            for (file, rank) in origins {
+                for pattern in 0..64 {
+                    let mut state = GameState::new();
+                    let origin = Position::new(file, rank).unwrap();
+                    let eagle = Piece::new(PieceType::FreeEagle, color, origin);
+                    state.place_piece(eagle);
+                    for (i, (df, dr)) in [(1, 1), (2, 2), (-1, 0), (0, 2), (3, -3), (-2, -2), (0, -1), (2, 0), (-3, 3), (3, 3)].into_iter().enumerate() {
+                        if let Some(pos) = origin.offset(df, dr) {
+                            if (pattern >> (i % 6)) & 1 != 0 {
+                                let occupant = if i % 3 == 0 { color } else { color.opposite() };
+                                state.place_piece(Piece::new(PieceType::Pawn, occupant, pos));
+                            }
+                        }
+                    }
+                    state.set_current_turn(color);
+                    for mv in state.generate_free_eagle_moves(&eagle) {
+                        assert!(state.is_legal_move(mv.from, mv.to), "{color:?} {origin:?} {pattern} {mv:?}");
+                    }
+                    state.set_current_turn(color.opposite());
+                    assert!(state.generate_free_eagle_moves(&eagle).is_empty());
+                }
+            }
+        }
     }
 }
 

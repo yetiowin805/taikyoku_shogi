@@ -92,9 +92,11 @@ and linear ray traversal. No new cache or persistent memory is needed. A comment
 and parity tests protect the retained duplicate-landing quirk. This screen does
 not attribute savings to individual changes or establish playing strength.
 
-[Raw pairs](results/pairs.jsonl.gz), [summary](results/summary.json), and
-[build/corpus identities](results/plan.json) are included. The candidate was
-built before its code commit; source hashes were checked against commit
+The runner generates paired records, a summary and build/corpus identities in
+its output directory. Generated run files are omitted from this PR; the
+existing local copies remain in this checkout. The measured conclusions are
+recorded in this README and the follow-up reports. The candidate was built
+before its code commit; source hashes were checked against commit
 `3a0cefa` before recording that identity. The baseline is `c34366b` (document-only
 on top of `2598690`). Source correctness is unchanged by the later result/docs
 commit. The broader estimates in the original analysis remain unverified.

@@ -9,8 +9,225 @@ Findings from a code read of `board.rs`, `movement/`, `game_state.rs`, `attack_u
 
 Speed-up estimates are **order-of-magnitude guesses with the reasoning shown**. They are not measurements. Each one needs the paired, held-out protocol from `benchmarks/search_speed_20260920/README.md` before anyone claims it.
 
+## Current pull-request result — 2026-09-27
 
-## Implementation status — 2026-09-26
+This branch collects the retained speed changes since `main` at `198b2c0`.
+It includes direct reach and irreversibility checks, lazy leaf-gate discovery,
+candidate-region tables and board occupancy masks, Free Eagle and stage-B
+shortcuts, cached royal bookkeeping, and the large-hang attack prefilter.
+Two-step route deduplication also removes routes with the same destination,
+promotion choice and progress-reset effect when the intermediate is empty;
+routes that capture at the intermediate remain distinct.
+
+The **final cumulative** fixed-depth comparison used 192 paired searches
+across 12 positions and four agents. All 192 pairs chose the same complete
+move, score and completed depth. Main-search nodes fell from 3,211,208 to
+2,667,200 (16.9% less), and the paired wall-time geometric-mean ratio was
+**0.6658 (33.4% less time)**. Individual trial percentages should not be
+added together. The benchmark runners and per-change measurements are in
+[the benchmark directory](benchmarks/engine_speed_20260926/README.md).
+
+Under equal clocks, the branch completed an extra depth in 11 of 48
+one-second searches and 4 of 24 three-second searches, with none shallower.
+Chosen moves changed in four and two cases respectively. These are throughput
+results on the local corpus, not an Elo or strength estimate. Debug and release
+library suites passed 390 tests each (4 ignored), including board mutation and
+capture/attack parity checks.
+
+The two-step deduplication changes legal-route counts and search node counts,
+so it still needs a strength tournament before merge. At merge time, record
+the parent of the merge as a `kind: logic` history entry and run
+`./deploy/freeze_history.sh`, as required by `AGENTS.md`. The sections below
+record each intermediate experiment and rejected prototype. Generated plans,
+logs and paired records are omitted from this PR. The retained comparisons can
+be rerun with the benchmark scripts; discarded prototypes and their measured
+conclusions are summarized here.
+
+
+## Implementation details and experiment history — 2026-09-26 to 2026-09-27
+
+### Initial candidate scan and progress labels
+
+An exact search hot-path patch now caches the rare pieces requiring a global
+attack-candidate scan, uses a fixed stack bitset for candidate indices, and
+formats root/quiescence progress labels only when the periodic log fires.
+Against `198b2c0`, the final patch matched all search signatures in 48 warmups
+and 48 paired measurements (12 positions, four agents). Its geometric-mean
+wall-time ratio was **0.9380** (6.2% less time); all four agents and all 12
+position aggregates improved in this pass. This is a short paired screen, not
+a strength result. The full measurements and reproduction details are in
+[the candidate follow-up](benchmarks/engine_speed_20260926/CANDIDATE_FOLLOWUP.md).
+
+The first pass also explored two-step deduplication and B8 soft stopping.
+Deduplication was added in the follow-up below. The soft-stop trace suggested
+clock savings, but its live timed comparison was interrupted; that change is
+not in this branch.
+
+### D2.2 two-step route dedup follow-up, 2026-09-27
+
+Two-step routes with an empty intermediate square are now coalesced only when
+the destination, promotion choice **and progress-draw reset effect** match.
+Intermediate captures remain distinct. A sparse-fixture test compares the
+complete post-search state of every omitted route with a retained route.
+In 96 paired fixed-depth corpus searches on top of the exact hot-path patch,
+all chosen complete moves, scores and depths matched. Main nodes fell from
+1,605,604 to 1,333,600 (−16.9%); the paired CPU-time geometric mean was
+0.9354 (6.5% less). Legal-move counts changed in 56/96 and node counts in
+76/96 pairs, as expected. The full [deduplication report](benchmarks/engine_speed_20260926/DEDUP_FOLLOWUP.md)
+contains the measured results and limitations. This changes move ordering and
+still needs strength testing before merge.
+
+### D2.5 Free Eagle reachability checks, 2026-09-27
+
+The Free Eagle path builder no longer reruns full `can_reach` for each
+constructed ordinary path or standard range target. It keeps the original
+reachability check for in-place captures: a targeted parity test found that
+one constructed return path is rejected by the old gate. The bounded change
+matched all signatures in 48 warmups and 96 paired fixed-depth searches on
+top of deduplication. Wall-time geometric mean was **0.9945**; position and
+agent results were mixed, so the whole-search gain is inconclusive. See the
+[Free Eagle follow-up](benchmarks/engine_speed_20260926/FREE_EAGLE_FOLLOWUP.md).
+
+### D2.6 stage-B scan filter, 2026-09-27
+
+Stage B now skips pieces whose movement configuration cannot produce a quiet
+multi-leg move before running the boxed-in and capability checks. A table
+parity test covers all declared types, colors, promotion states and base-type
+variants. All 48 warmups and 96 paired fixed-depth searches matched complete
+search signatures. Wall-time geometric mean was **0.9943**, with mixed
+position/agent results; the whole-search gain is inconclusive. See the
+[stage-B follow-up](benchmarks/engine_speed_20260926/STAGE_B_FOLLOWUP.md).
+
+### Additional 2026-09-27 probes
+
+- **Reuse the mover's movement configuration for dedup progress checks:**
+  48 warmups and 96 measured pairs matched exact search signatures, but the
+  wall-time ratio was **0.9990** with mixed results. The extra parameter flow
+  was removed.
+- **B8 conservative soft stop, actual timed trial:** after completing depth
+  two or deeper, stop when twice that iteration's duration exceeds remaining
+  clock. At 1 second (48 paired cases), every chosen move matched and summed
+  clock fell 48.03 → 39.59 s; two cases stopped one depth earlier. At 3 seconds
+  (24 paired cases), every chosen move matched and summed clock fell 72.02 →
+  62.32 s; two cases were shallower. Scores changed in three total cases.
+  This is a clock/strength tradeoff, so the prototype is **not enabled**.
+  Trial details are in the
+  [soft-stop report](benchmarks/engine_speed_20260926/SOFT_STOP_FOLLOWUP.md).
+- **Unstable target sort (D2.3):** exact in both runs, but a 96-pair screen
+  measured 1.6% less time and a 192-pair confirmation measured 0.4% more.
+  The signal did not replicate, so the stable sort was retained.
+
+### Precomputed attack-candidate squares, 2026-09-27
+
+The near-window and distant-ray square lists used by
+`generate_captures_hitting_square` are now built once for every victim square,
+preserving the old scan order and attacker bitset order. This removes repeated
+offset/bounds arithmetic in a major search hot path. After an exact 96-pair
+screen, a separate **192-pair confirmation** matched all complete search
+signatures and measured a **0.9517** wall-time geometric-mean ratio (4.8% less).
+All four agents and all 12 position aggregates improved. The table holds
+238,736 two-byte positions plus about 31 KB of slice metadata (~0.5 MB).
+See the [candidate-square report](benchmarks/engine_speed_20260926/CANDIDATE_TABLE_FOLLOWUP.md).
+
+### Per-color occupancy masks for attack candidates, 2026-09-27
+
+`Board` now maintains one 1,296-square bitmask per color through placement,
+removal, moves and cloning. `attacker_candidates` intersects that occupancy
+with a precomputed near-window/ray mask, then maps only occupied squares to
+piece-list indices. Board mutation tests validate the masks after replacements,
+captures, moves and clones. The 96-pair screen and separate **192-pair
+confirmation** both matched every complete search signature. Confirmation
+wall-time geometric mean was **0.9404** (6.0% less than the candidate-square
+list version), with every agent and position aggregate faster. See the
+[occupancy-mask report](benchmarks/engine_speed_20260926/OCCUPANCY_FOLLOWUP.md).
+
+### Board attack scan prefilter, 2026-09-27
+
+`Board` attack checks now use the same conservative candidate region to skip
+pieces that cannot pass the existing target-reach filter. Special global-scan
+movers remain included; virtual-board attack checks retain their original
+generic path. The final code passed full debug/release suites and matched
+complete search signatures in a fresh **96-pair** run, with **0.9800**
+wall-time ratio (2.0% less). The pre-refactor prototype also matched 96 and
+192 pairs, with respective 0.9772 and 0.9746 ratios. The helper lives in
+`attack_utils` so board and search share the same region mask. See the
+[attack-filter report](benchmarks/engine_speed_20260926/ATTACK_FILTER_FOLLOWUP.md).
+
+### Intermediate combined changes versus the original baseline
+
+The intermediate branch at `7fed1be` was compared directly with the original
+`198b2c0` baseline across **192 paired fixed-depth searches**. Every pair
+returned the same complete chosen move, score and completed depth. Main nodes
+fell 3,211,208 → 2,667,200 (−16.9%); the paired wall-time geometric mean was
+**0.7781** (22.2% less). The individual gains do not multiply cleanly; this
+is the measured net result on the local corpus. See the
+[combined report](benchmarks/engine_speed_20260926/COMBINED_FOLLOWUP.md).
+
+In a separate clock-matched trial, the final branch completed one additional
+depth in 6/48 one-second cases and 3/24 three-second cases. The chosen move
+changed in 2 and 1 cases respectively. Both variants used their full clock;
+these are extra completed depths from higher throughput, not a strength/Elo
+result. See the [combined report](benchmarks/engine_speed_20260926/COMBINED_FOLLOWUP.md)
+for both measured trials.
+
+### Follow-up attack and allocation trials, 2026-09-27
+
+The next three exact prototypes were set aside after paired timing: direct
+piece-slot candidate iteration for board attack scans (192 pairs, 0.9980
+wall ratio), appending common capability landings into one target buffer
+(96 pairs, 0.9990), and a 1.68-million-entry flat from/to history table
+(192 pairs, 1.0004, with ~6.7 MB extra per search context).
+
+**Retained: incremental global-attacker mask.** `Board` now keeps a second
+per-color occupancy mask for the few pieces whose attack probes cannot be
+bounded by the target's near window or rays. Both board attack checks and
+`generate_captures_hitting_square` combine this mask with the precomputed
+candidate region, then visit candidate pieces in their original list order.
+The 96-pair screen and separate 192-pair confirmation matched complete
+search signatures. Confirmation wall-time ratio was **0.8937** (10.6% less),
+with all four agents and all 12 position aggregates faster. Debug and release
+library suites each passed 389 tests (4 ignored), including board mutation
+mask invariants. See `benchmarks/engine_speed_20260926/GLOBAL_ATTACKER_FOLLOWUP.md`.
+
+**Retained: cached royal bookkeeping.** `Board` now maintains the royal count
+and sole-royal square for each color. `has_lost` and the search's last-royal
+check gates use the cached values. A count-only screen was exact but only
+0.4% faster; the combined count-and-square version matched all complete
+search signatures in 96-pair and separate 192-pair runs. Confirmation wall
+ratio was **0.9879** (1.2% less) versus the global-attacker-mask branch, and
+all four agents improved. Board mutation invariants and both debug/release
+library suites passed. See
+`benchmarks/engine_speed_20260926/ROYAL_BOOKKEEPING_FOLLOWUP.md`.
+
+**Retained: large-hang attack prefilter.** Before generating captures onto a
+large enemy at a quiet-parent leaf, ask the fast board attack query whether
+any side-to-move piece attacks that square. Only destination captures matter
+to this gate. A targeted game-state test checked that generated destination
+captures imply a board attack. The 96-pair screen and separate 192-pair
+confirmation matched complete search signatures; confirmation wall ratio
+was **0.9566** (4.3% less) versus the royal-bookkeeping branch, with every
+agent aggregate faster. See
+`benchmarks/engine_speed_20260926/HANG_PREFILTER_FOLLOWUP.md`.
+
+**Set aside:** a Stage-B multi-leg occupancy mask was exact but saved only
+0.5% in 192 pairs while adding mutation and cloning work. Incremental rank,
+file and diagonal line words passed board-mask and path-clear parity tests,
+but their first 96-pair integrated search run was 0.3% slower. Caching
+promotion reach in a type table was exact but effectively flat in 192 pairs
+(0.9994 ratio).
+
+Before the hang prefilter, the cumulative `a9b102a` branch versus original
+`198b2c0` matched best complete move, score and depth in 192/192 fixed-depth
+searches; node totals were 3,211,208 → 2,667,200 (−16.9%) and paired wall
+ratio was **0.6934** (30.7% less).
+
+With the hang prefilter included (`2b64287`), a fresh 192-pair cumulative
+check against `198b2c0` again matched all complete chosen moves, scores and
+depths; node totals remained 3,211,208 → 2,667,200 and paired wall ratio
+improved to **0.6658** (33.4% less). At equal clocks, the new branch completed
+an extra depth in 11/48 one-second and 4/24 three-second cases, with no
+shallower cases; chosen moves changed in 4 and 2 cases respectively. These
+clock-matched differences are throughput effects, not an Elo estimate.
 
 This follow-up checks off four bounded parts of the proposals below:
 
@@ -667,4 +884,3 @@ Compounding phases 1–3 is plausibly **3–6× nodes/s with identical trees**. 
 - **H.G. Muller's HaChu** (Chu/Dai/Tenjiku Shogi) and his notes on large variants: attack-map / view-distance representations for boards with many sliders, jump-capturing generals (the Tenjiku analogue of capturing range), and lion-type double moves.
 - **Chess rank-attack / line bitboards**: one machine word per line to find blockers in O(1). A 36-square line still fits a `u64`.
 - **dlshogi / AlphaZero-style PUCT**: the non-αβ option for very wide games.
-

@@ -205,6 +205,32 @@ pub(crate) const CANDIDATE_WINDOW: u8 = 5;
 /// target: two-leg movers with special probes, Lion Hawk, Cannon Soldier, and
 /// short-range pieces whose reach exceeds [`CANDIDATE_WINDOW`].
 pub(crate) fn needs_global_scan(piece: &Piece) -> bool {
+    if piece.base_piece_type.is_none() {
+        return global_scan_table()
+            .get(piece.piece_type as usize)
+            .map(|row| row[piece.is_promoted as usize])
+            .unwrap_or(true);
+    }
+    needs_global_scan_uncached(piece)
+}
+
+fn global_scan_table() -> &'static [[bool; 2]] {
+    static TABLE: OnceLock<Vec<[bool; 2]>> = OnceLock::new();
+    TABLE.get_or_init(|| {
+        let mut table = vec![[true; 2]; PIECE_TYPE_CACHE_LEN];
+        for &kind in crate::eval::ALL_PIECE_TYPES {
+            let idx = kind as usize;
+            if idx >= table.len() { continue; }
+            let mut piece = Piece::new(kind, Color::Black, Position::new(0, 0).unwrap());
+            table[idx][0] = needs_global_scan_uncached(&piece);
+            piece.is_promoted = true;
+            table[idx][1] = needs_global_scan_uncached(&piece);
+        }
+        table
+    })
+}
+
+fn needs_global_scan_uncached(piece: &Piece) -> bool {
     if is_tengu_or_promoted_peacock(piece)
         || is_unpromoted_peacock(piece)
         || is_hook_mover_like_piece(piece)
@@ -276,6 +302,45 @@ fn reach_class_of(piece: &Piece) -> ReachClass {
         .get(idx)
         .map(|row| row[piece.is_promoted as usize])
         .unwrap_or(ReachClass::Always)
+}
+
+/// Near-window and distant-ray square masks for each victim.
+pub(crate) fn candidate_square_masks() -> &'static [[u64; 21]] {
+    static TABLE: std::sync::OnceLock<Vec<[u64; 21]>> = std::sync::OnceLock::new();
+    TABLE.get_or_init(|| {
+        let r = CANDIDATE_WINDOW as i8;
+        let mut table = Vec::with_capacity(36 * 36);
+        for rank in 0..36 {
+            for file in 0..36 {
+                let victim = Position { file, rank };
+                let mut mask = [0u64; 21];
+                for df in -r..=r {
+                    for dr in -r..=r {
+                        if let Some(pos) = victim.offset(df, dr) {
+                            let square = pos.to_index();
+                            mask[square / 64] |= 1u64 << (square % 64);
+                        }
+                    }
+                }
+                for dir in crate::movement::direction::Direction::all() {
+                    let (df, dr) = dir.to_offset();
+                    let mut k = i16::from(r) + 1;
+                    loop {
+                        let next_file = i16::from(victim.file) + i16::from(df) * k;
+                        let next_rank = i16::from(victim.rank) + i16::from(dr) * k;
+                        if !(0..36).contains(&next_file) || !(0..36).contains(&next_rank) {
+                            break;
+                        }
+                        let square = Position { file: next_file as u8, rank: next_rank as u8 }.to_index();
+                        mask[square / 64] |= 1u64 << (square % 64);
+                        k += 1;
+                    }
+                }
+                table.push(mask);
+            }
+        }
+        table
+    })
 }
 
 /// Returns true if piece should be checked for attacking a specific target position
@@ -359,3 +424,22 @@ pub fn should_check_piece_for_target_position(
     false
 }
 
+#[cfg(test)]
+mod global_scan_cache_tests {
+    use super::*;
+
+    #[test]
+    fn cached_flags_match_classifier_for_all_piece_types_and_variants() {
+        for &kind in crate::eval::ALL_PIECE_TYPES {
+            for color in [Color::Black, Color::White] {
+                for promoted in [false, true] {
+                    let mut piece = Piece::new(kind, color, Position::new(18, 18).unwrap());
+                    piece.is_promoted = promoted;
+                    assert_eq!(needs_global_scan(&piece), needs_global_scan_uncached(&piece), "{kind:?} {color:?} {promoted}");
+                    piece.base_piece_type = Some(PieceType::Pawn);
+                    assert_eq!(needs_global_scan(&piece), needs_global_scan_uncached(&piece), "base {kind:?} {color:?} {promoted}");
+                }
+            }
+        }
+    }
+}
