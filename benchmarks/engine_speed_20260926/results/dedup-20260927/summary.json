@@ -1,0 +1,24 @@
+{
+  "pairs": 96,
+  "same_complete_move": 96,
+  "same_endpoint": 96,
+  "same_score": 96,
+  "same_completed_depth": 96,
+  "changed_legal_count": 56,
+  "changed_nodes": 76,
+  "sum_nodes": {
+    "baseline": 1605604,
+    "candidate": 1333600
+  },
+  "sum_q_nodes": {
+    "baseline": 785024,
+    "candidate": 696536
+  },
+  "sum_cpu_ms": {
+    "baseline": 16834.829999999998,
+    "candidate": 16032.367
+  },
+  "wall_geomean_ratio": 0.9365357456407805,
+  "cpu_geomean_ratio": 0.9354322506685262,
+  "mismatches": []
+}

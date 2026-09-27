@@ -24,12 +24,24 @@ position aggregates improved in this pass. This is a short paired screen, not
 a strength result. The full measurements and reproduction details are in
 [the candidate follow-up](benchmarks/engine_speed_20260926/CANDIDATE_FOLLOWUP.md).
 
-Two other proposals were explored without merging them. A two-step-route
-deduplication prototype reduced legal-move and node counts in sparse positions,
-but changes search order and needs state/strength validation. A depth-based B8
-soft-stop trace suggested sizable clock savings; its live timed comparison was
-interrupted, so it remains a hypothesis. Neither behavior-changing prototype
-is in this patch.
+The first pass also explored two-step deduplication and B8 soft stopping.
+Deduplication was added in the follow-up below. The soft-stop trace suggested
+clock savings, but its live timed comparison was interrupted; that change is
+not in this branch.
+
+### D2.2 two-step route dedup follow-up, 2026-09-27
+
+Two-step routes with an empty intermediate square are now coalesced only when
+the destination, promotion choice **and progress-draw reset effect** match.
+Intermediate captures remain distinct. A sparse-fixture test compares the
+complete post-search state of every omitted route with a retained route.
+In 96 paired fixed-depth corpus searches on top of the exact hot-path patch,
+all chosen complete moves, scores and depths matched. Main nodes fell from
+1,605,604 to 1,333,600 (−16.9%); the paired CPU-time geometric mean was
+0.9354 (6.5% less). Legal-move counts changed in 56/96 and node counts in
+76/96 pairs, as expected. The full [deduplication report](benchmarks/engine_speed_20260926/DEDUP_FOLLOWUP.md)
+contains the raw results and limitations. This changes move ordering and
+still needs strength testing before merge.
 
 This follow-up checks off four bounded parts of the proposals below:
 

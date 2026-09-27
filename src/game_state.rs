@@ -48,6 +48,60 @@ fn step_only_dirs(piece: &Piece) -> Option<u8> {
         .flatten()
 }
 
+#[cfg(test)]
+mod two_step_dedup_tests {
+    use super::*;
+
+    fn raw_two_step_moves(state: &GameState, piece: &Piece) -> Vec<Move> {
+        let mut out = Vec::new();
+        for capability in &MovementConfig::for_piece(piece).capabilities {
+            if let crate::movement::types::MovementCapability::TwoStep { first, second } = capability {
+                for mid in crate::movement::MovementGenerator::capability_landings(piece, &state.board, first.as_ref()) {
+                    let mut at_mid = *piece;
+                    at_mid.position = mid;
+                    for target in crate::movement::MovementGenerator::capability_landings(&at_mid, &state.board, second.as_ref()) {
+                        state.push_two_step_moves(&mut out, piece, mid, target, None);
+                    }
+                }
+            }
+        }
+        out
+    }
+
+    #[test]
+    fn omitted_empty_routes_reach_the_same_search_state() {
+        for kind in [PieceType::HookMover, PieceType::Tengu, PieceType::Capricorn, PieceType::Peacock] {
+            let mut state = GameState::new();
+            let piece = Piece::new(kind, Color::Black, Position::new(18, 18).unwrap());
+            state.place_piece(piece);
+            state.place_piece(Piece::new(PieceType::Pawn, Color::White, Position::new(22, 22).unwrap()));
+            state.set_turns_without_capture_or_promotion(PROGRESS_DRAW_LIMIT - 1);
+            let kept = state.generate_legal_moves_for_pieces(&[piece]);
+            let raw = raw_two_step_moves(&state, &piece);
+            let mut omitted = 0;
+            for mv in raw {
+                if kept.contains(&mv) { continue; }
+                omitted += 1;
+                assert!(state.board.get_piece(mv.intermediate().unwrap()).is_none(), "capturing intermediate was omitted: {mv:?}");
+                let mut omitted_state = state.clone();
+                omitted_state.make_move_for_search(mv.clone()).expect("raw route applies");
+                assert!(kept.iter().any(|candidate| {
+                    if candidate.from != mv.from || candidate.to != mv.to || candidate.promoted != mv.promoted { return false; }
+                    let mut kept_state = state.clone();
+                    if kept_state.make_move_for_search(candidate.clone()).is_none() { return false; }
+                    kept_state.hash == omitted_state.hash
+                        && kept_state.current_turn == omitted_state.current_turn
+                        && kept_state.turns_without_capture_or_promotion == omitted_state.turns_without_capture_or_promotion
+                        && kept_state.rep_history == omitted_state.rep_history
+                        && kept_state.board.pieces_by_color(Color::Black) == omitted_state.board.pieces_by_color(Color::Black)
+                        && kept_state.board.pieces_by_color(Color::White) == omitted_state.board.pieces_by_color(Color::White)
+                }), "no equivalent route kept for {mv:?}");
+            }
+            assert!(omitted > 0, "fixture did not exercise dedup for {kind:?}");
+        }
+    }
+}
+
 /// True when a step/slide-only piece has no empty or enemy square on any of its
 /// first steps, so it has no moves. Exact shortcut for move generation.
 fn is_boxed_in(piece: &Piece, board: &Board) -> bool {
@@ -923,6 +977,11 @@ impl GameState {
                 );
                 let emit_two_step_captures = !matches!(mode, LegalMoveGen::QuietMultiLegOnly);
                 let emit_first_leg_and_other = !matches!(mode, LegalMoveGen::QuietMultiLegOnly);
+                // Two empty-intermediate routes with the same destination,
+                // promotion and progress-clock effect reach the same state.
+                // One byte per board square tracks those four outcomes for
+                // this mover. Capturing intermediates are never coalesced.
+                let mut seen_empty_routes = [0u8; 36 * 36];
 
                 for capability in &config.capabilities {
                     if let crate::movement::types::MovementCapability::TwoStep { first, second } =
@@ -946,6 +1005,15 @@ impl GameState {
                                     continue;
                                 }
                                 self.push_standard_moves(moves, piece, *target);
+                                self.mark_standard_route_seen(piece, *target, &mut seen_empty_routes);
+                            }
+                        } else {
+                            // Stage A has already searched these plain moves.
+                            // Do not revisit their equivalent quiet multi-leg routes in B.
+                            for target in &first_targets {
+                                if self.board.get_piece(*target).is_none() {
+                                    self.mark_standard_route_seen(piece, *target, &mut seen_empty_routes);
+                                }
                             }
                         }
 
@@ -1001,6 +1069,7 @@ impl GameState {
                                         piece,
                                         intermediate,
                                         target,
+                                        Some(&mut seen_empty_routes),
                                     );
                                 }
                             }
@@ -1073,7 +1142,7 @@ impl GameState {
         if !self.is_legal_move_assuming_reachable(&temp, intermediate, target, false) {
             return;
         }
-        self.push_two_step_moves(moves, piece, intermediate, target);
+        self.push_two_step_moves(moves, piece, intermediate, target, None);
     }
 
     fn push_standard_moves(&self, moves: &mut Vec<Move>, piece: &Piece, target: Position) {
@@ -1099,37 +1168,66 @@ impl GameState {
         piece: &Piece,
         intermediate: Position,
         target: Position,
+        mut seen_empty_routes: Option<&mut [u8; 36 * 36]>,
     ) {
         let can_promote = self.can_promote(piece, piece.position, target)
             || self.can_promote(piece, piece.position, intermediate);
         if !can_promote {
-            moves.push(Move::new_two_step(piece.position, intermediate, target));
+            self.push_two_step_variant(moves, piece, intermediate, target, false, seen_empty_routes.as_deref_mut());
         } else {
             let must_promote = piece
                 .piece_type
                 .must_promote_on_rank(target.rank, piece.color);
             if must_promote {
-                moves.push(Move::new_two_step_with_promotion(
-                    piece.position,
-                    intermediate,
-                    target,
-                    true,
-                ));
+                self.push_two_step_variant(moves, piece, intermediate, target, true, seen_empty_routes.as_deref_mut());
             } else {
-                moves.push(Move::new_two_step_with_promotion(
-                    piece.position,
-                    intermediate,
-                    target,
-                    true,
-                ));
-                moves.push(Move::new_two_step_with_promotion(
-                    piece.position,
-                    intermediate,
-                    target,
-                    false,
-                ));
+                self.push_two_step_variant(moves, piece, intermediate, target, true, seen_empty_routes.as_deref_mut());
+                self.push_two_step_variant(moves, piece, intermediate, target, false, seen_empty_routes.as_deref_mut());
             }
         }
+    }
+
+    fn mark_standard_route_seen(&self, piece: &Piece, target: Position, seen: &mut [u8; 36 * 36]) {
+        let capture = self.board.get_piece(target).is_some_and(|p| p.color != piece.color);
+        let irreversible = crate::movement::move_is_directionally_irreversible(piece, piece.position, target);
+        let mark = |promoted: bool, seen: &mut [u8; 36 * 36]| {
+            let reset = capture || promoted || irreversible;
+            seen[target.to_index()] |= 1 << ((promoted as u8) * 2 + reset as u8);
+        };
+        if self.can_promote(piece, piece.position, target) {
+            mark(true, seen);
+            if !piece.piece_type.must_promote_on_rank(target.rank, piece.color) {
+                mark(false, seen);
+            }
+        } else {
+            mark(false, seen);
+        }
+    }
+
+    fn push_two_step_variant(
+        &self,
+        moves: &mut Vec<Move>,
+        piece: &Piece,
+        intermediate: Position,
+        target: Position,
+        promoted: bool,
+        seen_empty_routes: Option<&mut [u8; 36 * 36]>,
+    ) {
+        if let Some(seen) = seen_empty_routes {
+            if self.board.get_piece(intermediate).is_none() {
+                let capture = self.board.get_piece(target).is_some_and(|p| p.color != piece.color);
+                let reset = capture || promoted
+                    || crate::movement::move_is_directionally_irreversible(piece, piece.position, intermediate)
+                    || crate::movement::move_is_directionally_irreversible(piece, intermediate, target);
+                let bit = 1 << ((promoted as u8) * 2 + reset as u8);
+                let slot = &mut seen[target.to_index()];
+                if *slot & bit != 0 {
+                    return;
+                }
+                *slot |= bit;
+            }
+        }
+        moves.push(Move::new_two_step_with_promotion(piece.position, intermediate, target, promoted));
     }
 
     /// Lightweight enemy-capture check used during move generation filtering.
