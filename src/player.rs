@@ -34,6 +34,16 @@ pub trait Player {
     fn name(&self) -> &'static str;
     fn choose_move(&self, state: &GameState) -> Option<Move>;
 
+    /// Per-move game-clock override. Simple agents still have their elapsed time charged.
+    fn choose_move_clocked(
+        &self,
+        state: &GameState,
+        _budget: crate::training::clock::MoveBudget,
+        _cancel: Option<Arc<AtomicBool>>,
+    ) -> Option<(Move, MoveAnnotation)> {
+        self.choose_move_annotated(state)
+    }
+
     /// Choose a move, optionally attaching search eval telemetry.
     /// Default: `choose_move` with an empty annotation (random / mi / royal).
     fn choose_move_annotated(&self, state: &GameState) -> Option<(Move, MoveAnnotation)> {
@@ -73,6 +83,15 @@ impl Player for RoyalCapturePlayer {
 }
 
 impl Player for AlphaBetaPlayer {
+    fn choose_move_clocked(
+        &self,
+        state: &GameState,
+        budget: crate::training::clock::MoveBudget,
+        cancel: Option<Arc<AtomicBool>>,
+    ) -> Option<(Move, MoveAnnotation)> {
+        self.choose_move_with_clock(state, Some(budget), cancel)
+    }
+
     fn name(&self) -> &'static str {
         "ab"
     }

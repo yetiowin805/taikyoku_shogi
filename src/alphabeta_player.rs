@@ -188,8 +188,22 @@ impl AlphaBetaPlayer {
         &self,
         game_state: &GameState,
     ) -> Option<(Move, MoveAnnotation)> {
+        self.choose_move_with_clock(game_state, None, None)
+    }
+
+    pub fn choose_move_with_clock(
+        &self,
+        game_state: &GameState,
+        budget: Option<crate::training::clock::MoveBudget>,
+        cancel: Option<std::sync::Arc<std::sync::atomic::AtomicBool>>,
+    ) -> Option<(Move, MoveAnnotation)> {
         let mut cfg = self.config.clone();
         cfg.collect_trace = false;
+        if let Some(budget) = budget {
+            cfg.max_time_ms = Some(budget.hard_ms);
+            cfg.fischer_soft_ms = Some(budget.soft_ms);
+            cfg.cancel = cancel;
+        }
         let result = search(game_state, &self.weights, &cfg);
         let mv = match result.best_move {
             Some(mv) => mv,

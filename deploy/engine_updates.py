@@ -9,6 +9,13 @@ import time
 PROTOCOL = 1
 
 
+def require_clock_support(binary):
+    result = subprocess.run([str(binary), 'tournament-game-clock-protocol'],
+                            check=True, capture_output=True, text=True, timeout=30)
+    if result.stdout.strip() != '1':
+        raise ValueError('engine does not support Fischer clocks; publish a clock-capable bundle first')
+
+
 def verify(api, bundle):
     if bundle.get('protocol') != PROTOCOL:
         raise ValueError('unsupported game worker protocol')
@@ -78,6 +85,8 @@ def update(api, args, run):
             bundle = verify(api, api.read(control / 'engine-builds' / (ident + '.json')))
         else:
             bundle = snapshot(api, run, api.absolute(args.engine), api.absolute(args.analyzer), args.revision)
+        if config.get('time_control') or ((run / 'state.json').exists() and api.read(run / 'state.json').get('time_control')):
+            require_clock_support(bundle['engine_bin'])
         # Verify all default-engine models, including the label teacher. Frozen
         # historical agents keep their original executable/helper and schema.
         manifest = api.read(control / 'manifest.json')

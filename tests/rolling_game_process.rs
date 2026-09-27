@@ -250,3 +250,28 @@ fn coordinator_resume_keeps_completed_games_and_ratings() {
         assert_eq!(fs::read(slot.game_path.as_ref().unwrap()).unwrap(), bytes);
     }
 }
+
+#[test]
+fn fischer_rejects_old_binary_and_preserves_real_worker_clocks() {
+    use taikyoku_shogi::training::{clock::FischerControl, record::AgentSpec};
+    let f = Fixture::new();
+    let old = f.bundle("old");
+    let pointer = f.select(&old);
+    let cfg = WorkerConfig {
+        time_control: Some(FischerControl { initial_ms: 60_000, increment_ms: 5000 }),
+        black: AgentSpec::new("random"), white: AgentSpec::new("random"),
+        max_moves: 1, ..Default::default()
+    };
+    assert!(game_process::play(&cfg, &pointer, &f.0, 1).unwrap_err().contains("Fischer"));
+    assert!(!f.0.join("old.started").exists());
+    let binary = env!("CARGO_BIN_EXE_taikyoku_shogi");
+    let hash = game_process::file_hash(Path::new(binary)).unwrap();
+    let current = EngineBundle { engine_bin: binary.into(), analyzer_bin: binary.into(),
+        engine_sha256: hash.clone(), analyzer_sha256: hash, revision: "clock-test".into(), protocol: 1 };
+    f.select(&current);
+    let record = game_process::play(&cfg, &pointer, &f.0, 1).unwrap();
+    let clock = record.stats.clock.unwrap();
+    assert_eq!(Some(clock.control), cfg.time_control);
+    assert_eq!(clock.moves.len(), record.moves.len());
+    assert!(!record.moves.is_empty());
+}

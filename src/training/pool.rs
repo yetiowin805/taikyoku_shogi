@@ -235,6 +235,7 @@ pub fn snapshot_via_worker(
     seed: u64,
 ) -> Result<BoardPosition, String> {
     let record = play_one_game(&WorkerConfig {
+        time_control: None,
         black: agent.clone(),
         white: agent.clone(),
         start: GameStart::Opening,

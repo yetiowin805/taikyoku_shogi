@@ -472,12 +472,27 @@ def supervise(config):
                 atomic(control / "supervisor.json", meta)
 
 
+def game_clock(args, state):
+    initial = getattr(args, 'initial_time_ms', None)
+    increment = getattr(args, 'increment_ms', None)
+    if (initial is None) != (increment is None):
+        raise ValueError('--initial-time-ms and --increment-ms must be supplied together')
+    clock = dict(initial_ms=initial, increment_ms=increment) if initial is not None else (state or {}).get('time_control')
+    if clock:
+        if not 1000 < clock['initial_ms'] <= 86_400_000 or not 0 < clock['increment_ms'] <= 3_600_000:
+            raise ValueError('invalid Fischer clock: initial >1s, <=1 day; increment >0, <=1 hour')
+        if getattr(args, 'time_ms', None) is not None:
+            raise ValueError('cannot combine Fischer clocks with --time-ms')
+    return clock
+
+
 def prepare(args, run):
     if args.action == "resume" and not (run / "state.json").is_file():
         raise ValueError("resume requires an existing state.json")
     if args.action == "start" and (run / "state.json").exists():
         raise ValueError("run already exists; use resume")
     state = read(run / "state.json") if args.action == "resume" else None
+    clock = game_clock(args, state)
     previous = read(run / "analysis/config.json") if state and (run / "analysis/config.json").exists() else {}
     rolling = getattr(args, 'rolling_engines', False) or previous.get('rolling_engines', False)
     if rolling and previous:
@@ -586,15 +601,26 @@ def prepare(args, run):
         ent["engine"] = str(engine_target)
     manifest = control / "manifest.json"
     atomic(manifest, {"entrants": entrants})
-    depth = state["depth"] if state else args.depth
-    budget = state.get("max_time_ms") if state else args.time_ms
+    depth = getattr(args, 'depth', None)
+    if depth is None:
+        if clock and not (state or {}).get('time_control'):
+            depth = 64
+        else:
+            depth = state['depth'] if state else 8
+    budget = state.get("max_time_ms") if state else (args.time_ms if args.time_ms is not None else 3000)
+    if clock:
+        if any(e.get('engine') for e in entrants):
+            raise ValueError('Fischer clocks do not support historical think-loop engines')
+        engine_updates.require_clock_support(frozen[0])
     command = [str(frozen[0]), "tournament", "--manifest", str(manifest),
                "--run-id", run.name, "--outdir", str(run.parent),
                "--jobs", "4", "--depth", str(depth), "--format",
                state.get("format", "knockout") if state else "knockout"]
     if args.action == "resume":
         command.append("--resume")
-    if budget is not None:
+    if clock:
+        command += ['--initial-time-ms', str(clock['initial_ms']), '--increment-ms', str(clock['increment_ms'])]
+    elif budget is not None:
         command += ["--time-ms", str(budget)]
     teacher_id = getattr(args, 'label_teacher', None) or previous.get('label_teacher_id')
     teacher = None
@@ -615,7 +641,9 @@ def prepare(args, run):
         with (control / 'update.lock').open('a+') as lock:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
             if previous.get('rolling_engines'):
-                engine_updates.active(sys.modules[__name__], run)
+                selected = engine_updates.active(sys.modules[__name__], run)
+                if clock:
+                    engine_updates.require_clock_support(selected['engine_bin'])
             else:
                 revision = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=ROOT,
                                           check=True, capture_output=True, text=True).stdout.strip()
@@ -626,7 +654,7 @@ def prepare(args, run):
                                capture_output=True, text=True, timeout=30)
         if probe.stdout.strip() != '1':
             raise ValueError('coordinator does not support rolling game processes')
-    return dict(rolling_engines=rolling, label_teacher=teacher, label_teacher_id=teacher_id,
+    return dict(time_control=clock, rolling_engines=rolling, label_teacher=teacher, label_teacher_id=teacher_id,
                 run=str(run), cpus=cpus, sidecar=mode, training=training, models=model_map, command=command, historical_engines=historical_map, analysis_sources=sources,
                 analyzer_bin=base_helper, analyzer_sha256=base_hash)
 
@@ -647,8 +675,10 @@ def main():
     parser.add_argument('--revision', help='revision/build description for update-engine')
     parser.add_argument('--compatible-speedup', action='store_true', help='attest this update preserves fixed-depth search behavior')
     parser.add_argument('--rollback-build', help='select a previously published build ID for future work')
-    parser.add_argument("--depth", type=int, default=8)
-    parser.add_argument("--time-ms", type=int, default=3000)
+    parser.add_argument("--depth", type=int)
+    parser.add_argument("--time-ms", type=int)
+    parser.add_argument('--initial-time-ms', type=int, help='Fischer initial clock per side; 900000 for 15+5')
+    parser.add_argument('--increment-ms', type=int, help='Fischer increment per completed move; 5000 for 15+5')
     args = parser.parse_args()
     run = absolute(args.run_dir).resolve()
     control = run / "analysis"
@@ -687,7 +717,7 @@ def main():
             detail = Path(config['training']['out']) / f'w{width}.status.json'
             trainer['current'] = read(detail) if width and detail.exists() else None
         requested = (control / 'analysis.request').exists()
-        print(json.dumps({'supervisor': meta, 'alive': bool(alive(meta)), 'catalogue': counts,
+        print(json.dumps({'time_control': config.get('time_control'), 'supervisor': meta, 'alive': bool(alive(meta)), 'catalogue': counts,
                           'engine_updates': engine_updates.status(sys.modules[__name__], run) if config.get('rolling_engines') else None,
                           'sidecar': mode, 'label_teacher': config.get('label_teacher_id'), 'allocation': ('3/1' if requested else '4/0') if alive(meta) else 'stopped', 'training': trainer,
                           'analyzer': (read(control / 'analyzer-status.json') if (control / 'analyzer-status.json').exists() else None)

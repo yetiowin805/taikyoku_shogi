@@ -159,6 +159,7 @@ pub fn run_matches(cfg: &MatchConfig) -> Result<MatchScoreboard, String> {
                         return;
                     }
                     match play_one_game(&WorkerConfig {
+                        time_control: None,
                         black: black.clone(),
                         white: white.clone(),
                         start: start.clone(),

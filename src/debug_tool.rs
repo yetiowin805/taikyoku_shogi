@@ -520,6 +520,7 @@ impl DebugTool {
                 moves,
                 result,
                 stats: GameStats {
+                    clock: None,
                     move_count: 0,
                     elapsed_ms: None,
                 },

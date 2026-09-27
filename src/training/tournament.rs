@@ -117,6 +117,8 @@ pub struct TourneySlot {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TourneyState {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub time_control: Option<super::clock::FischerControl>,
     pub run_id: String,
     pub depth: u32,
     /// Soft AB time budget (ms). On expiry, search returns the last completed ID depth.
@@ -162,6 +164,7 @@ pub struct TourneyState {
 
 #[derive(Debug, Clone)]
 pub struct TourneyConfig {
+    pub time_control: Option<super::clock::FischerControl>,
     pub run_id: String,
     pub outdir: PathBuf,
     pub entrants: Vec<TourneyEntrant>,
@@ -187,6 +190,7 @@ pub struct TourneyConfig {
 impl Default for TourneyConfig {
     fn default() -> Self {
         Self {
+            time_control: None,
             run_id: new_run_id(),
             outdir: PathBuf::from("data/raw/tourney"),
             entrants: Vec::new(),
@@ -328,6 +332,7 @@ pub(crate) fn build_schedule(cfg: &TourneyConfig) -> TourneyState {
         elo.insert(e.id.clone(), DEFAULT_RATING);
     }
     let mut state = TourneyState {
+        time_control: cfg.time_control,
         run_id: cfg.run_id.clone(),
         depth: cfg.depth,
         max_time_ms: cfg.max_time_ms,
@@ -1279,6 +1284,26 @@ fn abort_claimed_slot(cfg: &TourneyConfig, st: &mut TourneyState, slot_id: usize
     let _ = save_state(cfg, st);
 }
 
+/// Apply an explicit clock transition without rebuilding pairings or ratings.
+fn apply_time_control(state: &mut TourneyState, cfg: &TourneyConfig) -> Result<(), String> {
+    if let Some(control) = cfg.time_control {
+        control.validate()?;
+        state.time_control = Some(control);
+        state.max_time_ms = None;
+        state.depth = cfg.depth;
+    }
+    if let Some(control) = state.time_control {
+        control.validate()?;
+        if cfg.max_time_ms.is_some() {
+            return Err("cannot combine Fischer clocks with a fixed per-move budget".into());
+        }
+        if state.entrants.iter().any(|e| e.engine.is_some()) {
+            return Err("Fischer clocks require clock-capable agents; historical think-loop engines are unsupported".into());
+        }
+    }
+    Ok(())
+}
+
 /// Run or resume a tournament. Returns final state (possibly partial on stop).
 pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
     if let Some(pointer) = std::env::var_os("TAIKYOKU_ENGINE_POINTER") {
@@ -1289,7 +1314,7 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
     fs::create_dir_all(&dir).map_err(|e| format!("create {}: {e}", dir.display()))?;
     let _ = fs::remove_file(&cfg.stop_file);
 
-    let state = if cfg.resume && state_path(cfg).exists() {
+    let mut state = if cfg.resume && state_path(cfg).exists() {
         let mut s = load_state(&state_path(cfg))?;
         for slot in &mut s.slots {
             if slot.status == SlotStatus::Running || slot.status == SlotStatus::Aborted {
@@ -1316,6 +1341,13 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
         }
         s
     };
+    apply_time_control(&mut state, cfg)?;
+    if state.time_control.is_some() {
+        if let Some(pointer) = std::env::var_os("TAIKYOKU_ENGINE_POINTER") {
+            let bundle = crate::training::game_process::EngineBundle::load(Path::new(&pointer))?;
+            crate::training::game_process::require_clock_support(&bundle.engine_bin)?;
+        }
+    }
     save_state(cfg, &state)?;
 
     let light_starts = parse_starts_spec("light")?;
@@ -1472,6 +1504,7 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
 
                     let play_seed = start_seed.wrapping_add(if a_is_black { 0 } else { 1 });
                     let play_cfg = WorkerConfig {
+                        time_control: state_mu.lock().unwrap().time_control,
                         black,
                         white,
                         start,
@@ -1717,6 +1750,32 @@ mod tests {
         };
         let st = build_schedule(&cfg);
         assert_eq!(st.slots.len(), 12);
+    }
+
+    #[test]
+    fn fischer_transition_preserves_results_and_survives_legacy_resume() {
+        let mut cfg = TourneyConfig { entrants: entrants(2), max_time_ms: Some(3000),
+            format: TourneyFormat::RoundRobin, ..Default::default() };
+        let mut state = build_schedule(&cfg);
+        state.slots[0].status = SlotStatus::Done;
+        state.slots[0].score_a = Some(1.0);
+        let before = serde_json::to_value(&state).unwrap();
+        cfg.time_control = Some(super::super::clock::FischerControl { initial_ms: 900000, increment_ms: 5000 });
+        cfg.max_time_ms = None;
+        cfg.depth = 64;
+        apply_time_control(&mut state, &cfg).unwrap();
+        let encoded = serde_json::to_value(&state).unwrap();
+        for field in ["slots", "ratings", "elo", "knockout"] {
+            assert_eq!(encoded[field], before[field]);
+        }
+        let mut resumed: TourneyState = serde_json::from_value(encoded).unwrap();
+        cfg.time_control = None;
+        apply_time_control(&mut resumed, &cfg).unwrap();
+        assert_eq!(resumed.time_control, state.time_control);
+        assert_eq!(resumed.depth, 64);
+        assert_eq!(resumed.max_time_ms, None);
+        let legacy: TourneyState = serde_json::from_value(before).unwrap();
+        assert!(legacy.time_control.is_none());
     }
 
     #[test]
@@ -2257,6 +2316,7 @@ mod tests {
             games_per_pair: 1,
             entrants: entrants(2),
             slots: Vec::new(),
+            time_control: None,
             ratings: BTreeMap::new(),
             elo: BTreeMap::from([("p0".into(), 1600.0), ("p1".into(), 1400.0)]),
             elo_k: 20.0,

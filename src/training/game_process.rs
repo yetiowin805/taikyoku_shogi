@@ -112,6 +112,30 @@ impl Drop for GameChild {
     }
 }
 
+/// Older binaries ignore unknown JSON fields; never let them silently ignore clocks.
+pub fn require_clock_support(binary: &str) -> Result<(), String> {
+    let mut child = Command::new(binary).arg("tournament-game-clock-protocol")
+        .stdout(Stdio::piped()).stderr(Stdio::null()).spawn()
+        .map_err(|e| format!("clock capability probe failed: {e}"))?;
+    let deadline = std::time::Instant::now() + Duration::from_secs(5);
+    while child.try_wait().map_err(|e| e.to_string())?.is_none() {
+        if std::time::Instant::now() >= deadline {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err("clock capability probe timed out".into());
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    let output = child.wait_with_output().map_err(|e| e.to_string())?;
+    if !output.status.success() || output.stdout != b"1\n" {
+        return Err(
+            "game engine does not support Fischer clocks; publish a clock-capable bundle first"
+                .into(),
+        );
+    }
+    Ok(())
+}
+
 #[cfg(unix)]
 pub fn play(
     config: &WorkerConfig,
@@ -121,6 +145,9 @@ pub fn play(
 ) -> Result<GameRecordV2, String> {
     use std::os::unix::process::CommandExt;
     let bundle = EngineBundle::load(pointer)?; // Exactly once per game, never per move.
+    if config.time_control.is_some() {
+        require_clock_support(&bundle.engine_bin)?;
+    }
     fs::create_dir_all(directory).map_err(|e| e.to_string())?;
     let request = directory.join(format!("slot-{slot}.request.json"));
     let output = directory.join(format!("slot-{slot}.result.json"));
@@ -181,7 +208,13 @@ pub fn play(
                 ));
             }
             let record = GameRecordV2::load_path(&output)?;
-            if record.result.is_none()
+            if record.stats.clock.as_ref().map(|c| c.control) != config.time_control
+                || record
+                    .stats
+                    .clock
+                    .as_ref()
+                    .is_some_and(|c| c.moves.len() != record.moves.len())
+                || record.result.is_none()
                 || record.abort_reason.is_some()
                 || record.seed != config.seed
                 || record.black != game_config.black
