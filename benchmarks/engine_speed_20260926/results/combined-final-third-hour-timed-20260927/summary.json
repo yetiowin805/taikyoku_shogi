@@ -1,0 +1,529 @@
+{
+  "1000": {
+    "pairs": 48,
+    "same_complete_move": 44,
+    "same_score": 37,
+    "same_depth": 37,
+    "sum_wall_ms": {
+      "baseline": 48026.247518,
+      "candidate": 48025.575046
+    },
+    "wall_geomean_ratio": 0.9999860504885374,
+    "changed": [
+      {
+        "position": 10,
+        "model": 1,
+        "baseline_best": {
+          "data": "Standard",
+          "from": {
+            "file": 12,
+            "rank": 25
+          },
+          "promoted": false,
+          "to": {
+            "file": 5,
+            "rank": 18
+          }
+        },
+        "candidate_best": {
+          "data": "Standard",
+          "from": {
+            "file": 12,
+            "rank": 25
+          },
+          "promoted": false,
+          "to": {
+            "file": 5,
+            "rank": 18
+          }
+        },
+        "baseline_score": 1218,
+        "candidate_score": 1237,
+        "baseline_depth": 2,
+        "candidate_depth": 3
+      },
+      {
+        "position": 9,
+        "model": 1,
+        "baseline_best": {
+          "data": "Standard",
+          "from": {
+            "file": 5,
+            "rank": 8
+          },
+          "promoted": false,
+          "to": {
+            "file": 3,
+            "rank": 10
+          }
+        },
+        "candidate_best": {
+          "data": "Standard",
+          "from": {
+            "file": 19,
+            "rank": 13
+          },
+          "promoted": true,
+          "to": {
+            "file": 5,
+            "rank": 27
+          }
+        },
+        "baseline_score": 978,
+        "candidate_score": 1713,
+        "baseline_depth": 1,
+        "candidate_depth": 2
+      },
+      {
+        "position": 2,
+        "model": 2,
+        "baseline_best": {
+          "data": {
+            "TwoStep": {
+              "intermediate": {
+                "file": 18,
+                "rank": 6
+              }
+            }
+          },
+          "from": {
+            "file": 19,
+            "rank": 5
+          },
+          "promoted": false,
+          "to": {
+            "file": 17,
+            "rank": 5
+          }
+        },
+        "candidate_best": {
+          "data": {
+            "TwoStep": {
+              "intermediate": {
+                "file": 17,
+                "rank": 7
+              }
+            }
+          },
+          "from": {
+            "file": 19,
+            "rank": 5
+          },
+          "promoted": false,
+          "to": {
+            "file": 16,
+            "rank": 6
+          }
+        },
+        "baseline_score": -11557,
+        "candidate_score": -11697,
+        "baseline_depth": 1,
+        "candidate_depth": 3
+      },
+      {
+        "position": 8,
+        "model": 3,
+        "baseline_best": {
+          "data": "Standard",
+          "from": {
+            "file": 24,
+            "rank": 15
+          },
+          "promoted": false,
+          "to": {
+            "file": 15,
+            "rank": 6
+          }
+        },
+        "candidate_best": {
+          "data": "Standard",
+          "from": {
+            "file": 24,
+            "rank": 15
+          },
+          "promoted": false,
+          "to": {
+            "file": 15,
+            "rank": 6
+          }
+        },
+        "baseline_score": 306,
+        "candidate_score": -1070,
+        "baseline_depth": 1,
+        "candidate_depth": 2
+      },
+      {
+        "position": 8,
+        "model": 1,
+        "baseline_best": {
+          "data": "Standard",
+          "from": {
+            "file": 24,
+            "rank": 15
+          },
+          "promoted": false,
+          "to": {
+            "file": 15,
+            "rank": 6
+          }
+        },
+        "candidate_best": {
+          "data": "Standard",
+          "from": {
+            "file": 24,
+            "rank": 15
+          },
+          "promoted": false,
+          "to": {
+            "file": 15,
+            "rank": 6
+          }
+        },
+        "baseline_score": 1228,
+        "candidate_score": 183,
+        "baseline_depth": 1,
+        "candidate_depth": 2
+      },
+      {
+        "position": 11,
+        "model": 3,
+        "baseline_best": {
+          "data": "Standard",
+          "from": {
+            "file": 17,
+            "rank": 5
+          },
+          "promoted": false,
+          "to": {
+            "file": 22,
+            "rank": 0
+          }
+        },
+        "candidate_best": {
+          "data": "Standard",
+          "from": {
+            "file": 17,
+            "rank": 5
+          },
+          "promoted": false,
+          "to": {
+            "file": 22,
+            "rank": 0
+          }
+        },
+        "baseline_score": -2804,
+        "candidate_score": -2945,
+        "baseline_depth": 3,
+        "candidate_depth": 4
+      },
+      {
+        "position": 8,
+        "model": 2,
+        "baseline_best": {
+          "data": "Standard",
+          "from": {
+            "file": 24,
+            "rank": 15
+          },
+          "promoted": false,
+          "to": {
+            "file": 15,
+            "rank": 6
+          }
+        },
+        "candidate_best": {
+          "data": "Standard",
+          "from": {
+            "file": 24,
+            "rank": 15
+          },
+          "promoted": false,
+          "to": {
+            "file": 15,
+            "rank": 6
+          }
+        },
+        "baseline_score": 426,
+        "candidate_score": -1585,
+        "baseline_depth": 1,
+        "candidate_depth": 2
+      },
+      {
+        "position": 2,
+        "model": 0,
+        "baseline_best": {
+          "data": "Standard",
+          "from": {
+            "file": 19,
+            "rank": 5
+          },
+          "promoted": false,
+          "to": {
+            "file": 23,
+            "rank": 9
+          }
+        },
+        "candidate_best": {
+          "data": "Standard",
+          "from": {
+            "file": 19,
+            "rank": 5
+          },
+          "promoted": false,
+          "to": {
+            "file": 23,
+            "rank": 9
+          }
+        },
+        "baseline_score": -16252,
+        "candidate_score": -16223,
+        "baseline_depth": 2,
+        "candidate_depth": 3
+      },
+      {
+        "position": 10,
+        "model": 2,
+        "baseline_best": {
+          "data": "Standard",
+          "from": {
+            "file": 12,
+            "rank": 25
+          },
+          "promoted": false,
+          "to": {
+            "file": 12,
+            "rank": 10
+          }
+        },
+        "candidate_best": {
+          "data": "Standard",
+          "from": {
+            "file": 12,
+            "rank": 25
+          },
+          "promoted": false,
+          "to": {
+            "file": 12,
+            "rank": 10
+          }
+        },
+        "baseline_score": 1001,
+        "candidate_score": 1202,
+        "baseline_depth": 2,
+        "candidate_depth": 3
+      },
+      {
+        "position": 2,
+        "model": 3,
+        "baseline_best": {
+          "data": "Standard",
+          "from": {
+            "file": 35,
+            "rank": 6
+          },
+          "promoted": false,
+          "to": {
+            "file": 35,
+            "rank": 7
+          }
+        },
+        "candidate_best": {
+          "data": "Standard",
+          "from": {
+            "file": 29,
+            "rank": 7
+          },
+          "promoted": false,
+          "to": {
+            "file": 30,
+            "rank": 8
+          }
+        },
+        "baseline_score": -11432,
+        "candidate_score": -11384,
+        "baseline_depth": 1,
+        "candidate_depth": 2
+      },
+      {
+        "position": 2,
+        "model": 1,
+        "baseline_best": {
+          "data": {
+            "TwoStep": {
+              "intermediate": {
+                "file": 20,
+                "rank": 6
+              }
+            }
+          },
+          "from": {
+            "file": 19,
+            "rank": 5
+          },
+          "promoted": false,
+          "to": {
+            "file": 17,
+            "rank": 9
+          }
+        },
+        "candidate_best": {
+          "data": "Standard",
+          "from": {
+            "file": 19,
+            "rank": 5
+          },
+          "promoted": false,
+          "to": {
+            "file": 23,
+            "rank": 9
+          }
+        },
+        "baseline_score": -16251,
+        "candidate_score": -16281,
+        "baseline_depth": 1,
+        "candidate_depth": 3
+      }
+    ]
+  },
+  "3000": {
+    "pairs": 24,
+    "same_complete_move": 22,
+    "same_score": 20,
+    "same_depth": 20,
+    "sum_wall_ms": {
+      "baseline": 72018.526036,
+      "candidate": 72021.298409
+    },
+    "wall_geomean_ratio": 1.0000384953341024,
+    "changed": [
+      {
+        "position": 10,
+        "model": 0,
+        "baseline_best": {
+          "data": "Standard",
+          "from": {
+            "file": 23,
+            "rank": 1
+          },
+          "promoted": false,
+          "to": {
+            "file": 5,
+            "rank": 19
+          }
+        },
+        "candidate_best": {
+          "data": "Standard",
+          "from": {
+            "file": 23,
+            "rank": 1
+          },
+          "promoted": false,
+          "to": {
+            "file": 5,
+            "rank": 19
+          }
+        },
+        "baseline_score": 1324,
+        "candidate_score": 1658,
+        "baseline_depth": 3,
+        "candidate_depth": 4
+      },
+      {
+        "position": 8,
+        "model": 2,
+        "baseline_best": {
+          "data": "Standard",
+          "from": {
+            "file": 24,
+            "rank": 15
+          },
+          "promoted": false,
+          "to": {
+            "file": 15,
+            "rank": 6
+          }
+        },
+        "candidate_best": {
+          "data": "Standard",
+          "from": {
+            "file": 21,
+            "rank": 32
+          },
+          "promoted": false,
+          "to": {
+            "file": 19,
+            "rank": 34
+          }
+        },
+        "baseline_score": -1585,
+        "candidate_score": -1783,
+        "baseline_depth": 2,
+        "candidate_depth": 3
+      },
+      {
+        "position": 0,
+        "model": 2,
+        "baseline_best": {
+          "data": "Standard",
+          "from": {
+            "file": 18,
+            "rank": 3
+          },
+          "promoted": false,
+          "to": {
+            "file": 32,
+            "rank": 17
+          }
+        },
+        "candidate_best": {
+          "data": "Standard",
+          "from": {
+            "file": 18,
+            "rank": 3
+          },
+          "promoted": false,
+          "to": {
+            "file": 32,
+            "rank": 17
+          }
+        },
+        "baseline_score": 1424,
+        "candidate_score": 2052,
+        "baseline_depth": 3,
+        "candidate_depth": 4
+      },
+      {
+        "position": 6,
+        "model": 3,
+        "baseline_best": {
+          "data": "Standard",
+          "from": {
+            "file": 17,
+            "rank": 3
+          },
+          "promoted": false,
+          "to": {
+            "file": 0,
+            "rank": 20
+          }
+        },
+        "candidate_best": {
+          "data": "Standard",
+          "from": {
+            "file": 17,
+            "rank": 3
+          },
+          "promoted": false,
+          "to": {
+            "file": 11,
+            "rank": 9
+          }
+        },
+        "baseline_score": -8417,
+        "candidate_score": -8391,
+        "baseline_depth": 2,
+        "candidate_depth": 3
+      }
+    ]
+  }
+}

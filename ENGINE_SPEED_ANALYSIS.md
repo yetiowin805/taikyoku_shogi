@@ -194,6 +194,16 @@ searches; node totals were 3,211,208 → 2,667,200 (−16.9%) and paired wall
 ratio was **0.6934** (30.7% less). The local trial is in
 `results/combined-latest-20260927/`.
 
+With the hang prefilter included (`2b64287`), a fresh 192-pair cumulative
+check against `198b2c0` again matched all complete chosen moves, scores and
+depths; node totals remained 3,211,208 → 2,667,200 and paired wall ratio
+improved to **0.6658** (33.4% less). At equal clocks, the new branch completed
+an extra depth in 11/48 one-second and 4/24 three-second cases, with no
+shallower cases; chosen moves changed in 4 and 2 cases respectively. These
+clock-matched differences are throughput effects, not an Elo estimate.
+See `results/combined-final-third-hour-20260927/` and
+`results/combined-final-third-hour-timed-20260927/`.
+
 This follow-up checks off four bounded parts of the proposals below:
 
 - [x] **D3: limited-range path rescanning.** `generate_simple` visits each ray
