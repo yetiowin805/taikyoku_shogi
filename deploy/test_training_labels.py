@@ -61,3 +61,19 @@ class LabelSearchTests(AnalyzerFixture):
         a.scan(db,self.run,labels=True);a.scan(db,self.run,labels=True)
         self.assertEqual(db.execute('select count(*) from files').fetchone()[0],1)
         db.close()
+
+    def test_teacher_budget_override_has_distinct_cache_key(self):
+        g=self.game();model=self.run/'teacher.json';model.write_text('{}')
+        path=self.run/'game.json';a.atomic(path,g)
+        helper=self.run/'helper';helper.write_text('#!/usr/bin/env python3\nimport json,sys\n'
+            'print(json.dumps(dict(completed_depth=2,score=1,args=sys.argv[1:])),flush=True)\n')
+        helper.chmod(0o755)
+        cfg=dict(run=str(self.run),label_teacher={'name':'ab','model':str(model)},
+                 models={str(model):{'sha256':a.digest(model.read_bytes()),'snapshot':str(model)}},
+                 analyzer_bin=str(helper),analyzer_sha256='fixture')
+        moment={'game':str(path),'game_hash':a.digest(path.read_bytes())}
+        short=a.search_position(cfg,moment,2,self.db)
+        longer=a.search_position(dict(cfg,label_budget_ms=30000),moment,2,self.db)
+        self.assertEqual(short['budget_ms'],10000)
+        self.assertEqual(longer['budget_ms'],30000)
+        self.assertNotEqual(short['key'],longer['key'])
