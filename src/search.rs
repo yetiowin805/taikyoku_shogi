@@ -4847,21 +4847,23 @@ mod tests {
     #[test]
     fn destination_capture_implies_board_attack_on_victim() {
         use rand::{rngs::StdRng, Rng, SeedableRng};
-        let mut state = GameState::new();
-        state.setup_initial_position();
-        let mut rng = StdRng::seed_from_u64(73);
-        for _ in 0..20 {
-            let us = state.get_current_turn();
-            for enemy in state.get_board().pieces_by_color(us.opposite()) {
-                let hits = generate_captures_hitting_square(&state, enemy.position);
-                if hits.iter().any(|mv| mv.to == enemy.position) {
-                    assert!(state.get_board().is_position_attacked_by_color(enemy.position, us),
-                        "unreported destination attack on {enemy:?}");
+        for seed in [73, 101, 211] {
+            let mut state = GameState::new();
+            state.setup_initial_position();
+            let mut rng = StdRng::seed_from_u64(seed);
+            for _ in 0..100 {
+                let us = state.get_current_turn();
+                for enemy in state.get_board().pieces_by_color(us.opposite()) {
+                    let hits = generate_captures_hitting_square(&state, enemy.position);
+                    if hits.iter().any(|mv| mv.to == enemy.position) {
+                        assert!(state.get_board().is_position_attacked_by_color(enemy.position, us),
+                            "unreported destination attack on {enemy:?}, seed {seed}");
+                    }
                 }
+                let moves = state.generate_legal_moves();
+                if moves.is_empty() { break; }
+                state.make_move(moves[rng.gen_range(0..moves.len())].clone());
             }
-            let moves = state.generate_legal_moves();
-            if moves.is_empty() { break; }
-            state.make_move(moves[rng.gen_range(0..moves.len())].clone());
         }
     }
 

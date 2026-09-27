@@ -9,8 +9,8 @@ whether the side to move attacks that square. A miss skips capture generation.
 The filter does not suppress path captures that merely pass through the square:
 those already fail the gate's destination test.
 
-A targeted 20-ply sampled game-state test checks the implication from every
-generated destination capture to a positive board attack query. Debug and
+A targeted test checks the implication from every generated destination
+capture to a positive board attack query across three seeded 100-ply games. Debug and
 release library suites each passed 390 tests (4 ignored). All warmup and
 measured fixed-depth searches matched complete signatures: chosen route,
 score, depth, static evaluation, nodes, qnodes and ordered root lines.
