@@ -80,6 +80,12 @@
   ],
   "engines": [
     {
+      "id": "LOGIC_PRE_B8_SOFT_STOP",
+      "git": "5d40069",
+      "kind": "logic",
+      "summary": "Last search before the conservative timed iterative-deepening soft stop"
+    },
+    {
       "id": "LOGIC_TROPISM",
       "git": "3a40f9b",
       "kind": "logic",
