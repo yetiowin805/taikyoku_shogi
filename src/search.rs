@@ -1986,29 +1986,8 @@ fn attacker_candidates(
             }
         }
     };
-    let r = crate::attack_utils::CANDIDATE_WINDOW as i8;
-    for df in -r..=r {
-        for dr in -r..=r {
-            if let Some(pos) = victim.offset(df, dr) {
-                add(pos);
-            }
-        }
-    }
-    for dir in crate::movement::direction::Direction::all() {
-        let (df, dr) = dir.to_offset();
-        let mut k = i16::from(r) + 1;
-        loop {
-            let file = i16::from(victim.file) + i16::from(df) * k;
-            let rank = i16::from(victim.rank) + i16::from(dr) * k;
-            if !(0..36).contains(&file) || !(0..36).contains(&rank) {
-                break;
-            }
-            add(Position {
-                file: file as u8,
-                rank: rank as u8,
-            });
-            k += 1;
-        }
+    for &pos in candidate_square_table()[victim.to_index()].iter() {
+        add(pos);
     }
     for (i, p) in army.iter().enumerate() {
         if crate::attack_utils::needs_global_scan(p) {
@@ -2016,6 +1995,43 @@ fn attacker_candidates(
         }
     }
     set
+}
+
+/// All near-window and distant-ray squares, in the legacy scan order.
+fn candidate_square_table() -> &'static [Box<[Position]>] {
+    static TABLE: std::sync::OnceLock<Vec<Box<[Position]>>> = std::sync::OnceLock::new();
+    TABLE.get_or_init(|| {
+        let r = crate::attack_utils::CANDIDATE_WINDOW as i8;
+        let mut table = Vec::with_capacity(36 * 36);
+        for rank in 0..36 {
+            for file in 0..36 {
+                let victim = Position { file, rank };
+                let mut squares = Vec::new();
+                for df in -r..=r {
+                    for dr in -r..=r {
+                        if let Some(pos) = victim.offset(df, dr) {
+                            squares.push(pos);
+                        }
+                    }
+                }
+                for dir in crate::movement::direction::Direction::all() {
+                    let (df, dr) = dir.to_offset();
+                    let mut k = i16::from(r) + 1;
+                    loop {
+                        let next_file = i16::from(victim.file) + i16::from(df) * k;
+                        let next_rank = i16::from(victim.rank) + i16::from(dr) * k;
+                        if !(0..36).contains(&next_file) || !(0..36).contains(&next_rank) {
+                            break;
+                        }
+                        squares.push(Position { file: next_file as u8, rank: next_rank as u8 });
+                        k += 1;
+                    }
+                }
+                table.push(squares.into_boxed_slice());
+            }
+        }
+        table
+    })
 }
 
 /// Captures that take an enemy on `victim` (dest, path-clear, multi-leg, FE).

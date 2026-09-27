@@ -80,6 +80,23 @@ position/agent results; the whole-search gain is inconclusive. See the
   This is a clock/strength tradeoff, so the prototype is **not enabled**.
   Patch, timed pairs and trial details are in the
   [soft-stop report](benchmarks/engine_speed_20260926/SOFT_STOP_FOLLOWUP.md).
+- **Unstable target sort (D2.3):** exact in both runs, but a 96-pair screen
+  measured 1.6% less time and a 192-pair confirmation measured 0.4% more.
+  The signal did not replicate, so the stable sort was retained. Both runs
+  and the patch are under
+  `benchmarks/engine_speed_20260926/results/unstable-sort-20260927/`.
+
+### Precomputed attack-candidate squares, 2026-09-27
+
+The near-window and distant-ray square lists used by
+`generate_captures_hitting_square` are now built once for every victim square,
+preserving the old scan order and attacker bitset order. This removes repeated
+offset/bounds arithmetic in a major search hot path. After an exact 96-pair
+screen, a separate **192-pair confirmation** matched all complete search
+signatures and measured a **0.9517** wall-time geometric-mean ratio (4.8% less).
+All four agents and all 12 position aggregates improved. The table holds
+238,736 two-byte positions plus about 31 KB of slice metadata (~0.5 MB).
+See the [candidate-square report](benchmarks/engine_speed_20260926/CANDIDATE_TABLE_FOLLOWUP.md).
 
 This follow-up checks off four bounded parts of the proposals below:
 
