@@ -1119,19 +1119,23 @@ fn move_loudness(state: &GameState, weights: &EvalWeights, mv: &Move, is_capture
 /// Legal promotions into two-movers / range capturers (quiet or capturing).
 pub fn generate_loud_promotions(state: &GameState) -> Vec<Move> {
     let us = state.get_current_turn();
-    let mut movers = Vec::new();
+    let mut generated = Vec::new();
+    let mut fallback = Vec::new();
     for p in state.get_board().iter_pieces_by_color(us) {
         if !piece_might_loud_promote(&p) {
             continue;
         }
-        movers.push(p);
+        let config = MovementConfig::for_piece(&p);
+        if config.capabilities.iter().any(|cap| matches!(cap, MovementCapability::TwoStep { .. })) {
+            // Intermediate squares can also enable promotion, so retain the
+            // full route generator for two-step movers.
+            state.generate_legal_moves_for_pieces_mode(&[p], LegalMoveGen::All, &mut fallback);
+            generated.extend(fallback.drain(..).filter(|mv| mv.promoted));
+        } else {
+            state.emit_standard_promotions_for_piece(&p, &mut generated);
+        }
     }
-    if movers.is_empty() {
-        return Vec::new();
-    }
-    let mut generated = Vec::new();
-    state.generate_legal_moves_for_pieces_mode(&movers, LegalMoveGen::All, &mut generated);
-    generated.into_iter().filter(|mv| mv.promoted).collect()
+    generated
 }
 
 /// Conservative: true if this piece can legally promote into a big type this turn.
@@ -1460,11 +1464,18 @@ fn generate_hang_dest_takes(
 /// `is_big_piece`. A two-step Hook take of the king is still **one move / one q
 /// ply** — both legs apply in `make_move_for_search`.
 fn generate_royal_captures(state: &GameState) -> Vec<Move> {
+    let us = state.get_current_turn();
     let them = state.get_current_turn().opposite();
+    let board = state.get_board();
     let mut out = Vec::new();
     let mut seen: HashSet<(u16, u16, bool)> = HashSet::new();
-    for enemy in state.get_board().iter_pieces_by_color(them) {
+    for enemy in board.iter_pieces_by_color(them) {
         if !enemy.piece_type.is_royal() {
+            continue;
+        }
+        if !board.is_position_attacked_by_color(enemy.position, us)
+            && !peacock_might_directly_capture(board, us, enemy.position)
+        {
             continue;
         }
         for mv in generate_captures_hitting_square(state, enemy.position) {
@@ -1485,9 +1496,16 @@ fn generate_royal_captures(state: &GameState) -> Vec<Move> {
 }
 
 fn stm_has_royal_capture(state: &GameState) -> bool {
+    let us = state.get_current_turn();
     let them = state.get_current_turn().opposite();
-    for enemy in state.get_board().iter_pieces_by_color(them) {
+    let board = state.get_board();
+    for enemy in board.iter_pieces_by_color(them) {
         if !enemy.piece_type.is_royal() {
+            continue;
+        }
+        if !board.is_position_attacked_by_color(enemy.position, us)
+            && !peacock_might_directly_capture(board, us, enemy.position)
+        {
             continue;
         }
         for mv in generate_captures_hitting_square(state, enemy.position) {
@@ -1590,82 +1608,19 @@ fn generate_quiescence_captures_with_hang(
     } else {
         state.generate_legal_moves_mode(LegalMoveGen::CapturesOnly)
     };
-    let promos = generate_loud_promotions(state);
-    if !promos.is_empty() {
-        let mut seen: HashSet<(u16, u16, bool)> = raw
-            .iter()
-            .map(|mv| {
-                (
-                    mv.from.to_index() as u16,
-                    mv.to.to_index() as u16,
-                    mv.promoted,
-                )
-            })
-            .collect();
-        for mv in promos {
-            let key = (
-                mv.from.to_index() as u16,
-                mv.to.to_index() as u16,
-                mv.promoted,
-            );
-            if seen.insert(key) {
-                raw.push(mv);
-            }
-        }
-    }
+    let mut seen = None;
+    append_unique_quiescence_moves(&mut raw, generate_loud_promotions(state), &mut seen);
     // Entry only: dest-hang MultiLeg/PathClear even when prev_to is not the victim.
     if captures && !victim_square_only && hang.any() {
-        let extra = generate_hang_dest_takes(state, weights, hang);
-        if !extra.is_empty() {
-            let mut seen: HashSet<(u16, u16, bool)> = raw
-                .iter()
-                .map(|mv| {
-                    (
-                        mv.from.to_index() as u16,
-                        mv.to.to_index() as u16,
-                        mv.promoted,
-                    )
-                })
-                .collect();
-            for mv in extra {
-                let key = (
-                    mv.from.to_index() as u16,
-                    mv.to.to_index() as u16,
-                    mv.promoted,
-                );
-                if seen.insert(key) {
-                    raw.push(mv);
-                }
-            }
-        }
+        append_unique_quiescence_moves(
+            &mut raw,
+            generate_hang_dest_takes(state, weights, hang),
+            &mut seen,
+        );
     }
     // Royal takes (King/CP), including two-step dest, even when prev_to is a
     // different square (slot0240: quiet Peacock, Hook mates on 18,35).
-    {
-        let extra = generate_royal_captures(state);
-        if !extra.is_empty() {
-            let mut seen: HashSet<(u16, u16, bool)> = raw
-                .iter()
-                .map(|mv| {
-                    (
-                        mv.from.to_index() as u16,
-                        mv.to.to_index() as u16,
-                        mv.promoted,
-                    )
-                })
-                .collect();
-            for mv in extra {
-                let key = (
-                    mv.from.to_index() as u16,
-                    mv.to.to_index() as u16,
-                    mv.promoted,
-                );
-                if seen.insert(key) {
-                    raw.push(mv);
-                }
-            }
-        }
-    }
+    append_unique_quiescence_moves(&mut raw, generate_royal_captures(state), &mut seen);
     if !captures {
         return raw;
     }
@@ -1698,6 +1653,27 @@ fn generate_quiescence_captures_with_hang(
         .collect()
 }
 
+fn append_unique_quiescence_moves(
+    raw: &mut Vec<Move>,
+    extra: Vec<Move>,
+    seen: &mut Option<HashSet<(u16, u16, bool)>>,
+) {
+    if extra.is_empty() {
+        return;
+    }
+    let seen = seen.get_or_insert_with(|| {
+        raw.iter()
+            .map(|mv| (mv.from.to_index() as u16, mv.to.to_index() as u16, mv.promoted))
+            .collect()
+    });
+    for mv in extra {
+        let key = (mv.from.to_index() as u16, mv.to.to_index() as u16, mv.promoted);
+        if seen.insert(key) {
+            raw.push(mv);
+        }
+    }
+}
+
 /// Q-entry without full-board CapturesOnly: dest hits on `prev_to` + loud SimpleTakes.
 fn generate_entry_quiescence_captures(
     state: &GameState,
@@ -1728,14 +1704,52 @@ fn generate_entry_quiescence_captures(
     out
 }
 
+/// The specialized Peacock attack probe can miss a direct diagonal first leg.
+/// Such a move is still emitted as a standard capture by the move generator.
+fn peacock_might_directly_capture(
+    board: &crate::board::Board,
+    us: Color,
+    victim: Position,
+) -> bool {
+    for (word, &mask) in board.global_attackers_by_color(us).iter().enumerate() {
+        let mut bits = mask;
+        while bits != 0 {
+            let square = word * 64 + bits.trailing_zeros() as usize;
+            bits &= bits - 1;
+            let Some(pos) = Position::from_index(square) else {
+                continue;
+            };
+            let Some(piece) = board.get_piece(pos) else {
+                continue;
+            };
+            if !crate::attack_utils::is_unpromoted_peacock(&piece) {
+                continue;
+            }
+            let df = (i16::from(victim.file) - i16::from(pos.file)).abs();
+            let dr = (i16::from(victim.rank) - i16::from(pos.rank)).abs();
+            if df == dr && df != 0 {
+                return true;
+            }
+        }
+    }
+    false
+}
+
 /// Loud SimpleTakes: dest-capture each enemy piece valued ≥ the loud floor.
 fn generate_loud_simple_takes(state: &GameState, weights: &EvalWeights) -> Vec<Move> {
     let floor = min_quiescence_enemy_material();
+    let us = state.get_current_turn();
     let them = state.get_current_turn().opposite();
+    let board = state.get_board();
     let mut out = Vec::new();
     let mut seen: HashSet<(u16, u16, bool)> = HashSet::new();
-    for enemy in state.get_board().iter_pieces_by_color(them) {
+    for enemy in board.iter_pieces_by_color(them) {
         if material_piece_value(&enemy, weights) < floor {
+            continue;
+        }
+        if !board.is_position_attacked_by_color(enemy.position, us)
+            && !peacock_might_directly_capture(board, us, enemy.position)
+        {
             continue;
         }
         for mv in generate_captures_hitting_square(state, enemy.position) {
@@ -4753,9 +4767,17 @@ pub fn search_info_from_result(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::eval::EvalWeights;
+    use crate::eval::{EvalWeights, ALL_PIECE_TYPES};
     use crate::piece::{Color, Piece, PieceType};
     use crate::position::Position;
+
+    const PREFILTER_OFFSETS: &[(i8, i8)] = &[
+        (0, 1), (1, 0), (1, 1), (0, 2), (2, 0), (2, 2),
+        (0, 4), (4, 0), (4, 4), (0, 7), (7, 0), (7, 7),
+        (3, 7), (7, 3), (0, -1), (-1, 0), (-1, -1),
+        (0, -4), (-4, 0), (-4, -4), (0, -7), (-7, 0),
+        (-7, -7), (-3, -7),
+    ];
 
     #[test]
     fn soft_stop_uses_twice_the_last_completed_iteration() {
@@ -4763,6 +4785,184 @@ mod tests {
         assert!(!soft_stop_before_next_iteration(last, Duration::from_millis(400)));
         assert!(!soft_stop_before_next_iteration(last, Duration::from_millis(401)));
         assert!(soft_stop_before_next_iteration(last, Duration::from_millis(399)));
+    }
+
+    #[test]
+    fn loud_promotions_match_full_generation_for_piece_types_and_zone_edges() {
+        for &piece_type in ALL_PIECE_TYPES {
+            if !promotes_into_big_piece(piece_type) {
+                continue;
+            }
+            for (color, rank) in [
+                (Color::Black, 24),
+                (Color::Black, 25),
+                (Color::White, 11),
+                (Color::White, 10),
+            ] {
+                let mut state = GameState::new();
+                let pos = Position::new(18, rank).unwrap();
+                state.place_piece(Piece::new(piece_type, color, pos));
+                state.set_current_turn(color);
+                let mut old = Vec::new();
+                state.generate_legal_moves_for_pieces_mode(
+                    &[state.get_board().get_piece(pos).unwrap()],
+                    LegalMoveGen::All,
+                    &mut old,
+                );
+                old.retain(|mv| mv.promoted);
+                assert_eq!(
+                    generate_loud_promotions(&state),
+                    old,
+                    "{piece_type:?} {color:?} rank {rank}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn direct_captures_pass_attack_prefilter_across_piece_types() {
+        let from = Position::new(18, 18).unwrap();
+        let mut misses = Vec::new();
+        for &piece_type in ALL_PIECE_TYPES {
+            for color in [Color::Black, Color::White] {
+                for promoted in [false, true] {
+                    if promoted && piece_type.promotes_to().is_none() {
+                        continue;
+                    }
+                    for &(df, dr) in PREFILTER_OFFSETS {
+                        let to = from.offset(df, dr).unwrap();
+                        let mut state = GameState::new();
+                        let mut piece = Piece::new(piece_type, color, from);
+                        if promoted {
+                            piece.promote();
+                        }
+                        state.place_piece(piece);
+                        state.place_piece(Piece::new(PieceType::Pawn, color.opposite(), to));
+                        state.set_current_turn(color);
+                        let board = state.get_board();
+                        if board.is_position_attacked_by_color(to, color)
+                            || peacock_might_directly_capture(board, color, to)
+                        {
+                            continue;
+                        }
+                        if generate_captures_hitting_square(&state, to).iter().any(|mv| {
+                            mv.to == to && !quiesce_move_looks_path_or_multileg(&state, mv)
+                        }) {
+                            misses.push(format!(
+                                "{piece_type:?} {color:?} promoted={promoted} {df},{dr}"
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+        assert!(
+            misses.is_empty(),
+            "negative attack queries missed direct captures: {}",
+            misses.join("; ")
+        );
+    }
+
+    #[test]
+    fn royal_capture_prefilter_covers_piece_types_and_zone_edges() {
+        let from = Position::new(18, 18).unwrap();
+        let mut misses = Vec::new();
+        for &piece_type in ALL_PIECE_TYPES {
+            for color in [Color::Black, Color::White] {
+                for promoted in [false, true] {
+                    if promoted && piece_type.promotes_to().is_none() {
+                        continue;
+                    }
+                    for &(df, dr) in PREFILTER_OFFSETS {
+                        let to = from.offset(df, dr).unwrap();
+                        let mut state = GameState::new();
+                        let mut piece = Piece::new(piece_type, color, from);
+                        if promoted {
+                            piece.promote();
+                        }
+                        state.place_piece(piece);
+                        state.place_piece(Piece::new(PieceType::King, color.opposite(), to));
+                        state.set_current_turn(color);
+                        let board = state.get_board();
+                        if board.is_position_attacked_by_color(to, color)
+                            || peacock_might_directly_capture(board, color, to)
+                        {
+                            continue;
+                        }
+                        if generate_captures_hitting_square(&state, to)
+                            .iter()
+                            .any(|mv| capture_takes_enemy_royal(&state, mv))
+                        {
+                            misses.push(format!(
+                                "{piece_type:?} {color:?} promoted={promoted} {df},{dr}"
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+        assert!(
+            misses.is_empty(),
+            "negative attack queries missed royal captures: {}",
+            misses.join("; ")
+        );
+    }
+
+    #[test]
+    fn royal_prefilter_global_movers_exhaustive() {
+        let from = Position::new(18, 18).unwrap();
+        let mut misses = Vec::new();
+        for &piece_type in ALL_PIECE_TYPES {
+            for color in [Color::Black, Color::White] {
+                for promoted in [false, true] {
+                    if promoted && piece_type.promotes_to().is_none() {
+                        continue;
+                    }
+                    let mut piece = Piece::new(piece_type, color, from);
+                    if promoted {
+                        piece.promote();
+                    }
+                    if !crate::attack_utils::needs_global_scan(&piece) {
+                        continue;
+                    }
+                    for square in 0..36 * 36 {
+                        let to = Position::from_index(square).unwrap();
+                        if to == from {
+                            continue;
+                        }
+                        let df = to.file as i8 - from.file as i8;
+                        let dr = to.rank as i8 - from.rank as i8;
+                        let ray = df == 0 || dr == 0 || df.abs() == dr.abs();
+                        let blocker = from.offset(df.signum(), dr.signum()).unwrap();
+                        for blocker_color in [None, Some(color), Some(color.opposite())] {
+                            if blocker_color.is_some() && (!ray || blocker == to) {
+                                continue;
+                            }
+                            let mut state = GameState::new();
+                            state.place_piece(piece);
+                            state.place_piece(Piece::new(PieceType::King, color.opposite(), to));
+                            if let Some(blocker_color) = blocker_color {
+                                state.place_piece(Piece::new(PieceType::Pawn, blocker_color, blocker));
+                            }
+                            state.set_current_turn(color);
+                            let board = state.get_board();
+                            if board.is_position_attacked_by_color(to, color)
+                                || peacock_might_directly_capture(board, color, to)
+                            {
+                                continue;
+                            }
+                            if generate_captures_hitting_square(&state, to)
+                                .iter()
+                                .any(|mv| capture_takes_enemy_royal(&state, mv))
+                            {
+                                misses.push(format!("{piece_type:?} {color:?} promoted={promoted} target={to:?} blocker={blocker_color:?}"));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        assert!(misses.is_empty(), "negative attack queries missed royal captures: {}", misses.join("; "));
     }
 
     fn bare_result(best: Option<Move>, root_lines: Vec<(Move, i32)>, static_eval: i32) -> SearchResult {
