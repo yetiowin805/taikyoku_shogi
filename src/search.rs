@@ -880,10 +880,7 @@ fn capture_takes_last_enemy_royal(state: &GameState, mv: &Move) -> bool {
         return false;
     };
     let them = mover.color.opposite();
-    let have = board
-        .iter_pieces_by_color(them)
-        .filter(|p| p.piece_type.is_royal())
-        .count();
+    let have = board.royal_count(them) as usize;
     have > 0 && captured_enemy_royal_count(state, mv) >= have
 }
 
@@ -3923,12 +3920,11 @@ fn quiesce(
 
     // Candidates have survived filtering; count royals only once for this node.
     if cands.len() > 1 {
-    let royal_count = state.get_board().pieces_by_color(state.get_current_turn().opposite())
-        .iter().filter(|p| p.piece_type.is_royal()).count();
-    for candidate in &mut cands {
-        candidate.last_royal_take = candidate.is_royal_take && royal_count > 0
-            && (royal_count == 1 || captured_enemy_royal_count(state, &candidate.mv) >= royal_count);
-    }
+        let royal_count = state.get_board().royal_count(state.get_current_turn().opposite()) as usize;
+        for candidate in &mut cands {
+            candidate.last_royal_take = candidate.is_royal_take && royal_count > 0
+                && (royal_count == 1 || captured_enemy_royal_count(state, &candidate.mv) >= royal_count);
+        }
     }
     // Last-royal (instant win), then loud promo, path-sum, dest recapture, net MVV-LVA.
     cands.sort_by(|a, b| {

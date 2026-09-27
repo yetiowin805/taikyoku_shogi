@@ -25,13 +25,20 @@ lower is faster. They are local timings, not strength estimates.
 | Replace the undeveloped home-rank hash lookup with a flat per-type/color table | 0.9708 | 2.9% less time |
 | Apply the attack prefilter to royal-capture generation and the royal leaf gate | 0.9650 | 3.5% less time |
 | Reuse one quiescence dedup set across promotions, hang takes and royal takes | 0.9917 | 0.8% less time |
+| Use the board's cached royal count in last-royal capture checks and q ordering | 0.9746 / 0.9803 in two 192-pair runs | 2.0–2.5% less time |
 
-**Direct cumulative result:** two independent 192-pair comparisons of this
-branch versus `afb1915` gave **0.9141 and 0.9071** geometric-mean wall ratios
-(**8.6–9.3% less time**). The second used the final release build after test and
-documentation cleanup. All four agent aggregates and all 12 position
-aggregates improved in both runs. Do not add the individual percentages; their
-timings and code-layout effects overlap.
+**Direct cumulative result before the royal-count follow-up:** two independent
+192-pair comparisons versus `afb1915` gave **0.9141 and 0.9071** geometric-mean
+wall ratios (**8.6–9.3% less time**). The second used the release build after
+test and documentation cleanup. All four agent aggregates and all 12 position
+aggregates improved in both runs. The cached-count follow-up matched all 192
+search signatures in each of two further runs against the earlier branch build;
+its wall ratios were **0.9746 and 0.9803**. These samples share a corpus and are
+not strength results. A final direct 192-pair comparison with the cached-count
+change against `afb1915` gave **0.9013** (**9.9% less time**), with all four
+agent and all 12 position aggregates faster and exact signatures in every
+pair. Do not add the individual percentages; their timings and code-layout
+effects overlap.
 
 In clock-matched searches with a depth-five ceiling, the branch completed a
 deeper iteration in 5/48 one-second cases and 1/24 three-second cases, with
@@ -60,7 +67,7 @@ attack guard was only 0.5% faster in 192 pairs. These small signals did not just
 the extra code. Raw local runs are in ignored `data/derived/engine-speed-round3/`
 and are intentionally omitted from the PR, as with the previous round.
 
-**Next:** reprofile this branch, then investigate hanging-gate attack caching,
+**Next:** investigate hanging-gate attack caching,
 full promotion-zone generation and compiled move-generation specs. The staged
 TT move picker and the search-tree changes below require move/strength checks.
 
@@ -79,9 +86,10 @@ three collected 2.115 / 4.002 billion instructions inside
 (8.7% / 8.5%), `captured_enemy_royal_count` (6.4% / 7.3%),
 `generate_for_capability` (6.6% / 6.3%), and `move_order_score` (4.3% / 7.1%).
 These are two seed-weight fixtures under instruction counting, not wall-time
-shares across the corpus. The royal-count path is a concrete next probe
-alongside attack-query caching; it is also relevant to move ordering and q
-filtering.
+shares across the corpus. The two remaining linear royal-count scans in that
+path were replaced with the board's existing cached count and measured above.
+Other royal-capture bookkeeping still merits profiling; attack-query caching
+is the next larger experiment.
 
 ## Profile that guided this round — after PR #127
 
