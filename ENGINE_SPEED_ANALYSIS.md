@@ -122,6 +122,16 @@ wall-time ratio (2.0% less). The pre-refactor prototype also matched 96 and
 `attack_utils` so board and search share the same region mask. See the
 [attack-filter report](benchmarks/engine_speed_20260926/ATTACK_FILTER_FOLLOWUP.md).
 
+### Combined retained changes versus the original baseline
+
+The final branch at `7fed1be` was compared directly with the original
+`198b2c0` baseline across **192 paired fixed-depth searches**. Every pair
+returned the same complete chosen move, score and completed depth. Main nodes
+fell 3,211,208 → 2,667,200 (−16.9%); the paired wall-time geometric mean was
+**0.7781** (22.2% less). The individual gains do not multiply cleanly; this
+is the measured net result on the local corpus. See the
+[combined report](benchmarks/engine_speed_20260926/COMBINED_FOLLOWUP.md).
+
 This follow-up checks off four bounded parts of the proposals below:
 
 - [x] **D3: limited-range path rescanning.** `generate_simple` visits each ray
