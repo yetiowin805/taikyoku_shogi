@@ -110,6 +110,18 @@ wall-time geometric mean was **0.9404** (6.0% less than the candidate-square
 list version), with every agent and position aggregate faster. See the
 [occupancy-mask report](benchmarks/engine_speed_20260926/OCCUPANCY_FOLLOWUP.md).
 
+### Board attack scan prefilter, 2026-09-27
+
+`Board` attack checks now use the same conservative candidate region to skip
+pieces that cannot pass the existing target-reach filter. Special global-scan
+movers remain included; virtual-board attack checks retain their original
+generic path. The final code passed full debug/release suites and matched
+complete search signatures in a fresh **96-pair** run, with **0.9800**
+wall-time ratio (2.0% less). The pre-refactor prototype also matched 96 and
+192 pairs, with respective 0.9772 and 0.9746 ratios. The helper lives in
+`attack_utils` so board and search share the same region mask. See the
+[attack-filter report](benchmarks/engine_speed_20260926/ATTACK_FILTER_FOLLOWUP.md).
+
 This follow-up checks off four bounded parts of the proposals below:
 
 - [x] **D3: limited-range path rescanning.** `generate_simple` visits each ray

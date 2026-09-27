@@ -1979,7 +1979,7 @@ fn attacker_candidates(
     let used = army.len().div_ceil(64);
     assert!(used <= 21, "army exceeds board-sized candidate set");
     let mut set = SlotSet { words: [0; 21], used };
-    let region = &candidate_square_masks()[victim.to_index()];
+    let region = &crate::attack_utils::candidate_square_masks()[victim.to_index()];
     let occupied = board.occupied_by_color(us);
     for word in 0..21 {
         let mut bits = region[word] & occupied[word];
@@ -1999,45 +1999,6 @@ fn attacker_candidates(
         }
     }
     set
-}
-
-/// Near-window and distant-ray square masks for each victim.
-fn candidate_square_masks() -> &'static [[u64; 21]] {
-    static TABLE: std::sync::OnceLock<Vec<[u64; 21]>> = std::sync::OnceLock::new();
-    TABLE.get_or_init(|| {
-        let r = crate::attack_utils::CANDIDATE_WINDOW as i8;
-        let mut table = Vec::with_capacity(36 * 36);
-        for rank in 0..36 {
-            for file in 0..36 {
-                let victim = Position { file, rank };
-                let mut mask = [0u64; 21];
-                for df in -r..=r {
-                    for dr in -r..=r {
-                        if let Some(pos) = victim.offset(df, dr) {
-                            let square = pos.to_index();
-                            mask[square / 64] |= 1u64 << (square % 64);
-                        }
-                    }
-                }
-                for dir in crate::movement::direction::Direction::all() {
-                    let (df, dr) = dir.to_offset();
-                    let mut k = i16::from(r) + 1;
-                    loop {
-                        let next_file = i16::from(victim.file) + i16::from(df) * k;
-                        let next_rank = i16::from(victim.rank) + i16::from(dr) * k;
-                        if !(0..36).contains(&next_file) || !(0..36).contains(&next_rank) {
-                            break;
-                        }
-                        let square = Position { file: next_file as u8, rank: next_rank as u8 }.to_index();
-                        mask[square / 64] |= 1u64 << (square % 64);
-                        k += 1;
-                    }
-                }
-                table.push(mask);
-            }
-        }
-        table
-    })
 }
 
 /// Captures that take an enemy on `victim` (dest, path-clear, multi-leg, FE).

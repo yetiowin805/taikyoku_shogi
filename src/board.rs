@@ -164,7 +164,7 @@ impl Board {
     pub fn is_position_attacked_by_color(&self, position: Position, attacker_color: Color) -> bool {
         #[cfg(feature = "search-profile")]
         let _prof = crate::profile_timers::atk_scope();
-        is_position_attacked_by_pieces(self, position, self.pieces_by_color(attacker_color), false)
+        self.is_position_attacked_by_color_filtered(position, attacker_color, false)
     }
 
     /// Check if a position is attacked by pieces of a given color, optimized for check detection
@@ -176,7 +176,22 @@ impl Board {
         position: Position,
         attacker_color: Color,
     ) -> bool {
-        is_position_attacked_by_pieces(self, position, self.pieces_by_color(attacker_color), true)
+        self.is_position_attacked_by_color_filtered(position, attacker_color, true)
+    }
+
+    fn is_position_attacked_by_color_filtered(
+        &self,
+        position: Position,
+        attacker_color: Color,
+        for_check: bool,
+    ) -> bool {
+        let region = &crate::attack_utils::candidate_square_masks()[position.to_index()];
+        let candidates = self.pieces_by_color(attacker_color).iter().filter(|piece| {
+            let square = piece.position.to_index();
+            region[square / 64] & (1u64 << (square % 64)) != 0
+                || crate::attack_utils::needs_global_scan(piece)
+        });
+        is_position_attacked_by_piece_iter(self, position, candidates, for_check)
     }
 }
 
@@ -211,6 +226,19 @@ pub(crate) fn is_position_attacked_by_pieces<B: move_simulation::BoardLike>(
     attacker_pieces: &[Piece],
     for_check: bool,
 ) -> bool {
+    is_position_attacked_by_piece_iter(board, position, attacker_pieces.iter(), for_check)
+}
+
+fn is_position_attacked_by_piece_iter<'a, B, I>(
+    board: &B,
+    position: Position,
+    attacker_pieces: I,
+    for_check: bool,
+) -> bool
+where
+    B: move_simulation::BoardLike,
+    I: IntoIterator<Item = &'a Piece>,
+{
     use crate::attack_utils;
 
     for piece in attacker_pieces {
