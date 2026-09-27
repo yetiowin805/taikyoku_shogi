@@ -3903,7 +3903,7 @@ fn quiesce(
         let mut attack_cache = LandingAttackCache::new();
         let board = state.get_board();
         cands.retain(|c| {
-            if c.is_loud_promo || capture_takes_enemy_royal(state, &c.mv) {
+            if c.is_loud_promo || c.is_royal_take {
                 return true;
             }
             if !net_below_hang_frac(c.enemy, c.own, c.mover_value) {
@@ -4091,7 +4091,7 @@ fn quiesce(
         let mv_key = move_tt_key(&c.mv);
         let mv = c.mv;
         let is_loud_promo = c.is_loud_promo;
-        let takes_royal = capture_takes_enemy_royal(state, &mv);
+        let takes_royal = c.is_royal_take;
 
         // Pre-make hang skip for SimpleTake only. PathClear/MultiLeg often look
         // attacked pre-move only because a path victim "defends" the landing; those
