@@ -144,6 +144,12 @@
       "git": "a3c1fab76cf3c6810d4ddb048486de86686e4265",
       "kind": "logic",
       "summary": "Handcrafted A/L search before adding ability-feature NNUE residual evaluators."
+    },
+    {
+      "id": "LOGIC_PRE_FISCHER",
+      "git": "0f1f453abe484e7b4a6694dfa00ffae554c7156b",
+      "kind": "logic",
+      "summary": "Parent of Fischer-clock change: fixed per-move search budget before the one-extra-depth banked-time policy."
     }
   ]
 }
