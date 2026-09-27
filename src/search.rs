@@ -2034,9 +2034,15 @@ pub(crate) fn generate_captures_hitting_square(state: &GameState, victim: Positi
     out
 }
 
+/// Stop before an iteration that is unlikely to finish before the hard deadline.
+fn soft_stop_before_next_iteration(last_duration: Duration, remaining: Duration) -> bool {
+    last_duration.saturating_mul(2) > remaining
+}
+
 /// Pick a move with alpha-beta (no GUI trace by default).
 ///
-/// Uses iterative deepening from depth 1..=`config.depth`. On timeout mid-iteration,
+/// Uses iterative deepening from depth 1..=`config.depth`. Timed searches may stop
+/// before starting another iteration after depth 2. On timeout mid-iteration,
 /// returns the last **completed** iteration's result.
 pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -> SearchResult {
     search_with_progress(state, weights, config, &mut |_, _, _, _, _| {})
@@ -2216,6 +2222,7 @@ pub fn search_with_progress(
     let mut completed_lines: Vec<(Move, i32)> = Vec::new();
     let mut completed_depth = 0u32;
     let mut actual_completed_depth = 0u32;
+    let mut last_iteration_duration = None;
 
     // Working copy already cloned above for last-royal evasion filtering.
 
@@ -2223,6 +2230,15 @@ pub fn search_with_progress(
         if ctx.timed_out() {
             break;
         }
+        if actual_completed_depth >= 2 {
+            if let (Some(deadline), Some(last_duration)) = (deadline, last_iteration_duration) {
+                let remaining = deadline.saturating_duration_since(Instant::now());
+                if soft_stop_before_next_iteration(last_duration, remaining) {
+                    break;
+                }
+            }
+        }
+        let iteration_started = Instant::now();
         ctx.search_depth = d;
         ctx.phase = "root";
         ctx.best_score = completed_score;
@@ -2459,6 +2475,7 @@ pub fn search_with_progress(
             completed_score = iter_score;
             completed_depth = d;
             actual_completed_depth = d;
+            last_iteration_duration = Some(iteration_started.elapsed());
             progress(
                 d,
                 completed_score,
@@ -4739,6 +4756,14 @@ mod tests {
     use crate::eval::EvalWeights;
     use crate::piece::{Color, Piece, PieceType};
     use crate::position::Position;
+
+    #[test]
+    fn soft_stop_uses_twice_the_last_completed_iteration() {
+        let last = Duration::from_millis(200);
+        assert!(!soft_stop_before_next_iteration(last, Duration::from_millis(400)));
+        assert!(!soft_stop_before_next_iteration(last, Duration::from_millis(401)));
+        assert!(soft_stop_before_next_iteration(last, Duration::from_millis(399)));
+    }
 
     fn bare_result(best: Option<Move>, root_lines: Vec<(Move, i32)>, static_eval: i32) -> SearchResult {
         SearchResult {

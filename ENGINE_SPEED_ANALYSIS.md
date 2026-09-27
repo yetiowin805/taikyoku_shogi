@@ -9,6 +9,18 @@ Findings from a code read of `board.rs`, `movement/`, `game_state.rs`, `attack_u
 
 Speed-up estimates are **order-of-magnitude guesses with the reasoning shown**. They are not measurements. Each one needs the paired, held-out protocol from `benchmarks/search_speed_20260920/README.md` before anyone claims it.
 
+## B8 follow-up after PR #126
+
+The conservative iterative-deepening soft stop is now enabled for timed
+searches. After completing depth two or deeper, the engine skips the next
+iteration when twice the last iteration's duration exceeds the clock left.
+Untimed searches, including fixed-depth benchmarks, are unaffected. A fresh 72-case comparison
+against merged `main` saved 20.3% summed clock at one second and 5.1% at
+three seconds. Chosen moves matched in 48/48 and 23/24 cases respectively;
+the differing three-second search stopped one depth shallower. This is a
+tournament-throughput choice, not an established strength gain. See the
+[soft-stop follow-up](benchmarks/engine_speed_20260926/SOFT_STOP_FOLLOWUP.md).
+
 ## Current pull-request result — 2026-09-27
 
 This branch collects the retained speed changes since `main` at `198b2c0`.
