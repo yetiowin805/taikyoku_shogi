@@ -55,7 +55,12 @@ class ClockTests(unittest.TestCase):
                 self.assertIn('900000', config['command'])
                 a.atomic(run/'analysis/config.json', config)
                 a.atomic(run/'state.json', dict(entrants=entrants, depth=9, time_control=config['time_control']))
+                config['rolling_engines'] = True
+                a.atomic(run/'analysis/config.json', config)
+                (root/'target/release/analyze_position').write_text('#!/bin/sh\nexit 0\n# new helper\n')
                 args.action = 'resume'; args.initial_time_ms = args.increment_ms = None
-                resumed = a.prepare(args, run)
+                with patch.object(a.engine_updates, 'active', return_value={'engine_bin': str(root/'target/release/taikyoku_shogi')}), patch.object(a.subprocess, 'run', return_value=SimpleNamespace(stdout='1\n')):
+                    resumed = a.prepare(args, run)
+                self.assertEqual(resumed['analyzer_sha256'], config['analyzer_sha256'])
                 self.assertEqual(resumed['time_control'], config['time_control'])
                 self.assertEqual(resumed['command'][resumed['command'].index('--depth')+1], '9')

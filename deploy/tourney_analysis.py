@@ -523,6 +523,10 @@ def prepare(args, run):
     if len(cpus) != 4 or len(set(cpus)) != 4 or not set(cpus) <= set(allowed):
         raise ValueError("exactly four distinct available CPUs are required")
     binaries = [ROOT / "target/release/taikyoku_shogi", ROOT / "target/release/analyze_position"]
+    if rolling and previous:
+        # Existing catalogue entries bind this helper; rolling teacher requests
+        # use the active bundle independently. A new coordinator must not rebind it.
+        binaries[1] = Path(previous['analyzer_bin'])
     for path in binaries:
         if not os.access(path, os.X_OK):
             raise ValueError(f"missing executable {path}; build --release --bins first")
