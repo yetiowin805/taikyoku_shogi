@@ -1186,6 +1186,25 @@ impl GameState {
         self.push_standard_moves(moves, piece, target);
     }
 
+    /// Generate only the promotion variants of an ordinary (non-two-step) mover.
+    /// A move may promote if either its start or destination is in the zone.
+    pub(crate) fn emit_standard_promotions_for_piece(&self, piece: &Piece, moves: &mut Vec<Move>) {
+        debug_assert!(!piece.is_promoted && piece.piece_type.promotes_to().is_some());
+        if is_boxed_in(piece, &self.board) {
+            return;
+        }
+        let in_zone = |rank: u8| match piece.color {
+            Color::Black => rank >= 25,
+            Color::White => rank <= 10,
+        };
+        let starts_in_zone = in_zone(piece.position.rank);
+        for target in piece.get_potential_targets(&self.board) {
+            if starts_in_zone || in_zone(target.rank) {
+                moves.push(Move::new_with_promotion(piece.position, target, true));
+            }
+        }
+    }
+
     pub(crate) fn emit_two_step_moves_to(
         &self,
         piece: &Piece,

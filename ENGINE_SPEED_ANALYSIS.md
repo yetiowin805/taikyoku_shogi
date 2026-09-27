@@ -9,11 +9,93 @@ The original analysis was a code read of `board.rs`, `movement/`, `game_state.rs
 
 The original proposal estimates are **historical guesses**, not remaining gains from current `main`. Validate new exact changes with paired held-out searches and behavior-changing changes with games. Component estimates overlap and must not be added.
 
-## Current profile and next experiments — after PR #127
+## 2026-09-27 hot-path follow-up (candidate branch)
 
-The newer profile supplied for this update has no single function above about
+Starting from `main` at `afb1915`, this round tested the next exact hot paths.
+The paired harness used 12 positions, four agents, fixed depths and CPU 2.
+Every retained comparison below matched complete routes, scores, main and q
+nodes, completed depths, static eval and ordered root lines in all 48 warmups
+and 192 measured pairs. Ratios are candidate / immediate predecessor wall time;
+lower is faster. They are local timings, not strength estimates.
+
+| Change retained on this branch | 192-pair wall ratio | Effect |
+|---|---:|---:|
+| Skip loud SimpleTake generation when the victim square is unattacked, with a conservative Peacock exception | 0.9700 | 3.0% less time |
+| Emit promotion variants directly for ordinary loud-promoting pieces; keep full two-step generation | 0.9916 | 0.8% less time |
+| Replace the undeveloped home-rank hash lookup with a flat per-type/color table | 0.9708 | 2.9% less time |
+| Apply the attack prefilter to royal-capture generation and the royal leaf gate | 0.9650 | 3.5% less time |
+| Reuse one quiescence dedup set across promotions, hang takes and royal takes | 0.9917 | 0.8% less time |
+| Use the board's cached royal count in last-royal capture checks and q ordering | 0.9746 / 0.9803 in two 192-pair runs | 2.0–2.5% less time |
+
+**Direct cumulative result before the royal-count follow-up:** two independent
+192-pair comparisons versus `afb1915` gave **0.9141 and 0.9071** geometric-mean
+wall ratios (**8.6–9.3% less time**). The second used the release build after
+test and documentation cleanup. All four agent aggregates and all 12 position
+aggregates improved in both runs. The cached-count follow-up matched all 192
+search signatures in each of two further runs against the earlier branch build;
+its wall ratios were **0.9746 and 0.9803**. These samples share a corpus and are
+not strength results. A final direct 192-pair comparison with the cached-count
+change against `afb1915` gave **0.9013** (**9.9% less time**), with all four
+agent and all 12 position aggregates faster and exact signatures in every
+pair. Do not add the individual percentages; their timings and code-layout
+effects overlap.
+
+In clock-matched searches with a depth-five ceiling, the branch completed a
+deeper iteration in 5/48 one-second cases and 1/24 three-second cases, with
+none shallower. Chosen moves matched in 47/48 and 24/24 respectively. The
+three-second sample covered 12 positions and one handcrafted plus one NNUE
+agent; the one-second sample covered all four agents. Faster searches can use
+more of the clock attempting the next iteration, so these are throughput
+checks, not strength or Elo results.
+
+The initial unconditional attack guard was unsound: an unpromoted Peacock can
+have a direct diagonal capture while the specialized board attack query says
+no. The retained guard conservatively falls back to capture generation if an
+unpromoted Peacock is diagonally aligned with the victim. Piece-level tests
+cover all declared types, colors and valid promotion variants on sampled
+targets, plus every target for special global-scan movers with empty, friendly
+and enemy first-step blockers. Full-search parity also passed. The remaining
+direct promotion-zone traversal is not implemented; the retained promotion
+change still builds ordinary target lists before filtering zone landings.
+
+**Screened and removed:** reusable per-victim capture buffers were 0.4% slower
+in 192 pairs; packed quiescence dedup keys differed by only 0.2% in a 96-pair
+screen; a flat promotion-reach table was 0.9% slower in 96 pairs; filtering
+off-zone landings before the combined target sort was only 0.4% faster in 192
+pairs and did not avoid capability walks; an additional hanging-destination
+attack guard was only 0.5% faster in 192 pairs. These small signals did not justify
+the extra code. Raw local runs are in ignored `data/derived/engine-speed-round3/`
+and are intentionally omitted from the PR, as with the previous round.
+
+**Next:** investigate hanging-gate attack caching,
+full promotion-zone generation and compiled move-generation specs. The staged
+TT move picker and the search-tree changes below require move/strength checks.
+
+A small post-change `search-profile` run at depth three on the built-in opening
+and pawn-push midgame fixtures (seed weights, CPU 2) reported attack scopes at
+31% / 34%, generation at 24% / 21%, ordering at 14% / 24%, and make/unmake at
+6% / 6%. These scoped wall timers can overlap, and two synthetic positions do
+not replace a representative function-level profile. They do suggest attack
+queries and ordering remain worth investigating next.
+
+Post-change `callgrind` samples of the opening / pawn-push midgame at depth
+three collected 2.115 / 4.002 billion instructions inside
+`search_with_progress`. Largest **self** costs were
+`should_check_piece_for_target_position` (11.1% / 10.2%),
+`MovementGenerator::capability_reaches` (9.5% / 8.9%), the board attack query
+(8.7% / 8.5%), `captured_enemy_royal_count` (6.4% / 7.3%),
+`generate_for_capability` (6.6% / 6.3%), and `move_order_score` (4.3% / 7.1%).
+These are two seed-weight fixtures under instruction counting, not wall-time
+shares across the corpus. The two remaining linear royal-count scans in that
+path were replaced with the board's existing cached count and measured above.
+Other royal-capture bookkeeping still merits profiling; attack-query caching
+is the next larger experiment.
+
+## Profile that guided this round — after PR #127
+
+This pre-round profile has no single function above about
 9% of search time. The shares below are for the **opening / ply 240**; the
-estimated whole-search gains are hypotheses, not measured improvements. The
+estimated whole-search gains are historical hypotheses, not measured improvements. The
 profile command, hardware and raw samples were not supplied, so rerun the
 profile before relying on small differences between rows.
 
@@ -32,11 +114,11 @@ one change can alter how often another path runs. Changes can also shift cost
 into another area. Measure one patch at a time against current `main`; do not
 sum the estimates or apply the original multi-phase multiplier below.
 
-**Suggested order:** start with quiescence capture prefiltering, then
-promotion-zone generation. Both target large current costs without a new board
-invariant. Try the small home-rank lookup change next. Use a new profile to
-choose between attack-count maintenance and compiled specs. For exact patches,
-preserve full routes, scores, ordered root lines and node counts.
+The first, partial third and sixth rows have now been tested above. The
+remaining work needs a fresh profile on this candidate before prioritizing
+attack-count maintenance, complete promotion-zone generation or compiled
+movement specs. For exact patches, preserve full routes, scores, ordered root
+lines and node counts.
 
 The staged picker needs a separate parity check: searching a TT move earlier
 can change LMR decisions and chosen moves. Treat it as a search-behavior change

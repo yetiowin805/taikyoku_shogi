@@ -1929,30 +1929,32 @@ fn evaluate_absolute_black_from_inc(
     score.round() as i32 + noise_component(board, weights, ply)
 }
 
-/// Opening home rank per `(color, piece_type)` for non-royals.
-fn initial_non_royal_home_ranks() -> &'static HashMap<(Color, PieceType), u8> {
-    static HOMES: OnceLock<HashMap<(Color, PieceType), u8>> = OnceLock::new();
+/// Opening home rank per `(piece_type, color)` for non-royals. Rank 36 means
+/// the type is absent from the initial position.
+fn initial_non_royal_home_ranks() -> &'static [[u8; 2]] {
+    static HOMES: OnceLock<Vec<[u8; 2]>> = OnceLock::new();
     HOMES.get_or_init(|| {
         let mut state = GameState::new();
         state.setup_initial_position();
-        let mut map = HashMap::new();
+        let len = ALL_PIECE_TYPES.iter().map(|&pt| pt as usize).max().unwrap_or(0) + 1;
+        let mut ranks = vec![[36; 2]; len];
         for color in [Color::Black, Color::White] {
             for p in state.get_board().pieces_by_color(color) {
                 if p.piece_type.is_royal() {
                     continue;
                 }
-                let key = (p.color, p.piece_type);
-                if let Some(&prev) = map.get(&key) {
+                let slot = &mut ranks[p.piece_type as usize][p.color as usize];
+                if *slot != 36 {
                     debug_assert_eq!(
-                        prev, p.position.rank,
+                        *slot, p.position.rank,
                         "piece type {:?} starts on multiple ranks for {:?}",
                         p.piece_type, p.color
                     );
                 }
-                map.insert(key, p.position.rank);
+                *slot = p.position.rank;
             }
         }
-        map
+        ranks
     })
 }
 
@@ -1970,10 +1972,13 @@ fn undeveloped_penalty_for_piece(piece: &Piece, weights: &EvalWeights) -> f32 {
     if piece.piece_type.is_royal() || skips_rank_pst(piece.piece_type) {
         return 0.0;
     }
-    let Some(&home_rank) = initial_non_royal_home_ranks().get(&(piece.color, piece.piece_type))
-    else {
+    let home_rank = initial_non_royal_home_ranks()
+        .get(piece.piece_type as usize)
+        .map(|row| row[piece.color as usize])
+        .unwrap_or(36);
+    if home_rank == 36 {
         return 0.0;
-    };
+    }
     if !on_home_rank_or_behind(piece, home_rank) {
         return 0.0;
     }
