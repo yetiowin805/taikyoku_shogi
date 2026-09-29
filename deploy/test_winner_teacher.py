@@ -27,8 +27,8 @@ class WinnerTeacherTests(AnalyzerFixture):
         game, _ = self.fixture()
         samples = w.candidates(game)
         targets = [s for s in samples if s['selection'] != 'winner_representative']
-        self.assertEqual({s['center_ply'] for s in targets}, {44,48,50,92,96,98})
-        self.assertLessEqual(len(samples), 10)
+        self.assertEqual({s['center_ply'] for s in targets}, {36,44,48,50,84,92,96,98})
+        self.assertLessEqual(len(samples), 32)
         self.assertEqual(len({s['center_ply'] for s in samples}), len(samples))
         self.assertTrue(all(s['center_ply'] < s['event_ply'] for s in targets))
         self.assertEqual(samples, w.candidates(game))
@@ -97,3 +97,33 @@ class WinnerTeacherTests(AnalyzerFixture):
         self.assertFalse(search.call_args.args[0]['rolling_engines'])
         self.assertEqual(result['searches'],[hc,nn])
         self.assertEqual(result['previous_teacher_searches'],[old])
+
+    def test_four_episodes_and_sixteen_representatives(self):
+        game, _ = self.fixture()
+        game['moves'] = [dict(color='Black' if i % 2 == 0 else 'White', eval=0) for i in range(800)]
+        for i in (101, 201, 301, 401, 501, 601):
+            game['moves'][i]['eval'] = 2000
+        samples = w.candidates(game)
+        targeted = [s for s in samples if 'event_ply' in s]
+        self.assertEqual(len(targeted), 16)
+        self.assertEqual(len({s['event_ply'] for s in targeted}), 4)
+        self.assertEqual({s['offset_plies'] for s in targeted}, {-16, -8, -4, -2})
+        self.assertEqual(len(samples), 32)
+        self.assertTrue(all(s['selection_quota'] == 32 for s in samples))
+
+    def test_new_policy_backfills_old_ledger_without_duplicate_positions(self):
+        game, config = self.fixture()
+        p = self.run / 'game.json'; a.atomic(p, game)
+        a.atomic(self.run / 'state.json', {'slots':[{'id':1,'status':'done','game_path':str(p)}]})
+        with patch.object(w, 'POLICY', 'winner-teacher-v1'):
+            w.scan(a, self.db, self.run, config)
+        before = {json.loads(r['payload'])['center_ply']:r['id'] for r in self.db.execute('SELECT * FROM moments')}
+        w.scan(a, self.db, self.run, config)
+        rows = list(self.db.execute('SELECT * FROM moments'))
+        positions = [json.loads(r['payload'])['center_ply'] for r in rows]
+        self.assertEqual(len(positions), len(set(positions)))
+        for r in rows:
+            ply = json.loads(r['payload'])['center_ply']
+            if ply in before:
+                self.assertEqual(r['id'], before[ply])
+        self.assertEqual(self.db.execute('SELECT count(*) FROM winner_scanned').fetchone()[0], 2)

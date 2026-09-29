@@ -5,19 +5,19 @@ that winning agent plus 2048 v3, with the existing 30-second budget per teacher.
 Other games retain 512 v2 plus 2048 v3. This collects alternative labels; it does
 not decide the winner's evaluation is correct or retrain a model.
 
-For each eligible game, `winner-teacher-v1` keeps at most ten positions:
+For each eligible game, `winner-teacher-v2` keeps at most 32 positions:
 
-- Up to two episodes on the losing side's turns: a finite score worsening by
+- Up to four episodes on the losing side's turns: a finite score worsening by
   at least 1,000 units, or a transition from a finite score to a losing mate score.
   Scores are Black-absolute and converted to the losing side's perspective.
 - Mate transitions rank first, then larger drops. Episode centers must be at
-  least 16 plies apart. Before each episode, retain positions 8, 4, and 2 plies
+  least 16 plies apart. Before each episode, retain positions 16, 8, 4, and 2 plies
   earlier, on the loser's turns. These are positions before its moves, not after
   them. Clip at game boundaries and exclude missing and mate-range source scores.
-- Up to four deterministic representative samples, one per progress quartile,
+- Up to sixteen deterministic representative samples, one per equal-progress stratum,
   at least four plies from already selected positions.
 
-This bounds the targeted material at six positions per game, deduplicates shared
+This bounds the targeted material at sixteen positions per game, deduplicates shared
 positions, and adds ordinary context. It does not prove a sampled mistake caused
 the loss. Related-opening train/validation grouping matches the existing sampler.
 Sampling policy, episode, offset, quota and teacher identities remain in records
@@ -30,7 +30,7 @@ At an already sampled game/ply, reuse the existing moment ID and requeue only th
 position. Preserve replaced 512 labels in `previous_teacher_searches` and in the
 search cache; reuse existing 2048 labels with matching budget. Existing unselected
 legacy moments remain intact, so older games can retain their original samples
-plus at most ten new ones. Fresh handcrafted-win games use only the new sampler.
+plus at most 32 new ones. Fresh handcrafted-win games use only the new sampler.
 
 Teacher selection uses frozen checkpoint contents, not agent names. Original
 historical engine bindings are retained when present; modern winning checkpoints
@@ -46,3 +46,9 @@ processed before the normal queue. For rollback restore the prior sidecar code;
 completed catalogue records and cached searches should be retained.
 
 Validation: `python3 -m unittest discover -s deploy -p 'test_*.py'`.
+
+Version 2 expands the original ten-position policy. The versioned ledger revisits
+previously scanned games, retaining overlapping IDs and cached teacher searches.
+Previously collected positions remain valid, including those outside the new
+selection. Training should normalize game/episode contributions rather than
+assigning extra weight solely because more correlated labels were collected.

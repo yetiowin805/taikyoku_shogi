@@ -4,7 +4,7 @@ from pathlib import Path
 
 import training_labels as labels
 
-POLICY = 'winner-teacher-v1'
+POLICY = 'winner-teacher-v2'
 
 
 def winner_agent(config, game):
@@ -54,25 +54,25 @@ def candidates(game):
     for mate, magnitude, i in sorted(events, reverse=True):
         if any(abs(i-j) < 16 for j in chosen):
             continue
-        points = [j for j in (i-8, i-4, i-2) if j in valid and moves[j]['color'] == loser]
+        points = [j for j in (i-16, i-8, i-4, i-2) if j in valid and moves[j]['color'] == loser]
         if not points:
             continue
         chosen.append(i)
         for j in points:
-            picked[j] = dict(selection='winner_pre_mate' if mate else 'winner_pre_swing',
-                             event_ply=i+1, offset_plies=j-i, magnitude=magnitude)
-        if len(chosen) == 2:
+            picked.setdefault(j, dict(selection='winner_pre_mate' if mate else 'winner_pre_swing',
+                                      event_ply=i+1, offset_plies=j-i, magnitude=magnitude))
+        if len(chosen) == 4:
             break
     valid = sorted(valid)
-    for bucket in range(4):
-        pool = valid[len(valid)*bucket//4:len(valid)*(bucket+1)//4]
+    for bucket in range(16):
+        pool = valid[len(valid)*bucket//16:len(valid)*(bucket+1)//16]
         pool = [i for i in pool if all(abs(i-j) >= 4 for j in picked)]
         if pool:
             j = min(pool, key=lambda i: labels.hashed([group, POLICY, i]))
             picked[j] = dict(selection='winner_representative', magnitude=0)
     return [dict(center_ply=i+1, plies=[i+1], split_group=group,
                  split='validation' if int(group[:8], 16) % 10 == 0 else 'train',
-                 sampling_policy=POLICY, selection_quota=10, selection_pool_size=len(valid),
+                 sampling_policy=POLICY, selection_quota=32, selection_pool_size=len(valid),
                  game_result=game['result'], source_eval=moves[i]['eval'],
                  score_perspective='black-absolute', **metadata)
             for i, metadata in sorted(picked.items())]
