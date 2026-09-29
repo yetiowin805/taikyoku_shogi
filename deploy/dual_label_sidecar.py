@@ -14,6 +14,7 @@ import sys
 import time
 
 import tourney_analysis as a
+import winner_teacher
 
 BUDGET_MS = 30_000
 
@@ -64,15 +65,30 @@ def teacher_config(config, second):
 
 
 def paired_searches(config, moment, db):
-    old_sha = config['old']['models'][config['old']['label_teacher']['model']]['sha256']
+    first_config = teacher_config(config, False)
+    if moment.get('winner_teacher'):
+        agent = moment['winner_teacher']
+        first_config = dict(first_config, label_teacher=agent,
+                            label_teacher_id='winning-handcrafted',
+                            rolling_engines=False if agent.get('engine') else first_config.get('rolling_engines', False))
+    model_key = first_config['label_teacher']['model']
+    if moment.get('winner_teacher'):
+        model_key = str(Path(model_key).resolve())
+    old_sha = first_config['models'][model_key]['sha256']
     new_sha = config['new_sha256']
     existing = {s.get('model_sha256'): s for s in moment.get('searches', [])
                 if s.get('budget_ms') == config['budget_ms']}
     ply = moment['center_ply']
-    first = existing.get(old_sha) or a.search_position(teacher_config(config, False), moment, ply, db)
+    first = existing.get(old_sha) or a.search_position(first_config, moment, ply, db)
     if first.get('model_sha256') != old_sha:
-        raise ValueError('512v2 search has the wrong model identity')
+        raise ValueError('first teacher search has the wrong model identity')
     # Save the first teacher before starting the second search. A restart reuses it.
+    if moment.get('winner_teacher'):
+        archived = {s.get('key', s.get('model_sha256')): s for s in moment.get('previous_teacher_searches', [])}
+        for result in moment.get('searches', []):
+            if result.get('model_sha256') not in (old_sha, new_sha):
+                archived[result.get('key', result.get('model_sha256'))] = result
+        moment['previous_teacher_searches'] = list(archived.values())
     moment['searches'] = [first]
     db.execute('UPDATE moments SET payload=? WHERE id=?', (json.dumps(moment), moment['id']))
     db.commit()
@@ -105,14 +121,19 @@ def run(config):
                 if not a.alive(live) or live.get('state') != 'running':
                     print('tournament stopped; dual labeling stopped', flush=True)
                     break
-                a.scan(db, run, labels=True)
+                winner_teacher.scan(a, db, run, config)
+                a.scan(db, run, labels=True, label_candidates=lambda game: [] if
+                       winner_teacher.winner_agent(config, game) else a.training_labels.candidates(game))
                 batch = db.execute('SELECT * FROM moments WHERE id NOT IN (SELECT id FROM dual_paired) '
-                                   'AND id NOT IN (SELECT id FROM dual_failures) ORDER BY id LIMIT 20').fetchall()
+                                   "AND id NOT IN (SELECT id FROM dual_failures) ORDER BY CASE WHEN json_extract(payload,'$.winner_teacher') IS NOT NULL THEN 0 ELSE 1 END,id LIMIT 20").fetchall()
                 remaining = db.execute('SELECT count(*) FROM moments WHERE id NOT IN '
                                        '(SELECT id FROM dual_paired)').fetchone()[0]
                 a.atomic(control / 'dual-label-status.json', dict(state='waiting_for_cpu' if batch else 'idle',
                           remaining=remaining, failed=db.execute('SELECT count(*) FROM dual_failures').fetchone()[0],
-                          completed=db.execute('SELECT count(*) FROM dual_paired').fetchone()[0], updated=time.time()))
+                          completed=db.execute('SELECT count(*) FROM dual_paired').fetchone()[0],
+                          winner_selected=db.execute("SELECT count(*) FROM moments WHERE json_extract(payload,'$.winner_teacher') IS NOT NULL").fetchone()[0],
+                          winner_completed=db.execute("SELECT count(*) FROM moments JOIN dual_paired USING(id) WHERE json_extract(payload,'$.winner_teacher') IS NOT NULL").fetchone()[0],
+                          updated=time.time()))
                 if not batch:
                     request.unlink(missing_ok=True)
                     time.sleep(10)
