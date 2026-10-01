@@ -52,3 +52,23 @@ previously scanned games, retaining overlapping IDs and cached teacher searches.
 Previously collected positions remain valid, including those outside the new
 selection. Training should normalize game/episode contributions rather than
 assigning extra weight solely because more correlated labels were collected.
+
+## Replacing the default second teacher
+
+Use `dual_label_sidecar.py replace-teacher --run-dir RUN --model MODEL --check-only`
+to validate and preview. Stop only the dual-label service, run without
+`--check-only`, and restart that service. The command takes the collector lock,
+backs up configuration and SQLite, snapshots the checkpoint and records an
+idempotent backfill manifest. Game workers and coordinator keep running.
+
+SEEDS2 replaces the second slot; the first remains 512v2 or the winning
+handcrafted teacher. Equal checkpoint identities share one search. Replaced
+2048v3 labels are archived, including if the next search is interrupted.
+Unselected completed records retain their original valid teacher identities.
+
+Backfill keeps up to eight completed positions per game: four emphasizing
+pre-mate samples and teacher disagreement, spaced eight plies apart, plus four
+spread across the existing position list, spaced four plies from selections.
+All outcomes are included. Pending positions use the new teacher automatically;
+future sampling still uses the existing 32-position winner policy. Restart
+resumes the backfill without requeuing already refreshed positions.
