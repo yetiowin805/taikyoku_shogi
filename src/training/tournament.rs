@@ -1055,12 +1055,19 @@ pub fn save_state(cfg: &TourneyConfig, state: &TourneyState) -> Result<(), Strin
     fs::write(elo_path(cfg), elo_json).map_err(|e| e.to_string())?;
     let ratings_json = serde_json::to_string_pretty(&state.ratings).map_err(|e| e.to_string())?;
     fs::write(ratings_path(cfg), ratings_json).map_err(|e| e.to_string())?;
-    fs::write(standings_path(cfg), format_standings(&state))
+    let neutral = super::order_neutral::from_state(&state);
+    fs::write(dir.join("order-neutral-ratings.json"), serde_json::to_string_pretty(&neutral).map_err(|e| e.to_string())?)
+        .map_err(|e| format!("write order-neutral ratings: {e}"))?;
+    fs::write(standings_path(cfg), format_standings_with_fit(&state, &neutral))
         .map_err(|e| format!("write standings: {e}"))?;
     Ok(())
 }
 
 pub fn format_standings(state: &TourneyState) -> String {
+    format_standings_with_fit(state, &super::order_neutral::from_state(state))
+}
+
+fn format_standings_with_fit(state: &TourneyState, neutral: &super::order_neutral::Fit) -> String {
     let scores = match_scores(state);
     let games = games_played(state);
     let mut rows: Vec<_> = state.ratings.keys().cloned().collect();
@@ -1102,6 +1109,15 @@ pub fn format_standings(state: &TourneyState) -> String {
             g.r,
             g.rd
         ));
+    }
+    out.push_str("\n## Order-neutral ratings\n\nEqual-weight Bradley–Terry fit over all completed games; draws count half, mean rating 1500. These are separate from live Glicko and do not seed the bracket.\n\n");
+    if neutral.status == "converged" {
+        let mut fitted: Vec<_> = neutral.ratings.iter().collect();
+        fitted.sort_by(|a,b| b.1.total_cmp(a.1).then_with(||a.0.cmp(b.0)));
+        out.push_str("| Agent | Rating |\n|---|---:|\n");
+        for (id,r) in fitted { out.push_str(&format!("| {id} | {r:.1} |\n")); }
+    } else {
+        out.push_str(&format!("Fit unavailable: {}. Result-graph components: {:?}. No regularized or arbitrary extreme ratings are substituted.\n", neutral.status, neutral.components));
     }
     out.push('\n');
     if !state.knockout_stage_appearances.is_empty()

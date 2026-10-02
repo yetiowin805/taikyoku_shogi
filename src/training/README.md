@@ -53,3 +53,45 @@ Knockout is the tournament default (seeded 1v16 until stop). `--init-ratings` co
 ## Eval / search history
 
 Major eval or search-behavior merges need a `kind: logic` freeze (parent of the merge) via `./deploy/freeze_history.sh`. Weight-only bakes are `kind: weights`. Details: [`AGENTS.md`](../../AGENTS.md).
+
+## Live and order-neutral ratings
+
+Knockout Glicko ratings now update both players when their entire match finishes,
+including all tiebreak games. Both updates use the same pre-update opponent
+ratings. A serialized per-tree match ledger prevents replay on resume. Old closed
+rounds are recognized as already rated; completed matches in still-open rounds
+are caught up once on the next coordinator resume. Closing a round only applies
+one passive RD update to entrants who did not participate, even if they are
+playing in another tree. Play-ins retain the existing combined first-round
+inactivity period. Glicko remains the seeding rating and is still order-dependent.
+
+Every state save also writes `order-neutral-ratings.json` and includes its results
+in `standings.md`. It fits an unregularized Bradley–Terry expected-score model to
+all completed scored games in this run with equal game weights; draws contribute
+half a win in each direction. It does not model a separate draw probability,
+import prior ratings, weight recent results more, or change bracket seeding.
+Ratings use the conventional 400-point logistic scale, centered at mean 1500.
+Different engine revisions under one entrant name are deliberately pooled.
+
+Before fitting, wins create winner-to-loser edges and draws create both edges.
+The entire graph, including unplayed entrants, must be strongly connected for a
+unique finite global fit (up to its fixed mean). Otherwise the report includes
+strongly connected components and their directed edges and publishes no fitted
+ratings. Disconnected schedules can be unidentifiable without infinite estimates;
+one-way separation can send relative estimates to infinity. Neither is hidden
+using priors or caps. See the [BradleyTerryScalable documentation](https://ellakaye.github.io/BradleyTerryScalable/articles/BradleyTerryScalable.html).
+
+The deterministic Newton fit aggregates integer half-points first, verifies
+convergence of predicted versus observed score totals, and reports failure rather
+than outputting unconverged ratings. These are point estimates, not Glicko RD or
+statistical evidence of strength differences. Repeated openings can correlate games.
+
+For a read-only report from an existing run without restarting its coordinator:
+
+```sh
+cargo run --release --bin tournament_ratings -- path/to/state.json
+```
+
+Installing the live Glicko update behavior requires the tournament coordinator
+to resume on the new build. Rolling game-engine updates alone do not replace the
+running coordinator; do not edit its live state externally to simulate this.
