@@ -75,8 +75,8 @@ resumes the backfill without requeuing already refreshed positions.
 
 ## Automatic order-neutral champion
 
-After each batch, before the next one, the collector checks for new completed
-game results. With the collector stopped, enable the rule using:
+Before each position (without interrupting an in-flight search), the collector
+checks for new completed game results. With the collector stopped, enable the rule using:
 
 ```
 python3 deploy/dual_label_sidecar.py enable-champion --run-dir RUN --ratings-bin /absolute/path/tournament_ratings

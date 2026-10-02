@@ -159,7 +159,11 @@ def run(config):
                     for row in batch:
                         if a.STOPPING:
                             break
-                        moment = json.loads(row['payload'])
+                        config = champion_teacher.check(a, run, config)
+                        teacher_refresh.apply_backfill(db, config)
+                        # A promotion can update queued payloads after this batch
+                        # was selected; reload to retain its recovery marker.
+                        moment = json.loads(db.execute('SELECT payload FROM moments WHERE id=?', (row['id'],)).fetchone()['payload'])
                         try:
                             moment = paired_searches(config, moment, db)
                             a.atomic(control / 'moments' / (row['id'] + '.json'), moment)
