@@ -57,7 +57,7 @@ def apply_backfill(db, config):
             db.execute('DELETE FROM dual_failures WHERE id=?', (key,))
 
 
-def replace(a, run, model, check_only=False):
+def replace(a, run, model, check_only=False, engine=None):
     control = run / 'analysis'
     path = control / 'dual-label-config.json'
     config = a.read(path)
@@ -68,11 +68,12 @@ def replace(a, run, model, check_only=False):
     if not name:
         raise ValueError('teacher checkpoint must have a name')
     a.validate_source(config['old'])
-    a.subprocess.run([config['analyzer_bin'], '--validate-model', str(model)], check=True)
+    helper = a.analyzer_for_agent(config['old'], {'engine': engine}) if engine else config
+    a.subprocess.run([helper['analyzer_bin'], '--validate-model', str(model)], check=True)
     sha = a.digest(data)
     db = a.connect(run, 'training-labels.sqlite')
     try:
-        if config['new_sha256'] == sha:
+        if config['new_sha256'] == sha and config.get('new_teacher_agent', {}).get('engine') == engine:
             if not check_only:
                 apply_backfill(db, config)
             return dict(teacher=name, changed=False)
@@ -88,7 +89,7 @@ def replace(a, run, model, check_only=False):
             db.backup(dest)
         binding = a.snapshot_model(model, data, control)
         config.update(new_model=str(model), new_sha256=sha, new_binding=binding,
-                      new_teacher_id=name, teacher_refresh=dict(id=sha, ids=ids))
+                      new_teacher_id=name, new_teacher_agent=dict(name='ab', model=str(model), **({'engine': engine} if engine else {})), teacher_refresh=dict(id=f"{sha}:{time.time_ns()}", ids=ids))
         a.atomic(path, config)
         apply_backfill(db, config)
         return dict(report, backup=str(backup))

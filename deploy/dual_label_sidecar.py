@@ -16,6 +16,7 @@ import time
 import tourney_analysis as a
 import winner_teacher
 import teacher_refresh
+import champion_teacher
 
 BUDGET_MS = 30_000
 
@@ -60,7 +61,9 @@ def teacher_config(config, second):
     if not second:
         return old
     model = config['new_model']
-    return dict(old, label_teacher={'name': 'ab', 'model': model},
+    agent = config.get('new_teacher_agent', {'name': 'ab', 'model': model})
+    return dict(old, label_teacher=agent,
+                rolling_engines=False if agent.get('engine') else old.get('rolling_engines', False),
                 label_teacher_id=config.get('new_teacher_id', 'NNUE_W2048_v3'),
                 models={**old['models'], model: config['new_binding']})
 
@@ -123,6 +126,8 @@ def run(config):
                 if not a.alive(live) or live.get('state') != 'running':
                     print('tournament stopped; dual labeling stopped', flush=True)
                     break
+                config = champion_teacher.check(a, run, config)
+                teacher_refresh.apply_backfill(db, config)
                 winner_teacher.scan(a, db, run, config)
                 a.scan(db, run, labels=True, label_candidates=lambda game: [] if
                        winner_teacher.winner_agent(config, game) else a.training_labels.candidates(game))
@@ -176,9 +181,10 @@ def run(config):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('action', choices=['check', 'prepare', 'run', 'status', 'replace-teacher'])
+    parser.add_argument('action', choices=['check', 'prepare', 'run', 'status', 'replace-teacher', 'enable-champion'])
     parser.add_argument('--run-dir', type=Path, required=True)
     parser.add_argument('--model', type=Path)
+    parser.add_argument('--ratings-bin', type=Path)
     parser.add_argument('--check-only', action='store_true')
     args = parser.parse_args()
     run_dir = args.run_dir.resolve()
@@ -196,6 +202,16 @@ def main():
                 fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
                 result = teacher_refresh.replace(a, run_dir, args.model)
         print(json.dumps(result, indent=2))
+    elif args.action == 'enable-champion':
+        if not args.ratings_bin or not os.access(args.ratings_bin, os.X_OK):
+            parser.error('enable-champion requires executable --ratings-bin')
+        with (run_dir / 'analysis/dual-label.lock').open('a+') as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            path = run_dir / 'analysis/dual-label-config.json'
+            config = a.read(path)
+            config['auto_champion'] = dict(ratings_bin=str(args.ratings_bin.resolve()), ratings_sha256=a.file_digest(args.ratings_bin), margin=50)
+            a.atomic(path, config)
+            print(json.dumps(config['auto_champion'], indent=2))
     elif args.action == 'status':
         print(json.dumps(a.read(run_dir / 'analysis/dual-label-status.json'), indent=2))
     else:

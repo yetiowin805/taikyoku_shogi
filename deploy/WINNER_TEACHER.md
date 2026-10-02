@@ -72,3 +72,29 @@ spread across the existing position list, spaced four plies from selections.
 All outcomes are included. Pending positions use the new teacher automatically;
 future sampling still uses the existing 32-position winner policy. Restart
 resumes the backfill without requeuing already refreshed positions.
+
+## Automatic order-neutral champion
+
+After each batch, before the next one, the collector checks for new completed
+game results. With the collector stopped, enable the rule using:
+
+```
+python3 deploy/dual_label_sidecar.py enable-champion --run-dir RUN --ratings-bin /absolute/path/tournament_ratings
+```
+
+The read-only `tournament_ratings` helper comes from the order-neutral ratings
+implementation (PR #135). Its binary SHA is pinned in the configuration. The
+collector fits an immutable state snapshot and selects the global rating leader
+only if its rating is at least 50 points above the incumbent teacher. It keeps
+that incumbent between switches (not a historical peak rating). All completed
+games have equal weight; inactive or disconnected fits never trigger a switch.
+No extra confidence/significance threshold is imposed.
+
+Each promotion verifies the frozen model and any historical engine binding,
+backs up the catalogue, preserves older labels, and queues the same bounded
+backfill. Pending work uses the current teacher. A unique refresh generation
+allows a previously used teacher to return safely. The original 512v2/winning
+handcrafted first-teacher policy is unchanged. Current decisions/errors live in
+`analysis/champion-status.json`; switches are appended to
+`analysis/champion-switches.jsonl`. Errors leave analysis running on the current
+teacher and retry after at least 60 seconds. No game workers are restarted.
