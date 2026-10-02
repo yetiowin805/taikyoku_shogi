@@ -98,8 +98,8 @@ git pull --ff-only $(printf '%q' "$REMOTE") $(printf '%q' "$BRANCH")
 fi
 
 if [[ "$SKIP_BUILD" != "1" ]]; then
-  echo "cargo build --release as $REPO_USER…"
-  run_as_repo 'cargo build --release'
+  echo "Native CPU release build as $REPO_USER…"
+  run_as_repo './deploy/build_native.sh --release'
 fi
 
 BIN="${BIN:-$ROOT/target/release/taikyoku_shogi}"

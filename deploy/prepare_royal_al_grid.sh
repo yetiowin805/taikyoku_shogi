@@ -9,7 +9,7 @@ if [[ $# -gt 1 || -e "$OUT" ]]; then
   echo "Usage: $0 [NEW_OUTPUT_DIRECTORY]; output must not exist; tournament did not start" >&2
   exit 2
 fi
-cargo build --locked --release --bins
+./deploy/build_native.sh --release --bins
 ./deploy/freeze_history.sh --id LOGIC_PRE_ROYAL_AL
 ./deploy/freeze_history.sh --id LOGIC_PRE_LA
 target/release/taikyoku_shogi royal-al-grid --out "$OUT"

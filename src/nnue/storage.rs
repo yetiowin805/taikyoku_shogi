@@ -76,7 +76,12 @@ impl Accumulator {
     fn ensure_row(&mut self, piece: &Piece, side: usize) -> Option<(usize, usize)> {
         let w = self.net.width;
         self.ensure_storage();
-        let key = (features::key(piece) * 2 + side) * 1296 + piece.position.to_index();
+        // The cache identity is the exact selected feature set, including the
+        // original ability list (White jumping pieces may differ from Black).
+        let ability = features::schema().row_classes[features::key(piece)];
+        let relative_color = usize::from(piece.color == Color::White) ^ side;
+        let square = if side == 1 { 1295 - piece.position.to_index() } else { piece.position.to_index() };
+        let key = (ability * 2 + relative_color) * 1296 + square;
         let slot = ((key as u64)
             .wrapping_mul(0x9e3779b97f4a7c15)
             .rotate_right(32) as usize)
@@ -283,6 +288,30 @@ fn tiled<const T: usize>(
 mod tests {
     use super::*;
     use crate::{board::Board, eval::ALL_PIECE_TYPES, position::Position};
+    #[test]
+    fn canonical_keys_share_exact_features_across_perspectives() {
+        let net = super::super::tests::net(32, "canonical-rows");
+        let mut acc = Accumulator::new(net, &Board::new());
+        for &pt in ALL_PIECE_TYPES {
+            for promoted in [false, true] {
+                for reverse in [false, true] {
+                    let mut black = Piece::new(pt, Color::Black, Position::from_index(37).unwrap());
+                    black.is_promoted = promoted;
+                    black.base_piece_type = reverse.then_some(crate::piece::PieceType::ReverseChariot);
+                    let mut white = black;
+                    white.color = Color::White;
+                    white.position = Position::from_index(1295 - 37).unwrap();
+                    let mut a = Vec::new();
+                    let mut b = Vec::new();
+                    features::visit(&black, Color::Black, |i| a.push(i));
+                    features::visit(&white, Color::White, |i| b.push(i));
+                    let ka = acc.ensure_row(&black, 0).unwrap();
+                    let kb = acc.ensure_row(&white, 1).unwrap();
+                    assert_eq!(ka == kb, a == b);
+                }
+            }
+        }
+    }
     #[test]
     fn fused_rows_and_snapshots_match_scalar_with_collisions() {
         let net = super::super::tests::net(32, "fused-parity");
