@@ -620,6 +620,8 @@ def prepare(args, run):
                "--run-id", run.name, "--outdir", str(run.parent),
                "--jobs", "4", "--depth", str(depth), "--format",
                state.get("format", "knockout") if state else "knockout"]
+    if getattr(args, "top_two_worker", False) or "--top-two-worker" in previous.get("command", []):
+        command.append("--top-two-worker")
     if args.action == "resume":
         command.append("--resume")
     if clock:
@@ -679,6 +681,7 @@ def main():
     parser.add_argument('--revision', help='revision/build description for update-engine')
     parser.add_argument('--compatible-speedup', action='store_true', help='attest this update preserves fixed-depth search behavior')
     parser.add_argument('--rollback-build', help='select a previously published build ID for future work')
+    parser.add_argument("--top-two-worker", action="store_true", help="reserve one game worker for order-neutral top-two pairs")
     parser.add_argument("--depth", type=int)
     parser.add_argument("--time-ms", type=int)
     parser.add_argument('--initial-time-ms', type=int, help='Fischer initial clock per side; 900000 for 15+5')
