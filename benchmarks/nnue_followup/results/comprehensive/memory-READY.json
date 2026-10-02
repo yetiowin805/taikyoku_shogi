@@ -1,0 +1,65 @@
+[
+  {
+    "name": "memory-i16delta",
+    "binary": "/tmp/nnue-comprehensive/bin/memory-i16delta",
+    "sha256": "1aa7ff313893433ae903f141449448b5c62325b03b4e85f5a8fa4210711a7294",
+    "patch": "/tmp/nnue-comprehensive/memory-artifacts/i16delta.patch",
+    "source_manifest": "/tmp/nnue-comprehensive/memory-artifacts/i16delta/source-sha256.json",
+    "clean_log": "/tmp/nnue-comprehensive/memory-artifacts/i16delta-clean.log",
+    "build_log": "/tmp/nnue-comprehensive/memory-artifacts/i16delta-build-clean.log"
+  },
+  {
+    "name": "memory-canonical",
+    "binary": "/tmp/nnue-comprehensive/bin/memory-canonical",
+    "sha256": "6e0ae921e06a59df4486643dfb2df2cc87d602c544ec336aaba03488ebec6612",
+    "patch": "/tmp/nnue-comprehensive/memory-artifacts/canonical.patch",
+    "source_manifest": "/tmp/nnue-comprehensive/memory-artifacts/canonical/source-sha256.json",
+    "clean_log": "/tmp/nnue-comprehensive/memory-artifacts/canonical-clean.log",
+    "build_log": "/tmp/nnue-comprehensive/memory-artifacts/canonical-build-clean.log"
+  },
+  {
+    "name": "memory-hugepages-weights",
+    "binary": "/tmp/nnue-comprehensive/bin/memory-hugepages-weights",
+    "sha256": "c0149a155220a285d5287e6dc072c59b112ada46ea32e028345ea1ac3bf8d954",
+    "patch": "/tmp/nnue-comprehensive/memory-artifacts/hugepages-weights.patch",
+    "source_manifest": "/tmp/nnue-comprehensive/memory-artifacts/hugepages-weights/source-sha256.json",
+    "clean_log": "/tmp/nnue-comprehensive/memory-artifacts/hugepages-weights-clean.log",
+    "build_log": "/tmp/nnue-comprehensive/memory-artifacts/hugepages-weights-build-clean.log"
+  },
+  {
+    "name": "memory-hugepages",
+    "binary": "/tmp/nnue-comprehensive/bin/memory-hugepages",
+    "sha256": "0ffb4321672c781f03bd8f88915f68e1b2cdbdb5b2426dccd57d66d78c8a512d",
+    "patch": "/tmp/nnue-comprehensive/memory-artifacts/hugepages.patch",
+    "source_manifest": "/tmp/nnue-comprehensive/memory-artifacts/hugepages/source-sha256.json",
+    "clean_log": "/tmp/nnue-comprehensive/memory-artifacts/hugepages-clean.log",
+    "build_log": "/tmp/nnue-comprehensive/memory-artifacts/hugepages-build-clean.log"
+  },
+  {
+    "name": "memory-prefetch",
+    "binary": "/tmp/nnue-comprehensive/bin/memory-prefetch",
+    "sha256": "24dd828df9d01fb617779ac089ab337856c5da3e26809ffd0b13e5570090507d",
+    "patch": "/tmp/nnue-comprehensive/memory-artifacts/prefetch.patch",
+    "source_manifest": "/tmp/nnue-comprehensive/memory-artifacts/prefetch/source-sha256.json",
+    "clean_log": "/tmp/nnue-comprehensive/memory-artifacts/prefetch-clean.log",
+    "build_log": "/tmp/nnue-comprehensive/memory-artifacts/prefetch-build-clean.log"
+  },
+  {
+    "name": "memory-transposed",
+    "binary": "/tmp/nnue-comprehensive/bin/memory-transposed",
+    "sha256": "f75cdb4a5400f1ea5882f1165045e59cb30378a49b3ee8619de0a4b631f9e83d",
+    "patch": "/tmp/nnue-comprehensive/memory-artifacts/transposed.patch",
+    "source_manifest": "/tmp/nnue-comprehensive/memory-artifacts/transposed/source-sha256.json",
+    "clean_log": "/tmp/nnue-comprehensive/memory-artifacts/transposed-clean.log",
+    "build_log": "/tmp/nnue-comprehensive/memory-artifacts/transposed-build-clean.log"
+  },
+  {
+    "name": "memory-i16delta-fused",
+    "binary": "/tmp/nnue-comprehensive/bin/memory-i16delta-fused",
+    "sha256": "f0306e3e2bf94708abf63195a1c414de7c9ebec80d4362b1e700afe6e1967a8b",
+    "patch": "/tmp/nnue-comprehensive/memory-artifacts/i16delta-fused.patch",
+    "source_manifest": "/tmp/nnue-comprehensive/memory-artifacts/i16delta-fused/source-sha256.json",
+    "clean_log": "/tmp/nnue-comprehensive/memory-artifacts/i16delta-fused-clean.log",
+    "build_log": "/tmp/nnue-comprehensive/memory-artifacts/i16delta-fused-build-clean.log"
+  }
+]

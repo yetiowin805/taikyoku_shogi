@@ -1,0 +1,129 @@
+{
+  "all": {
+    "pairs": 24,
+    "time_ratio": 0.8968583681095232,
+    "total_ms": {
+      "baseline": 1290.830126,
+      "candidate": 924.2350729999999
+    },
+    "total_time_ratio": 0.7160005444434444,
+    "peak_rss_kib": {
+      "baseline": 1001368,
+      "candidate": 1051180
+    }
+  },
+  "by_model": {
+    "NNUE512_v3": {
+      "pairs": 12,
+      "time_ratio": 1.1160045360462936,
+      "total_ms": {
+        "baseline": 596.2034120000001,
+        "candidate": 483.603443
+      },
+      "total_time_ratio": 0.8111383351157339,
+      "peak_rss_kib": {
+        "baseline": 1001368,
+        "candidate": 1051096
+      }
+    },
+    "NNUE1536_v3": {
+      "pairs": 12,
+      "time_ratio": 0.7207452178444471,
+      "total_ms": {
+        "baseline": 694.626714,
+        "candidate": 440.63163
+      },
+      "total_time_ratio": 0.6343430523462419,
+      "peak_rss_kib": {
+        "baseline": 1001368,
+        "candidate": 1051180
+      }
+    }
+  },
+  "by_position": {
+    "opening": {
+      "pairs": 4,
+      "time_ratio": 0.5946535079645349,
+      "total_ms": {
+        "baseline": 635.950852,
+        "candidate": 394.169887
+      },
+      "total_time_ratio": 0.6198118703047197,
+      "peak_rss_kib": {
+        "baseline": 1001368,
+        "candidate": 1051180
+      }
+    },
+    "middlegame": {
+      "pairs": 4,
+      "time_ratio": 0.6821937466384504,
+      "total_ms": {
+        "baseline": 160.074759,
+        "candidate": 106.59388200000001
+      },
+      "total_time_ratio": 0.665900624595037,
+      "peak_rss_kib": {
+        "baseline": 1001368,
+        "candidate": 1051096
+      }
+    },
+    "tactical": {
+      "pairs": 4,
+      "time_ratio": 0.8471446372123509,
+      "total_ms": {
+        "baseline": 117.368465,
+        "candidate": 103.18655
+      },
+      "total_time_ratio": 0.8791675856031685,
+      "peak_rss_kib": {
+        "baseline": 1001368,
+        "candidate": 1051096
+      }
+    },
+    "late-independent": {
+      "pairs": 4,
+      "time_ratio": 0.7326412805286386,
+      "total_ms": {
+        "baseline": 308.41474700000003,
+        "candidate": 225.048095
+      },
+      "total_time_ratio": 0.7296930422072196,
+      "peak_rss_kib": {
+        "baseline": 1001368,
+        "candidate": 1051096
+      }
+    },
+    "late-royal": {
+      "pairs": 4,
+      "time_ratio": 1.2941548279934685,
+      "total_ms": {
+        "baseline": 20.244077,
+        "candidate": 22.428221
+      },
+      "total_time_ratio": 1.1078905202741522,
+      "peak_rss_kib": {
+        "baseline": 1001368,
+        "candidate": 1051096
+      }
+    },
+    "late-endgame": {
+      "pairs": 4,
+      "time_ratio": 1.5971153386477208,
+      "total_ms": {
+        "baseline": 48.777226,
+        "candidate": 72.808438
+      },
+      "total_time_ratio": 1.492672789551419,
+      "peak_rss_kib": {
+        "baseline": 1001368,
+        "candidate": 1051096
+      }
+    }
+  },
+  "all_signatures_match": true,
+  "load_after": [
+    9.12158203125,
+    6.1044921875,
+    4.8759765625
+  ]
+}

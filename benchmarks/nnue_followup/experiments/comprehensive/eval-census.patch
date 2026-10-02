@@ -1,0 +1,182 @@
+--- a/src/nnue/mod.rs
++++ b/src/nnue/mod.rs
+@@ -205,13 +205,72 @@
+     pub net: Arc<Network>,
+     sums: Vec<i32>,
+     storage: storage::Storage,
++    consumed: std::cell::RefCell<Vec<(bool, usize, usize, bool)>>,
++}
++#[derive(Default)]
++pub struct StudyStats {
++    evals: u64, moves: u64, changes: u64, unused_moves: u64, unused_changes: u64,
++    leaf_evals: u64, repeats: u64, unique: std::collections::HashSet<(usize, u64)>,
++    move_lanes: u64, move_outside_i16: u64, eval_lanes: u64, eval_outside_i16: u64,
++    min_sum: i32, max_sum: i32,
++    residual_samples: u64, residual_ns: u64, update_samples: u64, update_ns: u64,
++    q_evals: u64, q_cutoffs: u64, material_bound_cutoffs: u64, clamp_shortcuts: u64,
++    residual_bounds: Option<(i32, i32)>,
++}
++thread_local! { static STUDY: std::cell::RefCell<StudyStats> = Default::default(); }
++pub fn study_stats() -> serde_json::Value {
++    STUDY.with(|v| {
++        let s = std::mem::take(&mut *v.borrow_mut());
++        serde_json::json!({"evals":s.evals,"moves":s.moves,"changes":s.changes,
++            "unused_moves":s.unused_moves,"unused_changes":s.unused_changes,"leaf_evals":s.leaf_evals,
++            "position_repeats":s.repeats,"unique_positions":s.unique.len(),
++            "move_lanes":s.move_lanes,"move_outside_i16":s.move_outside_i16,
++            "eval_lanes":s.eval_lanes,"eval_outside_i16":s.eval_outside_i16,
++            "min_sum":s.min_sum,"max_sum":s.max_sum,
++            "residual_samples":s.residual_samples,"residual_ns":s.residual_ns,
++            "update_samples":s.update_samples,"update_ns":s.update_ns,
++            "q_evals":s.q_evals,"q_cutoffs":s.q_cutoffs,"clamp_shortcuts":s.clamp_shortcuts,
++            "material_bound_cutoffs":s.material_bound_cutoffs,"residual_bounds":s.residual_bounds})
++    })
++}
++pub(crate) fn study_saturation(net: &Arc<Network>, signed: f32, mate_score: i32) {
++    let (lo,hi)=net.residual_bounds();
++    let material=signed.round() as i32;
++    let guaranteed=material+lo>=mate_score/2 || material+hi<=-mate_score/2;
++    STUDY.with(|v|v.borrow_mut().clamp_shortcuts+=u64::from(guaranteed));
++}
++pub(crate) fn study_position(net: &Arc<Network>, key: u64) {
++    STUDY.with(|v| { let mut s=v.borrow_mut(); if !s.unique.insert((Arc::as_ptr(net) as usize,key)) {s.repeats+=1;} });
++}
++pub(crate) fn study_q(state: &crate::game_state::GameState, weights: &crate::eval::EvalWeights, beta:i32, cutoff:bool) {
++    let Some(net) = &weights.nnue_runtime else {return;};
++    let bounds = net.residual_bounds();
++    let material = state.eval_inc().filter(|i|i.matches(weights)).map(|i|i.mat[0]-i.mat[1]).unwrap_or_else(||material(state.get_board(),weights));
++    let signed=if state.get_current_turn()==Color::Black {material} else {-material};
++    let guaranteed=(signed.round() as i32 + bounds.0).clamp(-weights.mate_score/2,weights.mate_score/2) >= beta;
++    STUDY.with(|v| {let mut s=v.borrow_mut();s.q_evals+=1;s.q_cutoffs+=u64::from(cutoff);s.material_bound_cutoffs+=u64::from(cutoff&&guaranteed);s.residual_bounds=Some(bounds);});
++}
++impl Network {
++    fn residual_bounds(&self)->(i32,i32) {
++        // Every final hidden activation lies in [0,1]. Follow the exact f32
++        // accumulation order: IEEE operations are monotone, so this remains
++        // conservative including rounding and the final clamp.
++        let mut lo=self.out_bias; let mut hi=self.out_bias;
++        for &v in &self.out {lo+=v.min(0.);hi+=v.max(0.);}
++        ((lo*1000.).round().clamp(-100_000.,100_000.) as i32,
++         (hi*1000.).round().clamp(-100_000.,100_000.) as i32)
++    }
++}
++struct UpdateTimer(Option<std::time::Instant>);
++impl Drop for UpdateTimer {
++    fn drop(&mut self) {if let Some(t)=self.0 {let ns=t.elapsed().as_nanos() as u64;STUDY.with(|v|{let mut s=v.borrow_mut();s.update_samples+=1;s.update_ns+=ns;});}}
+ }
+ thread_local! {static INPUT:std::cell::RefCell<Vec<u8>>=const{std::cell::RefCell::new(Vec::new())};}
+ impl Accumulator {
+     pub fn new(net: Arc<Network>, board: &Board) -> Self {
+         let mut sums = net.bias.clone();
+         sums.extend_from_slice(&net.bias);
+-        let mut a = Self { net, sums, storage: storage::Storage::default() };
++        let mut a = Self { net, sums, storage: storage::Storage::default(), consumed: Default::default() };
+         for c in [Color::Black, Color::White] {
+             for p in board.pieces_by_color(c) {
+                 a.change(p, 1);
+@@ -226,6 +285,13 @@
+         self.change_cached(p, sign);
+     }
+     pub fn residual(&self, stm: Color) -> i32 {
++        {
++            let mut frames=self.consumed.borrow_mut();
++            for frame in frames.iter_mut() {frame.0=true;}
++            if let Some(frame)=frames.last_mut() {frame.2+=1;}
++        }
++        let sampled=STUDY.with(|v| {let mut s=v.borrow_mut();s.evals+=1;s.eval_lanes+=self.sums.len() as u64;s.eval_outside_i16+=self.sums.iter().filter(|&&a|i16::try_from(a).is_err()).count() as u64;s.min_sum=s.min_sum.min(*self.sums.iter().min().unwrap());s.max_sum=s.max_sum.max(*self.sums.iter().max().unwrap());s.evals%256==17});
++        let timer=sampled.then(std::time::Instant::now);
+         let w = self.net.width;
+         let first = usize::from(stm == Color::White);
+         INPUT.with(|input| {
+@@ -258,7 +324,9 @@
+                 result += ((sum + self.net.b2[j] + 32) / 64).clamp(0, 127) as f32 / 127.
+                     * self.net.out[j];
+             }
+-            (result * 1000.).round().clamp(-100_000., 100_000.) as i32
++            let score=(result * 1000.).round().clamp(-100_000., 100_000.) as i32;
++            if let Some(t)=timer {let ns=t.elapsed().as_nanos() as u64;STUDY.with(|v|{let mut s=v.borrow_mut();s.residual_samples+=1;s.residual_ns+=ns;});}
++            score
+         })
+     }
+     pub fn matches_rebuild(&self, board: &Board) -> bool {
+--- a/src/nnue/storage.rs
++++ b/src/nnue/storage.rs
+@@ -147,6 +147,14 @@
+     /// single tiled pass per perspective. The new sums are written into the
+     /// recycled undo buffer, so no separate snapshot copy is needed.
+     pub(crate) fn save_and_apply(&mut self, subs: &[Piece], add: Option<&Piece>) -> Snapshot {
++        let changes=subs.len()+usize::from(add.is_some());
++        {
++            let mut frames=self.consumed.borrow_mut();
++            if let Some(parent)=frames.last_mut(){parent.3=true;}
++            frames.push((false,changes,0,false));
++        }
++        let sampled=super::STUDY.with(|v|{let mut s=v.borrow_mut();s.moves+=1;s.changes+=changes as u64;s.moves%256==71});
++        let _timer=super::UpdateTimer(sampled.then(std::time::Instant::now));
+         let w = self.net.width;
+         let mut out = self.storage.undo_pool.pop().unwrap_or_default();
+         out.resize(2 * w, 0);
+@@ -241,6 +249,16 @@
+         }
+     }
+     pub(crate) fn restore_sums(&mut self, mut saved: Snapshot) -> bool {
++        let frame=self.consumed.borrow_mut().pop();
++        super::STUDY.with(|v|{let mut s=v.borrow_mut();
++            s.move_lanes+=self.sums.len() as u64;
++            s.move_outside_i16+=self.sums.iter().filter(|&&a|i16::try_from(a).is_err()).count() as u64;
++            s.min_sum=s.min_sum.min(*self.sums.iter().min().unwrap());s.max_sum=s.max_sum.max(*self.sums.iter().max().unwrap());
++            if let Some((needed,changes,evals,had_child))=frame {
++                if !needed{s.unused_moves+=1;s.unused_changes+=changes as u64;}
++                if !had_child{s.leaf_evals+=evals as u64;}
++            }
++        });
+         // Ordinary search keeps one model bound throughout. Reject a snapshot
+         // if a caller explicitly rebound the GameState between make and undo.
+         if !Arc::ptr_eq(&saved.net, &self.net) {
+--- a/src/eval.rs
++++ b/src/eval.rs
+@@ -1677,7 +1677,7 @@
+ #[derive(Debug, Clone, PartialEq)]
+ pub struct EvalInc {
+     weight_seed: u64,
+-    mat: [f32; 2],
++    pub(crate) mat: [f32; 2],
+     pst: [f32; 2],
+     undev: [f32; 2],
+     royals: [u16; 2],
+@@ -1773,12 +1773,14 @@
+     #[cfg(feature = "search-profile")]
+     let _prof = crate::profile_timers::eval_scope();
+     if let Some(net) = &weights.nnue_runtime {
++        crate::nnue::study_position(net, state.hash() ^ crate::zobrist::draw_key(state.get_turns_without_capture_or_promotion()));
+         let fresh;
+         let acc = if let Some(a) = state.nnue.as_ref().filter(|a|a.matches(net)) { a } else {
+             fresh = crate::nnue::Accumulator::new(net.clone(),state.get_board()); &fresh
+         };
+         let material = state.eval_inc().filter(|i|i.matches(weights)).map(|i|i.mat[0]-i.mat[1]).unwrap_or_else(||crate::nnue::material(state.get_board(),weights));
+         let signed = if stm == Color::Black {material} else {-material};
++        crate::nnue::study_saturation(net, signed, weights.mate_score);
+         return (signed.round() as i32 + acc.residual(stm)).clamp(-weights.mate_score/2,weights.mate_score/2);
+     }
+     assert!(weights.nnue.is_none(), "NNUE descriptor has not been loaded from its checkpoint");
+--- a/src/search.rs
++++ b/src/search.rs
+@@ -3838,6 +3838,7 @@
+     }
+     let resolve_major = prev_to_is_major_enemy(state, weights, prev_to);
+     let has_royal_take = stm_has_royal_capture(state);
++    crate::nnue::study_q(state, weights, beta, stand_pat >= beta && !resolve_major && !has_royal_take);
+     if stand_pat >= beta && !resolve_major && !has_royal_take {
+         ctx.q_tt.store(TtEntry {
+             key,
+--- a/examples/nnue_tournament_bench.rs
++++ b/examples/nnue_tournament_bench.rs
+@@ -101,7 +101,7 @@
+             json!({"position":q.position,"name":corpus.positions[q.position].name,"model":q.model,"agent":corpus.models[q.model].name,
+             "ms":ms,"cpu_ms":cpu_ms,"depth":q.depth,"completed_depth":result.completed_depth,"aborted":result.aborted,
+             "nodes":result.nodes,"q_nodes":result.q_nodes,"score":result.score,"best":result.best_move,"signature":signature_sha256,
+-            "pieces":pieces,"legal":legal.len(),"ply":corpus.positions[q.position].ply,"hash":state.hash(),"nnue":player.weights().nnue_runtime.is_some()})
++            "census":taikyoku_shogi::nnue::study_stats(),"pieces":pieces,"legal":legal.len(),"ply":corpus.positions[q.position].ply,"hash":state.hash(),"nnue":player.weights().nnue_runtime.is_some()})
+         );
+         io::stdout().flush().unwrap();
+     }

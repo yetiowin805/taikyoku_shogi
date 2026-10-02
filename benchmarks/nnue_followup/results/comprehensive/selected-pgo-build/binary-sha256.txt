@@ -1,0 +1,4 @@
+ed4d5956b3373fe98322e8090a0f0d59fdea3810205789860b7cf25919836914  /tmp/nnue-comprehensive/selected-pgo/bin/analyze_position
+6d1e4dd26f32e145d5190ebc838a3c3d45479e4bf3135a2655c97eef4ee22050  /tmp/nnue-comprehensive/selected-pgo/bin/benchmark
+90785d1bb02ba4dcebb78d0971f036a2d37052697fd63336dc2a70272b4b0703  /tmp/nnue-comprehensive/selected-pgo/bin/instrumented
+556b600500491c7547859502d3a46b1f6c7039879344c78b75d1cb380292c47b  /tmp/nnue-comprehensive/selected-pgo/bin/taikyoku_shogi

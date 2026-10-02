@@ -1,0 +1,178 @@
+--- a/src/nnue/mod.rs
++++ b/src/nnue/mod.rs
+@@ -2,7 +2,7 @@
+ pub mod features;
+ mod storage;
+ mod packed;
+-pub(crate) use storage::Snapshot;
++// Search snapshots may represent a move whose accumulator update is still deferred.
+ use crate::{
+     board::Board,
+     piece::{Color, Piece},
+@@ -201,13 +201,13 @@
+     }
+ }
+ #[derive(Debug, Clone)]
+-pub struct Accumulator {
++pub struct EagerAccumulator {
+     pub net: Arc<Network>,
+     sums: Vec<i32>,
+     storage: storage::Storage,
+ }
+ thread_local! {static INPUT:std::cell::RefCell<Vec<u8>>=const{std::cell::RefCell::new(Vec::new())};}
+-impl Accumulator {
++impl EagerAccumulator {
+     pub fn new(net: Arc<Network>, board: &Board) -> Self {
+         let mut sums = net.bias.clone();
+         sums.extend_from_slice(&net.bias);
+@@ -273,6 +273,90 @@
+         }
+     }
+     sums[0] - sums[1]
++}
++
++
++#[derive(Debug, Clone)]
++pub(crate) struct Snapshot {
++    net: Arc<Network>,
++    depth: usize,
++}
++#[derive(Debug, Clone)]
++struct DeferredFrame {
++    subs: Vec<Piece>,
++    add: Option<Piece>,
++    saved: Option<storage::Snapshot>,
++}
++#[derive(Debug, Clone)]
++pub struct Accumulator {
++    pub net: Arc<Network>,
++    eager: std::cell::RefCell<EagerAccumulator>,
++    frames: std::cell::RefCell<Vec<DeferredFrame>>,
++}
++impl Accumulator {
++    pub fn new(net: Arc<Network>, board: &Board) -> Self {
++        Self { net: net.clone(), eager: std::cell::RefCell::new(EagerAccumulator::new(net, board)), frames: Default::default() }
++    }
++    pub fn matches(&self, net: &Arc<Network>) -> bool { Arc::ptr_eq(&self.net, net) }
++    fn materialize(&self) {
++        let mut frames=self.frames.borrow_mut();
++        if frames.last().is_none_or(|f|f.saved.is_some()){return;}
++        let mut eager=self.eager.borrow_mut();
++        for frame in frames.iter_mut().filter(|f|f.saved.is_none()) {
++            frame.saved=Some(eager.save_and_apply(&frame.subs, frame.add.as_ref()));
++        }
++    }
++    pub fn residual(&self, stm: Color) -> i32 {
++        self.materialize();
++        self.eager.borrow().residual(stm)
++    }
++    pub fn change(&mut self, p: &Piece, sign: i32) {
++        self.materialize();
++        self.eager.get_mut().change(p,sign);
++    }
++    pub fn matches_rebuild(&self, board: &Board) -> bool {
++        self.materialize();
++        self.eager.borrow().matches_rebuild(board)
++    }
++    pub(crate) fn save_and_apply(&mut self, subs: Vec<Piece>, add: Option<Piece>) -> Snapshot {
++        let frames=self.frames.get_mut();
++        let saved=Snapshot {net:self.net.clone(),depth:frames.len()};
++        frames.push(DeferredFrame{subs,add,saved:None});
++        saved
++    }
++    pub(crate) fn restore_sums(&mut self, saved: Snapshot) -> bool {
++        if !Arc::ptr_eq(&saved.net,&self.net) || self.frames.get_mut().len()!=saved.depth+1 {return false;}
++        let frame=self.frames.get_mut().pop().unwrap();
++        if let Some(snapshot)=frame.saved {self.eager.get_mut().restore_sums(snapshot)} else {true}
++    }
++    #[cfg(test)]
++    pub(crate) fn materialized_sums(&self) -> Vec<i32> { self.materialize();self.eager.borrow().sums.clone() }
++}
++#[cfg(test)]
++mod lazy_tests {
++    use super::*;
++    use crate::{game_state::GameState,eval::{self,EvalWeights}};
++    #[test]
++    fn deferred_tree_matches_eager_at_descendants_clones_and_undo() {
++        let mut state=GameState::new();state.setup_initial_position();
++        let mut weights=EvalWeights::seed();weights.nnue_runtime=Some(tests::net(32,"lazy"));
++        let _binding=eval::bind_search_weights(&weights);state.ensure_eval_inc(&weights);
++        let original=state.nnue.as_ref().unwrap().materialized_sums();
++        for first in state.generate_legal_moves().into_iter().take(12) {
++            let Some(u)=state.make_move_for_search(first) else {continue;};
++            assert!(state.nnue.as_ref().unwrap().frames.borrow().last().unwrap().saved.is_none());
++            for second in state.generate_legal_moves().into_iter().take(8) {
++                let Some(v)=state.make_move_for_search(second) else {continue;};
++                let clone=state.clone();
++                assert!(clone.nnue.as_ref().unwrap().matches_rebuild(clone.get_board()));
++                assert!(state.nnue.as_ref().unwrap().matches_rebuild(state.get_board()));
++                state.unmake_move_for_search(v);
++                assert!(state.nnue.as_ref().unwrap().matches_rebuild(state.get_board()));
++            }
++            state.unmake_move_for_search(u);
++            assert_eq!(state.nnue.as_ref().unwrap().materialized_sums(),original);
++        }
++    }
+ }
+ 
+ #[cfg(test)]
+@@ -378,7 +462,7 @@
+             .unwrap()
+             .matches_rebuild(clone.get_board()));
+         s.unmake_move_for_search(u);
+-        assert_eq!(old.sums, s.nnue.as_ref().unwrap().sums);
++        assert_eq!(old.materialized_sums(), s.nnue.as_ref().unwrap().materialized_sums());
+         s.set_current_turn(Color::White);
+         assert!(s.nnue.as_ref().unwrap().matches_rebuild(s.get_board()));
+         s.set_current_turn(Color::Black);
+--- a/src/nnue/storage.rs
++++ b/src/nnue/storage.rs
+@@ -1,5 +1,5 @@
+ //! Bounded model-local feature sums and reusable make/unmake snapshots.
+-use super::{features, Accumulator};
++use super::{features, EagerAccumulator as Accumulator};
+ use crate::piece::{Color, Piece};
+ use std::sync::{Arc, Weak};
+ 
+@@ -358,17 +358,17 @@
+             let net = Arc::new(net);
+             let mut s = GameState::new();
+             s.setup_initial_position();
+-            s.nnue = Some(Accumulator::new(net.clone(), s.get_board()));
++            s.nnue = Some(super::super::Accumulator::new(net.clone(), s.get_board()));
+             assert_eq!(
+-                s.nnue.as_ref().unwrap().sums,
++                s.nnue.as_ref().unwrap().materialized_sums(),
+                 reference(&net, s.get_board())
+             );
+-            let before = s.nnue.as_ref().unwrap().sums.clone();
++            let before = s.nnue.as_ref().unwrap().materialized_sums().clone();
+             let mut undos = Vec::new();
+             for mv in s.generate_legal_moves().into_iter().take(40) {
+                 if let Some(u) = s.make_move_for_search(mv) {
+                     assert_eq!(
+-                        s.nnue.as_ref().unwrap().sums,
++                        s.nnue.as_ref().unwrap().materialized_sums(),
+                         reference(&net, s.get_board())
+                     );
+                     undos.push(u);
+@@ -382,7 +382,7 @@
+             while let Some(u) = undos.pop() {
+                 s.unmake_move_for_search(u);
+             }
+-            assert_eq!(s.nnue.as_ref().unwrap().sums, before);
++            assert_eq!(s.nnue.as_ref().unwrap().materialized_sums(), before);
+             if big {
+                 // The initial army must contain pieces whose summed row overflows i16.
+                 let wide = |p: &Piece| features::schema().pieces[features::key(p)].len() >= 3;
+--- a/src/game_state.rs
++++ b/src/game_state.rs
+@@ -1527,7 +1527,7 @@
+             subs.push(original_mover);
+             subs.extend(removed.iter().map(|(_, p)| *p));
+             let added = self.board.get_piece(final_to);
+-            Some(acc.save_and_apply(&subs, added.as_ref()))
++            Some(acc.save_and_apply(subs, added))
+         } else {
+             None
+         };

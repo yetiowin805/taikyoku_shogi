@@ -1,0 +1,42 @@
+--- a/src/nnue/storage.rs
++++ b/src/nnue/storage.rs
+@@ -70,6 +70,31 @@
+     }
+ }
+ impl Accumulator {
++    #[inline]
++    fn prefetch_piece(&self, piece: &Piece, side: usize) {
++        #[cfg(target_arch = "x86_64")]
++        {
++            use std::arch::x86_64::{_mm_prefetch, _MM_HINT_T0};
++            let w = self.net.width;
++            let key = (features::key(piece) * 2 + side) * 1296 + piece.position.to_index();
++            let slot = ((key as u64).wrapping_mul(0x9e3779b97f4a7c15).rotate_right(32) as usize) % SLOTS;
++            // Start the row fetch before the batched update requests it; let
++            // hardware prefetch handle the remaining contiguous cache lines.
++            let prefetch = |row: &[i16]| unsafe {
++                _mm_prefetch(row.as_ptr().cast(), _MM_HINT_T0);
++                if row.len() >= 64 { _mm_prefetch(row.as_ptr().add(32).cast(), _MM_HINT_T0); }
++            };
++            if self.storage.keys[slot] == key {
++                prefetch(&self.storage.rows[slot * w..(slot + 1) * w]);
++            } else {
++                features::visit(piece, [Color::Black, Color::White][side], |i| {
++                    prefetch(&self.net.weights[i * w..(i + 1) * w]);
++                });
++            }
++        }
++        #[cfg(not(target_arch = "x86_64"))]
++        let _ = (piece, side);
++    }
+     /// Offset in `rows` of the summed ability rows of `piece` from one
+     /// perspective, with its cache key, or `None` if that sum does not fit
+     /// i16 (then callers add the weight rows directly, which is exact).
+@@ -185,6 +210,7 @@
+         };
+         let mut slots = std::mem::take(&mut self.storage.scratch);
+         for side in 0..2 {
++            for p in subs.iter().chain(add) { self.prefetch_piece(p, side); }
+             slots.clear();
+             let mut cached = true;
+             for (p, plus) in subs

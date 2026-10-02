@@ -9,6 +9,63 @@ The original analysis was a code read of `board.rs`, `movement/`, `game_state.rs
 
 The original proposal estimates are **historical guesses**, not remaining gains from current `main`. Validate new exact changes with paired held-out searches and behavior-changing changes with games. Component estimates overlap and must not be added.
 
+## 2026-10-02 real-network verification and NNUE follow-up
+
+**Latest follow-up:** [comprehensive remaining-idea experiments](benchmarks/nnue_followup/COMPREHENSIVE.md)
+adds real-network tests of PGO/native/LTO builds, canonical rows, root reuse,
+capture memos, promotion generation, deferred/evaluation caches, narrow deltas,
+huge pages, prefetch and transposed inference, plus TT research and synthetic
+architecture-cost probes. The additional selected source is `cf85eb3`;
+414 release tests pass. The section below retains the first-round `903986e`
+results as historical evidence. No NNUE retraining was performed.
+
+The five supplied cloud-session patches were checked against updated main
+`c639ca2` on an i7-1255U, using actual trained v2/v3 networks and original
+tournament histories. Both builds used `target-cpu=native`. Two interleaved
+repetitions per case required identical full moves, scores, root lines, depth,
+and main/q node counts. All final-source comparisons matched, and 412 release
+library tests passed (four ignored).
+
+**Selected production code:** batched NNUE updates, i16 fused rows with exact i32
+fallback, whole-move delta caching, flat per-thread caches retained across
+searches of the same network, attack/gate memo tables, and dense AVX-VNNI in
+addition to the supplied AVX-512 path. Memo keys were hardened for promoted
+Whale origins and generation rollover. Parked caches use weak network identities.
+These are implementation changes; no weights, model format, pruning, or TT
+semantics were changed.
+
+On 24 consecutive tournament roots (six adjacent positions from each of four
+games, depth 2), candidate/main elapsed ratios were **0.564 for NNUE2048 v2**,
+**0.766 for NNUE512 v2**, **0.761 for NNUE512 v3**, **0.614 for NNUE1536 v3**, and
+**0.935 for the handcrafted BASE checkpoint**. The large NNUE game-sequence
+speedup is confirmed in scale, about 1.77x for W2048 here. On the broader shuffled
+12-position corpus, the v2 NNUE ratios were only **0.802/0.911 at W2048/W512**;
+workload and cache reuse matter. Handcrafted shuffled ratios were 0.961 and 0.933.
+A six-position shallow v3 W512 screen regressed to 1.123x by equal-position mean,
+including two late searches that became a few milliseconds slower; its sequential
+depth-2 result improved substantially. Do not promise every search gets faster.
+
+The main local experiments were:
+
+- **AVX-VNNI without AVX-512:** about 3% additional search-time savings on both
+  trained v2 widths, with scalar parity; retained. AVX-512 is unavailable locally.
+- **Smaller row/delta caches:** 128 to 48 MiB maximum payload per thread at W2048.
+  About 3–4% faster on shuffled roots but 1–4% slower on game sequences; documented
+  as a memory tradeoff, not selected for production.
+- **Sparse first layer:** only 0.25–0.55% zero inputs on real v2/v3 nets, and no
+  all-zero four-input blocks. The isolated sparse/transposed kernel was mixed;
+  leave production dense. This replaces the earlier unmeasured sparse estimate.
+- **Move-delta ablation:** on the smaller-cache build, enabling deltas saved about
+  3% on shuffled roots and 6%/10% on W512/W2048 game sequences. 89–94% of eligible
+  changes hit the cache in the census, confirming substantial sweep reuse.
+
+The architecture R² tables below are the supplied cloud proxy, **not revalidated
+playing strength**. Pairwise + 16-wide + PSQT remains a promising retraining
+candidate. PGO, huge pages, prefetch, persistent TT, and small leaf networks were
+not measured in this follow-up. Detailed results, caveats, reproduction commands,
+raw pairs, census samples, source identities and experimental patches are in
+[`benchmarks/nnue_followup/README.md`](benchmarks/nnue_followup/README.md).
+
 ## 2026-09-27 attack-filter follow-up (candidate branch)
 
 Starting from `main` at `25e1fdc` (after PR #129), this round tested exact
@@ -55,6 +112,423 @@ board-lifetime boundaries. The ignored local run records are under
 not implemented. Attack-query reuse across the leaf gates is still possible,
 but the single-entry q cache did not help. The staged TT picker and search-tree
 changes below require move/strength evaluation.
+
+## NNUE architecture study and move-delta cache — 2026-09-30 (cloud session, part 2)
+
+Base: this branch after the NNUE bundle below (`ff2a491`). The same caveat
+applies: no trained blob is available here, so all timings use a synthetic
+network of the production layout.
+
+### Method: trace replay
+
+Every accumulator make, unmake and eval of the six fixed-depth searches
+(width-2048 synthetic net) was recorded. The recorded sequences were replayed
+against (a) the engine's `Accumulator` and (b) a configurable replica of
+alternative architectures. This times only NNUE work, on the exact sequence of
+operations real search trees produce. The replica's eval matches the engine's
+(0.40 s vs 0.43 s over the six traces). Replica caches stay warm across
+replays, which matches the engine once caches persist across searches (below).
+
+The sweep-heavy trees are not an artifact of the synthetic net. Handcrafted
+search removes as many pieces per make:
+
+| Position | HC removed/make | HC makes with 3+ removed | NNUE removed/make |
+|---|---:|---:|---:|
+| opening | 12.0 | 85% | 11.7 |
+| pawnmid | 12.6 | 88% | 11.3 |
+| open | 8.4 | 90% | 8.2 |
+| sparse | 4.6 | 53% | 3.8 |
+| sp120 | 4.9 | 48% | 4.8 |
+| sp240 | 7.5 | 59% | 7.4 |
+
+### Finding: quiescence re-makes the same capture sweeps
+
+| Position | makes | distinct changed-piece lists | changes in 4+-piece moves | of those, repeats | row reads saved by a perfect delta cache |
+|---|---:|---:|---:|---:|---:|
+| opening | 14,773 | 1,712 | 97% | 92% | 84% |
+| pawnmid | 27,087 | 1,923 | 97% | 96% | 87% |
+| open | 96,138 | 2,707 | 97% | 99% | 87% |
+| sparse | 26,491 | 3,720 | 80% | 97% | 70% |
+| sp120 | 8,529 | 1,103 | 95% | 94% | 83% |
+| sp240 | 28,279 | 1,623 | 94% | 97% | 85% |
+
+The same great-general-style sweep, removing the same 10–20 pieces, is tried at
+many sibling and cousin q-nodes. The accumulator delta of such a move depends
+only on the exact changed pieces and squares, so it can be cached.
+
+### Exact engine changes (commit `4071c41`)
+
+1. **Move-delta cache.** For moves changing 4 or more pieces, the whole
+   2×W i32 delta is cached, keyed by the exact list of (piece key, square)
+   codes. That is 4096 direct-mapped slots with full-key compare. A hit costs
+   one row per perspective instead of 4–20.
+2. **Flat caches.** Fused rows and deltas live in single `slot × width`
+   arrays instead of one `Vec` per slot.
+3. **Caches persist across searches.** When an accumulator drops, its caches
+   are parked per thread with the network `Arc`. The next accumulator for the
+   same `Arc` adopts them. Keys are exact, and holding the `Arc` keeps the
+   pointer unique.
+
+| Benchmark | Ratio vs `ff2a491` | Exact |
+|---|---:|---|
+| Six single searches, delta cache only | 0.956 | yes |
+| Game bench (4 starts × 6 consecutive searches, each followed by playing the chosen move), parking only | ~0.90 (12.2–12.6 s vs 13.7–13.9 s) | yes |
+| Game bench, all three | **0.851** (per-start 0.82–0.89) | yes |
+
+**Cumulative exact NNUE work, game bench versus `06eddff`** (search-side memo
+tables only): width 2048 **0.587** (per start 0.55–0.63), width 512 **0.833**
+(0.79–0.87). All searches identical.
+
+Memory per searching thread is up to 64 MB of fused rows plus 64 MB of deltas
+at width 2048 (16 + 16 MB at 512), touched lazily. Tests cover delta and flat
+caches against an independent scalar reference, and parking adoption only by
+the same network object.
+
+**Where NNUE time stands now.** Replaying the traces through the engine gives
+about 0.9–1.1 s of NNUE work in a 3.3–3.5 s six-position search, so about
+25–30%. Even a free network would make NNUE-2048 search at most about 1.35×
+faster. Network-side changes now matter less than shared search cost.
+
+### Alternative architectures (need retraining): replay speed
+
+NNUE-only time over the six traces, warm caches, single runs (about ±15%
+noise). "Full" is update plus eval.
+
+| Variant | T per persp. | L1 input | Full | Update | Eval | vs base |
+|---|---:|---:|---:|---:|---:|---:|
+| base: 2 persp. × 2048, L1 32 | 2048 | 4096 | 925 | 550 | 375 | 1.00 |
+| base + delta cache (now in engine) | 2048 | 4096 | 613–716 | 211–219 | 403–498 | 0.66–0.77 |
+| width 1024 | 1024 | 2048 | 511 | 266 | 246 | 0.55 |
+| width 512 | 512 | 1024 | 299 | 142 | 157 | 0.32 |
+| width 512 + delta | 512 | 1024 | 191 | 57 | 134 | 0.21 |
+| L1 = 16 | 2048 | 4096 | 916 | 567 | 350 | 0.99 |
+| pairwise product (SF-style) | 2048 | 2048 | 853 | 523 | 330 | 0.92 |
+| pairwise + L1 16 | 2048 | 2048 | 827 | 555 | 272 | 0.89 |
+| pairwise + L1 16 + delta | 2048 | 2048 | 468–482 | 210–213 | 256–272 | 0.51 |
+| single perspective (black-fixed, stm head) | 2048 | 2048 | 458 | 243 | 216 | 0.50 |
+| single perspective + delta | 2048 | 2048 | 286 | 79 | 207 | 0.31 |
+| single + delta + pairwise + L1 16 | 2048 | 1024 | 237 | 88 | 149 | 0.26 |
+| width 1024 + delta + pairwise + L1 16 | 1024 | 1024 | 259 | 107 | 152 | 0.28 |
+| regional 4×4 regions × 128 lanes (no global) | 2048 | 4096 | 625 | 184 | 441 | 0.68 |
+| regional 6×6 × 64 | 2304 | 4608 | 693 | 145 | 548 | 0.75 |
+| hybrid global 256 + 4×4 × 128 | 2304 | 4608 | 903 | 289 | 614 | 0.98 |
+| hybrid global 512 + 4×4 × 96 | 2048 | 4096 | 871 | 358 | 513 | 0.94 |
+| sparse L1 kernel, 50 / 75 / 90% zero inputs (+delta) | 2048 | 4096 | 840 / 662 / 549 | ~205 | 633 / 454 / 344 | vs masked dense 758 |
+
+Readings:
+
+- Once the delta cache removes most row traffic, **eval is the larger
+  remaining NNUE cost**, and it scales with the L1 input size. Pairwise
+  products (half the L1 input) and a 16-wide L1 are the cheapest
+  quality-neutral-looking ways to cut it, at about −30% of NNUE time together.
+- A **regional (block-sparse) feature transformer**, where each piece only
+  updates its board region's lane block, makes updates about 3× cheaper. But the
+  delta cache already captures most of that, and the eval is unchanged or
+  larger. It is not worth its quality risk now.
+- **Single perspective** halves both update and eval. It is the largest
+  structural lever at fixed width, and its quality cost is the question below.
+- **Sparse L1** (Stockfish `find_nnz`) needs at least 80–90% zero inputs to pay
+  off. It adds nothing once pairwise has halved the input. Measure real-net
+  sparsity first.
+
+### Measured and not worth it
+
+- **Lazy eval** (skip the residual when material ± margin is outside the
+  window): the handcrafted positional term has p50 39, p99 1961 and max 3266
+  score units. Only 0–6% of stand-pats could skip at the p99 margin; the sparse
+  position is the exception at 97%.
+- **NNUE eval hash:** 1–4% of evals repeat a position (earlier census).
+- **Lazy accumulator updates:** 2–12% of changes are in subtrees that never
+  evaluate.
+
+### Quality proxy (small nets)
+
+Retraining is required, and trained blobs are not available here. As a rough
+check that the fast variants are not clearly worse, small variants were fit to
+the **handcrafted positional eval (eval − material)**:
+
+- **Data:** 46k positions from 180 noisy self-play games (greedy 1-ply
+  handcrafted play with 10–40% random moves). One generator seed's 45 games
+  (12k positions) are held out.
+- **Inputs:** the production feature schema (92 ability channels per
+  colour/square).
+- **Recipe:** the repo's head shape (clamped accumulator, centred `2W→L1→32→1`),
+  Huber loss, SparseAdam + Adam, 4 epochs with LR ×0.3 for the last two.
+- **Metric:** held-out R² (fraction of label variance explained).
+
+Epoch-to-epoch noise is about ±0.02–0.04.
+
+| Variant (width 128 unless noted) | Held-out R² (best of 4 epochs) |
+|---|---:|
+| linear sum of features (no hidden layers) | **0.909** |
+| baseline: 2 persp., L1 32 | 0.774 |
+| width 64 / width 256 | 0.810 / 0.816 |
+| single perspective (stm-specific head) | 0.791 |
+| single perspective, width 256 | 0.776 |
+| pairwise product | 0.813 |
+| L1 16 | 0.784 |
+| pairwise + L1 16 | 0.821 |
+| single perspective + pairwise + L1 16 | 0.750 |
+| regional 4×4 × 8 lanes (no global) | 0.633 |
+| regional 4×4 × 16 lanes (no global) | 0.655 |
+| hybrid global 32 + 4×4 × 6 | 0.698 |
+| **baseline + PSQT shortcut** (one linear lane per perspective, (stm − opp)/2 added to the output) | **0.917** |
+| **pairwise + L1 16 + PSQT** | **0.918** |
+| single perspective + pairwise + L1 16 + PSQT | 0.877 |
+
+Readings, with the caveat that this label is nearly linear and the data is
+small (width 64 ≈ 256). The proxy catches large losses and misses subtle ones.
+It is not a strength test.
+
+- **Regional or hybrid feature transformers are clearly worse** (0.63–0.70
+  vs 0.77–0.82). Together with the delta cache removing their speed advantage,
+  drop them.
+- **Pairwise, L1 16 and their combination are not worse** (0.78–0.82). These
+  are the variants that cut NNUE time about 30% with the delta cache.
+- **Single perspective alone is not worse (0.79)**, but it combines badly with
+  pairwise (0.75, or 0.88 vs 0.92 with PSQT). It is the riskier trade.
+- **A PSQT shortcut is the biggest quality lever** (+0.14 R²). The current
+  nets have no linear path from features to output, and the positional signal
+  in this game is largely linear in the ability features. At inference it costs
+  one to eight extra accumulator lanes. This is a quality change, but a better
+  fit per width lets a narrower (faster) net match today's accuracy.
+
+### Recommended order
+
+1. **Merge the exact changes** (`ff2a491`, `4071c41`) after running
+   `benchmarks/nnue_production/check.py` verify and timed phases on the real
+   nets.
+2. **Next retrain: pairwise product + L1 16 + PSQT shortcut** at the current
+   widths. Expect about −30% of NNUE time (−7–10% of search time at width
+   2048) with no proxy quality loss, and likely a gain from PSQT. Measure real
+   activation sparsity on this net before any sparse-L1 kernel.
+3. **Then trade width for speed:** with PSQT, compare 1024 against 2048 in games
+   (Elo per second). Width is the one lever that scales NNUE cost linearly.
+4. **Research option:** single perspective with colour-flip augmentation, or a
+   small net for q-depth-0 leaves or imbalanced positions. Both are
+   2–3× on NNUE time with real quality risk.
+5. **Drop** regional or hybrid transformers, lazy eval, eval hashing and lazy
+   accumulator updates.
+
+### Ideas not tested, with estimates
+
+- **A small net for q-leaves or imbalanced positions** (the Stockfish 16.1+
+  dual-net precedent). 51–77% of stand-pats are q-depth-0 leaves that return
+  immediately, and 28–84% have |material| > 1000 units after sweeps. A 256- or
+  512-wide net there, with a lazily updated big accumulator, would cut NNUE
+  time about 2–3×. Quality needs games.
+- **i16 accumulator** via quantization-aware training (weight clip so sums
+  fit). This halves the base copy, delta reads and quantize traffic: roughly
+  −20–30% of NNUE time.
+- **i16 deltas** stored when they fit, with an i32 fallback (exact): halves
+  delta reads, about 2–4%.
+- **Phase or piece-count buckets** for the dense head (Stockfish layer stacks):
+  quality at almost no speed cost, which could let a narrower width match
+  today's.
+
+## NNUE-specific speed work — 2026-09-30 (cloud session)
+
+Base: `main` at `8ab9f89` plus the attack/gate memo commit below. No trained NNUE
+blob is available in this container, so timings use a **synthetic network of the
+production shape** (TKNNUE01 layout: 92 channels × 1296 squares × 2 colors,
+widths 512/2048, i16 feature weights, 32×32 dense head) with random bounded
+weights. Kernel arithmetic depends mainly on layout, but real weights change search
+workloads and cache reuse; see the real-network measurements above before
+extrapolating these synthetic timings. Exactness was checked on the synthetic net, and the
+unit tests check against an independent scalar reference. The eval scores
+themselves are meaningless. Six cached positions, fixed depth, CPU-pinned
+interleaved pairs, `target-cpu=native` (this Xeon has AVX-512 + VNNI).
+
+### Why search-side work helped NNUE agents less
+
+At `8ab9f89` a width-2048 search costs about **23 µs/node versus 7 µs/node**
+handcrafted (opening, depth 3). Roughly 70% of the NNUE agent's time is
+accumulator and network work that no search-side change touches (Amdahl). The
+callgrind split, opening, width 2048:
+
+| Function | Inclusive Ir |
+|---|---:|
+| `Accumulator::change` (fused-row adds) | 44% |
+| `Accumulator::residual` (quantize + 32×4096 dense + head) | 21% |
+| accumulator snapshot memcpy | 4% |
+| everything else (search, movegen, attacks, gates) | ~31% |
+
+The surprise is the change count. A make applies **10–14 accumulator changes on
+average** (opening 13.7, pawn-mid 13.3, open 10.2, sparse 5.8, ply 120 11.7,
+ply 240 11.1). The reason is that q-search explores capturing-range sweeps that
+remove about 11 pieces each. Each change was a separate full pass over both
+2048-lane i32 halves, plus an 8 KB fused-row fetch per perspective. The fused
+row cache (4096 slots × 8 KB = 32 MB) missed on 5.7% of changes. Makes and evals
+are almost 1:1 (14.8k makes, 14.1k evals).
+
+### Census (exact counts, width 2048)
+
+| Position | makes | acc. changes | changes in subtrees that never evaluate | evals | evals of an already-seen hash |
+|---|---:|---:|---:|---:|---:|
+| opening | 14,773 | 202,377 | 4,523 (2.2%) | 14,148 | 525 (3.7%) |
+| pawnmid | 27,087 | 360,457 | 7,580 (2.1%) | 25,985 | 1,010 (3.9%) |
+| open | 96,138 | 978,243 | 11,636 (1.2%) | 93,546 | 1,923 (2.1%) |
+| sparse | 26,491 | 154,286 | 18,351 (11.9%) | 18,862 | 257 (1.4%) |
+| sp240 | 28,279 | 315,149 | 11,211 (3.6%) | 25,550 | 702 (2.7%) |
+
+So **lazy/deferred accumulator updates** (Stockfish-style) could save at most
+1–12% of change work, and an **NNUE eval hash** at most 1–4% of residual
+calls. Both are low priority. The cost is the per-make width of the update and
+the dense layer.
+
+### Exact changes implemented (this branch)
+
+All matched nodes, q-nodes, scores and best moves on every position and pair.
+Ratios are candidate / predecessor, 4–5 interleaved rounds, and noisy (±5%).
+
+| Change | Width 2048 | Notes |
+|---|---:|---|
+| E2. One tiled pass per perspective for all of a make's changes (64-lane register tiles, new sums written straight into the recycled undo buffer, so no snapshot memcpy) | **0.863** | falls back to row-at-a-time if two rows collide in the direct-mapped cache |
+| E3. i16 fused rows (half the bytes per fetch and half the cache footprint) | **0.896** | a row that does not fit i16 is never cached; that piece is added directly from the weight rows in i32 (exact for any loadable net) |
+| E5. AVX-512 VNNI first layer: 4 output rows per pass, `vpdpbusd` (exact: 4 u8×i8 products summed without saturation) | **0.943** | microbench residual 3.3 → 2.0 µs; AVX2 path kept as fallback |
+| E6. Fused cache 4096 → 16384 slots (64 MB of i16 at width 2048) | **0.941** | fewer compulsory/conflict misses per search |
+| E1. i32 quantize (pre-clamp to [-16, 4128], identity checked over ±200k) | ~1.00 in search, −15% residual microbench | vectorizes; kept because it is free |
+
+**Combined versus base:** width 2048 **0.722 / 0.739** (two runs, all six
+positions faster, 17–35%); width 512 **0.825**. Handcrafted agents are
+unaffected (the code is only reached with an NNUE bound). Per-node cost at
+width 2048 falls from about 3.1× to about 2.2× handcrafted.
+
+Tests: the existing fused-row/snapshot parity test; a new test comparing
+batched make/unmake against an independent scalar sum, including a net whose
+rows overflow i16 (direct path); and a VNNI-vs-scalar test for all 32 rows at
+the packed-test extremes. Release lib tests: 388 passed (the same 13
+`training::` history tests fail only because this clone is shallow).
+
+**Before merging, re-run the repo's `benchmarks/nnue_production/check.py`
+verify phase on the real trained nets** (all five widths, exact routes and node
+counts), then the timed phase. The synthetic net cannot catch a real net whose
+fused rows overflow i16. That case is handled exactly, but it would be slower.
+
+### Tried, not kept
+
+- **Persistent fused cache across searches** (park the cache per thread, keyed
+  by the network `Arc`). Repeated searches were 0–4% faster, within noise. It
+  was later kept together with the move-delta cache: about 10% on consecutive
+  game searches (see part 2 above).
+
+### NNUE ideas not yet tested, with estimates (width 2048 unless noted)
+
+1. **Sparse first layer (Stockfish `find_nnz`).** After clamping, many of the
+   4096 u8 inputs are 0. Process only non-zero 4-byte groups against a
+   column-blocked `h1`. The residual is now about 10–15% of search time, so a
+   60–80% zero rate would save **5–10%**. It depends entirely on real-net
+   activation sparsity: first measure the fraction of zero inputs over a few
+   hundred real positions (one counter in `residual`).
+2. **i16 accumulator sums.** This halves tile and quantize work (**5–10%**), but
+   the i32 bound (804 pieces × about 7 channels × |w| ≤ 2048) cannot be proven
+   for i16. It needs a training-side weight clip, a saturating layout accepted
+   as a model change, and a new `kind: logic` freeze.
+3. **Share fused rows between perspectives.** If a piece's ability mapping is
+   colour-symmetric, White's row for piece p equals Black's row for the mirrored
+   piece, which halves compulsory misses. **1–3%.**
+4. **Huge pages** (`madvise(MADV_HUGEPAGE)` before filling) for the 976 MB weight
+   blob and the 64 MB fused cache. THP is `madvise`-only on this host, so none
+   are used today. Misses are rare now, so **1–3%**.
+5. **Software prefetch** of the fused rows for a move's removed pieces before
+   `apply_move`, or of the weight rows on a miss. **1–2%.**
+6. **Lazy accumulator updates** and an **NNUE eval hash**: measured ceilings of
+   1–12% and 1–4% of NNUE work (census above). Not worth the complexity alone.
+7. **Model-side levers (not engine-exact):** reduce average channels per piece
+   (7 today, 21 max) or the width for q-search nodes. This is an Elo-per-second
+   question, measured in games.
+
+## Low-level follow-up: toolchain, redundancy census, memo tables — 2026-09-27 (cloud session)
+
+Base: `main` at `25e1fdc`. Measured on a shared 4-vCPU cloud Xeon, seed weights, six
+cached positions (opening, pawn-push middlegame, open, sparse, self-play plies 120 and
+240; fixed depth 3, or 2 for open/sparse). Wall times come from an interleaved,
+CPU-pinned A/B runner (median of per-round paired ratios, geometric mean over positions).
+Its **A/A control was 1.010**, so differences under about 2% are noise. Instruction
+counts (cachegrind `Ir`) are exact. Every variant below matched nodes, q-nodes, score
+and full chosen route on all six positions. NNUE agents and the pinned 12-position
+corpus were **not** measured here.
+
+**1. Toolchain: the largest remaining exact lever.** No code changes; same search results.
+
+| Build (vs plain `cargo build --release`) | Wall ratio | Saving |
+|---|---:|---:|
+| PGO (profile from opening, ply 120, sparse; the other three held out) | 0.853 | 15% |
+| `-C target-cpu=native` | 0.933 | 7% |
+| `lto = "fat"` + `panic = "abort"` | 0.980 | 2% |
+| **PGO + native + fat LTO + panic=abort** | **0.821** | **18%** |
+
+Held-out positions gained as much as training positions (PGO alone: pawn-push
+middlegame 0.845, open 0.898, ply 240 0.840). The deploy scripts currently run a plain
+`cargo build --release` without `target-cpu=native`, so tournaments get none of this.
+Suggested rollout:
+
+- Build tournament and worker binaries with `RUSTFLAGS='-C target-cpu=native'` (or the
+  portable `x86-64-v3`) on each worker.
+- Add a two-stage PGO build: `-Cprofile-generate`, run the benchmark corpus with
+  handcrafted **and** NNUE agents, merge with the rustup `llvm-tools` `llvm-profdata`
+  (the system LLVM 18 tool does not match rustc's LLVM 21), then build with
+  `-Cprofile-use`.
+- Frozen history binaries can keep their plain builds; the optimizations do not
+  change results.
+- Cost: one extra build, plus the profile run (about one minute).
+
+**2. Redundancy census (instrumented throwaway build).** Share of calls that exactly
+repeat an earlier call on the same position within one search:
+
+| Query | opening | pawn-push mid | open | sparse | ply 120 | ply 240 |
+|---|---:|---:|---:|---:|---:|---:|
+| board attack query (position, square, colour) | 25% | 22% | 27% | 57% | 29% | 33% |
+| captures-onto-square generation (position, victim) | 21% | 16% | 16% | 52% | 24% | 30% |
+| leaf entry (`leaf_or_quiesce`) | 17% | 13% | 15% | 67% | 23% | 26% |
+| quiescence node | 7% | 4% | 1% | 35% | 11% | 14% |
+| full legal move generation | 115 calls in total for the opening d3 search | | | | | |
+
+The repeats come from iterative deepening, re-searches (LMR, PVS, aspiration),
+null-move children and transpositions. Leaves do not probe the TT, and the leaf gates
+and quiescence entry ask the same attack questions again. Full move generation is now
+rare: nearly all work sits at leaf and quiescence nodes (~100k instructions per node,
+versus ~1–3k in chess engines). The board attack query alone was **35% inclusive**
+(90k calls × ~8k instructions in the opening).
+
+**3. Memo tables (implemented on this branch; exact).**
+
+- `attacked_memo`: a 64K-entry direct-mapped table keyed by Zobrist key ⊕ square ⊕
+  colour, used by the loud-take, royal and large-hang prefilters and by
+  `landing_attacked_cached`. The answer depends only on the position, so entries stay
+  valid across searches, with the same collision caveat as the TT. Result: **wall 0.951**
+  (opening 0.893, pawn-push 0.888, others 0.955–0.998); Ir −7.0% opening, −5.6% ply 240.
+- `gate_memo`: a 32K-entry table for the three leaf-gate booleans (large-hang take,
+  royal capture, loud promotion present), keyed by Zobrist key and gate kind and tagged
+  with a per-search generation, since two gates depend on weights and options. On top
+  of the attack memo: **wall 0.962**; Ir −4.0% opening, −3.7% ply 120, **−15.9% sparse**.
+- Combined, about **8–9% less wall time** and 7–20% fewer instructions. The release
+  library suite passes (385; the 13 failures are git-history tests needing a full clone).
+
+**4. Checked and not worth pursuing now.**
+
+- **Memory:** cachegrind cache simulation of the pawn-push search shows a 0.6% D1 miss
+  rate and almost no last-level read misses. The search is compute-bound, so huge pages,
+  TT packing or prefetching would gain little.
+- **Allocation:** `Vec` growth is about 2.6% (mostly `SearchUndo.removed` in
+  `execute_single_move`, 48k growths, and per-capability target vectors, 69k). Earlier
+  pool experiments were negative; a reused undo stack might recover 1–3%.
+
+**5. Next ideas in the same vein (not yet tested).**
+
+- Memoize `generate_captures_hitting_square` results, or the quiescence candidate list,
+  keyed by (Zobrist, victim). It repeats 16–52% and costs ~13k instructions per call.
+  Needs a compact move representation to make storing cheaper than recomputing.
+  Estimate 3–8%.
+- Sibling reuse of attack answers: the ~300 children of a depth-1 node ask the same
+  ~20 "is this large piece attacked?" questions. An answer computed at the parent stays
+  valid for a child whose changed squares avoid that victim's candidate region (window
+  + rays + global movers), which is an O(1) mask test. Estimate 5–10%, exact.
+- Store the stand-pat eval and gate bits in a leaf-level TT entry so repeated leaves
+  skip both. It overlaps with `gate_memo`; the eval repeat rate is only 1–10%.
+- Combine the memo tables with the PGO build: expect roughly 0.82 × 0.91 ≈ 0.75
+  (25% less time) versus a plain build of current `main`, pending confirmation on the
+  pinned corpus and NNUE agents.
 
 ## 2026-09-27 hot-path follow-up (candidate branch)
 

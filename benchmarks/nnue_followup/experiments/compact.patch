@@ -1,0 +1,16 @@
+--- a/src/nnue/storage.rs
++++ b/src/nnue/storage.rs
+@@ -9,11 +9,11 @@
+     net: Arc<super::Network>,
+ }
+ 
+-const SLOTS: usize = 16384;
++const SLOTS: usize = 8192;
+ // Quiescence repeats the same multi-piece capture sweeps across many sibling
+ // and cousin nodes. Caching a move's whole accumulator delta turns its 4-20
+ // row reads per perspective into one. Keys are the exact changed-piece list.
+-const DELTA_SLOTS: usize = 4096;
++const DELTA_SLOTS: usize = 1024;
+ const DELTA_MIN_CHANGES: usize = 4;
+ const EMPTY: usize = usize::MAX;
+ fn piece_code(p: &Piece) -> u32 {

@@ -1,0 +1,126 @@
+--- a/src/nnue/storage.rs
++++ b/src/nnue/storage.rs
+@@ -9,7 +9,8 @@
+     net: Arc<super::Network>,
+ }
+ 
+-// At width 2048 the row and delta payloads total 128 MiB, allocated lazily.
++// At width 2048 the narrow row and delta payloads total 96 MiB, allocated lazily.
++// Delta slots that exceed i16 retain exact i32 payloads independently.
+ const SLOTS: usize = 16384;
+ // Quiescence repeats the same multi-piece capture sweeps across many sibling
+ // and cousin nodes. Caching a move's whole accumulator delta turns its 4-20
+@@ -28,7 +29,8 @@
+     keys: Vec<usize>,
+     rows: Vec<i16>,
+     delta_keys: Vec<Vec<u32>>,
+-    deltas: Vec<i32>,
++    deltas: Vec<i16>,
++    delta_wide: Vec<Vec<i32>>,
+     undo_pool: Vec<Vec<i32>>,
+     scratch: Vec<(usize, usize, bool)>,
+     wide: Vec<i32>,
+@@ -48,7 +50,8 @@
+     Vec<usize>,
+     Vec<i16>,
+     Vec<Vec<u32>>,
+-    Vec<i32>,
++    Vec<i16>,
++    Vec<Vec<i32>>,
+ );
+ thread_local! {
+     static PARKED: std::cell::RefCell<Option<Parked>> = const { std::cell::RefCell::new(None) };
+@@ -65,6 +68,7 @@
+             std::mem::take(&mut st.rows),
+             std::mem::take(&mut st.delta_keys),
+             std::mem::take(&mut st.deltas),
++            std::mem::take(&mut st.delta_wide),
+         );
+         let _ = PARKED.try_with(|p| *p.borrow_mut() = Some(parked));
+     }
+@@ -112,8 +116,8 @@
+             .flatten()
+             .filter(|(n, ..)| n.upgrade().is_some_and(|n| Arc::ptr_eq(&n, net)));
+         let st = &mut self.storage;
+-        if let Some((_, keys, rows, delta_keys, deltas)) = parked {
+-            (st.keys, st.rows, st.delta_keys, st.deltas) = (keys, rows, delta_keys, deltas);
++        if let Some((_, keys, rows, delta_keys, deltas, delta_wide)) = parked {
++            (st.keys, st.rows, st.delta_keys, st.deltas, st.delta_wide) = (keys, rows, delta_keys, deltas, delta_wide);
+         } else {
+             st.keys = vec![EMPTY; SLOTS];
+             st.rows = vec![0; SLOTS * self.net.width];
+@@ -166,11 +170,19 @@
+             if self.storage.delta_keys.is_empty() {
+                 self.storage.delta_keys = vec![Vec::new(); DELTA_SLOTS];
+                 self.storage.deltas = vec![0; DELTA_SLOTS * 2 * w];
++                self.storage.delta_wide = vec![Vec::new(); DELTA_SLOTS];
+             }
+             if self.storage.delta_keys[slot] == codes {
+-                let d = &self.storage.deltas[slot * 2 * w..(slot + 1) * 2 * w];
+-                for (o, (&a, &b)) in out.iter_mut().zip(self.sums.iter().zip(d)) {
+-                    *o = a + b;
++                if self.storage.delta_wide[slot].is_empty() {
++                    let d = &self.storage.deltas[slot * 2 * w..(slot + 1) * 2 * w];
++                    for (o, (&a, &b)) in out.iter_mut().zip(self.sums.iter().zip(d)) {
++                        *o = a + i32::from(b);
++                    }
++                } else {
++                    let d = &self.storage.delta_wide[slot];
++                    for (o, (&a, &b)) in out.iter_mut().zip(self.sums.iter().zip(d)) {
++                        *o = a + b;
++                    }
+                 }
+                 self.storage.codes = codes;
+                 std::mem::swap(&mut out, &mut self.sums);
+@@ -218,9 +230,22 @@
+         }
+         self.storage.scratch = slots;
+         if let Some(slot) = delta_slot {
++            // Store and range-check together without an early-exit branch;
++            // LLVM can vectorize this OR reduction along with the narrowing.
++            // The narrow bytes of an overflowing slot are never consumed.
+             let d = &mut self.storage.deltas[slot * 2 * w..(slot + 1) * 2 * w];
++            let mut outside_i16 = 0u32;
+             for (d, (&new, &old)) in d.iter_mut().zip(out.iter().zip(&self.sums)) {
+-                *d = new - old;
++                let delta = new - old;
++                *d = delta as i16;
++                outside_i16 |= (delta.wrapping_add(32768) as u32) >> 16;
++            }
++            if outside_i16 == 0 {
++                self.storage.delta_wide[slot] = Vec::new();
++            } else {
++                let d = &mut self.storage.delta_wide[slot];
++                d.clear();
++                d.extend(out.iter().zip(&self.sums).map(|(&new, &old)| new - old));
+             }
+             self.storage.delta_keys[slot].clone_from(&codes);
+         }
+@@ -420,6 +445,27 @@
+     }
+ 
+     #[test]
++    fn wide_delta_fallback_is_exact_on_miss_hit_and_parked_reuse() {
++        let mut net = (*super::super::tests::net(32, "wide-delta")).clone_for_test();
++        // Pawn fused rows fit i16 (two channels), but removing five at once does not.
++        net.weights.fill(10_000);
++        let net = Arc::new(net);
++        let pieces: Vec<_> = (0..5).map(|x| Piece::new(crate::piece::PieceType::Pawn,
++            Color::Black, Position::new(x, 12).unwrap())).collect();
++        let mut board = Board::new();
++        for &p in &pieces { board.place_piece(p); }
++        for _ in 0..2 {
++            let mut acc = Accumulator::new(net.clone(), &board);
++            for _ in 0..2 {
++                let saved = acc.save_and_apply(&pieces, None);
++                assert_eq!(acc.sums, reference(&net, &Board::new()));
++                assert!(acc.storage.delta_wide.iter().any(|d| !d.is_empty()));
++                assert!(acc.restore_sums(saved));
++                assert_eq!(acc.sums, reference(&net, &board));
++            }
++        }
++    }
++    #[test]
+     fn delta_hits_apply_to_different_accumulator_sums() {
+         let net = super::super::tests::net(32, "delta-base-independent");
+         let pieces: Vec<_> = (0..5)

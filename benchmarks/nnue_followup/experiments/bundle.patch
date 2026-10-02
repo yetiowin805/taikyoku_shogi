@@ -1,0 +1,713 @@
+diff --git a/src/game_state.rs b/src/game_state.rs
+index c1bfbab..c10338e 100644
+--- a/src/game_state.rs
++++ b/src/game_state.rs
+@@ -1522,12 +1522,15 @@ impl GameState {
+             }
+         }
+ 
+-        let nnue_snapshot = self.nnue.as_mut().map(|acc| acc.save_sums());
+-        if let Some(acc) = self.nnue.as_mut() {
+-            acc.change(&original_mover, -1);
+-            for (_, piece) in &removed { acc.change(piece, -1); }
+-            if let Some(piece) = self.board.get_piece(final_to) { acc.change(&piece, 1); }
+-        }
++        let nnue_snapshot = if let Some(acc) = self.nnue.as_mut() {
++            let mut subs = Vec::with_capacity(removed.len() + 1);
++            subs.push(original_mover);
++            subs.extend(removed.iter().map(|(_, p)| *p));
++            let added = self.board.get_piece(final_to);
++            Some(acc.save_and_apply(&subs, added.as_ref()))
++        } else {
++            None
++        };
+         Some(SearchUndo {
+             from,
+             final_to,
+diff --git a/src/nnue/features.rs b/src/nnue/features.rs
+index 1503bcd..d268e48 100644
+--- a/src/nnue/features.rs
++++ b/src/nnue/features.rs
+@@ -119,7 +119,7 @@ pub(super) fn key(p: &Piece) -> usize {
+ pub struct Schema {
+     pub names: Vec<String>,
+     pub hash: [u8; 32],
+-    pieces: Vec<Vec<usize>>,
++    pub(crate) pieces: Vec<Vec<usize>>,
+ }
+ pub fn schema() -> &'static Schema {
+     static SCHEMA: OnceLock<Schema> = OnceLock::new();
+diff --git a/src/nnue/mod.rs b/src/nnue/mod.rs
+index e088040..b3e03c6 100644
+--- a/src/nnue/mod.rs
++++ b/src/nnue/mod.rs
+@@ -236,13 +236,17 @@ impl Accumulator {
+                     .iter_mut()
+                     .zip(&self.sums[(first ^ side) * w..((first ^ side) + 1) * w])
+                 {
+-                    *d = ((i64::from(a) * 127 + 2048) / 4096).clamp(0, 127) as u8;
++                    // Exact i32 form of ((a*127+2048)/4096).clamp(0,127): below -16 the
++                    // quotient is <= 0 and above 4128 it is >= 127, so pre-clamping a
++                    // keeps the product in i32 and lets the loop vectorize.
++                    let a = a.clamp(-16, 4128);
++                    *d = ((a * 127 + 2048) / 4096).clamp(0, 127) as u8;
+                 }
+             }
+             let mut h = [0i32; 32];
++            packed::affine32(&x, &self.net.h1, &mut h);
+             for (j, y) in h.iter_mut().enumerate() {
+-                let sum = packed::dot(&x, &self.net.h1[j * 2 * w..(j + 1) * 2 * w]);
+-                *y = ((sum + self.net.b1[j] + 32) / 64).clamp(0, 127);
++                *y = ((*y + self.net.b1[j] + 32) / 64).clamp(0, 127);
+             }
+             let mut result = self.net.out_bias;
+             for j in 0..32 {
+@@ -281,6 +285,22 @@ pub(crate) mod tests {
+         position::Position,
+         search::{search, SearchConfig},
+     };
++    impl Network {
++        pub(crate) fn clone_for_test(&self) -> Network {
++            Network {
++                width: self.width,
++                sha256: self.sha256.clone(),
++                weights: self.weights.clone(),
++                bias: self.bias.clone(),
++                h1: self.h1.clone(),
++                b1: self.b1.clone(),
++                h2: self.h2.clone(),
++                b2: self.b2.clone(),
++                out: self.out.clone(),
++                out_bias: self.out_bias,
++            }
++        }
++    }
+     pub(crate) fn net(width: usize, tag: &str) -> Arc<Network> {
+         Arc::new(Network {
+             width,
+diff --git a/src/nnue/packed.rs b/src/nnue/packed.rs
+index d951a3f..115a8a0 100644
+--- a/src/nnue/packed.rs
++++ b/src/nnue/packed.rs
+@@ -27,6 +27,45 @@ unsafe fn avx2(x: &[u8], weights: &[i8]) -> i32 {
+     lanes.into_iter().sum()
+ }
+ 
++// All 32 first-layer outputs. VNNI's vpdpbusd adds four exact u8*i8 products
++// per lane without saturation, so it matches the scalar sum exactly.
++#[cfg(target_arch = "x86_64")]
++#[target_feature(enable = "avx512f,avx512bw,avx512vnni")]
++unsafe fn vnni32(x: &[u8], h1: &[i8], out: &mut [i32; 32]) {
++    use std::arch::x86_64::*;
++    let n = x.len();
++    for j in (0..32).step_by(4) {
++        let (mut a0, mut a1, mut a2, mut a3) = (_mm512_setzero_si512(), _mm512_setzero_si512(), _mm512_setzero_si512(), _mm512_setzero_si512());
++        let r = h1.as_ptr().add(j * n);
++        for i in (0..n).step_by(64) {
++            let xa = _mm512_loadu_si512(x.as_ptr().add(i).cast());
++            a0 = _mm512_dpbusd_epi32(a0, xa, _mm512_loadu_si512(r.add(i).cast()));
++            a1 = _mm512_dpbusd_epi32(a1, xa, _mm512_loadu_si512(r.add(n + i).cast()));
++            a2 = _mm512_dpbusd_epi32(a2, xa, _mm512_loadu_si512(r.add(2 * n + i).cast()));
++            a3 = _mm512_dpbusd_epi32(a3, xa, _mm512_loadu_si512(r.add(3 * n + i).cast()));
++        }
++        out[j] = _mm512_reduce_add_epi32(a0);
++        out[j + 1] = _mm512_reduce_add_epi32(a1);
++        out[j + 2] = _mm512_reduce_add_epi32(a2);
++        out[j + 3] = _mm512_reduce_add_epi32(a3);
++    }
++}
++
++pub(super) fn affine32(x: &[u8], h1: &[i8], out: &mut [i32; 32]) {
++    let n = x.len();
++    assert_eq!(h1.len(), 32 * n);
++    assert_eq!(n % 64, 0);
++    #[cfg(target_arch = "x86_64")]
++    if is_x86_feature_detected!("avx512vnni") && is_x86_feature_detected!("avx512bw") {
++        // SAFETY: runtime detection; lengths asserted above.
++        unsafe { vnni32(x, h1, out) };
++        return;
++    }
++    for (j, o) in out.iter_mut().enumerate() {
++        *o = dot(x, &h1[j * n..(j + 1) * n]);
++    }
++}
++
+ pub(super) fn dot(x: &[u8], weights: &[i8]) -> i32 {
+     assert_eq!(x.len(), weights.len());
+     assert_eq!(x.len() % 32, 0);
+@@ -66,6 +105,12 @@ mod tests {
+                     })
+                     .collect();
+                 assert_eq!(dot(&x, &weights), scalar(&x, &weights));
++                let h1: Vec<i8> = (0..32).flat_map(|j| weights.iter().map(move |&b| if j % 3 == 0 { b } else { b.wrapping_mul(j as i8 | 1) })).collect();
++                let mut got = [0i32; 32];
++                affine32(&x, &h1, &mut got);
++                for j in 0..32 {
++                    assert_eq!(got[j], scalar(&x, &h1[j * x.len()..(j + 1) * x.len()]));
++                }
+             }
+         }
+     }
+diff --git a/src/nnue/storage.rs b/src/nnue/storage.rs
+index d5f0f92..239c754 100644
+--- a/src/nnue/storage.rs
++++ b/src/nnue/storage.rs
+@@ -9,50 +9,212 @@ pub(crate) struct Snapshot {
+     net: Arc<super::Network>,
+ }
+ 
+-const SLOTS: usize = 4096;
++const SLOTS: usize = 16384;
++// Quiescence repeats the same multi-piece capture sweeps across many sibling
++// and cousin nodes. Caching a move's whole accumulator delta turns its 4-20
++// row reads per perspective into one. Keys are the exact changed-piece list.
++const DELTA_SLOTS: usize = 4096;
++const DELTA_MIN_CHANGES: usize = 4;
++const EMPTY: usize = usize::MAX;
++fn piece_code(p: &Piece) -> u32 {
++    (features::key(p) as u32) << 11 | p.position.to_index() as u32
++}
+ #[derive(Debug, Default)]
+ pub(super) struct Storage {
+     // Owned by this accumulator, hence never shared across models or searches.
+-    // Direct mapping bounds memory; full keys make collisions harmless.
+-    cache: Vec<Option<(usize, Vec<i32>)>>,
++    // Direct mapping bounds memory; full keys make collisions harmless. Rows
++    // live in flat arrays (slot * width), allocated on first use.
++    keys: Vec<usize>,
++    rows: Vec<i16>,
++    delta_keys: Vec<Vec<u32>>,
++    deltas: Vec<i32>,
+     undo_pool: Vec<Vec<i32>>,
++    scratch: Vec<(usize, usize, bool)>,
++    wide: Vec<i32>,
++    codes: Vec<u32>,
+ }
+ impl Clone for Storage {
+     fn clone(&self) -> Self {
+         Self::default()
+     }
+ }
++/// Row and delta caches of the most recently dropped accumulator on this
++/// thread. Successive searches of one game share most pieces and capture
++/// sweeps, so a new search adopts them instead of starting cold. Holding the
++/// network `Arc` keeps its address unique, and cache keys are exact.
++type Parked = (Arc<super::Network>, Vec<usize>, Vec<i16>, Vec<Vec<u32>>, Vec<i32>);
++thread_local! {
++    static PARKED: std::cell::RefCell<Option<Parked>> = const { std::cell::RefCell::new(None) };
++}
++impl Drop for Accumulator {
++    fn drop(&mut self) {
++        if self.storage.keys.is_empty() {
++            return;
++        }
++        let st = &mut self.storage;
++        let parked = (
++            self.net.clone(),
++            std::mem::take(&mut st.keys),
++            std::mem::take(&mut st.rows),
++            std::mem::take(&mut st.delta_keys),
++            std::mem::take(&mut st.deltas),
++        );
++        let _ = PARKED.try_with(|p| *p.borrow_mut() = Some(parked));
++    }
++}
+ impl Accumulator {
+-    pub(super) fn change_cached(&mut self, piece: &Piece, sign: i32) {
++    /// Offset in `rows` of the summed ability rows of `piece` from one
++    /// perspective, with its cache key, or `None` if that sum does not fit
++    /// i16 (then callers add the weight rows directly, which is exact).
++    fn ensure_row(&mut self, piece: &Piece, side: usize) -> Option<(usize, usize)> {
+         let w = self.net.width;
+-        if self.storage.cache.is_empty() {
+-            self.storage.cache.resize_with(SLOTS, || None);
++        self.ensure_storage();
++        let key = (features::key(piece) * 2 + side) * 1296 + piece.position.to_index();
++        let slot = ((key as u64)
++            .wrapping_mul(0x9e3779b97f4a7c15)
++            .rotate_right(32) as usize)
++            % SLOTS;
++        if self.storage.keys[slot] == key {
++            return Some((slot * w, key));
++        }
++        let mut wide = std::mem::take(&mut self.storage.wide);
++        wide.clear();
++        wide.resize(w, 0);
++        self.add_direct(&mut wide, piece, side, 1);
++        let fits = wide.iter().all(|&v| i16::try_from(v).is_ok());
++        if fits {
++            for (d, &v) in self.storage.rows[slot * w..(slot + 1) * w].iter_mut().zip(&wide) {
++                *d = v as i16;
++            }
++            self.storage.keys[slot] = key;
+         }
+-        for (side, color) in [Color::Black, Color::White].into_iter().enumerate() {
+-            let key = (features::key(piece) * 2 + side) * 1296 + piece.position.to_index();
+-            let slot = ((key as u64)
+-                .wrapping_mul(0x9e3779b97f4a7c15)
+-                .rotate_right(32) as usize)
+-                % SLOTS;
+-            let entry = &mut self.storage.cache[slot];
+-            if !entry.as_ref().is_some_and(|(k, _)| *k == key) {
+-                let mut sum = entry.take().map(|(_, v)| v).unwrap_or_else(|| vec![0; w]);
+-                sum.fill(0);
+-                features::visit(piece, color, |i| {
+-                    for (a, &b) in sum.iter_mut().zip(&self.net.weights[i * w..(i + 1) * w]) {
+-                        *a += i32::from(b);
++        self.storage.wide = wide;
++        fits.then_some((slot * w, key))
++    }
++    fn ensure_storage(&mut self) {
++        if !self.storage.keys.is_empty() {
++            return;
++        }
++        let net = &self.net;
++        let parked = PARKED
++            .try_with(|p| p.borrow_mut().take_if(|(n, ..)| Arc::ptr_eq(n, net)))
++            .ok()
++            .flatten();
++        let st = &mut self.storage;
++        if let Some((_, keys, rows, delta_keys, deltas)) = parked {
++            (st.keys, st.rows, st.delta_keys, st.deltas) = (keys, rows, delta_keys, deltas);
++        } else {
++            st.keys = vec![EMPTY; SLOTS];
++            st.rows = vec![0; SLOTS * self.net.width];
++        }
++    }
++    fn add_direct(&self, dst: &mut [i32], piece: &Piece, side: usize, sign: i32) {
++        let w = self.net.width;
++        features::visit(piece, [Color::Black, Color::White][side], |i| {
++            for (a, &b) in dst.iter_mut().zip(&self.net.weights[i * w..(i + 1) * w]) {
++                *a += sign * i32::from(b);
++            }
++        });
++    }
++    pub(super) fn change_cached(&mut self, piece: &Piece, sign: i32) {
++        let w = self.net.width;
++        for side in 0..2 {
++            let mut sums = std::mem::take(&mut self.sums);
++            let dst = &mut sums[side * w..(side + 1) * w];
++            match self.ensure_row(piece, side) {
++                Some((off, _)) => {
++                    for (a, &b) in dst.iter_mut().zip(&self.storage.rows[off..off + w]) {
++                        *a += sign * i32::from(b);
+                     }
+-                });
+-                *entry = Some((key, sum));
++                }
++                None => self.add_direct(dst, piece, side, sign),
++            }
++            self.sums = sums;
++        }
++    }
++    /// Save the current sums and apply every piece change of one move in a
++    /// single tiled pass per perspective. The new sums are written into the
++    /// recycled undo buffer, so no separate snapshot copy is needed.
++    pub(crate) fn save_and_apply(&mut self, subs: &[Piece], add: Option<&Piece>) -> Snapshot {
++        let w = self.net.width;
++        let mut out = self.storage.undo_pool.pop().unwrap_or_default();
++        out.resize(2 * w, 0);
++        self.ensure_storage();
++        let mut codes = std::mem::take(&mut self.storage.codes);
++        let delta_slot = if subs.len() + usize::from(add.is_some()) >= DELTA_MIN_CHANGES {
++            codes.clear();
++            codes.extend(subs.iter().map(piece_code));
++            codes.extend(add.map(|p| piece_code(p) | 1 << 31));
++            let mut h = 0u64;
++            for &c in &codes {
++                h = (h ^ u64::from(c)).wrapping_mul(0x9e37_79b9_7f4a_7c15).rotate_left(29);
++            }
++            let slot = (h >> 32) as usize % DELTA_SLOTS;
++            if self.storage.delta_keys.is_empty() {
++                self.storage.delta_keys = vec![Vec::new(); DELTA_SLOTS];
++                self.storage.deltas = vec![0; DELTA_SLOTS * 2 * w];
++            }
++            if self.storage.delta_keys[slot] == codes {
++                let d = &self.storage.deltas[slot * 2 * w..(slot + 1) * 2 * w];
++                for (o, (&a, &b)) in out.iter_mut().zip(self.sums.iter().zip(d)) {
++                    *o = a + b;
++                }
++                self.storage.codes = codes;
++                std::mem::swap(&mut out, &mut self.sums);
++                return Snapshot {
++                    sums: out,
++                    net: self.net.clone(),
++                };
++            }
++            Some(slot)
++        } else {
++            None
++        };
++        let mut slots = std::mem::take(&mut self.storage.scratch);
++        for side in 0..2 {
++            slots.clear();
++            let mut cached = true;
++            for (p, plus) in subs.iter().map(|p| (p, false)).chain(add.map(|p| (p, true))) {
++                match self.ensure_row(p, side) {
++                    Some((off, key)) => slots.push((off, key, plus)),
++                    None => cached = false,
++                }
++            }
++            let (keys, rows) = (&self.storage.keys, &self.storage.rows);
++            // A later row can evict an earlier one from the direct-mapped cache.
++            cached &= slots.iter().all(|&(off, key, _)| keys[off / w] == key);
++            let src = &self.sums[side * w..(side + 1) * w];
++            let dst = &mut out[side * w..(side + 1) * w];
++            if !cached {
++                dst.copy_from_slice(src);
++                for p in subs {
++                    self.add_direct(dst, p, side, -1);
++                }
++                if let Some(p) = add {
++                    self.add_direct(dst, p, side, 1);
++                }
++            } else if w % 64 == 0 {
++                tiled::<64>(src, dst, rows, &slots);
++            } else {
++                tiled::<32>(src, dst, rows, &slots);
+             }
+-            for (a, &b) in self.sums[side * w..(side + 1) * w]
+-                .iter_mut()
+-                .zip(&entry.as_ref().unwrap().1)
+-            {
+-                *a += sign * b;
++        }
++        self.storage.scratch = slots;
++        if let Some(slot) = delta_slot {
++            let d = &mut self.storage.deltas[slot * 2 * w..(slot + 1) * 2 * w];
++            for (d, (&new, &old)) in d.iter_mut().zip(out.iter().zip(&self.sums)) {
++                *d = new - old;
+             }
++            self.storage.delta_keys[slot].clone_from(&codes);
++        }
++        self.storage.codes = codes;
++        std::mem::swap(&mut out, &mut self.sums);
++        Snapshot {
++            sums: out,
++            net: self.net.clone(),
+         }
+     }
++    #[cfg(test)]
+     pub(crate) fn save_sums(&mut self) -> Snapshot {
+         let mut saved = self.storage.undo_pool.pop().unwrap_or_default();
+         saved.clone_from(&self.sums);
+@@ -74,6 +236,27 @@ impl Accumulator {
+     }
+ }
+ 
++#[inline(always)]
++fn tiled<const T: usize>(src: &[i32], dst: &mut [i32], rows: &[i16], slots: &[(usize, usize, bool)]) {
++    for base in (0..src.len()).step_by(T) {
++        let mut blk = [0i32; T];
++        blk.copy_from_slice(&src[base..base + T]);
++        for &(off, _, plus) in slots {
++            let row = &rows[off + base..off + base + T];
++            if plus {
++                for k in 0..T {
++                    blk[k] += i32::from(row[k]);
++                }
++            } else {
++                for k in 0..T {
++                    blk[k] -= i32::from(row[k]);
++                }
++            }
++        }
++        dst[base..base + T].copy_from_slice(&blk);
++    }
++}
++
+ #[cfg(test)]
+ mod tests {
+     use super::*;
+@@ -114,9 +297,92 @@ mod tests {
+                 }
+             }
+         }
+-        assert!(acc.storage.cache.iter().any(Option::is_some));
++        assert!(acc.storage.keys.iter().any(|&k| k != EMPTY));
+         let clone = acc.clone();
+-        assert!(clone.storage.cache.is_empty() && clone.storage.undo_pool.is_empty());
++        assert!(clone.storage.keys.is_empty() && clone.storage.undo_pool.is_empty());
+         assert_eq!(clone.sums, acc.sums);
+     }
++
++    /// Independent scalar sums: bias plus every active weight row.
++    fn reference(net: &Arc<super::super::Network>, board: &crate::board::Board) -> Vec<i32> {
++        let w = net.width;
++        let mut out = [net.bias.clone(), net.bias.clone()].concat();
++        for (side, persp) in [Color::Black, Color::White].into_iter().enumerate() {
++            for c in [Color::Black, Color::White] {
++                for p in board.pieces_by_color(c) {
++                    features::visit(p, persp, |i| {
++                        for (a, &b) in out[side * w..(side + 1) * w].iter_mut().zip(&net.weights[i * w..(i + 1) * w]) {
++                            *a += i32::from(b);
++                        }
++                    });
++                }
++            }
++        }
++        out
++    }
++    #[test]
++    fn batched_moves_match_rebuild_including_i16_overflow_rows() {
++        use crate::game_state::GameState;
++        for big in [false, true] {
++            let mut net = (*super::super::tests::net(32, "batched")).clone_for_test();
++            if big {
++                // Three or more channels at 16000 overflow i16, forcing the direct path
++                // (loadable nets cap weights at 2048, where 17+ channels overflow).
++                net.weights.iter_mut().for_each(|x| *x = 16000);
++            }
++            let net = Arc::new(net);
++            let mut s = GameState::new();
++            s.setup_initial_position();
++            s.nnue = Some(Accumulator::new(net.clone(), s.get_board()));
++            assert_eq!(s.nnue.as_ref().unwrap().sums, reference(&net, s.get_board()));
++            let before = s.nnue.as_ref().unwrap().sums.clone();
++            let mut undos = Vec::new();
++            for mv in s.generate_legal_moves().into_iter().take(40) {
++                if let Some(u) = s.make_move_for_search(mv) {
++                    assert_eq!(s.nnue.as_ref().unwrap().sums, reference(&net, s.get_board()));
++                    undos.push(u);
++                    if undos.len() == 3 {
++                        while let Some(u) = undos.pop() {
++                            s.unmake_move_for_search(u);
++                        }
++                    }
++                }
++            }
++            while let Some(u) = undos.pop() {
++                s.unmake_move_for_search(u);
++            }
++            assert_eq!(s.nnue.as_ref().unwrap().sums, before);
++            if big {
++                // The initial army must contain pieces whose summed row overflows i16.
++                let wide = |p: &Piece| features::schema().pieces[features::key(p)].len() >= 3;
++                let mut s = GameState::new();
++                s.setup_initial_position();
++                assert!(s.get_board().pieces_by_color(Color::Black).iter().any(wide));
++            }
++        }
++    }
++
++    #[test]
++    fn parked_caches_are_adopted_only_by_the_same_network() {
++        use crate::game_state::GameState;
++        let a = super::super::tests::net(32, "park");
++        let b = Arc::new(a.clone_for_test());
++        let mut s = GameState::new();
++        s.setup_initial_position();
++        let board = s.get_board().clone();
++        let filled = |acc: &Accumulator| acc.storage.keys.iter().filter(|&&k| k != EMPTY).count();
++        let first = Accumulator::new(a.clone(), &board);
++        let warm = filled(&first);
++        assert!(warm > 0);
++        drop(first);
++        // Same network: the new accumulator starts from the parked rows.
++        let second = Accumulator::new(a.clone(), &board);
++        assert_eq!(filled(&second), warm);
++        assert_eq!(second.sums, reference(&a, &board));
++        drop(second);
++        // Equal contents but a different network object: never adopted.
++        let third = Accumulator::new(b.clone(), &board);
++        assert_eq!(third.sums, reference(&b, &board));
++        assert!(PARKED.with(|p| p.borrow().as_ref().is_some_and(|(n, ..)| Arc::ptr_eq(n, &a))));
++    }
+ }
+diff --git a/src/search.rs b/src/search.rs
+index a8e2c4b..c8fc208 100644
+--- a/src/search.rs
++++ b/src/search.rs
+@@ -1027,10 +1027,10 @@ fn capture_hangs_high_value_piece(
+     }
+     let opponent = state.get_current_turn().opposite();
+     match kind {
+-        CaptureKind::SimpleTake => landing_attacked_cached(board, mv.to, opponent, attack_cache),
++        CaptureKind::SimpleTake => landing_attacked_cached(state, mv.to, opponent, attack_cache),
+         CaptureKind::PathClear | CaptureKind::MultiLeg => {
+             if !postfire_pathclear_hang
+-                && !landing_attacked_cached(board, mv.to, opponent, attack_cache)
++                && !landing_attacked_cached(state, mv.to, opponent, attack_cache)
+             {
+                 return false;
+             }
+@@ -1221,12 +1221,12 @@ fn move_order_score(
+         if !capture_takes_enemy_royal(state, mv) && net_below_hang_frac(enemy, own, mover_value) {
+             match kind {
+                 CaptureKind::SimpleTake => {
+-                    landing_attacked_cached(board, mv.to, opponent, attack_cache)
++                    landing_attacked_cached(state, mv.to, opponent, attack_cache)
+                 }
+                 CaptureKind::PathClear | CaptureKind::MultiLeg => {
+                     // Same confirm-on-prune as [`capture_hangs_high_value_piece`].
+                     if !postfire_pathclear_hang
+-                        && !landing_attacked_cached(board, mv.to, opponent, attack_cache)
++                        && !landing_attacked_cached(state, mv.to, opponent, attack_cache)
+                     {
+                         false
+                     } else {
+@@ -1256,8 +1256,80 @@ impl LandingAttackCache {
+     }
+ }
+ 
++const GATE_MEMO_BITS: u32 = 15;
++
++thread_local! {
++    /// Leaf-gate answers keyed by Zobrist key and gate kind. Entries carry the
++    /// search generation, so a new search (possibly with other weights or
++    /// options) never reads an older answer.
++    static GATE_MEMO: std::cell::RefCell<(u32, Vec<(u64, u32)>)> =
++        std::cell::RefCell::new((0, vec![(0, 0); 1 << GATE_MEMO_BITS]));
++}
++
++fn gate_memo_new_search() {
++    GATE_MEMO.with(|m| {
++        let mut m = m.borrow_mut();
++        // One bit of each stored value is reserved for the answer.
++        m.0 = (m.0 + 1) & 0x7fff_ffff;
++        if m.0 == 0 {
++            m.1.fill((0, 0));
++            m.0 = 1;
++        }
++    });
++}
++
++/// Memoize a position-only boolean leaf gate for the current search.
++fn gate_memo(state: &GameState, kind: u64, f: impl FnOnce() -> bool) -> bool {
++    let key = state.hash() ^ kind.wrapping_mul(0xD6E8_FEB8_6659_FD93);
++    let slot = (key >> (64 - GATE_MEMO_BITS)) as usize;
++    let cached = GATE_MEMO.with(|m| {
++        let m = m.borrow();
++        let (k, v) = m.1[slot];
++        (k == key && v >> 1 == m.0).then_some(v & 1 == 1)
++    });
++    if let Some(answer) = cached {
++        return answer;
++    }
++    let answer = f();
++    GATE_MEMO.with(|m| {
++        let mut m = m.borrow_mut();
++        let generation = m.0;
++        m.1[slot] = (key, (generation << 1) | answer as u32);
++    });
++    answer
++}
++
++const ATTACK_MEMO_BITS: u32 = 16;
++
++thread_local! {
++    /// Direct-mapped memo of board attack queries, keyed by the position's
++    /// Zobrist key, square and attacking colour. The answer depends only on the
++    /// position, so entries stay valid across searches (the same collision
++    /// caveat as the transposition table applies). Zero denotes an empty slot.
++    static ATTACK_MEMO: std::cell::RefCell<Vec<(u64, u8)>> =
++        std::cell::RefCell::new(vec![(0, 0); 1 << ATTACK_MEMO_BITS]);
++}
++
++/// `board.is_position_attacked_by_color(sq, color)`, memoized per position.
++fn attacked_memo(state: &GameState, sq: Position, color: Color) -> bool {
++    let key = state.hash()
++        ^ (sq.to_index() as u64 + 1).wrapping_mul(0x9E37_79B9_7F4A_7C15)
++        ^ (color as u64 + 1).wrapping_mul(0xC2B2_AE3D_27D4_EB4F);
++    let slot = (key >> (64 - ATTACK_MEMO_BITS)) as usize;
++    let hit = ATTACK_MEMO.with(|m| {
++        let (tag, answer) = m.borrow()[slot];
++        (answer != 0 && tag == key).then_some(answer == 2)
++    });
++    if let Some(answer) = hit {
++        return answer;
++    }
++    let answer = state.get_board().is_position_attacked_by_color(sq, color);
++    ATTACK_MEMO.with(|m| m.borrow_mut()[slot] = (key, 1 + answer as u8));
++    answer
++}
++
+ fn landing_attacked_cached(
+-    board: &crate::board::Board,
++    state: &GameState,
+     to: Position,
+     opponent: Color,
+     cache: &mut LandingAttackCache,
+@@ -1268,7 +1340,7 @@ fn landing_attacked_cached(
+         2 => return true,
+         _ => {}
+     }
+-    let hit = board.is_position_attacked_by_color(to, opponent);
++    let hit = attacked_memo(state, to, opponent);
+     cache.state[idx] = if hit { 2 } else { 1 };
+     hit
+ }
+@@ -1473,7 +1545,7 @@ fn generate_royal_captures(state: &GameState) -> Vec<Move> {
+         if !enemy.piece_type.is_royal() {
+             continue;
+         }
+-        if !board.is_position_attacked_by_color(enemy.position, us)
++        if !attacked_memo(state, enemy.position, us)
+             && !peacock_might_directly_capture(board, us, enemy.position)
+         {
+             continue;
+@@ -1503,7 +1575,7 @@ fn stm_has_royal_capture(state: &GameState) -> bool {
+         if !enemy.piece_type.is_royal() {
+             continue;
+         }
+-        if !board.is_position_attacked_by_color(enemy.position, us)
++        if !attacked_memo(state, enemy.position, us)
+             && !peacock_might_directly_capture(board, us, enemy.position)
+         {
+             continue;
+@@ -1747,7 +1819,7 @@ fn generate_loud_simple_takes(state: &GameState, weights: &EvalWeights) -> Vec<M
+         if material_piece_value(&enemy, weights) < floor {
+             continue;
+         }
+-        if !board.is_position_attacked_by_color(enemy.position, us)
++        if !attacked_memo(state, enemy.position, us)
+             && !peacock_might_directly_capture(board, us, enemy.position)
+         {
+             continue;
+@@ -1817,7 +1889,7 @@ fn stm_has_large_hang_take(state: &GameState, weights: &EvalWeights, opts: QHang
+         if !is_large_hang_victim(&enemy, weights) {
+             continue;
+         }
+-        if !state.get_board().is_position_attacked_by_color(enemy.position, us) {
++        if !attacked_memo(state, enemy.position, us) {
+             continue;
+         }
+         for mv in generate_captures_hitting_square(state, enemy.position) {
+@@ -2077,6 +2149,7 @@ pub fn search_with_progress(
+         weights
+     };
+     let _wbind = bind_search_weights(weights);
++    gate_memo_new_search();
+ 
+     let clock_started = Instant::now();
+     let deadline = config
+@@ -3646,9 +3719,9 @@ fn leaf_or_quiesce(
+         || (ctx.q_open_large_mover && ctx.last_ab_mover_large && capture_parent)
+         || (ctx.q_open_any_capture && capture_parent)
+         || (ctx.q_own_large_only && stm_has_dest_take_of_prev_large(state, ctx.last_ab_to))
+-        || stm_has_large_hang_take(state, weights, QHangOpts::from_ctx(ctx))
+-        || stm_has_royal_capture(state);
+-    if !include_caps && generate_loud_promotions(state).is_empty() {
++        || gate_memo(state, 1, || stm_has_large_hang_take(state, weights, QHangOpts::from_ctx(ctx)))
++        || gate_memo(state, 2, || stm_has_royal_capture(state));
++    if !include_caps && !gate_memo(state, 3, || !generate_loud_promotions(state).is_empty()) {
+         evaluate_with_ply(state, weights, ctx.ply)
+     } else {
+         ctx.phase = "quiesce";
+@@ -3901,7 +3974,6 @@ fn quiesce(
+     if ctx.q_prune_mode.uses_stale_hang() {
+         let opponent = state.get_current_turn().opposite();
+         let mut attack_cache = LandingAttackCache::new();
+-        let board = state.get_board();
+         cands.retain(|c| {
+             if c.is_loud_promo || c.is_royal_take {
+                 return true;
+@@ -3909,7 +3981,7 @@ fn quiesce(
+             if !net_below_hang_frac(c.enemy, c.own, c.mover_value) {
+                 return true;
+             }
+-            !landing_attacked_cached(board, c.mv.to, opponent, &mut attack_cache)
++            !landing_attacked_cached(state, c.mv.to, opponent, &mut attack_cache)
+         });
+         if cands.is_empty() {
+             return stand_pat;

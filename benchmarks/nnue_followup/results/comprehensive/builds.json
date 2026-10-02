@@ -1,0 +1,66 @@
+{
+  "base_revision": "903986eb3c8042716718a70c612e46d1109a1905",
+  "selected_revision": "cf85eb3",
+  "native_flags": [
+    "-C",
+    "target-cpu=native"
+  ],
+  "profile": "release / ThinLTO / codegen-units=1",
+  "selected_source_sha256": {
+    "src/nnue/mod.rs": "0d566599340a612ec4bb6f1a46b829295fc71e5a2edfdd9f1101478a10e3bdf4",
+    "src/nnue/packed.rs": "4ae26fda8f28b0ec4cfa26b43dd2b4323c4191bbad627751d029a38f79279192",
+    "src/nnue/storage.rs": "9051db8ae0c44eea8ecbcd47bedec3249298deb761ae8adad8d849dcbf7c3b6a",
+    "src/nnue/features.rs": "43549d9df560ddd5dbd32d11f9b43061adccf33883fd09e3161d92fb4b6ede2e",
+    "src/search.rs": "4aac177ae82ff10b9ca1e2cf45962740b9bff14f50ce45788961e7a4943f33a5",
+    "deploy/build_native.sh": "3ec31072e4188877a56d11ceaf0a9ee2a5c6c5f2efc87cf4479ea90210d042d9",
+    "deploy/build_pgo.sh": "1ee3d4aa6863d70fb77e78165e9506b0351407755af652c3511ae132abb06b11"
+  },
+  "extra_builds": {
+    "generic": {
+      "sha256": "e44b6433895f05c9e9d611254e2b18e0c9e9fa23f89feead027672ba79b15360",
+      "rustflags": []
+    },
+    "fat": {
+      "sha256": "72aca101a76dc7f4ed5e9e8ea823008ade2419c457e742f5b82a95cb18eda4e5",
+      "overrides": {
+        "CARGO_PROFILE_RELEASE_LTO": "fat"
+      }
+    },
+    "fat-abort": {
+      "sha256": "2ef1aa17c81a505cccf7a145aa33673330eb4b9df533f4f82a7213cfea7a00f3",
+      "overrides": {
+        "CARGO_PROFILE_RELEASE_LTO": "fat",
+        "CARGO_PROFILE_RELEASE_PANIC": "abort"
+      }
+    },
+    "pgo-generate": {
+      "sha256": "9055b697fb1c7278714b35100f69988631116603cd60cc6432834d98a1408905"
+    },
+    "pgo-use": {
+      "sha256": "79aad8c25fb5c1e6dbbc7e68759c682972bdbfe075303b4b9a39ea70065f38d0",
+      "training": {
+        "positions": [
+          0,
+          1,
+          6
+        ],
+        "models": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "passes": 20,
+        "depth": 2
+      }
+    },
+    "selected": {
+      "sha256": "54f3ed043401bdcae46f895ff5bbb9745bc09578bcae3126290e5f4e28a20799"
+    },
+    "architecture-micro-balanced": {
+      "sha256": "18f8aea8b389b27f7c469be6d8110f17868c519cfd692b5d911443b335e42033"
+    }
+  }
+}

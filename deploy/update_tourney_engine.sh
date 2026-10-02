@@ -20,7 +20,7 @@ revision=$(git -C "$repo" rev-parse --verify --end-of-options "$ref^{commit}")
 git -C "$repo" worktree add --detach "$scratch/source" "$revision"
 (
   cd "$scratch/source"
-  CARGO_TARGET_DIR="$scratch/target" CARGO_BUILD_JOBS=1 nice -n 19 cargo build --locked --release --bin taikyoku_shogi --bin analyze_position
+  CARGO_TARGET_DIR="$scratch/target" CARGO_BUILD_JOBS=1 nice -n 19 "$repo/deploy/build_native.sh" --release --bin taikyoku_shogi --bin analyze_position
 )
 # Use the installed coordinator tooling, not arbitrary deployment code from REF.
 python3 "$repo/deploy/tourney_analysis.py" update-engine --run-dir "$run" \

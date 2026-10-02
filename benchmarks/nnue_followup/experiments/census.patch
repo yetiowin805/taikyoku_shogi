@@ -1,0 +1,76 @@
+--- a/src/nnue/mod.rs
++++ b/src/nnue/mod.rs
+@@ -206,6 +206,22 @@
+     sums: Vec<i32>,
+     storage: storage::Storage,
+ }
++#[derive(Default)]
++pub struct StudyStats {
++    evals: u64, inputs: u64, zeros: u64, blocks: u64, zero_blocks: u64,
++    outside_i16: u64, samples: Vec<Vec<u8>>,
++    moves: u64, changes: u64, delta_eligible: u64, delta_hits: u64,
++}
++thread_local! { static STUDY: std::cell::RefCell<StudyStats> = Default::default(); }
++pub fn study_stats() -> serde_json::Value {
++    STUDY.with(|v| {
++        let s = std::mem::take(&mut *v.borrow_mut());
++        serde_json::json!({"evals":s.evals,"inputs":s.inputs,"zeros":s.zeros,
++            "blocks":s.blocks,"zero_blocks":s.zero_blocks,"outside_i16":s.outside_i16,
++            "samples":s.samples,"moves":s.moves,"changes":s.changes,
++            "delta_eligible":s.delta_eligible,"delta_hits":s.delta_hits})
++    })
++}
+ thread_local! {static INPUT:std::cell::RefCell<Vec<u8>>=const{std::cell::RefCell::new(Vec::new())};}
+ impl Accumulator {
+     pub fn new(net: Arc<Network>, board: &Board) -> Self {
+@@ -243,6 +259,16 @@
+                     *d = ((a * 127 + 2048) / 4096).clamp(0, 127) as u8;
+                 }
+             }
++            STUDY.with(|v| {
++                let mut s = v.borrow_mut();
++                s.evals += 1;
++                s.inputs += x.len() as u64;
++                s.zeros += x.iter().filter(|&&a| a == 0).count() as u64;
++                s.blocks += (x.len()/4) as u64;
++                s.zero_blocks += x.chunks_exact(4).filter(|a| a.iter().all(|&v| v == 0)).count() as u64;
++                s.outside_i16 += self.sums.iter().filter(|&&a| i16::try_from(a).is_err()).count() as u64;
++                if s.evals.is_power_of_two() && s.samples.len() < 16 { s.samples.push(x.to_vec()); }
++            });
+             let mut h = [0i32; 32];
+             packed::affine32(&x, &self.net.h1, &mut h);
+             for (j, y) in h.iter_mut().enumerate() {
+--- a/src/nnue/storage.rs
++++ b/src/nnue/storage.rs
+@@ -152,6 +152,12 @@
+         out.resize(2 * w, 0);
+         self.ensure_storage();
+         let mut codes = std::mem::take(&mut self.storage.codes);
++        super::STUDY.with(|v| {
++            let mut s = v.borrow_mut();
++            s.moves += 1;
++            s.changes += (subs.len() + usize::from(add.is_some())) as u64;
++            s.delta_eligible += u64::from(subs.len() + usize::from(add.is_some()) >= DELTA_MIN_CHANGES);
++        });
+         let delta_slot = if subs.len() + usize::from(add.is_some()) >= DELTA_MIN_CHANGES {
+             codes.clear();
+             codes.extend(subs.iter().map(piece_code));
+@@ -168,6 +174,7 @@
+                 self.storage.deltas = vec![0; DELTA_SLOTS * 2 * w];
+             }
+             if self.storage.delta_keys[slot] == codes {
++                super::STUDY.with(|v| v.borrow_mut().delta_hits += 1);
+                 let d = &self.storage.deltas[slot * 2 * w..(slot + 1) * 2 * w];
+                 for (o, (&a, &b)) in out.iter_mut().zip(self.sums.iter().zip(d)) {
+                     *o = a + b;
+--- a/examples/nnue_tournament_bench.rs
++++ b/examples/nnue_tournament_bench.rs
+@@ -101,7 +101,7 @@
+             json!({"position":q.position,"name":corpus.positions[q.position].name,"model":q.model,"agent":corpus.models[q.model].name,
+             "ms":ms,"cpu_ms":cpu_ms,"depth":q.depth,"completed_depth":result.completed_depth,"aborted":result.aborted,
+             "nodes":result.nodes,"q_nodes":result.q_nodes,"score":result.score,"best":result.best_move,"signature":signature_sha256,
+-            "pieces":pieces,"legal":legal.len(),"ply":corpus.positions[q.position].ply,"hash":state.hash(),"nnue":player.weights().nnue_runtime.is_some()})
++            "pieces":pieces,"legal":legal.len(),"ply":corpus.positions[q.position].ply,"hash":state.hash(),"nnue":player.weights().nnue_runtime.is_some(),"census":taikyoku_shogi::nnue::study_stats()})
+         );
+         io::stdout().flush().unwrap();
+     }

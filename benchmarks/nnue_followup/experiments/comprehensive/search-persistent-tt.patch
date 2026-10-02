@@ -1,0 +1,52 @@
+--- a/src/search.rs
++++ b/src/search.rs
+@@ -617,7 +617,7 @@
+ }
+ 
+ fn position_hash(state: &GameState) -> u64 {
+-    state.hash()
++    state.hash() ^ state.get_board().attack_variant_key()
+ }
+ 
+ fn q_tt_key(state: &GameState, prev_to: Option<Position>, mix_prev_to: bool) -> u64 {
+@@ -8111,9 +8111,21 @@
+         pool.iter().position(|v| v.len()==n).map(|i|pool.swap_remove(i))
+     }).unwrap_or_else(||vec![None;n])
+ }
++/// Research-only session control. The benchmark calls this when the game,
++/// model or continuation changes; production needs an owned search session.
++pub fn clear_research_persistent_tt() {
++    TT_STORAGE.with(|pool| {
++        for entries in pool.borrow_mut().iter_mut() { entries.fill(None); }
++    });
++}
++
+ impl Drop for TranspositionTable {
+     fn drop(&mut self) {
+-        for i in self.touched.drain(..) { self.entries[i] = None; }
++        // Retain only AB bounds. Q bounds are context-dependent and remain
++        // fresh. Keep draw progress in the key; it is part of rule semantics.
++        if self.entries.len() != 1 << 20 {
++            for i in self.touched.drain(..) { self.entries[i] = None; }
++        }
+         let entries=std::mem::take(&mut self.entries);
+         TT_STORAGE.with(|pool| { let mut pool=pool.borrow_mut(); if pool.len()<8 {pool.push(entries);} });
+     }
+--- a/examples/nnue_tournament_bench.rs
++++ b/examples/nnue_tournament_bench.rs
+@@ -57,8 +57,15 @@
+         })
+         .collect();
+     let mut players = HashMap::new();
++    let mut previous: Option<(usize, usize)> = None;
+     for line in io::stdin().lock().lines() {
+         let q: Request = serde_json::from_str(&line.unwrap()).unwrap();
++        let same_game = previous.is_some_and(|(model, position)| {
++            model == q.model && corpus.positions[position].game == corpus.positions[q.position].game
++                && corpus.positions[q.position].ply == corpus.positions[position].ply + 1
++        });
++        if !same_game { taikyoku_shogi::search::clear_research_persistent_tt(); }
++        previous = Some((q.model, q.position));
+         let player = players.entry(q.model).or_insert_with(|| {
+             AlphaBetaPlayer::from_checkpoint(
+                 EvalCheckpoint::load_path(&corpus.models[q.model].path).unwrap(),

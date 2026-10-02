@@ -12,6 +12,7 @@ pub struct Board {
     global_attackers: [[u64; 21]; 2], // movers that need unaligned attack probes
     royal_count: [u16; 2], // kings and crown princes by color
     single_royal: [Option<Position>; 2], // royal square when count is exactly one
+    attack_variant_key: u64, // movement origins not represented by the search Zobrist key
     squares: Vec<Option<Piece>>, // 36 * 36 = 1296 squares
     black_pieces: Vec<Piece>, // Fast iteration over black pieces
     white_pieces: Vec<Piece>, // Fast iteration over white pieces
@@ -25,6 +26,7 @@ impl Board {
             global_attackers: [[0; 21]; 2],
             royal_count: [0; 2],
             single_royal: [None; 2],
+            attack_variant_key: 0,
             squares: vec![None; 1296],
             black_pieces: Vec::new(),
             white_pieces: Vec::new(),
@@ -60,6 +62,10 @@ impl Board {
         self.single_royal[(color == Color::White) as usize]
     }
 
+    pub(crate) fn attack_variant_key(&self) -> u64 {
+        self.attack_variant_key
+    }
+
     /// Place a piece on the board
     /// If a piece already exists at this position, it will be removed first
     pub fn place_piece(&mut self, piece: Piece) {
@@ -70,6 +76,7 @@ impl Board {
         if let Some(old) = self.squares[index] {
             self.remove_from_list(old);
         }
+        self.attack_variant_key ^= attack_variant_key(&piece);
         let list = match piece.color {
             Color::Black => &mut self.black_pieces,
             Color::White => &mut self.white_pieces,
@@ -90,6 +97,7 @@ impl Board {
 
     /// Constant-time removal. Deliberately changes traversal order after captures.
     fn remove_from_list(&mut self, piece: Piece) {
+        self.attack_variant_key ^= attack_variant_key(&piece);
         let list = match piece.color {
             Color::Black => &mut self.black_pieces,
             Color::White => &mut self.white_pieces,
@@ -257,10 +265,24 @@ impl Clone for Board {
             global_attackers: self.global_attackers,
             royal_count: self.royal_count,
             single_royal: self.single_royal,
+            attack_variant_key: self.attack_variant_key,
             squares: self.squares.clone(),
             black_pieces: self.black_pieces.clone(),
             white_pieces: self.white_pieces.clone(),
         }
+    }
+}
+
+// Silver Rabbit and Reverse Chariot both promote to Whale, with different
+// movement. The existing TT key includes type and promotion, but not origin.
+// Supplement only the new attack/gate memo keys; keep TT behavior unchanged.
+fn attack_variant_key(piece: &Piece) -> u64 {
+    if piece.piece_type == crate::piece::PieceType::Whale
+        && piece.base_piece_type == Some(crate::piece::PieceType::ReverseChariot)
+    {
+        crate::zobrist::piece_key(piece).wrapping_mul(0xD6E8_FEB8_6659_FD93).rotate_left(23)
+    } else {
+        0
     }
 }
 

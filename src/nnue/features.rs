@@ -119,7 +119,8 @@ pub(super) fn key(p: &Piece) -> usize {
 pub struct Schema {
     pub names: Vec<String>,
     pub hash: [u8; 32],
-    pieces: Vec<Vec<usize>>,
+    pub(crate) pieces: Vec<Vec<usize>>,
+    pub(crate) row_classes: Vec<usize>,
 }
 pub fn schema() -> &'static Schema {
     static SCHEMA: OnceLock<Schema> = OnceLock::new();
@@ -157,7 +158,14 @@ pub fn schema() -> &'static Schema {
         // Includes mappings, not just channel names: movement changes invalidate old nets.
         let data = serde_json::to_vec(&(1, CHANNELS, &names, &mappings)).unwrap();
         let hash = Sha256::digest(data).into();
+        // Identical ability lists select identical weight rows regardless of
+        // piece identity. Preserve the original schema hash and model format.
+        let mut representatives = BTreeMap::new();
+        let row_classes = mappings.iter().enumerate().map(|(i, abilities)| {
+            *representatives.entry(abilities.clone()).or_insert(i)
+        }).collect();
         Schema {
+            row_classes,
             names,
             hash,
             pieces: mappings,

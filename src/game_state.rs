@@ -1522,12 +1522,15 @@ impl GameState {
             }
         }
 
-        let nnue_snapshot = self.nnue.as_mut().map(|acc| acc.save_sums());
-        if let Some(acc) = self.nnue.as_mut() {
-            acc.change(&original_mover, -1);
-            for (_, piece) in &removed { acc.change(piece, -1); }
-            if let Some(piece) = self.board.get_piece(final_to) { acc.change(&piece, 1); }
-        }
+        let nnue_snapshot = if let Some(acc) = self.nnue.as_mut() {
+            let mut subs = Vec::with_capacity(removed.len() + 1);
+            subs.push(original_mover);
+            subs.extend(removed.iter().map(|(_, p)| *p));
+            let added = self.board.get_piece(final_to);
+            Some(acc.save_and_apply(&subs, added.as_ref()))
+        } else {
+            None
+        };
         Some(SearchUndo {
             from,
             final_to,

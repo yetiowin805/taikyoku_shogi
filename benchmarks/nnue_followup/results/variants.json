@@ -1,0 +1,45 @@
+{
+  "base_revision": "c639ca2b6114975818a071f10c9b8c8740471aee",
+  "rustflags": "-C target-cpu=native",
+  "target_profile": "release (thin LTO, codegen-units=1)",
+  "variants": {
+    "main": {
+      "binary_sha256": "d32ec040d9bee779c77601f075c92895ac76c7e74d7510b29e3151a250563749"
+    },
+    "memo": {
+      "binary_sha256": "4ef645f40204106c40c19c0f84e8f5ee26bcff22deeea5206ac12c8d1358dab4"
+    },
+    "bundle": {
+      "binary_sha256": "380c168a9c4c658c7c71b71139b75de31c25ea1517b22bddb787d8ddaa0e5560"
+    },
+    "avx-vnni": {
+      "binary_sha256": "7d319134b5dcfdef73a427073052a3dbe578d47e58bd582f663237d04ccf3d27"
+    },
+    "compact": {
+      "binary_sha256": "5037c20aa52f18e6d0818795ab1ddfd7ebdc8fbbfffbd8eb2e731f0a8b65eaee"
+    },
+    "final": {
+      "binary_sha256": "9b8669d123d4674ca0cccd40a991a38c151afa03d849febc915d1f00653e8f98"
+    },
+    "no-delta": {
+      "binary_sha256": "3399ad84562a0aa1ff4165064299255b6bd8c53946af26de0f7813593545c723"
+    },
+    "census": {
+      "binary_sha256": "91525a4ba6aabff00eb7df0047215e4e5bf4fd5f74134fb001d8aaccc2d8c3ac"
+    },
+    "production": {
+      "binary_sha256": "f158bf6919787077c62695bbddf549058bc0ec243622fffb02fa2823358c5c44"
+    }
+  },
+  "construction": {
+    "main": "base revision + benchmark harness",
+    "memo": "base + experiments/memo.patch",
+    "bundle": "base + experiments/bundle.patch",
+    "avx-vnni": "bundle + experiments/avx-vnni.patch",
+    "compact": "avx-vnni + experiments/compact.patch",
+    "final": "Hardened small-cache candidate (historical filename), see final-source-sha256.json.",
+    "no-delta": "final + experiments/no-delta.patch",
+    "census": "compact + instrumentation equivalent to experiments/census.patch (no timing claims)",
+    "production": "PR source, including Whale-origin memo key and weak parking; original large cache sizes. See production-source-sha256.json."
+  }
+}

@@ -1,0 +1,116 @@
+{
+  "revision": "aee552ee96416f3b6d5471e8f2498a64742eec03",
+  "positions": [
+    {
+      "name": "opening+0",
+      "game": "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/position-00.json",
+      "sha256": "315684a55724ccb297bc7205f719abf7701a99b9dddbd12bad26a23953a5670d",
+      "ply": 0,
+      "source_game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0002-BASE_C2S2_A40_Lmate-vs-NNUE_W512_v1-a-white.json"
+    },
+    {
+      "name": "opening+1",
+      "game": "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/position-00.json",
+      "sha256": "315684a55724ccb297bc7205f719abf7701a99b9dddbd12bad26a23953a5670d",
+      "ply": 1,
+      "source_game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0002-BASE_C2S2_A40_Lmate-vs-NNUE_W512_v1-a-white.json"
+    },
+    {
+      "name": "opening+2",
+      "game": "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/position-00.json",
+      "sha256": "315684a55724ccb297bc7205f719abf7701a99b9dddbd12bad26a23953a5670d",
+      "ply": 2,
+      "source_game": "/home/frank/taikyoku_shogi/data/raw/games/nnue-vs-handcrafted-v1/slot0002-BASE_C2S2_A40_Lmate-vs-NNUE_W512_v1-a-white.json"
+    }
+  ],
+  "models": [
+    {
+      "name": "BASE_C2S2_A40_Lmate",
+      "path": "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/BASE_C2S2_A40_Lmate.json",
+      "source_model": "/home/frank/taikyoku_shogi/data/nnue-speed-probe-20260920/models/BASE_C2S2_A40_Lmate.json",
+      "sha256": "5d61f7a75ef2503cc01754eff5d46b845198e35d2b7359b95755703d974694bb",
+      "search_defaults": {
+        "depth": 2,
+        "max_time_ms": null,
+        "quiescence_depth": 2,
+        "sibling_mode": 0,
+        "q_loud_promo_simple_only": false,
+        "hang_q_dest_multileg": true,
+        "hang_q_dest_pathclear": true,
+        "q_open_large_mover": false,
+        "q_open_any_capture": false,
+        "q_recapture_only": false,
+        "q_own_large_only": true
+      }
+    },
+    {
+      "name": "C2K50A1",
+      "path": "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/C2K50A1.json",
+      "source_model": "/home/frank/taikyoku_shogi/data/nnue-speed-probe-20260920/models/C2K50A1.json",
+      "sha256": "cedf5cf23ca6b9bbd2d5d5f8a247375dca3bce276578b14be07fcddd40d7586c",
+      "search_defaults": {
+        "depth": 2,
+        "max_time_ms": null,
+        "quiescence_depth": 2,
+        "sibling_mode": 0,
+        "q_loud_promo_simple_only": false,
+        "hang_q_dest_multileg": true,
+        "hang_q_dest_pathclear": true,
+        "q_open_large_mover": false,
+        "q_open_any_capture": false,
+        "q_recapture_only": false,
+        "q_own_large_only": false
+      }
+    },
+    {
+      "name": "NNUE512",
+      "path": "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/NNUE_W512_v2.json",
+      "source_model": "/home/frank/taikyoku_shogi/data/nnue-admission-v2/NNUE_W512_v2.json",
+      "sha256": "cc35f156f63ce898da757b2ef000e45d5f7d4d97b41d0bed4ca10c435a0f0f42",
+      "search_defaults": {
+        "depth": 2,
+        "max_time_ms": null,
+        "quiescence_depth": 2,
+        "sibling_mode": 0,
+        "q_loud_promo_simple_only": false,
+        "hang_q_dest_multileg": true,
+        "hang_q_dest_pathclear": true,
+        "q_open_large_mover": false,
+        "q_open_any_capture": false,
+        "q_recapture_only": false,
+        "q_own_large_only": true
+      },
+      "nnue": {
+        "file": "nnue-c42dc7aa1811d9ebdcfca74c190a7234a292156f63ee0780b4e9a580cd2eb131.bin",
+        "sha256": "c42dc7aa1811d9ebdcfca74c190a7234a292156f63ee0780b4e9a580cd2eb131",
+        "width": 512,
+        "feature_hash": "126bc08ca9871740d5cc545d4c1723d21e7705089bf98a79b8714a598409ca72"
+      }
+    },
+    {
+      "name": "NNUE2048",
+      "path": "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/NNUE_W2048_v2.json",
+      "source_model": "/home/frank/taikyoku_shogi/data/nnue-admission-v2/NNUE_W2048_v2.json",
+      "sha256": "0f5d5754a7ec378ba73fc646bd0a9757d273d776e17c3e6b5523dcb76f8b5c7d",
+      "search_defaults": {
+        "depth": 2,
+        "max_time_ms": null,
+        "quiescence_depth": 2,
+        "sibling_mode": 0,
+        "q_loud_promo_simple_only": false,
+        "hang_q_dest_multileg": true,
+        "hang_q_dest_pathclear": true,
+        "q_open_large_mover": false,
+        "q_open_any_capture": false,
+        "q_recapture_only": false,
+        "q_own_large_only": true
+      },
+      "nnue": {
+        "file": "nnue-bfb0ddf94230ab010cb0e818c653dc8ae9bcf0ab4c4992366eea31dcddb11ddd.bin",
+        "sha256": "bfb0ddf94230ab010cb0e818c653dc8ae9bcf0ab4c4992366eea31dcddb11ddd",
+        "width": 2048,
+        "feature_hash": "126bc08ca9871740d5cc545d4c1723d21e7705089bf98a79b8714a598409ca72"
+      }
+    }
+  ]
+}

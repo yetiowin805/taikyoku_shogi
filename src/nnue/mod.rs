@@ -236,13 +236,17 @@ impl Accumulator {
                     .iter_mut()
                     .zip(&self.sums[(first ^ side) * w..((first ^ side) + 1) * w])
                 {
-                    *d = ((i64::from(a) * 127 + 2048) / 4096).clamp(0, 127) as u8;
+                    // Exact i32 form of ((a*127+2048)/4096).clamp(0,127): below -16 the
+                    // quotient is <= 0 and above 4128 it is >= 127, so pre-clamping a
+                    // keeps the product in i32 and lets the loop vectorize.
+                    let a = a.clamp(-16, 4128);
+                    *d = ((a * 127 + 2048) / 4096).clamp(0, 127) as u8;
                 }
             }
             let mut h = [0i32; 32];
+            packed::affine32(&x, &self.net.h1, &mut h);
             for (j, y) in h.iter_mut().enumerate() {
-                let sum = packed::dot(&x, &self.net.h1[j * 2 * w..(j + 1) * 2 * w]);
-                *y = ((sum + self.net.b1[j] + 32) / 64).clamp(0, 127);
+                *y = ((*y + self.net.b1[j] + 32) / 64).clamp(0, 127);
             }
             let mut result = self.net.out_bias;
             for j in 0..32 {
@@ -281,6 +285,22 @@ pub(crate) mod tests {
         position::Position,
         search::{search, SearchConfig},
     };
+    impl Network {
+        pub(crate) fn clone_for_test(&self) -> Network {
+            Network {
+                width: self.width,
+                sha256: self.sha256.clone(),
+                weights: self.weights.clone(),
+                bias: self.bias.clone(),
+                h1: self.h1.clone(),
+                b1: self.b1.clone(),
+                h2: self.h2.clone(),
+                b2: self.b2.clone(),
+                out: self.out.clone(),
+                out_bias: self.out_bias,
+            }
+        }
+    }
     pub(crate) fn net(width: usize, tag: &str) -> Arc<Network> {
         Arc::new(Network {
             width,
