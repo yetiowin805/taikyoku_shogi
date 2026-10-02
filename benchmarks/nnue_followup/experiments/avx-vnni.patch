@@ -1,0 +1,46 @@
+--- a/src/nnue/packed.rs
++++ b/src/nnue/packed.rs
+@@ -51,6 +51,30 @@
+     }
+ }
+ 
++// AVX-VNNI also provides exact byte dot products on CPUs without AVX-512.
++// Reuse each input vector across four output rows to reduce load overhead.
++#[cfg(target_arch = "x86_64")]
++#[target_feature(enable = "avx2,avxvnni")]
++unsafe fn avx_vnni32(x: &[u8], h1: &[i8], out: &mut [i32; 32]) {
++    use std::arch::x86_64::*;
++    let n = x.len();
++    for j in (0..32).step_by(4) {
++        let mut acc = [_mm256_setzero_si256(); 4];
++        for i in (0..n).step_by(32) {
++            let input = _mm256_loadu_si256(x.as_ptr().add(i).cast());
++            for k in 0..4 {
++                let weights = _mm256_loadu_si256(h1.as_ptr().add((j + k) * n + i).cast());
++                acc[k] = _mm256_dpbusd_avx_epi32(acc[k], input, weights);
++            }
++        }
++        for k in 0..4 {
++            let mut lanes = [0i32; 8];
++            _mm256_storeu_si256(lanes.as_mut_ptr().cast(), acc[k]);
++            out[j + k] = lanes.into_iter().sum();
++        }
++    }
++}
++
+ pub(super) fn affine32(x: &[u8], h1: &[i8], out: &mut [i32; 32]) {
+     let n = x.len();
+     assert_eq!(h1.len(), 32 * n);
+@@ -59,6 +83,12 @@
+     if is_x86_feature_detected!("avx512vnni") && is_x86_feature_detected!("avx512bw") {
+         // SAFETY: runtime detection; lengths asserted above.
+         unsafe { vnni32(x, h1, out) };
++        return;
++    }
++    #[cfg(target_arch = "x86_64")]
++    if is_x86_feature_detected!("avxvnni") && is_x86_feature_detected!("avx2") {
++        // SAFETY: runtime detection; validated row lengths are multiples of 64.
++        unsafe { avx_vnni32(x, h1, out) };
+         return;
+     }
+     for (j, o) in out.iter_mut().enumerate() {

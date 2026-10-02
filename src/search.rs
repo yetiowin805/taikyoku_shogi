@@ -1027,10 +1027,10 @@ fn capture_hangs_high_value_piece(
     }
     let opponent = state.get_current_turn().opposite();
     match kind {
-        CaptureKind::SimpleTake => landing_attacked_cached(board, mv.to, opponent, attack_cache),
+        CaptureKind::SimpleTake => landing_attacked_cached(state, mv.to, opponent, attack_cache),
         CaptureKind::PathClear | CaptureKind::MultiLeg => {
             if !postfire_pathclear_hang
-                && !landing_attacked_cached(board, mv.to, opponent, attack_cache)
+                && !landing_attacked_cached(state, mv.to, opponent, attack_cache)
             {
                 return false;
             }
@@ -1221,12 +1221,12 @@ fn move_order_score(
         if !capture_takes_enemy_royal(state, mv) && net_below_hang_frac(enemy, own, mover_value) {
             match kind {
                 CaptureKind::SimpleTake => {
-                    landing_attacked_cached(board, mv.to, opponent, attack_cache)
+                    landing_attacked_cached(state, mv.to, opponent, attack_cache)
                 }
                 CaptureKind::PathClear | CaptureKind::MultiLeg => {
                     // Same confirm-on-prune as [`capture_hangs_high_value_piece`].
                     if !postfire_pathclear_hang
-                        && !landing_attacked_cached(board, mv.to, opponent, attack_cache)
+                        && !landing_attacked_cached(state, mv.to, opponent, attack_cache)
                     {
                         false
                     } else {
@@ -1256,8 +1256,82 @@ impl LandingAttackCache {
     }
 }
 
+const GATE_MEMO_BITS: u32 = 15;
+
+thread_local! {
+    /// Leaf-gate answers keyed by Zobrist key and gate kind. Entries carry the
+    /// search generation, so a new search (possibly with other weights or
+    /// options) never reads an older answer.
+    static GATE_MEMO: std::cell::RefCell<(u32, Vec<(u64, u32)>)> =
+        std::cell::RefCell::new((0, vec![(0, 0); 1 << GATE_MEMO_BITS]));
+}
+
+fn gate_memo_new_search() {
+    GATE_MEMO.with(|m| {
+        let mut m = m.borrow_mut();
+        // One bit of each stored value is reserved for the answer.
+        m.0 = (m.0 + 1) & 0x7fff_ffff;
+        if m.0 == 0 {
+            m.1.fill((0, 0));
+            m.0 = 1;
+        }
+    });
+}
+
+/// Memoize a position-only boolean leaf gate for the current search.
+fn gate_memo(state: &GameState, kind: u64, f: impl FnOnce() -> bool) -> bool {
+    let key = state.hash() ^ state.get_board().attack_variant_key()
+        ^ kind.wrapping_mul(0xD6E8_FEB8_6659_FD93);
+    let slot = (key >> (64 - GATE_MEMO_BITS)) as usize;
+    let cached = GATE_MEMO.with(|m| {
+        let m = m.borrow();
+        let (k, v) = m.1[slot];
+        (k == key && v >> 1 == m.0).then_some(v & 1 == 1)
+    });
+    if let Some(answer) = cached {
+        return answer;
+    }
+    let answer = f();
+    GATE_MEMO.with(|m| {
+        let mut m = m.borrow_mut();
+        let generation = m.0;
+        m.1[slot] = (key, (generation << 1) | answer as u32);
+    });
+    answer
+}
+
+const ATTACK_MEMO_BITS: u32 = 16;
+
+thread_local! {
+    /// Direct-mapped memo of board attack queries, keyed by the position's
+    /// Zobrist key, square and attacking colour. The answer depends only on the
+    /// position, so entries stay valid across searches (the same collision
+    /// caveat as the transposition table applies). Zero denotes an empty slot.
+    static ATTACK_MEMO: std::cell::RefCell<Vec<(u64, u8)>> =
+        std::cell::RefCell::new(vec![(0, 0); 1 << ATTACK_MEMO_BITS]);
+}
+
+/// `board.is_position_attacked_by_color(sq, color)`, memoized per position.
+fn attacked_memo(state: &GameState, sq: Position, color: Color) -> bool {
+    let key = state.hash()
+        ^ state.get_board().attack_variant_key()
+        ^ (sq.to_index() as u64 + 1).wrapping_mul(0x9E37_79B9_7F4A_7C15)
+        ^ (color as u64 + 1).wrapping_mul(0xC2B2_AE3D_27D4_EB4F);
+    let slot = (key >> (64 - ATTACK_MEMO_BITS)) as usize;
+    let hit = ATTACK_MEMO.with(|m| {
+        let (tag, answer) = m.borrow()[slot];
+        (answer != 0 && tag == key).then_some(answer == 2)
+    });
+    if let Some(answer) = hit {
+        return answer;
+    }
+    let answer = state.get_board().is_position_attacked_by_color(sq, color);
+    ATTACK_MEMO.with(|m| m.borrow_mut()[slot] = (key, 1 + answer as u8));
+    answer
+}
+
 fn landing_attacked_cached(
-    board: &crate::board::Board,
+    state: &GameState,
     to: Position,
     opponent: Color,
     cache: &mut LandingAttackCache,
@@ -1268,7 +1342,7 @@ fn landing_attacked_cached(
         2 => return true,
         _ => {}
     }
-    let hit = board.is_position_attacked_by_color(to, opponent);
+    let hit = attacked_memo(state, to, opponent);
     cache.state[idx] = if hit { 2 } else { 1 };
     hit
 }
@@ -1473,7 +1547,7 @@ fn generate_royal_captures(state: &GameState) -> Vec<Move> {
         if !enemy.piece_type.is_royal() {
             continue;
         }
-        if !board.is_position_attacked_by_color(enemy.position, us)
+        if !attacked_memo(state, enemy.position, us)
             && !peacock_might_directly_capture(board, us, enemy.position)
         {
             continue;
@@ -1503,7 +1577,7 @@ fn stm_has_royal_capture(state: &GameState) -> bool {
         if !enemy.piece_type.is_royal() {
             continue;
         }
-        if !board.is_position_attacked_by_color(enemy.position, us)
+        if !attacked_memo(state, enemy.position, us)
             && !peacock_might_directly_capture(board, us, enemy.position)
         {
             continue;
@@ -1747,7 +1821,7 @@ fn generate_loud_simple_takes(state: &GameState, weights: &EvalWeights) -> Vec<M
         if material_piece_value(&enemy, weights) < floor {
             continue;
         }
-        if !board.is_position_attacked_by_color(enemy.position, us)
+        if !attacked_memo(state, enemy.position, us)
             && !peacock_might_directly_capture(board, us, enemy.position)
         {
             continue;
@@ -1817,7 +1891,7 @@ fn stm_has_large_hang_take(state: &GameState, weights: &EvalWeights, opts: QHang
         if !is_large_hang_victim(&enemy, weights) {
             continue;
         }
-        if !state.get_board().is_position_attacked_by_color(enemy.position, us) {
+        if !attacked_memo(state, enemy.position, us) {
             continue;
         }
         for mv in generate_captures_hitting_square(state, enemy.position) {
@@ -2077,6 +2151,7 @@ pub fn search_with_progress(
         weights
     };
     let _wbind = bind_search_weights(weights);
+    gate_memo_new_search();
 
     let clock_started = Instant::now();
     let deadline = config
@@ -3646,9 +3721,9 @@ fn leaf_or_quiesce(
         || (ctx.q_open_large_mover && ctx.last_ab_mover_large && capture_parent)
         || (ctx.q_open_any_capture && capture_parent)
         || (ctx.q_own_large_only && stm_has_dest_take_of_prev_large(state, ctx.last_ab_to))
-        || stm_has_large_hang_take(state, weights, QHangOpts::from_ctx(ctx))
-        || stm_has_royal_capture(state);
-    if !include_caps && generate_loud_promotions(state).is_empty() {
+        || gate_memo(state, 1, || stm_has_large_hang_take(state, weights, QHangOpts::from_ctx(ctx)))
+        || gate_memo(state, 2, || stm_has_royal_capture(state));
+    if !include_caps && !gate_memo(state, 3, || !generate_loud_promotions(state).is_empty()) {
         evaluate_with_ply(state, weights, ctx.ply)
     } else {
         ctx.phase = "quiesce";
@@ -3901,7 +3976,6 @@ fn quiesce(
     if ctx.q_prune_mode.uses_stale_hang() {
         let opponent = state.get_current_turn().opposite();
         let mut attack_cache = LandingAttackCache::new();
-        let board = state.get_board();
         cands.retain(|c| {
             if c.is_loud_promo || c.is_royal_take {
                 return true;
@@ -3909,7 +3983,7 @@ fn quiesce(
             if !net_below_hang_frac(c.enemy, c.own, c.mover_value) {
                 return true;
             }
-            !landing_attacked_cached(board, c.mv.to, opponent, &mut attack_cache)
+            !landing_attacked_cached(state, c.mv.to, opponent, &mut attack_cache)
         });
         if cands.is_empty() {
             return stand_pat;
@@ -4783,6 +4857,60 @@ mod tests {
     use crate::eval::{EvalWeights, ALL_PIECE_TYPES};
     use crate::piece::{Color, Piece, PieceType};
     use crate::position::Position;
+
+    #[test]
+    fn memo_distinguishes_whale_origins_and_survives_board_edits() {
+        let square = Position::new(18, 18).unwrap();
+        let make = |base| {
+            let mut state = GameState::new();
+            let mut piece = Piece::new(base, Color::Black, square);
+            piece.promote();
+            state.place_piece(piece);
+            state
+        };
+        let mut chariot = make(PieceType::ReverseChariot);
+        let rabbit = make(PieceType::SilverRabbit);
+        assert_eq!(chariot.hash(), rabbit.hash(), "legacy TT omits origin");
+        assert_ne!(chariot.get_board().attack_variant_key(), rabbit.get_board().attack_variant_key());
+        gate_memo_new_search();
+        assert!(gate_memo(&chariot, 1, || true));
+        assert!(!gate_memo(&rabbit, 1, || false));
+        let mut different = false;
+        for rank in 0..36 {
+            let target = Position::new(18, rank).unwrap();
+            let a = chariot.get_board().is_position_attacked_by_color(target, Color::Black);
+            let b = rabbit.get_board().is_position_attacked_by_color(target, Color::Black);
+            different |= a != b;
+            for _ in 0..2 {
+                assert_eq!(attacked_memo(&chariot, target, Color::Black), a);
+                assert_eq!(attacked_memo(&rabbit, target, Color::Black), b);
+            }
+        }
+        assert!(different);
+        let before = chariot.get_board().attack_variant_key();
+        assert_eq!(chariot.clone().get_board().attack_variant_key(), before);
+        let piece = chariot.get_board_mut().remove_piece(square).unwrap();
+        assert_eq!(chariot.get_board().attack_variant_key(), 0);
+        chariot.get_board_mut().place_piece(piece);
+        assert_eq!(chariot.get_board().attack_variant_key(), before);
+        chariot.get_board_mut().place_piece(rabbit.get_board().get_piece(square).unwrap());
+        assert_eq!(chariot.get_board().attack_variant_key(), 0);
+    }
+
+    #[test]
+    fn gate_memo_resets_between_searches_and_on_generation_wrap() {
+        let state = GameState::new();
+        gate_memo_new_search();
+        assert!(gate_memo(&state, 1, || true));
+        assert!(gate_memo(&state, 1, || panic!("expected cache hit")));
+        assert!(!gate_memo(&state, 2, || false));
+        gate_memo_new_search();
+        assert!(!gate_memo(&state, 1, || false));
+        GATE_MEMO.with(|m| m.borrow_mut().0 = 0x7fff_ffff);
+        gate_memo_new_search();
+        assert!(GATE_MEMO.with(|m| m.borrow().1.iter().all(|&(_, v)| v == 0)));
+        assert!(gate_memo(&state, 1, || true));
+    }
 
     const PREFILTER_OFFSETS: &[(i8, i8)] = &[
         (0, 1), (1, 0), (1, 1), (0, 2), (2, 0), (2, 2),

@@ -119,7 +119,7 @@ pub(super) fn key(p: &Piece) -> usize {
 pub struct Schema {
     pub names: Vec<String>,
     pub hash: [u8; 32],
-    pieces: Vec<Vec<usize>>,
+    pub(crate) pieces: Vec<Vec<usize>>,
 }
 pub fn schema() -> &'static Schema {
     static SCHEMA: OnceLock<Schema> = OnceLock::new();
