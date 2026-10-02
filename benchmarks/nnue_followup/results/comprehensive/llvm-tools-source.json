@@ -1,0 +1,9 @@
+{
+  "available": true,
+  "url": "https://static.rust-lang.org/dist/2025-12-11/llvm-tools-1.92.0-x86_64-unknown-linux-gnu.tar.gz",
+  "hash": "71aafc660d8c59bf0b78abbd4449085868beb70ce615e053d687cdc0191d90b7",
+  "xz_url": "https://static.rust-lang.org/dist/2025-12-11/llvm-tools-1.92.0-x86_64-unknown-linux-gnu.tar.xz",
+  "xz_hash": "0e7ecc3cd9e0d1ab690954e2a623f7e5e9c55aca7d9853c712d6d84cc490f1dd",
+  "components": [],
+  "extensions": []
+}

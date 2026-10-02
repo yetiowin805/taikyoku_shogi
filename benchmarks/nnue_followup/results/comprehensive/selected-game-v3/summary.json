@@ -1,0 +1,363 @@
+{
+  "all": {
+    "pairs": 96,
+    "time_ratio": 0.6561020467995113,
+    "total_ms": {
+      "baseline": 13459.761863,
+      "candidate": 8932.830232
+    },
+    "total_time_ratio": 0.6636692627197041,
+    "peak_rss_kib": {
+      "baseline": 1010492,
+      "candidate": 1062508
+    }
+  },
+  "by_model": {
+    "NNUE512_v3": {
+      "pairs": 48,
+      "time_ratio": 0.7396173187601948,
+      "total_ms": {
+        "baseline": 4408.394766,
+        "candidate": 3286.419848
+      },
+      "total_time_ratio": 0.7454912779923212,
+      "peak_rss_kib": {
+        "baseline": 1010492,
+        "candidate": 1062480
+      }
+    },
+    "NNUE1536_v3": {
+      "pairs": 48,
+      "time_ratio": 0.5820170578700024,
+      "total_ms": {
+        "baseline": 9051.367097,
+        "candidate": 5646.410384
+      },
+      "total_time_ratio": 0.6238185153126156,
+      "peak_rss_kib": {
+        "baseline": 1010492,
+        "candidate": 1062508
+      }
+    }
+  },
+  "by_position": {
+    "opening+0": {
+      "pairs": 4,
+      "time_ratio": 0.6561946449207051,
+      "total_ms": {
+        "baseline": 557.882835,
+        "candidate": 369.867605
+      },
+      "total_time_ratio": 0.6629843791483565,
+      "peak_rss_kib": {
+        "baseline": 1010492,
+        "candidate": 1062480
+      }
+    },
+    "opening+1": {
+      "pairs": 4,
+      "time_ratio": 0.6165863284606621,
+      "total_ms": {
+        "baseline": 421.727997,
+        "candidate": 256.186084
+      },
+      "total_time_ratio": 0.6074675758365646,
+      "peak_rss_kib": {
+        "baseline": 1010492,
+        "candidate": 1062480
+      }
+    },
+    "opening+2": {
+      "pairs": 4,
+      "time_ratio": 0.5494019105728717,
+      "total_ms": {
+        "baseline": 697.9618350000001,
+        "candidate": 354.142449
+      },
+      "total_time_ratio": 0.507395148618692,
+      "peak_rss_kib": {
+        "baseline": 1010492,
+        "candidate": 1062480
+      }
+    },
+    "opening+3": {
+      "pairs": 4,
+      "time_ratio": 0.608938448778945,
+      "total_ms": {
+        "baseline": 507.071771,
+        "candidate": 284.898014
+      },
+      "total_time_ratio": 0.5618494861943321,
+      "peak_rss_kib": {
+        "baseline": 1010492,
+        "candidate": 1062480
+      }
+    },
+    "opening+4": {
+      "pairs": 4,
+      "time_ratio": 0.6038320713226345,
+      "total_ms": {
+        "baseline": 430.90128400000003,
+        "candidate": 253.402692
+      },
+      "total_time_ratio": 0.5880759733359253,
+      "peak_rss_kib": {
+        "baseline": 1010492,
+        "candidate": 1062480
+      }
+    },
+    "opening+5": {
+      "pairs": 4,
+      "time_ratio": 0.5671138451252857,
+      "total_ms": {
+        "baseline": 470.99403199999995,
+        "candidate": 255.065618
+      },
+      "total_time_ratio": 0.5415474521341707,
+      "peak_rss_kib": {
+        "baseline": 1010492,
+        "candidate": 1062480
+      }
+    },
+    "middlegame+0": {
+      "pairs": 4,
+      "time_ratio": 0.7318586657599944,
+      "total_ms": {
+        "baseline": 354.758384,
+        "candidate": 260.220556
+      },
+      "total_time_ratio": 0.7335148871351269,
+      "peak_rss_kib": {
+        "baseline": 1010492,
+        "candidate": 1062480
+      }
+    },
+    "middlegame+1": {
+      "pairs": 4,
+      "time_ratio": 0.5446564149569013,
+      "total_ms": {
+        "baseline": 399.17238199999997,
+        "candidate": 212.654909
+      },
+      "total_time_ratio": 0.5327395345703051,
+      "peak_rss_kib": {
+        "baseline": 1010492,
+        "candidate": 1062480
+      }
+    },
+    "middlegame+2": {
+      "pairs": 4,
+      "time_ratio": 0.593924354904568,
+      "total_ms": {
+        "baseline": 332.21904,
+        "candidate": 194.28056
+      },
+      "total_time_ratio": 0.584796584807421,
+      "peak_rss_kib": {
+        "baseline": 1010492,
+        "candidate": 1062480
+      }
+    },
+    "middlegame+3": {
+      "pairs": 4,
+      "time_ratio": 0.6051912195568895,
+      "total_ms": {
+        "baseline": 519.083887,
+        "candidate": 306.934354
+      },
+      "total_time_ratio": 0.5913000994384555,
+      "peak_rss_kib": {
+        "baseline": 1010492,
+        "candidate": 1062480
+      }
+    },
+    "middlegame+4": {
+      "pairs": 4,
+      "time_ratio": 0.6043937272779181,
+      "total_ms": {
+        "baseline": 352.087174,
+        "candidate": 207.436134
+      },
+      "total_time_ratio": 0.5891612910614006,
+      "peak_rss_kib": {
+        "baseline": 1010492,
+        "candidate": 1062480
+      }
+    },
+    "middlegame+5": {
+      "pairs": 4,
+      "time_ratio": 0.5450900204775733,
+      "total_ms": {
+        "baseline": 574.221261,
+        "candidate": 288.240928
+      },
+      "total_time_ratio": 0.5019684006440855,
+      "peak_rss_kib": {
+        "baseline": 1010492,
+        "candidate": 1062480
+      }
+    },
+    "late-independent+0": {
+      "pairs": 4,
+      "time_ratio": 0.7707839971598328,
+      "total_ms": {
+        "baseline": 1099.572963,
+        "candidate": 816.294854
+      },
+      "total_time_ratio": 0.7423744321367057,
+      "peak_rss_kib": {
+        "baseline": 1010492,
+        "candidate": 1062480
+      }
+    },
+    "late-independent+1": {
+      "pairs": 4,
+      "time_ratio": 0.6995962329176413,
+      "total_ms": {
+        "baseline": 1039.158538,
+        "candidate": 707.004463
+      },
+      "total_time_ratio": 0.6803624636147676,
+      "peak_rss_kib": {
+        "baseline": 1010492,
+        "candidate": 1062480
+      }
+    },
+    "late-independent+2": {
+      "pairs": 4,
+      "time_ratio": 0.7147493199726299,
+      "total_ms": {
+        "baseline": 1626.590711,
+        "candidate": 1193.716355
+      },
+      "total_time_ratio": 0.733876289177948,
+      "peak_rss_kib": {
+        "baseline": 1010492,
+        "candidate": 1062480
+      }
+    },
+    "late-independent+3": {
+      "pairs": 4,
+      "time_ratio": 0.6748876156527929,
+      "total_ms": {
+        "baseline": 1129.6938759999998,
+        "candidate": 746.263653
+      },
+      "total_time_ratio": 0.6605892701148006,
+      "peak_rss_kib": {
+        "baseline": 1010492,
+        "candidate": 1062480
+      }
+    },
+    "late-independent+4": {
+      "pairs": 4,
+      "time_ratio": 0.754282509708243,
+      "total_ms": {
+        "baseline": 1580.1433029999998,
+        "candidate": 1166.6355039999999
+      },
+      "total_time_ratio": 0.7383099379563044,
+      "peak_rss_kib": {
+        "baseline": 1010492,
+        "candidate": 1062480
+      }
+    },
+    "late-independent+5": {
+      "pairs": 4,
+      "time_ratio": 0.5337508067688178,
+      "total_ms": {
+        "baseline": 34.495049,
+        "candidate": 17.581759
+      },
+      "total_time_ratio": 0.5096893470132482,
+      "peak_rss_kib": {
+        "baseline": 1010492,
+        "candidate": 1062480
+      }
+    },
+    "late-endgame+0": {
+      "pairs": 4,
+      "time_ratio": 0.8859571780820322,
+      "total_ms": {
+        "baseline": 421.682357,
+        "candidate": 384.43559
+      },
+      "total_time_ratio": 0.9116710329903605,
+      "peak_rss_kib": {
+        "baseline": 1010492,
+        "candidate": 1062480
+      }
+    },
+    "late-endgame+1": {
+      "pairs": 4,
+      "time_ratio": 0.7733545732394199,
+      "total_ms": {
+        "baseline": 298.187738,
+        "candidate": 231.948373
+      },
+      "total_time_ratio": 0.7778601982620761,
+      "peak_rss_kib": {
+        "baseline": 1010492,
+        "candidate": 1062480
+      }
+    },
+    "late-endgame+2": {
+      "pairs": 4,
+      "time_ratio": 0.6853135298242414,
+      "total_ms": {
+        "baseline": 101.096099,
+        "candidate": 66.427097
+      },
+      "total_time_ratio": 0.6570688449610702,
+      "peak_rss_kib": {
+        "baseline": 1010492,
+        "candidate": 1062480
+      }
+    },
+    "late-endgame+3": {
+      "pairs": 4,
+      "time_ratio": 0.7248083307668487,
+      "total_ms": {
+        "baseline": 203.552264,
+        "candidate": 142.459856
+      },
+      "total_time_ratio": 0.6998686882696623,
+      "peak_rss_kib": {
+        "baseline": 1010492,
+        "candidate": 1062480
+      }
+    },
+    "late-endgame+4": {
+      "pairs": 4,
+      "time_ratio": 0.6951432545243882,
+      "total_ms": {
+        "baseline": 129.651973,
+        "candidate": 87.75777599999999
+      },
+      "total_time_ratio": 0.6768718899480226,
+      "peak_rss_kib": {
+        "baseline": 1010492,
+        "candidate": 1062508
+      }
+    },
+    "late-endgame+5": {
+      "pairs": 4,
+      "time_ratio": 0.7468939799581704,
+      "total_ms": {
+        "baseline": 177.85511,
+        "candidate": 128.975049
+      },
+      "total_time_ratio": 0.7251692065524573,
+      "peak_rss_kib": {
+        "baseline": 1010492,
+        "candidate": 1062508
+      }
+    }
+  },
+  "all_signatures_match": true,
+  "load_after": [
+    7.11279296875,
+    5.953125,
+    4.87646484375
+  ]
+}

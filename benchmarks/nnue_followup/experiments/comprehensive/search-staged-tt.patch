@@ -1,0 +1,73 @@
+--- a/src/search.rs
++++ b/src/search.rs
+@@ -3380,6 +3380,38 @@
+         return best;
+     }
+ 
++    // Research prototype: resolve and search the TT route from its one piece
++    // before generating the complete army. Quiet multi-leg moves stay in B.
++    let mut staged_move = None;
++    let mut staged_best = i32::MIN + 1;
++    let mut staged_key = None;
++    if let Some(tm) = tt_move {
++        if let Some(from) = Position::new(tm.0, tm.1) {
++            if let Some(piece) = state.get_board().get_piece(from) {
++                if piece.color == state.get_current_turn() {
++                    let mut routes = Vec::new();
++                    state.generate_legal_moves_for_pieces_mode(&[piece], LegalMoveGen::WithoutQuietMultiLeg, &mut routes);
++                    order_moves_with_heuristics(state, weights, &mut routes, ctx, ctx.ply, false, false);
++                    if let Some(mv) = routes.into_iter().find(|mv| same_tt_move(mv, tm)) {
++                        let parent_ply = ctx.ply;
++                        let (best, best_key, next_alpha, cutoff) = search_move_list(
++                            state, weights, depth, alpha, beta, is_pv, ctx, parent_ply,
++                            std::slice::from_ref(&mv), 0,
++                        );
++                        if cutoff && !ctx.abort {
++                            ctx.tt.store(TtEntry { key, depth, score: best, bound: TtBound::Lower, best: best_key });
++                            return best;
++                        }
++                        alpha = next_alpha;
++                        staged_best = best;
++                        staged_key = best_key;
++                        staged_move = Some(mv);
++                    }
++                }
++            }
++        }
++    }
++
+     // Stage A: captures + non-multi-leg quiets (+ capturing multi-leg).
+     // Stage B: quiet two-step / FreeEagle only if A did not cut.
+     let mut moves = state.generate_legal_moves_mode(LegalMoveGen::WithoutQuietMultiLeg);
+@@ -3400,9 +3432,21 @@
+ 
+     let parent_ply = ctx.ply;
+     let stage_a_len = moves.len();
++    if let Some(staged) = &staged_move {
++        // Match the full route, not just from/to: two-step paths can capture
++        // different pieces despite sharing the old TT coordinate key.
++        if let Some(index) = moves.iter().position(|mv| mv == staged) {
++            moves.remove(index);
++        }
++    }
+     let (mut best, mut best_move_key, alpha, did_cutoff) = search_move_list(
+-        state, weights, depth, alpha, beta, is_pv, ctx, parent_ply, &moves, 0,
++        state, weights, depth, alpha, beta, is_pv && staged_move.is_none(), ctx, parent_ply, &moves,
++        usize::from(staged_move.is_some()),
+     );
++    if staged_best >= best && staged_key.is_some() {
++        best = staged_best;
++        best_move_key = staged_key;
++    }
+ 
+     if !did_cutoff && !ctx.abort && !used_only_stage_b {
+         let mut stage_b = state.generate_legal_moves_mode(LegalMoveGen::QuietMultiLegOnly);
+@@ -3415,7 +3459,7 @@
+                 depth,
+                 alpha,
+                 beta,
+-                is_pv,
++                is_pv && staged_move.is_none(),
+                 ctx,
+                 parent_ply,
+                 &stage_b,

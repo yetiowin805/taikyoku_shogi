@@ -1,5 +1,10 @@
 # Real-network NNUE follow-up — October 2026
 
+**Latest:** [the comprehensive second round](COMPREHENSIVE.md) covers the
+remaining implementation/build ideas, architecture-cost probes, selected
+additional changes, and final combined results. The results below describe the
+first-round source at `903986e`; they remain as the baseline for that follow-up.
+
 This study checks the five supplied cloud-session patches against current main
 `c639ca2`, using trained networks and complete tournament game histories.
 The PR retains batched accumulator updates, exact i16 fused rows with an i32
@@ -11,7 +16,7 @@ The production cache capacities remain 16,384 piece rows and 4,096 move deltas.
 The 8,192/1,024 alternative was measured but not selected: it trades a little
 consecutive-search speed for a much lower memory ceiling.
 
-## Selected production results
+## First-round production results (`903986e`)
 
 All numbers below compare the final large-cache build directly with main
 `c639ca2`; below 1 means faster. **On game sequences, trained W2048 v2 took
@@ -151,10 +156,11 @@ combination remains risky; regional designs had poor supplied proxy results.
 The measured accumulator values fit i16, but the accepted network format permits
 larger values: that observation is not sufficient to narrow production sums.
 
-**Not measured here:** PGO, huge pages, row prefetch, persistent transposition
-tables, a small leaf network, or retraining. The supplied toolchain estimates
-remain host-specific hypotheses. Persistent TT/search changes need separate
-strength evaluation and the repository's history-freeze workflow.
+**Second-round coverage:** PGO, native builds, huge pages, prefetch, persistent
+TT and the other implementation ideas are now measured in
+[COMPREHENSIVE.md](COMPREHENSIVE.md). Small leaf networks and other retraining
+remain deferred. Persistent TT/search changes still need separate strength
+evaluation and the repository's history-freeze workflow.
 
 ## Reproduce
 

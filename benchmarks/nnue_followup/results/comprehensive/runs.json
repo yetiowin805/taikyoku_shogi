@@ -1,0 +1,464 @@
+{
+  "canonical-game": {
+    "builds": {
+      "baseline": {
+        "path": "/tmp/nnue-speed-study/bin/production",
+        "sha256": "f158bf6919787077c62695bbddf549058bc0ec243622fffb02fa2823358c5c44"
+      },
+      "candidate": {
+        "path": "/tmp/nnue-comprehensive/bin/memory-canonical",
+        "sha256": "6e0ae921e06a59df4486643dfb2df2cc87d602c544ec336aaba03488ebec6612"
+      }
+    },
+    "pairs": 96,
+    "signatures_match": true
+  },
+  "canonical-game-v3": {
+    "builds": {
+      "baseline": {
+        "path": "/tmp/nnue-speed-study/bin/production",
+        "sha256": "f158bf6919787077c62695bbddf549058bc0ec243622fffb02fa2823358c5c44"
+      },
+      "candidate": {
+        "path": "/tmp/nnue-comprehensive/bin/memory-canonical",
+        "sha256": "6e0ae921e06a59df4486643dfb2df2cc87d602c544ec336aaba03488ebec6612"
+      }
+    },
+    "pairs": 96,
+    "signatures_match": true
+  },
+  "canonical-screen": {
+    "builds": {
+      "baseline": {
+        "path": "/tmp/nnue-speed-study/bin/production",
+        "sha256": "f158bf6919787077c62695bbddf549058bc0ec243622fffb02fa2823358c5c44"
+      },
+      "candidate": {
+        "path": "/tmp/nnue-comprehensive/bin/memory-canonical",
+        "sha256": "6e0ae921e06a59df4486643dfb2df2cc87d602c544ec336aaba03488ebec6612"
+      }
+    },
+    "pairs": 48,
+    "signatures_match": true
+  },
+  "capture-game": {
+    "builds": {
+      "baseline": {
+        "path": "/tmp/nnue-speed-study/bin/production",
+        "sha256": "f158bf6919787077c62695bbddf549058bc0ec243622fffb02fa2823358c5c44"
+      },
+      "candidate": {
+        "path": "/tmp/nnue-comprehensive/bin/search-capture-cache",
+        "sha256": "e55712b10fdb4c2031c7bf613b70a22991781db72b37bb97b672a20777ae4210"
+      }
+    },
+    "pairs": 144,
+    "signatures_match": true
+  },
+  "capture-game-v3": {
+    "builds": {
+      "baseline": {
+        "path": "/tmp/nnue-speed-study/bin/production",
+        "sha256": "f158bf6919787077c62695bbddf549058bc0ec243622fffb02fa2823358c5c44"
+      },
+      "candidate": {
+        "path": "/tmp/nnue-comprehensive/bin/search-capture-cache",
+        "sha256": "e55712b10fdb4c2031c7bf613b70a22991781db72b37bb97b672a20777ae4210"
+      }
+    },
+    "pairs": 96,
+    "signatures_match": true
+  },
+  "capture-screen": {
+    "builds": {
+      "baseline": {
+        "path": "/tmp/nnue-speed-study/bin/production",
+        "sha256": "f158bf6919787077c62695bbddf549058bc0ec243622fffb02fa2823358c5c44"
+      },
+      "candidate": {
+        "path": "/tmp/nnue-comprehensive/bin/search-capture-cache",
+        "sha256": "e55712b10fdb4c2031c7bf613b70a22991781db72b37bb97b672a20777ae4210"
+      }
+    },
+    "pairs": 96,
+    "signatures_match": true
+  },
+  "eval-cache-screen": {
+    "builds": {
+      "baseline": {
+        "path": "/tmp/nnue-speed-study/bin/production",
+        "sha256": "f158bf6919787077c62695bbddf549058bc0ec243622fffb02fa2823358c5c44"
+      },
+      "candidate": {
+        "path": "/tmp/nnue-comprehensive/bin/eval-cache",
+        "sha256": "e16d045e24ae10fe9f66aa13a69a55f7fcb134e919418bf8fcf9db9a81705488"
+      }
+    },
+    "pairs": 48,
+    "signatures_match": true
+  },
+  "eval-cache-v3": {
+    "builds": {
+      "baseline": {
+        "path": "/tmp/nnue-speed-study/bin/production",
+        "sha256": "f158bf6919787077c62695bbddf549058bc0ec243622fffb02fa2823358c5c44"
+      },
+      "candidate": {
+        "path": "/tmp/nnue-comprehensive/bin/eval-cache",
+        "sha256": "e16d045e24ae10fe9f66aa13a69a55f7fcb134e919418bf8fcf9db9a81705488"
+      }
+    },
+    "pairs": 24,
+    "signatures_match": true
+  },
+  "fat-abort-screen": {
+    "builds": {
+      "baseline": {
+        "path": "/tmp/nnue-speed-study/bin/production",
+        "sha256": "f158bf6919787077c62695bbddf549058bc0ec243622fffb02fa2823358c5c44"
+      },
+      "candidate": {
+        "path": "/tmp/nnue-comprehensive/bin/fat-abort",
+        "sha256": "2ef1aa17c81a505cccf7a145aa33673330eb4b9df533f4f82a7213cfea7a00f3"
+      }
+    },
+    "pairs": 96,
+    "signatures_match": true
+  },
+  "fat-screen": {
+    "builds": {
+      "baseline": {
+        "path": "/tmp/nnue-speed-study/bin/production",
+        "sha256": "f158bf6919787077c62695bbddf549058bc0ec243622fffb02fa2823358c5c44"
+      },
+      "candidate": {
+        "path": "/tmp/nnue-comprehensive/bin/fat",
+        "sha256": "72aca101a76dc7f4ed5e9e8ea823008ade2419c457e742f5b82a95cb18eda4e5"
+      }
+    },
+    "pairs": 96,
+    "signatures_match": true
+  },
+  "hugepages-screen": {
+    "builds": {
+      "baseline": {
+        "path": "/tmp/nnue-speed-study/bin/production",
+        "sha256": "f158bf6919787077c62695bbddf549058bc0ec243622fffb02fa2823358c5c44"
+      },
+      "candidate": {
+        "path": "/tmp/nnue-comprehensive/bin/memory-hugepages",
+        "sha256": "0ffb4321672c781f03bd8f88915f68e1b2cdbdb5b2426dccd57d66d78c8a512d"
+      }
+    },
+    "pairs": 48,
+    "signatures_match": true
+  },
+  "hugepages-weights-game-v3": {
+    "builds": {
+      "baseline": {
+        "path": "/tmp/nnue-speed-study/bin/production",
+        "sha256": "f158bf6919787077c62695bbddf549058bc0ec243622fffb02fa2823358c5c44"
+      },
+      "candidate": {
+        "path": "/tmp/nnue-comprehensive/bin/memory-hugepages-weights",
+        "sha256": "c0149a155220a285d5287e6dc072c59b112ada46ea32e028345ea1ac3bf8d954"
+      }
+    },
+    "pairs": 96,
+    "signatures_match": true
+  },
+  "hugepages-weights-screen": {
+    "builds": {
+      "baseline": {
+        "path": "/tmp/nnue-speed-study/bin/production",
+        "sha256": "f158bf6919787077c62695bbddf549058bc0ec243622fffb02fa2823358c5c44"
+      },
+      "candidate": {
+        "path": "/tmp/nnue-comprehensive/bin/memory-hugepages-weights",
+        "sha256": "c0149a155220a285d5287e6dc072c59b112ada46ea32e028345ea1ac3bf8d954"
+      }
+    },
+    "pairs": 48,
+    "signatures_match": true
+  },
+  "i16delta-fused-game-v3": {
+    "builds": {
+      "baseline": {
+        "path": "/tmp/nnue-speed-study/bin/production",
+        "sha256": "f158bf6919787077c62695bbddf549058bc0ec243622fffb02fa2823358c5c44"
+      },
+      "candidate": {
+        "path": "/tmp/nnue-comprehensive/bin/memory-i16delta-fused",
+        "sha256": "f0306e3e2bf94708abf63195a1c414de7c9ebec80d4362b1e700afe6e1967a8b"
+      }
+    },
+    "pairs": 96,
+    "signatures_match": true
+  },
+  "i16delta-fused-screen": {
+    "builds": {
+      "baseline": {
+        "path": "/tmp/nnue-speed-study/bin/production",
+        "sha256": "f158bf6919787077c62695bbddf549058bc0ec243622fffb02fa2823358c5c44"
+      },
+      "candidate": {
+        "path": "/tmp/nnue-comprehensive/bin/memory-i16delta-fused",
+        "sha256": "f0306e3e2bf94708abf63195a1c414de7c9ebec80d4362b1e700afe6e1967a8b"
+      }
+    },
+    "pairs": 48,
+    "signatures_match": true
+  },
+  "i16delta-game": {
+    "builds": {
+      "baseline": {
+        "path": "/tmp/nnue-speed-study/bin/production",
+        "sha256": "f158bf6919787077c62695bbddf549058bc0ec243622fffb02fa2823358c5c44"
+      },
+      "candidate": {
+        "path": "/tmp/nnue-comprehensive/bin/memory-i16delta",
+        "sha256": "1aa7ff313893433ae903f141449448b5c62325b03b4e85f5a8fa4210711a7294"
+      }
+    },
+    "pairs": 96,
+    "signatures_match": true
+  },
+  "i16delta-screen": {
+    "builds": {
+      "baseline": {
+        "path": "/tmp/nnue-speed-study/bin/production",
+        "sha256": "f158bf6919787077c62695bbddf549058bc0ec243622fffb02fa2823358c5c44"
+      },
+      "candidate": {
+        "path": "/tmp/nnue-comprehensive/bin/memory-i16delta",
+        "sha256": "1aa7ff313893433ae903f141449448b5c62325b03b4e85f5a8fa4210711a7294"
+      }
+    },
+    "pairs": 48,
+    "signatures_match": true
+  },
+  "lazy-screen": {
+    "builds": {
+      "baseline": {
+        "path": "/tmp/nnue-speed-study/bin/production",
+        "sha256": "f158bf6919787077c62695bbddf549058bc0ec243622fffb02fa2823358c5c44"
+      },
+      "candidate": {
+        "path": "/tmp/nnue-comprehensive/bin/eval-lazy",
+        "sha256": "18f72b078ee04d6c021077a37cc0f2d7bd290ae5b73befeb3f2a1d3a856d1aa9"
+      }
+    },
+    "pairs": 48,
+    "signatures_match": true
+  },
+  "lazy-v3": {
+    "builds": {
+      "baseline": {
+        "path": "/tmp/nnue-speed-study/bin/production",
+        "sha256": "f158bf6919787077c62695bbddf549058bc0ec243622fffb02fa2823358c5c44"
+      },
+      "candidate": {
+        "path": "/tmp/nnue-comprehensive/bin/eval-lazy",
+        "sha256": "18f72b078ee04d6c021077a37cc0f2d7bd290ae5b73befeb3f2a1d3a856d1aa9"
+      }
+    },
+    "pairs": 24,
+    "signatures_match": true
+  },
+  "native-screen": {
+    "builds": {
+      "baseline": {
+        "path": "/tmp/nnue-comprehensive/bin/generic",
+        "sha256": "e44b6433895f05c9e9d611254e2b18e0c9e9fa23f89feead027672ba79b15360"
+      },
+      "candidate": {
+        "path": "/tmp/nnue-speed-study/bin/production",
+        "sha256": "f158bf6919787077c62695bbddf549058bc0ec243622fffb02fa2823358c5c44"
+      }
+    },
+    "pairs": 96,
+    "signatures_match": true
+  },
+  "pgo-game-v3": {
+    "builds": {
+      "baseline": {
+        "path": "/tmp/nnue-speed-study/bin/production",
+        "sha256": "f158bf6919787077c62695bbddf549058bc0ec243622fffb02fa2823358c5c44"
+      },
+      "candidate": {
+        "path": "/tmp/nnue-comprehensive/bin/pgo-use",
+        "sha256": "79aad8c25fb5c1e6dbbc7e68759c682972bdbfe075303b4b9a39ea70065f38d0"
+      }
+    },
+    "pairs": 96,
+    "signatures_match": true
+  },
+  "pgo-screen": {
+    "builds": {
+      "baseline": {
+        "path": "/tmp/nnue-speed-study/bin/production",
+        "sha256": "f158bf6919787077c62695bbddf549058bc0ec243622fffb02fa2823358c5c44"
+      },
+      "candidate": {
+        "path": "/tmp/nnue-comprehensive/bin/pgo-use",
+        "sha256": "79aad8c25fb5c1e6dbbc7e68759c682972bdbfe075303b4b9a39ea70065f38d0"
+      }
+    },
+    "pairs": 72,
+    "signatures_match": true
+  },
+  "prefetch-screen": {
+    "builds": {
+      "baseline": {
+        "path": "/tmp/nnue-speed-study/bin/production",
+        "sha256": "f158bf6919787077c62695bbddf549058bc0ec243622fffb02fa2823358c5c44"
+      },
+      "candidate": {
+        "path": "/tmp/nnue-comprehensive/bin/memory-prefetch",
+        "sha256": "24dd828df9d01fb617779ac089ab337856c5da3e26809ffd0b13e5570090507d"
+      }
+    },
+    "pairs": 48,
+    "signatures_match": true
+  },
+  "promotion-screen": {
+    "builds": {
+      "baseline": {
+        "path": "/tmp/nnue-speed-study/bin/production",
+        "sha256": "f158bf6919787077c62695bbddf549058bc0ec243622fffb02fa2823358c5c44"
+      },
+      "candidate": {
+        "path": "/tmp/nnue-comprehensive/bin/search-promotion-rays",
+        "sha256": "8d35f87ad784d99442f310b62a4c7f793f5ecf752607b908dee6397bca6c064b"
+      }
+    },
+    "pairs": 96,
+    "signatures_match": true
+  },
+  "root-reuse-screen": {
+    "builds": {
+      "baseline": {
+        "path": "/tmp/nnue-speed-study/bin/production",
+        "sha256": "f158bf6919787077c62695bbddf549058bc0ec243622fffb02fa2823358c5c44"
+      },
+      "candidate": {
+        "path": "/tmp/nnue-comprehensive/bin/eval-root-reuse",
+        "sha256": "def7b4c1105e3f2cc6558a04e1b1488a51f2f8923469fd8091890633f924c379"
+      }
+    },
+    "pairs": 48,
+    "signatures_match": true
+  },
+  "root-reuse-v3": {
+    "builds": {
+      "baseline": {
+        "path": "/tmp/nnue-speed-study/bin/production",
+        "sha256": "f158bf6919787077c62695bbddf549058bc0ec243622fffb02fa2823358c5c44"
+      },
+      "candidate": {
+        "path": "/tmp/nnue-comprehensive/bin/eval-root-reuse",
+        "sha256": "def7b4c1105e3f2cc6558a04e1b1488a51f2f8923469fd8091890633f924c379"
+      }
+    },
+    "pairs": 24,
+    "signatures_match": true
+  },
+  "selected-game": {
+    "builds": {
+      "baseline": {
+        "path": "/tmp/nnue-speed-study/bin/main",
+        "sha256": "d32ec040d9bee779c77601f075c92895ac76c7e74d7510b29e3151a250563749"
+      },
+      "candidate": {
+        "path": "/tmp/nnue-comprehensive/bin/selected",
+        "sha256": "54f3ed043401bdcae46f895ff5bbb9745bc09578bcae3126290e5f4e28a20799"
+      }
+    },
+    "pairs": 144,
+    "signatures_match": true
+  },
+  "selected-game-v3": {
+    "builds": {
+      "baseline": {
+        "path": "/tmp/nnue-speed-study/bin/main",
+        "sha256": "d32ec040d9bee779c77601f075c92895ac76c7e74d7510b29e3151a250563749"
+      },
+      "candidate": {
+        "path": "/tmp/nnue-comprehensive/bin/selected",
+        "sha256": "54f3ed043401bdcae46f895ff5bbb9745bc09578bcae3126290e5f4e28a20799"
+      }
+    },
+    "pairs": 96,
+    "signatures_match": true
+  },
+  "selected-pgo-screen": {
+    "builds": {
+      "baseline": {
+        "path": "/tmp/nnue-comprehensive/bin/selected",
+        "sha256": "54f3ed043401bdcae46f895ff5bbb9745bc09578bcae3126290e5f4e28a20799"
+      },
+      "candidate": {
+        "path": "/tmp/nnue-comprehensive/selected-pgo/bin/benchmark",
+        "sha256": "6d1e4dd26f32e145d5190ebc838a3c3d45479e4bf3135a2655c97eef4ee22050"
+      }
+    },
+    "pairs": 72,
+    "signatures_match": true
+  },
+  "selected-screen": {
+    "builds": {
+      "baseline": {
+        "path": "/tmp/nnue-speed-study/bin/main",
+        "sha256": "d32ec040d9bee779c77601f075c92895ac76c7e74d7510b29e3151a250563749"
+      },
+      "candidate": {
+        "path": "/tmp/nnue-comprehensive/bin/selected",
+        "sha256": "54f3ed043401bdcae46f895ff5bbb9745bc09578bcae3126290e5f4e28a20799"
+      }
+    },
+    "pairs": 96,
+    "signatures_match": true
+  },
+  "selected-v3": {
+    "builds": {
+      "baseline": {
+        "path": "/tmp/nnue-speed-study/bin/main",
+        "sha256": "d32ec040d9bee779c77601f075c92895ac76c7e74d7510b29e3151a250563749"
+      },
+      "candidate": {
+        "path": "/tmp/nnue-comprehensive/bin/selected",
+        "sha256": "54f3ed043401bdcae46f895ff5bbb9745bc09578bcae3126290e5f4e28a20799"
+      }
+    },
+    "pairs": 24,
+    "signatures_match": true
+  },
+  "transposed-screen": {
+    "builds": {
+      "baseline": {
+        "path": "/tmp/nnue-speed-study/bin/production",
+        "sha256": "f158bf6919787077c62695bbddf549058bc0ec243622fffb02fa2823358c5c44"
+      },
+      "candidate": {
+        "path": "/tmp/nnue-comprehensive/bin/memory-transposed",
+        "sha256": "f75cdb4a5400f1ea5882f1165045e59cb30378a49b3ee8619de0a4b631f9e83d"
+      }
+    },
+    "pairs": 48,
+    "signatures_match": true
+  },
+  "transposed-v3": {
+    "builds": {
+      "baseline": {
+        "path": "/tmp/nnue-speed-study/bin/production",
+        "sha256": "f158bf6919787077c62695bbddf549058bc0ec243622fffb02fa2823358c5c44"
+      },
+      "candidate": {
+        "path": "/tmp/nnue-comprehensive/bin/memory-transposed",
+        "sha256": "f75cdb4a5400f1ea5882f1165045e59cb30378a49b3ee8619de0a4b631f9e83d"
+      }
+    },
+    "pairs": 24,
+    "signatures_match": true
+  }
+}

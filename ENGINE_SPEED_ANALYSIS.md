@@ -11,6 +11,14 @@ The original proposal estimates are **historical guesses**, not remaining gains 
 
 ## 2026-10-02 real-network verification and NNUE follow-up
 
+**Latest follow-up:** [comprehensive remaining-idea experiments](benchmarks/nnue_followup/COMPREHENSIVE.md)
+adds real-network tests of PGO/native/LTO builds, canonical rows, root reuse,
+capture memos, promotion generation, deferred/evaluation caches, narrow deltas,
+huge pages, prefetch and transposed inference, plus TT research and synthetic
+architecture-cost probes. The additional selected source is `cf85eb3`;
+414 release tests pass. The section below retains the first-round `903986e`
+results as historical evidence. No NNUE retraining was performed.
+
 The five supplied cloud-session patches were checked against updated main
 `c639ca2` on an i7-1255U, using actual trained v2/v3 networks and original
 tournament histories. Both builds used `target-cpu=native`. Two interleaved

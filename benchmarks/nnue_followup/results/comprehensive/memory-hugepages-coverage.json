@@ -1,0 +1,326 @@
+{
+  "baseline": {
+    "searches": [
+      {
+        "aborted": false,
+        "agent": "NNUE2048",
+        "best": {
+          "data": "Standard",
+          "from": {
+            "file": 17,
+            "rank": 3
+          },
+          "promoted": false,
+          "to": {
+            "file": 3,
+            "rank": 17
+          }
+        },
+        "completed_depth": 2,
+        "cpu_ms": 119.517,
+        "depth": 2,
+        "hash": 18006879535909912716,
+        "legal": 280,
+        "model": 3,
+        "ms": 120.02790200000001,
+        "name": "opening+0",
+        "nnue": true,
+        "nodes": 10473,
+        "pieces": 804,
+        "ply": 0,
+        "position": 0,
+        "q_nodes": 7992,
+        "score": 2867,
+        "signature": "7090a87c7c475b742f957971260775b098b3801117a2bba17785876273633764"
+      },
+      {
+        "aborted": false,
+        "agent": "NNUE2048",
+        "best": {
+          "data": "Standard",
+          "from": {
+            "file": 17,
+            "rank": 32
+          },
+          "promoted": false,
+          "to": {
+            "file": 3,
+            "rank": 18
+          }
+        },
+        "completed_depth": 2,
+        "cpu_ms": 58.413,
+        "depth": 2,
+        "hash": 3680820465149301718,
+        "legal": 280,
+        "model": 3,
+        "ms": 58.430913000000004,
+        "name": "opening+1",
+        "nnue": true,
+        "nodes": 5050,
+        "pieces": 797,
+        "ply": 1,
+        "position": 1,
+        "q_nodes": 3766,
+        "score": 348,
+        "signature": "812cbb913b0a85bccb3c86df70c4171696081d07d68b9ece6d4cfffd334d6ebf"
+      },
+      {
+        "aborted": false,
+        "agent": "NNUE2048",
+        "best": {
+          "data": "Standard",
+          "from": {
+            "file": 17,
+            "rank": 22
+          },
+          "promoted": false,
+          "to": {
+            "file": 19,
+            "rank": 22
+          }
+        },
+        "completed_depth": 2,
+        "cpu_ms": 109.391,
+        "depth": 2,
+        "hash": 17544460895265165946,
+        "legal": 423,
+        "model": 3,
+        "ms": 109.396281,
+        "name": "opening+2",
+        "nnue": true,
+        "nodes": 14946,
+        "pieces": 797,
+        "ply": 2,
+        "position": 2,
+        "q_nodes": 12302,
+        "score": 840,
+        "signature": "59c3ea21efb7c6c208e4d69f906634c8744a9b488e5fb153d74c82c62f5a424a"
+      }
+    ],
+    "memory": {
+      "Rss": "1027824 kB",
+      "Pss": "1026111 kB",
+      "Private_Dirty": "1024872 kB",
+      "Anonymous": "1024872 kB",
+      "AnonHugePages": "0 kB",
+      "Swap": "0 kB"
+    }
+  },
+  "hugepages-weights": {
+    "searches": [
+      {
+        "aborted": false,
+        "agent": "NNUE2048",
+        "best": {
+          "data": "Standard",
+          "from": {
+            "file": 17,
+            "rank": 3
+          },
+          "promoted": false,
+          "to": {
+            "file": 3,
+            "rank": 17
+          }
+        },
+        "completed_depth": 2,
+        "cpu_ms": 113.003,
+        "depth": 2,
+        "hash": 18006879535909912716,
+        "legal": 280,
+        "model": 3,
+        "ms": 116.75142600000001,
+        "name": "opening+0",
+        "nnue": true,
+        "nodes": 10473,
+        "pieces": 804,
+        "ply": 0,
+        "position": 0,
+        "q_nodes": 7992,
+        "score": 2867,
+        "signature": "7090a87c7c475b742f957971260775b098b3801117a2bba17785876273633764"
+      },
+      {
+        "aborted": false,
+        "agent": "NNUE2048",
+        "best": {
+          "data": "Standard",
+          "from": {
+            "file": 17,
+            "rank": 32
+          },
+          "promoted": false,
+          "to": {
+            "file": 3,
+            "rank": 18
+          }
+        },
+        "completed_depth": 2,
+        "cpu_ms": 61.422,
+        "depth": 2,
+        "hash": 3680820465149301718,
+        "legal": 280,
+        "model": 3,
+        "ms": 63.255171,
+        "name": "opening+1",
+        "nnue": true,
+        "nodes": 5050,
+        "pieces": 797,
+        "ply": 1,
+        "position": 1,
+        "q_nodes": 3766,
+        "score": 348,
+        "signature": "812cbb913b0a85bccb3c86df70c4171696081d07d68b9ece6d4cfffd334d6ebf"
+      },
+      {
+        "aborted": false,
+        "agent": "NNUE2048",
+        "best": {
+          "data": "Standard",
+          "from": {
+            "file": 17,
+            "rank": 22
+          },
+          "promoted": false,
+          "to": {
+            "file": 19,
+            "rank": 22
+          }
+        },
+        "completed_depth": 2,
+        "cpu_ms": 116.748,
+        "depth": 2,
+        "hash": 17544460895265165946,
+        "legal": 423,
+        "model": 3,
+        "ms": 118.96043300000001,
+        "name": "opening+2",
+        "nnue": true,
+        "nodes": 14946,
+        "pieces": 797,
+        "ply": 2,
+        "position": 2,
+        "q_nodes": 12302,
+        "score": 840,
+        "signature": "59c3ea21efb7c6c208e4d69f906634c8744a9b488e5fb153d74c82c62f5a424a"
+      }
+    ],
+    "memory": {
+      "Rss": "1027856 kB",
+      "Pss": "1026139 kB",
+      "Private_Dirty": "1024868 kB",
+      "Anonymous": "1024868 kB",
+      "AnonHugePages": "950272 kB",
+      "Swap": "0 kB"
+    }
+  },
+  "hugepages": {
+    "searches": [
+      {
+        "aborted": false,
+        "agent": "NNUE2048",
+        "best": {
+          "data": "Standard",
+          "from": {
+            "file": 17,
+            "rank": 3
+          },
+          "promoted": false,
+          "to": {
+            "file": 3,
+            "rank": 17
+          }
+        },
+        "completed_depth": 2,
+        "cpu_ms": 123.806,
+        "depth": 2,
+        "hash": 18006879535909912716,
+        "legal": 280,
+        "model": 3,
+        "ms": 124.001621,
+        "name": "opening+0",
+        "nnue": true,
+        "nodes": 10473,
+        "pieces": 804,
+        "ply": 0,
+        "position": 0,
+        "q_nodes": 7992,
+        "score": 2867,
+        "signature": "7090a87c7c475b742f957971260775b098b3801117a2bba17785876273633764"
+      },
+      {
+        "aborted": false,
+        "agent": "NNUE2048",
+        "best": {
+          "data": "Standard",
+          "from": {
+            "file": 17,
+            "rank": 32
+          },
+          "promoted": false,
+          "to": {
+            "file": 3,
+            "rank": 18
+          }
+        },
+        "completed_depth": 2,
+        "cpu_ms": 55.827,
+        "depth": 2,
+        "hash": 3680820465149301718,
+        "legal": 280,
+        "model": 3,
+        "ms": 55.826344999999996,
+        "name": "opening+1",
+        "nnue": true,
+        "nodes": 5050,
+        "pieces": 797,
+        "ply": 1,
+        "position": 1,
+        "q_nodes": 3766,
+        "score": 348,
+        "signature": "812cbb913b0a85bccb3c86df70c4171696081d07d68b9ece6d4cfffd334d6ebf"
+      },
+      {
+        "aborted": false,
+        "agent": "NNUE2048",
+        "best": {
+          "data": "Standard",
+          "from": {
+            "file": 17,
+            "rank": 22
+          },
+          "promoted": false,
+          "to": {
+            "file": 19,
+            "rank": 22
+          }
+        },
+        "completed_depth": 2,
+        "cpu_ms": 107.251,
+        "depth": 2,
+        "hash": 17544460895265165946,
+        "legal": 423,
+        "model": 3,
+        "ms": 107.247315,
+        "name": "opening+2",
+        "nnue": true,
+        "nodes": 14946,
+        "pieces": 797,
+        "ply": 2,
+        "position": 2,
+        "q_nodes": 12302,
+        "score": 840,
+        "signature": "59c3ea21efb7c6c208e4d69f906634c8744a9b488e5fb153d74c82c62f5a424a"
+      }
+    ],
+    "memory": {
+      "Rss": "1119492 kB",
+      "Pss": "1117779 kB",
+      "Private_Dirty": "1116544 kB",
+      "Anonymous": "1116544 kB",
+      "AnonHugePages": "1077248 kB",
+      "Swap": "0 kB"
+    }
+  }
+}

@@ -1,0 +1,101 @@
+--- a/src/search.rs
++++ b/src/search.rs
+@@ -4859,6 +4859,35 @@
+     use crate::position::Position;
+ 
+     #[test]
++    fn promotion_zone_direct_rays_match_full_generation() {
++        // Every promotable type, both orientations, immediately outside/inside
++        // the zone plus long rays; friendly and enemy blockers on multiple rays.
++        for color in [Color::Black, Color::White] {
++            for rank in [3, 10, 11, 18, 24, 25, 32] {
++                for &kind in ALL_PIECE_TYPES {
++                    if !promotes_into_big_piece(kind) { continue; }
++                    let mut state = GameState::new();
++                    let piece = Piece::new(kind, color, Position::new(18, rank).unwrap());
++                    let config = MovementConfig::for_piece(&piece);
++                    if config.capabilities.iter().any(|cap| matches!(cap, MovementCapability::TwoStep { .. })) { continue; }
++                    state.place_piece(piece);
++                    for (df, dr, blocker_color) in [(0, 2, color), (2, 2, color.opposite()), (-2, -2, color.opposite())] {
++                        if let Some(pos) = piece.position.offset(df, dr) {
++                            state.place_piece(Piece::new(PieceType::Pawn, blocker_color, pos));
++                        }
++                    }
++                    let mut all = Vec::new();
++                    state.generate_legal_moves_for_pieces_mode(&[piece], LegalMoveGen::All, &mut all);
++                    let expected: Vec<_> = all.into_iter().filter(|mv| mv.promoted).collect();
++                    let mut actual = Vec::new();
++                    state.emit_standard_promotions_for_piece(&piece, &mut actual);
++                    assert_eq!(actual, expected, "{color:?} {rank} {kind:?}");
++                }
++            }
++        }
++    }
++
++    #[test]
+     fn memo_distinguishes_whale_origins_and_survives_board_edits() {
+         let square = Position::new(18, 18).unwrap();
+         let make = |base| {
+--- a/src/game_state.rs
++++ b/src/game_state.rs
+@@ -1193,15 +1193,9 @@
+         if is_boxed_in(piece, &self.board) {
+             return;
+         }
+-        let in_zone = |rank: u8| match piece.color {
+-            Color::Black => rank >= 25,
+-            Color::White => rank <= 10,
+-        };
+-        let starts_in_zone = in_zone(piece.position.rank);
+-        for target in piece.get_potential_targets(&self.board) {
+-            if starts_in_zone || in_zone(target.rank) {
+-                moves.push(Move::new_with_promotion(piece.position, target, true));
+-            }
++        let config = MovementConfig::for_piece(piece);
++        for target in crate::movement::MovementGenerator::generate_promotion_targets(piece, &self.board, &config.capabilities) {
++            moves.push(Move::new_with_promotion(piece.position, target, true));
+         }
+     }
+ 
+--- a/src/movement/generator.rs
++++ b/src/movement/generator.rs
+@@ -35,6 +35,39 @@
+         }
+ 
+         // Remove duplicates
++        targets.sort();
++        targets.dedup();
++        targets
++    }
++
++    /// Targets that finish in the enemy promotion zone. Skip rays pointing
++    /// away from that zone before generating destinations, preserving blockers.
++    pub(crate) fn generate_promotion_targets<B: BoardLike>(
++        piece: &Piece,
++        board: &B,
++        capabilities: &[MovementCapability],
++    ) -> Vec<Position> {
++        let in_zone = |rank: u8| match piece.color {
++            Color::Black => rank >= 25,
++            Color::White => rank <= 10,
++        };
++        if in_zone(piece.position.rank) {
++            return Self::generate_targets(piece, board, capabilities);
++        }
++        // Directions in capabilities are relative to Black, so forward rays
++        // remain N/NE/NW for both colours before the standard colour transform.
++        let forward = Direction::N.to_bit() | Direction::NE.to_bit() | Direction::NW.to_bit();
++        let mut targets = Vec::new();
++        for capability in capabilities {
++            let generated = match capability {
++                MovementCapability::Simple { directions, max_distance } =>
++                    Self::generate_simple(piece, board, *directions & forward, *max_distance, false),
++                MovementCapability::Range { directions, blocking, cannot_jump_over } =>
++                    Self::generate_range(piece, board, *directions & forward, *blocking, cannot_jump_over, false),
++                _ => Self::generate_for_capability(piece, board, capability, false),
++            };
++            targets.extend(generated.into_iter().filter(|target| in_zone(target.rank)));
++        }
+         targets.sort();
+         targets.dedup();
+         targets

@@ -1,0 +1,109 @@
+--- a/src/nnue/mod.rs
++++ b/src/nnue/mod.rs
+@@ -206,6 +206,14 @@
+     sums: Vec<i32>,
+     storage: storage::Storage,
+ }
++#[derive(Default)]
++struct ResidualCache {
++    net: std::sync::Weak<Network>,
++    entries: Vec<(u64, Vec<u8>, i32)>,
++}
++thread_local! {
++    static RESIDUAL_CACHE: std::cell::RefCell<ResidualCache> = Default::default();
++}
+ thread_local! {static INPUT:std::cell::RefCell<Vec<u8>>=const{std::cell::RefCell::new(Vec::new())};}
+ impl Accumulator {
+     pub fn new(net: Arc<Network>, board: &Board) -> Self {
+@@ -226,6 +234,12 @@
+         self.change_cached(p, sign);
+     }
+     pub fn residual(&self, stm: Color) -> i32 {
++        self.residual_impl(stm, None)
++    }
++    pub fn residual_cached(&self, stm: Color, key: u64) -> i32 {
++        self.residual_impl(stm, Some(key))
++    }
++    fn residual_impl(&self, stm: Color, key: Option<u64>) -> i32 {
+         let w = self.net.width;
+         let first = usize::from(stm == Color::White);
+         INPUT.with(|input| {
+@@ -243,6 +257,18 @@
+                     *d = ((a * 127 + 2048) / 4096).clamp(0, 127) as u8;
+                 }
+             }
++            // Compare the complete ordered quantized input on a hash hit.
++            // Hash collisions can therefore affect performance only. The input
++            // includes side-to-move ordering; network identity is checked too.
++            if let Some(key) = key {
++                let hit = RESIDUAL_CACHE.with(|cache| {
++                    let cache = cache.borrow();
++                    if !(cache.net.as_ptr() == Arc::as_ptr(&self.net)) { return None; }
++                    let (old_key, input, score) = &cache.entries[key as usize % cache.entries.len()];
++                    (*old_key == key && input == &*x).then_some(*score)
++                });
++                if let Some(score) = hit { return score; }
++            }
+             let mut h = [0i32; 32];
+             packed::affine32(&x, &self.net.h1, &mut h);
+             for (j, y) in h.iter_mut().enumerate() {
+@@ -258,7 +284,22 @@
+                 result += ((sum + self.net.b2[j] + 32) / 64).clamp(0, 127) as f32 / 127.
+                     * self.net.out[j];
+             }
+-            (result * 1000.).round().clamp(-100_000., 100_000.) as i32
++            let score = (result * 1000.).round().clamp(-100_000., 100_000.) as i32;
++            if let Some(key) = key {
++                RESIDUAL_CACHE.with(|cache| {
++                    let mut cache = cache.borrow_mut();
++                    if !(cache.net.as_ptr() == Arc::as_ptr(&self.net)) {
++                        cache.net = Arc::downgrade(&self.net);
++                        cache.entries = vec![(0, Vec::new(), 0); 4096];
++                    }
++                    let slot = key as usize % cache.entries.len();
++                    let entry = &mut cache.entries[slot];
++                    entry.0 = key;
++                    entry.1.clone_from(&x);
++                    entry.2 = score;
++                });
++            }
++            score
+         })
+     }
+     pub fn matches_rebuild(&self, board: &Board) -> bool {
+@@ -330,6 +371,24 @@
+             s.place_piece(Piece::new(pt, c, Position::new(x, y).unwrap()));
+         }
+         s
++    }
++    #[test]
++    fn exact_residual_cache_verifies_input_and_network() {
++        let n = net(32, "cache");
++        let mut a = Accumulator::new(n.clone(), &state().get_board());
++        for side in [Color::Black, Color::White] {
++            assert_eq!(a.residual_cached(side, 0), a.residual(side));
++        }
++        // Deliberate identical hash keys for unequal inputs, and a model switch.
++        a.sums.fill(0);
++        assert_eq!(a.residual_cached(Color::Black, 0), a.residual(Color::Black));
++        a.sums.fill(4096);
++        assert_eq!(a.residual_cached(Color::Black, 0), a.residual(Color::Black));
++        let mut second = n.clone_for_test();
++        second.out_bias += 0.125;
++        let b = Accumulator::new(Arc::new(second), &state().get_board());
++        assert_eq!(b.residual_cached(Color::Black, 0), b.residual(Color::Black));
++        assert_eq!(a.residual_cached(Color::Black, 0), a.residual(Color::Black));
+     }
+     #[test]
+     fn deltas_promotions_null_clone_and_model_switch() {
+--- a/src/eval.rs
++++ b/src/eval.rs
+@@ -1779,7 +1779,7 @@
+         };
+         let material = state.eval_inc().filter(|i|i.matches(weights)).map(|i|i.mat[0]-i.mat[1]).unwrap_or_else(||crate::nnue::material(state.get_board(),weights));
+         let signed = if stm == Color::Black {material} else {-material};
+-        return (signed.round() as i32 + acc.residual(stm)).clamp(-weights.mate_score/2,weights.mate_score/2);
++        return (signed.round() as i32 + acc.residual_cached(stm, state.hash() ^ crate::zobrist::draw_key(state.get_turns_without_capture_or_promotion()))).clamp(-weights.mate_score/2,weights.mate_score/2);
+     }
+     assert!(weights.nnue.is_none(), "NNUE descriptor has not been loaded from its checkpoint");
+ 

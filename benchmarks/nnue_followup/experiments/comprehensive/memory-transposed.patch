@@ -1,0 +1,138 @@
+--- a/src/nnue/mod.rs
++++ b/src/nnue/mod.rs
+@@ -30,6 +30,7 @@
+     weights: Vec<i16>,
+     bias: Vec<i32>,
+     h1: Vec<i8>,
++    h1_transposed: Vec<i8>,
+     b1: Vec<i32>,
+     h2: Vec<i8>,
+     b2: Vec<i32>,
+@@ -173,12 +174,16 @@
+                 *v = i16::from_le_bytes([b[0], b[1]]);
+             }
+         }
++        let bias = i32s(&mut r, w)?;
++        let h1 = i8s(&mut r, 2 * w * 32)?;
++        let h1_transposed = packed::transpose32(&h1, 2 * w);
+         let net = Arc::new(Self {
+             width: w,
+             sha256: d.sha256.clone(),
+             weights,
+-            bias: i32s(&mut r, w)?,
+-            h1: i8s(&mut r, 2 * w * 32)?,
++            bias,
++            h1,
++            h1_transposed,
+             b1: i32s(&mut r, 32)?,
+             h2: i8s(&mut r, 32 * 32)?,
+             b2: i32s(&mut r, 32)?,
+@@ -244,7 +249,7 @@
+                 }
+             }
+             let mut h = [0i32; 32];
+-            packed::affine32(&x, &self.net.h1, &mut h);
++            packed::affine32_transposed(&x, &self.net.h1, &self.net.h1_transposed, &mut h);
+             for (j, y) in h.iter_mut().enumerate() {
+                 *y = ((*y + self.net.b1[j] + 32) / 64).clamp(0, 127);
+             }
+@@ -293,6 +298,7 @@
+                 weights: self.weights.clone(),
+                 bias: self.bias.clone(),
+                 h1: self.h1.clone(),
++                h1_transposed: self.h1_transposed.clone(),
+                 b1: self.b1.clone(),
+                 h2: self.h2.clone(),
+                 b2: self.b2.clone(),
+@@ -310,6 +316,7 @@
+                 .collect(),
+             bias: vec![2048; width],
+             h1: (0..2 * width * 32).map(|i| (i % 7) as i8 - 3).collect(),
++            h1_transposed: Vec::new(),
+             b1: vec![1024; 32],
+             h2: vec![1; 1024],
+             b2: vec![1024; 32],
+--- a/src/nnue/packed.rs
++++ b/src/nnue/packed.rs
+@@ -80,6 +80,55 @@
+     }
+ }
+ 
++pub(super) fn transpose32(h1: &[i8], inputs: usize) -> Vec<i8> {
++    assert_eq!(h1.len(), 32 * inputs);
++    assert_eq!(inputs % 4, 0);
++    let mut transposed = vec![0; h1.len()];
++    for group in 0..inputs / 4 {
++        for output in 0..32 {
++            for k in 0..4 {
++                transposed[group * 128 + output * 4 + k] = h1[output * inputs + group * 4 + k];
++            }
++        }
++    }
++    transposed
++}
++
++#[cfg(target_arch = "x86_64")]
++#[target_feature(enable = "avx2,avxvnni")]
++unsafe fn avx_vnni32_transposed(x: &[u8], transposed: &[i8], out: &mut [i32; 32]) {
++    use std::arch::x86_64::*;
++    let mut sums = [_mm256_setzero_si256(); 4];
++    for (group, xs) in x.chunks_exact(4).enumerate() {
++        let input = _mm256_set1_epi32(i32::from_le_bytes(xs.try_into().unwrap()));
++        for k in 0..4 {
++            let weights = _mm256_loadu_si256(transposed.as_ptr().add(group * 128 + k * 32).cast());
++            sums[k] = _mm256_dpbusd_avx_epi32(sums[k], input, weights);
++        }
++    }
++    for k in 0..4 {
++        _mm256_storeu_si256(out.as_mut_ptr().add(k * 8).cast(), sums[k]);
++    }
++}
++
++pub(super) fn affine32_transposed(x: &[u8], h1: &[i8], transposed: &[i8], out: &mut [i32; 32]) {
++    assert_eq!(h1.len(), x.len() * 32);
++    assert_eq!(x.len() % 64, 0);
++    #[cfg(target_arch = "x86_64")]
++    if transposed.len() == h1.len()
++        && !(is_x86_feature_detected!("avx512vnni") && is_x86_feature_detected!("avx512bw"))
++        && is_x86_feature_detected!("avxvnni") && is_x86_feature_detected!("avx2")
++    {
++        // SAFETY: the complete transposed matrix and input lengths are checked;
++        // runtime detection supplies both required instruction sets.
++        unsafe { avx_vnni32_transposed(x, transposed, out); }
++        return;
++    }
++    #[cfg(not(target_arch = "x86_64"))]
++    let _ = transposed;
++    affine32(x, h1, out);
++}
++
+ pub(super) fn affine32(x: &[u8], h1: &[i8], out: &mut [i32; 32]) {
+     let n = x.len();
+     assert_eq!(h1.len(), 32 * n);
+@@ -118,6 +167,25 @@
+ mod tests {
+     use super::*;
+ 
++    #[test]
++    fn transposed_dense_head_matches_scalar() {
++        for width in [32, 512, 768, 1024, 1536, 2048, 4096] {
++            for mode in 0..4 {
++                let x: Vec<u8> = (0..2 * width).map(|i| match mode {
++                    0 => 0, 1 => 127, _ => ((i * 61 + 13) % 128) as u8
++                }).collect();
++                let h1: Vec<i8> = (0..32 * x.len()).map(|i| match mode {
++                    1 => -128, 2 => 127, _ => ((i * 73) % 256) as u8 as i8
++                }).collect();
++                let transposed = transpose32(&h1, x.len());
++                let mut got = [0; 32];
++                affine32_transposed(&x, &h1, &transposed, &mut got);
++                for j in 0..32 {
++                    assert_eq!(got[j], scalar(&x, &h1[j * x.len()..(j + 1) * x.len()]));
++                }
++            }
++        }
++    }
+     #[test]
+     fn packed_and_scalar_agree_at_extremes_and_supported_widths() {
+         for width in [32, 512, 768, 1024, 1536, 2048, 4096] {

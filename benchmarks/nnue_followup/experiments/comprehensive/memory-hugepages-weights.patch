@@ -1,0 +1,40 @@
+--- /dev/null
++++ b/src/nnue/hugepages.rs
+@@ -0,0 +1,19 @@
++//! Best-effort huge-page advice for large, anonymous NNUE buffers.
++#[cfg(target_os = "linux")]
++pub(super) fn advise<T>(values: &mut [T]) {
++    let bytes = std::mem::size_of_val(values);
++    if bytes < 4 * 1024 * 1024 { return; }
++    let page = unsafe { libc::sysconf(libc::_SC_PAGESIZE) };
++    if page <= 0 { return; }
++    let page = page as usize;
++    let ptr = values.as_mut_ptr() as usize;
++    // Advise only pages wholly owned by this allocation; no neighboring heap
++    // allocation or allocator metadata participates. A failed hint is harmless.
++    let start = ptr.div_ceil(page) * page;
++    let end = (ptr + bytes) / page * page;
++    if end > start {
++        unsafe { libc::madvise(start as *mut libc::c_void, end - start, libc::MADV_HUGEPAGE); }
++    }
++}
++#[cfg(not(target_os = "linux"))]
++pub(super) fn advise<T>(_values: &mut [T]) {}
+--- a/src/nnue/mod.rs
++++ b/src/nnue/mod.rs
+@@ -1,6 +1,7 @@
+ //! Versioned, content-verified NNUE residual on a fixed material baseline.
+ pub mod features;
+ mod storage;
++mod hugepages;
+ mod packed;
+ pub(crate) use storage::Snapshot;
+ use crate::{
+@@ -165,6 +166,7 @@
+             return Err("NNUE byte length mismatch".into());
+         }
+         let mut weights = vec![0i16; features::FEATURES * w];
++        hugepages::advise(&mut weights);
+         let mut buf = [0u8; 8192];
+         for chunk in weights.chunks_mut(4096) {
+             let n = chunk.len() * 2;
