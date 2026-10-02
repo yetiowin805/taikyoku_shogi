@@ -134,6 +134,14 @@ def print_header(run_dir: Path, state: Dict[str, Any]) -> None:
         f"slots={len(slots)}  "
         + " ".join(f"{k}={v}" for k, v in sorted(c.items()))
     )
+    pairs = state.get("top_two_pairs", [])
+    if pairs:
+        pair = pairs[-1]
+        by_id = {s["id"]: s for s in slots}
+        games = [by_id[i] for i in pair["slot_ids"] if i in by_id]
+        print(f"top-two pairs={len(pairs)} latest={' vs '.join(pair['agents'])} "
+              f"done={sum(s['status'] == 'done' for s in games)}/2 "
+              "(order-neutral only)")
     if trees:
         print(
             f"trees={len(trees)}  complete={sum(1 for t in trees if t.get('complete'))}"

@@ -179,7 +179,7 @@ class HistoricalAndCarryTests(AnalyzerFixture):
         manifest = self.run/'field.json'
         a.atomic(manifest, {'entrants':[{'id':'old','model':str(model),'engine':str(historical)}, {'id':'new','model':str(model)}]})
         new = self.run/'next'
-        args = SimpleNamespace(action='start',manifest=str(manifest),cpus='0,1,2,3',depth=8,time_ms=3000,carry_analysis_from=str(self.run))
+        args = SimpleNamespace(action='start',manifest=str(manifest),cpus='0,1,2,3',depth=8,time_ms=3000,carry_analysis_from=str(self.run),top_two_worker=True)
         with patch.object(a, 'ROOT', self.run), patch.object(a.os, 'sched_getaffinity', return_value={0,1,2,3}):
             config = a.prepare(args, new)
             entry = a.read(new/'analysis/manifest.json')['entrants'][0]
@@ -187,9 +187,12 @@ class HistoricalAndCarryTests(AnalyzerFixture):
             self.assertEqual(Path(selected['analyzer_bin']).parent, new/'analysis/bin')
             a.atomic(new/'analysis/config.json', config)
             a.atomic(new/'state.json', {'entrants': a.read(new/'analysis/manifest.json')['entrants'], 'depth':8, 'max_time_ms':3000})
+            self.assertIn('--top-two-worker', config['command'])
+            args.top_two_worker=False  # resume retains the stored role
             args.action='resume'; args.carry_analysis_from=None
             resumed = a.prepare(args, new)
             self.assertEqual(resumed['sidecar'], 'analysis')
+            self.assertIn('--top-two-worker', resumed['command'])
             args.sidecar='none'
             disabled = a.prepare(args, new)
             a.atomic(new/'analysis/config.json', disabled)

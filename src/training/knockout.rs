@@ -183,7 +183,7 @@ pub fn fill_knockout_queue(state: &mut TourneyState, jobs: usize) {
 pub(crate) fn pending_slot_claim_index(state: &TourneyState) -> Option<usize> {
     let mut best: Option<(usize, u32, usize, usize)> = None;
     for (idx, slot) in state.slots.iter().enumerate() {
-        if slot.status != SlotStatus::Pending {
+        if slot.status != SlotStatus::Pending || super::top_two::is_slot(state, slot.id) {
             continue;
         }
         let (tree, round) = slot_tree_and_round(state, slot.id);

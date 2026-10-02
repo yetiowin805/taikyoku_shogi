@@ -129,6 +129,8 @@ pub struct TourneyState {
     pub games_per_pair: usize,
     pub entrants: Vec<TourneyEntrant>,
     pub slots: Vec<TourneySlot>,
+    #[serde(default)]
+    pub top_two_pairs: Vec<super::top_two::Pair>,
     /// Glicko-1 ratings (preferred).
     #[serde(default)]
     pub ratings: BTreeMap<String, GlickoRating>,
@@ -164,6 +166,7 @@ pub struct TourneyState {
 
 #[derive(Debug, Clone)]
 pub struct TourneyConfig {
+    pub top_two_worker: bool,
     pub time_control: Option<super::clock::FischerControl>,
     pub run_id: String,
     pub outdir: PathBuf,
@@ -190,6 +193,7 @@ pub struct TourneyConfig {
 impl Default for TourneyConfig {
     fn default() -> Self {
         Self {
+            top_two_worker: false,
             time_control: None,
             run_id: new_run_id(),
             outdir: PathBuf::from("data/raw/tourney"),
@@ -341,6 +345,7 @@ pub(crate) fn build_schedule(cfg: &TourneyConfig) -> TourneyState {
         games_per_pair: cfg.games_per_pair,
         entrants: cfg.entrants.clone(),
         slots: Vec::new(),
+        top_two_pairs: Vec::new(),
         ratings,
         elo,
         elo_k: 0.0,
@@ -941,7 +946,10 @@ pub(crate) fn inflight_count(state: &TourneyState) -> usize {
     state
         .slots
         .iter()
-        .filter(|s| matches!(s.status, SlotStatus::Pending | SlotStatus::Running))
+        .filter(|s| {
+            !super::top_two::is_slot(state, s.id)
+                && matches!(s.status, SlotStatus::Pending | SlotStatus::Running)
+        })
         .count()
 }
 
@@ -1290,6 +1298,24 @@ fn claim_or_schedule_slot(st: &mut TourneyState, cfg: &TourneyConfig) -> Option<
     None
 }
 
+pub(crate) fn rate_finished_slot(
+    st: &mut TourneyState, slot_id: usize, model_a: &str, model_b: &str, score_a: f64,
+) {
+    if super::top_two::is_slot(st, slot_id) {
+        return;
+    }
+    if st.format == TourneyFormat::Knockout {
+        on_knockout_slot_finished(st, slot_id);
+    } else {
+        let (na, nb) = glicko_update(rating_of(st, model_a), rating_of(st, model_b), score_a);
+        st.ratings.insert(model_a.to_string(), na);
+        st.ratings.insert(model_b.to_string(), nb);
+        st.elo.insert(model_a.to_string(), na.r);
+        st.elo.insert(model_b.to_string(), nb.r);
+        note_finished_game_for_rd_tick(st, model_a, model_b);
+    }
+}
+
 fn abort_claimed_slot(cfg: &TourneyConfig, st: &mut TourneyState, slot_id: usize) {
     if let Some(slot) = st.slots.iter_mut().find(|s| s.id == slot_id) {
         if slot.status != SlotStatus::Done {
@@ -1357,6 +1383,12 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
         }
         s
     };
+    if (cfg.top_two_worker || !state.top_two_pairs.is_empty())
+        && (state.format != TourneyFormat::Knockout || cfg.jobs != 4)
+    {
+        return Err("top-two worker requires knockout format and --jobs 4".into());
+    }
+    let top_two_enabled = cfg.top_two_worker || !state.top_two_pairs.is_empty();
     apply_time_control(&mut state, cfg)?;
     if state.time_control.is_some() {
         if let Some(pointer) = std::env::var_os("TAIKYOKU_ENGINE_POINTER") {
@@ -1426,9 +1458,19 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
                             }
                         }
                         let mut st = state_mu.lock().unwrap();
-                        match claim_or_schedule_slot(&mut st, cfg) {
+                        let claim = if top_two_enabled && worker_index == 2 {
+                            super::top_two::claim(&mut st)
+                                .or_else(|| claim_or_schedule_slot(&mut st, cfg))
+                        } else {
+                            claim_or_schedule_slot(&mut st, cfg)
+                        };
+                        match claim {
                             Some(id) => {
-                                let _ = save_state(cfg, &st);
+                                if let Err(e) = save_state(cfg, &st) {
+                                    eprintln!("cannot persist claimed game: {e}; draining workers");
+                                    admission_failed.store(true, Ordering::Relaxed);
+                                    return;
+                                }
                                 break id;
                             }
                             None if format_is_continuous(st.format) => {
@@ -1565,18 +1607,7 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
                                 slot.score_a = Some(score_a);
                                 slot.game_path = Some(path.display().to_string());
                             }
-                            if st.format == TourneyFormat::Knockout {
-                                on_knockout_slot_finished(&mut st, slot_id);
-                            } else {
-                                let ra = rating_of(&st, &model_a);
-                                let rb = rating_of(&st, &model_b);
-                                let (na, nb) = glicko_update(ra, rb, score_a);
-                                st.ratings.insert(model_a.clone(), na);
-                                st.ratings.insert(model_b.clone(), nb);
-                                st.elo.insert(model_a.clone(), na.r);
-                                st.elo.insert(model_b.clone(), nb.r);
-                                note_finished_game_for_rd_tick(&mut st, &model_a, &model_b);
-                            }
+                            rate_finished_slot(&mut st, slot_id, &model_a, &model_b, score_a);
                             st.updated_at = now_secs();
                             let _ = save_state(cfg, &st);
                             if cfg.verbose {
@@ -2332,6 +2363,7 @@ mod tests {
             games_per_pair: 1,
             entrants: entrants(2),
             slots: Vec::new(),
+            top_two_pairs: Vec::new(),
             time_control: None,
             ratings: BTreeMap::new(),
             elo: BTreeMap::from([("p0".into(), 1600.0), ("p1".into(), 1400.0)]),

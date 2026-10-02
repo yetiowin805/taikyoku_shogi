@@ -1485,6 +1485,11 @@ pub fn cmd_tournament(args: &[String]) -> Result<(), String> {
             cfg.games_per_pair = v;
             continue;
         }
+        if args[i] == "--top-two-worker" {
+            cfg.top_two_worker = true;
+            i += 1;
+            continue;
+        }
         if let Some(v) = take_usize(args, &mut i, "--jobs")? {
             cfg.jobs = v;
             continue;

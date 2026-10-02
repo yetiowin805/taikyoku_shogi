@@ -95,3 +95,33 @@ cargo run --release --bin tournament_ratings -- path/to/state.json
 Installing the live Glicko update behavior requires the tournament coordinator
 to resume on the new build. Rolling game-engine updates alone do not replace the
 running coordinator; do not edit its live state externally to simulate this.
+
+### Dedicated top-two pairs
+
+`deploy/tourney_analysis.py start|resume --top-two-worker ...` reserves worker 2
+(the third configured CPU) for supplemental leader matches. The Rust tournament
+CLI also accepts `--top-two-worker`; it requires knockout format and four workers.
+Use the adaptive launcher for CPU affinity: CPUs 0–1 play brackets, CPU 2 plays
+leader pairs, and CPU 3 remains shared between the analyzer and an idle-analysis
+bracket worker. Before a converged order-neutral fit exists, CPU 2 plays brackets.
+
+At each pair boundary, select the two highest-rated current entrants from the
+all-game order-neutral fit (agent ID breaks exact ties). Play two opening games
+with colors reversed, using the run's depth, clocks, move limits and original
+agent bindings. A tied pair ends after two games. Each finished game immediately
+enters the order-neutral fit, including teacher promotion decisions that consume
+that fit, but never updates Glicko, Elo, passive rating ticks or bracket matches.
+Normal bracket games still apply their usual Glicko and inactivity updates.
+Rolling executable updates continue to apply at individual game boundaries.
+
+`state.json` stores an auditable `top_two_pairs` ledger with slot IDs, selected
+agents, ratings and evidence game count. Resume retries an interrupted game and
+finishes its original pair before selecting again. Regular workers cannot claim
+these slots. `tourney_status.py` shows the latest pair separately. Resume retains
+the launcher setting; a saved pair ledger also keeps the dedicated worker enabled.
+
+Activation requires a coordinator upgrade, not only `update-engine`: that operation
+replaces game subprocess binaries but leaves the scheduler running. Do not use
+`TOURNEY_STOP` expecting a graceful drain; it aborts in-flight games. Existing live
+runs need an explicitly scheduled coordinator restart. Older coordinators do not
+understand the ledger and must not resume a run after supplemental slots exist.
