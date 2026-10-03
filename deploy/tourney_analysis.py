@@ -87,7 +87,7 @@ def candidates(game):
                        plies=list(range(max(1, i - 3), min(len(moves), i + 3) + 1)))
 
 
-def scan(db, run, labels=False):
+def scan(db, run, labels=False, label_candidates=None):
     state = read(run / "state.json")  # caller retries transient/incomplete state reads
     for slot in state["slots"]:
         if slot["status"] != "done" or not slot.get("game_path"):
@@ -101,7 +101,7 @@ def scan(db, run, labels=False):
             if game.get("abort_reason") or game.get("result") is None:
                 continue
             game_hash = digest(data)
-            for moment in (training_labels.candidates(game) if labels else candidates(game)):
+            for moment in ((label_candidates or training_labels.candidates)(game) if labels else candidates(game)):
                 policy = training_labels.POLICY if labels else POLICY
                 key = digest(f"{policy}:{game_hash}:{moment['center_ply']}".encode())
                 moment.update(id=key, game=str(path), game_hash=game_hash,
