@@ -46,12 +46,17 @@ pub(crate) struct IterationBudget {
     extended: bool,
 }
 impl IterationBudget {
+    /// Maximum time for one newly admitted iteration, not the whole move.
+    pub fn iteration_limit(last: Duration) -> Duration {
+        last.saturating_mul(10)
+    }
+
     pub fn start_next(&mut self, last: Duration, elapsed: Duration, budget: MoveBudget) -> bool {
         if self.extended {
             return false;
         }
-        let estimate = last.saturating_mul(2);
-        let hard = Duration::from_millis(budget.hard_ms).saturating_sub(elapsed);
+        let estimate = last.saturating_mul(3);
+        let hard = Duration::from_millis(budget.hard_ms.min(10_000)).saturating_sub(elapsed);
         if estimate > hard {
             return false;
         }
@@ -94,6 +99,17 @@ mod tests {
         assert!(p.start_next(ms(1800), ms(2500), b)); // next depth crosses soft budget
         assert!(!p.start_next(ms(100), ms(2600), b)); // never a second extension
     }
+    #[test]
+    fn threefold_estimate_includes_elapsed_and_tenfold_cap_is_per_iteration() {
+        let budget = MoveBudget { soft_ms: 5000, hard_ms: 899000 };
+        assert!(IterationBudget::default().start_next(ms(2000), ms(4000), budget));
+        assert!(!IterationBudget::default().start_next(ms(2000), ms(4001), budget));
+        assert!(!IterationBudget::default().start_next(ms(3000), ms(2000), budget));
+        assert_eq!(IterationBudget::iteration_limit(ms(2000)), ms(20000));
+        let low = MoveBudget { soft_ms: 5000, hard_ms: 6000 };
+        assert!(!IterationBudget::default().start_next(ms(2000), ms(1), low));
+    }
+
     #[test]
     fn low_clock_preserves_bank_and_rejects_unaffordable_depth() {
         let c = FischerControl {
