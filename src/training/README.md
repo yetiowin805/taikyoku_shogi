@@ -140,8 +140,8 @@ For adjacent completed depths, estimate growth as `next.elapsed_us /
 previous.elapsed_us` (exclude zero-duration denominators). Stratify by depth
 transition and evaluator family/build, and report medians and upper quantiles.
 Keep incomplete next-depth attempts as censored lower bounds: dropping them
-would bias estimates down. These records do not change the existing 2x admission
-rule or deadlines. Move clock records remain the source for total turn time,
+would bias estimates down. Telemetry itself does not change admission rules or deadlines; the current
+Fischer policy is described below. Move clock records remain the source for total turn time,
 including setup and other work outside the iterations.
 
 Rolling workers additionally retain `analysis/game-workers/slot-N.result.iterations.json`
@@ -182,3 +182,19 @@ queued payloads; reservations can be briefly idle while that barrier completes.
 Failed positions are visible and excluded from capacity demand. New game scans
 run every ten seconds. `dual-label-status.json` lists actual analysis CPUs and
 position IDs; launcher status reports reserved versus active capacity separately.
+
+### Revised Fischer iteration budget
+
+For remaining clock T measured at the start of a move, admit the next depth only
+if elapsed move time plus three times the previous iteration duration fits within
+5 seconds + 1% of T. Retain the existing single-extension rule: once an admitted
+depth is predicted to exceed the increment-sized sustainable budget, no further
+depth is admitted. The first depth has no preceding duration estimate.
+
+The hard deadline for the entire move is 5 seconds + 10% of T, including setup
+and aspiration retries. Both thresholds are capped by the original clock budget
+that retains one second. Deadline checks are cooperative,
+so expensive indivisible operations can cause overshoot. Fixed-time analysis
+searches retain their current policy. Incomplete-depth move selection is unchanged:
+use the last completed depth, or the existing partial depth-one fallback if none
+completed.

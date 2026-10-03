@@ -2203,7 +2203,12 @@ pub fn search_with_progress(
     let clock_started = Instant::now();
     let deadline = config
         .max_time_ms
-        .map(|ms| clock_started + Duration::from_millis(ms));
+        .map(|ms| {
+            let limit = if let Some(soft_ms) = config.fischer_soft_ms {
+                crate::training::clock::MoveBudget { hard_ms: ms, soft_ms }.search_hard_ms()
+            } else { ms };
+            clock_started + Duration::from_millis(limit)
+        });
     let root_ply = state.get_move_history().len();
     // Bind one root accumulator and reuse it for both the reported static
     // score and the search. Evaluating the immutable input first would build
