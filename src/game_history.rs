@@ -24,6 +24,8 @@ pub enum MoveRecordData {
 pub struct MoveRecord {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub completed_depth: Option<u32>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub iteration_timings: Vec<crate::search::IterationTiming>,
     pub move_number: usize,
     pub color: Color,
     pub from_file: u8,
@@ -122,6 +124,7 @@ impl GameHistory {
                 static_eval: None,
                 nodes: None,
                 completed_depth: None,
+                iteration_timings: Vec::new(),
             });
         }
     }
@@ -192,6 +195,7 @@ impl GameHistory {
             static_eval: None,
             nodes: None,
                 completed_depth: None,
+                iteration_timings: Vec::new(),
         }
     }
 
