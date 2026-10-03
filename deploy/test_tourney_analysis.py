@@ -205,6 +205,14 @@ class HistoricalAndCarryTests(AnalyzerFixture):
                 a.atomic(new/'analysis/config.json', enabled)
                 args.sidecar=None
                 self.assertEqual(a.prepare(args, new)['training'], saved_job)
+            args.sidecar='none'; args.cpus='0,1,2,3,4,5,6,7'
+            with patch.object(a.os, 'sched_getaffinity', return_value=set(range(8))):
+                eight = a.prepare(args, new)
+                self.assertEqual(eight['cpus'], list(range(8)))
+                self.assertEqual(eight['command'][eight['command'].index('--jobs')+1], '8')
+                args.sidecar='analysis'
+                with self.assertRaisesRegex(ValueError, 'adaptive dual-label pool'):
+                    a.prepare(args, new)
         self.assertEqual(resumed['analysis_sources'], config['analysis_sources'])
         self.assertEqual(a.read(new/'analysis/moments/completed.json'), payload)
         with a.sqlite3.connect(new/'analysis/catalogue.sqlite') as db:

@@ -1384,9 +1384,9 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
         s
     };
     if (cfg.top_two_worker || !state.top_two_pairs.is_empty())
-        && (state.format != TourneyFormat::Knockout || cfg.jobs != 4)
+        && (state.format != TourneyFormat::Knockout || ![4, 8].contains(&cfg.jobs))
     {
-        return Err("top-two worker requires knockout format and --jobs 4".into());
+        return Err("top-two worker requires knockout format and --jobs 4 or 8".into());
     }
     let top_two_enabled = cfg.top_two_worker || !state.top_two_pairs.is_empty();
     apply_time_control(&mut state, cfg)?;
@@ -1441,9 +1441,9 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
                         if cfg_stop.load(Ordering::Relaxed) {
                             return;
                         }
-                        if worker_index == 3 {
+                        if worker_index == 3 || jobs == 8 {
                             if let Some(gate) = compute_gate {
-                                match gate.claim() {
+                                match gate.claim_worker(worker_index) {
                                     Ok(Some(lease)) => shared_lease = Some(lease),
                                     Ok(None) => {
                                         std::thread::sleep(std::time::Duration::from_millis(100));

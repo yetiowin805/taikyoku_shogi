@@ -151,3 +151,34 @@ when saving the canonical game. It is written atomically at successful game end;
 only use it when its game ID matches the completed slot's game record. Interrupted
 games do not publish a new timing file. In-flight games retain their admitted build;
 new telemetry begins with games admitted after the rolling update.
+
+### Eight-CPU adaptive analysis
+
+Resume the adaptive launcher with `--cpus 0,1,2,3,4,5,6,7 --top-two-worker
+--sidecar none`. Run `dual_label_sidecar.py run` separately with its saved
+`dual-label-config.json` set to `adaptive_pool: true` and the same eight `cpus`.
+The service must have access to all eight CPUs (remove its old CPU-3-only affinity).
+Start the analysis manager first while the tournament is stopped: it publishes
+backlog demand and waits for the coordinator, so a populated queue receives CPUs
+immediately on resume. Once it has seen a live coordinator, coordinator shutdown
+also shuts down the pool. The legacy four-CPU setup remains supported.
+
+Worker 0 always plays tournament games; worker 2 always runs the top-two role
+(ordinary games before a finite ranking exists). Workers 1 and 3–7 play tournament
+games unless analysis needs them. On each game boundary, a flexible worker lends
+its CPU when the eligible unfinished-position count exceeds the current number
+of analysis reservations, capped at six. The count includes in-flight analysis
+positions and excludes failures. With no backlog the split is 7/1/0; a large
+backlog produces 1/1/6. Existing games are never interrupted. A position means
+its complete paired-teacher analysis, with each teacher result persisted as before.
+
+The allocation lock serializes reservations; independent per-CPU flock leases
+prevent overlap across game/analysis processes. Demand expires after 30 seconds
+or manager exit, but stale demand never overrides a live CPU lease. The manager
+keeps a heartbeat during scans. Unique position assignment and SQLite WAL keep
+parallel results resumable. Parent-death guards terminate orphaned search trees.
+Teacher changes/backfills wait for current analysis jobs to finish before altering
+queued payloads; reservations can be briefly idle while that barrier completes.
+Failed positions are visible and excluded from capacity demand. New game scans
+run every ten seconds. `dual-label-status.json` lists actual analysis CPUs and
+position IDs; launcher status reports reserved versus active capacity separately.
