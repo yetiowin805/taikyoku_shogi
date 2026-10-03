@@ -125,3 +125,29 @@ replaces game subprocess binaries but leaves the scheduler running. Do not use
 `TOURNEY_STOP` expecting a graceful drain; it aborts in-flight games. Existing live
 runs need an explicitly scheduled coordinator restart. Older coordinators do not
 understand the ledger and must not resume a run after supplemental slots exist.
+
+### Per-depth timing telemetry
+
+New AB game moves include `iteration_timings`: a list of `{depth, elapsed_us,
+completed}` entries. Each measures wall time for that depth's iteration, including
+all aspiration-window retries. It excludes root setup before depth 1 and the
+post-iteration callback/root reorder. A timed-out or cancelled iteration is stored
+with `completed: false`; its duration is a lower bound, not a completed search
+cost. Depths never started have no entry. Terminal/probe-only results and legacy
+records can have no entries; do not infer missing timings from final depth.
+
+For adjacent completed depths, estimate growth as `next.elapsed_us /
+previous.elapsed_us` (exclude zero-duration denominators). Stratify by depth
+transition and evaluator family/build, and report medians and upper quantiles.
+Keep incomplete next-depth attempts as censored lower bounds: dropping them
+would bias estimates down. These records do not change the existing 2x admission
+rule or deadlines. Move clock records remain the source for total turn time,
+including setup and other work outside the iterations.
+
+Rolling workers additionally retain `analysis/game-workers/slot-N.result.iterations.json`
+(schema 1), with game ID, seed, engine/model identities, clocks, and per-move
+measurements. This file survives older coordinators that strip unknown move fields
+when saving the canonical game. It is written atomically at successful game end;
+only use it when its game ID matches the completed slot's game record. Interrupted
+games do not publish a new timing file. In-flight games retain their admitted build;
+new telemetry begins with games admitted after the rolling update.

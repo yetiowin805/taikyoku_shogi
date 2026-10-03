@@ -22,6 +22,7 @@ pub struct AgentOptions {
 #[derive(Debug, Clone, Default)]
 pub struct MoveAnnotation {
     pub completed_depth: Option<u32>,
+    pub iteration_timings: Vec<crate::search::IterationTiming>,
     /// Black-absolute search score for the chosen line.
     pub eval: Option<i32>,
     /// Black-absolute stand-pat at the root before the move.

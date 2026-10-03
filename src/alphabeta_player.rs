@@ -214,6 +214,7 @@ impl AlphaBetaPlayer {
             mv,
             MoveAnnotation {
                 completed_depth: Some(result.completed_depth),
+                iteration_timings: result.iteration_timings,
                 eval: Some(stm_to_black_abs(stm, result.score)),
                 static_eval: Some(stm_to_black_abs(stm, result.static_eval)),
                 nodes: Some(result.nodes),

@@ -366,8 +366,18 @@ pub struct SearchInfo {
     pub tree: SearchTreeNode,
 }
 
+/// One iterative-deepening attempt, including all aspiration re-searches.
+/// An incomplete entry is a lower bound on the cost of finishing that depth.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct IterationTiming {
+    pub depth: u32,
+    pub elapsed_us: u64,
+    pub completed: bool,
+}
+
 #[derive(Debug, Clone)]
 pub struct SearchResult {
+    pub iteration_timings: Vec<IterationTiming>,
     pub royal_extensions: u64,
     pub royal_probe: Option<crate::eval::royal_probes::ProbeResult>,
     /// Fully completed iterative-deepening depth; zero means no completed iteration.
@@ -2308,6 +2318,7 @@ pub fn search_with_progress(
         return SearchResult {
             royal_extensions: 0,
             royal_probe: None,
+            iteration_timings: Vec::new(),
             completed_depth: 0,
             best_move: None,
             score,
@@ -2357,6 +2368,7 @@ pub fn search_with_progress(
     let mut completed_lines: Vec<(Move, i32)> = Vec::new();
     let mut completed_depth = 0u32;
     let mut actual_completed_depth = 0u32;
+    let mut iteration_timings = Vec::new();
     let mut last_iteration_duration = None;
     let mut iteration_budget = crate::training::clock::IterationBudget::default();
 
@@ -2598,6 +2610,11 @@ pub fn search_with_progress(
             }
 
             if !finished_iteration {
+                iteration_timings.push(IterationTiming {
+                    depth: d,
+                    elapsed_us: iteration_started.elapsed().as_micros() as u64,
+                    completed: false,
+                });
                 if completed_depth == 0 && !iter_lines.is_empty() {
                     // Hard timeout: keep last completed iteration (partial d=1 only if nothing completed yet).
                     iter_lines.sort_by(|a, b| b.1.cmp(&a.1));
@@ -2623,7 +2640,13 @@ pub fn search_with_progress(
             completed_score = iter_score;
             completed_depth = d;
             actual_completed_depth = d;
-            last_iteration_duration = Some(iteration_started.elapsed());
+            let duration = iteration_started.elapsed();
+            last_iteration_duration = Some(duration);
+            iteration_timings.push(IterationTiming {
+                depth: d,
+                elapsed_us: duration.as_micros() as u64,
+                completed: true,
+            });
             progress(
                 d,
                 completed_score,
@@ -2715,6 +2738,7 @@ pub fn search_with_progress(
     SearchResult {
         royal_extensions: ctx.royal_extensions,
         royal_probe,
+        iteration_timings,
         completed_depth: actual_completed_depth,
         best_move: Some(best_move),
         score: best_score,
@@ -2848,6 +2872,7 @@ pub fn probe_quiescence(
     SearchResult {
         royal_extensions: ctx.royal_extensions,
         royal_probe: None,
+        iteration_timings: Vec::new(),
         completed_depth: 0,
         best_move: None,
         score,
@@ -5199,6 +5224,7 @@ mod tests {
         SearchResult {
             royal_extensions: 0,
             royal_probe: None,
+            iteration_timings: Vec::new(),
             completed_depth: 2,
             best_move: best,
             score: 15,
@@ -5543,6 +5569,12 @@ mod tests {
         assert!(result.best_move.is_some());
         assert!(result.nodes > 0);
         assert_eq!(result.completed_depth, 2);
+        assert_eq!(result.iteration_timings.len(), 2);
+        for (i, timing) in result.iteration_timings.iter().enumerate() {
+            assert_eq!(timing.depth, i as u32 + 1);
+            assert!(timing.completed);
+            assert!(timing.elapsed_us > 0);
+        }
         assert!(
             result.score > -5_000,
             "opening ID score unexpectedly bad: {}",
@@ -5902,6 +5934,10 @@ mod tests {
         );
         assert!(result.best_move.is_some());
         assert!(!result.root_lines.is_empty());
+        for (i, timing) in result.iteration_timings.iter().enumerate() {
+            assert_eq!(timing.depth, i as u32 + 1);
+            assert_eq!(timing.completed, timing.depth <= result.completed_depth);
+        }
     }
 
     #[test]

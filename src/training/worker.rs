@@ -317,6 +317,7 @@ pub fn play_one_game(config: &WorkerConfig) -> Result<GameRecordV2, PlayFailure>
         ));
         if let Some(rec) = moves.last_mut() {
             rec.completed_depth = ann.completed_depth;
+            rec.iteration_timings = ann.iteration_timings;
         }
         if config.verbose {
             println!(

@@ -94,6 +94,23 @@ pub fn child_main(request: &Path, output: &Path) -> Result<(), String> {
         return Err("agent executable changed after admission".into());
     }
     let record = play_one_game(&req.config).map_err(|e| e.message)?;
+    // Retain telemetry even when an older coordinator deserializes the game
+    // without the new move fields, then removes the worker result file.
+    let timings = serde_json::json!({
+        "schema": 1, "game_id": record.game_id, "seed": record.seed,
+        "black": record.black, "white": record.white,
+        "clock": record.stats.clock,
+        "moves": record.moves.iter().map(|m| serde_json::json!({
+            "move_number": m.move_number, "color": m.color,
+            "completed_depth": m.completed_depth, "nodes": m.nodes,
+            "iteration_timings": m.iteration_timings,
+        })).collect::<Vec<_>>(),
+    });
+    let timing_path = output.with_extension("iterations.json");
+    let timing_tmp = output.with_extension("iterations.tmp");
+    fs::write(&timing_tmp, serde_json::to_vec(&timings).map_err(|e| e.to_string())?)
+        .map_err(|e| e.to_string())?;
+    fs::rename(timing_tmp, timing_path).map_err(|e| e.to_string())?;
     let temporary = output.with_extension("tmp");
     record.save_path(&temporary)?;
     fs::rename(temporary, output).map_err(|e| e.to_string())
