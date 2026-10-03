@@ -104,6 +104,9 @@ def paired_searches(config, moment, db):
 
 
 def run(config):
+    if config.get('adaptive_pool'):
+        import adaptive_analysis
+        return adaptive_analysis.run(config)
     run = Path(config['run'])
     control = run / 'analysis'
     request = control / 'analysis.request'
