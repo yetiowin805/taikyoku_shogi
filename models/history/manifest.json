@@ -150,6 +150,12 @@
       "git": "0f1f453abe484e7b4a6694dfa00ffae554c7156b",
       "kind": "logic",
       "summary": "Parent of Fischer-clock change: fixed per-move search budget before the one-extra-depth banked-time policy."
+    },
+    {
+      "id": "LOGIC_PRE_BANK_SCALED_CLOCK",
+      "git": "ae0ec94e479a829761980d16e2ee77b7a93c7c4a",
+      "kind": "logic",
+      "summary": "Before clock-scaled 3x depth admission and 5s + 10% whole-move deadlines."
     }
   ]
 }
