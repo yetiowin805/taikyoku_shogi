@@ -2203,7 +2203,12 @@ pub fn search_with_progress(
     let clock_started = Instant::now();
     let deadline = config
         .max_time_ms
-        .map(|ms| clock_started + Duration::from_millis(ms));
+        .map(|ms| {
+            let limit = if let Some(soft_ms) = config.fischer_soft_ms {
+                crate::training::clock::MoveBudget { hard_ms: ms, soft_ms }.search_hard_ms()
+            } else { ms };
+            clock_started + Duration::from_millis(limit)
+        });
     let root_ply = state.get_move_history().len();
     // Bind one root accumulator and reuse it for both the reported static
     // score and the search. Evaluating the immutable input first would build
@@ -2375,7 +2380,6 @@ pub fn search_with_progress(
     // Working copy already cloned above for last-royal evasion filtering.
 
     'depths: for d in 1..=max_depth {
-        ctx.deadline = deadline; // discard the preceding iteration's local cap
         if ctx.timed_out() {
             break;
         }
@@ -2400,16 +2404,6 @@ pub fn search_with_progress(
             }
         }
         let iteration_started = Instant::now();
-        if config.fischer_soft_ms.is_some() {
-            if let Some(last) = last_iteration_duration {
-                let cap = iteration_started.checked_add(
-                    crate::training::clock::IterationBudget::iteration_limit(last));
-                ctx.deadline = match (deadline, cap) {
-                    (Some(hard), Some(local)) => Some(hard.min(local)),
-                    (hard, local) => hard.or(local),
-                };
-            }
-        }
         ctx.search_depth = d;
         ctx.phase = "root";
         ctx.best_score = completed_score;

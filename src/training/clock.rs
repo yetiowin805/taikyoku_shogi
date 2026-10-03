@@ -39,6 +39,17 @@ pub struct MoveBudget {
     pub soft_ms: u64,
 }
 
+impl MoveBudget {
+    /// hard_ms is the original bank minus the one-second reserve, before caps.
+    fn bank_ms(self) -> u64 { self.hard_ms.saturating_add(1000) }
+    pub fn admission_ms(self) -> u64 {
+        (5000u64.saturating_add(self.bank_ms() / 100)).min(self.hard_ms)
+    }
+    pub fn search_hard_ms(self) -> u64 {
+        (5000u64.saturating_add(self.bank_ms() / 10)).min(self.hard_ms)
+    }
+}
+
 /// Called only between completed iterations. The extension is spent when the
 /// next depth would not fit in the sustainable budget, even if it finishes fast.
 #[derive(Default)]
@@ -46,17 +57,12 @@ pub(crate) struct IterationBudget {
     extended: bool,
 }
 impl IterationBudget {
-    /// Maximum time for one newly admitted iteration, not the whole move.
-    pub fn iteration_limit(last: Duration) -> Duration {
-        last.saturating_mul(10)
-    }
-
     pub fn start_next(&mut self, last: Duration, elapsed: Duration, budget: MoveBudget) -> bool {
         if self.extended {
             return false;
         }
         let estimate = last.saturating_mul(3);
-        let hard = Duration::from_millis(budget.hard_ms.min(10_000)).saturating_sub(elapsed);
+        let hard = Duration::from_millis(budget.admission_ms()).saturating_sub(elapsed);
         if estimate > hard {
             return false;
         }
@@ -100,14 +106,21 @@ mod tests {
         assert!(!p.start_next(ms(100), ms(2600), b)); // never a second extension
     }
     #[test]
-    fn threefold_estimate_includes_elapsed_and_tenfold_cap_is_per_iteration() {
-        let budget = MoveBudget { soft_ms: 5000, hard_ms: 899000 };
-        assert!(IterationBudget::default().start_next(ms(2000), ms(4000), budget));
-        assert!(!IterationBudget::default().start_next(ms(2000), ms(4001), budget));
-        assert!(!IterationBudget::default().start_next(ms(3000), ms(2000), budget));
-        assert_eq!(IterationBudget::iteration_limit(ms(2000)), ms(20000));
-        let low = MoveBudget { soft_ms: 5000, hard_ms: 6000 };
-        assert!(!IterationBudget::default().start_next(ms(2000), ms(1), low));
+    fn bank_scaled_limits_and_threefold_admission() {
+        let clock = FischerControl { initial_ms: 900000, increment_ms: 5000 };
+        for (remaining, admission, hard) in [
+            (900000, 14000, 95000), (300000, 8000, 35000),
+            (60000, 5600, 11000), (10000, 5100, 6000),
+            (6000, 5000, 5000), (800, 0, 0),
+        ] {
+            let budget = clock.budget(remaining);
+            assert_eq!(budget.admission_ms(), admission);
+            assert_eq!(budget.search_hard_ms(), hard);
+        }
+        let budget = clock.budget(300000);
+        assert!(IterationBudget::default().start_next(ms(2000), ms(2000), budget));
+        assert!(!IterationBudget::default().start_next(ms(2000), ms(2001), budget));
+        assert!(!IterationBudget::default().start_next(ms(3000), ms(0), budget));
     }
 
     #[test]

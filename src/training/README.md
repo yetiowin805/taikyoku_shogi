@@ -185,17 +185,16 @@ position IDs; launcher status reports reserved versus active capacity separately
 
 ### Revised Fischer iteration budget
 
-After each completed iteration, admit the next depth only if elapsed move time
-plus three times the previous iteration duration fits within both 10 seconds and
-the remaining hard move budget. Retain the existing single-extension rule: once
-an admitted depth is predicted to exceed the increment-sized sustainable budget,
-no further depth is admitted. The first depth remains mandatory (subject to the
-clock safety deadline), because it has no previous duration estimate.
+For remaining clock T measured at the start of a move, admit the next depth only
+if elapsed move time plus three times the previous iteration duration fits within
+5 seconds + 1% of T. Retain the existing single-extension rule: once an admitted
+depth is predicted to exceed the increment-sized sustainable budget, no further
+depth is admitted. The first depth has no preceding duration estimate.
 
-Each admitted iteration after depth one has a local deadline of ten times the
-previous iteration duration, including aspiration retries, capped by the existing
-hard clock deadline. Ten seconds is the admission prediction threshold, not a
-hard whole-move ceiling. Deadline checks are cooperative, so expensive indivisible
-operations can cause overshoot. Fixed-time analysis searches retain their current
-policy. Incomplete-depth move selection is unchanged: use the last completed
-depth, or the existing partial depth-one fallback if none completed.
+The hard deadline for the entire move is 5 seconds + 10% of T, including setup
+and aspiration retries. Both thresholds are capped by the original clock budget
+that retains one second. Deadline checks are cooperative,
+so expensive indivisible operations can cause overshoot. Fixed-time analysis
+searches retain their current policy. Incomplete-depth move selection is unchanged:
+use the last completed depth, or the existing partial depth-one fallback if none
+completed.
