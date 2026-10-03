@@ -560,3 +560,47 @@ retains errors for investigation. A restart resumes from committed labels. When
 the tournament stops, the sidecar exits. `pilot_snapshot.py` preserves both
 searches in its label archive; downstream training recipes must select their
 teacher policy explicitly.
+
+## V4 training and order-neutral admission
+
+`v4_training.py CONFIG` borrows one flexible CPU for dataset preparation, then
+up to two for training, using the existing eight-worker CPU locks and demand
+protocol. Games finish before a CPU is borrowed. Worker 0 and the top-two
+worker 2 remain game players. The ordinary analysis service pauses for this
+run and resumes on completion or failure. Each phase has a six-hour watchdog;
+failures retain completed epochs and leave the existing field in place.
+
+The JSON configuration supplies `repo`, `run`, `out`, `python`, `cpus` (eight),
+`dataset` (frozen v3), `base` (its material checkpoint), `parent` (512v3),
+`runs`, `catalogues`, `nnue_tool`, `ratings_bin`, and SHA-256 maps
+`code_hashes` and `input_hashes`. Output must be a separate experiment directory.
+Run under systemd with `KillMode=control-group` and
+`ExecStopPost=/usr/bin/python3 .../deploy/v4_training.py CONFIG --recover`.
+The recovery entrypoint restores a stopped coordinator after an interrupted
+admission and restarts analysis. See `status.json`, phase logs,
+`dataset/report.json`, `NNUE_W512_v4/metrics.json`, and `validation.json` there.
+
+After validation, a **normal coordinator restart** admits 512v4 and retires the
+then-lowest order-neutral active agent. In-flight games requeue from their
+starts; completed results persist. The authoritative rollback backup is taken
+after shutdown's final checkpoint. Existing brackets retain their entrants;
+new brackets use the updated active pool. Retired entrants remain historical
+reference nodes in the rating fit and are not eligible for new leader pairs.
+The selected game-engine bundle is unchanged by this coordinator migration.
+
+Live coordinators now use order-neutral ratings for seeding and standings.
+Legacy Glicko/Elo state remains readable; the compatibility maps mirror fitted
+ratings with RD zero, and no Glicko or passive-RD update runs in this mode.
+Within each strongly connected component (SCC), ratings are ordinary
+Bradley–Terry maximum likelihood fits. SCC shifts minimize summed squared
+agent adjustments subject to each directed winning edge placing the winner's
+lowest rating at least 100 above the loser's highest. Each disconnected group
+centers its active agents at 1500. `separated` and `disconnected` rankings are
+provisional; their between-component gaps are not measured strength estimates.
+
+The supplemental worker first bridges the two smallest disconnected active
+groups (their best active agent each), otherwise tests the worst active member
+of the SCC containing the leader against the best active outsider, otherwise
+plays the top two. Ties use reproducible randomness; committed color-swapped
+pairs survive restart. Champion-teacher promotion only compares agents in the
+same SCC, so an assigned 100-point gap cannot trigger promotion.

@@ -213,3 +213,41 @@ Tests use tiny networks and process fixtures, without touching the VPS:
 data/nnue-venv/bin/python -m unittest discover -s training/nnue -p 'test_*.py'
 python3 -m unittest discover -s deploy -p 'test_*sidecar.py'
 ```
+
+## 512v4: existing labels, grouped data, one candidate
+
+`v4_data.py` combines the immutable v3 dataset with completed v2/v3 analysis
+catalogues and up to 32 representative saved evaluations per new game. It does
+**not** run new teacher searches. Historical evaluations remain eligible.
+Each position receives one vote per immutable teacher, averaged in probability
+space using the parent scale (2822.9057434005167). Completed mate scores become
+bounded probability targets, never raw mate-distance regression targets.
+
+Training exposure is 20% historical, 55% recent representative, 20% targeted,
+and 5% mate-bearing positions; absent strata are redistributed proportionally.
+Within a stratum, games receive equal weight and divide it across their samples.
+Existing held-out labels stay unchanged. Inherited groups, opening-pair seeds,
+64-move prefixes, and canonical feature identities prevent new train/holdout
+leakage. Conflicting inherited groups quarantine their new samples. Two
+teachers or multiple searches never create duplicate training examples.
+
+The dataset records original game hashes, teacher search provenance, export
+jobs, feature hashes, and sampling weights. `feature_shards` reference the old
+read-only feature file plus the new export rather than copying the old 1.7GB.
+Keep those files when archiving the dataset. Interrupted preparation rebuilds
+only its own incomplete export; a completed dataset is immutable.
+
+`pilot_fit.py` supports this version-2 dataset, its fixed scale and explicit
+sample weights. Warm-start `NNUE_W512_v3`, width 512, quantization-aware forward,
+material correction, WDL loss with outcome mixing 0, effective batch 8,
+microbatch 1, 32,768 weighted samples per epoch, at most 12 epochs, patience 2,
+and one learning-rate reduction. `--cpu-file` lets the supervisor lend a second
+CPU as a game finishes. Resumption uses the last completed epoch, including
+optimizer and stopping-policy state; the best exported checkpoint is separate.
+
+`v4_validate.py` compares parent and candidate on the identical validation/test
+sets, reports historical/recent/targeted/mate subsets, and checks eight Rust
+replays/searches against the exported quantized evaluator. Admission requires
+an actually changed checkpoint, valid hashes/legal search, and exported
+validation objective within 1% of the parent. Test metrics are reported, not
+used for checkpoint selection. This is a sanity gate, not evidence of an Elo gain.

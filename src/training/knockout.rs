@@ -221,7 +221,7 @@ pub fn on_knockout_slot_finished(state: &mut TourneyState, _slot_id: usize) {
 
 pub fn spawn_knockout(state: &mut TourneyState) -> bool {
     ensure_ratings(state);
-    let ids: Vec<String> = state.entrants.iter().map(|e| e.id.clone()).collect();
+    let ids: Vec<String> = state.entrants.iter().filter(|e| !state.retired.contains(&e.id)).map(|e| e.id.clone()).collect();
     if ids.len() < 2 {
         return false;
     }
@@ -835,6 +835,7 @@ fn round_complete(state: &TourneyState, tree_idx: usize, stage: KnockoutStage) -
 }
 
 fn publish_finished_matches(state: &mut TourneyState, tree_idx: usize) {
+    if state.order_neutral_only { ensure_ratings(state); return; }
     let matches = state.knockouts[tree_idx].matches.clone();
     for m in matches {
         if m.winner.is_none() || state.knockouts[tree_idx].rated_match_ids.contains(&m.id) {
@@ -872,6 +873,7 @@ fn publish_finished_matches(state: &mut TourneyState, tree_idx: usize) {
 }
 
 fn apply_period(state: &mut TourneyState, tree_idx: usize, stages: &[KnockoutStage]) {
+    if state.order_neutral_only { return; }
     // Match participants were updated at completion. Closing the round only
     // ages the uncertainty of entrants who did not participate in this period.
     let participants: BTreeSet<_> = state.knockouts[tree_idx].matches.iter()

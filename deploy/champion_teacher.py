@@ -39,7 +39,7 @@ def check(a, run, config):
         fit = json.loads(result.stdout)
         status = dict(fingerprint=stamp, updated=time.time(), current=config.get('new_teacher_id', 'NNUE_W2048_v3'),
                       games=len(results), margin=margin, fit_status=fit['status'])
-        if fit['status'] != 'converged':
+        if fit['status'] not in ('converged', 'separated', 'disconnected'):
             a.atomic(status_path, dict(status, state='no_finite_fit', components=fit.get('components', [])))
             return config
         ratings = fit['ratings']
@@ -48,7 +48,14 @@ def check(a, run, config):
         current = status['current']
         if current not in ratings:
             raise ValueError(f'current teacher {current} is absent from the rating fit')
-        leader = min(ratings, key=lambda name: (-ratings[name], name))
+        active = {e['id'] for e in state['entrants']} - set(state.get('retired', []))
+        # Assigned inter-component gaps are not evidence for teacher promotion.
+        component = next((set(g) for g in fit.get('components', []) if current in g), set(ratings) if fit['status']=='converged' else set())
+        eligible = active & component
+        if not eligible:
+            a.atomic(status_path, dict(status, state='no_comparable_challenger'))
+            return config
+        leader = min(eligible, key=lambda name: (-ratings[name], name))
         lead = ratings[leader]-ratings[current]
         status.update(leader=leader, leader_rating=ratings[leader], current_rating=ratings[current], lead=lead)
         if leader == current or lead < margin:
