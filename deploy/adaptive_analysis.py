@@ -93,7 +93,11 @@ def run(config):
         draining = False
         try:
             while not a.STOPPING:
-                live = a.read(control / 'supervisor.json')
+                try:
+                    live = a.read(control / 'supervisor.json')
+                except (OSError, ValueError):
+                    time.sleep(.2)
+                    continue  # startup replaces this file before readiness
                 running = a.alive(live) and live.get('state') == 'running'
                 if seen_live and not running:
                     break
