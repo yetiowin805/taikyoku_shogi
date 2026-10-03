@@ -20,6 +20,8 @@ struct Job {
     game: String,
     plies: Vec<usize>,
     split: String,
+    #[serde(default)]
+    scores: std::collections::BTreeMap<usize, f32>,
 }
 fn schema() -> serde_json::Value {
     json!({"version":1,"channels":features::CHANNELS,"features":features::FEATURES,"hash":format!("{:x}",sha2::digest::Output::<Sha256>::from(features::schema().hash)),"names_hash":format!("{:x}",Sha256::digest(serde_json::to_vec(&features::schema().names).unwrap())),"names":features::schema().names})
@@ -70,7 +72,13 @@ fn run() -> Result<(), String> {
                         && state.get_winner().is_none()
                         && !state.is_draw_by_progress_rule()
                     {
-                        if let Some(score) = m.eval.filter(|s| s.abs() < 900_000) {
+                        if let Some(score) = job
+                            .scores
+                            .get(&ply)
+                            .copied()
+                            .filter(|s| s.is_finite())
+                            .or_else(|| m.eval.filter(|s| s.abs() < 900_000).map(|s| s as f32))
+                        {
                             let stm = state.get_current_turn();
                             let us = features::active(state.get_board(), stm);
                             let them = features::active(state.get_board(), stm.opposite());
@@ -135,7 +143,10 @@ fn run() -> Result<(), String> {
                 let t = std::time::Instant::now();
                 let r = search(&s, &cp.weights, &cfg);
                 let elapsed_ms = t.elapsed().as_millis();
-                let legal = r.best_move.as_ref().is_some_and(|m| s.generate_legal_moves().contains(m));
+                let legal = r
+                    .best_move
+                    .as_ref()
+                    .is_some_and(|m| s.generate_legal_moves().contains(m));
                 value["search"] = json!({"depth":r.completed_depth,"nodes":r.nodes,"score":r.score,"best":r.best_move,"legal":legal,"elapsed_ms":elapsed_ms});
             }
             println!("{value}");

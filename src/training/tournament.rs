@@ -128,6 +128,12 @@ pub struct TourneyState {
     pub seed_base: u64,
     pub games_per_pair: usize,
     pub entrants: Vec<TourneyEntrant>,
+    /// Retired identities remain available to existing brackets and rating evidence.
+    #[serde(default)]
+    pub retired: BTreeSet<String>,
+    /// Legacy Glicko state is readable; all live coordinators activate this mode.
+    #[serde(default)]
+    pub order_neutral_only: bool,
     pub slots: Vec<TourneySlot>,
     #[serde(default)]
     pub top_two_pairs: Vec<super::top_two::Pair>,
@@ -300,6 +306,13 @@ fn score_from_result(a_is_black: bool, result: &Option<GameResult>) -> f64 {
 }
 
 pub(crate) fn ensure_ratings(state: &mut TourneyState) {
+    if state.order_neutral_only {
+        let fit = super::order_neutral::from_state(state);
+        assert!(!fit.ratings.is_empty(), "order-neutral fit failed: {}", fit.status);
+        state.ratings = fit.ratings.iter().map(|(id,r)| (id.clone(), GlickoRating {r:*r, rd:0.})).collect();
+        state.elo = fit.ratings;
+        return;
+    }
     if state.ratings.is_empty() && !state.elo.is_empty() {
         for (id, r) in &state.elo {
             state.ratings.insert(
@@ -344,6 +357,8 @@ pub(crate) fn build_schedule(cfg: &TourneyConfig) -> TourneyState {
         seed_base: cfg.seed_base,
         games_per_pair: cfg.games_per_pair,
         entrants: cfg.entrants.clone(),
+        retired: BTreeSet::new(),
+        order_neutral_only: false,
         slots: Vec::new(),
         top_two_pairs: Vec::new(),
         ratings,
@@ -660,6 +675,7 @@ pub fn field_leader(state: &TourneyState) -> GlickoRating {
     state
         .entrants
         .iter()
+        .filter(|e| !state.retired.contains(&e.id))
         .map(|e| (rating_of(state, &e.id), &e.id))
         .max_by(|a, b| {
             a.0.r
@@ -688,6 +704,7 @@ pub fn top_rated_ids(state: &TourneyState, n: usize) -> BTreeSet<String> {
     let mut rows: Vec<(f64, String)> = state
         .entrants
         .iter()
+        .filter(|e| !state.retired.contains(&e.id))
         .map(|e| (rating_of(state, &e.id).r, e.id.clone()))
         .collect();
     rows.sort_by(|a, b| {
@@ -785,6 +802,7 @@ pub fn apply_passive_rd_tick(rating: GlickoRating) -> GlickoRating {
 
 /// Record a finished game toward the every-N passive RD tick.
 pub fn note_finished_game_for_rd_tick(state: &mut TourneyState, a: &str, b: &str) {
+    if state.order_neutral_only { return; }
     state.rd_tick_participants.insert(a.to_string());
     state.rd_tick_participants.insert(b.to_string());
     state.rd_tick_done_counter += 1;
@@ -855,7 +873,7 @@ pub fn schedule_one_swiss_game(state: &mut TourneyState) -> bool {
     // Engines are copies of weights, not humans: the same id may sit in many
     // in-flight games. Occupancy does not shrink the pairing pool; `jobs` is
     // the only concurrency cap.
-    let names: Vec<String> = state.entrants.iter().map(|e| e.id.clone()).collect();
+    let names: Vec<String> = state.entrants.iter().filter(|e| !state.retired.contains(&e.id)).map(|e| e.id.clone()).collect();
     if names.len() < 2 {
         return false;
     }
@@ -1078,6 +1096,18 @@ pub fn format_standings(state: &TourneyState) -> String {
 fn format_standings_with_fit(state: &TourneyState, neutral: &super::order_neutral::Fit) -> String {
     let scores = match_scores(state);
     let games = games_played(state);
+    if state.order_neutral_only {
+        let mut rows: Vec<_> = neutral.ratings.iter().filter(|(id,_)| !state.retired.contains(*id)).collect();
+        rows.sort_by(|a,b| b.1.total_cmp(a.1).then_with(|| a.0.cmp(b.0)));
+        let mut text = format!("# Tournament {}\n\nOrder-neutral ratings: {}. All completed games have equal weight. Component gaps are provisional; disconnected groups are incomparable.\n\n| Rank | Agent | Rating | Games | Score |\n|---:|---|---:|---:|---:|\n",state.run_id,neutral.status);
+        for (i,(id,r)) in rows.iter().enumerate() {
+            text.push_str(&format!("| {} | {} | {:.1} | {} | {:.1} |\n", i+1,id,r,games.get(*id).unwrap_or(&0),scores.get(*id).unwrap_or(&0.)));
+        }
+        text.push_str(&format!("\nRetired historical references: {:?}\n",state.retired));
+        text.push_str(&format_knockout_stage_table(state));
+        return text;
+    }
+
     let mut rows: Vec<_> = state.ratings.keys().cloned().collect();
     if rows.is_empty() {
         rows = state.elo.keys().cloned().collect();
@@ -1302,11 +1332,12 @@ pub(crate) fn rate_finished_slot(
     st: &mut TourneyState, slot_id: usize, model_a: &str, model_b: &str, score_a: f64,
 ) {
     if super::top_two::is_slot(st, slot_id) {
+        ensure_ratings(st);
         return;
     }
     if st.format == TourneyFormat::Knockout {
         on_knockout_slot_finished(st, slot_id);
-    } else {
+    } else if !st.order_neutral_only {
         let (na, nb) = glicko_update(rating_of(st, model_a), rating_of(st, model_b), score_a);
         st.ratings.insert(model_a.to_string(), na);
         st.ratings.insert(model_b.to_string(), nb);
@@ -1314,6 +1345,7 @@ pub(crate) fn rate_finished_slot(
         st.elo.insert(model_b.to_string(), nb.r);
         note_finished_game_for_rd_tick(st, model_a, model_b);
     }
+    ensure_ratings(st);
 }
 
 fn abort_claimed_slot(cfg: &TourneyConfig, st: &mut TourneyState, slot_id: usize) {
@@ -1389,6 +1421,8 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
         return Err("top-two worker requires knockout format and --jobs 4 or 8".into());
     }
     let top_two_enabled = cfg.top_two_worker || !state.top_two_pairs.is_empty();
+    state.order_neutral_only = true;
+    ensure_ratings(&mut state);
     apply_time_control(&mut state, cfg)?;
     if state.time_control.is_some() {
         if let Some(pointer) = std::env::var_os("TAIKYOKU_ENGINE_POINTER") {
@@ -2362,6 +2396,8 @@ mod tests {
             seed_base: 1,
             games_per_pair: 1,
             entrants: entrants(2),
+            retired: BTreeSet::new(),
+            order_neutral_only: false,
             slots: Vec::new(),
             top_two_pairs: Vec::new(),
             time_control: None,

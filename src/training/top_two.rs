@@ -36,18 +36,7 @@ pub fn claim(state: &mut TourneyState) -> Option<usize> {
         }
     }
     let fit = super::order_neutral::from_state(state);
-    if fit.status != "converged" {
-        return None;
-    }
-    let mut ranked: Vec<_> = state
-        .entrants
-        .iter()
-        .filter_map(|e| fit.ratings.get(&e.id).map(|r| (e.id.clone(), *r)))
-        .collect();
-    ranked.sort_by(|a, b| b.1.total_cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
-    if ranked.len() < 2 {
-        return None;
-    }
+    let ranked = select(state, &fit)?;
     let id = next_slot_id(state);
     let seed = state
         .seed_base
@@ -86,6 +75,69 @@ pub fn claim(state: &mut TourneyState) -> Option<usize> {
         selected_after_games: fit.games,
     });
     Some(id)
+}
+
+fn select(state: &TourneyState, fit: &super::order_neutral::Fit) -> Option<Vec<(String, f64)>> {
+    if !["converged", "disconnected", "separated"].contains(&fit.status) {
+        return None;
+    }
+    let active: std::collections::BTreeSet<_> = state
+        .entrants
+        .iter()
+        .filter(|e| !state.retired.contains(&e.id))
+        .map(|e| e.id.clone())
+        .collect();
+    let salt = state.seed_base.wrapping_add(next_slot_id(state) as u64);
+    // Random ties remain reproducible across restart, independent of map ordering.
+    let tie = |id: &str| {
+        let mut n = salt ^ 0xcbf29ce484222325u64;
+        for b in id.bytes() {
+            n = (n ^ b as u64).wrapping_mul(0x100000001b3);
+        }
+        n ^= n >> 30;
+        n = n.wrapping_mul(0xbf58476d1ce4e5b9);
+        n ^= n >> 27;
+        n.wrapping_mul(0x94d049bb133111eb) ^ (n >> 31)
+    };
+    let sort = |ids: &[String]| {
+        let mut rows: Vec<_> = ids
+            .iter()
+            .filter(|id| active.contains(*id))
+            .filter_map(|id| fit.ratings.get(id).map(|r| (id.clone(), *r)))
+            .collect();
+        rows.sort_by(|a, b| {
+            b.1.total_cmp(&a.1)
+                .then_with(|| tie(&a.0).cmp(&tie(&b.0)))
+                .then_with(|| a.0.cmp(&b.0))
+        });
+        rows
+    };
+    let mut groups: Vec<_> = fit
+        .weak_components
+        .iter()
+        .map(|g| sort(g))
+        .filter(|g| !g.is_empty())
+        .collect();
+    if groups.len() > 1 {
+        groups.sort_by_key(|g| (g.len(), tie(&g[0].0)));
+        return Some(vec![groups[0][0].clone(), groups[1][0].clone()]);
+    }
+    let mut all = sort(&active.iter().cloned().collect::<Vec<_>>());
+    if all.len() < 2 {
+        return None;
+    }
+    let component = fit.components.iter().find(|g| g.contains(&all[0].0))?;
+    let inside = sort(component);
+    let outside: Vec<_> = all
+        .iter()
+        .filter(|(id, _)| !component.contains(id))
+        .cloned()
+        .collect();
+    if !outside.is_empty() {
+        return Some(vec![inside.last()?.clone(), outside[0].clone()]);
+    }
+    all.truncate(2);
+    Some(all)
 }
 
 #[cfg(test)]
@@ -185,11 +237,39 @@ mod tests {
         for s in &mut state.slots {
             s.score_a = Some(1.);
         }
-        assert!(claim(&mut state).is_none());
-        assert!(state.top_two_pairs.is_empty());
+        assert!(claim(&mut state).is_some());
+        assert_eq!(state.top_two_pairs[0].agents, ["a", "b"]);
         let mut json = serde_json::to_value(state).unwrap();
         json.as_object_mut().unwrap().remove("top_two_pairs");
         let old: TourneyState = serde_json::from_value(json).unwrap();
         assert!(old.top_two_pairs.is_empty());
+    }
+    #[test]
+    fn unplayed_agent_bridges_then_separation_tests_component_boundary() {
+        let mut st = fixture();
+        st.entrants.push(TourneyEntrant {
+            id: "new".into(),
+            model: "new.json".into(),
+            engine: None,
+        });
+        let fit = crate::training::order_neutral::from_state(&st);
+        let selected = select(&st, &fit).unwrap();
+        assert_eq!(
+            selected.iter().map(|r| r.0.as_str()).collect::<Vec<_>>(),
+            vec!["new", "a"]
+        );
+        let first = claim(&mut st).unwrap();
+        let second = st.top_two_pairs[0].slot_ids[1];
+        finish(&mut st, first, 0.);
+        claim(&mut st);
+        finish(&mut st, second, 0.);
+        let fit = crate::training::order_neutral::from_state(&st);
+        let selected = select(&st, &fit).unwrap();
+        assert_eq!(
+            selected.iter().map(|r| r.0.as_str()).collect::<Vec<_>>(),
+            vec!["c", "new"]
+        );
+        st.retired.insert("c".into());
+        assert_eq!(select(&st, &fit).unwrap()[0].0, "b");
     }
 }

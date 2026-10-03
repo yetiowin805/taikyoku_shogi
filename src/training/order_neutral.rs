@@ -1,6 +1,6 @@
 //! Equal-game-weight Bradley–Terry fit; draws contribute half a win each way.
-//! No priors, temporal weights, or synthetic results. Ratings require a strongly
-//! connected result graph and a converged likelihood fit, centered at 1500.
+//! No temporal weighting or synthetic games. Separated SCCs use a provisional
+//! minimum-adjustment embedding with 100-point gaps; disconnected groups center independently.
 use super::tournament::{SlotStatus, TourneyState};
 use serde::Serialize;
 use std::collections::{BTreeMap, BTreeSet};
@@ -11,6 +11,7 @@ pub struct Fit {
     pub status: &'static str,
     pub games: usize,
     pub components: Vec<Vec<String>>,
+    pub weak_components: Vec<Vec<String>>,
     pub component_edges: Vec<(usize, usize)>,
     pub ratings: BTreeMap<String, f64>,
     pub iterations: usize,
@@ -32,7 +33,32 @@ pub fn from_state(state: &TourneyState) -> Fit {
             slot.score_a.unwrap_or(f64::NAN),
         ));
     }
-    fit(&names.into_iter().collect::<Vec<_>>(), &games)
+    let mut result = fit(&names.into_iter().collect::<Vec<_>>(), &games);
+    // Retired opponents retain all their evidence, but the active field defines
+    // the displayed center. Translation cannot alter any fitted difference.
+    for group in &result.weak_components {
+        let active: Vec<_> = group
+            .iter()
+            .filter(|id| !state.retired.contains(*id))
+            .collect();
+        if active.is_empty() {
+            continue;
+        }
+        let values: Vec<_> = active
+            .iter()
+            .filter_map(|id| result.ratings.get(*id))
+            .collect();
+        if values.len() != active.len() {
+            continue;
+        }
+        let shift = 1500.0 - values.iter().copied().sum::<f64>() / values.len() as f64;
+        for id in group {
+            if let Some(r) = result.ratings.get_mut(id) {
+                *r += shift;
+            }
+        }
+    }
+    result
 }
 
 fn fit(names: &[String], games: &[(String, String, f64)]) -> Fit {
@@ -42,6 +68,7 @@ fn fit(names: &[String], games: &[(String, String, f64)]) -> Fit {
         status: "disconnected",
         games: games.len(),
         components: vec![],
+        weak_components: vec![],
         component_edges: vec![],
         ratings: BTreeMap::new(),
         iterations: 0,
@@ -97,8 +124,38 @@ fn fit(names: &[String], games: &[(String, String, f64)]) -> Fit {
         }
     }
     out.component_edges = edges.into_iter().collect();
-    if n < 2 || out.components.len() != 1 {
+    let mut remaining: BTreeSet<usize> = (0..n).collect();
+    while let Some(&first) = remaining.iter().next() {
+        remaining.remove(&first);
+        let mut members = vec![first];
+        let mut cursor = 0;
+        while cursor < members.len() {
+            let i = members[cursor];
+            cursor += 1;
+            let neighbors: Vec<_> = remaining
+                .iter()
+                .copied()
+                .filter(|&j| points[i][j] + points[j][i] > 0)
+                .collect();
+            for j in neighbors {
+                remaining.remove(&j);
+                members.push(j);
+            }
+        }
+        members.sort_unstable();
+        out.weak_components
+            .push(members.iter().map(|&i| names[i].clone()).collect());
+    }
+    if n == 1 {
+        out.ratings.insert(names[0].clone(), 1500.0);
+        out.status = "converged";
         return out;
+    }
+    if n == 0 {
+        return out;
+    }
+    if out.components.len() != 1 {
+        return separated_fit(out, games);
     }
     let pairs: Vec<_> = (0..n)
         .flat_map(|i| {
@@ -186,6 +243,83 @@ fn fit(names: &[String], games: &[(String, String, f64)]) -> Fit {
     out
 }
 
+/// Weighted projection of zero shifts onto all DAG difference constraints.
+/// Hildreth's dual coordinate ascent solves the strictly convex minimum-change
+/// problem; deterministic edge order and half-point input preserve order neutrality.
+fn separated_fit(mut out: Fit, games: &[(String, String, f64)]) -> Fit {
+    for group in &out.components {
+        let inner: Vec<_> = games
+            .iter()
+            .filter(|(a, b, _)| group.contains(a) && group.contains(b))
+            .cloned()
+            .collect();
+        let fitted = fit(group, &inner);
+        if fitted.status != "converged" {
+            out.ratings.clear();
+            out.status = "not_converged";
+            return out;
+        }
+        out.ratings.extend(fitted.ratings);
+    }
+    let n = out.components.len();
+    let weights: Vec<_> = out.components.iter().map(|g| g.len() as f64).collect();
+    let edges: Vec<_> = out
+        .component_edges
+        .iter()
+        .map(|&(a, b)| {
+            let low = out.components[a]
+                .iter()
+                .map(|id| out.ratings[id])
+                .fold(f64::INFINITY, f64::min);
+            let high = out.components[b]
+                .iter()
+                .map(|id| out.ratings[id])
+                .fold(f64::NEG_INFINITY, f64::max);
+            (a, b, 100.0 + high - low)
+        })
+        .collect();
+    let mut shifts = vec![0.; n];
+    let mut lambda = vec![0.; edges.len()];
+    let mut converged = edges.is_empty();
+    for iteration in 0..100_000 {
+        let mut change: f64 = 0.;
+        for (e, &(a, b, gap)) in edges.iter().enumerate() {
+            let step = ((gap - shifts[a] + shifts[b]) / (1. / weights[a] + 1. / weights[b]))
+                .max(-lambda[e]);
+            lambda[e] += step;
+            shifts[a] += step / weights[a];
+            shifts[b] -= step / weights[b];
+            change = change.max(step.abs());
+        }
+        out.iterations = iteration;
+        if change < 1e-8
+            && edges
+                .iter()
+                .all(|&(a, b, gap)| shifts[a] - shifts[b] >= gap - 1e-7)
+        {
+            converged = true;
+            break;
+        }
+    }
+    if !converged {
+        out.ratings.clear();
+        out.status = "not_converged";
+        return out;
+    }
+    for (i, group) in out.components.iter().enumerate() {
+        for id in group {
+            *out.ratings.get_mut(id).unwrap() += shifts[i];
+        }
+    }
+    out.method = "Bradley-Terry within SCCs; minimum squared agent shifts; edge gap >=100; active mean=1500 per connected group";
+    out.status = if out.weak_components.len() > 1 {
+        "disconnected"
+    } else {
+        "separated"
+    };
+    out
+}
+
 fn solve(mut a: Vec<Vec<f64>>, mut b: Vec<f64>) -> Option<Vec<f64>> {
     let n = b.len();
     for k in 0..n {
@@ -245,11 +379,11 @@ mod tests {
             &[("a", "b", 0.5), ("c", "d", 0.5), ("a", "c", 1.0)],
             &["a", "b", "c", "d"],
         );
-        assert_eq!(f.status, "disconnected");
-        assert!(f.ratings.is_empty());
+        assert_eq!(f.status, "separated");
+        assert_eq!(f.ratings.len(), 4);
         assert_eq!(f.components.len(), 2);
         assert_eq!(f.component_edges, vec![(0, 1)]);
-        assert_eq!(run(&[("a", "b", 1.0)], &["a", "b"]).status, "disconnected");
+        assert_eq!(run(&[("a", "b", 1.0)], &["a", "b"]).status, "separated");
         assert_eq!(
             run(&[("a", "b", 0.5)], &["a", "b", "unplayed"]).status,
             "disconnected"
@@ -267,5 +401,32 @@ mod tests {
             run(&[("a", "b", f64::NAN)], &["a", "b"]).status,
             "invalid_results"
         );
+    }
+    #[test]
+    fn provisional_dag_preserves_internal_fit_and_centers_disconnected_groups() {
+        let g = [
+            ("a", "b", 1.),
+            ("a", "b", 0.5),
+            ("b", "c", 1.),
+            ("b", "d", 1.),
+        ];
+        let f = run(&g, &["a", "b", "c", "d", "new"]);
+        assert_eq!(f.status, "disconnected");
+        assert_eq!(f.weak_components.len(), 2);
+        assert_eq!(f.ratings["new"], 1500.);
+        assert!((f.ratings["c"] - f.ratings["d"]).abs() < 1e-7);
+        assert!(f.ratings["b"] - f.ratings["c"] >= 100. - 1e-6);
+        assert!((f.ratings["a"] - f.ratings["b"] - 400. * 3f64.log10()).abs() < 1e-6);
+        assert!((f.ratings.values().sum::<f64>() / 5. - 1500.).abs() < 1e-7);
+        let mut reversed = g.to_vec();
+        reversed.reverse();
+        assert_eq!(
+            f.ratings,
+            run(&reversed, &["a", "b", "c", "d", "new"]).ratings
+        );
+        let chain = run(&[("a", "b", 1.), ("b", "c", 1.)], &["a", "b", "c"]);
+        for (id, wanted) in [("a", 1600.), ("b", 1500.), ("c", 1400.)] {
+            assert!((chain.ratings[id] - wanted).abs() < 1e-6);
+        }
     }
 }

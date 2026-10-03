@@ -101,6 +101,9 @@ def category(s):
 
 
 def weights_for(samples, ids):
+    if ids and all('sampling_weight' in samples[i] for i in ids):
+        total = sum(samples[i]['sampling_weight'] for i in ids)
+        return {i:samples[i]['sampling_weight']*len(ids)/total for i in ids}
     # Teacher quality, not game date: recent tournaments still contain many HCE scores.
     proportions = dict(handcrafted=.2, nnue=.6, targeted=.2)
     counts = Counter(category(samples[i]) for i in ids)
@@ -213,22 +216,31 @@ def main():
     p.add_argument('--seed', type=int, default=20260924)
     p.add_argument('--resume', action='store_true')
     p.add_argument('--limit', type=int)
+    p.add_argument('--threads', type=int, default=1)
+    p.add_argument('--cpu-file', type=Path, help='Leased CPUs, atomically published by the supervisor')
     p.add_argument('--defer-test', action='store_true',
                    help='Evaluate the exported model in a separate process to bound peak memory')
     a = p.parse_args()
     if not 0 <= a.mix <= 1 or (a.loss=='huber' and a.mix):
         raise ValueError('Invalid mixture')
     assert a.batch > 0 and a.microbatch > 0
-    torch.set_num_threads(1)
+    if a.threads < 1: raise ValueError("threads must be positive")
+    torch.set_num_threads(a.threads)
     torch.set_num_interop_threads(1)
     torch.manual_seed(a.seed)
     np.random.seed(a.seed)
     schema = json.loads((a.dataset/'schema.json').read_text())
     identity = json.loads((a.dataset/'dataset.json').read_text())
-    for key, suffix in [('features','bin'),('samples','jsonl'),('schema','json')]:
+    files = [('samples','jsonl'),('schema','json')]
+    if 'feature_shards' not in identity: files.append(('features','bin'))
+    for key, suffix in files:
         assert digest(a.dataset/f'{key}.{suffix}') == identity[key+'_sha256']
     samples = [json.loads(x) for x in (a.dataset/'samples.jsonl').read_text().splitlines()]
-    data = np.memmap(a.dataset/'features.bin', mode='r', dtype='<u4')
+    if 'feature_shards' in identity:
+        from v4_data import Features
+        data = Features(a.dataset)
+    else:
+        data = np.memmap(a.dataset/'features.bin', mode='r', dtype='<u4')
     train = [i for i,s in enumerate(samples) if s['split']=='train']
     val = [i for i,s in enumerate(samples) if s['split']=='validation']
     test = [i for i,s in enumerate(samples) if s['split']=='test']
@@ -236,7 +248,7 @@ def main():
         train, val, test = train[:a.limit], val[:max(16,a.limit//10)], test[:max(16,a.limit//10)]
     assert train and val and test
     assert not ({samples[i]['group'] for i in train} & {samples[i]['group'] for i in val+test})
-    cal = calibration(samples)
+    cal = dict(scale=identity['scale'],source='fixed parent scale') if 'scale' in identity else calibration(samples)
     parent = json.loads(a.parent.read_text())
     desc = parent['weights']['nnue']
     blob = (a.parent.parent/desc['file']).resolve()
@@ -294,6 +306,15 @@ def main():
                                                   k=min(a.epoch_samples, len(train)) if a.limit else a.epoch_samples)
         total = 0
         for start in range(0, len(order), a.batch):
+            if a.cpu_file and start % (a.batch*100) == 0:
+                lease = json.loads(a.cpu_file.read_text())
+                cpus = set(lease['cpus'])
+                if not cpus or time.time()-lease['updated'] > 30:
+                    raise RuntimeError('Training CPU lease expired')
+                for task in Path('/proc/self/task').iterdir():
+                    try: os.sched_setaffinity(int(task.name), cpus)
+                    except ProcessLookupError: pass
+                torch.set_num_threads(min(a.threads,len(cpus)))
             ids = order[start:start+a.batch]
             emb.zero_grad(set_to_none=True); dense.zero_grad(set_to_none=True)
             value,touched=backward_batch(net,samples,data,ids,a.microbatch,a.loss,cal['scale'],a.mix)

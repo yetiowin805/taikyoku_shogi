@@ -46,12 +46,18 @@ class ChampionTests(AnalyzerFixture):
         fit['status']='disconnected'
         with patch.object(c.teacher_refresh,'replace') as replace:
             self.execute(config,fit);replace.assert_not_called()
-        self.assertEqual(a.read(self.run/'analysis/champion-status.json')['state'],'no_finite_fit')
+        self.assertEqual(a.read(self.run/'analysis/champion-status.json')['state'],'no_comparable_challenger')
         (self.run/'analysis/champion-status.json').unlink()
         fit['status']='converged';(self.run/'challenger.json').write_text('{}')
         self.execute(config,fit)
         self.assertEqual(a.read(self.run/'analysis/champion-status.json')['state'],'error')
         self.assertEqual(a.read(self.run/'analysis/dual-label-config.json')['new_teacher_id'],'current')
+
+    def test_assigned_component_gap_never_promotes_teacher(self):
+        config,fit=self.fixture(100)
+        fit.update(status='separated',components=[['current'],['challenger']])
+        with patch.object(c.teacher_refresh,'replace') as replace:
+            self.execute(config,fit);replace.assert_not_called()
 
     def test_error_after_durable_switch_reloads_config(self):
         config,fit=self.fixture(100)
