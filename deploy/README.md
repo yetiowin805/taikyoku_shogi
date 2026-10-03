@@ -604,3 +604,9 @@ of the SCC containing the leader against the best active outsider, otherwise
 plays the top two. Ties use reproducible randomness; committed color-swapped
 pairs survive restart. Champion-teacher promotion only compares agents in the
 same SCC, so an assigned 100-point gap cannot trigger promotion.
+
+After the recovery ExecStopPost, also run
+`register_training_models.py RUN_DIR`. This registers newly admitted model
+bindings with the paired-teacher service without changing any existing binding,
+so a future qualified v4 champion can become the teacher. It pauses only the
+analysis manager while updating its configuration; games continue.
