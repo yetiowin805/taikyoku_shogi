@@ -168,6 +168,7 @@ def evaluate(net, samples, data, ids, batch_size, mode, scale, mix):
     weights = weights_for(samples, ids)
     totals = Counter()
     by_source = {k:Counter() for k in ('historical','recent','analysis')}
+    by_stratum = {}
     with torch.no_grad():
         for start in range(0, len(ids), batch_size):
             group = ids[start:start+batch_size]
@@ -185,7 +186,10 @@ def evaluate(net, samples, data, ids, batch_size, mode, scale, mix):
             totals['outcome_count'] += mask.sum().item()
             # One conversion keeps the same Python summation order while avoiding
             # a separate tensor indexing/scalar extraction for every position.
-            for i, error in zip(group, huber.tolist()):
+            for i, error, squared in zip(group, huber.tolist(), (probability-teacher).square().tolist()):
+                stats = by_stratum.setdefault(samples[i].get('stratum', 'unspecified'), Counter())
+                stats['count'] += 1
+                stats['teacher_brier'] += squared
                 key = 'analysis' if samples[i]['label_source']=='analysis' else samples[i]['source']
                 by_source[key]['count'] += 1
                 by_source[key]['huber'] += error
@@ -193,6 +197,9 @@ def evaluate(net, samples, data, ids, batch_size, mode, scale, mix):
               for k,v in totals.items() if k!='outcome_count'}
     result.update(count=len(ids), outcome_count=totals['outcome_count'],
                   by_source={k:dict(count=v['count'],huber=v['huber']/v['count']) for k,v in by_source.items() if v['count']})
+    if any('stratum' in samples[i] for i in ids):
+        result['by_stratum'] = {k:dict(count=v['count'], teacher_brier=v['teacher_brier']/v['count'])
+                                for k,v in by_stratum.items()}
     return result
 
 

@@ -251,3 +251,31 @@ replays/searches against the exported quantized evaluator. Admission requires
 an actually changed checkpoint, valid hashes/legal search, and exported
 validation objective within 1% of the parent. Test metrics are reported, not
 used for checkpoint selection. This is a sanity gate, not evidence of an Elo gain.
+
+### v4.5 recent-data continuations
+
+`v45_data.py --source DATASET --parent MODEL_JSON --out OUTPUT` creates a small
+manifest/label overlay sharing the immutable source feature shards. It samples
+90% representative, 8% mate precursors, and 2% mate claims. Only training samples
+receive fixed parent-error multipliers: 1 below 0.10 probability error, 1.5 from
+0.10 through 0.25, and 2 above 0.25. Renormalization within each stratum/group/game/
+episode cell preserves that cell's original share, so one difficult game cannot
+dominate. Validation and test retain fixed 90/8/2 weights without difficulty boosts.
+Labels, scale, material baseline, and inherited splits are unchanged. Scoring is
+resumable from difficulty.jsonl; output dataset.json is published last.
+
+`deploy/v45_training.py CONFIG` pauses only the analysis service, uses the existing
+game-boundary CPU leases, and runs 512 then 384 sequentially on two CPUs. Both
+start from their matching v3 parents; 512v3 scores difficulty for both. Each has
+at most 12 passes of 65,536 weighted draws, patience 2, one learning-rate reduction,
+and an 8-hour stage watchdog. Preparation has a 4-hour watchdog. Best-validation
+models and epoch optimizer checkpoints are retained; test evaluation happens after
+selection. The run never replaces tournament entrants. A supervised service must
+use KillMode=control-group and an ExecStopPost to restart taikyoku-dual-labels.service.
+Normal cleanup also restores analysis and releases the leased CPUs. A failed stage
+halts the pipeline, preserving completed epoch checkpoints for explicit resume.
+
+Validation reports include separate unweighted probability errors for each stratum,
+alongside the fixed weighted aggregate. These runs test continuation under one recipe,
+not an isolated width or difficulty-weighting ablation. Early stopping, a budget stop,
+and an unchanged best checkpoint must be reported distinctly.
