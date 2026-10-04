@@ -43,7 +43,7 @@ def main():
     def job(command,name,limit_hours):
         nonlocal proc
         verify()
-        while len(pool.leases)<2:
+        while not pool.leases:
             pool.tick(); status('waiting_for_cpu',stage=name,leased=list(pool.leases));time.sleep(1)
         cpus={c['cpus'][i] for i in pool.leases}
         def setup():
@@ -54,7 +54,7 @@ def main():
                 env=dict(os.environ,OMP_NUM_THREADS='2',MKL_NUM_THREADS='2',OPENBLAS_NUM_THREADS='1'))
             started=time.monotonic()
             while proc.poll() is None:
-                pool.tick();status('running',stage=name,pid=proc.pid,cpus=sorted(cpus),elapsed_s=time.monotonic()-started)
+                pool.tick();status('running',stage=name,pid=proc.pid,cpus=[c['cpus'][i] for i in sorted(pool.leases)],elapsed_s=time.monotonic()-started)
                 if time.monotonic()-started>limit_hours*3600: raise TimeoutError(name+' exceeded budget; completed checkpoints retained')
                 time.sleep(2)
             result=proc.returncode;proc=None
@@ -67,7 +67,7 @@ def main():
         claimed=True
         dataset=out/'dataset'
         job([c['python'],str(code/'training/nnue/v45_data.py'),'--source',c['dataset'],
-             '--parent',c['parents']['512'],'--out',str(dataset)],'prepare',4)
+             '--parent',c['parents']['512'],'--out',str(dataset),'--cpu-file',str(out/'cpus.json')],'prepare',4)
         for width in (512,384):
             model=out/f'NNUE_W{width}_v4.5'
             if (model/'status.json').exists() and a.read(model/'status.json').get('state')=='completed':continue

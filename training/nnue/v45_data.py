@@ -6,6 +6,7 @@ validation/test use fixed weights. Feature shards remain shared and immutable.
 import argparse
 from collections import Counter, defaultdict
 import json
+import os
 from pathlib import Path
 import shutil
 import time
@@ -46,8 +47,9 @@ def main():
     p = argparse.ArgumentParser()
     for name in ('source', 'parent', 'out'):
         p.add_argument('--'+name, type=Path, required=True)
+    p.add_argument('--cpu-file', type=Path)
     a = p.parse_args()
-    torch.set_num_threads(2); torch.set_num_interop_threads(1)
+    torch.set_num_threads(min(2, len(os.sched_getaffinity(0)))); torch.set_num_interop_threads(1)
     identity = json.loads((a.source/'dataset.json').read_text())
     schema = json.loads((a.source/'schema.json').read_text())
     cp = json.loads(a.parent.read_text()); desc = cp['weights']['nnue']
@@ -82,6 +84,15 @@ def main():
     started = time.monotonic()
     with cache.open('a') as f, torch.no_grad():
         for start in range(0, len(missing), 8):
+            if a.cpu_file and start % 800 == 0:
+                lease = json.loads(a.cpu_file.read_text())
+                cpus = set(lease['cpus'])
+                if not cpus or time.time()-lease['updated'] > 30:
+                    raise RuntimeError('Preparation CPU lease expired')
+                for task in Path('/proc/self/task').iterdir():
+                    try: os.sched_setaffinity(int(task.name), cpus)
+                    except ProcessLookupError: pass
+                torch.set_num_threads(min(2, len(cpus)))
             group = missing[start:start+8]
             x, off, _ = batch(samples, data, group)
             material = torch.tensor([samples[i]['material'] for i in group])
