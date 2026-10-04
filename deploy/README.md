@@ -613,3 +613,9 @@ After the recovery ExecStopPost, also run
 bindings with the paired-teacher service without changing any existing binding,
 so a future qualified v4 champion can become the teacher. It pauses only the
 analysis manager while updating its configuration; games continue.
+
+The automatic analysis teacher follows the highest-rated active entrant in the
+order-neutral ranking, including provisional component rankings. There is no
+minimum rating lead; legacy `auto_champion.margin` values are ignored. Exact
+ties retain the current active teacher, otherwise ties use entrant ID. Frozen
+checkpoint validation and bounded, resumable backfill still apply.
