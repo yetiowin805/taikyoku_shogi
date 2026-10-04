@@ -576,6 +576,9 @@ The JSON configuration supplies `repo`, `run`, `out`, `python`, `cpus` (eight),
 `code_hashes` and `input_hashes`. Output must be a separate experiment directory.
 Run under systemd with `KillMode=control-group` and
 `ExecStopPost=/usr/bin/python3 .../deploy/v4_training.py CONFIG --recover`.
+Admission and recovery launch the resumed coordinator in an independent systemd
+oneshot unit with `RemainAfterExit=yes`, so trainer cleanup cannot terminate
+the resumed games. `systemd-run` is required; launch failure is fatal.
 The recovery entrypoint restores a stopped coordinator after an interrupted
 admission and restarts analysis. See `status.json`, phase logs,
 `dataset/report.json`, `NNUE_W512_v4/metrics.json`, and `validation.json` there.

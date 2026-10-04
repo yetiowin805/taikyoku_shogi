@@ -1,9 +1,23 @@
 import copy,json,tempfile,unittest,fcntl
 from pathlib import Path
-from v4_training import retirement,Pool
+from v4_training import retirement,Pool,resume_coordinator
+from unittest.mock import patch
 import tourney_analysis as a
 
 class V4SupervisorTests(unittest.TestCase):
+    def test_resume_uses_independent_persistent_systemd_unit(self):
+        config=dict(repo='/repo',run='/run/tournament',cpus=list(range(8)))
+        with patch('v4_training.subprocess.run') as launch:
+            resume_coordinator(config)
+        command=launch.call_args.args[0]
+        self.assertEqual(command[0],'systemd-run')
+        for flag in ('--service-type=oneshot','--property=RemainAfterExit=yes'):
+            self.assertIn(flag,command)
+        self.assertIn('/repo/deploy/tourney_analysis.py',command)
+        self.assertTrue(launch.call_args.kwargs['check'])
+        with patch('v4_training.subprocess.run',side_effect=RuntimeError('launch failed')):
+            with self.assertRaises(RuntimeError):resume_coordinator(config)
+
     def test_retirement_keeps_games_brackets_and_idempotent_identity(self):
         state=dict(entrants=[dict(id='a'),dict(id='b')],slots=[dict(model_a='a',model_b='b',score_a=1,status='done')],knockouts=[dict(seeds=['a','b'])])
         original=copy.deepcopy(state);new=dict(id='v4',model='/frozen/model.json',engine=None)

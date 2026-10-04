@@ -62,6 +62,18 @@ def service(action):
     subprocess.run(['systemctl',action,'taikyoku-dual-labels.service'],check=True)
 
 
+def resume_coordinator(c):
+    """Keep the resumed games outside the short-lived trainer's systemd cgroup."""
+    repo,run=Path(c['repo']),Path(c['run'])
+    command=[sys.executable,str(repo/'deploy/tourney_analysis.py'),'resume','--run-dir',str(run),
+             '--cpus',','.join(map(str,c['cpus'])),'--top-two-worker','--sidecar','none']
+    # A detached session still belongs to its parent's cgroup. RemainAfterExit
+    # keeps the launcher's supervisor alive after the oneshot command returns.
+    subprocess.run(['systemd-run','--unit',f'taikyoku-v4-resume-{time.time_ns()}',
+                    '--service-type=oneshot','--property=RemainAfterExit=yes',
+                    '--property=KillMode=control-group','--',*command],check=True,timeout=300)
+
+
 def recover(config):
     c=a.read(config);repo=Path(c['repo']);run=Path(c['run']);out=Path(c['out'])
     plan=a.read(out/'rollout.json') if (out/'rollout.json').exists() else {}
@@ -72,8 +84,7 @@ def recover(config):
                 backup=Path(plan['backup'])
                 for name in ['state.json','analysis/config.json','analysis/manifest.json']:
                     shutil.copy2(backup/name,run/name)
-            subprocess.run([sys.executable,str(repo/'deploy/tourney_analysis.py'),'resume','--run-dir',str(run),
-                            '--cpus',','.join(map(str,c['cpus'])),'--top-two-worker','--sidecar','none'],check=True,timeout=300)
+            resume_coordinator(c)
             a.atomic(out/'rollout.json',dict(plan,state='rolled_back'))
     service('start')
 
@@ -161,8 +172,7 @@ def main():
         a.atomic(run/'state.json',state)
         # Retain the exact original game executable selection. This rollout only
         # changes the coordinator, training, and entrant/rating state.
-        subprocess.run([sys.executable,str(repo/'deploy/tourney_analysis.py'),'resume','--run-dir',str(run),
-                        '--cpus',','.join(map(str,c['cpus'])),'--top-two-worker','--sidecar','none'],check=True,timeout=300)
+        resume_coordinator(c)
         coordinator_stopped=False
         a.atomic(out/'rollout.json',dict(state='deployed',backup=str(backup),retired=retired))
         cfg=a.read(control/'dual-label-config.json')
@@ -180,8 +190,7 @@ def main():
             if plan['state']=='prepared':
                 for name in ['state.json','analysis/config.json','analysis/manifest.json']:
                     shutil.copy2(backup/name,run/name)
-            subprocess.run([sys.executable,str(repo/'deploy/tourney_analysis.py'),'resume','--run-dir',str(run),
-                            '--cpus',','.join(map(str,c['cpus'])),'--top-two-worker','--sidecar','none'],check=True,timeout=300)
+            resume_coordinator(c)
         status('failed',error=str(exc));raise
     finally:
         pool.close()
