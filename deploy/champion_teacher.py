@@ -19,7 +19,7 @@ def check(a, run, config):
         state = a.read(run / 'state.json')
         results = sorted((s['id'], s['model_a'], s['model_b'], s.get('score_a'))
                          for s in state['slots'] if s['status'] == 'done')
-        stamp = a.digest(json.dumps([results, state['entrants'], config['new_sha256'], policy], sort_keys=True).encode())
+        stamp = a.digest(json.dumps(['highest-rated-v1', results, state['entrants'], state.get('retired', []), config['new_sha256'], policy], sort_keys=True).encode())
         previous = a.read(status_path) if status_path.exists() else {}
         if previous.get('fingerprint') == stamp:
             if previous.get('state') != 'error' or time.time()-previous.get('updated', 0) < 60:
@@ -27,9 +27,6 @@ def check(a, run, config):
         binary = Path(policy['ratings_bin'])
         if a.file_digest(binary) != policy['ratings_sha256']:
             raise ValueError('order-neutral rating helper changed')
-        margin = policy.get('margin', 50)
-        if not math.isfinite(margin) or margin < 50:
-            raise ValueError('champion margin must be finite and at least 50')
         # Fit one immutable state snapshot, never a file being rewritten by the
         # coordinator. This helper is read-only and does not update live ratings.
         with tempfile.NamedTemporaryFile(mode='w', suffix='.json', dir=run / 'analysis') as snapshot:
@@ -38,7 +35,7 @@ def check(a, run, config):
                                       capture_output=True, text=True, timeout=30)
         fit = json.loads(result.stdout)
         status = dict(fingerprint=stamp, updated=time.time(), current=config.get('new_teacher_id', 'NNUE_W2048_v3'),
-                      games=len(results), margin=margin, fit_status=fit['status'])
+                      games=len(results), selection='highest_rated', fit_status=fit['status'])
         if fit['status'] not in ('converged', 'separated', 'disconnected'):
             a.atomic(status_path, dict(status, state='no_finite_fit', components=fit.get('components', [])))
             return config
@@ -49,16 +46,15 @@ def check(a, run, config):
         if current not in ratings:
             raise ValueError(f'current teacher {current} is absent from the rating fit')
         active = {e['id'] for e in state['entrants']} - set(state.get('retired', []))
-        # Assigned inter-component gaps are not evidence for teacher promotion.
-        component = next((set(g) for g in fit.get('components', []) if current in g), set(ratings) if fit['status']=='converged' else set())
-        eligible = active & component
+        eligible = active & set(ratings)
         if not eligible:
-            a.atomic(status_path, dict(status, state='no_comparable_challenger'))
-            return config
-        leader = min(eligible, key=lambda name: (-ratings[name], name))
+            raise ValueError('no active rated teacher candidates')
+        # Follow the displayed ranking even while component ratings are provisional.
+        # Retain an active incumbent on exact ties to avoid unnecessary backfill.
+        leader = min(eligible, key=lambda name: (-ratings[name], name != current, name))
         lead = ratings[leader]-ratings[current]
         status.update(leader=leader, leader_rating=ratings[leader], current_rating=ratings[current], lead=lead)
-        if leader == current or lead < margin:
+        if leader == current:
             a.atomic(status_path, dict(status, state='holding'))
             return config
         entrant = next((e for e in state['entrants'] if e['id'] == leader), None)
