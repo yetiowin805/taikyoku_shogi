@@ -251,3 +251,100 @@ replays/searches against the exported quantized evaluator. Admission requires
 an actually changed checkpoint, valid hashes/legal search, and exported
 validation objective within 1% of the parent. Test metrics are reported, not
 used for checkpoint selection. This is a sanity gate, not evidence of an Elo gain.
+
+## Dense recent-only datasets
+
+`recent_data.py` builds an immutable dataset from the existing read-only
+`pilot_snapshot.py` archive. Pass only the recent tournament runs you want to
+include. It imports **split/exposure metadata only** from the parent dataset:
+no historical positions, labels or features are added. All eligible recorded
+positions from the selected games are exported, including saved mate claims.
+The Rust exporter replays complete histories and excludes terminal/drawn states;
+feature-identical positions are deduplicated across the resulting corpus.
+
+```bash
+# On the VPS, stream this command to a local snapshot.tar.gz; no server temp file:
+python3 training/nnue/pilot_snapshot.py royal-nnue-v3-32-20260925
+
+# Extract the trusted snapshot locally. Build a LOCAL helper; a VPS-native
+# binary may require CPU instructions the laptop does not support.
+cargo build --profile gui --bin nnue_tool -j 1
+nice -n 15 taskset -c 0 data/nnue-venv/bin/python training/nnue/recent_data.py build \
+  --snapshot data/nnue-recent/snapshot \
+  --parent-samples data/nnue-v4/dataset/samples.jsonl \
+  --base data/nnue-training/base.json --binary target/gui/nnue_tool \
+  --out data/nnue-recent/dataset
+```
+
+The default exposure is 75% representative, 20% finite positions within 128
+plies before a mate episode, and 5% mate-bearing positions. This keeps the
+previous mate exposure while increasing the diversity of available examples;
+it is an explicit initial recipe, not an empirically established optimum.
+`--precursor-weight` and `--mate-weight` can change it in a new output directory.
+Within each category the sampler gives equal weight to related-game groups,
+then games, then phases/attack episodes, then positions. A long sequence does
+not receive more total weight merely because it has more rows. Missing
+categories are renormalized separately in each split.
+
+Saved/teacher scores remain Black-relative in provenance. Training scores,
+`target_probability`, material and decisive outcomes are side-to-move relative.
+Analysis labels retain one deepest completed result per immutable teacher,
+using the existing mean-probability convention for the default target. Raw
+teacher results, disagreement, saved scores and exact bounded probability
+labels remain available for later target experiments. Mate claims are recorded
+as **search claims**, not certified proofs; finite precursor scores are never
+replaced by the eventual result. Draws without a termination classification
+retain search labels but have an unset outcome target.
+
+The current residual trainer can consume this version-2 feature-shard dataset
+and its explicit `sampling_weight` fields. Material is also retained for future
+pure-NNUE or learned-material comparisons; this builder does not select a new
+architecture or outcome mixture. The trainer's finite score target corresponds
+to probabilities clipped to [1e-6, 1-1e-6]; exact 0/1 claims are separately saved
+in `target_probability`. Training is **not** launched by dataset construction.
+
+Related opening prefixes, paired seeds and inherited parent groups stay in
+one split. Conflicting inherited splits quarantine the affected group.
+Held-out positions already seen in parent training are removed. New validation
+and test positions from previously used held-out groups are explicitly marked
+`inherited_holdout`; they are not advertised as fresh independent model tests.
+Identical NNUE inputs are deduplicated even if traversal order differs; because
+these inputs do not encode repetition history, the retained label is only one
+observed context. Raw games and all original analysis remain in the snapshot.
+
+Export is single-process, one game per feature shard. Completed, checksummed
+shards survive interruption; only incomplete derived shards are rebuilt. Input,
+recipe or builder changes require a fresh output directory. Final publication
+writes `dataset.json` last, then verifies all hashes, split separation, offsets,
+unique feature identities, finite targets and normalized weights. Re-run the
+same build command to resume; run `recent_data.py verify DATASET` to audit.
+Keep the snapshot, parent split metadata, base, exporter and feature shards
+with the dataset. Shard paths are absolute, as in the v4 loader; moving a corpus
+requires rebasing paths and recording a new dataset identity.
+
+`analysis-candidates.jsonl` is an **offline** queue proposal, not a change to the
+running analyzer. It includes eight representative candidates per game,
+multi-distance mate windows (both turns, up to four episodes), and up to eight
+spaced disagreement/optimism/iteration-instability candidates. Analyzer plies
+are one-based **before-move** indices; sample `ply` is zero-based. Candidates
+retain split/group identity, distinguish initial labeling from refinement, and
+suggest 10-second initial / 60-second extension budgets. These quotas are not
+CPU-time proportions. Integrating an adaptive live scheduler and choosing
+counterfactual defensive moves are separate work.
+
+`report.json` records counts, category weights, newly held-out sample counts,
+deduplication/quarantine diagnostics and limitations. The snapshot retains
+teacher identities and engine revisions, allowing later filtering without
+re-exporting the games from the server.
+
+The first frozen build, `recent-dataset-20261004`, used only
+`royal-nnue-v3-32-20260925`: 490 completed games and 400,449 recorded positions.
+After deduplication and parent-exposure filtering it contains 379,852 examples
+from 484 contributing games (296,817 train / 41,330 validation / 41,705 test).
+There are 2,823 mate-bearing examples, including 2,251 training examples from
+370 games, and 58,759 finite precursor positions. Features occupy 8.46 GB.
+Only 2,193 test positions belong to newly held-out groups; inherited holdouts
+must not be presented as wholly new independent evidence. This is more dense
+coverage of fewer recent games, not more independent games than the v4 corpus.
+The checked-in `benchmarks/recent-dataset-20261004.json` records the audit and
+artifact hashes. No new model was trained and no live analysis policy changed.
