@@ -67,13 +67,15 @@ def main():
              '--parent',c['parents']['512'],'--out',str(dataset),'--cpu-file',str(out/'cpus.json')],'prepare')
         for width in (512,384):
             model=out/f'NNUE_W{width}_v4.5'
-            if (model/'status.json').exists() and a.read(model/'status.json').get('state')=='completed':continue
+            if (model/'status.json').exists() and a.read(model/'status.json').get('state')=='completed' and a.read(model/'status.json').get('reason')!='max_epochs':continue
             command=[c['python'],str(code/'training/nnue/pilot_fit.py'),str(dataset),
                 '--parent',c['parents'][str(width)],'--out',str(model),'--init','parent','--width',str(width),
                 '--loss','wdl','--mix','0','--epochs','0','--epoch-samples','65536','--patience','2',
                 '--lr-reductions','1','--batch','8','--microbatch','1','--threads','2',
                 '--cpu-file',str(out/'cpus.json'),'--seed','20261004']
-            if (model/'recipe.json').exists():command.append('--resume')
+            if (model/'recipe.json').exists():
+                command.append('--resume')
+                if a.read(model/'recipe.json').get('epochs', 0): command.append('--remove-budget-cap')
             job(command,'train-'+str(width))
         status('completed',models=[str(out/f'NNUE_W{w}_v4.5/model.json') for w in (512,384)])
     except BaseException as e:
