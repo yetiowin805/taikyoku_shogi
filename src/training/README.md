@@ -105,8 +105,16 @@ Use the adaptive launcher for CPU affinity: CPUs 0–1 play brackets, CPU 2 play
 leader pairs, and CPU 3 remains shared between the analyzer and an idle-analysis
 bracket worker. Before a converged order-neutral fit exists, CPU 2 plays brackets.
 
-At each pair boundary, select the two highest-rated current entrants from the
-all-game order-neutral fit (agent ID breaks exact ties). Play two opening games
+At each pair boundary in a strongly connected pool, select the highest-rated
+active entrant and the most underrepresented opponent. Opponent weights are 1
+for rank 2, 1/2 each for ranks 3–4, 1/4 each for ranks 5–8, and so on, normalized
+over active opponents (rank 2 gets 20% in a 32-agent pool). Minimize completed
+head-to-head games divided by target weight; count both bracket and supplemental
+games, with wins, draws, and losses each counting once. Higher rank breaks ties,
+so unseen opponents are visited in rating order. Counts follow identities when
+rankings or the champion change. Pending/running games do not count. Existing
+component-bridging selection remains in force until connectivity is established.
+Play two opening games
 with colors reversed, using the run's depth, clocks, move limits and original
 agent bindings. A tied pair ends after two games. Each finished game immediately
 enters the order-neutral fit, including teacher promotion decisions that consume

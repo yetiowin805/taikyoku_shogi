@@ -122,7 +122,7 @@ fn select(state: &TourneyState, fit: &super::order_neutral::Fit) -> Option<Vec<(
         groups.sort_by_key(|g| (g.len(), tie(&g[0].0)));
         return Some(vec![groups[0][0].clone(), groups[1][0].clone()]);
     }
-    let mut all = sort(&active.iter().cloned().collect::<Vec<_>>());
+    let all = sort(&active.iter().cloned().collect::<Vec<_>>());
     if all.len() < 2 {
         return None;
     }
@@ -136,8 +136,38 @@ fn select(state: &TourneyState, fit: &super::order_neutral::Fit) -> Option<Vec<(
     if !outside.is_empty() {
         return Some(vec![inside.last()?.clone(), outside[0].clone()]);
     }
-    all.truncate(2);
-    Some(all)
+    Some(champion_pair(state, &all))
+}
+
+// Rank r has inverse weight 2^floor(log2(r-1)). Normalization and the
+// total head-to-head count cancel when comparing actual/target ratios.
+fn champion_pair(state: &TourneyState, ranked: &[(String, f64)]) -> Vec<(String, f64)> {
+    let leader = &ranked[0].0;
+    let mut counts = std::collections::BTreeMap::<&str, u128>::new();
+    for slot in &state.slots {
+        if slot.status != SlotStatus::Done || slot.score_a.is_none() {
+            continue;
+        }
+        let opponent = if &slot.model_a == leader {
+            &slot.model_b
+        } else if &slot.model_b == leader {
+            &slot.model_a
+        } else {
+            continue;
+        };
+        *counts.entry(opponent.as_str()).or_default() += 1;
+    }
+    let opponent = (1..ranked.len())
+        .min_by_key(|&i| {
+            let inverse_weight = 1u128 << i.ilog2();
+            // Rank order breaks equal ratios, including all unplayed opponents.
+            (
+                counts.get(ranked[i].0.as_str()).copied().unwrap_or(0) * inverse_weight,
+                i,
+            )
+        })
+        .expect("at least two ranked agents");
+    vec![ranked[0].clone(), ranked[opponent].clone()]
 }
 
 #[cfg(test)]
@@ -182,6 +212,14 @@ mod tests {
                 start_mode: SlotStartMode::Opening,
             });
         }
+        // Cover the leader's remaining opponent so rank two is underrepresented.
+        for score in [1., 0.5, 1., 0.5] {
+            let mut slot = state.slots[0].clone();
+            slot.id = next_slot_id(&state);
+            slot.model_b = "c".into();
+            slot.score_a = Some(score);
+            state.slots.push(slot);
+        }
         state
     }
 
@@ -191,6 +229,53 @@ mod tests {
         s.score_a = Some(score);
         let (a, b) = (s.model_a.clone(), s.model_b.clone());
         rate_finished_slot(state, id, &a, &b, score);
+    }
+
+    #[test]
+    fn coverage_uses_all_completed_games_and_current_rank_weights() {
+        let mut state = fixture();
+        state.slots.clear();
+        let ranked: Vec<_> = (0..32)
+            .map(|i| (format!("agent{i}"), 2000. - i as f64))
+            .collect();
+        // Every band has unit total weight: normalized rank-two target is 1/5.
+        let weight_sum: f64 = (1usize..32).map(|i| 1. / (1u64 << i.ilog2()) as f64).sum();
+        assert_eq!(weight_sum, 5.);
+        for i in 1usize..32 {
+            let count = 16 / (1usize << i.ilog2());
+            for _ in 0..count {
+                state.slots.push(TourneySlot {
+                    id: state.slots.len(),
+                    model_a: ranked[i].0.clone(),
+                    model_b: ranked[0].0.clone(),
+                    start_seed: 0,
+                    a_is_black: true,
+                    status: SlotStatus::Done,
+                    game_path: None,
+                    score_a: Some(0.5),
+                    round: 0,
+                    start_mode: SlotStartMode::Opening,
+                });
+            }
+        }
+        assert_eq!(champion_pair(&state, &ranked)[1].0, "agent1");
+        // One fewer completed game makes the lowest-ranked opponent most deficient.
+        state.slots.last_mut().unwrap().status = SlotStatus::Running;
+        assert_eq!(champion_pair(&state, &ranked)[1].0, "agent31");
+        state.slots.clear();
+        assert_eq!(champion_pair(&state, &ranked)[1].0, "agent1");
+        // Counts follow identities when rankings move; unrelated leaders do not count.
+        let mut st = fixture();
+        let ranking = vec![
+            ("a".into(), 1600.),
+            ("b".into(), 1500.),
+            ("c".into(), 1400.),
+        ];
+        assert_eq!(champion_pair(&st, &ranking)[1].0, "b");
+        st.slots.retain(|g| g.model_b != "c" || g.model_a != "a");
+        assert_eq!(champion_pair(&st, &ranking)[1].0, "c");
+        let swapped = vec![ranking[0].clone(), ranking[2].clone(), ranking[1].clone()];
+        assert_eq!(champion_pair(&st, &swapped)[1].0, "c");
     }
 
     #[test]
@@ -223,12 +308,12 @@ mod tests {
         assert_eq!(state.rd_tick_done_counter, 0);
         assert!(state.knockouts.is_empty());
         let fit = crate::training::order_neutral::from_state(&state);
-        assert_eq!(fit.games, 6);
+        assert_eq!(fit.games, 10);
         assert!(fit.ratings["b"] > fit.ratings["a"]);
         claim(&mut state).unwrap();
         assert_eq!(state.top_two_pairs.len(), 2);
         assert_eq!(state.top_two_pairs[1].agents, ["b", "a"]);
-        assert_eq!(state.top_two_pairs[1].selected_after_games, 6);
+        assert_eq!(state.top_two_pairs[1].selected_after_games, 10);
     }
 
     #[test]
