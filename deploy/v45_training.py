@@ -20,9 +20,7 @@ from v4_training import Pool
 def terminate(proc):
     if proc and proc.poll() is None:
         os.killpg(proc.pid, signal.SIGTERM)
-        try: proc.wait(timeout=30)
-        except subprocess.TimeoutExpired:
-            os.killpg(proc.pid, signal.SIGKILL); proc.wait()
+        proc.wait()
 
 
 def main():
@@ -40,7 +38,7 @@ def main():
     pool=Pool(run/'analysis',out,c['cpus']); pool.want=2
     proc=None; own=None; paused=False; claimed=False
     def status(state,**kwargs): a.atomic(out/'status.json',dict(state=state,updated=time.time(),**kwargs))
-    def job(command,name,limit_hours):
+    def job(command,name):
         nonlocal proc
         verify()
         while not pool.leases:
@@ -55,29 +53,28 @@ def main():
             started=time.monotonic()
             while proc.poll() is None:
                 pool.tick();status('running',stage=name,pid=proc.pid,cpus=[c['cpus'][i] for i in sorted(pool.leases)],elapsed_s=time.monotonic()-started)
-                if time.monotonic()-started>limit_hours*3600: raise TimeoutError(name+' exceeded budget; completed checkpoints retained')
                 time.sleep(2)
             result=proc.returncode;proc=None
             if result:raise RuntimeError(name+' failed: '+str(result))
     try:
         status('pausing_analysis')
         paused=True
-        subprocess.run(['systemctl','stop','taikyoku-dual-labels.service'],check=True,timeout=120)
+        subprocess.run(['systemctl','stop','taikyoku-dual-labels.service'],check=True)
         own=(run/'analysis/dual-label.lock').open('a+');fcntl.flock(own,fcntl.LOCK_EX|fcntl.LOCK_NB)
         claimed=True
         dataset=out/'dataset'
         job([c['python'],str(code/'training/nnue/v45_data.py'),'--source',c['dataset'],
-             '--parent',c['parents']['512'],'--out',str(dataset),'--cpu-file',str(out/'cpus.json')],'prepare',4)
+             '--parent',c['parents']['512'],'--out',str(dataset),'--cpu-file',str(out/'cpus.json')],'prepare')
         for width in (512,384):
             model=out/f'NNUE_W{width}_v4.5'
             if (model/'status.json').exists() and a.read(model/'status.json').get('state')=='completed':continue
             command=[c['python'],str(code/'training/nnue/pilot_fit.py'),str(dataset),
                 '--parent',c['parents'][str(width)],'--out',str(model),'--init','parent','--width',str(width),
-                '--loss','wdl','--mix','0','--epochs','12','--epoch-samples','65536','--patience','2',
+                '--loss','wdl','--mix','0','--epochs','0','--epoch-samples','65536','--patience','2',
                 '--lr-reductions','1','--batch','8','--microbatch','1','--threads','2',
                 '--cpu-file',str(out/'cpus.json'),'--seed','20261004']
             if (model/'recipe.json').exists():command.append('--resume')
-            job(command,'train-'+str(width),8)
+            job(command,'train-'+str(width))
         status('completed',models=[str(out/f'NNUE_W{w}_v4.5/model.json') for w in (512,384)])
     except BaseException as e:
         status('failed',error=str(e));raise
@@ -85,6 +82,6 @@ def main():
         terminate(proc)
         if claimed:pool.close()
         if own:own.close()
-        if paused:subprocess.run(['systemctl','start','taikyoku-dual-labels.service'],check=True,timeout=120)
+        if paused:subprocess.run(['systemctl','start','taikyoku-dual-labels.service'],check=True)
 
 if __name__=='__main__':main()

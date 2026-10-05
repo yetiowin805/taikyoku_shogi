@@ -264,18 +264,23 @@ dominate. Validation and test retain fixed 90/8/2 weights without difficulty boo
 Labels, scale, material baseline, and inherited splits are unchanged. Scoring is
 resumable from difficulty.jsonl; output dataset.json is published last.
 
-`deploy/v45_training.py CONFIG` pauses only the analysis service, uses the existing
-game-boundary CPU leases, and runs 512 then 384 sequentially on two CPUs. Both
-start from their matching v3 parents; 512v3 scores difficulty for both. Each has
-at most 12 passes of 65,536 weighted draws, patience 2, one learning-rate reduction,
-and an 8-hour stage watchdog. Preparation has a 4-hour watchdog. Best-validation
-models and epoch optimizer checkpoints are retained; test evaluation happens after
-selection. The run never replaces tournament entrants. A supervised service must
-use KillMode=control-group and an ExecStopPost to restart taikyoku-dual-labels.service.
-Normal cleanup also restores analysis and releases the leased CPUs. A failed stage
-halts the pipeline, preserving completed epoch checkpoints for explicit resume.
+`deploy/v45_training.py CONFIG` pauses only analysis and uses game-boundary CPU
+leases. It starts on one available CPU and expands to two, training 512 then 384
+from matching v3 parents. 512v3 scores difficulty for both. Passes contain 65,536
+weighted draws, with patience 2 and one learning-rate reduction. There is no elapsed
+time or pass-count cap: `--epochs 0` stops on validation plateau. Service runtime and
+imposed memory limits must also be unlimited. Best models and epoch optimizer state
+are retained; models are not automatically admitted to the tournament.
 
-Validation reports include separate unweighted probability errors for each stratum,
-alongside the fixed weighted aggregate. These runs test continuation under one recipe,
-not an isolated width or difficulty-weighting ablation. Early stopping, a budget stop,
-and an unchanged best checkpoint must be reported distinctly.
+Use KillMode=control-group and ExecStopPost to restart taikyoku-dual-labels.service
+on service exit. Normal cleanup also restores analysis and releases leases. Explicit
+operator stops and actual computation/integrity errors still stop the pipeline.
+Lease timestamps are diagnostic; a delayed heartbeat alone does not abort training.
+
+`--resume --epochs 0 --remove-budget-cap` explicitly migrates a capped checkpoint
+without changing data, optimizer state, or other hyperparameters. The previous recipe
+is preserved in budget-removal.json. A max-epochs stop is cleared; a validation plateau
+is retained. Existing other experiments keep their original finite defaults.
+
+Validation reports include separate unweighted probability errors for each stratum.
+These are continuation runs, not an isolated width or weighting ablation.

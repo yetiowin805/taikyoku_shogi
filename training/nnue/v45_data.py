@@ -87,8 +87,8 @@ def main():
             if a.cpu_file and start % 800 == 0:
                 lease = json.loads(a.cpu_file.read_text())
                 cpus = set(lease['cpus'])
-                if not cpus or time.time()-lease['updated'] > 30:
-                    raise RuntimeError('Preparation CPU lease expired')
+                if not cpus:
+                    raise RuntimeError('Preparation CPU lease is empty')
                 for task in Path('/proc/self/task').iterdir():
                     try: os.sched_setaffinity(int(task.name), cpus)
                     except ProcessLookupError: pass

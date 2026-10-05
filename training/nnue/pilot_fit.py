@@ -1,5 +1,6 @@
 """Isolated 512 data/loss pilot. Never modifies production checkpoints or trainer defaults."""
 import argparse
+import itertools
 from collections import Counter
 import json
 import math
@@ -211,7 +212,8 @@ def main():
     p.add_argument('--init', choices=['fresh','parent'], required=True)
     p.add_argument('--loss', choices=['huber','wdl'], required=True)
     p.add_argument('--mix', type=float, default=0)
-    p.add_argument('--epochs', type=int, default=12)
+    p.add_argument('--epochs', type=int, default=12, help='0 means no epoch cap; stop on validation plateau')
+    p.add_argument('--remove-budget-cap', action='store_true', help='Explicitly migrate a resumable capped run to uncapped code')
     p.add_argument('--width', type=int, default=512)
     p.add_argument('--patience', type=int, default=2)
     p.add_argument('--lr-reductions', type=int, default=1)
@@ -230,7 +232,7 @@ def main():
     a = p.parse_args()
     if not 0 <= a.mix <= 1 or (a.loss=='huber' and a.mix):
         raise ValueError('Invalid mixture')
-    assert a.batch > 0 and a.microbatch > 0
+    assert a.batch > 0 and a.microbatch > 0 and a.epochs >= 0
     if a.threads < 1: raise ValueError("threads must be positive")
     torch.set_num_threads(a.threads)
     torch.set_num_interop_threads(1)
@@ -273,11 +275,19 @@ def main():
                   quantization='active-feature-and-head-aware; sparse floating master weights')
     a.out.mkdir(parents=True, exist_ok=True)
     if (a.out/'recipe.json').exists():
-        assert a.resume and json.loads((a.out/'recipe.json').read_text())==recipe
+        previous = json.loads((a.out/'recipe.json').read_text())
+        if a.remove_budget_cap:
+            assert a.resume and a.epochs == 0
+            ignored = {'epochs','code_sha256'}
+            assert {k:v for k,v in previous.items() if k not in ignored} == {k:v for k,v in recipe.items() if k not in ignored}
+            atomic_json(a.out/'budget-removal.json', dict(previous=previous, current=recipe))
+            atomic_json(a.out/'recipe.json', recipe)
+        else:
+            assert a.resume and previous==recipe
     else:
         atomic_json(a.out/'recipe.json', recipe)
     atomic_json(a.out/'calibration.json', cal)
-    policy = Policy(min_epochs=4, max_epochs=a.epochs, patience=a.patience, lr_reductions=a.lr_reductions)
+    policy = Policy(min_epochs=4, max_epochs=a.epochs or None, patience=a.patience, lr_reductions=a.lr_reductions)
     first, best, metrics = 0, math.inf, []
     state = None
     if a.resume and (a.out/'training.pt').exists():
@@ -287,6 +297,7 @@ def main():
         net.load_state_dict(state['net'], assign=True)
         first, best, metrics = state['epoch'], state['best'], state['metrics']
         tracker = Plateau(**state['plateau'])
+        if a.epochs == 0 and tracker.stopped == 'max_epochs': tracker.stopped = None
     else:
         net = from_quantized(blob, schema['features']) if a.init=='parent' else PilotNet(schema['features'],a.width)
         initial = evaluate(net,samples,data,val,a.batch,a.loss,cal['scale'],a.mix)
@@ -306,7 +317,7 @@ def main():
         emb.load_state_dict(state['emb']); dense.load_state_dict(state['dense']); del state
     weights = weights_for(samples, train)
     started = time.monotonic()
-    for epoch in range(first, a.epochs):
+    for epoch in (range(first, a.epochs) if a.epochs else itertools.count(first)):
         if tracker.stopped:
             break
         order = random.Random(a.seed+epoch).choices(train, weights=[weights[i] for i in train],
@@ -316,8 +327,8 @@ def main():
             if a.cpu_file and start % (a.batch*100) == 0:
                 lease = json.loads(a.cpu_file.read_text())
                 cpus = set(lease['cpus'])
-                if not cpus or time.time()-lease['updated'] > 30:
-                    raise RuntimeError('Training CPU lease expired')
+                if not cpus:
+                    raise RuntimeError('Training CPU lease is empty')
                 for task in Path('/proc/self/task').iterdir():
                     try: os.sched_setaffinity(int(task.name), cpus)
                     except ProcessLookupError: pass

@@ -3,6 +3,14 @@ from collections import defaultdict
 from v45_data import reweight, multiplier
 
 class WeightingTests(unittest.TestCase):
+    def test_no_epoch_limit_still_stops_on_plateau(self):
+        from plateau import Policy, Plateau
+        policy=Policy(min_epochs=1,max_epochs=None,patience=2,lr_reductions=0)
+        tracker=Plateau(10)
+        self.assertEqual(tracker.observe(1000000,9,policy),"continue")
+        self.assertEqual(tracker.observe(1000001,9,policy),"continue")
+        self.assertEqual(tracker.observe(1000002,9,policy),"plateau")
+
     def test_boundaries(self):
         self.assertEqual([multiplier(x) for x in (0,.099,.1,.25,.251,1)], [1,1,1.5,1.5,2,2])
 
