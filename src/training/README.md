@@ -206,3 +206,19 @@ so expensive indivisible operations can cause overshoot. Fixed-time analysis
 searches retain their current policy. Incomplete-depth move selection is unchanged:
 use the last completed depth, or the existing partial depth-one fallback if none
 completed.
+
+### Dynamic active pool
+
+For order-neutral tournaments, `retired` is a recomputed inactive set, not a
+permanent exclusion. After completed games and on resume, entrants in the largest
+strongly connected component are eligible within 400 points (inclusive) of its
+leader. Every entrant outside that component remains eligible for connectivity
+repair. Equal-sized components are resolved by lexicographic membership; when
+all components are singletons, everyone remains eligible. All historical results
+are retained. The active entrants define rating centering, so reactivation may
+translate displayed ratings without changing relative strengths.
+
+Existing brackets and committed supplemental pairs finish with their original
+entrants. Eligibility controls new brackets and new supplemental pairs. New
+models must still be registered in the run's entrants and manifest; merely
+writing a checkpoint does not register it.

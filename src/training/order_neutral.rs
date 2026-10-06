@@ -34,12 +34,13 @@ pub fn from_state(state: &TourneyState) -> Fit {
         ));
     }
     let mut result = fit(&names.into_iter().collect::<Vec<_>>(), &games);
-    // Retired opponents retain all their evidence, but the active field defines
+    let inactive = if state.order_neutral_only { inactive_agents(&result) } else { state.retired.clone() };
+    // Inactive opponents retain all their evidence, but the active field defines
     // the displayed center. Translation cannot alter any fitted difference.
     for group in &result.weak_components {
         let active: Vec<_> = group
             .iter()
-            .filter(|id| !state.retired.contains(*id))
+            .filter(|id| !inactive.contains(*id))
             .collect();
         if active.is_empty() {
             continue;
@@ -59,6 +60,19 @@ pub fn from_state(state: &TourneyState) -> Fit {
         }
     }
     result
+}
+
+/// The largest SCC is the established comparison pool. Equal-sized components
+/// use lexicographic membership as a deterministic tie-break. Agents outside it
+/// remain eligible so connectivity repair can gather comparison evidence.
+pub(crate) fn inactive_agents(fit: &Fit) -> BTreeSet<String> {
+    let core = fit.components.iter().filter(|g| g.len() > 1)
+        .min_by(|a,b| b.len().cmp(&a.len()).then_with(|| a.cmp(b)));
+    let Some(core) = core else { return BTreeSet::new(); };
+    let best = core.iter().filter_map(|id| fit.ratings.get(id)).copied()
+        .fold(f64::NEG_INFINITY, f64::max);
+    core.iter().filter(|id| fit.ratings.get(*id).is_some_and(|r| best - r > 400.0))
+        .cloned().collect()
 }
 
 fn fit(names: &[String], games: &[(String, String, f64)]) -> Fit {
@@ -346,6 +360,40 @@ fn solve(mut a: Vec<Vec<f64>>, mut b: Vec<f64>) -> Option<Vec<f64>> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn dynamic_pool_boundary_unconnected_and_reactivation() {
+        let names = ["a", "b", "c", "new"].map(String::from);
+        let games = vec![("a".into(), "b".into(), 0.5), ("b".into(), "c".into(), 0.5)];
+        let mut result = super::fit(&names, &games);
+        result.ratings.insert("a".into(), 1800.);
+        result.ratings.insert("b".into(), 1400.);
+        result.ratings.insert("c".into(), 1399.);
+        result.ratings.insert("new".into(), 0.);
+        assert_eq!(super::inactive_agents(&result), ["c".to_string()].into());
+        result.ratings.insert("c".into(), 1400.);
+        assert!(super::inactive_agents(&result).is_empty());
+        result.components = names.iter().map(|n| vec![n.clone()]).collect();
+        assert!(super::inactive_agents(&result).is_empty());
+    }
+
+    #[test]
+    fn resume_refreshes_old_retirement_without_dropping_results() {
+        use crate::training::tournament::*;
+        let cfg = TourneyConfig { format: TourneyFormat::RoundRobin, entrants: ["a", "b"].iter().map(|n| TourneyEntrant {
+            id: n.to_string(), model: format!("{n}.json"), engine: None,
+        }).collect(), ..Default::default() };
+        let mut state = build_schedule(&cfg);
+        state.order_neutral_only = true;
+        state.retired.insert("b".into());
+        state.slots[0].status = SlotStatus::Done;
+        state.slots[0].score_a = Some(0.5);
+        let original = serde_json::to_value(&state.slots).unwrap();
+        ensure_ratings(&mut state);
+        assert!(state.retired.is_empty());
+        assert_eq!(serde_json::to_value(&state.slots).unwrap(), original);
+        assert_eq!(state.ratings["a"].r, 1500.);
+        assert_eq!(state.ratings["b"].r, 1500.);
+    }
     use super::*;
     fn run(g: &[(&str, &str, f64)], names: &[&str]) -> Fit {
         fit(

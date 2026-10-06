@@ -309,6 +309,7 @@ pub(crate) fn ensure_ratings(state: &mut TourneyState) {
     if state.order_neutral_only {
         let fit = super::order_neutral::from_state(state);
         assert!(!fit.ratings.is_empty(), "order-neutral fit failed: {}", fit.status);
+        state.retired = super::order_neutral::inactive_agents(&fit);
         state.ratings = fit.ratings.iter().map(|(id,r)| (id.clone(), GlickoRating {r:*r, rd:0.})).collect();
         state.elo = fit.ratings;
         return;
@@ -1103,7 +1104,7 @@ fn format_standings_with_fit(state: &TourneyState, neutral: &super::order_neutra
         for (i,(id,r)) in rows.iter().enumerate() {
             text.push_str(&format!("| {} | {} | {:.1} | {} | {:.1} |\n", i+1,id,r,games.get(*id).unwrap_or(&0),scores.get(*id).unwrap_or(&0.)));
         }
-        text.push_str(&format!("\nRetired historical references: {:?}\n",state.retired));
+        text.push_str(&format!("\nCurrently inactive agents: {:?}\n",state.retired));
         text.push_str(&format_knockout_stage_table(state));
         return text;
     }
