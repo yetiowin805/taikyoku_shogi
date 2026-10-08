@@ -78,6 +78,14 @@ pub struct MoveBody {
     pub to_rank: u8,
     pub promote: Option<bool>,
     pub path_index: Option<usize>,
+    /// Two-step intermediate, in shogi coordinates.
+    #[serde(default)]
+    pub via_file: Option<u8>,
+    #[serde(default)]
+    pub via_rank: Option<u8>,
+    /// When set, ignore two-step moves and keep a direct from→to move.
+    #[serde(default)]
+    pub direct: bool,
 }
 
 #[derive(Deserialize)]
@@ -228,6 +236,13 @@ async fn api_move(
 ) -> Json<CommandResult> {
     cancel_current_analysis(&state).await;
     let mut tool = state.tool.lock().await;
+    let via = match (body.via_file, body.via_rank) {
+        (Some(file), Some(rank)) => Some((file, rank)),
+        (None, None) => None,
+        _ => {
+            return Json(tool.err_result("Provide both via_file and via_rank, or neither"));
+        }
+    };
     match tool.apply_human_move(
         body.from_file,
         body.from_rank,
@@ -235,6 +250,8 @@ async fn api_move(
         body.to_rank,
         body.promote,
         body.path_index,
+        via,
+        body.direct,
     ) {
         Ok(msg) => Json(tool.ok_result(msg)),
         Err(e) => Json(tool.err_result(e)),

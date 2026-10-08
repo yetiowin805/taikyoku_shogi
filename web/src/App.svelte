@@ -14,6 +14,28 @@
   let selected = $state(null);
   let highlights = $state([]);
   let pendingMoves = $state([]);
+  let leg = $state(null);
+  let promoPrompt = $state(null);
+
+  let boardPieces = $derived.by(() => {
+    const pieces = snapshot?.pieces || [];
+    if (!leg || !selected) return pieces;
+    return pieces
+      .filter(
+        (p) =>
+          !(
+            p.file === leg.file &&
+            p.rank === leg.rank &&
+            p.color !== snapshot.turn
+          ),
+      )
+      .map((p) =>
+        p.file === selected.file && p.rank === selected.rank
+          ? { ...p, file: leg.file, rank: leg.rank }
+          : p,
+      );
+  });
+  let boardSelected = $derived(leg || selected);
   let blackController = $state('human');
   let whiteController = $state('mi');
   let autoPlay = $state(false);
@@ -66,6 +88,100 @@
     return epoch === navEpoch;
   }
 
+  function clearGesture() {
+    selected = null;
+    highlights = [];
+    pendingMoves = [];
+    leg = null;
+    promoPrompt = null;
+  }
+
+  function hasVia(move) {
+    return move?.via_file != null && move?.via_rank != null;
+  }
+
+  function uniqueMarks(entries) {
+    const map = new Map();
+    for (const entry of entries) {
+      const key = `${entry.file},${entry.rank}`;
+      const prev = map.get(key);
+      if (!prev) map.set(key, { ...entry });
+      else {
+        prev.capture = prev.capture || entry.capture;
+        prev.stop = prev.stop || entry.stop;
+      }
+    }
+    return [...map.values()];
+  }
+
+  function firstMarks(moves) {
+    const occupied = new Set(
+      (snapshot?.pieces || []).map((p) => `${p.file},${p.rank}`),
+    );
+    return uniqueMarks(
+      moves.flatMap((move) => {
+        if (hasVia(move)) {
+          return [
+            {
+              file: move.via_file,
+              rank: move.via_rank,
+              capture: occupied.has(`${move.via_file},${move.via_rank}`),
+              stop: false,
+            },
+          ];
+        }
+        return [
+          {
+            file: move.to_file,
+            rank: move.to_rank,
+            capture: occupied.has(`${move.to_file},${move.to_rank}`),
+            stop: false,
+          },
+        ];
+      }),
+    );
+  }
+
+  function secondMarks(moves, via) {
+    const occupied = new Set(
+      (snapshot?.pieces || []).map((p) => `${p.file},${p.rank}`),
+    );
+    const marks = moves
+      .filter((m) => hasVia(m) && m.via_file === via.file && m.via_rank === via.rank)
+      .map((move) => ({
+        file: move.to_file,
+        rank: move.to_rank,
+        capture: occupied.has(`${move.to_file},${move.to_rank}`),
+        stop: false,
+      }));
+    const canStop = moves.some(
+      (m) => !hasVia(m) && m.to_file === via.file && m.to_rank === via.rank,
+    );
+    if (canStop) {
+      marks.push({ file: via.file, rank: via.rank, capture: false, stop: true });
+    }
+    return uniqueMarks(marks);
+  }
+
+  function declineSquare(file, rank, avoid) {
+    const blocked = new Set(
+      [...avoid, ...boardPieces].map((s) => `${s.file},${s.rank}`),
+    );
+    // Prefer adjacent cells, then the nearest empty cell on a crowded board.
+    for (let distance = 1; distance <= 70; distance++) {
+      for (let dx = -distance; dx <= distance; dx++) {
+        const dy = distance - Math.abs(dx);
+        for (const y of new Set([rank - dy, rank + dy])) {
+          const x = file + dx;
+          if (x >= 1 && x <= 36 && y >= 1 && y <= 36 && !blocked.has(`${x},${y}`)) {
+            return { file: x, rank: y };
+          }
+        }
+      }
+    }
+    return null;
+  }
+
   function sameAnalysis(prev, next) {
     if (!prev || !next) return false;
     if (
@@ -99,7 +215,9 @@
         a.from_rank !== b.from_rank ||
         a.to_file !== b.to_file ||
         a.to_rank !== b.to_rank ||
-        a.promoted !== b.promoted
+        a.promoted !== b.promoted ||
+        a.via_file !== b.via_file ||
+        a.via_rank !== b.via_rank
       ) {
         return false;
       }
@@ -344,9 +462,7 @@
     const epoch = beginNav();
     const res = await api.newGame();
     if (!navIsCurrent(epoch)) return;
-    selected = null;
-    highlights = [];
-    pendingMoves = [];
+    clearGesture();
     applyResult(res);
     if (res.ok) positionChanged();
   }
@@ -356,9 +472,7 @@
     const epoch = beginNav();
     const res = await api.loadGame(selectedGame);
     if (!navIsCurrent(epoch)) return;
-    selected = null;
-    highlights = [];
-    pendingMoves = [];
+    clearGesture();
     applyResult(res, false, { clearSearch: true });
     if (res.ok) positionChanged();
     if (res.ok && res.eval_series) {
@@ -405,8 +519,7 @@
       const res = await api.playAgent(ctrl, agentOptsFor(ctrl, turn));
       if (!navIsCurrent(epoch)) return;
       applyResult(res);
-      selected = null;
-      highlights = [];
+      clearGesture();
     } finally {
       busy = false;
     }
@@ -425,6 +538,88 @@
     }
   });
 
+  function movingPiece() {
+    return (snapshot?.pieces || []).find(
+      (p) => p.file === selected?.file && p.rank === selected?.rank,
+    );
+  }
+
+  async function sendMove(matches, promote, via) {
+    if (!selected || !matches?.length) return;
+    const dest = matches[0];
+    const epoch = beginNav();
+    const res = await api.applyMove({
+      from_file: selected.file,
+      from_rank: selected.rank,
+      to_file: dest.to_file,
+      to_rank: dest.to_rank,
+      promote,
+      path_index: matches.length > 1 && !via ? 0 : null,
+      via_file: via?.file ?? null,
+      via_rank: via?.rank ?? null,
+      direct: !via,
+    });
+    if (!navIsCurrent(epoch)) return;
+    applyResult(res);
+    if (res.ok) positionChanged();
+    clearGesture();
+  }
+
+  function offerPromotion(matches, via) {
+    const promoted = matches.some((m) => m.promoted);
+    const plain = matches.some((m) => !m.promoted);
+    if (!(promoted && plain)) {
+      void sendMove(matches, promoted ? true : null, via);
+      return;
+    }
+    const dest = matches[0];
+    const piece = movingPiece();
+    const avoid = [
+      { file: dest.to_file, rank: dest.to_rank },
+      { file: selected.file, rank: selected.rank },
+    ];
+    if (via) avoid.push(via);
+    const pop = declineSquare(dest.to_file, dest.to_rank, avoid);
+    promoPrompt = {
+      file: dest.to_file,
+      rank: dest.to_rank,
+      popFile: pop?.file,
+      popRank: pop?.rank,
+      symbol: piece?.symbol || '?',
+      promotionSymbol: piece?.promotion_symbol || `+${piece?.symbol || '?'}`,
+      color: piece?.color || 'Black',
+      via,
+      matches,
+    };
+    highlights = [];
+    log('Click the promoted piece, or the unpromoted choice to stay unpromoted');
+  }
+
+  async function selectPiece(file, rank, piece) {
+    if (!piece || piece.color !== snapshot.turn) {
+      log('Select one of your pieces', 'err');
+      return;
+    }
+    selected = { file, rank };
+    leg = null;
+    promoPrompt = null;
+    const epoch = beginNav();
+    const res = await api.getMoves(file, rank);
+    if (!navIsCurrent(epoch)) return;
+    applyResult(res, true);
+    if (!res.ok) {
+      log(res.message, 'err');
+      clearGesture();
+      return;
+    }
+    pendingMoves = res.moves || [];
+    highlights = firstMarks(pendingMoves);
+    const twoStep = pendingMoves.some(hasVia);
+    log(
+      `Selected ${piece.symbol} at ${file},${rank} — ${pendingMoves.length} moves${twoStep ? ' (first step)' : ''}`,
+    );
+  }
+
   async function onCellClick({ file, rank }) {
     if (!snapshot) return;
     if (mode === 'play') {
@@ -435,105 +630,123 @@
       }
     }
 
+    if (promoPrompt) {
+      const via = promoPrompt.via;
+      if (file === promoPrompt.file && rank === promoPrompt.rank) {
+        const matches = promoPrompt.matches.filter((m) => m.promoted);
+        promoPrompt = null;
+        await sendMove(matches, true, via);
+        return;
+      }
+      if (file === promoPrompt.popFile && rank === promoPrompt.popRank) {
+        const matches = promoPrompt.matches.filter((m) => !m.promoted);
+        promoPrompt = null;
+        await sendMove(matches, false, via);
+        return;
+      }
+      promoPrompt = null;
+      highlights = leg ? secondMarks(pendingMoves, leg) : firstMarks(pendingMoves);
+      return;
+    }
+
     const piece = (snapshot.pieces || []).find(
       (p) => p.file === file && p.rank === rank,
     );
 
     if (!selected) {
-      if (!piece || piece.color !== snapshot.turn) {
-        log('Select one of your pieces', 'err');
-        return;
-      }
-      selected = { file, rank };
-      const epoch = beginNav();
-      const res = await api.getMoves(file, rank);
-      if (!navIsCurrent(epoch)) return;
-      applyResult(res, true);
-      if (!res.ok) {
-        log(res.message, 'err');
-        selected = null;
-        return;
-      }
-      const occ = new Set(
-        (snapshot.pieces || []).map((p) => `${p.file},${p.rank}`),
-      );
-      highlights = (res.moves || []).map((m) => ({
-        file: m.to_file,
-        rank: m.to_rank,
-        capture: occ.has(`${m.to_file},${m.to_rank}`),
-      }));
-      pendingMoves = res.moves || [];
-      log(`Selected ${piece.symbol} at ${file},${rank} — ${pendingMoves.length} moves`);
+      await selectPiece(file, rank, piece);
       return;
     }
 
-    // second click: try move or reselect
-    if (selected.file === file && selected.rank === rank) {
-      selected = null;
-      highlights = [];
-      pendingMoves = [];
+    if (!leg && selected.file === file && selected.rank === rank) {
+      clearGesture();
       return;
     }
 
-    if (piece && piece.color === snapshot.turn) {
-      selected = { file, rank };
-      const epoch = beginNav();
-      const res = await api.getMoves(file, rank);
-      if (!navIsCurrent(epoch)) return;
-      applyResult(res, true);
-      const occ = new Set(
-        (snapshot.pieces || []).map((p) => `${p.file},${p.rank}`),
+    if (leg && selected.file === file && selected.rank === rank) {
+      leg = null;
+      highlights = firstMarks(pendingMoves);
+      return;
+    }
+
+    if (
+      piece &&
+      piece.color === snapshot.turn &&
+      !(leg && file === leg.file && rank === leg.rank)
+    ) {
+      await selectPiece(file, rank, piece);
+      return;
+    }
+
+    if (leg) {
+      if (file === leg.file && rank === leg.rank) {
+        const stops = pendingMoves.filter(
+          (m) => !hasVia(m) && m.to_file === file && m.to_rank === rank,
+        );
+        if (!stops.length) {
+          log('This piece has to take a second step', 'err');
+          return;
+        }
+        offerPromotion(stops, null);
+        return;
+      }
+      const cont = pendingMoves.filter(
+        (m) =>
+          hasVia(m) &&
+          m.via_file === leg.file &&
+          m.via_rank === leg.rank &&
+          m.to_file === file &&
+          m.to_rank === rank,
       );
-      highlights = (res.moves || []).map((m) => ({
-        file: m.to_file,
-        rank: m.to_rank,
-        capture: occ.has(`${m.to_file},${m.to_rank}`),
-      }));
-      pendingMoves = res.moves || [];
+      if (!cont.length) {
+        log('Not a legal second square', 'err');
+        return;
+      }
+      offerPromotion(cont, { file: leg.file, rank: leg.rank });
+      return;
+    }
+
+    const twoStep = pendingMoves.some(hasVia);
+    if (twoStep) {
+      const cont = pendingMoves.filter(
+        (m) => hasVia(m) && m.via_file === file && m.via_rank === rank,
+      );
+      const stops = pendingMoves.filter(
+        (m) => !hasVia(m) && m.to_file === file && m.to_rank === rank,
+      );
+      if (!cont.length && !stops.length) {
+        log('Not a legal destination', 'err');
+        return;
+      }
+      if (cont.length) {
+        leg = { file, rank };
+        highlights = secondMarks(pendingMoves, leg);
+        log(
+          stops.length
+            ? 'Click this square again to stop, or choose the second square'
+            : 'Choose the second square',
+        );
+        return;
+      }
+      offerPromotion(stops, null);
       return;
     }
 
     const matches = pendingMoves.filter(
-      (m) => m.to_file === file && m.to_rank === rank,
+      (m) => !hasVia(m) && m.to_file === file && m.to_rank === rank,
     );
     if (!matches.length) {
       log('Not a legal destination', 'err');
       return;
     }
-    let pathIndex = null;
-    let promote = null;
-    if (matches.length > 1) {
-      // path_index is into the matching from→to list (0-based)
-      pathIndex = 0;
-      log(`Ambiguous (${matches.length} paths); using path_index 0`, 'ok');
-    } else if (matches[0].promoted) {
-      promote = true;
-    }
-
-    const body = {
-      from_file: selected.file,
-      from_rank: selected.rank,
-      to_file: file,
-      to_rank: rank,
-      promote,
-      path_index: pathIndex,
-    };
-    const epoch = beginNav();
-    const res = await api.applyMove(body);
-    if (!navIsCurrent(epoch)) return;
-    applyResult(res);
-    if (res.ok) positionChanged();
-    selected = null;
-    highlights = [];
-    pendingMoves = [];
+    offerPromotion(matches, null);
   }
 
   async function stepBack() {
     const epoch = beginNav();
     const res = await api.back(1);
     if (!navIsCurrent(epoch)) return;
-    selected = null;
-    highlights = [];
+    clearGesture();
     applyResult(res, false, { clearSearch: true });
     if (res.ok) positionChanged();
   }
@@ -542,8 +755,7 @@
     const epoch = beginNav();
     const res = await api.forward(1);
     if (!navIsCurrent(epoch)) return;
-    selected = null;
-    highlights = [];
+    clearGesture();
     applyResult(res, false, { clearSearch: true });
     if (res.ok) positionChanged();
   }
@@ -554,8 +766,7 @@
     gotoPly = p;
     const res = await api.gotoPly(p);
     if (!navIsCurrent(epoch)) return;
-    selected = null;
-    highlights = [];
+    clearGesture();
     applyResult(res, false, { clearSearch: true });
     if (res.ok) positionChanged();
   }
@@ -567,8 +778,7 @@
     const agent = ctrl === 'human' ? 'mi' : ctrl;
     const res = await api.playAgent(agent, agentOptsFor(agent, turn));
     if (!navIsCurrent(epoch)) return;
-    selected = null;
-    highlights = [];
+    clearGesture();
     applyResult(res);
     if (res.ok) positionChanged();
   }
@@ -588,9 +798,7 @@
     whiteSearch = null;
     blackSearchExpanded = false;
     whiteSearchExpanded = false;
-    selected = null;
-    highlights = [];
-    pendingMoves = [];
+    clearGesture();
     const epoch = beginNav();
     const res = await api.newGame();
     if (!navIsCurrent(epoch)) return;
@@ -649,11 +857,19 @@
 
   <div class="main" class:analysis={mode === 'analysis'}>
     <div class="board-wrap">
+      {#if promoPrompt && promoPrompt.popFile == null}
+        <button onclick={() => {
+          const { matches, via } = promoPrompt;
+          promoPrompt = null;
+          void sendMove(matches.filter((m) => !m.promoted), false, via);
+        }}>Stay unpromoted</button>
+      {/if}
       <Board
-        pieces={snapshot?.pieces || []}
-        {selected}
+        pieces={boardPieces}
+        selected={boardSelected}
         {highlights}
         arrows={mode === 'analysis' ? analysisArrows : []}
+        choice={promoPrompt}
         {onCellClick}
       />
       <EvalSparkline

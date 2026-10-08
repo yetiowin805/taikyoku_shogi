@@ -11,6 +11,7 @@
     selected = null,
     highlights = [],
     arrows = [],
+    choice = null,
     onCellClick = () => {},
   } = $props();
 
@@ -35,9 +36,9 @@
     };
   }
 
-  function drawArrow(ctx, arrow, index) {
-    const from = squareCenter(arrow.from_file, arrow.from_rank);
-    const to = squareCenter(arrow.to_file, arrow.to_rank);
+  function drawSegment(ctx, arrow, fromFile, fromRank, toFile, toRank, index) {
+    const from = squareCenter(fromFile, fromRank);
+    const to = squareCenter(toFile, toRank);
     const dx = to.x - from.x;
     const dy = to.y - from.y;
     const length = Math.hypot(dx, dy);
@@ -73,6 +74,77 @@
     ctx.beginPath();
     ctx.arc(from.x, from.y, width * 0.8, 0, Math.PI * 2);
     ctx.fill();
+    ctx.restore();
+  }
+
+  function drawArrow(ctx, arrow, index) {
+    if (arrow.via_file != null && arrow.via_rank != null) {
+      drawSegment(
+        ctx,
+        arrow,
+        arrow.from_file,
+        arrow.from_rank,
+        arrow.via_file,
+        arrow.via_rank,
+        index,
+      );
+      drawSegment(
+        ctx,
+        arrow,
+        arrow.via_file,
+        arrow.via_rank,
+        arrow.to_file,
+        arrow.to_rank,
+        index,
+      );
+      return;
+    }
+    drawSegment(
+      ctx,
+      arrow,
+      arrow.from_file,
+      arrow.from_rank,
+      arrow.to_file,
+      arrow.to_rank,
+      index,
+    );
+  }
+
+  function drawChoice(ctx) {
+    if (!choice) return;
+    const cells = [
+      {
+        file: choice.file,
+        rank: choice.rank,
+        label: choice.promotionSymbol || `+${choice.symbol || '?'}`,
+        fill: '#2f5d50',
+        ink: '#f4f0e6',
+      },
+      {
+        file: choice.popFile,
+        rank: choice.popRank,
+        label: choice.symbol || '?',
+        fill: '#f4f0e6',
+        ink: choice.color === 'White' ? '#b33' : '#111',
+      },
+    ];
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = FONT_BOLD;
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#2f5d50';
+    for (const cell of cells) {
+      if (cell.file == null || cell.rank == null) continue;
+      if (cell.file < 1 || cell.file > N || cell.rank < 1 || cell.rank > N) continue;
+      const x = PAD + (N - cell.file) * CELL;
+      const y = PAD + (cell.rank - 1) * CELL;
+      ctx.fillStyle = cell.fill;
+      ctx.fillRect(x + 1, y + 1, CELL - 2, CELL - 2);
+      ctx.strokeRect(x + 1, y + 1, CELL - 2, CELL - 2);
+      ctx.fillStyle = cell.ink;
+      ctx.fillText(cell.label, x + CELL / 2, y + CELL / 2);
+    }
     ctx.restore();
   }
 
@@ -115,9 +187,11 @@
           ctx.fillStyle = 'rgba(47, 93, 80, 0.45)';
           ctx.fillRect(x, y, CELL, CELL);
         } else if (hi) {
-          ctx.fillStyle = hi.capture
-            ? 'rgba(180, 60, 40, 0.4)'
-            : 'rgba(60, 120, 200, 0.35)';
+          ctx.fillStyle = hi.stop
+            ? 'rgba(24, 163, 107, 0.5)'
+            : hi.capture
+              ? 'rgba(180, 60, 40, 0.4)'
+              : 'rgba(60, 120, 200, 0.35)';
           ctx.fillRect(x, y, CELL, CELL);
         }
 
@@ -160,6 +234,7 @@
     [...arrows]
       .sort((a, b) => Number(a.best) - Number(b.best))
       .forEach((arrow, index) => drawArrow(ctx, arrow, index));
+    drawChoice(ctx);
   }
 
   $effect(() => {
@@ -171,6 +246,7 @@
 
   $effect(() => {
     arrows;
+    choice;
     drawArrows();
   });
 

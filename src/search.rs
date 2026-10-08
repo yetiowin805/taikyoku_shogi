@@ -332,6 +332,11 @@ pub struct MoveCoordinates {
     pub to_file: u8,
     pub to_rank: u8,
     pub promoted: bool,
+    /// First landing of a two-step move. Absent for a direct move.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub via_file: Option<u8>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub via_rank: Option<u8>,
 }
 
 /// Compact node for GUI tree visualization.
@@ -4746,12 +4751,15 @@ fn move_label_parts(piece: Option<&Piece>, from: Position, to: Position, promote
 }
 
 fn move_coordinates(mv: &Move) -> MoveCoordinates {
+    let via = mv.intermediate().map(|pos| (36 - pos.file, 36 - pos.rank));
     MoveCoordinates {
         from_file: 36 - mv.from.file,
         from_rank: 36 - mv.from.rank,
         to_file: 36 - mv.to.file,
         to_rank: 36 - mv.to.rank,
         promoted: mv.promoted,
+        via_file: via.map(|v| v.0),
+        via_rank: via.map(|v| v.1),
     }
 }
 
@@ -8286,8 +8294,24 @@ mod reusable_tt_tests {
                 to_file: 1,
                 to_rank: 36,
                 promoted: true,
+                via_file: None,
+                via_rank: None,
             }
         );
+    }
+
+    #[test]
+    fn move_coordinates_include_two_step_via() {
+        let mv = Move::new_two_step(
+            Position::new(0, 0).unwrap(),
+            Position::new(1, 0).unwrap(),
+            Position::new(1, 2).unwrap(),
+        );
+        let coords = move_coordinates(&mv);
+        assert_eq!(coords.via_file, Some(35));
+        assert_eq!(coords.via_rank, Some(36));
+        assert_eq!(coords.to_file, 35);
+        assert_eq!(coords.to_rank, 34);
     }
 
     #[test]

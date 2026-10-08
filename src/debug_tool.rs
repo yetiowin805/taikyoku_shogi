@@ -388,14 +388,26 @@ impl DebugTool {
         from: Position,
         to: Position,
         promote: Option<bool>,
+        via: Option<Position>,
+        direct_only: bool,
     ) -> Vec<Move> {
         self.game_state
             .generate_legal_moves()
             .into_iter()
             .filter(|mv| {
-                mv.from == from
-                    && mv.to == to
-                    && promote.map(|p| mv.promoted == p).unwrap_or(true)
+                if mv.from != from || mv.to != to {
+                    return false;
+                }
+                if promote.is_some_and(|want| mv.promoted != want) {
+                    return false;
+                }
+                if let Some(via) = via {
+                    return mv.intermediate() == Some(via);
+                }
+                if direct_only {
+                    return mv.intermediate().is_none();
+                }
+                true
             })
             .collect()
     }
@@ -474,8 +486,10 @@ impl DebugTool {
         from: Position,
         to: Position,
         promote: Option<bool>,
+        via: Option<Position>,
+        direct_only: bool,
     ) -> Vec<Move> {
-        self.find_matching_moves(from, to, promote)
+        self.find_matching_moves(from, to, promote, via, direct_only)
     }
 
     pub fn apply_live_move_pub(&mut self, mv: Move) -> Result<String, String> {
@@ -951,7 +965,7 @@ impl DebugTool {
                     }
                 }
 
-                let matches = self.find_matching_moves(from, to, promote);
+                let matches = self.find_matching_moves(from, to, promote, None, false);
                 if matches.is_empty() {
                     return Err("No legal move matches those squares".to_string());
                 }
