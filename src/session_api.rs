@@ -14,6 +14,9 @@ pub struct PieceDto {
     pub color: String,
     pub piece_type: String,
     pub symbol: String,
+    /// Display symbol of the type this piece promotes to, when available.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub promotion_symbol: Option<String>,
     pub promoted: bool,
 }
 
@@ -184,6 +187,8 @@ impl DebugTool {
                     color: color_name(piece.color),
                     piece_type: format!("{:?}", piece.piece_type),
                     symbol: piece.base_symbol().to_string(),
+                    promotion_symbol: piece.piece_type.promotes_to()
+                        .map(|kind| kind.display_symbol().to_string()),
                     promoted: piece.is_promoted,
                 });
             }
@@ -470,6 +475,17 @@ mod tests {
     use super::*;
     use crate::game_history::{MoveRecord, MoveRecordData};
     use crate::training::record::{AgentSpec, GameRecordV2, GameStart, GameStats, FORMAT_VERSION};
+
+    #[test]
+    fn snapshot_exposes_actual_promotion_symbol() {
+        let tool = DebugTool::new();
+        let snapshot = tool.snapshot();
+        let pawn = snapshot.pieces.iter().find(|p| p.piece_type == "Pawn").unwrap();
+        assert_eq!(pawn.symbol, "P");
+        assert_eq!(pawn.promotion_symbol.as_deref(), Some("G"));
+        let king = snapshot.pieces.iter().find(|p| p.piece_type == "King").unwrap();
+        assert!(king.promotion_symbol.is_none());
+    }
 
     #[test]
     fn snapshot_exposes_recorded_evals_at_cursor() {

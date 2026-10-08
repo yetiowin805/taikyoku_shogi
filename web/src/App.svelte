@@ -89,7 +89,9 @@
   }
 
   function clearGesture() {
-    clearGesture();
+    selected = null;
+    highlights = [];
+    pendingMoves = [];
     leg = null;
     promoPrompt = null;
   }
@@ -116,11 +118,9 @@
     const occupied = new Set(
       (snapshot?.pieces || []).map((p) => `${p.file},${p.rank}`),
     );
-    const twoStep = moves.some(hasVia);
     return uniqueMarks(
       moves.flatMap((move) => {
         if (hasVia(move)) {
-          if (!twoStep) return [];
           return [
             {
               file: move.via_file,
@@ -164,21 +164,22 @@
   }
 
   function declineSquare(file, rank, avoid) {
-    const blocked = new Set(avoid.map((s) => `${s.file},${s.rank}`));
-    const options = [
-      { file: file - 1, rank },
-      { file: file + 1, rank },
-      { file, rank: rank - 1 },
-      { file, rank: rank + 1 },
-    ].filter(
-      (s) =>
-        s.file >= 1 &&
-        s.file <= 36 &&
-        s.rank >= 1 &&
-        s.rank <= 36 &&
-        !blocked.has(`${s.file},${s.rank}`),
+    const blocked = new Set(
+      [...avoid, ...boardPieces].map((s) => `${s.file},${s.rank}`),
     );
-    return options[0] || { file: file > 1 ? file - 1 : file + 1, rank };
+    // Prefer adjacent cells, then the nearest empty cell on a crowded board.
+    for (let distance = 1; distance <= 70; distance++) {
+      for (let dx = -distance; dx <= distance; dx++) {
+        const dy = distance - Math.abs(dx);
+        for (const y of new Set([rank - dy, rank + dy])) {
+          const x = file + dx;
+          if (x >= 1 && x <= 36 && y >= 1 && y <= 36 && !blocked.has(`${x},${y}`)) {
+            return { file: x, rank: y };
+          }
+        }
+      }
+    }
+    return null;
   }
 
   function sameAnalysis(prev, next) {
@@ -582,15 +583,16 @@
     promoPrompt = {
       file: dest.to_file,
       rank: dest.to_rank,
-      popFile: pop.file,
-      popRank: pop.rank,
+      popFile: pop?.file,
+      popRank: pop?.rank,
       symbol: piece?.symbol || '?',
+      promotionSymbol: piece?.promotion_symbol || `+${piece?.symbol || '?'}`,
       color: piece?.color || 'Black',
       via,
       matches,
     };
     highlights = [];
-    log('Click the promoted piece, or the square beside it to stay unpromoted');
+    log('Click the promoted piece, or the unpromoted choice to stay unpromoted');
   }
 
   async function selectPiece(file, rank, piece) {
@@ -643,6 +645,8 @@
         return;
       }
       promoPrompt = null;
+      highlights = leg ? secondMarks(pendingMoves, leg) : firstMarks(pendingMoves);
+      return;
     }
 
     const piece = (snapshot.pieces || []).find(
@@ -853,6 +857,13 @@
 
   <div class="main" class:analysis={mode === 'analysis'}>
     <div class="board-wrap">
+      {#if promoPrompt && promoPrompt.popFile == null}
+        <button onclick={() => {
+          const { matches, via } = promoPrompt;
+          promoPrompt = null;
+          void sendMove(matches.filter((m) => !m.promoted), false, via);
+        }}>Stay unpromoted</button>
+      {/if}
       <Board
         pieces={boardPieces}
         selected={boardSelected}

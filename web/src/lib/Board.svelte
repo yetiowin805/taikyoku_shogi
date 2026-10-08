@@ -116,7 +116,7 @@
       {
         file: choice.file,
         rank: choice.rank,
-        label: `+${choice.symbol || '?'}`,
+        label: choice.promotionSymbol || `+${choice.symbol || '?'}`,
         fill: '#2f5d50',
         ink: '#f4f0e6',
       },
@@ -135,6 +135,7 @@
     ctx.lineWidth = 2;
     ctx.strokeStyle = '#2f5d50';
     for (const cell of cells) {
+      if (cell.file == null || cell.rank == null) continue;
       if (cell.file < 1 || cell.file > N || cell.rank < 1 || cell.rank > N) continue;
       const x = PAD + (N - cell.file) * CELL;
       const y = PAD + (cell.rank - 1) * CELL;
