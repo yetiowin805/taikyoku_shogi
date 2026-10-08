@@ -22,6 +22,12 @@ ctrlc = { version = "3", features = ["termination"] }
 [features]
 search-profile = []
 royal-probes = []
+search-experiments = []
+
+[[bin]]
+name = "tactical_probe"
+path = "src/bin/tactical_probe.rs"
+required-features = ["search-experiments"]
 
 [profile.release]
 lto = "thin"

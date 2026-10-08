@@ -1756,6 +1756,59 @@ pub fn evaluate(state: &GameState, weights: &EvalWeights) -> i32 {
     evaluate_with_ply(state, weights, state.get_move_history().len())
 }
 
+/// Diagnostic control, not a trained evaluator: retain this percentage of the
+/// network's same-board turn-dependent component. One process per setting.
+#[cfg(feature = "search-experiments")]
+pub fn tactical_tempo_percent() -> Result<u32, String> {
+    static VALUE: std::sync::OnceLock<Result<u32, String>> = std::sync::OnceLock::new();
+    VALUE.get_or_init(|| {
+        let text = std::env::var("TACTICAL_TEMPO_PERCENT").unwrap_or_else(|_| "100".into());
+        text.parse::<u32>().ok().filter(|v| *v <= 100)
+            .ok_or_else(|| "TACTICAL_TEMPO_PERCENT must be an integer from 0 to 100".into())
+    }).clone()
+}
+
+#[cfg(feature = "search-experiments")]
+fn attenuate_tempo(ours: i32, theirs: i32, percent: u32) -> i32 {
+    (((100 + percent) as i64 * ours as i64
+        - (100 - percent) as i64 * theirs as i64) / 200) as i32
+}
+
+/// Explicit q-only diagnostic. Terminal and draw scores retain normal semantics.
+#[cfg(feature = "search-experiments")]
+pub fn evaluate_with_tactical_tempo(state: &GameState, weights: &EvalWeights, ply: usize, percent: u32) -> i32 {
+    assert!(percent <= 100);
+    if state.get_winner().is_some() || state.is_draw_by_progress_rule() || weights.nnue_runtime.is_none() {
+        return evaluate_with_ply(state, weights, ply);
+    }
+    let net = weights.nnue_runtime.as_ref().unwrap();
+    let fresh;
+    let acc = if let Some(a) = state.nnue.as_ref().filter(|a| a.matches(net)) { a }
+        else { fresh = crate::nnue::Accumulator::new(net.clone(), state.get_board()); &fresh };
+    let stm = state.get_current_turn();
+    let material = state.eval_inc().filter(|i| i.matches(weights)).map(|i| i.mat[0] - i.mat[1])
+        .unwrap_or_else(|| crate::nnue::material(state.get_board(), weights));
+    let signed = if stm == Color::Black { material } else { -material };
+    let ours = acc.residual(stm);
+    let residual = if percent == 100 { ours } else { attenuate_tempo(ours, acc.residual(stm.opposite()), percent) };
+    (signed.round() as i32 + residual).clamp(-weights.mate_score / 2, weights.mate_score / 2)
+}
+
+#[cfg(all(test, feature = "search-experiments"))]
+mod tactical_tempo_tests {
+    use super::attenuate_tempo;
+
+    #[test]
+    fn attenuation_preserves_default_and_removes_only_common_turn_component() {
+        for (ours, theirs) in [(5379, -1032), (-2771, 1328), (i32::MAX, i32::MIN)] {
+            assert_eq!(attenuate_tempo(ours, theirs, 100), ours);
+            assert_eq!(attenuate_tempo(ours, theirs, 0), -attenuate_tempo(theirs, ours, 0));
+        }
+        assert_eq!(attenuate_tempo(600, 200, 50), 400);
+        assert_eq!(attenuate_tempo(600, -600, 25), 600);
+    }
+}
+
 /// Like [`evaluate`], but use an explicit ply for deterministic noise (search without history).
 pub fn evaluate_with_ply(state: &GameState, weights: &EvalWeights, ply: usize) -> i32 {
     let stm = state.get_current_turn();
@@ -1779,7 +1832,14 @@ pub fn evaluate_with_ply(state: &GameState, weights: &EvalWeights, ply: usize) -
         };
         let material = state.eval_inc().filter(|i|i.matches(weights)).map(|i|i.mat[0]-i.mat[1]).unwrap_or_else(||crate::nnue::material(state.get_board(),weights));
         let signed = if stm == Color::Black {material} else {-material};
-        return (signed.round() as i32 + acc.residual(stm)).clamp(-weights.mate_score/2,weights.mate_score/2);
+        let residual = acc.residual(stm);
+        #[cfg(feature = "search-experiments")]
+        let residual = {
+            let percent = tactical_tempo_percent().expect("invalid diagnostic tempo setting");
+            if percent == 100 { residual }
+            else { attenuate_tempo(residual, acc.residual(stm.opposite()), percent) }
+        };
+        return (signed.round() as i32 + residual).clamp(-weights.mate_score/2,weights.mate_score/2);
     }
     assert!(weights.nnue.is_none(), "NNUE descriptor has not been loaded from its checkpoint");
 

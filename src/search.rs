@@ -13,6 +13,8 @@ use crate::path_utils;
 use crate::piece::{Color, Piece};
 use crate::position::Position;
 use serde::{Deserialize, Serialize};
+mod tactical;
+pub use tactical::{LmrMode, QTableMode, StandPatMode, TacticalOptions, TacticalStats};
 use std::collections::{HashMap, HashSet};
 use std::sync::{
     atomic::{AtomicBool, Ordering as AtomicOrdering},
@@ -236,6 +238,8 @@ enum CaptureKind {
 
 #[derive(Debug, Clone)]
 pub struct SearchConfig {
+    /// Diagnostic opt-in; non-default values require search-experiments.
+    pub tactical: TacticalOptions,
     pub depth: u32,
     pub max_time_ms: Option<u64>,
     /// Sustainable Fischer budget; permit only one additional completed depth.
@@ -285,6 +289,7 @@ pub struct SearchConfig {
 impl Default for SearchConfig {
     fn default() -> Self {
         Self {
+            tactical: TacticalOptions::default(),
             depth: 2,
             max_time_ms: None,
             fischer_soft_ms: None,
@@ -377,6 +382,7 @@ pub struct IterationTiming {
 
 #[derive(Debug, Clone)]
 pub struct SearchResult {
+    pub tactical_stats: TacticalStats,
     pub iteration_timings: Vec<IterationTiming>,
     pub royal_extensions: u64,
     pub royal_probe: Option<crate::eval::royal_probes::ProbeResult>,
@@ -406,6 +412,8 @@ pub struct SearchResult {
 }
 
 struct SearchContext {
+    tactical: TacticalOptions,
+    tactical_stats: TacticalStats,
     deadline: Option<Instant>,
     cancel: Option<Arc<AtomicBool>>,
     cpu_percent: u8,
@@ -640,6 +648,25 @@ fn q_tt_key(state: &GameState, prev_to: Option<Position>, mix_prev_to: bool) -> 
         k ^= salt.wrapping_mul(0x9E3779B97F4A7C15);
     }
     k
+}
+
+fn contextual_q_key(state: &GameState, prev_to: Option<Position>, qdepth: u32,
+    allow_pathclear: bool, include_captures: bool, ctx: &SearchContext) -> u64 {
+    let key = q_tt_key(state, prev_to, true) ^ royal_extension_key(ctx);
+    let flags = u64::from(allow_pathclear) | (u64::from(include_captures) << 1)
+        | (u64::from(ctx.last_ab_wipe) << 2);
+    mix_q_context(key, qdepth, ctx.quiesce_entry_depth, flags)
+}
+
+fn mix_q_context(mut key: u64, qdepth: u32, entry_depth: u32, flags: u64) -> u64 {
+    // SplitMix64 makes the small context values independent of board hash bits.
+    for value in [u64::from(qdepth), u64::from(entry_depth), flags] {
+        let mut x = value.wrapping_add(key).wrapping_add(0x9e3779b97f4a7c15);
+        x = (x ^ (x >> 30)).wrapping_mul(0xbf58476d1ce4e5b9);
+        x = (x ^ (x >> 27)).wrapping_mul(0x94d049bb133111eb);
+        key = x ^ (x >> 31);
+    }
+    key
 }
 
 fn tt_from_config(size_pow2: usize, config: &SearchConfig) -> TranspositionTable {
@@ -2222,7 +2249,11 @@ pub fn search_with_progress(
     let now = Instant::now();
     let max_depth = config.depth.max(1);
 
+    assert!(cfg!(feature = "search-experiments") || config.tactical == TacticalOptions::default(),
+        "non-default tactical options require search-experiments");
     let mut ctx = SearchContext {
+        tactical: config.tactical.clone(),
+        tactical_stats: TacticalStats::default(),
         deadline,
         cancel: config.cancel.clone(),
         cpu_percent: config.cpu_percent.clamp(10, 100),
@@ -2321,6 +2352,7 @@ pub fn search_with_progress(
             children: vec![],
         };
         return SearchResult {
+            tactical_stats: ctx.tactical_stats,
             royal_extensions: 0,
             royal_probe: None,
             iteration_timings: Vec::new(),
@@ -2346,6 +2378,13 @@ pub fn search_with_progress(
         };
     }
 
+    if !ctx.tactical.roots.is_empty() {
+        for requested in &ctx.tactical.roots {
+            assert!(moves.iter().any(|m| crate::notation::move_encode(m) == *requested),
+                "TACTICAL_ROOT route is not an eligible legal root: {requested}");
+        }
+        moves.retain(|m| ctx.tactical.roots.contains(&crate::notation::move_encode(m)));
+    }
     order_moves_with_heuristics(state, weights, &mut moves, &ctx, root_ply, false, true);
     // One private probe per search, never per node/root candidate. Keep the normal
     // move generator as the authority and match the entire route, not just endpoints.
@@ -2383,23 +2422,25 @@ pub fn search_with_progress(
         if ctx.timed_out() {
             break;
         }
-        if let (Some(soft_ms), Some(hard_ms), Some(last)) = (
-            config.fischer_soft_ms,
-            config.max_time_ms,
-            last_iteration_duration,
-        ) {
-            if !iteration_budget.start_next(
-                last,
-                clock_started.elapsed(),
-                crate::training::clock::MoveBudget { soft_ms, hard_ms },
+        if !ctx.tactical.no_soft_stop {
+            if let (Some(soft_ms), Some(hard_ms), Some(last)) = (
+                config.fischer_soft_ms,
+                config.max_time_ms,
+                last_iteration_duration,
             ) {
-                break;
-            }
-        } else if actual_completed_depth >= 2 {
-            if let (Some(deadline), Some(last_duration)) = (deadline, last_iteration_duration) {
-                let remaining = deadline.saturating_duration_since(Instant::now());
-                if soft_stop_before_next_iteration(last_duration, remaining) {
+                if !iteration_budget.start_next(
+                    last,
+                    clock_started.elapsed(),
+                    crate::training::clock::MoveBudget { soft_ms, hard_ms },
+                ) {
                     break;
+                }
+            } else if actual_completed_depth >= 2 {
+                if let (Some(deadline), Some(last_duration)) = (deadline, last_iteration_duration) {
+                    let remaining = deadline.saturating_duration_since(Instant::now());
+                    if soft_stop_before_next_iteration(last_duration, remaining) {
+                        break;
+                    }
                 }
             }
         }
@@ -2438,9 +2479,10 @@ pub fn search_with_progress(
 
                 let is_capture = move_captures_enemy(state, mv);
                 let is_loud_promo = is_loud_promotion_move(state, mv);
-                if is_capture && !in_lr_check && proven_check != Some(mv) {
+                if is_capture && !in_lr_check && proven_check != Some(mv) && !ctx.tactical.no_hang {
                     let mut hang_cache = LandingAttackCache::new();
                     if capture_hangs_high_value_piece(state, weights, mv, true, &mut hang_cache) {
+                        if cfg!(feature = "search-experiments") { ctx.tactical_stats.ab_hang_skips += 1; }
                         continue;
                     }
                 }
@@ -2448,8 +2490,10 @@ pub fn search_with_progress(
                 // Root LMR: late quiets at ID depth >= 2 (pre–PR17 rule).
                 // Never reduce promotions into two-movers / range capturers.
                 let can_reduce =
-                    d >= 2 && i >= 3 && !is_capture && !is_loud_promo && child_depth >= 1;
+                    d >= 2 && i >= 3 && !is_capture && !is_loud_promo && child_depth >= 1
+                        && ctx.tactical.root_lmr(in_lr_check);
                 let quiet_red = if can_reduce {
+                    if cfg!(feature = "search-experiments") { ctx.tactical_stats.root_reductions += 1; }
                     (if i >= 12 { 2 } else { 1 }).min(child_depth)
                 } else {
                     0
@@ -2652,6 +2696,9 @@ pub fn search_with_progress(
                 elapsed_us: duration.as_micros() as u64,
                 completed: true,
             });
+            if ctx.tactical.dump_pv {
+                dump_pv(state, weights, &completed_best, d, completed_score, root_ply, &ctx);
+            }
             progress(
                 d,
                 completed_score,
@@ -2741,6 +2788,7 @@ pub fn search_with_progress(
     };
 
     SearchResult {
+        tactical_stats: ctx.tactical_stats,
         royal_extensions: ctx.royal_extensions,
         royal_probe,
         iteration_timings,
@@ -2788,6 +2836,8 @@ pub fn probe_quiescence(
     let deadline = max_time_ms.map(|ms| Instant::now() + Duration::from_millis(ms));
     let now = Instant::now();
     let mut ctx = SearchContext {
+        tactical: TacticalOptions::default(),
+        tactical_stats: TacticalStats::default(),
         deadline,
         cancel: None,
         cpu_percent: 100,
@@ -2875,6 +2925,7 @@ pub fn probe_quiescence(
         )
     };
     SearchResult {
+        tactical_stats: ctx.tactical_stats,
         royal_extensions: ctx.royal_extensions,
         royal_probe: None,
         iteration_timings: Vec::new(),
@@ -2917,10 +2968,40 @@ fn probe_quiesce_window(
     beta: i32,
     prev_to: Option<Position>,
 ) -> (i32, u64) {
+    probe_quiesce_window_options(state, weights, qdepth, alpha, beta, prev_to, TacticalOptions::default())
+}
+
+#[cfg(test)]
+fn probe_quiesce_window_options(
+    state: &GameState,
+    weights: &EvalWeights,
+    qdepth: u32,
+    alpha: i32,
+    beta: i32,
+    prev_to: Option<Position>,
+    tactical: TacticalOptions,
+) -> (i32, u64) {
+    with_quiesce_test_context(state, weights, qdepth, prev_to, tactical, |pos, ctx| {
+        let score = quiesce(pos, weights, qdepth, alpha, beta, prev_to, true, true, ctx);
+        (score, ctx.q_nodes)
+    })
+}
+
+#[cfg(test)]
+fn with_quiesce_test_context<R>(
+    state: &GameState,
+    weights: &EvalWeights,
+    qdepth: u32,
+    prev_to: Option<Position>,
+    tactical: TacticalOptions,
+    body: impl FnOnce(&mut GameState, &mut SearchContext) -> R,
+) -> R {
     let _wbind = bind_search_weights(weights);
     let root_ply = state.get_move_history().len();
     let now = Instant::now();
     let mut ctx = SearchContext {
+        tactical,
+        tactical_stats: TacticalStats::default(),
         deadline: None,
         cancel: None,
         cpu_percent: 100,
@@ -2991,10 +3072,7 @@ fn probe_quiesce_window(
     };
     let mut pos = state.clone();
     pos.ensure_eval_inc(weights);
-    let score = quiesce(
-        &mut pos, weights, qdepth, alpha, beta, prev_to, true, true, &mut ctx,
-    );
-    (score, ctx.q_nodes)
+    body(&mut pos, &mut ctx)
 }
 
 /// Test harness: quiet-parent leaf path (`last_ab_capture_enemy = 0`).
@@ -3029,6 +3107,8 @@ fn probe_quiet_parent_leaf_stats(
     let root_ply = state.get_move_history().len();
     let now = Instant::now();
     let mut ctx = SearchContext {
+        tactical: TacticalOptions::default(),
+        tactical_stats: TacticalStats::default(),
         deadline: None,
         cancel: None,
         cpu_percent: 100,
@@ -3132,6 +3212,8 @@ fn probe_capture_parent_leaf_or_quiesce_rs(
     let root_ply = state.get_move_history().len();
     let now = Instant::now();
     let mut ctx = SearchContext {
+        tactical: TacticalOptions::default(),
+        tactical_stats: TacticalStats::default(),
         deadline: None,
         cancel: None,
         cpu_percent: 100,
@@ -3307,6 +3389,31 @@ fn build_trace_tree(
     }
 }
 
+fn dump_pv(state: &GameState, weights: &EvalWeights, first: &Move, depth: u32, score: i32, root_ply: usize, ctx: &SearchContext) {
+    let mut state = state.clone();
+    let mut next = first.clone();
+    let mut rows = Vec::new();
+    let mut stop = "main_depth_horizon";
+    for step in 0..depth {
+        let label = move_label(&state, &next);
+        let route = crate::notation::move_encode(&next);
+        let Some(_undo) = state.make_move_for_search(next.clone()) else {stop="illegal";break};
+        let static_stm = evaluate_with_ply(&state, weights, root_ply + step as usize + 1);
+        rows.push(serde_json::json!({"label":label,"route":route,"static_black": if state.get_current_turn()==Color::Black {static_stm} else {-static_stm}}));
+        if step + 1 == depth {break;}
+        let key = position_hash(&state) ^ royal_extension_key(ctx);
+        let Some(e) = ctx.tt.probe(key) else {stop="missing_tt";break};
+        rows.last_mut().unwrap()["next_tt_score_stm"] = e.score.into();
+        rows.last_mut().unwrap()["next_tt_depth"] = e.depth.into();
+        rows.last_mut().unwrap()["next_tt_bound"] = match e.bound {TtBound::Exact=>"exact",TtBound::Lower=>"lower",TtBound::Upper=>"upper"}.into();
+        let Some(best) = e.best else {stop="no_tt_move";break};
+        let matches: Vec<_> = state.generate_legal_moves().into_iter().filter(|m| same_tt_move(m,best)).collect();
+        if matches.len()!=1 {stop="ambiguous_or_missing_route";break;}
+        next=matches[0].clone();
+    }
+    eprintln!("PVTRACE {}",serde_json::json!({"depth":depth,"score_stm":score,"moves":rows,"stop":stop}));
+}
+
 fn aspiration_window(score: i32, width: i32) -> (i32, i32) {
     if width == i32::MAX {
         (i32::MIN + 1, i32::MAX - 1)
@@ -3390,6 +3497,7 @@ fn alphabeta(
     // Null leaf (depth 0 after R) uses stand-pat eval — not quiescence.
     const NULL_R: u32 = 2;
     if ctx.allow_null
+        && !ctx.tactical.no_null
         && depth >= 2
         && beta < MATE_SCORE_BAND
         && beta > -MATE_SCORE_BAND
@@ -3570,9 +3678,11 @@ fn search_move_list(
         let is_capture = move_captures_enemy(state, &mv);
         let is_loud_promo = is_loud_promotion_move(state, &mv);
         if is_capture
+            && !ctx.tactical.no_hang
             && !skip_hang
             && capture_hangs_high_value_piece(state, weights, &mv, false, &mut hang_cache)
         {
+            if cfg!(feature = "search-experiments") { ctx.tactical_stats.ab_hang_skips += 1; }
             continue;
         }
         let is_killer = killer_rank(ctx, parent_ply, &mv) > 0;
@@ -3587,8 +3697,10 @@ fn search_move_list(
             && move_index >= LMR_MOVE_THRESHOLD
             && !is_capture
             && !is_loud_promo
-            && !is_killer;
+            && !is_killer
+            && ctx.tactical.interior_lmr(skip_hang);
         let quiet_red = if can_reduce {
+            if cfg!(feature = "search-experiments") { ctx.tactical_stats.interior_reductions += 1; }
             if move_index >= 12 { 2 } else { LMR_R }.min(depth - 1)
         } else {
             0
@@ -3735,7 +3847,7 @@ fn search_move_list(
 /// null-window (non-PV) caps at 1 to keep deep ID (d3/d4) interactive.
 fn leaf_quiescence_depth(ctx: &SearchContext, is_pv: bool) -> u32 {
     let cfg = ctx.quiescence_depth;
-    if cfg == 0 || is_pv {
+    if cfg == 0 || is_pv || ctx.tactical.full_nonpv_q {
         cfg
     } else {
         cfg.min(1)
@@ -3800,7 +3912,8 @@ fn leaf_or_quiesce(
     // sufficient conditions first; quiesce still generates the same ordered
     // candidates. Promo discovery is needed here only for a promo-only entry.
     let capture_parent = ctx.last_ab_capture_enemy > 0.0;
-    let include_caps = ctx.last_ab_capture_enemy >= min_quiescence_enemy_material()
+    let include_caps = ctx.tactical.always_q || ctx.tactical.q_all_captures
+        || ctx.last_ab_capture_enemy >= min_quiescence_enemy_material()
         || (ctx.q_open_large_mover && ctx.last_ab_mover_large && capture_parent)
         || (ctx.q_open_any_capture && capture_parent)
         || (ctx.q_own_large_only && stm_has_dest_take_of_prev_large(state, ctx.last_ab_to))
@@ -3871,7 +3984,23 @@ fn quiesce(
         return 0;
     }
 
-    let key = q_tt_key(state, prev_to, ctx.q_hash_prev_to) ^ royal_extension_key(ctx);
+    // Recursive q calls must obey the same last-royal evasion contract as entry
+    // leaves. Reuse that path, preserving the remaining q budget and AB metadata.
+    if ctx.tactical.q_evasions && stm_last_royal_in_check(state) {
+        if cfg!(feature = "search-experiments") { ctx.tactical_stats.q_evasion_nodes += 1; }
+        let saved = (ctx.quiescence_depth, ctx.quiesce_entry_depth,
+            ctx.last_ab_capture_enemy, ctx.last_ab_to, ctx.last_ab_wipe, ctx.last_ab_mover_large);
+        ctx.quiescence_depth = qdepth;
+        let score = leaf_or_quiesce(state, weights, alpha, beta, true, ctx);
+        (ctx.quiescence_depth, ctx.quiesce_entry_depth,
+            ctx.last_ab_capture_enemy, ctx.last_ab_to, ctx.last_ab_wipe, ctx.last_ab_mover_large) = saved;
+        return score;
+    }
+    let key = if ctx.tactical.q_tt == QTableMode::Context {
+        contextual_q_key(state, prev_to, qdepth, allow_pathclear, include_captures, ctx)
+    } else {
+        q_tt_key(state, prev_to, ctx.q_hash_prev_to) ^ royal_extension_key(ctx)
+    };
     // Unique-q tracking is diagnostic-only unless `track_q_unique`.
     if ctx.track_q_unique || cfg!(debug_assertions) {
         if !ctx.q_unique_saturated {
@@ -3893,18 +4022,20 @@ fn quiesce(
     ctx.q_tt_probes += 1;
     let mut tt_move: Option<MoveKey> = None;
     if let Some(e) = ctx.q_tt.probe(key) {
-        if e.depth >= qdepth {
+        if ctx.tactical.q_tt != QTableMode::Hints && e.depth >= qdepth {
             ctx.q_tt_hits += 1;
             match e.bound {
-                TtBound::Exact => return e.score,
+                TtBound::Exact => { if cfg!(feature = "search-experiments") { ctx.tactical_stats.q_tt_cutoffs += 1; } return e.score; },
                 TtBound::Lower => {
                     if e.score >= beta {
+                        if cfg!(feature = "search-experiments") { ctx.tactical_stats.q_tt_cutoffs += 1; }
                         return e.score;
                     }
                     alpha = alpha.max(e.score);
                 }
                 TtBound::Upper => {
                     if e.score <= alpha {
+                        if cfg!(feature = "search-experiments") { ctx.tactical_stats.q_tt_cutoffs += 1; }
                         return e.score;
                     }
                 }
@@ -3914,14 +4045,25 @@ fn quiesce(
     }
     let alpha_orig = alpha;
 
+    #[cfg(feature = "search-experiments")]
+    let stand_pat = if ctx.tactical.q_tempo_percent != 100 {
+        crate::eval::evaluate_with_tactical_tempo(state, weights, ctx.ply, ctx.tactical.q_tempo_percent)
+    } else { evaluate_with_ply(state, weights, ctx.ply) };
+    #[cfg(not(feature = "search-experiments"))]
     let stand_pat = evaluate_with_ply(state, weights, ctx.ply);
     ctx.q_stand_pat = stand_pat;
     if qdepth == 0 {
+        if cfg!(feature = "search-experiments") { ctx.tactical_stats.q_depth_zero += 1; }
         return stand_pat;
     }
     let resolve_major = prev_to_is_major_enemy(state, weights, prev_to);
     let has_royal_take = stm_has_royal_capture(state);
+    // Deliberately nonstandard experiment: a major recapture is compulsory.
+    // If generation/pruning leaves no searched move, retain the static fallback.
+    let force_capture = resolve_major && ctx.tactical.stand_pat == StandPatMode::MajorCaptureRequired;
+    if force_capture { if cfg!(feature = "search-experiments") { ctx.tactical_stats.q_forced_capture_nodes += 1; } }
     if stand_pat >= beta && !resolve_major && !has_royal_take {
+        if cfg!(feature = "search-experiments") { ctx.tactical_stats.q_stand_pat_cutoffs += 1; }
         ctx.q_tt.store(TtEntry {
             key,
             depth: qdepth,
@@ -3933,11 +4075,11 @@ fn quiesce(
     }
     // Leave the window intact when deferring a stand-pat cutoff so dest
     // recaptures still expand; `best` starts at stand-pat.
-    if stand_pat > alpha && stand_pat < beta {
+    if !force_capture && stand_pat > alpha && stand_pat < beta {
         alpha = stand_pat;
     }
 
-    let path_aware = ctx.q_prune_mode.uses_path_aware();
+    let path_aware = ctx.q_prune_mode.uses_path_aware() && !ctx.tactical.q_all_captures;
     let deep_ply = qdepth < ctx.quiesce_entry_depth;
     // Deep PathAware plies only need recaptures onto prev_to — skip full-board gen.
     // Child plies always allow captures; promo-only is entry-only.
@@ -3947,7 +4089,15 @@ fn quiesce(
     let gen_captures = include_captures || deep_ply;
     let loud_st =
         ctx.q_loud_promo_simple_only || (ctx.q_no_pathclear_after_wipe && ctx.last_ab_wipe);
-    let raw_moves = generate_quiescence_captures_with_hang(
+    let raw_moves = if ctx.tactical.q_all_captures {
+        let mut raw = state.generate_legal_moves_mode(LegalMoveGen::CapturesOnly);
+        raw.retain(|m| move_captures_enemy(state, m));
+        // Preserve distinct capture routes; append only exactly new promotions.
+        for mv in generate_loud_promotions(state) {
+            if !raw.contains(&mv) { raw.push(mv); }
+        }
+        raw
+    } else { generate_quiescence_captures_with_hang(
         state,
         weights,
         prev_to,
@@ -3956,8 +4106,9 @@ fn quiesce(
         allow_pathclear,
         loud_st,
         QHangOpts::from_ctx(ctx),
-    );
+    ) };
     if raw_moves.is_empty() {
+        if cfg!(feature = "search-experiments") { ctx.tactical_stats.q_no_candidates += 1; }
         return stand_pat;
     }
 
@@ -4021,7 +4172,7 @@ fn quiesce(
         .collect();
 
     // Recapture-only after the first q-ply.
-    if ctx.q_prune_mode.uses_recapture_only() {
+    if ctx.q_prune_mode.uses_recapture_only() && !ctx.tactical.q_all_captures {
         if prev_to.is_some() {
             cands.retain(|c| c.is_recapture || c.is_loud_promo || c.is_royal_take);
             if cands.is_empty() {
@@ -4030,14 +4181,14 @@ fn quiesce(
         }
     }
     // S1: dest recapture onto prev_to only (plus royals / loud promos).
-    if ctx.q_recapture_only && prev_to.is_some() {
+    if ctx.q_recapture_only && prev_to.is_some() && !ctx.tactical.q_all_captures {
         cands.retain(|c| c.is_dest_recapture || c.is_loud_promo || c.is_royal_take);
         if cands.is_empty() {
             return stand_pat;
         }
     }
     // S2: only dest takes of large enemies (plus royals / loud promos).
-    if ctx.q_own_large_only {
+    if ctx.q_own_large_only && !ctx.tactical.q_all_captures {
         cands.retain(|c| c.is_loud_promo || c.is_royal_take || dest_victim_is_big(state, &c.mv));
         if cands.is_empty() {
             return stand_pat;
@@ -4056,7 +4207,7 @@ fn quiesce(
     let use_net = ctx.q_prune_mode.uses_net_gain();
 
     // Stale hang prune (pre-move landing attack).
-    if ctx.q_prune_mode.uses_stale_hang() {
+    if ctx.q_prune_mode.uses_stale_hang() && !ctx.tactical.no_hang {
         let opponent = state.get_current_turn().opposite();
         let mut attack_cache = LandingAttackCache::new();
         cands.retain(|c| {
@@ -4086,9 +4237,12 @@ fn quiesce(
             }
         })
         .fold(0.0f32, f32::max);
-    if !cands.iter().any(|c| c.is_royal_take)
-        && stand_pat.saturating_add(best_gain.round() as i32) <= alpha
+    if !ctx.tactical.q_no_delta && !force_capture
+        && !cands.iter().any(|c| c.is_royal_take)
+        && stand_pat.saturating_add(best_gain.round() as i32)
+            .saturating_add(ctx.tactical.q_delta_margin) <= alpha
     {
+        if cfg!(feature = "search-experiments") { ctx.tactical_stats.q_delta_node_cuts += 1; }
         return stand_pat;
     }
 
@@ -4207,7 +4361,8 @@ fn quiesce(
     let n_caps = cands.len();
     ctx.q_caps_at_node = n_caps;
 
-    let mut best = stand_pat;
+    let mut best = if force_capture { i32::MIN + 1 } else { stand_pat };
+    let mut searched_any = false;
     let mut best_move_key: Option<MoveKey> = None;
     let parent_ply = ctx.ply;
     let opponent = state.get_current_turn().opposite();
@@ -4225,11 +4380,13 @@ fn quiesce(
         } else {
             c.enemy
         };
-        if !c.is_loud_promo
+        if !ctx.tactical.q_no_delta && !force_capture
+            && !c.is_loud_promo
             && !c.is_royal_take
             && !(resolve_major && c.is_dest_recapture)
-            && (stand_pat as f32 + gain) <= alpha as f32
+            && (stand_pat as f32 + gain + ctx.tactical.q_delta_margin as f32) <= alpha as f32
         {
+            if cfg!(feature = "search-experiments") { ctx.tactical_stats.q_delta_move_skips += 1; }
             continue;
         }
         ctx.q_cap_index = i + 1;
@@ -4254,6 +4411,7 @@ fn quiesce(
         // attacked pre-move only because a path victim "defends" the landing; those
         // go through make + post-fire check below.
         if path_aware
+            && !ctx.tactical.no_hang
             && !is_loud_promo
             && matches!(kind, CaptureKind::SimpleTake)
             && !takes_royal
@@ -4262,6 +4420,7 @@ fn quiesce(
                 .get_board()
                 .is_position_attacked_by_color(landing, opponent)
         {
+            if cfg!(feature = "search-experiments") { ctx.tactical_stats.q_hang_skips += 1; }
             continue;
         }
 
@@ -4271,6 +4430,7 @@ fn quiesce(
 
         // PathAware post-fire hang for PathClear/MultiLeg (may remove landing defenders).
         if path_aware
+            && !ctx.tactical.no_hang
             && !is_loud_promo
             && matches!(kind, CaptureKind::PathClear | CaptureKind::MultiLeg)
             && !takes_royal
@@ -4281,6 +4441,7 @@ fn quiesce(
                 .is_position_attacked_by_color(landing, opponent)
             {
                 state.unmake_move_for_search(undo);
+                if cfg!(feature = "search-experiments") { ctx.tactical_stats.q_hang_skips += 1; }
                 continue;
             }
         }
@@ -4294,6 +4455,7 @@ fn quiesce(
             && !(ctx.q_no_pathclear_reply
                 && matches!(kind, CaptureKind::PathClear | CaptureKind::MultiLeg));
 
+        searched_any = true;
         ctx.q_caps_searched += 1;
         match kind {
             CaptureKind::SimpleTake => ctx.q_kind_simple += 1,
@@ -4329,6 +4491,7 @@ fn quiesce(
         }
     }
 
+    if force_capture && !searched_any { best = stand_pat; }
     let bound = if best <= alpha_orig {
         TtBound::Upper
     } else if best >= beta {
@@ -5227,6 +5390,7 @@ mod tests {
 
     fn bare_result(best: Option<Move>, root_lines: Vec<(Move, i32)>, static_eval: i32) -> SearchResult {
         SearchResult {
+            tactical_stats: TacticalStats::default(),
             royal_extensions: 0,
             royal_probe: None,
             iteration_timings: Vec::new(),
@@ -8150,6 +8314,118 @@ mod tests {
         ));
         state.set_current_turn(Color::White);
         state
+    }
+
+    #[test]
+    fn tactical_context_key_separates_selective_policies() {
+        let mut keys = HashSet::new();
+        for q in 0..4 { for entry in q..4 { for flags in 0..8 {
+            assert!(keys.insert(mix_q_context(12345, q, entry, flags)));
+        }}}
+    }
+
+    #[cfg(feature = "search-experiments")]
+    #[test]
+    fn tactical_q_context_rejects_score_from_different_capture_eligibility() {
+        let (state, weights, _) = hung_gg_by_gold();
+        let run = |mode| with_quiesce_test_context(&state, &weights, 1, None,
+            TacticalOptions { q_tt: mode, ..Default::default() }, |pos, ctx| {
+                let allowed = quiesce(pos, &weights, 1, i32::MIN + 1, i32::MAX - 1,
+                    None, true, true, ctx);
+                let promo_only = quiesce(pos, &weights, 1, i32::MIN + 1, i32::MAX - 1,
+                    None, true, false, ctx);
+                (allowed, promo_only)
+            });
+        let old = run(QTableMode::Normal);
+        let context = run(QTableMode::Context);
+        let fresh_promo_only = with_quiesce_test_context(&state, &weights, 1, None,
+            TacticalOptions::default(), |pos, ctx|
+                quiesce(pos, &weights, 1, i32::MIN + 1, i32::MAX - 1,
+                    None, true, false, ctx));
+        assert!(old.0 > fresh_promo_only, "taking the hanging GG must improve the score");
+        assert_eq!(old.1, old.0, "legacy cache reuses an incompatible score");
+        assert_eq!(context.0, old.0);
+        assert_eq!(context.1, fresh_promo_only, "context cache must match a fresh search");
+    }
+
+    #[cfg(feature = "search-experiments")]
+    #[test]
+    fn tactical_checking_capture_reaches_recursive_evasion_handler() {
+        let mut state = last_royal_check_no_evasion();
+        let landing = Position::new(34, 33).unwrap();
+        state.remove_piece(landing);
+        state.place_piece(Piece::new(PieceType::Pawn, Color::White, landing));
+        state.place_piece(Piece::new(PieceType::Knight, Color::Black,
+            Position::new(33, 31).unwrap()));
+        state.set_current_turn(Color::Black);
+        let mut weights = EvalWeights::seed();
+        weights.noise_scale = 0.0;
+        let run = |enabled| with_quiesce_test_context(&state, &weights, 1, None,
+            TacticalOptions { q_evasions: enabled, q_all_captures: true,
+                q_no_delta: true, no_hang: true, ..Default::default() }, |pos, ctx| {
+                let score = quiesce(pos, &weights, 1, i32::MIN + 1, i32::MAX - 1,
+                    None, true, true, ctx);
+                (score, ctx.tactical_stats.q_evasion_nodes)
+            });
+        let baseline = run(false);
+        let corrected = run(true);
+        assert!(baseline.0 < weights.mate_score);
+        assert_eq!(corrected.0, weights.mate_score);
+        assert!(corrected.1 > 0, "a q capture must reach the in-check child");
+    }
+
+    #[cfg(feature = "search-experiments")]
+    #[test]
+    fn tactical_recursive_q_searches_quiet_king_flight() {
+        let mut state = GameState::new();
+        for (kind, color, file, rank) in [
+            (PieceType::King, Color::Black, 0, 0),
+            (PieceType::King, Color::White, 20, 20),
+            (PieceType::GoldGeneral, Color::Black, 20, 19),
+        ] {
+            state.place_piece(Piece::new(kind, color, Position::new(file, rank).unwrap()));
+        }
+        state.set_current_turn(Color::White);
+        assert!(stm_last_royal_in_check(&state));
+        let evasions = last_royal_evasions(&mut state).unwrap();
+        assert!(evasions.iter().any(|m| !move_captures_enemy(&state, m)));
+        let mut weights = EvalWeights::seed();
+        weights.noise_scale = 0.0;
+        let (corrected, visited) = probe_quiesce_window_options(&state, &weights, 0,
+            -weights.mate_score, weights.mate_score, None,
+            TacticalOptions { q_evasions: true, ..Default::default() });
+        let (wrapper, _, _) = probe_quiet_parent_leaf_stats(&state, &weights, 0, QHangOpts::default());
+        assert_eq!(corrected, wrapper);
+        assert!(corrected > -weights.mate_score);
+        assert!(visited >= 1);
+    }
+
+    #[cfg(feature = "search-experiments")]
+    #[test]
+    fn tactical_recursive_q_cannot_stand_pat_in_last_royal_mate() {
+        let state = last_royal_check_no_evasion();
+        let mut weights = EvalWeights::seed();
+        weights.noise_scale = 0.0;
+        let (baseline, _) = probe_quiesce_window_options(&state, &weights, 0,
+            -weights.mate_score, weights.mate_score, None, TacticalOptions::default());
+        let (corrected, _) = probe_quiesce_window_options(&state, &weights, 0,
+            -weights.mate_score, weights.mate_score, None,
+            TacticalOptions { q_evasions: true, ..Default::default() });
+        assert!(baseline > -weights.mate_score);
+        assert_eq!(corrected, -weights.mate_score);
+    }
+
+    #[cfg(feature = "search-experiments")]
+    #[test]
+    fn tactical_recursive_q_keeps_hanging_defensive_recapture() {
+        let (state, mut weights, _) = last_royal_check_hanging_dragon();
+        weights.noise_scale = 0.0;
+        let (corrected, _) = probe_quiesce_window_options(&state, &weights, 0,
+            -weights.mate_score, weights.mate_score, None,
+            TacticalOptions { q_evasions: true, ..Default::default() });
+        assert!(corrected > -weights.mate_score);
+        let (wrapper, _, _) = probe_quiet_parent_leaf_stats(&state, &weights, 0, QHangOpts::default());
+        assert_eq!(corrected, wrapper);
     }
 
     #[test]
