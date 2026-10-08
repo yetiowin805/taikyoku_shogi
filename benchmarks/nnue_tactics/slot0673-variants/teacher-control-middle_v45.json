@@ -1,0 +1,14 @@
+{
+  "baseline": {
+    "env": {
+      "TACTICAL_ROOT": "35,12-33,10+"
+    },
+    "purpose": "SEEDS2 opinion of modal move selected by baseline"
+  },
+  "tempo_50_q_tempo_50": {
+    "env": {
+      "TACTICAL_ROOT": "6,26-6,10+"
+    },
+    "purpose": "SEEDS2 opinion of modal move selected by tempo_50, q_tempo_50"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "old_peng_baseline": {"env": {"TACTICAL_ROOT": "17,31-17,1+"}, "purpose": "Independent original Woodland Demon capture/promotion"},
+  "old_peng_tempo50": {"env": {"TACTICAL_ROOT": "17,31-17,1+", "TACTICAL_TEMPO_PERCENT": "50"}, "purpose": "Original move with half tempo"},
+  "tengu_escape_baseline": {"env": {"TACTICAL_ROOT": "18,13-8,23-2,17"}, "purpose": "Independent Tengu escape"},
+  "tengu_escape_tempo50": {"env": {"TACTICAL_ROOT": "18,13-8,23-2,17", "TACTICAL_TEMPO_PERCENT": "50"}, "purpose": "Tengu escape with half tempo"},
+  "ox_capture_baseline": {"env": {"TACTICAL_ROOT": "22,10-21,10+"}, "purpose": "Independent capture of attacking Fierce Ox"},
+  "ox_capture_tempo50": {"env": {"TACTICAL_ROOT": "22,10-21,10+", "TACTICAL_TEMPO_PERCENT": "50"}, "purpose": "Ox capture with half tempo"}
+}

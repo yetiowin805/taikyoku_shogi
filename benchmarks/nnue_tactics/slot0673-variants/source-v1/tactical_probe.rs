@@ -67,14 +67,12 @@ fn run() -> Result<(), String> {
         );
     }
     // Validate explicitly: from_options otherwise silently falls back to seed.
-    let checkpoint = taikyoku_shogi::eval::EvalCheckpoint::load_path(&a[3])?;
+    taikyoku_shogi::eval::EvalCheckpoint::load_path(&a[3])?;
     let opts = AgentOptions {
         model: Some(a[3].clone()),
         depth: Some(a[4].parse().map_err(|_| "invalid depth")?),
         max_time_ms: Some(a[5].parse().map_err(|_| "invalid time")?),
-        // Pin the recorded/checkpoint policy instead of inheriting a shell's
-        // TAIKYOKU_AB_QDEPTH. Explicit diagnostic overrides are applied below.
-        quiescence_depth: Some(agent.quiescence_depth.unwrap_or(checkpoint.search_defaults.quiescence_depth)),
+        quiescence_depth: agent.quiescence_depth,
         cpu_percent: None,
         cancel: None,
     };

@@ -1,0 +1,683 @@
+{
+  "format_version": 1,
+  "frozen_utc": "2026-10-08T07:04:42.648633+00:00",
+  "model": "models/nnue-v4.5/NNUE_W512_v4.5/model.json",
+  "model_sha256": "42bb57d10d2b01bbe59fb7ab7c75a260158c72bd322b3b8cf8533376f486d37e",
+  "model_blob": "models/nnue-v4.5/NNUE_W512_v4.5/nnue-81b1c69ab269ecce313a93b0cbe866ede18c37d8a5ff83116dc20d196ba12ea4.bin",
+  "model_blob_sha256": "81b1c69ab269ecce313a93b0cbe866ede18c37d8a5ff83116dc20d196ba12ea4",
+  "score_perspective": "Black",
+  "ply_convention": "1-based move index; search board BEFORE that move",
+  "evaluation_policy": "Fixed W512 v4.5 model on every position; this is a search ablation, not original-agent replay",
+  "history_policy": "analyze_position replays the complete original game prefix",
+  "heldout_limitation": "Cost and sensitivity controls only; different moves are not automatically improvements or regressions",
+  "positions": [
+    {
+      "id": "target174",
+      "game": "data/raw/games/nnue-512-v4.5-handcrafted-losses/slot0673-NNUE_W512_v4.5-vs-SEEDS2-a-white.json",
+      "game_sha256": "ee8c2fe6ac1b3699777f7691a41c821c45bc770441db0edfa65869b02be364a9",
+      "game_id": "18dc573300c573f7-519f86ee2385b722",
+      "ply": 174,
+      "fixed_depth": 3,
+      "group": "target",
+      "selection": "Previously investigated Tengu sacrifice",
+      "game_plies": 1041,
+      "side_to_move": "White",
+      "original_move": {
+        "completed_depth": 3,
+        "iteration_timings": [
+          {
+            "depth": 1,
+            "elapsed_us": 79093,
+            "completed": true
+          },
+          {
+            "depth": 2,
+            "elapsed_us": 108247,
+            "completed": true
+          },
+          {
+            "depth": 3,
+            "elapsed_us": 1969088,
+            "completed": true
+          }
+        ],
+        "move_number": 189,
+        "color": "White",
+        "from_file": 17,
+        "from_rank": 31,
+        "to_file": 17,
+        "to_rank": 1,
+        "promoted": true,
+        "data": "Standard",
+        "eval": -1089,
+        "static_eval": -5257,
+        "nodes": 576814
+      },
+      "original_agent": {
+        "name": "ab",
+        "depth": 64,
+        "model": "/mnt/HC_Volume_107032879/taikyoku/checkpoints/tournament/NNUE_W512_v4.5/model.json",
+        "engine_sha256": "34600564288d095c943a0806b27f1373bbeb2eb0992322b5950443f0146e4825",
+        "engine_build": {
+          "protocol": 1,
+          "revision": "63de99c429402588de6132e4cefec3a972203fdd",
+          "engine_bin": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/engine-34600564288d095c943a0806b27f1373bbeb2eb0992322b5950443f0146e4825",
+          "engine_sha256": "34600564288d095c943a0806b27f1373bbeb2eb0992322b5950443f0146e4825",
+          "analyzer_bin": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/analyzer-fd289790a11dc25c806bcd17adc850a15b12cf950398cea27e4d4f98c47f6ddf",
+          "analyzer_sha256": "fd289790a11dc25c806bcd17adc850a15b12cf950398cea27e4d4f98c47f6ddf"
+        }
+      }
+    },
+    {
+      "id": "target176",
+      "game": "data/raw/games/nnue-512-v4.5-handcrafted-losses/slot0673-NNUE_W512_v4.5-vs-SEEDS2-a-white.json",
+      "game_sha256": "ee8c2fe6ac1b3699777f7691a41c821c45bc770441db0edfa65869b02be364a9",
+      "game_id": "18dc573300c573f7-519f86ee2385b722",
+      "ply": 176,
+      "fixed_depth": 4,
+      "group": "target",
+      "selection": "Previously investigated Crown Prince capture",
+      "game_plies": 1041,
+      "side_to_move": "White",
+      "original_move": {
+        "completed_depth": 4,
+        "iteration_timings": [
+          {
+            "depth": 1,
+            "elapsed_us": 9088,
+            "completed": true
+          },
+          {
+            "depth": 2,
+            "elapsed_us": 9161,
+            "completed": true
+          },
+          {
+            "depth": 3,
+            "elapsed_us": 1341481,
+            "completed": true
+          },
+          {
+            "depth": 4,
+            "elapsed_us": 5150470,
+            "completed": true
+          }
+        ],
+        "move_number": 191,
+        "color": "White",
+        "from_file": 26,
+        "from_rank": 26,
+        "to_file": 26,
+        "to_rank": 10,
+        "promoted": true,
+        "data": "Standard",
+        "eval": -2592,
+        "static_eval": -2741,
+        "nodes": 1309672
+      },
+      "original_agent": {
+        "name": "ab",
+        "depth": 64,
+        "model": "/mnt/HC_Volume_107032879/taikyoku/checkpoints/tournament/NNUE_W512_v4.5/model.json",
+        "engine_sha256": "34600564288d095c943a0806b27f1373bbeb2eb0992322b5950443f0146e4825",
+        "engine_build": {
+          "protocol": 1,
+          "revision": "63de99c429402588de6132e4cefec3a972203fdd",
+          "engine_bin": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/engine-34600564288d095c943a0806b27f1373bbeb2eb0992322b5950443f0146e4825",
+          "engine_sha256": "34600564288d095c943a0806b27f1373bbeb2eb0992322b5950443f0146e4825",
+          "analyzer_bin": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/analyzer-fd289790a11dc25c806bcd17adc850a15b12cf950398cea27e4d4f98c47f6ddf",
+          "analyzer_sha256": "fd289790a11dc25c806bcd17adc850a15b12cf950398cea27e4d4f98c47f6ddf"
+        }
+      }
+    },
+    {
+      "id": "early_v45",
+      "game": "data/raw/games/nnue-512-v4.5/slot0636-NNUE_W512_v4.5-vs-NNUE_W1536_v3-a-black.json",
+      "game_sha256": "443f4d8ae72d3747141851c55c379a5354a802af44428f72acd0638ac57accbf",
+      "game_id": "18dc0a36a5648942-11d268d83d0c442d",
+      "ply": 40,
+      "fixed_depth": 3,
+      "group": "heldout",
+      "selection": "Manually frozen stage/length coverage before variant results; no correctness oracle",
+      "game_plies": 319,
+      "side_to_move": "White",
+      "original_move": {
+        "completed_depth": 4,
+        "iteration_timings": [
+          {
+            "depth": 1,
+            "elapsed_us": 39602,
+            "completed": true
+          },
+          {
+            "depth": 2,
+            "elapsed_us": 233100,
+            "completed": true
+          },
+          {
+            "depth": 3,
+            "elapsed_us": 446640,
+            "completed": true
+          },
+          {
+            "depth": 4,
+            "elapsed_us": 20318184,
+            "completed": true
+          }
+        ],
+        "move_number": 48,
+        "color": "White",
+        "from_file": 22,
+        "from_rank": 27,
+        "to_file": 21,
+        "to_rank": 26,
+        "promoted": false,
+        "data": "Standard",
+        "eval": 4825,
+        "static_eval": 4674,
+        "nodes": 3357079
+      },
+      "original_agent": {
+        "name": "ab",
+        "depth": 64,
+        "model": "/opt/nnue-generation3-20260925/results/NNUE_W1536_v3/model.json",
+        "engine_sha256": "34600564288d095c943a0806b27f1373bbeb2eb0992322b5950443f0146e4825",
+        "engine_build": {
+          "protocol": 1,
+          "revision": "63de99c429402588de6132e4cefec3a972203fdd",
+          "engine_bin": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/engine-34600564288d095c943a0806b27f1373bbeb2eb0992322b5950443f0146e4825",
+          "engine_sha256": "34600564288d095c943a0806b27f1373bbeb2eb0992322b5950443f0146e4825",
+          "analyzer_bin": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/analyzer-fd289790a11dc25c806bcd17adc850a15b12cf950398cea27e4d4f98c47f6ddf",
+          "analyzer_sha256": "fd289790a11dc25c806bcd17adc850a15b12cf950398cea27e4d4f98c47f6ddf"
+        }
+      }
+    },
+    {
+      "id": "early_mixed",
+      "game": "data/raw/games/seeds2-wins-vs-nnue/slot0178-SEEDS2-vs-NNUE_W2048_v3-a-black.json",
+      "game_sha256": "b3a747ee8c60bba9f26ecf9eed4a28aa08808ddc82e606b5b78de5e6315c897d",
+      "game_id": "18d95057f70936f2-00000000001e8d11",
+      "ply": 61,
+      "fixed_depth": 3,
+      "group": "heldout",
+      "selection": "Manually frozen stage/length coverage before variant results; no correctness oracle",
+      "game_plies": 407,
+      "side_to_move": "Black",
+      "original_move": {
+        "completed_depth": 5,
+        "move_number": 65,
+        "color": "Black",
+        "from_file": 20,
+        "from_rank": 21,
+        "to_file": 6,
+        "to_rank": 35,
+        "promoted": false,
+        "data": "Standard",
+        "eval": 2977,
+        "static_eval": 2846,
+        "nodes": 987193
+      },
+      "original_agent": {
+        "name": "ab",
+        "depth": 64,
+        "model": "/opt/taikyoku_shogi/models/royal-al-grid/SEEDS2.json",
+        "engine_sha256": "fa873e8ab364227485c0701edee32f28af4859cd1bd64c050667a714503520fa",
+        "engine_build": {
+          "protocol": 1,
+          "revision": "ff1bf104fbf4e2cf28a02066e42abcff7b1a6a78",
+          "engine_bin": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/engine-fa873e8ab364227485c0701edee32f28af4859cd1bd64c050667a714503520fa",
+          "engine_sha256": "fa873e8ab364227485c0701edee32f28af4859cd1bd64c050667a714503520fa",
+          "analyzer_bin": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/analyzer-61134867deac86a141f4905b24ab0267e5172cfcb329532d48d5f24a0d1b542e",
+          "analyzer_sha256": "61134867deac86a141f4905b24ab0267e5172cfcb329532d48d5f24a0d1b542e"
+        }
+      }
+    },
+    {
+      "id": "middle_v45",
+      "game": "data/raw/games/nnue-512-v4.5/slot0632-NNUE_W384_v4.5-vs-NNUE_W512_v4.5-a-black.json",
+      "game_sha256": "f8c96d6a88c769f141226438c9bd6d2fb9d4e9d4f61c2b745b45d40f6987ce4e",
+      "game_id": "18dc021163baf64d-98f481f23fe253d9",
+      "ply": 334,
+      "fixed_depth": 3,
+      "group": "heldout",
+      "selection": "Manually frozen stage/length coverage before variant results; no correctness oracle",
+      "game_plies": 668,
+      "side_to_move": "White",
+      "original_move": {
+        "completed_depth": 4,
+        "iteration_timings": [
+          {
+            "depth": 1,
+            "elapsed_us": 12447,
+            "completed": true
+          },
+          {
+            "depth": 2,
+            "elapsed_us": 11287,
+            "completed": true
+          },
+          {
+            "depth": 3,
+            "elapsed_us": 570041,
+            "completed": true
+          },
+          {
+            "depth": 4,
+            "elapsed_us": 4791289,
+            "completed": true
+          }
+        ],
+        "move_number": 335,
+        "color": "White",
+        "from_file": 17,
+        "from_rank": 10,
+        "to_file": 13,
+        "to_rank": 6,
+        "promoted": false,
+        "data": "Standard",
+        "eval": -4482,
+        "static_eval": -4669,
+        "nodes": 1580022
+      },
+      "original_agent": {
+        "name": "ab",
+        "depth": 64,
+        "model": "/mnt/HC_Volume_107032879/taikyoku/checkpoints/tournament/NNUE_W512_v4.5/model.json",
+        "engine_sha256": "34600564288d095c943a0806b27f1373bbeb2eb0992322b5950443f0146e4825",
+        "engine_build": {
+          "protocol": 1,
+          "revision": "63de99c429402588de6132e4cefec3a972203fdd",
+          "engine_bin": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/engine-34600564288d095c943a0806b27f1373bbeb2eb0992322b5950443f0146e4825",
+          "engine_sha256": "34600564288d095c943a0806b27f1373bbeb2eb0992322b5950443f0146e4825",
+          "analyzer_bin": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/analyzer-fd289790a11dc25c806bcd17adc850a15b12cf950398cea27e4d4f98c47f6ddf",
+          "analyzer_sha256": "fd289790a11dc25c806bcd17adc850a15b12cf950398cea27e4d4f98c47f6ddf"
+        }
+      }
+    },
+    {
+      "id": "middle_mixed",
+      "game": "data/raw/games/nnue-384-v4.5/slot0644-C2K50A1-vs-NNUE_W384_v4.5-a-black.json",
+      "game_sha256": "6d4d85656a2f83c7d49c84d8b9450986978a910d2c198178bdab3971796f4487",
+      "game_id": "18dc1e2d540ee6ed-038e36a4376024d5",
+      "ply": 391,
+      "fixed_depth": 3,
+      "group": "heldout",
+      "selection": "Manually frozen stage/length coverage before variant results; no correctness oracle",
+      "game_plies": 780,
+      "side_to_move": "Black",
+      "original_move": {
+        "completed_depth": 4,
+        "iteration_timings": [
+          {
+            "depth": 1,
+            "elapsed_us": 5197,
+            "completed": true
+          },
+          {
+            "depth": 2,
+            "elapsed_us": 268781,
+            "completed": true
+          },
+          {
+            "depth": 3,
+            "elapsed_us": 270985,
+            "completed": true
+          },
+          {
+            "depth": 4,
+            "elapsed_us": 3990040,
+            "completed": true
+          }
+        ],
+        "move_number": 416,
+        "color": "Black",
+        "from_file": 7,
+        "from_rank": 8,
+        "to_file": 24,
+        "to_rank": 25,
+        "promoted": false,
+        "data": "Standard",
+        "eval": -5972,
+        "static_eval": -5907,
+        "nodes": 710995
+      },
+      "original_agent": {
+        "name": "ab",
+        "depth": 64,
+        "model": "/opt/taikyoku_shogi/models/royal-al-grid/C2K50A1.json",
+        "engine_sha256": "34600564288d095c943a0806b27f1373bbeb2eb0992322b5950443f0146e4825",
+        "engine_build": {
+          "protocol": 1,
+          "revision": "63de99c429402588de6132e4cefec3a972203fdd",
+          "engine_bin": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/engine-34600564288d095c943a0806b27f1373bbeb2eb0992322b5950443f0146e4825",
+          "engine_sha256": "34600564288d095c943a0806b27f1373bbeb2eb0992322b5950443f0146e4825",
+          "analyzer_bin": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/analyzer-fd289790a11dc25c806bcd17adc850a15b12cf950398cea27e4d4f98c47f6ddf",
+          "analyzer_sha256": "fd289790a11dc25c806bcd17adc850a15b12cf950398cea27e4d4f98c47f6ddf"
+        }
+      }
+    },
+    {
+      "id": "late_v45",
+      "game": "data/raw/games/nnue-512-v4.5/slot0637-NNUE_W512_v4.5-vs-NNUE_W1536_v3-a-white.json",
+      "game_sha256": "9e254fe3ca2af305dc9691d95052281fad0c7dc1710d3ed93b8294a1d4452cb0",
+      "game_id": "18dc0d2e6fa95252-11d268d83d0c442e",
+      "ply": 880,
+      "fixed_depth": 3,
+      "group": "heldout",
+      "selection": "Manually frozen stage/length coverage before variant results; no correctness oracle",
+      "game_plies": 916,
+      "side_to_move": "White",
+      "original_move": {
+        "completed_depth": 5,
+        "iteration_timings": [
+          {
+            "depth": 1,
+            "elapsed_us": 10784,
+            "completed": true
+          },
+          {
+            "depth": 2,
+            "elapsed_us": 7965,
+            "completed": true
+          },
+          {
+            "depth": 3,
+            "elapsed_us": 78751,
+            "completed": true
+          },
+          {
+            "depth": 4,
+            "elapsed_us": 260784,
+            "completed": true
+          },
+          {
+            "depth": 5,
+            "elapsed_us": 2076367,
+            "completed": true
+          }
+        ],
+        "move_number": 903,
+        "color": "White",
+        "from_file": 7,
+        "from_rank": 16,
+        "to_file": 2,
+        "to_rank": 21,
+        "promoted": false,
+        "data": "Standard",
+        "eval": -5019,
+        "static_eval": -5026,
+        "nodes": 249962
+      },
+      "original_agent": {
+        "name": "ab",
+        "depth": 64,
+        "model": "/mnt/HC_Volume_107032879/taikyoku/checkpoints/tournament/NNUE_W512_v4.5/model.json",
+        "engine_sha256": "34600564288d095c943a0806b27f1373bbeb2eb0992322b5950443f0146e4825",
+        "engine_build": {
+          "protocol": 1,
+          "revision": "63de99c429402588de6132e4cefec3a972203fdd",
+          "engine_bin": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/engine-34600564288d095c943a0806b27f1373bbeb2eb0992322b5950443f0146e4825",
+          "engine_sha256": "34600564288d095c943a0806b27f1373bbeb2eb0992322b5950443f0146e4825",
+          "analyzer_bin": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/analyzer-fd289790a11dc25c806bcd17adc850a15b12cf950398cea27e4d4f98c47f6ddf",
+          "analyzer_sha256": "fd289790a11dc25c806bcd17adc850a15b12cf950398cea27e4d4f98c47f6ddf"
+        }
+      }
+    },
+    {
+      "id": "late_mixed",
+      "game": "data/raw/games/nnue-512-v4.5-handcrafted-losses/slot0723-NNUE_W512_v4.5-vs-BASE_C2S2_A160_Lflight-a-white.json",
+      "game_sha256": "b7d7b12a4abcb6c2d97200d43be6f5649b04486887405532c584d210f583382d",
+      "game_id": "18dc6915bfd81ed7-38754d290011f33c",
+      "ply": 580,
+      "fixed_depth": 3,
+      "group": "heldout",
+      "selection": "Manually frozen stage/length coverage before variant results; no correctness oracle",
+      "game_plies": 613,
+      "side_to_move": "White",
+      "original_move": {
+        "completed_depth": 3,
+        "iteration_timings": [
+          {
+            "depth": 1,
+            "elapsed_us": 17166,
+            "completed": true
+          },
+          {
+            "depth": 2,
+            "elapsed_us": 352667,
+            "completed": true
+          },
+          {
+            "depth": 3,
+            "elapsed_us": 593086,
+            "completed": true
+          },
+          {
+            "depth": 4,
+            "elapsed_us": 4028463,
+            "completed": false
+          }
+        ],
+        "move_number": 609,
+        "color": "White",
+        "from_file": 10,
+        "from_rank": 28,
+        "to_file": 10,
+        "to_rank": 8,
+        "promoted": true,
+        "data": "Standard",
+        "eval": 5028,
+        "static_eval": 2796,
+        "nodes": 738850
+      },
+      "original_agent": {
+        "name": "ab",
+        "depth": 64,
+        "model": "/mnt/HC_Volume_107032879/taikyoku/checkpoints/tournament/NNUE_W512_v4.5/model.json",
+        "engine_sha256": "34600564288d095c943a0806b27f1373bbeb2eb0992322b5950443f0146e4825",
+        "engine_build": {
+          "protocol": 1,
+          "revision": "63de99c429402588de6132e4cefec3a972203fdd",
+          "engine_bin": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/engine-34600564288d095c943a0806b27f1373bbeb2eb0992322b5950443f0146e4825",
+          "engine_sha256": "34600564288d095c943a0806b27f1373bbeb2eb0992322b5950443f0146e4825",
+          "analyzer_bin": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/analyzer-fd289790a11dc25c806bcd17adc850a15b12cf950398cea27e4d4f98c47f6ddf",
+          "analyzer_sha256": "fd289790a11dc25c806bcd17adc850a15b12cf950398cea27e4d4f98c47f6ddf"
+        }
+      }
+    },
+    {
+      "id": "long_nnue",
+      "game": "data/raw/games/long-droughts-under-100/slot0172-NNUE_W512_v3-vs-NNUE_W384_v3-a-black.json",
+      "game_sha256": "26fbb70107ff77c48d1375e0989393a32cf6df0cd92c976f016f68e45c377c26",
+      "game_id": "18d953d0020d127d-00000000001e8e00",
+      "ply": 1301,
+      "fixed_depth": 3,
+      "group": "heldout",
+      "selection": "Manually frozen stage/length coverage before variant results; no correctness oracle",
+      "game_plies": 1897,
+      "side_to_move": "Black",
+      "original_move": {
+        "completed_depth": 6,
+        "move_number": 1346,
+        "color": "Black",
+        "from_file": 14,
+        "from_rank": 25,
+        "to_file": 16,
+        "to_rank": 25,
+        "promoted": false,
+        "data": "Standard",
+        "eval": 6400,
+        "static_eval": 6408,
+        "nodes": 448935
+      },
+      "original_agent": {
+        "name": "ab",
+        "depth": 64,
+        "model": "/opt/nnue-generation3-20260925/results/NNUE_W512_v3/model.json",
+        "engine_sha256": "9a2a5ef88e587dfc22b900ed3ed823d33ad333e617fc517552ceee3b0941ff85",
+        "engine_build": {
+          "protocol": 1,
+          "revision": "8ab9f896cfdad09ace1e2a6356575dc6ae3a3de6",
+          "engine_bin": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/engine-9a2a5ef88e587dfc22b900ed3ed823d33ad333e617fc517552ceee3b0941ff85",
+          "engine_sha256": "9a2a5ef88e587dfc22b900ed3ed823d33ad333e617fc517552ceee3b0941ff85",
+          "analyzer_bin": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/analyzer-d48daa2143d4e19e26900559f5407c2eb45e2d20a00010d10dd50e79d8da12a4",
+          "analyzer_sha256": "d48daa2143d4e19e26900559f5407c2eb45e2d20a00010d10dd50e79d8da12a4"
+        }
+      }
+    },
+    {
+      "id": "long_mixed",
+      "game": "data/raw/games/long-droughts-under-100/slot0020-BASE_C2S2_A80_Ldefense-vs-NNUE_W768_v3-a-white.json",
+      "game_sha256": "9a34e6d2d204fa86ac56b7058bd8bb51edfbccf2a502a00e069c5878b693b593",
+      "game_id": "18d8f6c35211780e-00000000000f4670",
+      "ply": 2400,
+      "fixed_depth": 3,
+      "group": "heldout",
+      "selection": "Manually frozen stage/length coverage before variant results; no correctness oracle",
+      "game_plies": 3533,
+      "side_to_move": "White",
+      "original_move": {
+        "completed_depth": 7,
+        "move_number": 2764,
+        "color": "White",
+        "from_file": 2,
+        "from_rank": 4,
+        "to_file": 1,
+        "to_rank": 3,
+        "promoted": false,
+        "data": "Standard",
+        "eval": 1393,
+        "static_eval": 1388,
+        "nodes": 923166
+      },
+      "original_agent": {
+        "name": "ab",
+        "depth": 8,
+        "model": "/opt/taikyoku_shogi/models/royal-al-grid/BASE_C2S2_A80_Ldefense.json",
+        "max_time_ms": 3000,
+        "engine_sha256": "d68980e0acf41d0fd92f7a6ba9a01e74edc92c07f6cf797d77c48deb3bbba047",
+        "engine_build": {
+          "protocol": 1,
+          "revision": "198b2c08343afefc95a79ac99a34d1396ae5857e",
+          "engine_bin": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/engine-d68980e0acf41d0fd92f7a6ba9a01e74edc92c07f6cf797d77c48deb3bbba047",
+          "engine_sha256": "d68980e0acf41d0fd92f7a6ba9a01e74edc92c07f6cf797d77c48deb3bbba047",
+          "analyzer_bin": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/analyzer-47124ecf62b2d81e87df3d14c4f7a74a2ebe4a6549e99a0346ff2138feebdbe1",
+          "analyzer_sha256": "47124ecf62b2d81e87df3d14c4f7a74a2ebe4a6549e99a0346ff2138feebdbe1"
+        }
+      }
+    },
+    {
+      "id": "short_draw",
+      "game": "data/raw/games/shortest-nnue-draws/slot0075-NNUE_W512_v3-vs-NNUE_W2048_v3-a-white.json",
+      "game_sha256": "cfa9529ecd211f742e19775b4636c9ffe4b96d5efda4e5234baaf90b1c294530",
+      "game_id": "18d9185a45fe3423-00000000000f4c80",
+      "ply": 35,
+      "fixed_depth": 3,
+      "group": "heldout",
+      "selection": "Manually frozen stage/length coverage before variant results; no correctness oracle",
+      "game_plies": 46,
+      "side_to_move": "Black",
+      "original_move": {
+        "completed_depth": 3,
+        "move_number": 40,
+        "color": "Black",
+        "from_file": 21,
+        "from_rank": 10,
+        "to_file": 20,
+        "to_rank": 11,
+        "promoted": false,
+        "data": "Standard",
+        "eval": 0,
+        "static_eval": -1901,
+        "nodes": 132267
+      },
+      "original_agent": {
+        "name": "ab",
+        "depth": 8,
+        "model": "/opt/nnue-generation3-20260925/results/NNUE_W2048_v3/model.json",
+        "max_time_ms": 3000,
+        "engine_sha256": "d68980e0acf41d0fd92f7a6ba9a01e74edc92c07f6cf797d77c48deb3bbba047",
+        "engine_build": {
+          "protocol": 1,
+          "revision": "198b2c08343afefc95a79ac99a34d1396ae5857e",
+          "engine_bin": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/engine-d68980e0acf41d0fd92f7a6ba9a01e74edc92c07f6cf797d77c48deb3bbba047",
+          "engine_sha256": "d68980e0acf41d0fd92f7a6ba9a01e74edc92c07f6cf797d77c48deb3bbba047",
+          "analyzer_bin": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/analyzer-47124ecf62b2d81e87df3d14c4f7a74a2ebe4a6549e99a0346ff2138feebdbe1",
+          "analyzer_sha256": "47124ecf62b2d81e87df3d14c4f7a74a2ebe4a6549e99a0346ff2138feebdbe1"
+        }
+      }
+    },
+    {
+      "id": "long_draw",
+      "game": "data/raw/games/shortest-nnue-draws/slot0536-NNUE_W512_v3-vs-NNUE_W2048_v2-a-white.json",
+      "game_sha256": "1fdd3cc7d959b101ed6afb1f1bac6af8c0496a37029bee56b79d295a0a40dcc1",
+      "game_id": "18dba57c65808976-00000000004c5469",
+      "ply": 1800,
+      "fixed_depth": 3,
+      "group": "heldout",
+      "selection": "Manually frozen stage/length coverage before variant results; no correctness oracle",
+      "game_plies": 2384,
+      "side_to_move": "White",
+      "original_move": {
+        "completed_depth": 6,
+        "iteration_timings": [
+          {
+            "depth": 1,
+            "elapsed_us": 62,
+            "completed": true
+          },
+          {
+            "depth": 2,
+            "elapsed_us": 14339,
+            "completed": true
+          },
+          {
+            "depth": 3,
+            "elapsed_us": 13248,
+            "completed": true
+          },
+          {
+            "depth": 4,
+            "elapsed_us": 147231,
+            "completed": true
+          },
+          {
+            "depth": 5,
+            "elapsed_us": 807366,
+            "completed": true
+          },
+          {
+            "depth": 6,
+            "elapsed_us": 2224705,
+            "completed": true
+          }
+        ],
+        "move_number": 1976,
+        "color": "White",
+        "from_file": 18,
+        "from_rank": 33,
+        "to_file": 17,
+        "to_rank": 34,
+        "promoted": false,
+        "data": "Standard",
+        "eval": 2507,
+        "static_eval": 2082,
+        "nodes": 1164903
+      },
+      "original_agent": {
+        "name": "ab",
+        "depth": 64,
+        "model": "/opt/nnue-generation3-20260925/results/NNUE_W512_v3/model.json",
+        "engine_sha256": "34600564288d095c943a0806b27f1373bbeb2eb0992322b5950443f0146e4825",
+        "engine_build": {
+          "protocol": 1,
+          "revision": "63de99c429402588de6132e4cefec3a972203fdd",
+          "engine_bin": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/engine-34600564288d095c943a0806b27f1373bbeb2eb0992322b5950443f0146e4825",
+          "engine_sha256": "34600564288d095c943a0806b27f1373bbeb2eb0992322b5950443f0146e4825",
+          "analyzer_bin": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/analyzer-fd289790a11dc25c806bcd17adc850a15b12cf950398cea27e4d4f98c47f6ddf",
+          "analyzer_sha256": "fd289790a11dc25c806bcd17adc850a15b12cf950398cea27e4d4f98c47f6ddf"
+        }
+      }
+    }
+  ]
+}

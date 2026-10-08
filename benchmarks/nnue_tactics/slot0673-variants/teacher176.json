@@ -1,0 +1,4 @@
+{
+  "crown_prince": {"env": {"TACTICAL_ROOT": "17,1-18,0"}, "purpose": "SEEDS2 opinion: Crown Prince capture"},
+  "dragon_pawn": {"env": {"TACTICAL_ROOT": "26,26-26,10+"}, "purpose": "SEEDS2 opinion: original Dragon King pawn capture/promotion"}
+}

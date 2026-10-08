@@ -1,0 +1,8 @@
+{
+  "baseline": {"env": {}, "purpose": "Unmodified search and evaluation"},
+  "tempo_50": {"env": {"TACTICAL_TEMPO_PERCENT": "50"}, "purpose": "Half learned turn component at all static evaluations"},
+  "q_tempo_50": {"env": {"TACTICAL_Q_TEMPO_PERCENT": "50"}, "purpose": "Half learned turn component only at q stand pat"},
+  "q_tt_context": {"env": {"TACTICAL_Q_TT": "context"}, "purpose": "Context-matched quiescence cache scores"},
+  "tempo50_evasions": {"env": {"TACTICAL_TEMPO_PERCENT": "50", "TACTICAL_Q_EVASIONS": "1"}, "purpose": "Half tempo plus recursive q check handling"},
+  "q_evasions_context": {"env": {"TACTICAL_Q_EVASIONS": "1", "TACTICAL_Q_TT": "context"}, "purpose": "Recursive q check handling plus context-matched cache"}
+}

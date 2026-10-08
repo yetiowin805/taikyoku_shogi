@@ -1,0 +1,61 @@
+{
+  "frozen_utc": "2026-10-08T08:00:23.583488+00:00",
+  "method": "Zero-tempo follow-up; all ten control modal choices compared, but only new routes in the four previously selected teacher-control boards are teacher-scored. Lexical modal tie-break. Selection frozen before new teacher labels.",
+  "changed_control_positions": [
+    "early_mixed",
+    "middle_v45",
+    "middle_mixed",
+    "late_v45",
+    "late_mixed",
+    "long_nnue",
+    "long_mixed",
+    "long_draw"
+  ],
+  "changed_positions_without_teacher_followup": [
+    "early_mixed",
+    "late_v45",
+    "long_nnue",
+    "long_draw"
+  ],
+  "selected": [
+    {
+      "position": "middle_v45",
+      "route": "28,10-25,7",
+      "votes": 3,
+      "variants": {
+        "tempo_0": {
+          "env": {
+            "TACTICAL_ROOT": "28,10-25,7"
+          },
+          "purpose": "SEEDS2 opinion of additional zero-tempo modal move"
+        }
+      }
+    },
+    {
+      "position": "middle_mixed",
+      "route": "18,4-17,4",
+      "votes": 3,
+      "variants": {
+        "tempo_0": {
+          "env": {
+            "TACTICAL_ROOT": "18,4-17,4"
+          },
+          "purpose": "SEEDS2 opinion of additional zero-tempo modal move"
+        }
+      }
+    },
+    {
+      "position": "long_mixed",
+      "route": "2,4-6,0",
+      "votes": 3,
+      "variants": {
+        "tempo_0": {
+          "env": {
+            "TACTICAL_ROOT": "2,4-6,0"
+          },
+          "purpose": "SEEDS2 opinion of additional zero-tempo modal move"
+        }
+      }
+    }
+  ]
+}

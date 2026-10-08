@@ -1,0 +1,32 @@
+{
+  "binary_sha256": "60b385e777b4d0614712a1235207a1b3ba2450fcb7cd1bd9e48005f7f0d5d7c4",
+  "baseline_parity": [
+    {
+      "ply": 174,
+      "depth": 3,
+      "move": "17,31-17,1+",
+      "score_black": -1089,
+      "nodes": 576814,
+      "inherited_qdepth_99_ignored": true
+    },
+    {
+      "ply": 176,
+      "depth": 4,
+      "move": "26,26-26,10+",
+      "score_black": -2592,
+      "nodes": 1309672,
+      "inherited_qdepth_99_ignored": true
+    }
+  ],
+  "unknown_option_rejected": true,
+  "release_library_tests": {
+    "passed": 429,
+    "ignored": 4
+  },
+  "debug_targeted_tests": {
+    "passed": 8
+  },
+  "raw_archive_sha256": "228a2ef71df09140eb07a4586084c52b421802f3d31a86c136a3c37b80f51672",
+  "raw_archive_entries": 1448,
+  "initial_source_hashes_verified": true
+}

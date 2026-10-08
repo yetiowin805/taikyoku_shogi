@@ -1,0 +1,18 @@
+{
+  "baseline": {"env": {}, "purpose": "Baseline repeated alongside combinations"},
+  "q_evasions_context": {"env": {"TACTICAL_Q_EVASIONS": "1", "TACTICAL_Q_TT": "context"}, "purpose": "Both q consistency interventions"},
+  "q_evasions_lmr": {"env": {"TACTICAL_Q_EVASIONS": "1", "TACTICAL_LMR": "evasions"}, "purpose": "Preserve required evasion searches in AB and q"},
+  "q_consistency_lmr": {"env": {"TACTICAL_Q_EVASIONS": "1", "TACTICAL_Q_TT": "context", "TACTICAL_LMR": "evasions"}, "purpose": "Consistent q context and check-evasion depth"},
+  "q_consistency_delta500": {"env": {"TACTICAL_Q_EVASIONS": "1", "TACTICAL_Q_TT": "context", "TACTICAL_Q_DELTA_MARGIN": "500"}, "purpose": "Consistency interventions plus conservative pruning margin"},
+  "q_all_full": {"env": {"TACTICAL_Q_ALL_CAPTURES": "1", "TACTICAL_FULL_NONPV_Q": "1", "TACTICAL_ALWAYS_Q": "1"}, "purpose": "Broader q with uniform budget and no entry gate"},
+  "q_consistency_tempo50": {"env": {"TACTICAL_Q_EVASIONS": "1", "TACTICAL_Q_TT": "context", "TACTICAL_Q_TEMPO_PERCENT": "50"}, "purpose": "Consistency interventions plus half q stand-pat turn component"},
+  "q_consistency_tempo0": {"env": {"TACTICAL_Q_EVASIONS": "1", "TACTICAL_Q_TT": "context", "TACTICAL_Q_TEMPO_PERCENT": "0"}, "purpose": "Consistency interventions plus turn-averaged q stand pat"},
+  "tempo50_lmr_evasions": {"env": {"TACTICAL_TEMPO_PERCENT": "50", "TACTICAL_LMR": "evasions"}, "purpose": "Global tempo damping and preserved evasion depth"},
+  "tempo0_lmr_off": {"env": {"TACTICAL_TEMPO_PERCENT": "0", "TACTICAL_LMR": "off"}, "purpose": "Diagnostic elimination of tempo and late-move reduction"},
+  "tempo0_interior_off": {"env": {"TACTICAL_TEMPO_PERCENT": "0", "TACTICAL_LMR": "interior_off"}, "purpose": "Replicate earlier Crown Prince capture with symmetric eval and no interior LMR"},
+  "tempo50_evasions": {"env": {"TACTICAL_TEMPO_PERCENT": "50", "TACTICAL_Q_EVASIONS": "1"}, "purpose": "Tempo damping with recursive q check handling"},
+  "tempo50_qcontext": {"env": {"TACTICAL_TEMPO_PERCENT": "50", "TACTICAL_Q_TT": "context"}, "purpose": "Tempo damping with context-matched q scores"},
+  "major_required_qcontext": {"env": {"TACTICAL_STAND_PAT": "major_capture_required", "TACTICAL_Q_TT": "context"}, "purpose": "Forced major capture stand pat and context-matched q scores"},
+  "major_required_evasions": {"env": {"TACTICAL_STAND_PAT": "major_capture_required", "TACTICAL_Q_EVASIONS": "1"}, "purpose": "Forced major capture stand pat and recursive q evasions"},
+  "major_required_nohang": {"env": {"TACTICAL_STAND_PAT": "major_capture_required", "TACTICAL_NO_HANG": "1"}, "purpose": "Forced major capture stand pat without hang rejection"}
+}

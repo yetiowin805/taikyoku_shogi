@@ -1,0 +1,6 @@
+{
+  "gold_baseline": {"env": {"TACTICAL_ROOT": "16,0-17,1"}, "purpose": "Adaptive mechanism: Black takes Old Peng with Gold"},
+  "ox_baseline": {"env": {"TACTICAL_ROOT": "21,10-18,13"}, "purpose": "Adaptive mechanism: Black captures Tengu with Fierce Ox"},
+  "gold_tempo50": {"env": {"TACTICAL_ROOT": "16,0-17,1", "TACTICAL_TEMPO_PERCENT": "50"}, "purpose": "Gold capture with half learned turn component"},
+  "ox_tempo50": {"env": {"TACTICAL_ROOT": "21,10-18,13", "TACTICAL_TEMPO_PERCENT": "50"}, "purpose": "Tengu capture with half learned turn component"}
+}

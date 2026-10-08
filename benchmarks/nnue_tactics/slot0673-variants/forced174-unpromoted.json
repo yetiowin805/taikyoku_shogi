@@ -1,0 +1,4 @@
+{
+  "ox_unpromoted_baseline": {"env": {"TACTICAL_ROOT": "22,10-21,10"}, "purpose": "Independent unpromoted Ox capture selected by deeper baseline"},
+  "ox_unpromoted_tempo50": {"env": {"TACTICAL_ROOT": "22,10-21,10", "TACTICAL_TEMPO_PERCENT": "50"}, "purpose": "Unpromoted Ox capture with half tempo"}
+}

@@ -1,0 +1,83 @@
+{
+  "format_version": 1,
+  "frozen_utc": "2026-10-08T07:43:06.843531+00:00",
+  "model": "models/nnue-v4.5/NNUE_W512_v4.5/model.json",
+  "model_sha256": "42bb57d10d2b01bbe59fb7ab7c75a260158c72bd322b3b8cf8533376f486d37e",
+  "model_blob": "models/nnue-v4.5/NNUE_W512_v4.5/nnue-81b1c69ab269ecce313a93b0cbe866ede18c37d8a5ff83116dc20d196ba12ea4.bin",
+  "model_blob_sha256": "81b1c69ab269ecce313a93b0cbe866ede18c37d8a5ff83116dc20d196ba12ea4",
+  "score_perspective": "Black",
+  "ply_convention": "1-based move index; search board BEFORE that move",
+  "evaluation_policy": "Fixed W512 v4.5 model on every position; this is a search ablation, not original-agent replay",
+  "history_policy": "analyze_position replays the complete original game prefix",
+  "heldout_limitation": "Adaptive mechanistic follow-up in same development game; no generalization claim",
+  "positions": [
+    {
+      "id": "mechanism175",
+      "game": "data/raw/games/nnue-512-v4.5-handcrafted-losses/slot0673-NNUE_W512_v4.5-vs-SEEDS2-a-white.json",
+      "game_sha256": "ee8c2fe6ac1b3699777f7691a41c821c45bc770441db0edfa65869b02be364a9",
+      "game_id": "18dc573300c573f7-519f86ee2385b722",
+      "ply": 175,
+      "fixed_depth": 2,
+      "group": "target",
+      "selection": "Adaptive mechanism probe requested after initial variant results; not a held-out case",
+      "game_plies": 1041,
+      "side_to_move": "Black",
+      "original_move": {
+        "completed_depth": 5,
+        "iteration_timings": [
+          {
+            "depth": 1,
+            "elapsed_us": 17182,
+            "completed": true
+          },
+          {
+            "depth": 2,
+            "elapsed_us": 12157,
+            "completed": true
+          },
+          {
+            "depth": 3,
+            "elapsed_us": 51569,
+            "completed": true
+          },
+          {
+            "depth": 4,
+            "elapsed_us": 777571,
+            "completed": true
+          },
+          {
+            "depth": 5,
+            "elapsed_us": 1929148,
+            "completed": true
+          }
+        ],
+        "move_number": 190,
+        "color": "Black",
+        "from_file": 21,
+        "from_rank": 10,
+        "to_file": 18,
+        "to_rank": 13,
+        "promoted": false,
+        "data": "Standard",
+        "eval": 2810,
+        "static_eval": 10,
+        "nodes": 452210
+      },
+      "original_agent": {
+        "name": "ab",
+        "depth": 64,
+        "model": "/opt/taikyoku_shogi/models/royal-al-grid/SEEDS2.json",
+        "engine_sha256": "34600564288d095c943a0806b27f1373bbeb2eb0992322b5950443f0146e4825",
+        "engine_build": {
+          "protocol": 1,
+          "revision": "63de99c429402588de6132e4cefec3a972203fdd",
+          "engine_bin": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/engine-34600564288d095c943a0806b27f1373bbeb2eb0992322b5950443f0146e4825",
+          "engine_sha256": "34600564288d095c943a0806b27f1373bbeb2eb0992322b5950443f0146e4825",
+          "analyzer_bin": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/analyzer-fd289790a11dc25c806bcd17adc850a15b12cf950398cea27e4d4f98c47f6ddf",
+          "analyzer_sha256": "fd289790a11dc25c806bcd17adc850a15b12cf950398cea27e4d4f98c47f6ddf"
+        }
+      }
+    }
+  ],
+  "derived_from": "corpus.json"
+}

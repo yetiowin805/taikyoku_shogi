@@ -1,0 +1,176 @@
+{
+  "frozen_utc": "2026-10-08T07:52:26.708596+00:00",
+  "method": "All ten preselected controls; compare modal routes over three 3-second hard-budget trials for baseline, global half-tempo, and q-only half-tempo. Break modal ties lexicographically. Retain all distinct routes whenever those variants disagree. Freeze before teacher searches.",
+  "teacher_policy": "SEEDS2 separate forced-root depth 3 and 4 searches, 5-second limit. Teacher opinions are not optimality labels.",
+  "selected": [
+    {
+      "position": "middle_v45",
+      "ply": 334,
+      "side_to_move": "White",
+      "modes": {
+        "baseline": {
+          "route": "35,12-33,10+",
+          "votes": 3,
+          "all_routes": {
+            "35,12-33,10+": 3
+          }
+        },
+        "tempo_50": {
+          "route": "6,26-6,10+",
+          "votes": 3,
+          "all_routes": {
+            "6,26-6,10+": 3
+          }
+        },
+        "q_tempo_50": {
+          "route": "6,26-6,10+",
+          "votes": 3,
+          "all_routes": {
+            "6,26-6,10+": 3
+          }
+        }
+      },
+      "variants": {
+        "baseline": {
+          "env": {
+            "TACTICAL_ROOT": "35,12-33,10+"
+          },
+          "purpose": "SEEDS2 opinion of modal move selected by baseline"
+        },
+        "tempo_50_q_tempo_50": {
+          "env": {
+            "TACTICAL_ROOT": "6,26-6,10+"
+          },
+          "purpose": "SEEDS2 opinion of modal move selected by tempo_50, q_tempo_50"
+        }
+      }
+    },
+    {
+      "position": "middle_mixed",
+      "ply": 391,
+      "side_to_move": "Black",
+      "modes": {
+        "baseline": {
+          "route": "29,1-31,3",
+          "votes": 3,
+          "all_routes": {
+            "29,1-31,3": 3
+          }
+        },
+        "tempo_50": {
+          "route": "18,4-17,3",
+          "votes": 3,
+          "all_routes": {
+            "18,4-17,3": 3
+          }
+        },
+        "q_tempo_50": {
+          "route": "18,4-17,3",
+          "votes": 2,
+          "all_routes": {
+            "18,4-17,3": 2,
+            "2,2-0,2": 1
+          }
+        }
+      },
+      "variants": {
+        "baseline": {
+          "env": {
+            "TACTICAL_ROOT": "29,1-31,3"
+          },
+          "purpose": "SEEDS2 opinion of modal move selected by baseline"
+        },
+        "tempo_50_q_tempo_50": {
+          "env": {
+            "TACTICAL_ROOT": "18,4-17,3"
+          },
+          "purpose": "SEEDS2 opinion of modal move selected by tempo_50, q_tempo_50"
+        }
+      }
+    },
+    {
+      "position": "late_mixed",
+      "ply": 580,
+      "side_to_move": "White",
+      "modes": {
+        "baseline": {
+          "route": "10,28-10,8+",
+          "votes": 3,
+          "all_routes": {
+            "10,28-10,8+": 3
+          }
+        },
+        "tempo_50": {
+          "route": "3,33-1,33",
+          "votes": 3,
+          "all_routes": {
+            "3,33-1,33": 3
+          }
+        },
+        "q_tempo_50": {
+          "route": "3,33-1,33",
+          "votes": 3,
+          "all_routes": {
+            "3,33-1,33": 3
+          }
+        }
+      },
+      "variants": {
+        "baseline": {
+          "env": {
+            "TACTICAL_ROOT": "10,28-10,8+"
+          },
+          "purpose": "SEEDS2 opinion of modal move selected by baseline"
+        },
+        "tempo_50_q_tempo_50": {
+          "env": {
+            "TACTICAL_ROOT": "3,33-1,33"
+          },
+          "purpose": "SEEDS2 opinion of modal move selected by tempo_50, q_tempo_50"
+        }
+      }
+    },
+    {
+      "position": "long_mixed",
+      "ply": 2400,
+      "side_to_move": "White",
+      "modes": {
+        "baseline": {
+          "route": "2,4-25,27",
+          "votes": 3,
+          "all_routes": {
+            "2,4-25,27": 3
+          }
+        },
+        "tempo_50": {
+          "route": "2,4-6,8",
+          "votes": 3,
+          "all_routes": {
+            "2,4-6,8": 3
+          }
+        },
+        "q_tempo_50": {
+          "route": "2,4-25,27",
+          "votes": 3,
+          "all_routes": {
+            "2,4-25,27": 3
+          }
+        }
+      },
+      "variants": {
+        "baseline_q_tempo_50": {
+          "env": {
+            "TACTICAL_ROOT": "2,4-25,27"
+          },
+          "purpose": "SEEDS2 opinion of modal move selected by baseline, q_tempo_50"
+        },
+        "tempo_50": {
+          "env": {
+            "TACTICAL_ROOT": "2,4-6,8"
+          },
+          "purpose": "SEEDS2 opinion of modal move selected by tempo_50"
+        }
+      }
+    }
+  ]
+}

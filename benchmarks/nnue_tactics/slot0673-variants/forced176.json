@@ -1,0 +1,6 @@
+{
+  "crown_prince_baseline": {"env": {"TACTICAL_ROOT": "17,1-18,0"}, "purpose": "Independent Crown Prince capture"},
+  "crown_prince_tempo50": {"env": {"TACTICAL_ROOT": "17,1-18,0", "TACTICAL_TEMPO_PERCENT": "50"}, "purpose": "Crown Prince capture with half tempo"},
+  "dragon_pawn_baseline": {"env": {"TACTICAL_ROOT": "26,26-26,10+"}, "purpose": "Independent original Dragon King pawn capture/promotion"},
+  "dragon_pawn_tempo50": {"env": {"TACTICAL_ROOT": "26,26-26,10+", "TACTICAL_TEMPO_PERCENT": "50"}, "purpose": "Original move with half tempo"}
+}
