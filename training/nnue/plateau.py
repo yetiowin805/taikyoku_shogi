@@ -6,16 +6,17 @@ import math
 @dataclass(frozen=True)
 class Policy:
     min_epochs: int = 8
-    max_epochs: int = 32
+    max_epochs: int | None = 32
     patience: int = 3
     min_improvement: float = 0.005
     lr_factor: float = 0.5
     lr_reductions: int = 2
 
     def __post_init__(self):
-        integers = (self.min_epochs, self.max_epochs, self.patience, self.lr_reductions)
+        integers = (self.min_epochs, self.patience, self.lr_reductions)
+        valid_max = self.max_epochs is None or (type(self.max_epochs) is int and self.max_epochs >= self.min_epochs)
         if not (all(type(value) is int for value in integers)
-                and 1 <= self.min_epochs <= self.max_epochs and self.patience >= 1
+                and valid_max and self.min_epochs >= 1 and self.patience >= 1
                 and 0 < self.min_improvement < 1 and 0 < self.lr_factor < 1
                 and self.lr_reductions >= 0):
             raise ValueError("Invalid plateau policy")
@@ -37,7 +38,7 @@ class Plateau:
             self.best, self.bad_epochs = loss, 0
         else:
             self.bad_epochs += 1
-        if epoch >= policy.max_epochs:
+        if policy.max_epochs is not None and epoch >= policy.max_epochs:
             self.stopped = "max_epochs"
         elif epoch >= policy.min_epochs and self.bad_epochs >= policy.patience:
             self.bad_epochs = 0

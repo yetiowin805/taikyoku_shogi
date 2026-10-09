@@ -251,3 +251,36 @@ replays/searches against the exported quantized evaluator. Admission requires
 an actually changed checkpoint, valid hashes/legal search, and exported
 validation objective within 1% of the parent. Test metrics are reported, not
 used for checkpoint selection. This is a sanity gate, not evidence of an Elo gain.
+
+### v4.5 recent-data continuations
+
+`v45_data.py --source DATASET --parent MODEL_JSON --out OUTPUT` creates a small
+manifest/label overlay sharing the immutable source feature shards. It samples
+90% representative, 8% mate precursors, and 2% mate claims. Only training samples
+receive fixed parent-error multipliers: 1 below 0.10 probability error, 1.5 from
+0.10 through 0.25, and 2 above 0.25. Renormalization within each stratum/group/game/
+episode cell preserves that cell's original share, so one difficult game cannot
+dominate. Validation and test retain fixed 90/8/2 weights without difficulty boosts.
+Labels, scale, material baseline, and inherited splits are unchanged. Scoring is
+resumable from difficulty.jsonl; output dataset.json is published last.
+
+`deploy/v45_training.py CONFIG` pauses only analysis and uses game-boundary CPU
+leases. It starts on one available CPU and expands to two, training 512 then 384
+from matching v3 parents. 512v3 scores difficulty for both. Passes contain 65,536
+weighted draws, with patience 2 and one learning-rate reduction. There is no elapsed
+time or pass-count cap: `--epochs 0` stops on validation plateau. Service runtime and
+imposed memory limits must also be unlimited. Best models and epoch optimizer state
+are retained; models are not automatically admitted to the tournament.
+
+Use KillMode=control-group and ExecStopPost to restart taikyoku-dual-labels.service
+on service exit. Normal cleanup also restores analysis and releases leases. Explicit
+operator stops and actual computation/integrity errors still stop the pipeline.
+Lease timestamps are diagnostic; a delayed heartbeat alone does not abort training.
+
+`--resume --epochs 0 --remove-budget-cap` explicitly migrates a capped checkpoint
+without changing data, optimizer state, or other hyperparameters. The previous recipe
+is preserved in budget-removal.json. A max-epochs stop is cleared; a validation plateau
+is retained. Existing other experiments keep their original finite defaults.
+
+Validation reports include separate unweighted probability errors for each stratum.
+These are continuation runs, not an isolated width or weighting ablation.
