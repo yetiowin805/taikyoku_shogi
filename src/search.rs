@@ -946,18 +946,15 @@ fn move_resolves_last_royal_check(state: &mut GameState, mv: &Move) -> bool {
         return true;
     }
     let us = state.get_current_turn();
-    // This rule-only probe never evaluates a position. Keep the original
-    // accumulator (and its caches) untouched while simulating board changes.
-    let nnue = state.nnue.take();
-    let ok = if let Some(undo) = state.make_move_for_search(mv.clone()) {
-        let ok = color_last_royal_resolved(state, us);
-        state.unmake_move_for_search(undo);
-        ok
-    } else {
-        false
-    };
-    state.nnue = nnue;
-    ok
+    state.with_rule_only_probe(|state| {
+        if let Some(undo) = state.make_move_for_search(mv.clone()) {
+            let ok = color_last_royal_resolved(state, us);
+            state.unmake_move_for_search(undo);
+            ok
+        } else {
+            false
+        }
+    })
 }
 
 /// `Some(evasions)` when the last royal is in check (`empty` = mate). `None` if not.
@@ -3938,7 +3935,14 @@ fn quiesce_impl(
         }
     }
 
-    let key = q_tt_key(state, prev_to, qdepth, allow_pathclear, include_captures, ctx);
+    // Zero-budget q results are never stored, and the key includes the exact
+    // remaining budget. Such a node cannot hit the score table; only diagnostics
+    // need its key. Royal defenses above still run at zero budget.
+    let key = if qdepth > 0 || ctx.track_q_unique || cfg!(debug_assertions) {
+        q_tt_key(state, prev_to, qdepth, allow_pathclear, include_captures, ctx)
+    } else {
+        0
+    };
     // Unique-q tracking is diagnostic-only unless `track_q_unique`.
     if ctx.track_q_unique || cfg!(debug_assertions) {
         if !ctx.q_unique_saturated {
@@ -3954,6 +3958,12 @@ fn quiesce_impl(
                 ctx.q_unique_saturated = true;
             }
         }
+    }
+
+    if qdepth == 0 {
+        let stand_pat = evaluate_with_ply(state, weights, ctx.ply);
+        ctx.q_stand_pat = stand_pat;
+        return stand_pat;
     }
 
     // Quiescence TT: depth is remaining q-plies.
@@ -3983,9 +3993,6 @@ fn quiesce_impl(
 
     let stand_pat = evaluate_with_ply(state, weights, ctx.ply);
     ctx.q_stand_pat = stand_pat;
-    if qdepth == 0 {
-        return stand_pat;
-    }
     let resolve_major = prev_to_is_major_enemy(state, weights, prev_to);
     let has_royal_take = stm_has_royal_capture(state);
     if stand_pat >= beta && !resolve_major && !has_royal_take {
@@ -8055,10 +8062,11 @@ mod tests {
     }
 
     #[test]
-    fn royal_probe_preserves_nnue_and_matches_normal_simulation() {
+    fn royal_probe_preserves_evaluators_and_matches_normal_simulation() {
         let (mut initial, mut weights, _) = last_royal_check_hanging_dragon();
         weights.nnue_runtime = Some(crate::nnue::tests::net(32, "royal-probe"));
         initial.ensure_eval_inc(&weights);
+        let _binding = crate::eval::bind_search_weights(&weights);
         let mut moves = initial.generate_legal_moves();
         // Also exercise the failed-make path, which must restore the accumulator.
         moves.push(Move::new(Position::new(34, 0).unwrap(), Position::new(33, 0).unwrap()));
@@ -8075,6 +8083,8 @@ mod tests {
                 resolved
             } else { false };
             assert_eq!(move_resolves_last_royal_check(&mut fast, &mv), expected);
+            assert_eq!(fast.eval_inc(), initial.eval_inc());
+            assert_eq!(fast.eval_inc(), reference.eval_inc());
             assert!(fast.nnue.as_ref().unwrap().matches_rebuild(fast.get_board()));
             assert_eq!(before, [Color::Black, Color::White].map(|c| fast.nnue.as_ref().unwrap().residual(c)));
             assert_eq!(fast.hash(), reference.hash());
@@ -8222,6 +8232,22 @@ mod tests {
         ));
         state.set_current_turn(Color::White);
         state
+    }
+
+    #[test]
+    fn zero_budget_q_keeps_diagnostics_without_probing_the_score_table() {
+        let (state, weights, _) = hung_gg_by_gold();
+        with_quiesce_test_context(&state, &weights, 0, None, |pos, ctx| {
+            ctx.track_q_unique = true;
+            let expected = evaluate_with_ply(pos, &weights, ctx.ply);
+            let probes = ctx.q_tt_probes;
+            let actual = quiesce(pos, &weights, 0, i32::MIN + 1, i32::MAX - 1,
+                None, true, true, ctx);
+            assert_eq!(actual, expected);
+            assert_eq!(ctx.q_stand_pat, expected);
+            assert_eq!(ctx.q_tt_probes, probes);
+            assert_eq!(ctx.q_unique.len(), 1);
+        });
     }
 
     #[test]
