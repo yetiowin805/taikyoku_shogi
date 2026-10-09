@@ -1,0 +1,81 @@
+{
+  "policy": "recent-dense-v1",
+  "counts": {
+    "samples": 379852,
+    "split:test": 41705,
+    "stratum:representative": 318270,
+    "label:saved": 372430,
+    "label:analysis": 7422,
+    "stratum:precursor": 58759,
+    "stratum:mate": 2823,
+    "analysis_candidates": 12622,
+    "fresh_holdout:test": 2193,
+    "split:validation": 41330,
+    "fresh_holdout:validation": 3964,
+    "split:train": 296817
+  },
+  "diagnostics": {
+    "heldout_seen_by_parent_training": 588,
+    "exporter_omitted_terminal_or_duplicate": 217,
+    "duplicate_feature_position": 19792
+  },
+  "weight_totals": {
+    "test:representative": 0.7500000000000308,
+    "test:precursor": 0.19999999999999352,
+    "test:mate": 0.050000000000000086,
+    "validation:representative": 0.7499999999999838,
+    "validation:precursor": 0.2000000000000224,
+    "validation:mate": 0.04999999999999988,
+    "train:representative": 0.7499999999996516,
+    "train:precursor": 0.19999999999989565,
+    "train:mate": 0.049999999999999156
+  },
+  "games_by_split": {
+    "test": 51,
+    "validation": 45,
+    "train": 388
+  },
+  "feature_bytes": 8457690472,
+  "new_searches": 0,
+  "historical_training_samples": 0,
+  "caveats": [
+    "Mate fields are search claims, not formal proofs.",
+    "Inherited holdouts are not fresh tests of a previously selected parent.",
+    "Unclassified draws retain teacher labels but have no outcome target.",
+    "Feature-identical positions are deduplicated; history-dependent values cannot be represented by these inputs.",
+    "Analysis queue is offline; no live analyzer policy has been changed."
+  ],
+  "trainer_compatibility": {
+    "trainer_batch_compatible": true,
+    "checked_samples": 27,
+    "mate_samples": {
+      "test": 282,
+      "validation": 290,
+      "train": 2251
+    },
+    "mate_games": {
+      "test": 48,
+      "validation": 44,
+      "train": 370
+    },
+    "games": {
+      "test": 51,
+      "validation": 45,
+      "train": 388
+    },
+    "groups": {
+      "test": 22,
+      "validation": 21,
+      "train": 165
+    },
+    "residual_targets_exceeding_existing_clip": 0
+  },
+  "source_run": "royal-nnue-v3-32-20260925",
+  "snapshot_games": 490,
+  "snapshot_saved_positions": 400449,
+  "exporter_source_revision": "00bdd24",
+  "dataset_identity_sha256": "af96cfc2b77e3720acd07ad413cfb7ba2c1ecb8afc699a4ef67a09b49e2b1cbe",
+  "snapshot_archive_sha256": "dd469ea977e349af0f729809bf51df31f01dcda05dae7c0dd49a7e2462b089aa",
+  "parent_metadata_sha256": "2f7ffa93fb0b496a53d7a3d1de926cf69c13c534f3eae9e87aec472f58210a02",
+  "validation": "35 Python training tests passed; full artifact integrity audit; 27 trainer batch/parity checks; no training launched"
+}
