@@ -253,7 +253,7 @@ pub struct SearchConfig {
     pub q_prune_mode: QPruneMode,
     /// TT cluster width. `1` is the production single-slot table.
     pub tt_clusters: u8,
-    /// Mix the contested square (`prev_to`) into the q TT key.
+    /// Legacy compatibility flag; selective q TT keys now always include `prev_to`.
     pub q_hash_prev_to: bool,
     /// After a PathClear/MultiLeg in q, children may not PathClear (D1).
     pub q_no_pathclear_reply: bool,
@@ -484,7 +484,6 @@ struct SearchContext {
     q_tt_probes: u64,
     /// Instant when the current root index last advanced (for `rms=` logs).
     root_move_started: Instant,
-    q_hash_prev_to: bool,
     q_no_pathclear_reply: bool,
     q_no_pathclear: bool,
     q_loud_promo_simple_only: bool,
@@ -635,16 +634,30 @@ fn position_hash(state: &GameState) -> u64 {
     state.hash()
 }
 
-fn q_tt_key(state: &GameState, prev_to: Option<Position>, mix_prev_to: bool) -> u64 {
-    let mut k = state.hash();
-    if mix_prev_to {
-        let salt = match prev_to {
-            None => 0u64,
-            Some(p) => 1 + p.to_index() as u64,
-        };
-        k ^= salt.wrapping_mul(0x9E3779B97F4A7C15);
+/// Q scores depend on selective context, not just the board. Include the exact
+/// budget: entry nodes allow tactics that deeper recapture-only nodes omit.
+fn q_tt_key(
+    state: &GameState,
+    prev_to: Option<Position>,
+    qdepth: u32,
+    allow_pathclear: bool,
+    include_captures: bool,
+    ctx: &SearchContext,
+) -> u64 {
+    let mut key = state.hash() ^ royal_extension_key(ctx);
+    let landing = prev_to.map_or(0, |p| 1 + p.to_index() as u64);
+    let flags = u64::from(allow_pathclear)
+        | (u64::from(include_captures) << 1)
+        | (u64::from(ctx.last_ab_wipe) << 2);
+    // SplitMix64 mixes each small context value into the board hash. Always
+    // include the landing: even ordinary PathAware search uses it for eligibility.
+    for value in [landing, u64::from(qdepth), u64::from(ctx.quiesce_entry_depth), flags] {
+        let mut x = key.wrapping_add(value).wrapping_add(0x9e3779b97f4a7c15);
+        x = (x ^ (x >> 30)).wrapping_mul(0xbf58476d1ce4e5b9);
+        x = (x ^ (x >> 27)).wrapping_mul(0x94d049bb133111eb);
+        key = x ^ (x >> 31);
     }
-    k
+    key
 }
 
 fn tt_from_config(size_pow2: usize, config: &SearchConfig) -> TranspositionTable {
@@ -933,18 +946,15 @@ fn move_resolves_last_royal_check(state: &mut GameState, mv: &Move) -> bool {
         return true;
     }
     let us = state.get_current_turn();
-    // This rule-only probe never evaluates a position. Keep the original
-    // accumulator (and its caches) untouched while simulating board changes.
-    let nnue = state.nnue.take();
-    let ok = if let Some(undo) = state.make_move_for_search(mv.clone()) {
-        let ok = color_last_royal_resolved(state, us);
-        state.unmake_move_for_search(undo);
-        ok
-    } else {
-        false
-    };
-    state.nnue = nnue;
-    ok
+    state.with_rule_only_probe(|state| {
+        if let Some(undo) = state.make_move_for_search(mv.clone()) {
+            let ok = color_last_royal_resolved(state, us);
+            state.unmake_move_for_search(undo);
+            ok
+        } else {
+            false
+        }
+    })
 }
 
 /// `Some(evasions)` when the last royal is in check (`empty` = mate). `None` if not.
@@ -2278,7 +2288,6 @@ pub fn search_with_progress(
         q_tt_hits: 0,
         q_tt_probes: 0,
         root_move_started: now,
-        q_hash_prev_to: config.q_hash_prev_to,
         q_no_pathclear_reply: config.q_no_pathclear_reply,
         q_no_pathclear: config.q_no_pathclear,
         q_loud_promo_simple_only: config.q_loud_promo_simple_only,
@@ -2843,7 +2852,6 @@ pub fn probe_quiescence(
         q_tt_hits: 0,
         q_tt_probes: 0,
         root_move_started: Instant::now(),
-        q_hash_prev_to: false,
         q_no_pathclear_reply: false,
         q_no_pathclear: false,
         q_loud_promo_simple_only: false,
@@ -2922,6 +2930,20 @@ fn probe_quiesce_window(
     beta: i32,
     prev_to: Option<Position>,
 ) -> (i32, u64) {
+    with_quiesce_test_context(state, weights, qdepth, prev_to, |pos, ctx| {
+        let score = quiesce(pos, weights, qdepth, alpha, beta, prev_to, true, true, ctx);
+        (score, ctx.q_nodes)
+    })
+}
+
+#[cfg(test)]
+fn with_quiesce_test_context<R>(
+    state: &GameState,
+    weights: &EvalWeights,
+    qdepth: u32,
+    prev_to: Option<Position>,
+    run: impl FnOnce(&mut GameState, &mut SearchContext) -> R,
+) -> R {
     let _wbind = bind_search_weights(weights);
     let root_ply = state.get_move_history().len();
     let now = Instant::now();
@@ -2976,7 +2998,6 @@ fn probe_quiesce_window(
         q_tt_hits: 0,
         q_tt_probes: 0,
         root_move_started: Instant::now(),
-        q_hash_prev_to: false,
         q_no_pathclear_reply: false,
         q_no_pathclear: false,
         q_loud_promo_simple_only: false,
@@ -2996,10 +3017,7 @@ fn probe_quiesce_window(
     };
     let mut pos = state.clone();
     pos.ensure_eval_inc(weights);
-    let score = quiesce(
-        &mut pos, weights, qdepth, alpha, beta, prev_to, true, true, &mut ctx,
-    );
-    (score, ctx.q_nodes)
+    run(&mut pos, &mut ctx)
 }
 
 /// Test harness: quiet-parent leaf path (`last_ab_capture_enemy = 0`).
@@ -3084,7 +3102,6 @@ fn probe_quiet_parent_leaf_stats(
         q_tt_hits: 0,
         q_tt_probes: 0,
         root_move_started: Instant::now(),
-        q_hash_prev_to: false,
         q_no_pathclear_reply: false,
         q_no_pathclear: false,
         q_loud_promo_simple_only: false,
@@ -3187,7 +3204,6 @@ fn probe_capture_parent_leaf_or_quiesce_rs(
         q_tt_hits: 0,
         q_tt_probes: 0,
         root_move_started: Instant::now(),
-        q_hash_prev_to: false,
         q_no_pathclear_reply: false,
         q_no_pathclear: false,
         q_loud_promo_simple_only: false,
@@ -3747,6 +3763,61 @@ fn leaf_quiescence_depth(ctx: &SearchContext, is_pv: bool) -> u32 {
     }
 }
 
+/// Shared by ordinary leaves and recursively reached q nodes. Evasion search
+/// may enter AB and reset q policy; restore it before returning to the q parent.
+fn search_leaf_evasions(
+    state: &mut GameState,
+    weights: &EvalWeights,
+    alpha: i32,
+    beta: i32,
+    is_pv: bool,
+    mut evasions: Vec<Move>,
+    ctx: &mut SearchContext,
+) -> i32 {
+    if evasions.is_empty() {
+        return -weights.mate_score;
+    }
+    order_moves_with_heuristics(state, weights, &mut evasions, ctx, ctx.ply, false, false);
+    let parent_ply = ctx.ply;
+    // A royal with no flight and exactly one non-royal defense gets one extra
+    // ply, once per path. Routine king flights do not trigger this extension.
+    // Reuse the existing evasion list; no extra detection or static score tax.
+    let saved = ctx.royal_extension_spent;
+    let extend = weights.last_royal_mode == crate::eval::LastRoyalMode::ScarceDefenses
+        && !saved
+        && evasions.len() == 1
+        && state.get_board().get_piece(evasions[0].from)
+            .is_some_and(|p| !p.piece_type.is_royal());
+    if extend {
+        ctx.royal_extension_spent = true;
+        ctx.royal_extensions += 1;
+    }
+    let saved_policy = (
+        ctx.last_ab_capture_enemy, ctx.last_ab_to, ctx.last_ab_wipe,
+        ctx.last_ab_mover_large, ctx.quiesce_entry_depth,
+    );
+    let (best, _, _, _) = search_move_list(
+        state,
+        weights,
+        if extend { 2 } else { 1 },
+        alpha,
+        beta,
+        is_pv,
+        ctx,
+        parent_ply,
+        &evasions,
+        0,
+    );
+    ctx.royal_extension_spent = saved;
+    (ctx.last_ab_capture_enemy, ctx.last_ab_to, ctx.last_ab_wipe,
+        ctx.last_ab_mover_large, ctx.quiesce_entry_depth) = saved_policy;
+    return if best == i32::MIN + 1 {
+        -weights.mate_score
+    } else {
+        best
+    };
+}
+
 fn leaf_or_quiesce(
     state: &mut GameState,
     weights: &EvalWeights,
@@ -3755,46 +3826,9 @@ fn leaf_or_quiesce(
     is_pv: bool,
     ctx: &mut SearchContext,
 ) -> i32 {
-    // Last royal in check: never stand-pat. Search evasions for one ply even
-    // when the q budget is 0 (king-flight / hanging recapture are often quiet
-    // or hang-skipped captures).
-    if let Some(mut evasions) = last_royal_evasions(state) {
-        if evasions.is_empty() {
-            return -weights.mate_score;
-        }
-        order_moves_with_heuristics(state, weights, &mut evasions, ctx, ctx.ply, false, false);
-        let parent_ply = ctx.ply;
-        // A royal with no flight and exactly one non-royal defense gets one extra
-        // ply, once per path. Routine king flights do not trigger this extension.
-        // Reuse the existing evasion list; no extra detection or static score tax.
-        let saved = ctx.royal_extension_spent;
-        let extend = weights.last_royal_mode == crate::eval::LastRoyalMode::ScarceDefenses
-            && !saved
-            && evasions.len() == 1
-            && state.get_board().get_piece(evasions[0].from)
-                .is_some_and(|p| !p.piece_type.is_royal());
-        if extend {
-            ctx.royal_extension_spent = true;
-            ctx.royal_extensions += 1;
-        }
-        let (best, _, _, _) = search_move_list(
-            state,
-            weights,
-            if extend { 2 } else { 1 },
-            alpha,
-            beta,
-            is_pv,
-            ctx,
-            parent_ply,
-            &evasions,
-            0,
-        );
-        ctx.royal_extension_spent = saved;
-        return if best == i32::MIN + 1 {
-            -weights.mate_score
-        } else {
-            best
-        };
+    // Search all evasions, including quiet flights and hanging recaptures.
+    if let Some(evasions) = last_royal_evasions(state) {
+        return search_leaf_evasions(state, weights, alpha, beta, is_pv, evasions, ctx);
     }
 
     let q = leaf_quiescence_depth(ctx, is_pv);
@@ -3823,7 +3857,7 @@ fn leaf_or_quiesce(
         let after_wipe = ctx.q_no_pathclear_after_wipe && ctx.last_ab_wipe;
         // Quiet leaf with only promo tactics: don't open full capture q.
         // Hang-caps open capture q so free large SimpleTakes get resolved.
-        quiesce(
+        quiesce_impl(
             state,
             weights,
             q,
@@ -3832,6 +3866,7 @@ fn leaf_or_quiesce(
             prev_to,
             !ctx.q_no_pathclear && !after_wipe,
             include_caps,
+            true, // last_royal_evasions above established safety
             ctx,
         )
     }
@@ -3855,11 +3890,27 @@ fn quiesce(
     state: &mut GameState,
     weights: &EvalWeights,
     qdepth: u32,
+    alpha: i32,
+    beta: i32,
+    prev_to: Option<Position>,
+    allow_pathclear: bool,
+    include_captures: bool,
+    ctx: &mut SearchContext,
+) -> i32 {
+    quiesce_impl(state, weights, qdepth, alpha, beta, prev_to,
+        allow_pathclear, include_captures, false, ctx)
+}
+
+fn quiesce_impl(
+    state: &mut GameState,
+    weights: &EvalWeights,
+    qdepth: u32,
     mut alpha: i32,
     beta: i32,
     prev_to: Option<Position>,
     allow_pathclear: bool,
     include_captures: bool,
+    known_not_in_check: bool,
     ctx: &mut SearchContext,
 ) -> i32 {
     ctx.nodes += 1;
@@ -3876,7 +3927,22 @@ fn quiesce(
         return 0;
     }
 
-    let key = q_tt_key(state, prev_to, ctx.q_hash_prev_to) ^ royal_extension_key(ctx);
+    // Forced royal defense precedes TT, stand pat, and the qdepth-zero exit.
+    // The normal leaf caller has already performed this exact check.
+    if !known_not_in_check {
+        if let Some(evasions) = last_royal_evasions(state) {
+            return search_leaf_evasions(state, weights, alpha, beta, true, evasions, ctx);
+        }
+    }
+
+    // Zero-budget q results are never stored, and the key includes the exact
+    // remaining budget. Such a node cannot hit the score table; only diagnostics
+    // need its key. Royal defenses above still run at zero budget.
+    let key = if qdepth > 0 || ctx.track_q_unique || cfg!(debug_assertions) {
+        q_tt_key(state, prev_to, qdepth, allow_pathclear, include_captures, ctx)
+    } else {
+        0
+    };
     // Unique-q tracking is diagnostic-only unless `track_q_unique`.
     if ctx.track_q_unique || cfg!(debug_assertions) {
         if !ctx.q_unique_saturated {
@@ -3892,6 +3958,12 @@ fn quiesce(
                 ctx.q_unique_saturated = true;
             }
         }
+    }
+
+    if qdepth == 0 {
+        let stand_pat = evaluate_with_ply(state, weights, ctx.ply);
+        ctx.q_stand_pat = stand_pat;
+        return stand_pat;
     }
 
     // Quiescence TT: depth is remaining q-plies.
@@ -3921,9 +3993,6 @@ fn quiesce(
 
     let stand_pat = evaluate_with_ply(state, weights, ctx.ply);
     ctx.q_stand_pat = stand_pat;
-    if qdepth == 0 {
-        return stand_pat;
-    }
     let resolve_major = prev_to_is_major_enemy(state, weights, prev_to);
     let has_royal_take = stm_has_royal_capture(state);
     if stand_pat >= beta && !resolve_major && !has_royal_take {
@@ -4341,13 +4410,15 @@ fn quiesce(
     } else {
         TtBound::Exact
     };
-    ctx.q_tt.store(TtEntry {
-        key,
-        depth: qdepth,
-        score: best,
-        bound,
-        best: best_move_key,
-    });
+    if !ctx.abort {
+        ctx.q_tt.store(TtEntry {
+            key,
+            depth: qdepth,
+            score: best,
+            bound,
+            best: best_move_key,
+        });
+    }
     best
 }
 
@@ -7991,10 +8062,11 @@ mod tests {
     }
 
     #[test]
-    fn royal_probe_preserves_nnue_and_matches_normal_simulation() {
+    fn royal_probe_preserves_evaluators_and_matches_normal_simulation() {
         let (mut initial, mut weights, _) = last_royal_check_hanging_dragon();
         weights.nnue_runtime = Some(crate::nnue::tests::net(32, "royal-probe"));
         initial.ensure_eval_inc(&weights);
+        let _binding = crate::eval::bind_search_weights(&weights);
         let mut moves = initial.generate_legal_moves();
         // Also exercise the failed-make path, which must restore the accumulator.
         moves.push(Move::new(Position::new(34, 0).unwrap(), Position::new(33, 0).unwrap()));
@@ -8011,6 +8083,8 @@ mod tests {
                 resolved
             } else { false };
             assert_eq!(move_resolves_last_royal_check(&mut fast, &mv), expected);
+            assert_eq!(fast.eval_inc(), initial.eval_inc());
+            assert_eq!(fast.eval_inc(), reference.eval_inc());
             assert!(fast.nnue.as_ref().unwrap().matches_rebuild(fast.get_board()));
             assert_eq!(before, [Color::Black, Color::White].map(|c| fast.nnue.as_ref().unwrap().residual(c)));
             assert_eq!(fast.hash(), reference.hash());
@@ -8158,6 +8232,174 @@ mod tests {
         ));
         state.set_current_turn(Color::White);
         state
+    }
+
+    #[test]
+    fn zero_budget_q_keeps_diagnostics_without_probing_the_score_table() {
+        let (state, weights, _) = hung_gg_by_gold();
+        with_quiesce_test_context(&state, &weights, 0, None, |pos, ctx| {
+            ctx.track_q_unique = true;
+            let expected = evaluate_with_ply(pos, &weights, ctx.ply);
+            let probes = ctx.q_tt_probes;
+            let actual = quiesce(pos, &weights, 0, i32::MIN + 1, i32::MAX - 1,
+                None, true, true, ctx);
+            assert_eq!(actual, expected);
+            assert_eq!(ctx.q_stand_pat, expected);
+            assert_eq!(ctx.q_tt_probes, probes);
+            assert_eq!(ctx.q_unique.len(), 1);
+        });
+    }
+
+    #[test]
+    fn q_cache_separates_capture_eligibility() {
+        let (state, weights, _) = hung_gg_by_gold();
+        let query = |pos: &mut GameState, ctx: &mut SearchContext, captures| {
+            quiesce(pos, &weights, 1, i32::MIN + 1, i32::MAX - 1,
+                None, true, captures, ctx)
+        };
+        let fresh = with_quiesce_test_context(&state, &weights, 1, None,
+            |pos, ctx| query(pos, ctx, false));
+        with_quiesce_test_context(&state, &weights, 1, None, |pos, ctx| {
+            let capture = query(pos, ctx, true);
+            assert!(capture > fresh, "the hanging GG capture must improve the score");
+            assert_eq!(query(pos, ctx, false), fresh,
+                "a capture-enabled cache entry cannot answer a promo-only query");
+            let hits = ctx.q_tt_hits;
+            assert_eq!(query(pos, ctx, true), capture);
+            assert!(ctx.q_tt_hits > hits, "matching contexts must still reuse scores");
+        });
+    }
+
+    #[test]
+    fn q_cache_keys_cover_selective_context() {
+        let (state, weights, _) = hung_gg_by_gold();
+        with_quiesce_test_context(&state, &weights, 2, None, |pos, ctx| {
+            let mut keys = HashSet::new();
+            for prev in [None, Position::new(10, 11), Position::new(10, 12)] {
+                for entry in 1..=3 {
+                    ctx.quiesce_entry_depth = entry;
+                    for depth in 0..=entry {
+                        for flags in 0..16 {
+                            ctx.last_ab_wipe = flags & 4 != 0;
+                            ctx.royal_extension_spent = flags & 8 != 0;
+                            assert!(keys.insert(q_tt_key(pos, prev, depth,
+                                flags & 1 != 0, flags & 2 != 0, ctx)));
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    #[test]
+    fn recursive_q_resolves_mate_before_depth_or_stand_pat_cutoff() {
+        let state = last_royal_check_no_evasion();
+        let mut weights = EvalWeights::seed();
+        weights.noise_scale = 0.0;
+        for depth in [0, 1] {
+            for (alpha, beta) in [(-weights.mate_score, weights.mate_score),
+                (-weights.mate_score, -weights.mate_score + 1)] {
+                assert_eq!(probe_quiesce_window(&state, &weights, depth, alpha, beta, None).0,
+                    -weights.mate_score);
+            }
+        }
+    }
+
+    #[test]
+    fn recursive_q_preserves_quiet_and_hanging_evasions_and_parent_context() {
+        let (hanging, mut weights, _) = last_royal_check_hanging_dragon();
+        weights.noise_scale = 0.0;
+        let mut flight = GameState::new();
+        for (kind, color, file, rank) in [
+            (PieceType::King, Color::Black, 0, 0),
+            (PieceType::King, Color::White, 20, 20),
+            (PieceType::GoldGeneral, Color::Black, 20, 19),
+        ] {
+            flight.place_piece(Piece::new(kind, color, Position::new(file, rank).unwrap()));
+        }
+        flight.set_current_turn(Color::White);
+        assert!(last_royal_evasions(&mut flight).unwrap().iter()
+            .any(|mv| !move_captures_enemy(&flight, mv)));
+        for state in [flight, hanging] {
+            let expected = probe_quiet_parent_leaf_stats(&state, &weights, 0, QHangOpts::default()).0;
+            with_quiesce_test_context(&state, &weights, 0, None, |pos, ctx| {
+                ctx.last_ab_capture_enemy = 1234.0;
+                ctx.last_ab_to = Position::new(12, 12);
+                ctx.last_ab_wipe = true;
+                ctx.last_ab_mover_large = true;
+                ctx.quiesce_entry_depth = 7;
+                let hash = pos.hash();
+                let reps = pos.repetition_count();
+                let score = quiesce(pos, &weights, 0, -weights.mate_score,
+                    weights.mate_score, None, false, false, ctx);
+                assert_eq!(score, expected);
+                assert!(score > -weights.mate_score);
+                assert_eq!((ctx.last_ab_capture_enemy, ctx.last_ab_to, ctx.last_ab_wipe,
+                    ctx.last_ab_mover_large, ctx.quiesce_entry_depth),
+                    (1234.0, Position::new(12, 12), true, true, 7));
+                assert_eq!((pos.hash(), pos.repetition_count(), ctx.ply),
+                    (hash, reps, state.get_move_history().len()));
+            });
+        }
+    }
+
+    #[test]
+    fn q_checking_capture_resolves_check_at_exhausted_budget() {
+        // Away from promotion zones, the knight's checking capture has one
+        // route. Box the king with pieces that cannot capture the knight.
+        let mut state = GameState::new();
+        for (kind, color, file, rank) in [
+            (PieceType::King, Color::Black, 0, 0),
+            (PieceType::Knight, Color::Black, 33, 16),
+            (PieceType::King, Color::White, 35, 20),
+            (PieceType::GreatGeneral, Color::White, 34, 18),
+            (PieceType::Bishop, Color::White, 34, 19),
+            (PieceType::Pawn, Color::White, 34, 20),
+            (PieceType::Pawn, Color::White, 34, 21),
+            (PieceType::Lance, Color::White, 35, 19),
+            (PieceType::Pawn, Color::White, 35, 21),
+        ] {
+            state.place_piece(Piece::new(kind, color, Position::new(file, rank).unwrap()));
+        }
+        state.set_current_turn(Color::Black);
+        let landing = Position::new(34, 18).unwrap();
+        let mut weights = EvalWeights::seed();
+        weights.noise_scale = 0.0;
+        weights.rebuild_piece_value_table();
+        assert!(!stm_last_royal_in_check(&state), "parent must not already be checked");
+        let checking = Move::new(Position::new(33, 16).unwrap(), landing);
+        assert!(generate_quiescence_captures(&state, &weights, None, false, true, true, false)
+            .iter().any(|m| m.from == checking.from && m.to == checking.to && !m.promoted),
+            "checking capture must be eligible");
+        let mut child = state.clone();
+        child.make_move_for_search(checking).expect("checking capture");
+        assert!(last_royal_evasions(&mut child).is_some_and(|e| e.is_empty()), "child must be mate");
+        with_quiesce_test_context(&state, &weights, 1, None, |pos, ctx| {
+            ctx.q_prune_mode = QPruneMode::Baseline;
+            let hash = pos.hash();
+            let score = quiesce(pos, &weights, 1, -weights.mate_score, weights.mate_score,
+                None, true, true, ctx);
+            assert_eq!(score, weights.mate_score, "qnodes={} generated={} searched={} stand={}",
+                ctx.q_nodes, ctx.q_caps_generated, ctx.q_caps_searched, ctx.q_stand_pat);
+            assert!(ctx.q_nodes >= 2, "must reach the checked q child");
+            assert_eq!(pos.hash(), hash);
+        });
+    }
+
+    #[test]
+    fn cancelled_q_does_not_cache_or_expand_evasions() {
+        let state = last_royal_check_no_evasion();
+        let weights = EvalWeights::seed();
+        with_quiesce_test_context(&state, &weights, 1, None, |pos, ctx| {
+            ctx.cancel = Some(Arc::new(AtomicBool::new(true)));
+            let key = q_tt_key(pos, None, 1, true, true, ctx);
+            quiesce(pos, &weights, 1, -weights.mate_score, weights.mate_score,
+                None, true, true, ctx);
+            assert!(ctx.abort);
+            assert_eq!(ctx.nodes, 1);
+            assert!(ctx.q_tt.probe(key).is_none());
+            assert_eq!(pos.hash(), state.hash());
+        });
     }
 
     #[test]

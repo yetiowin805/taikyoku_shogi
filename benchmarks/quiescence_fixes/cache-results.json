@@ -1,0 +1,2210 @@
+{
+  "cpu": 2,
+  "repetitions": 5,
+  "seed": 20261008,
+  "target_mode": "depth3",
+  "corpus": {
+    "model": "models/nnue-v4.5/NNUE_W512_v4.5/model.json",
+    "model_sha256": "42bb57d10d2b01bbe59fb7ab7c75a260158c72bd322b3b8cf8533376f486d37e",
+    "model_blob": "models/nnue-v4.5/NNUE_W512_v4.5/nnue-81b1c69ab269ecce313a93b0cbe866ede18c37d8a5ff83116dc20d196ba12ea4.bin",
+    "model_blob_sha256": "81b1c69ab269ecce313a93b0cbe866ede18c37d8a5ff83116dc20d196ba12ea4",
+    "positions": [
+      {
+        "id": "target174",
+        "game": "data/raw/games/nnue-512-v4.5-handcrafted-losses/slot0673-NNUE_W512_v4.5-vs-SEEDS2-a-white.json",
+        "game_sha256": "ee8c2fe6ac1b3699777f7691a41c821c45bc770441db0edfa65869b02be364a9",
+        "ply": 174
+      },
+      {
+        "id": "target176",
+        "game": "data/raw/games/nnue-512-v4.5-handcrafted-losses/slot0673-NNUE_W512_v4.5-vs-SEEDS2-a-white.json",
+        "game_sha256": "ee8c2fe6ac1b3699777f7691a41c821c45bc770441db0edfa65869b02be364a9",
+        "ply": 176
+      },
+      {
+        "id": "early_v45",
+        "game": "data/raw/games/nnue-512-v4.5/slot0636-NNUE_W512_v4.5-vs-NNUE_W1536_v3-a-black.json",
+        "game_sha256": "443f4d8ae72d3747141851c55c379a5354a802af44428f72acd0638ac57accbf",
+        "ply": 40
+      },
+      {
+        "id": "middle_v45",
+        "game": "data/raw/games/nnue-512-v4.5/slot0632-NNUE_W384_v4.5-vs-NNUE_W512_v4.5-a-black.json",
+        "game_sha256": "f8c96d6a88c769f141226438c9bd6d2fb9d4e9d4f61c2b745b45d40f6987ce4e",
+        "ply": 334
+      },
+      {
+        "id": "late_mixed",
+        "game": "data/raw/games/nnue-512-v4.5-handcrafted-losses/slot0723-NNUE_W512_v4.5-vs-BASE_C2S2_A160_Lflight-a-white.json",
+        "game_sha256": "b7d7b12a4abcb6c2d97200d43be6f5649b04486887405532c584d210f583382d",
+        "ply": 580
+      },
+      {
+        "id": "long_mixed",
+        "game": "data/raw/games/long-droughts-under-100/slot0020-BASE_C2S2_A80_Ldefense-vs-NNUE_W768_v3-a-white.json",
+        "game_sha256": "9a34e6d2d204fa86ac56b7058bd8bb51edfbccf2a502a00e069c5878b693b593",
+        "ply": 2400
+      }
+    ],
+    "selection": "Two development targets and four preselected controls from the earlier frozen corpus; fixed model W512 v4.5 throughout."
+  },
+  "binaries": {
+    "baseline": {
+      "path": "/tmp/qfix-analyze-position",
+      "sha256": "37b5a49dabb2ed84752307a9d44b3405880e748c5a529e0827b375ea7bcad905"
+    },
+    "fixed": {
+      "path": "/tmp/taikyoku-qfix-build/release/analyze_position",
+      "sha256": "7685833631de659116f8d7817d088edb9bb9d865373add8a7d5e35c343a04292"
+    }
+  },
+  "runs": [
+    {
+      "position": "target174",
+      "mode": "depth2",
+      "variant": "fixed",
+      "repetition": 4,
+      "wall_seconds": 0.42011670200008666,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "28,26-27,26",
+          "completed_depth": 1,
+          "elapsed_ms": 44,
+          "nodes": 12749,
+          "score": -1214
+        },
+        {
+          "best_move": "18,13-21,10-24,13",
+          "completed_depth": 2,
+          "elapsed_ms": 118,
+          "nodes": 34924,
+          "score": -5075
+        }
+      ],
+      "stderr": "ab diag: root=1070 scored=2187 fh=0% near20=1% spread(max-med)=4107 qnodes=25887 quniq=0 qTThit=13%/3377/25873 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "target176",
+      "mode": "depth3",
+      "variant": "baseline",
+      "repetition": 2,
+      "wall_seconds": 1.9628397389969905,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "17,1-18,0",
+          "completed_depth": 1,
+          "elapsed_ms": 23,
+          "nodes": 2532,
+          "score": -2707
+        },
+        {
+          "best_move": "17,1-18,0",
+          "completed_depth": 2,
+          "elapsed_ms": 47,
+          "nodes": 5735,
+          "score": -2707
+        },
+        {
+          "best_move": "30,33-30,3+",
+          "completed_depth": 3,
+          "elapsed_ms": 1656,
+          "nodes": 371510,
+          "score": 894
+        }
+      ],
+      "stderr": "ab diag: root=708 scored=4224 fh=0% near20=0% spread(max-med)=769 qnodes=307113 quniq=0 qTThit=2%/6189/306316 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "long_mixed",
+      "mode": "depth2",
+      "variant": "baseline",
+      "repetition": 1,
+      "wall_seconds": 0.35804086899588583,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "1,35-0,34",
+          "completed_depth": 1,
+          "elapsed_ms": 10,
+          "nodes": 183,
+          "score": 1884
+        },
+        {
+          "best_move": "2,4-11,13",
+          "completed_depth": 2,
+          "elapsed_ms": 28,
+          "nodes": 4916,
+          "score": 1290
+        }
+      ],
+      "stderr": "ab diag: root=86 scored=173 fh=1% near20=2% spread(max-med)=887 qnodes=42 quniq=0 qTThit=35%/14/39 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "late_mixed",
+      "mode": "depth2",
+      "variant": "baseline",
+      "repetition": 2,
+      "wall_seconds": 0.5589740750001511,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "10,28-10,8+",
+          "completed_depth": 1,
+          "elapsed_ms": 40,
+          "nodes": 4951,
+          "score": 5158
+        },
+        {
+          "best_move": "33,33-8,8",
+          "completed_depth": 2,
+          "elapsed_ms": 230,
+          "nodes": 67621,
+          "score": 2993
+        }
+      ],
+      "stderr": "ab diag: root=547 scored=1021 fh=0% near20=14% spread(max-med)=2192 qnodes=52546 quniq=0 qTThit=12%/6519/52481 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "long_mixed",
+      "mode": "depth2",
+      "variant": "baseline",
+      "repetition": 0,
+      "wall_seconds": 0.3326396949996706,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "1,35-0,34",
+          "completed_depth": 1,
+          "elapsed_ms": 10,
+          "nodes": 183,
+          "score": 1884
+        },
+        {
+          "best_move": "2,4-11,13",
+          "completed_depth": 2,
+          "elapsed_ms": 26,
+          "nodes": 4916,
+          "score": 1290
+        }
+      ],
+      "stderr": "ab diag: root=86 scored=173 fh=1% near20=2% spread(max-med)=887 qnodes=42 quniq=0 qTThit=35%/14/39 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "target174",
+      "mode": "depth3",
+      "variant": "baseline",
+      "repetition": 4,
+      "wall_seconds": 2.3090639709989773,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "28,26-27,26",
+          "completed_depth": 1,
+          "elapsed_ms": 45,
+          "nodes": 12749,
+          "score": -1214
+        },
+        {
+          "best_move": "18,13-21,10-24,13",
+          "completed_depth": 2,
+          "elapsed_ms": 122,
+          "nodes": 34924,
+          "score": -5075
+        },
+        {
+          "best_move": "17,31-17,1",
+          "completed_depth": 3,
+          "elapsed_ms": 2008,
+          "nodes": 619799,
+          "score": -1089
+        }
+      ],
+      "stderr": "ab diag: root=1070 scored=6299 fh=1% near20=1% spread(max-med)=146 qnodes=477652 quniq=0 qTThit=3%/14620/477189 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "early_v45",
+      "mode": "depth2",
+      "variant": "baseline",
+      "repetition": 1,
+      "wall_seconds": 0.4233501529961359,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "12,27-2,17",
+          "completed_depth": 1,
+          "elapsed_ms": 32,
+          "nodes": 4967,
+          "score": 8185
+        },
+        {
+          "best_move": "12,27-2,17",
+          "completed_depth": 2,
+          "elapsed_ms": 125,
+          "nodes": 30266,
+          "score": 5299
+        }
+      ],
+      "stderr": "ab diag: root=608 scored=1061 fh=0% near20=0% spread(max-med)=3193 qnodes=25452 quniq=0 qTThit=6%/1710/25431 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "early_v45",
+      "mode": "depth2",
+      "variant": "baseline",
+      "repetition": 4,
+      "wall_seconds": 0.4532101920049172,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "12,27-2,17",
+          "completed_depth": 1,
+          "elapsed_ms": 33,
+          "nodes": 4967,
+          "score": 8185
+        },
+        {
+          "best_move": "12,27-2,17",
+          "completed_depth": 2,
+          "elapsed_ms": 127,
+          "nodes": 30266,
+          "score": 5299
+        }
+      ],
+      "stderr": "ab diag: root=608 scored=1061 fh=0% near20=0% spread(max-med)=3193 qnodes=25452 quniq=0 qTThit=6%/1710/25431 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "target174",
+      "mode": "depth3",
+      "variant": "baseline",
+      "repetition": 0,
+      "wall_seconds": 2.3150778060007724,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "28,26-27,26",
+          "completed_depth": 1,
+          "elapsed_ms": 46,
+          "nodes": 12749,
+          "score": -1214
+        },
+        {
+          "best_move": "18,13-21,10-24,13",
+          "completed_depth": 2,
+          "elapsed_ms": 123,
+          "nodes": 34924,
+          "score": -5075
+        },
+        {
+          "best_move": "17,31-17,1",
+          "completed_depth": 3,
+          "elapsed_ms": 2015,
+          "nodes": 619799,
+          "score": -1089
+        }
+      ],
+      "stderr": "ab diag: root=1070 scored=6299 fh=1% near20=1% spread(max-med)=146 qnodes=477652 quniq=0 qTThit=3%/14620/477189 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "middle_v45",
+      "mode": "depth2",
+      "variant": "baseline",
+      "repetition": 3,
+      "wall_seconds": 0.35502231000282336,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "28,10-18,0",
+          "completed_depth": 1,
+          "elapsed_ms": 23,
+          "nodes": 3228,
+          "score": -4584
+        },
+        {
+          "best_move": "28,10-18,0",
+          "completed_depth": 2,
+          "elapsed_ms": 57,
+          "nodes": 7708,
+          "score": -4584
+        }
+      ],
+      "stderr": "ab diag: root=966 scored=1882 fh=0% near20=0% spread(max-med)=1085 qnodes=3824 quniq=0 qTThit=23%/893/3775 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "target174",
+      "mode": "depth2",
+      "variant": "baseline",
+      "repetition": 1,
+      "wall_seconds": 0.41899034199741436,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "28,26-27,26",
+          "completed_depth": 1,
+          "elapsed_ms": 46,
+          "nodes": 12749,
+          "score": -1214
+        },
+        {
+          "best_move": "18,13-21,10-24,13",
+          "completed_depth": 2,
+          "elapsed_ms": 121,
+          "nodes": 34924,
+          "score": -5075
+        }
+      ],
+      "stderr": "ab diag: root=1070 scored=2187 fh=0% near20=1% spread(max-med)=4107 qnodes=25887 quniq=0 qTThit=13%/3377/25873 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "long_mixed",
+      "mode": "depth2",
+      "variant": "baseline",
+      "repetition": 3,
+      "wall_seconds": 0.3365538270008983,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "1,35-0,34",
+          "completed_depth": 1,
+          "elapsed_ms": 11,
+          "nodes": 183,
+          "score": 1884
+        },
+        {
+          "best_move": "2,4-11,13",
+          "completed_depth": 2,
+          "elapsed_ms": 27,
+          "nodes": 4916,
+          "score": 1290
+        }
+      ],
+      "stderr": "ab diag: root=86 scored=173 fh=1% near20=2% spread(max-med)=887 qnodes=42 quniq=0 qTThit=35%/14/39 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "middle_v45",
+      "mode": "depth2",
+      "variant": "fixed",
+      "repetition": 3,
+      "wall_seconds": 0.3602563189997454,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "28,10-18,0",
+          "completed_depth": 1,
+          "elapsed_ms": 23,
+          "nodes": 3228,
+          "score": -4584
+        },
+        {
+          "best_move": "28,10-18,0",
+          "completed_depth": 2,
+          "elapsed_ms": 58,
+          "nodes": 7708,
+          "score": -4584
+        }
+      ],
+      "stderr": "ab diag: root=966 scored=1882 fh=0% near20=0% spread(max-med)=1085 qnodes=3824 quniq=0 qTThit=23%/893/3775 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "target174",
+      "mode": "depth3",
+      "variant": "fixed",
+      "repetition": 2,
+      "wall_seconds": 2.3040322119995835,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "28,26-27,26",
+          "completed_depth": 1,
+          "elapsed_ms": 46,
+          "nodes": 12749,
+          "score": -1214
+        },
+        {
+          "best_move": "18,13-21,10-24,13",
+          "completed_depth": 2,
+          "elapsed_ms": 123,
+          "nodes": 34924,
+          "score": -5075
+        },
+        {
+          "best_move": "17,31-17,1",
+          "completed_depth": 3,
+          "elapsed_ms": 2000,
+          "nodes": 619799,
+          "score": -1089
+        }
+      ],
+      "stderr": "ab diag: root=1070 scored=6299 fh=1% near20=1% spread(max-med)=146 qnodes=477652 quniq=0 qTThit=3%/14620/477189 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "target176",
+      "mode": "depth2",
+      "variant": "baseline",
+      "repetition": 3,
+      "wall_seconds": 0.3520091160025913,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "17,1-18,0",
+          "completed_depth": 1,
+          "elapsed_ms": 22,
+          "nodes": 2532,
+          "score": -2707
+        },
+        {
+          "best_move": "17,1-18,0",
+          "completed_depth": 2,
+          "elapsed_ms": 46,
+          "nodes": 5735,
+          "score": -2707
+        }
+      ],
+      "stderr": "ab diag: root=708 scored=1408 fh=0% near20=0% spread(max-med)=4365 qnodes=2834 quniq=0 qTThit=24%/676/2800 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "target176",
+      "mode": "depth2",
+      "variant": "baseline",
+      "repetition": 4,
+      "wall_seconds": 0.3420616540024639,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "17,1-18,0",
+          "completed_depth": 1,
+          "elapsed_ms": 21,
+          "nodes": 2532,
+          "score": -2707
+        },
+        {
+          "best_move": "17,1-18,0",
+          "completed_depth": 2,
+          "elapsed_ms": 46,
+          "nodes": 5735,
+          "score": -2707
+        }
+      ],
+      "stderr": "ab diag: root=708 scored=1408 fh=0% near20=0% spread(max-med)=4365 qnodes=2834 quniq=0 qTThit=24%/676/2800 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "long_mixed",
+      "mode": "depth2",
+      "variant": "fixed",
+      "repetition": 0,
+      "wall_seconds": 0.32714470400242135,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "1,35-0,34",
+          "completed_depth": 1,
+          "elapsed_ms": 9,
+          "nodes": 183,
+          "score": 1884
+        },
+        {
+          "best_move": "2,4-11,13",
+          "completed_depth": 2,
+          "elapsed_ms": 24,
+          "nodes": 4916,
+          "score": 1290
+        }
+      ],
+      "stderr": "ab diag: root=86 scored=173 fh=1% near20=2% spread(max-med)=887 qnodes=42 quniq=0 qTThit=35%/14/39 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "target174",
+      "mode": "depth3",
+      "variant": "baseline",
+      "repetition": 3,
+      "wall_seconds": 2.3268448739981977,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "28,26-27,26",
+          "completed_depth": 1,
+          "elapsed_ms": 47,
+          "nodes": 12749,
+          "score": -1214
+        },
+        {
+          "best_move": "18,13-21,10-24,13",
+          "completed_depth": 2,
+          "elapsed_ms": 123,
+          "nodes": 34924,
+          "score": -5075
+        },
+        {
+          "best_move": "17,31-17,1",
+          "completed_depth": 3,
+          "elapsed_ms": 2024,
+          "nodes": 619799,
+          "score": -1089
+        }
+      ],
+      "stderr": "ab diag: root=1070 scored=6299 fh=1% near20=1% spread(max-med)=146 qnodes=477652 quniq=0 qTThit=3%/14620/477189 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "target174",
+      "mode": "depth3",
+      "variant": "fixed",
+      "repetition": 1,
+      "wall_seconds": 2.3082076069986215,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "28,26-27,26",
+          "completed_depth": 1,
+          "elapsed_ms": 46,
+          "nodes": 12749,
+          "score": -1214
+        },
+        {
+          "best_move": "18,13-21,10-24,13",
+          "completed_depth": 2,
+          "elapsed_ms": 123,
+          "nodes": 34924,
+          "score": -5075
+        },
+        {
+          "best_move": "17,31-17,1",
+          "completed_depth": 3,
+          "elapsed_ms": 2008,
+          "nodes": 619799,
+          "score": -1089
+        }
+      ],
+      "stderr": "ab diag: root=1070 scored=6299 fh=1% near20=1% spread(max-med)=146 qnodes=477652 quniq=0 qTThit=3%/14620/477189 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "target176",
+      "mode": "depth2",
+      "variant": "fixed",
+      "repetition": 1,
+      "wall_seconds": 0.3493956739985151,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "17,1-18,0",
+          "completed_depth": 1,
+          "elapsed_ms": 21,
+          "nodes": 2532,
+          "score": -2707
+        },
+        {
+          "best_move": "17,1-18,0",
+          "completed_depth": 2,
+          "elapsed_ms": 47,
+          "nodes": 5735,
+          "score": -2707
+        }
+      ],
+      "stderr": "ab diag: root=708 scored=1408 fh=0% near20=0% spread(max-med)=4365 qnodes=2834 quniq=0 qTThit=24%/676/2800 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "target176",
+      "mode": "depth3",
+      "variant": "baseline",
+      "repetition": 4,
+      "wall_seconds": 1.8014290270002675,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "17,1-18,0",
+          "completed_depth": 1,
+          "elapsed_ms": 22,
+          "nodes": 2532,
+          "score": -2707
+        },
+        {
+          "best_move": "17,1-18,0",
+          "completed_depth": 2,
+          "elapsed_ms": 47,
+          "nodes": 5735,
+          "score": -2707
+        },
+        {
+          "best_move": "30,33-30,3+",
+          "completed_depth": 3,
+          "elapsed_ms": 1498,
+          "nodes": 371510,
+          "score": 894
+        }
+      ],
+      "stderr": "ab diag: root=708 scored=4224 fh=0% near20=0% spread(max-med)=769 qnodes=307113 quniq=0 qTThit=2%/6189/306316 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "long_mixed",
+      "mode": "depth2",
+      "variant": "fixed",
+      "repetition": 1,
+      "wall_seconds": 0.33133264200296253,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "1,35-0,34",
+          "completed_depth": 1,
+          "elapsed_ms": 10,
+          "nodes": 183,
+          "score": 1884
+        },
+        {
+          "best_move": "2,4-11,13",
+          "completed_depth": 2,
+          "elapsed_ms": 25,
+          "nodes": 4916,
+          "score": 1290
+        }
+      ],
+      "stderr": "ab diag: root=86 scored=173 fh=1% near20=2% spread(max-med)=887 qnodes=42 quniq=0 qTThit=35%/14/39 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "early_v45",
+      "mode": "depth2",
+      "variant": "fixed",
+      "repetition": 2,
+      "wall_seconds": 0.42343247499957215,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "12,27-2,17",
+          "completed_depth": 1,
+          "elapsed_ms": 32,
+          "nodes": 4967,
+          "score": 8185
+        },
+        {
+          "best_move": "12,27-2,17",
+          "completed_depth": 2,
+          "elapsed_ms": 130,
+          "nodes": 30266,
+          "score": 5299
+        }
+      ],
+      "stderr": "ab diag: root=608 scored=1061 fh=0% near20=0% spread(max-med)=3193 qnodes=25452 quniq=0 qTThit=6%/1710/25431 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "early_v45",
+      "mode": "depth2",
+      "variant": "fixed",
+      "repetition": 4,
+      "wall_seconds": 0.4268264429992996,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "12,27-2,17",
+          "completed_depth": 1,
+          "elapsed_ms": 32,
+          "nodes": 4967,
+          "score": 8185
+        },
+        {
+          "best_move": "12,27-2,17",
+          "completed_depth": 2,
+          "elapsed_ms": 129,
+          "nodes": 30266,
+          "score": 5299
+        }
+      ],
+      "stderr": "ab diag: root=608 scored=1061 fh=0% near20=0% spread(max-med)=3193 qnodes=25452 quniq=0 qTThit=6%/1710/25431 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "target174",
+      "mode": "depth2",
+      "variant": "baseline",
+      "repetition": 2,
+      "wall_seconds": 0.4257652739979676,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "28,26-27,26",
+          "completed_depth": 1,
+          "elapsed_ms": 47,
+          "nodes": 12749,
+          "score": -1214
+        },
+        {
+          "best_move": "18,13-21,10-24,13",
+          "completed_depth": 2,
+          "elapsed_ms": 123,
+          "nodes": 34924,
+          "score": -5075
+        }
+      ],
+      "stderr": "ab diag: root=1070 scored=2187 fh=0% near20=1% spread(max-med)=4107 qnodes=25887 quniq=0 qTThit=13%/3377/25873 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "early_v45",
+      "mode": "depth2",
+      "variant": "baseline",
+      "repetition": 0,
+      "wall_seconds": 0.42718353199597914,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "12,27-2,17",
+          "completed_depth": 1,
+          "elapsed_ms": 32,
+          "nodes": 4967,
+          "score": 8185
+        },
+        {
+          "best_move": "12,27-2,17",
+          "completed_depth": 2,
+          "elapsed_ms": 127,
+          "nodes": 30266,
+          "score": 5299
+        }
+      ],
+      "stderr": "ab diag: root=608 scored=1061 fh=0% near20=0% spread(max-med)=3193 qnodes=25452 quniq=0 qTThit=6%/1710/25431 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "long_mixed",
+      "mode": "depth2",
+      "variant": "fixed",
+      "repetition": 2,
+      "wall_seconds": 0.3273455190064851,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "1,35-0,34",
+          "completed_depth": 1,
+          "elapsed_ms": 10,
+          "nodes": 183,
+          "score": 1884
+        },
+        {
+          "best_move": "2,4-11,13",
+          "completed_depth": 2,
+          "elapsed_ms": 25,
+          "nodes": 4916,
+          "score": 1290
+        }
+      ],
+      "stderr": "ab diag: root=86 scored=173 fh=1% near20=2% spread(max-med)=887 qnodes=42 quniq=0 qTThit=35%/14/39 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "middle_v45",
+      "mode": "depth2",
+      "variant": "fixed",
+      "repetition": 0,
+      "wall_seconds": 0.3581485969989444,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "28,10-18,0",
+          "completed_depth": 1,
+          "elapsed_ms": 26,
+          "nodes": 3228,
+          "score": -4584
+        },
+        {
+          "best_move": "28,10-18,0",
+          "completed_depth": 2,
+          "elapsed_ms": 61,
+          "nodes": 7708,
+          "score": -4584
+        }
+      ],
+      "stderr": "ab diag: root=966 scored=1882 fh=0% near20=0% spread(max-med)=1085 qnodes=3824 quniq=0 qTThit=23%/893/3775 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "target176",
+      "mode": "depth3",
+      "variant": "fixed",
+      "repetition": 1,
+      "wall_seconds": 1.822767029996612,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "17,1-18,0",
+          "completed_depth": 1,
+          "elapsed_ms": 21,
+          "nodes": 2532,
+          "score": -2707
+        },
+        {
+          "best_move": "17,1-18,0",
+          "completed_depth": 2,
+          "elapsed_ms": 48,
+          "nodes": 5735,
+          "score": -2707
+        },
+        {
+          "best_move": "30,33-30,3+",
+          "completed_depth": 3,
+          "elapsed_ms": 1519,
+          "nodes": 371510,
+          "score": 894
+        }
+      ],
+      "stderr": "ab diag: root=708 scored=4224 fh=0% near20=0% spread(max-med)=769 qnodes=307113 quniq=0 qTThit=2%/6189/306316 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "late_mixed",
+      "mode": "depth2",
+      "variant": "baseline",
+      "repetition": 0,
+      "wall_seconds": 0.5343428999985917,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "10,28-10,8+",
+          "completed_depth": 1,
+          "elapsed_ms": 37,
+          "nodes": 4951,
+          "score": 5158
+        },
+        {
+          "best_move": "33,33-8,8",
+          "completed_depth": 2,
+          "elapsed_ms": 220,
+          "nodes": 67621,
+          "score": 2993
+        }
+      ],
+      "stderr": "ab diag: root=547 scored=1021 fh=0% near20=14% spread(max-med)=2192 qnodes=52546 quniq=0 qTThit=12%/6519/52481 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "target174",
+      "mode": "depth2",
+      "variant": "fixed",
+      "repetition": 1,
+      "wall_seconds": 0.4238500280043809,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "28,26-27,26",
+          "completed_depth": 1,
+          "elapsed_ms": 45,
+          "nodes": 12749,
+          "score": -1214
+        },
+        {
+          "best_move": "18,13-21,10-24,13",
+          "completed_depth": 2,
+          "elapsed_ms": 121,
+          "nodes": 34924,
+          "score": -5075
+        }
+      ],
+      "stderr": "ab diag: root=1070 scored=2187 fh=0% near20=1% spread(max-med)=4107 qnodes=25887 quniq=0 qTThit=13%/3377/25873 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "middle_v45",
+      "mode": "depth2",
+      "variant": "baseline",
+      "repetition": 4,
+      "wall_seconds": 0.3740352589957183,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "28,10-18,0",
+          "completed_depth": 1,
+          "elapsed_ms": 24,
+          "nodes": 3228,
+          "score": -4584
+        },
+        {
+          "best_move": "28,10-18,0",
+          "completed_depth": 2,
+          "elapsed_ms": 64,
+          "nodes": 7708,
+          "score": -4584
+        }
+      ],
+      "stderr": "ab diag: root=966 scored=1882 fh=0% near20=0% spread(max-med)=1085 qnodes=3824 quniq=0 qTThit=23%/893/3775 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "target174",
+      "mode": "depth2",
+      "variant": "fixed",
+      "repetition": 2,
+      "wall_seconds": 0.4285243159974925,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "28,26-27,26",
+          "completed_depth": 1,
+          "elapsed_ms": 45,
+          "nodes": 12749,
+          "score": -1214
+        },
+        {
+          "best_move": "18,13-21,10-24,13",
+          "completed_depth": 2,
+          "elapsed_ms": 123,
+          "nodes": 34924,
+          "score": -5075
+        }
+      ],
+      "stderr": "ab diag: root=1070 scored=2187 fh=0% near20=1% spread(max-med)=4107 qnodes=25887 quniq=0 qTThit=13%/3377/25873 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "middle_v45",
+      "mode": "depth2",
+      "variant": "fixed",
+      "repetition": 2,
+      "wall_seconds": 0.3588864609992015,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "28,10-18,0",
+          "completed_depth": 1,
+          "elapsed_ms": 24,
+          "nodes": 3228,
+          "score": -4584
+        },
+        {
+          "best_move": "28,10-18,0",
+          "completed_depth": 2,
+          "elapsed_ms": 59,
+          "nodes": 7708,
+          "score": -4584
+        }
+      ],
+      "stderr": "ab diag: root=966 scored=1882 fh=0% near20=0% spread(max-med)=1085 qnodes=3824 quniq=0 qTThit=23%/893/3775 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "early_v45",
+      "mode": "depth2",
+      "variant": "fixed",
+      "repetition": 3,
+      "wall_seconds": 0.4298000549970311,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "12,27-2,17",
+          "completed_depth": 1,
+          "elapsed_ms": 34,
+          "nodes": 4967,
+          "score": 8185
+        },
+        {
+          "best_move": "12,27-2,17",
+          "completed_depth": 2,
+          "elapsed_ms": 131,
+          "nodes": 30266,
+          "score": 5299
+        }
+      ],
+      "stderr": "ab diag: root=608 scored=1061 fh=0% near20=0% spread(max-med)=3193 qnodes=25452 quniq=0 qTThit=6%/1710/25431 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "late_mixed",
+      "mode": "depth2",
+      "variant": "baseline",
+      "repetition": 4,
+      "wall_seconds": 0.5209625950010377,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "10,28-10,8+",
+          "completed_depth": 1,
+          "elapsed_ms": 38,
+          "nodes": 4951,
+          "score": 5158
+        },
+        {
+          "best_move": "33,33-8,8",
+          "completed_depth": 2,
+          "elapsed_ms": 222,
+          "nodes": 67621,
+          "score": 2993
+        }
+      ],
+      "stderr": "ab diag: root=547 scored=1021 fh=0% near20=14% spread(max-med)=2192 qnodes=52546 quniq=0 qTThit=12%/6519/52481 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "target174",
+      "mode": "depth2",
+      "variant": "fixed",
+      "repetition": 3,
+      "wall_seconds": 0.4230614179978147,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "28,26-27,26",
+          "completed_depth": 1,
+          "elapsed_ms": 45,
+          "nodes": 12749,
+          "score": -1214
+        },
+        {
+          "best_move": "18,13-21,10-24,13",
+          "completed_depth": 2,
+          "elapsed_ms": 124,
+          "nodes": 34924,
+          "score": -5075
+        }
+      ],
+      "stderr": "ab diag: root=1070 scored=2187 fh=0% near20=1% spread(max-med)=4107 qnodes=25887 quniq=0 qTThit=13%/3377/25873 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "target176",
+      "mode": "depth2",
+      "variant": "baseline",
+      "repetition": 0,
+      "wall_seconds": 0.349185885002953,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "17,1-18,0",
+          "completed_depth": 1,
+          "elapsed_ms": 22,
+          "nodes": 2532,
+          "score": -2707
+        },
+        {
+          "best_move": "17,1-18,0",
+          "completed_depth": 2,
+          "elapsed_ms": 47,
+          "nodes": 5735,
+          "score": -2707
+        }
+      ],
+      "stderr": "ab diag: root=708 scored=1408 fh=0% near20=0% spread(max-med)=4365 qnodes=2834 quniq=0 qTThit=24%/676/2800 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "early_v45",
+      "mode": "depth2",
+      "variant": "baseline",
+      "repetition": 3,
+      "wall_seconds": 0.42520506900473265,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "12,27-2,17",
+          "completed_depth": 1,
+          "elapsed_ms": 33,
+          "nodes": 4967,
+          "score": 8185
+        },
+        {
+          "best_move": "12,27-2,17",
+          "completed_depth": 2,
+          "elapsed_ms": 128,
+          "nodes": 30266,
+          "score": 5299
+        }
+      ],
+      "stderr": "ab diag: root=608 scored=1061 fh=0% near20=0% spread(max-med)=3193 qnodes=25452 quniq=0 qTThit=6%/1710/25431 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "target176",
+      "mode": "depth3",
+      "variant": "fixed",
+      "repetition": 3,
+      "wall_seconds": 1.8184738909985754,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "17,1-18,0",
+          "completed_depth": 1,
+          "elapsed_ms": 21,
+          "nodes": 2532,
+          "score": -2707
+        },
+        {
+          "best_move": "17,1-18,0",
+          "completed_depth": 2,
+          "elapsed_ms": 47,
+          "nodes": 5735,
+          "score": -2707
+        },
+        {
+          "best_move": "30,33-30,3+",
+          "completed_depth": 3,
+          "elapsed_ms": 1517,
+          "nodes": 371510,
+          "score": 894
+        }
+      ],
+      "stderr": "ab diag: root=708 scored=4224 fh=0% near20=0% spread(max-med)=769 qnodes=307113 quniq=0 qTThit=2%/6189/306316 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "target176",
+      "mode": "depth3",
+      "variant": "baseline",
+      "repetition": 3,
+      "wall_seconds": 1.811430724003003,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "17,1-18,0",
+          "completed_depth": 1,
+          "elapsed_ms": 21,
+          "nodes": 2532,
+          "score": -2707
+        },
+        {
+          "best_move": "17,1-18,0",
+          "completed_depth": 2,
+          "elapsed_ms": 46,
+          "nodes": 5735,
+          "score": -2707
+        },
+        {
+          "best_move": "30,33-30,3+",
+          "completed_depth": 3,
+          "elapsed_ms": 1514,
+          "nodes": 371510,
+          "score": 894
+        }
+      ],
+      "stderr": "ab diag: root=708 scored=4224 fh=0% near20=0% spread(max-med)=769 qnodes=307113 quniq=0 qTThit=2%/6189/306316 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "long_mixed",
+      "mode": "depth2",
+      "variant": "fixed",
+      "repetition": 4,
+      "wall_seconds": 0.3257686580036534,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "1,35-0,34",
+          "completed_depth": 1,
+          "elapsed_ms": 9,
+          "nodes": 183,
+          "score": 1884
+        },
+        {
+          "best_move": "2,4-11,13",
+          "completed_depth": 2,
+          "elapsed_ms": 25,
+          "nodes": 4916,
+          "score": 1290
+        }
+      ],
+      "stderr": "ab diag: root=86 scored=173 fh=1% near20=2% spread(max-med)=887 qnodes=42 quniq=0 qTThit=35%/14/39 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "target176",
+      "mode": "depth2",
+      "variant": "baseline",
+      "repetition": 1,
+      "wall_seconds": 0.34599573299783515,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "17,1-18,0",
+          "completed_depth": 1,
+          "elapsed_ms": 21,
+          "nodes": 2532,
+          "score": -2707
+        },
+        {
+          "best_move": "17,1-18,0",
+          "completed_depth": 2,
+          "elapsed_ms": 46,
+          "nodes": 5735,
+          "score": -2707
+        }
+      ],
+      "stderr": "ab diag: root=708 scored=1408 fh=0% near20=0% spread(max-med)=4365 qnodes=2834 quniq=0 qTThit=24%/676/2800 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "early_v45",
+      "mode": "depth2",
+      "variant": "fixed",
+      "repetition": 0,
+      "wall_seconds": 0.4324906110050506,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "12,27-2,17",
+          "completed_depth": 1,
+          "elapsed_ms": 33,
+          "nodes": 4967,
+          "score": 8185
+        },
+        {
+          "best_move": "12,27-2,17",
+          "completed_depth": 2,
+          "elapsed_ms": 133,
+          "nodes": 30266,
+          "score": 5299
+        }
+      ],
+      "stderr": "ab diag: root=608 scored=1061 fh=0% near20=0% spread(max-med)=3193 qnodes=25452 quniq=0 qTThit=6%/1710/25431 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "late_mixed",
+      "mode": "depth2",
+      "variant": "fixed",
+      "repetition": 0,
+      "wall_seconds": 0.5202232559968252,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "10,28-10,8+",
+          "completed_depth": 1,
+          "elapsed_ms": 37,
+          "nodes": 4951,
+          "score": 5158
+        },
+        {
+          "best_move": "33,33-8,8",
+          "completed_depth": 2,
+          "elapsed_ms": 220,
+          "nodes": 67621,
+          "score": 2993
+        }
+      ],
+      "stderr": "ab diag: root=547 scored=1021 fh=0% near20=14% spread(max-med)=2192 qnodes=52546 quniq=0 qTThit=12%/6519/52481 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "target174",
+      "mode": "depth2",
+      "variant": "baseline",
+      "repetition": 4,
+      "wall_seconds": 0.4241211080006906,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "28,26-27,26",
+          "completed_depth": 1,
+          "elapsed_ms": 46,
+          "nodes": 12749,
+          "score": -1214
+        },
+        {
+          "best_move": "18,13-21,10-24,13",
+          "completed_depth": 2,
+          "elapsed_ms": 122,
+          "nodes": 34924,
+          "score": -5075
+        }
+      ],
+      "stderr": "ab diag: root=1070 scored=2187 fh=0% near20=1% spread(max-med)=4107 qnodes=25887 quniq=0 qTThit=13%/3377/25873 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "target176",
+      "mode": "depth2",
+      "variant": "baseline",
+      "repetition": 2,
+      "wall_seconds": 0.3489706539985491,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "17,1-18,0",
+          "completed_depth": 1,
+          "elapsed_ms": 21,
+          "nodes": 2532,
+          "score": -2707
+        },
+        {
+          "best_move": "17,1-18,0",
+          "completed_depth": 2,
+          "elapsed_ms": 46,
+          "nodes": 5735,
+          "score": -2707
+        }
+      ],
+      "stderr": "ab diag: root=708 scored=1408 fh=0% near20=0% spread(max-med)=4365 qnodes=2834 quniq=0 qTThit=24%/676/2800 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "target174",
+      "mode": "depth2",
+      "variant": "baseline",
+      "repetition": 0,
+      "wall_seconds": 0.42309348899289034,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "28,26-27,26",
+          "completed_depth": 1,
+          "elapsed_ms": 45,
+          "nodes": 12749,
+          "score": -1214
+        },
+        {
+          "best_move": "18,13-21,10-24,13",
+          "completed_depth": 2,
+          "elapsed_ms": 122,
+          "nodes": 34924,
+          "score": -5075
+        }
+      ],
+      "stderr": "ab diag: root=1070 scored=2187 fh=0% near20=1% spread(max-med)=4107 qnodes=25887 quniq=0 qTThit=13%/3377/25873 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "late_mixed",
+      "mode": "depth2",
+      "variant": "fixed",
+      "repetition": 2,
+      "wall_seconds": 0.5153479979999247,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "10,28-10,8+",
+          "completed_depth": 1,
+          "elapsed_ms": 37,
+          "nodes": 4951,
+          "score": 5158
+        },
+        {
+          "best_move": "33,33-8,8",
+          "completed_depth": 2,
+          "elapsed_ms": 216,
+          "nodes": 67621,
+          "score": 2993
+        }
+      ],
+      "stderr": "ab diag: root=547 scored=1021 fh=0% near20=14% spread(max-med)=2192 qnodes=52546 quniq=0 qTThit=12%/6519/52481 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "middle_v45",
+      "mode": "depth2",
+      "variant": "baseline",
+      "repetition": 0,
+      "wall_seconds": 0.36402784600068117,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "28,10-18,0",
+          "completed_depth": 1,
+          "elapsed_ms": 24,
+          "nodes": 3228,
+          "score": -4584
+        },
+        {
+          "best_move": "28,10-18,0",
+          "completed_depth": 2,
+          "elapsed_ms": 58,
+          "nodes": 7708,
+          "score": -4584
+        }
+      ],
+      "stderr": "ab diag: root=966 scored=1882 fh=0% near20=0% spread(max-med)=1085 qnodes=3824 quniq=0 qTThit=23%/893/3775 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "target176",
+      "mode": "depth2",
+      "variant": "fixed",
+      "repetition": 4,
+      "wall_seconds": 0.3551627089982503,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "17,1-18,0",
+          "completed_depth": 1,
+          "elapsed_ms": 23,
+          "nodes": 2532,
+          "score": -2707
+        },
+        {
+          "best_move": "17,1-18,0",
+          "completed_depth": 2,
+          "elapsed_ms": 50,
+          "nodes": 5735,
+          "score": -2707
+        }
+      ],
+      "stderr": "ab diag: root=708 scored=1408 fh=0% near20=0% spread(max-med)=4365 qnodes=2834 quniq=0 qTThit=24%/676/2800 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "target176",
+      "mode": "depth3",
+      "variant": "baseline",
+      "repetition": 1,
+      "wall_seconds": 1.8177804840015597,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "17,1-18,0",
+          "completed_depth": 1,
+          "elapsed_ms": 22,
+          "nodes": 2532,
+          "score": -2707
+        },
+        {
+          "best_move": "17,1-18,0",
+          "completed_depth": 2,
+          "elapsed_ms": 46,
+          "nodes": 5735,
+          "score": -2707
+        },
+        {
+          "best_move": "30,33-30,3+",
+          "completed_depth": 3,
+          "elapsed_ms": 1517,
+          "nodes": 371510,
+          "score": 894
+        }
+      ],
+      "stderr": "ab diag: root=708 scored=4224 fh=0% near20=0% spread(max-med)=769 qnodes=307113 quniq=0 qTThit=2%/6189/306316 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "target176",
+      "mode": "depth2",
+      "variant": "fixed",
+      "repetition": 0,
+      "wall_seconds": 0.34676365699851885,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "17,1-18,0",
+          "completed_depth": 1,
+          "elapsed_ms": 22,
+          "nodes": 2532,
+          "score": -2707
+        },
+        {
+          "best_move": "17,1-18,0",
+          "completed_depth": 2,
+          "elapsed_ms": 48,
+          "nodes": 5735,
+          "score": -2707
+        }
+      ],
+      "stderr": "ab diag: root=708 scored=1408 fh=0% near20=0% spread(max-med)=4365 qnodes=2834 quniq=0 qTThit=24%/676/2800 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "early_v45",
+      "mode": "depth2",
+      "variant": "baseline",
+      "repetition": 2,
+      "wall_seconds": 0.4296342379966518,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "12,27-2,17",
+          "completed_depth": 1,
+          "elapsed_ms": 34,
+          "nodes": 4967,
+          "score": 8185
+        },
+        {
+          "best_move": "12,27-2,17",
+          "completed_depth": 2,
+          "elapsed_ms": 129,
+          "nodes": 30266,
+          "score": 5299
+        }
+      ],
+      "stderr": "ab diag: root=608 scored=1061 fh=0% near20=0% spread(max-med)=3193 qnodes=25452 quniq=0 qTThit=6%/1710/25431 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "late_mixed",
+      "mode": "depth2",
+      "variant": "baseline",
+      "repetition": 1,
+      "wall_seconds": 0.5249918159970548,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "10,28-10,8+",
+          "completed_depth": 1,
+          "elapsed_ms": 37,
+          "nodes": 4951,
+          "score": 5158
+        },
+        {
+          "best_move": "33,33-8,8",
+          "completed_depth": 2,
+          "elapsed_ms": 226,
+          "nodes": 67621,
+          "score": 2993
+        }
+      ],
+      "stderr": "ab diag: root=547 scored=1021 fh=0% near20=14% spread(max-med)=2192 qnodes=52546 quniq=0 qTThit=12%/6519/52481 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "late_mixed",
+      "mode": "depth2",
+      "variant": "fixed",
+      "repetition": 4,
+      "wall_seconds": 0.5385986819965183,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "10,28-10,8+",
+          "completed_depth": 1,
+          "elapsed_ms": 39,
+          "nodes": 4951,
+          "score": 5158
+        },
+        {
+          "best_move": "33,33-8,8",
+          "completed_depth": 2,
+          "elapsed_ms": 223,
+          "nodes": 67621,
+          "score": 2993
+        }
+      ],
+      "stderr": "ab diag: root=547 scored=1021 fh=0% near20=14% spread(max-med)=2192 qnodes=52546 quniq=0 qTThit=12%/6519/52481 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "long_mixed",
+      "mode": "depth2",
+      "variant": "baseline",
+      "repetition": 4,
+      "wall_seconds": 0.32684665499982657,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "1,35-0,34",
+          "completed_depth": 1,
+          "elapsed_ms": 10,
+          "nodes": 183,
+          "score": 1884
+        },
+        {
+          "best_move": "2,4-11,13",
+          "completed_depth": 2,
+          "elapsed_ms": 25,
+          "nodes": 4916,
+          "score": 1290
+        }
+      ],
+      "stderr": "ab diag: root=86 scored=173 fh=1% near20=2% spread(max-med)=887 qnodes=42 quniq=0 qTThit=35%/14/39 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "long_mixed",
+      "mode": "depth2",
+      "variant": "fixed",
+      "repetition": 3,
+      "wall_seconds": 0.34553647500433726,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "1,35-0,34",
+          "completed_depth": 1,
+          "elapsed_ms": 9,
+          "nodes": 183,
+          "score": 1884
+        },
+        {
+          "best_move": "2,4-11,13",
+          "completed_depth": 2,
+          "elapsed_ms": 25,
+          "nodes": 4916,
+          "score": 1290
+        }
+      ],
+      "stderr": "ab diag: root=86 scored=173 fh=1% near20=2% spread(max-med)=887 qnodes=42 quniq=0 qTThit=35%/14/39 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "target174",
+      "mode": "depth3",
+      "variant": "baseline",
+      "repetition": 2,
+      "wall_seconds": 2.415600368993182,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "28,26-27,26",
+          "completed_depth": 1,
+          "elapsed_ms": 46,
+          "nodes": 12749,
+          "score": -1214
+        },
+        {
+          "best_move": "18,13-21,10-24,13",
+          "completed_depth": 2,
+          "elapsed_ms": 123,
+          "nodes": 34924,
+          "score": -5075
+        },
+        {
+          "best_move": "17,31-17,1",
+          "completed_depth": 3,
+          "elapsed_ms": 2108,
+          "nodes": 619799,
+          "score": -1089
+        }
+      ],
+      "stderr": "ab diag: root=1070 scored=6299 fh=1% near20=1% spread(max-med)=146 qnodes=477652 quniq=0 qTThit=3%/14620/477189 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "late_mixed",
+      "mode": "depth2",
+      "variant": "fixed",
+      "repetition": 1,
+      "wall_seconds": 0.5440130139977555,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "10,28-10,8+",
+          "completed_depth": 1,
+          "elapsed_ms": 40,
+          "nodes": 4951,
+          "score": 5158
+        },
+        {
+          "best_move": "33,33-8,8",
+          "completed_depth": 2,
+          "elapsed_ms": 228,
+          "nodes": 67621,
+          "score": 2993
+        }
+      ],
+      "stderr": "ab diag: root=547 scored=1021 fh=0% near20=14% spread(max-med)=2192 qnodes=52546 quniq=0 qTThit=12%/6519/52481 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "late_mixed",
+      "mode": "depth2",
+      "variant": "baseline",
+      "repetition": 3,
+      "wall_seconds": 0.5488411129990709,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "10,28-10,8+",
+          "completed_depth": 1,
+          "elapsed_ms": 37,
+          "nodes": 4951,
+          "score": 5158
+        },
+        {
+          "best_move": "33,33-8,8",
+          "completed_depth": 2,
+          "elapsed_ms": 220,
+          "nodes": 67621,
+          "score": 2993
+        }
+      ],
+      "stderr": "ab diag: root=547 scored=1021 fh=0% near20=14% spread(max-med)=2192 qnodes=52546 quniq=0 qTThit=12%/6519/52481 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "target174",
+      "mode": "depth3",
+      "variant": "fixed",
+      "repetition": 3,
+      "wall_seconds": 2.3252625390014146,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "28,26-27,26",
+          "completed_depth": 1,
+          "elapsed_ms": 46,
+          "nodes": 12749,
+          "score": -1214
+        },
+        {
+          "best_move": "18,13-21,10-24,13",
+          "completed_depth": 2,
+          "elapsed_ms": 123,
+          "nodes": 34924,
+          "score": -5075
+        },
+        {
+          "best_move": "17,31-17,1",
+          "completed_depth": 3,
+          "elapsed_ms": 2026,
+          "nodes": 619799,
+          "score": -1089
+        }
+      ],
+      "stderr": "ab diag: root=1070 scored=6299 fh=1% near20=1% spread(max-med)=146 qnodes=477652 quniq=0 qTThit=3%/14620/477189 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "late_mixed",
+      "mode": "depth2",
+      "variant": "fixed",
+      "repetition": 3,
+      "wall_seconds": 0.5200449379990459,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "10,28-10,8+",
+          "completed_depth": 1,
+          "elapsed_ms": 37,
+          "nodes": 4951,
+          "score": 5158
+        },
+        {
+          "best_move": "33,33-8,8",
+          "completed_depth": 2,
+          "elapsed_ms": 219,
+          "nodes": 67621,
+          "score": 2993
+        }
+      ],
+      "stderr": "ab diag: root=547 scored=1021 fh=0% near20=14% spread(max-med)=2192 qnodes=52546 quniq=0 qTThit=12%/6519/52481 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "target176",
+      "mode": "depth2",
+      "variant": "fixed",
+      "repetition": 3,
+      "wall_seconds": 0.34597462300007464,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "17,1-18,0",
+          "completed_depth": 1,
+          "elapsed_ms": 21,
+          "nodes": 2532,
+          "score": -2707
+        },
+        {
+          "best_move": "17,1-18,0",
+          "completed_depth": 2,
+          "elapsed_ms": 47,
+          "nodes": 5735,
+          "score": -2707
+        }
+      ],
+      "stderr": "ab diag: root=708 scored=1408 fh=0% near20=0% spread(max-med)=4365 qnodes=2834 quniq=0 qTThit=24%/676/2800 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "early_v45",
+      "mode": "depth2",
+      "variant": "fixed",
+      "repetition": 1,
+      "wall_seconds": 0.42733870700612897,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "12,27-2,17",
+          "completed_depth": 1,
+          "elapsed_ms": 33,
+          "nodes": 4967,
+          "score": 8185
+        },
+        {
+          "best_move": "12,27-2,17",
+          "completed_depth": 2,
+          "elapsed_ms": 130,
+          "nodes": 30266,
+          "score": 5299
+        }
+      ],
+      "stderr": "ab diag: root=608 scored=1061 fh=0% near20=0% spread(max-med)=3193 qnodes=25452 quniq=0 qTThit=6%/1710/25431 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "middle_v45",
+      "mode": "depth2",
+      "variant": "baseline",
+      "repetition": 1,
+      "wall_seconds": 0.36459234500216553,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "28,10-18,0",
+          "completed_depth": 1,
+          "elapsed_ms": 24,
+          "nodes": 3228,
+          "score": -4584
+        },
+        {
+          "best_move": "28,10-18,0",
+          "completed_depth": 2,
+          "elapsed_ms": 58,
+          "nodes": 7708,
+          "score": -4584
+        }
+      ],
+      "stderr": "ab diag: root=966 scored=1882 fh=0% near20=0% spread(max-med)=1085 qnodes=3824 quniq=0 qTThit=23%/893/3775 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "target174",
+      "mode": "depth2",
+      "variant": "baseline",
+      "repetition": 3,
+      "wall_seconds": 0.42126038599963067,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "28,26-27,26",
+          "completed_depth": 1,
+          "elapsed_ms": 46,
+          "nodes": 12749,
+          "score": -1214
+        },
+        {
+          "best_move": "18,13-21,10-24,13",
+          "completed_depth": 2,
+          "elapsed_ms": 123,
+          "nodes": 34924,
+          "score": -5075
+        }
+      ],
+      "stderr": "ab diag: root=1070 scored=2187 fh=0% near20=1% spread(max-med)=4107 qnodes=25887 quniq=0 qTThit=13%/3377/25873 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "middle_v45",
+      "mode": "depth2",
+      "variant": "fixed",
+      "repetition": 4,
+      "wall_seconds": 0.3605098309999448,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "28,10-18,0",
+          "completed_depth": 1,
+          "elapsed_ms": 24,
+          "nodes": 3228,
+          "score": -4584
+        },
+        {
+          "best_move": "28,10-18,0",
+          "completed_depth": 2,
+          "elapsed_ms": 60,
+          "nodes": 7708,
+          "score": -4584
+        }
+      ],
+      "stderr": "ab diag: root=966 scored=1882 fh=0% near20=0% spread(max-med)=1085 qnodes=3824 quniq=0 qTThit=23%/893/3775 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "target174",
+      "mode": "depth3",
+      "variant": "fixed",
+      "repetition": 0,
+      "wall_seconds": 2.321411753000575,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "28,26-27,26",
+          "completed_depth": 1,
+          "elapsed_ms": 46,
+          "nodes": 12749,
+          "score": -1214
+        },
+        {
+          "best_move": "18,13-21,10-24,13",
+          "completed_depth": 2,
+          "elapsed_ms": 123,
+          "nodes": 34924,
+          "score": -5075
+        },
+        {
+          "best_move": "17,31-17,1",
+          "completed_depth": 3,
+          "elapsed_ms": 2018,
+          "nodes": 619799,
+          "score": -1089
+        }
+      ],
+      "stderr": "ab diag: root=1070 scored=6299 fh=1% near20=1% spread(max-med)=146 qnodes=477652 quniq=0 qTThit=3%/14620/477189 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "middle_v45",
+      "mode": "depth2",
+      "variant": "baseline",
+      "repetition": 2,
+      "wall_seconds": 0.35648888099967735,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "28,10-18,0",
+          "completed_depth": 1,
+          "elapsed_ms": 25,
+          "nodes": 3228,
+          "score": -4584
+        },
+        {
+          "best_move": "28,10-18,0",
+          "completed_depth": 2,
+          "elapsed_ms": 59,
+          "nodes": 7708,
+          "score": -4584
+        }
+      ],
+      "stderr": "ab diag: root=966 scored=1882 fh=0% near20=0% spread(max-med)=1085 qnodes=3824 quniq=0 qTThit=23%/893/3775 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "long_mixed",
+      "mode": "depth2",
+      "variant": "baseline",
+      "repetition": 2,
+      "wall_seconds": 0.32297043799917446,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "1,35-0,34",
+          "completed_depth": 1,
+          "elapsed_ms": 10,
+          "nodes": 183,
+          "score": 1884
+        },
+        {
+          "best_move": "2,4-11,13",
+          "completed_depth": 2,
+          "elapsed_ms": 25,
+          "nodes": 4916,
+          "score": 1290
+        }
+      ],
+      "stderr": "ab diag: root=86 scored=173 fh=1% near20=2% spread(max-med)=887 qnodes=42 quniq=0 qTThit=35%/14/39 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "target176",
+      "mode": "depth3",
+      "variant": "fixed",
+      "repetition": 4,
+      "wall_seconds": 1.8167462999990676,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "17,1-18,0",
+          "completed_depth": 1,
+          "elapsed_ms": 23,
+          "nodes": 2532,
+          "score": -2707
+        },
+        {
+          "best_move": "17,1-18,0",
+          "completed_depth": 2,
+          "elapsed_ms": 49,
+          "nodes": 5735,
+          "score": -2707
+        },
+        {
+          "best_move": "30,33-30,3+",
+          "completed_depth": 3,
+          "elapsed_ms": 1517,
+          "nodes": 371510,
+          "score": 894
+        }
+      ],
+      "stderr": "ab diag: root=708 scored=4224 fh=0% near20=0% spread(max-med)=769 qnodes=307113 quniq=0 qTThit=2%/6189/306316 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "target176",
+      "mode": "depth2",
+      "variant": "fixed",
+      "repetition": 2,
+      "wall_seconds": 0.3517069419976906,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "17,1-18,0",
+          "completed_depth": 1,
+          "elapsed_ms": 22,
+          "nodes": 2532,
+          "score": -2707
+        },
+        {
+          "best_move": "17,1-18,0",
+          "completed_depth": 2,
+          "elapsed_ms": 48,
+          "nodes": 5735,
+          "score": -2707
+        }
+      ],
+      "stderr": "ab diag: root=708 scored=1408 fh=0% near20=0% spread(max-med)=4365 qnodes=2834 quniq=0 qTThit=24%/676/2800 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "target174",
+      "mode": "depth3",
+      "variant": "baseline",
+      "repetition": 1,
+      "wall_seconds": 2.3424335029994836,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "28,26-27,26",
+          "completed_depth": 1,
+          "elapsed_ms": 46,
+          "nodes": 12749,
+          "score": -1214
+        },
+        {
+          "best_move": "18,13-21,10-24,13",
+          "completed_depth": 2,
+          "elapsed_ms": 122,
+          "nodes": 34924,
+          "score": -5075
+        },
+        {
+          "best_move": "17,31-17,1",
+          "completed_depth": 3,
+          "elapsed_ms": 2042,
+          "nodes": 619799,
+          "score": -1089
+        }
+      ],
+      "stderr": "ab diag: root=1070 scored=6299 fh=1% near20=1% spread(max-med)=146 qnodes=477652 quniq=0 qTThit=3%/14620/477189 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "target176",
+      "mode": "depth3",
+      "variant": "fixed",
+      "repetition": 0,
+      "wall_seconds": 1.8226479869990726,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "17,1-18,0",
+          "completed_depth": 1,
+          "elapsed_ms": 23,
+          "nodes": 2532,
+          "score": -2707
+        },
+        {
+          "best_move": "17,1-18,0",
+          "completed_depth": 2,
+          "elapsed_ms": 51,
+          "nodes": 5735,
+          "score": -2707
+        },
+        {
+          "best_move": "30,33-30,3+",
+          "completed_depth": 3,
+          "elapsed_ms": 1523,
+          "nodes": 371510,
+          "score": 894
+        }
+      ],
+      "stderr": "ab diag: root=708 scored=4224 fh=0% near20=0% spread(max-med)=769 qnodes=307113 quniq=0 qTThit=2%/6189/306316 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "target174",
+      "mode": "depth3",
+      "variant": "fixed",
+      "repetition": 4,
+      "wall_seconds": 2.325684169998567,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "28,26-27,26",
+          "completed_depth": 1,
+          "elapsed_ms": 45,
+          "nodes": 12749,
+          "score": -1214
+        },
+        {
+          "best_move": "18,13-21,10-24,13",
+          "completed_depth": 2,
+          "elapsed_ms": 121,
+          "nodes": 34924,
+          "score": -5075
+        },
+        {
+          "best_move": "17,31-17,1",
+          "completed_depth": 3,
+          "elapsed_ms": 2024,
+          "nodes": 619799,
+          "score": -1089
+        }
+      ],
+      "stderr": "ab diag: root=1070 scored=6299 fh=1% near20=1% spread(max-med)=146 qnodes=477652 quniq=0 qTThit=3%/14620/477189 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "target176",
+      "mode": "depth3",
+      "variant": "baseline",
+      "repetition": 0,
+      "wall_seconds": 1.9581484450027347,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "17,1-18,0",
+          "completed_depth": 1,
+          "elapsed_ms": 22,
+          "nodes": 2532,
+          "score": -2707
+        },
+        {
+          "best_move": "17,1-18,0",
+          "completed_depth": 2,
+          "elapsed_ms": 47,
+          "nodes": 5735,
+          "score": -2707
+        },
+        {
+          "best_move": "30,33-30,3+",
+          "completed_depth": 3,
+          "elapsed_ms": 1650,
+          "nodes": 371510,
+          "score": 894
+        }
+      ],
+      "stderr": "ab diag: root=708 scored=4224 fh=0% near20=0% spread(max-med)=769 qnodes=307113 quniq=0 qTThit=2%/6189/306316 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "middle_v45",
+      "mode": "depth2",
+      "variant": "fixed",
+      "repetition": 1,
+      "wall_seconds": 0.3609598389957682,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "28,10-18,0",
+          "completed_depth": 1,
+          "elapsed_ms": 24,
+          "nodes": 3228,
+          "score": -4584
+        },
+        {
+          "best_move": "28,10-18,0",
+          "completed_depth": 2,
+          "elapsed_ms": 59,
+          "nodes": 7708,
+          "score": -4584
+        }
+      ],
+      "stderr": "ab diag: root=966 scored=1882 fh=0% near20=0% spread(max-med)=1085 qnodes=3824 quniq=0 qTThit=23%/893/3775 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "target174",
+      "mode": "depth2",
+      "variant": "fixed",
+      "repetition": 0,
+      "wall_seconds": 0.4261819310049759,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "28,26-27,26",
+          "completed_depth": 1,
+          "elapsed_ms": 46,
+          "nodes": 12749,
+          "score": -1214
+        },
+        {
+          "best_move": "18,13-21,10-24,13",
+          "completed_depth": 2,
+          "elapsed_ms": 123,
+          "nodes": 34924,
+          "score": -5075
+        }
+      ],
+      "stderr": "ab diag: root=1070 scored=2187 fh=0% near20=1% spread(max-med)=4107 qnodes=25887 quniq=0 qTThit=13%/3377/25873 sib=0/0 abort=false\n"
+    },
+    {
+      "position": "target176",
+      "mode": "depth3",
+      "variant": "fixed",
+      "repetition": 2,
+      "wall_seconds": 1.8298825320016476,
+      "returncode": 0,
+      "iterations": [
+        {
+          "best_move": "17,1-18,0",
+          "completed_depth": 1,
+          "elapsed_ms": 23,
+          "nodes": 2532,
+          "score": -2707
+        },
+        {
+          "best_move": "17,1-18,0",
+          "completed_depth": 2,
+          "elapsed_ms": 49,
+          "nodes": 5735,
+          "score": -2707
+        },
+        {
+          "best_move": "30,33-30,3+",
+          "completed_depth": 3,
+          "elapsed_ms": 1529,
+          "nodes": 371510,
+          "score": 894
+        }
+      ],
+      "stderr": "ab diag: root=708 scored=4224 fh=0% near20=0% spread(max-med)=769 qnodes=307113 quniq=0 qTThit=2%/6189/306316 sib=0/0 abort=false\n"
+    }
+  ],
+  "build_context": {
+    "rustc": "1.92.0 (ded5c06cf 2025-12-08)",
+    "profile": "release, ThinLTO, codegen-units=1, default features",
+    "original_pr_search_revision": "e9710d4",
+    "main_revision": "981afcc",
+    "experiment": "Discarded: last-royal check memo using gate kinds 4 + defending color, also reused by color_last_royal_resolved."
+  }
+}

@@ -377,6 +377,18 @@ impl GameState {
         self.eval_inc.as_ref()
     }
 
+    /// Run a make/unmake legality probe without updating either evaluator.
+    /// The callback must restore the position and must not evaluate it. Board
+    /// mutation and undo still follow the usual path, including traversal order.
+    pub(crate) fn with_rule_only_probe<R>(&mut self, probe: impl FnOnce(&mut Self) -> R) -> R {
+        let eval_inc = self.eval_inc.take();
+        let nnue = self.nnue.take();
+        let result = probe(self);
+        self.eval_inc = eval_inc;
+        self.nnue = nnue;
+        result
+    }
+
     /// Rebuild incremental eval if missing or built for a different weight seed.
     pub fn ensure_eval_inc(&mut self, weights: &crate::eval::EvalWeights) {
         match &weights.nnue_runtime {
