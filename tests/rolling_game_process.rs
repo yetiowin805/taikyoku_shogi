@@ -181,9 +181,21 @@ fn real_game_child_matches_in_process_and_records_build() {
     cfg.white.quiescence_depth = Some(0);
     let direct = taikyoku_shogi::training::worker::play_one_game(&cfg).unwrap();
     let separate = game_process::play(&cfg, &pointer, &f.0, 0).unwrap();
+    // Wall-clock samples differ across processes. Keep the iteration depths,
+    // completion flags, and all move/search fields in the parity comparison.
+    let without_elapsed = |mut moves: serde_json::Value| {
+        for mv in moves.as_array_mut().unwrap() {
+            if let Some(timings) = mv.get_mut("iteration_timings").and_then(|v| v.as_array_mut()) {
+                for timing in timings {
+                    timing.as_object_mut().unwrap().remove("elapsed_us");
+                }
+            }
+        }
+        moves
+    };
     assert_eq!(
-        serde_json::to_value(&direct.moves).unwrap(),
-        serde_json::to_value(&separate.moves).unwrap()
+        without_elapsed(serde_json::to_value(&direct.moves).unwrap()),
+        without_elapsed(serde_json::to_value(&separate.moves).unwrap())
     );
     assert_eq!(
         serde_json::to_value(&direct.result).unwrap(),
