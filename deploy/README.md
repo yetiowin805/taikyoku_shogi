@@ -619,3 +619,47 @@ order-neutral ranking, including provisional component rankings. There is no
 minimum rating lead; legacy `auto_champion.margin` values are ignored. Exact
 ties retain the current active teacher, otherwise ties use entrant ID. Frozen
 checkpoint validation and bounded, resumable backfill still apply.
+
+## Model snapshot sharing and teacher-backup retention
+
+Install `artifact-storage.json.example` as `/etc/taikyoku/artifact-storage.json`
+to enable a shared content-addressed NNUE snapshot store on the attached volume.
+Adjust its mount and store paths for the host. `TAIKYOKU_ARTIFACT_CONFIG` can
+select another policy file; without a policy, snapshots remain local copies.
+Every snapshot path and JSON binding stays valid, but its `.nnue` file becomes
+an atomic symlink to one verified shared copy. The store is read-only to normal
+writers and never aliases a mutable training-source inode. Originals, training
+resume checkpoints, games, and label datasets retain their existing contents.
+Do not delete a shared blob while any run references it; there is no automatic
+model garbage collection. The required volume must remain mounted.
+
+Teacher changes now create a gzip-compressed SQLite rollback backup, verify its
+decompressed SHA-256, and atomically publish the complete backup directory before
+changing the teacher. A successful switch retains the latest **three** backups
+created by this mechanism. Incomplete backups and pre-existing legacy backups
+are not automatically deleted. A failed backup leaves the teacher unchanged.
+
+To compact existing snapshot copies and legacy teacher databases, pause the
+analysis collector (games can continue), then inspect a dry run:
+
+```sh
+python3 deploy/compact_artifacts.py --run-dir /absolute/tournament/run \
+  --snapshot-root /absolute/tournament/root
+```
+
+Repeat `--snapshot-root` for other tournament/experiment directories and add
+`--apply` after inspecting the report. The command acquires `dual-label.lock`;
+stop any other collector using the supplied snapshot roots as well. It only
+shares hash-named `.nnue` files in `analysis/models` or `admission-bindings/models`.
+It validates closed legacy SQLite backups, compresses them losslessly, and
+checks the decompressed hash before removing the uncompressed duplicate. It
+preserves snapshots with outstanding journals for inspection. Restart analysis
+afterward. Legacy archives remain available as `.sqlite.gz` plus their original
+configuration; only future managed backups have bounded retention.
+
+For rollback, stop analysis, decompress a chosen `training-labels.sqlite.gz`
+to a separate file, verify it against `sha256` in `backup.json` (or legacy
+`archive.json`), and run SQLite `PRAGMA quick_check`. Preserve the current live
+database/config and any WAL files before installing the restored database and
+its matching `dual-label-config.json`. This backup concerns labels and teacher
+selection, not tournament game results.

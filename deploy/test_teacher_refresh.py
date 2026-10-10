@@ -1,4 +1,5 @@
 import json
+import contextlib
 from unittest.mock import patch
 
 from test_tourney_analysis import AnalyzerFixture
@@ -7,6 +8,28 @@ import teacher_refresh as refresh
 
 
 class TeacherRefreshTests(AnalyzerFixture):
+    def test_switch_requires_verified_backup_and_publishes_compressed_rollback(self):
+        a = dual.a
+        model = self.run/'teacher.json'; model.write_text('{"name":"new teacher"}')
+        config_path = self.run/'analysis/dual-label-config.json'
+        config_path.write_text(json.dumps(dict(old={}, new_sha256='old', analyzer_bin='fake-helper')))
+        original = config_path.read_bytes()
+        with contextlib.closing(a.connect(self.run, 'training-labels.sqlite')) as db:
+            db.executescript('CREATE TABLE dual_paired(id TEXT PRIMARY KEY); CREATE TABLE dual_failures(id TEXT PRIMARY KEY,error TEXT,updated REAL);')
+        with patch.object(a, 'validate_source'), patch.object(a.subprocess, 'run'), \
+                patch.object(a, 'snapshot_model', return_value={'snapshot':'pinned'}):
+            with patch.object(refresh.artifact_storage, 'teacher_backup', side_effect=OSError('disk full')):
+                with self.assertRaisesRegex(OSError, 'disk full'):
+                    refresh.replace(a, self.run, model)
+            self.assertEqual(config_path.read_bytes(), original)
+            report = refresh.replace(a, self.run, model)
+        backup = self.run/'analysis/teacher-backups'
+        saved = next(p for p in backup.iterdir() if p.name.isdigit())
+        self.assertTrue((saved/'training-labels.sqlite.gz').is_file())
+        self.assertEqual((saved/'dual-label-config.json').read_bytes(), original)
+        self.assertTrue(report['changed'])
+        self.assertEqual(a.read(config_path)['new_teacher_id'], 'new teacher')
+
     def setup_catalogue(self):
         self.db.executescript('CREATE TABLE dual_paired(id TEXT PRIMARY KEY); CREATE TABLE dual_failures(id TEXT PRIMARY KEY,error TEXT,updated REAL);')
 
