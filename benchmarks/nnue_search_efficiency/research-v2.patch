@@ -1,0 +1,468 @@
+diff --git a/Cargo.toml b/Cargo.toml
+index 0bab144..ba251df 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -20,6 +20,7 @@ tower-http = { version = "0.6", features = ["cors", "fs"] }
+ ctrlc = { version = "3", features = ["termination"] }
+ 
+ [features]
++search-study = []
+ search-profile = []
+ royal-probes = []
+ 
+diff --git a/src/profile_timers.rs b/src/profile_timers.rs
+index 36652a6..f6e0f00 100644
+--- a/src/profile_timers.rs
++++ b/src/profile_timers.rs
+@@ -15,7 +15,7 @@ thread_local! {
+     static FILTER_NS: Cell<u128> = const { Cell::new(0) };
+ }
+ 
+-#[derive(Debug, Clone, Copy)]
++#[derive(Debug, Clone, Copy, serde::Serialize)]
+ pub struct Report {
+     pub eval_ns: u128,
+     pub gen_ns: u128,
+diff --git a/src/search.rs b/src/search.rs
+index f0cabb3..249d081 100644
+--- a/src/search.rs
++++ b/src/search.rs
+@@ -234,8 +234,45 @@ enum CaptureKind {
+     MultiLeg,
+ }
+ 
++/// Offline search-efficiency controls. Defaults reproduce production search.
++#[cfg(feature = "search-study")]
++#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
++#[serde(default, deny_unknown_fields)]
++pub struct StudyConfig {
++    pub q_lazy_royal: bool,
++    pub q_early_filter: bool,
++    pub q_cached_sort: bool,
++    pub stage_b_cached_sort: bool,
++    /// 0 disables PVS; otherwise minimum remaining interior depth.
++    pub pvs_min_depth: u32,
++    /// Isolate the PV transposition-bound safeguard from narrow-window search.
++    pub pv_tt_guard: bool,
++    /// Expensive wall-clock buckets; never used for speed comparisons.
++    pub profile: bool,
++}
++
++#[cfg(feature = "search-study")]
++#[derive(Debug, Clone, Default, Serialize)]
++pub struct StudyStats {
++    pub q_raw: u64,
++    pub q_early_rejected: u64,
++    pub q_royal_probes_skipped: u64,
++    pub q_sort_calls: u64,
++    pub q_sort_candidates: u64,
++    pub pvs_scouts: u64,
++    pub pv_tt_score_bypasses: u64,
++    pub pvs_depth_researches: u64,
++    pub pvs_window_researches: u64,
++    pub q_generation_ns: u128,
++    pub q_annotation_ns: u128,
++    pub q_sort_ns: u128,
++    pub q_eval_ns: u128,
++}
++
+ #[derive(Debug, Clone)]
+ pub struct SearchConfig {
++    #[cfg(feature = "search-study")]
++    pub study: StudyConfig,
+     pub depth: u32,
+     pub max_time_ms: Option<u64>,
+     /// Sustainable Fischer budget; permit only one additional completed depth.
+@@ -285,6 +322,8 @@ pub struct SearchConfig {
+ impl Default for SearchConfig {
+     fn default() -> Self {
+         Self {
++            #[cfg(feature = "search-study")]
++            study: StudyConfig::default(),
+             depth: 2,
+             max_time_ms: None,
+             fischer_soft_ms: None,
+@@ -382,6 +421,8 @@ pub struct IterationTiming {
+ 
+ #[derive(Debug, Clone)]
+ pub struct SearchResult {
++    #[cfg(feature = "search-study")]
++    pub study_stats: StudyStats,
+     pub iteration_timings: Vec<IterationTiming>,
+     pub royal_extensions: u64,
+     pub royal_probe: Option<crate::eval::royal_probes::ProbeResult>,
+@@ -411,6 +452,10 @@ pub struct SearchResult {
+ }
+ 
+ struct SearchContext {
++    #[cfg(feature = "search-study")]
++    study: StudyConfig,
++    #[cfg(feature = "search-study")]
++    study_stats: StudyStats,
+     deadline: Option<Instant>,
+     cancel: Option<Arc<AtomicBool>>,
+     cpu_percent: u8,
+@@ -2238,6 +2283,10 @@ pub fn search_with_progress(
+     let max_depth = config.depth.max(1);
+ 
+     let mut ctx = SearchContext {
++        #[cfg(feature = "search-study")]
++        study: config.study,
++        #[cfg(feature = "search-study")]
++        study_stats: StudyStats::default(),
+         deadline,
+         cancel: config.cancel.clone(),
+         cpu_percent: config.cpu_percent.clamp(10, 100),
+@@ -2335,6 +2384,8 @@ pub fn search_with_progress(
+             children: vec![],
+         };
+         return SearchResult {
++            #[cfg(feature = "search-study")]
++            study_stats: ctx.study_stats.clone(),
+             royal_extensions: 0,
+             royal_probe: None,
+             iteration_timings: Vec::new(),
+@@ -2755,6 +2806,8 @@ pub fn search_with_progress(
+     };
+ 
+     SearchResult {
++        #[cfg(feature = "search-study")]
++        study_stats: ctx.study_stats.clone(),
+         royal_extensions: ctx.royal_extensions,
+         royal_probe,
+         iteration_timings,
+@@ -2802,6 +2855,10 @@ pub fn probe_quiescence(
+     let deadline = max_time_ms.map(|ms| Instant::now() + Duration::from_millis(ms));
+     let now = Instant::now();
+     let mut ctx = SearchContext {
++        #[cfg(feature = "search-study")]
++        study: StudyConfig::default(),
++        #[cfg(feature = "search-study")]
++        study_stats: StudyStats::default(),
+         deadline,
+         cancel: None,
+         cpu_percent: 100,
+@@ -2888,6 +2945,8 @@ pub fn probe_quiescence(
+         )
+     };
+     SearchResult {
++        #[cfg(feature = "search-study")]
++        study_stats: ctx.study_stats.clone(),
+         royal_extensions: ctx.royal_extensions,
+         royal_probe: None,
+         iteration_timings: Vec::new(),
+@@ -2948,6 +3007,10 @@ fn with_quiesce_test_context<R>(
+     let root_ply = state.get_move_history().len();
+     let now = Instant::now();
+     let mut ctx = SearchContext {
++        #[cfg(feature = "search-study")]
++        study: StudyConfig::default(),
++        #[cfg(feature = "search-study")]
++        study_stats: StudyStats::default(),
+         deadline: None,
+         cancel: None,
+         cpu_percent: 100,
+@@ -3052,6 +3115,10 @@ fn probe_quiet_parent_leaf_stats(
+     let root_ply = state.get_move_history().len();
+     let now = Instant::now();
+     let mut ctx = SearchContext {
++        #[cfg(feature = "search-study")]
++        study: StudyConfig::default(),
++        #[cfg(feature = "search-study")]
++        study_stats: StudyStats::default(),
+         deadline: None,
+         cancel: None,
+         cpu_percent: 100,
+@@ -3154,6 +3221,10 @@ fn probe_capture_parent_leaf_or_quiesce_rs(
+     let root_ply = state.get_move_history().len();
+     let now = Instant::now();
+     let mut ctx = SearchContext {
++        #[cfg(feature = "search-study")]
++        study: StudyConfig::default(),
++        #[cfg(feature = "search-study")]
++        study_stats: StudyStats::default(),
+         deadline: None,
+         cancel: None,
+         cpu_percent: 100,
+@@ -3384,8 +3455,14 @@ fn alphabeta(
+     let key = position_hash(state) ^ royal_extension_key(ctx);
+     let alpha_orig = alpha;
+     let mut tt_move: Option<MoveKey> = None;
++    #[cfg(feature = "search-study")]
++    let permit_tt_score = !((ctx.study.pvs_min_depth > 0 || ctx.study.pv_tt_guard) && is_pv);
++    #[cfg(not(feature = "search-study"))]
++    let permit_tt_score = true;
+     if let Some(e) = ctx.tt.probe(key) {
+-        if e.depth >= depth {
++        #[cfg(feature = "search-study")]
++        if !permit_tt_score && e.depth >= depth { ctx.study_stats.pv_tt_score_bypasses += 1; }
++        if permit_tt_score && e.depth >= depth {
+             match e.bound {
+                 TtBound::Exact => return e.score,
+                 TtBound::Lower => {
+@@ -3577,6 +3654,7 @@ fn search_move_list(
+     move_index_base: usize,
+ ) -> (i32, Option<MoveKey>, i32, bool) {
+     let mut best = i32::MIN + 1;
++    let mut searched_count = 0usize;
+     let mut best_move_key = None;
+     let mut did_cutoff = false;
+     let mut hang_cache = LandingAttackCache::new();
+@@ -3664,7 +3742,13 @@ fn search_move_list(
+ 
+         // PV only along the first move of a PV node (root PVS / research sets
+         // is_pv). Non-PV leaves use capped quiescence when config > 2.
+-        let child_pv = is_pv && i == 0 && reduction == 0;
++        #[cfg(feature = "search-study")]
++        let pvs = ctx.study.pvs_min_depth > 0 && depth >= ctx.study.pvs_min_depth;
++        #[cfg(not(feature = "search-study"))]
++        let pvs = false;
++        let child_pv = is_pv && (if pvs { searched_count == 0 } else { i == 0 }) && reduction == 0;
++        let scout = pvs && searched_count > 0 && alpha.saturating_add(1) < beta
++            && static_score.is_none() && rel_expected.is_none();
+ 
+         let mut score = if let Some(expected) = static_score {
+             expected
+@@ -3696,6 +3780,35 @@ fn search_move_list(
+             } else {
+                 s
+             }
++        } else if scout {
++            #[cfg(feature = "search-study")]
++            { ctx.study_stats.pvs_scouts += 1; }
++            let mut value = -alphabeta(state, weights, child_depth - reduction,
++                -alpha.saturating_add(1), -alpha, false, ctx);
++            if reduction > 0 && !ctx.abort && value > alpha {
++                #[cfg(feature = "search-study")]
++                { ctx.study_stats.pvs_depth_researches += 1; }
++                // Interior searches mutate incoming quiescence context. Restore
++                // this root-of-child context before each re-search.
++                ctx.last_ab_capture_enemy = capture_enemy;
++                ctx.last_ab_to = Some(mv.to);
++                ctx.last_ab_wipe = is_wipe;
++                ctx.last_ab_mover_large = mover_large;
++                value = -alphabeta(state, weights, child_depth,
++                    -alpha.saturating_add(1), -alpha, false, ctx);
++            }
++            if !ctx.abort && value > alpha && value < beta {
++                #[cfg(feature = "search-study")]
++                { ctx.study_stats.pvs_window_researches += 1; }
++                // Interior searches mutate incoming quiescence context. Restore
++                // this root-of-child context before each re-search.
++                ctx.last_ab_capture_enemy = capture_enemy;
++                ctx.last_ab_to = Some(mv.to);
++                ctx.last_ab_wipe = is_wipe;
++                ctx.last_ab_mover_large = mover_large;
++                value = -alphabeta(state, weights, child_depth, -beta, -alpha, is_pv, ctx);
++            }
++            value
+         } else if reduction > 0 {
+             let reduced = depth - 1 - reduction;
+             -alphabeta(state, weights, reduced, -beta, -alpha, false, ctx)
+@@ -3705,7 +3818,7 @@ fn search_move_list(
+ 
+         // Re-search at full depth if reduced search looks interesting.
+         // Fail-high research restores PV (full q) when the parent was PV.
+-        if static_score.is_none()
++        if !scout && static_score.is_none()
+             && rel_expected.is_none()
+             && reduction > 0
+             && !ctx.abort
+@@ -3725,6 +3838,7 @@ fn search_move_list(
+             );
+         }
+ 
++        searched_count += 1;
+         state.unmake_move_for_search(undo);
+         ctx.ply = parent_ply;
+         if !ctx.abort {
+@@ -3991,10 +4105,20 @@ fn quiesce_impl(
+     }
+     let alpha_orig = alpha;
+ 
++    #[cfg(feature = "search-study")]
++    let q_eval_start = ctx.study.profile.then(Instant::now);
+     let stand_pat = evaluate_with_ply(state, weights, ctx.ply);
++    #[cfg(feature = "search-study")]
++    if let Some(t) = q_eval_start { ctx.study_stats.q_eval_ns += t.elapsed().as_nanos(); }
+     ctx.q_stand_pat = stand_pat;
+     let resolve_major = prev_to_is_major_enemy(state, weights, prev_to);
+-    let has_royal_take = stm_has_royal_capture(state);
++    #[cfg(feature = "search-study")]
++    let need_royal = !ctx.study.q_lazy_royal || (stand_pat >= beta && !resolve_major);
++    #[cfg(not(feature = "search-study"))]
++    let need_royal = true;
++    #[cfg(feature = "search-study")]
++    if !need_royal { ctx.study_stats.q_royal_probes_skipped += 1; }
++    let has_royal_take = need_royal && stm_has_royal_capture(state);
+     if stand_pat >= beta && !resolve_major && !has_royal_take {
+         ctx.q_tt.store(TtEntry {
+             key,
+@@ -4021,6 +4145,8 @@ fn quiesce_impl(
+     let gen_captures = include_captures || deep_ply;
+     let loud_st =
+         ctx.q_loud_promo_simple_only || (ctx.q_no_pathclear_after_wipe && ctx.last_ab_wipe);
++    #[cfg(feature = "search-study")]
++    let q_gen_start = ctx.study.profile.then(Instant::now);
+     let raw_moves = generate_quiescence_captures_with_hang(
+         state,
+         weights,
+@@ -4031,6 +4157,11 @@ fn quiesce_impl(
+         loud_st,
+         QHangOpts::from_ctx(ctx),
+     );
++    #[cfg(feature = "search-study")]
++    {
++        if let Some(t) = q_gen_start { ctx.study_stats.q_generation_ns += t.elapsed().as_nanos(); }
++        ctx.study_stats.q_raw += raw_moves.len() as u64;
++    }
+     if raw_moves.is_empty() {
+         return stand_pat;
+     }
+@@ -4053,9 +4184,22 @@ fn quiesce_impl(
+         is_royal_take: bool,
+     }
+ 
++    #[cfg(feature = "search-study")]
++    let q_annotation_start = ctx.study.profile.then(Instant::now);
+     let mut cands: Vec<QCand> = raw_moves
+         .into_iter()
+         .filter_map(|mv| {
++            // Same S2 eligibility as the later retain; avoid route analysis only
++            // when neither royal capture nor loud promotion can exempt this move.
++            #[cfg(feature = "search-study")]
++            if ctx.study.q_early_filter && ctx.q_own_large_only
++                && !dest_victim_is_big(state, &mv)
++                && !capture_takes_enemy_royal(state, &mv)
++                && !is_loud_promotion_move(state, &mv)
++            {
++                ctx.study_stats.q_early_rejected += 1;
++                return None;
++            }
+             let mover_value = state
+                 .get_board()
+                 .get_piece(mv.from)
+@@ -4094,6 +4238,9 @@ fn quiesce_impl(
+         })
+         .collect();
+ 
++    #[cfg(feature = "search-study")]
++    if let Some(t) = q_annotation_start { ctx.study_stats.q_annotation_ns += t.elapsed().as_nanos(); }
++
+     // Recapture-only after the first q-ply.
+     if ctx.q_prune_mode.uses_recapture_only() {
+         if prev_to.is_some() {
+@@ -4175,6 +4322,20 @@ fn quiesce_impl(
+         }
+     }
+     // Last-royal (instant win), then loud promo, path-sum, dest recapture, net MVV-LVA.
++    #[cfg(feature = "search-study")]
++    let q_sort_start = ctx.study.profile.then(Instant::now);
++    #[cfg(feature = "search-study")]
++    let cached_sort = ctx.study.q_cached_sort;
++    #[cfg(not(feature = "search-study"))]
++    let cached_sort = false;
++    if cached_sort {
++        cands.sort_by_cached_key(|c| std::cmp::Reverse((
++            c.last_royal_take, c.is_loud_promo,
++            (c.tactical_gain * 1000.0).round() as i32,
++            c.is_dest_recapture, c.is_recapture,
++            ((c.tactical_gain - c.own) * 1000.0 - c.mover_value).round() as i32,
++        )));
++    } else {
+     cands.sort_by(|a, b| {
+         let win_a = a.last_royal_take;
+         let win_b = b.last_royal_take;
+@@ -4197,6 +4358,13 @@ fn quiesce_impl(
+                 sb.cmp(&sa)
+             })
+     });
++    }
++    #[cfg(feature = "search-study")]
++    {
++        ctx.study_stats.q_sort_calls += 1;
++        ctx.study_stats.q_sort_candidates += cands.len() as u64;
++        if let Some(t) = q_sort_start { ctx.study_stats.q_sort_ns += t.elapsed().as_nanos(); }
++    }
+     if let Some(tm) = tt_move {
+         if let Some(idx) = cands.iter().position(|c| same_tt_move(&c.mv, tm)) {
+             cands.swap(0, idx);
+@@ -4739,6 +4907,16 @@ fn order_moves_with_heuristics(
+     let _ord = crate::profile_timers::order_scope();
+     let opponent = state.get_current_turn().opposite();
+     if captures_only_style {
++        #[cfg(feature = "search-study")]
++        if ctx.study.stage_b_cached_sort {
++            moves.sort_by_cached_key(|mv| {
++                let cap = mvv_lva_score(state, weights, mv);
++                let kr = killer_rank(ctx, ply, mv);
++                let hist = history_score(ctx, mv);
++                std::cmp::Reverse((cap, kr, hist))
++            });
++            return;
++        }
+         moves.sort_by_key(|mv| {
+             let cap = mvv_lva_score(state, weights, mv);
+             let kr = killer_rank(ctx, ply, mv);
+@@ -5306,6 +5484,8 @@ mod tests {
+ 
+     fn bare_result(best: Option<Move>, root_lines: Vec<(Move, i32)>, static_eval: i32) -> SearchResult {
+         SearchResult {
++            #[cfg(feature = "search-study")]
++            study_stats: StudyStats::default(),
+             royal_extensions: 0,
+             royal_probe: None,
+             iteration_timings: Vec::new(),
+@@ -6380,6 +6560,52 @@ mod tests {
+         (state, weights, mv)
+     }
+ 
++    #[cfg(feature = "search-study")]
++    #[test]
++    fn study_q_savings_preserve_exchange_and_royal_defenses() {
++        let fixtures = [hung_gg_by_gold(), last_royal_check_hanging_dragon()];
++        for (state, weights, take) in fixtures {
++            for depth in [0, 1, 2, 3] {
++                for only_large in [false, true] {
++                    for (alpha, beta) in [(-100_000, 100_000), (-100_000, -99_999), (99_999, 100_000)] {
++                        let run = |fast| with_quiesce_test_context(&state, &weights, depth, Some(take.to), |pos, ctx| {
++                            ctx.q_own_large_only = only_large;
++                            ctx.study = StudyConfig { q_lazy_royal:fast, q_early_filter:fast, q_cached_sort:fast, ..Default::default() };
++                            let result = quiesce(pos, &weights, depth, alpha, beta, Some(take.to), true, true, ctx);
++                            (result, ctx.nodes, ctx.q_nodes, ctx.q_caps_searched)
++                        });
++                        assert_eq!(run(false), run(true), "depth={depth}, S2={only_large}, window={alpha}..{beta}");
++                    }
++                }
++            }
++        }
++    }
++
++    #[cfg(feature = "search-study")]
++    #[test]
++    fn study_pvs_research_matches_full_window_at_unpruned_frontier() {
++        let (state, weights, _) = hung_gg_by_gold();
++        let mut ordered = state.generate_legal_moves();
++        // Put low-valued moves first to force a scout to challenge the incumbent.
++        ordered.sort_by_cached_key(|m| {
++            let mut child = state.clone();
++            child.ensure_eval_inc(&weights);
++            child.make_move_for_search(m.clone()).unwrap();
++            -evaluate_with_ply(&child, &weights, 1)
++        });
++        let run = |pvs| with_quiesce_test_context(&state, &weights, 0, None, |pos, ctx| {
++            ctx.allow_null = false;
++            ctx.study.pvs_min_depth = pvs;
++            let (score, best, _, _) = search_move_list(pos, &weights, 1, -weights.mate_score, weights.mate_score,
++                true, ctx, 0, &ordered, 0);
++            (score, best, ctx.study_stats.clone())
++        });
++        let base = run(0);let pvs = run(1);
++        assert_eq!((base.0,base.1),(pvs.0,pvs.1));
++        assert!(pvs.2.pvs_scouts > 0);
++        assert!(pvs.2.pvs_window_researches > 0);
++    }
++
+     #[test]
+     fn large_hang_simple_take_detects_lesser_attacker() {
+         let (state, weights, mv) = hung_gg_by_gold();

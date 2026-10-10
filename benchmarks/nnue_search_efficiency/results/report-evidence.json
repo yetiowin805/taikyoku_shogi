@@ -1,0 +1,209 @@
+{
+  "profile": {
+    "q_generation_ns": {
+      "min_percent": 1.354831815370487,
+      "max_percent": 18.965371338004935,
+      "wall_weighted_percent": 9.213495740083893
+    },
+    "q_annotation_ns": {
+      "min_percent": 0.050102075631104956,
+      "max_percent": 3.295698974975903,
+      "wall_weighted_percent": 2.0356128126907436
+    },
+    "q_sort_ns": {
+      "min_percent": 0.009667559948594001,
+      "max_percent": 0.5122021721372931,
+      "wall_weighted_percent": 0.24107671712113962
+    },
+    "q_eval_ns": {
+      "min_percent": 0.16413157147231155,
+      "max_percent": 6.244769153911944,
+      "wall_weighted_percent": 3.4800850273996553
+    },
+    "make_ns": {
+      "min_percent": 16.36297689679872,
+      "max_percent": 29.88766128685422,
+      "wall_weighted_percent": 20.965712849723843
+    },
+    "eval_ns": {
+      "min_percent": 6.662147121260814,
+      "max_percent": 11.77225893436315,
+      "wall_weighted_percent": 8.884795408391373
+    },
+    "atk_ns": {
+      "min_percent": 3.9344837340947554,
+      "max_percent": 17.31692690421637,
+      "wall_weighted_percent": 14.334205172101981
+    },
+    "gen_ns": {
+      "min_percent": 10.486262629567943,
+      "max_percent": 28.908673384158547,
+      "wall_weighted_percent": 18.456028546821837
+    },
+    "order_ns": {
+      "min_percent": 4.875915683791092,
+      "max_percent": 12.039500110131902,
+      "wall_weighted_percent": 7.152414383934539
+    }
+  },
+  "confirm_control_median_max_min_cpu_ratio": 1.0839434798716914,
+  "confirm_rss_mib_range": [
+    298.11328125,
+    313.88671875
+  ],
+  "qfast_early_rejected": 244689,
+  "qfast_raw_candidates": 11197953,
+  "nonleaf_window_calls": {
+    "total": 44719,
+    "wide": 27721,
+    "narrow_percent": 38.010688968894655
+  },
+  "timed": {
+    "pvs2": {
+      "rows": 32,
+      "depth_counts": {
+        "3": 8,
+        "4": 20,
+        "5": 4
+      },
+      "mean_wall_ms": 4067.21424425,
+      "mean_cpu_ms": 4065.5730625,
+      "min_wall_ms": 2008.6748929999999,
+      "max_wall_ms": 5006.051717,
+      "abort_count": 17
+    },
+    "pvs1": {
+      "rows": 32,
+      "depth_counts": {
+        "3": 8,
+        "4": 20,
+        "5": 4
+      },
+      "mean_wall_ms": 3951.0180766875,
+      "mean_cpu_ms": 3944.53096875,
+      "min_wall_ms": 1929.8203780000001,
+      "max_wall_ms": 5002.90908,
+      "abort_count": 16
+    },
+    "base": {
+      "rows": 32,
+      "depth_counts": {
+        "3": 8,
+        "4": 20,
+        "6": 2,
+        "5": 2
+      },
+      "mean_wall_ms": 4090.85268403125,
+      "mean_cpu_ms": 4081.909125,
+      "min_wall_ms": 2044.8549460000002,
+      "max_wall_ms": 5002.393812,
+      "abort_count": 15
+    }
+  },
+  "timed_repeat_stability": [
+    {
+      "variant": "pvs2",
+      "positions": 16,
+      "depth_changed": 0,
+      "move_changed": 0
+    },
+    {
+      "variant": "pvs1",
+      "positions": 16,
+      "depth_changed": 0,
+      "move_changed": 0
+    },
+    {
+      "variant": "base",
+      "positions": 16,
+      "depth_changed": 0,
+      "move_changed": 0
+    }
+  ],
+  "timed_power": {
+    "power_before": {
+      "ac": {
+        "1": 96
+      },
+      "epp": {
+        "balance_performance": 96
+      }
+    },
+    "power_after": {
+      "ac": {
+        "1": 96
+      },
+      "epp": {
+        "balance_performance": 96
+      }
+    }
+  },
+  "timed_disagreements": [
+    {
+      "position": 6,
+      "name": "slot0787-p1192",
+      "repeat": 0,
+      "variant": "pvs1",
+      "control_depth": 6,
+      "candidate_depth": 5,
+      "move_changed": true,
+      "control_score": -2179,
+      "candidate_score": -2775
+    },
+    {
+      "position": 6,
+      "name": "slot0787-p1192",
+      "repeat": 0,
+      "variant": "pvs2",
+      "control_depth": 6,
+      "candidate_depth": 5,
+      "move_changed": true,
+      "control_score": -2179,
+      "candidate_score": -2775
+    },
+    {
+      "position": 11,
+      "name": "slot0655-p1101",
+      "repeat": 0,
+      "variant": "pvs1",
+      "control_depth": 5,
+      "candidate_depth": 5,
+      "move_changed": true,
+      "control_score": -526,
+      "candidate_score": -526
+    },
+    {
+      "position": 6,
+      "name": "slot0787-p1192",
+      "repeat": 1,
+      "variant": "pvs2",
+      "control_depth": 6,
+      "candidate_depth": 5,
+      "move_changed": true,
+      "control_score": -2179,
+      "candidate_score": -2775
+    },
+    {
+      "position": 6,
+      "name": "slot0787-p1192",
+      "repeat": 1,
+      "variant": "pvs1",
+      "control_depth": 6,
+      "candidate_depth": 5,
+      "move_changed": true,
+      "control_score": -2179,
+      "candidate_score": -2775
+    },
+    {
+      "position": 11,
+      "name": "slot0655-p1101",
+      "repeat": 1,
+      "variant": "pvs1",
+      "control_depth": 5,
+      "candidate_depth": 5,
+      "move_changed": true,
+      "control_score": -526,
+      "candidate_score": -526
+    }
+  ]
+}

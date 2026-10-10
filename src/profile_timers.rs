@@ -15,7 +15,7 @@ thread_local! {
     static FILTER_NS: Cell<u128> = const { Cell::new(0) };
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, serde::Serialize)]
 pub struct Report {
     pub eval_ns: u128,
     pub gen_ns: u128,

@@ -1,0 +1,891 @@
+{
+  "positions": [
+    {
+      "name": "slot0650-p62",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0650-NNUE_W512_v4.5-vs-NNUE_W384_v4.5-a-black.json",
+      "ply": 62,
+      "stratum": "population",
+      "selection": "fraction-of-game, outcome-independent",
+      "sha256": "d081ec8bd4691fce3a952d907211c197cab00789e4655191ee7f778773446b1d"
+    },
+    {
+      "name": "slot0750-p243",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0750-NNUE_W512_v4.5-vs-NNUE_W2048_v3-a-white.json",
+      "ply": 243,
+      "stratum": "population",
+      "selection": "fraction-of-game, outcome-independent",
+      "sha256": "8d8ba362c5c1a4db75d22613e63ec09478ee6ad9008f4f21151c7e04d52e2ec5"
+    },
+    {
+      "name": "slot0755-p232",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0755-NNUE_W512_v4.5-vs-BASE_C2S2_A160_Ldefense-a-black.json",
+      "ply": 232,
+      "stratum": "population",
+      "selection": "fraction-of-game, outcome-independent",
+      "sha256": "016f8ce9550c22250f802d8e725c8665d00967496637206e45d20f3d5ab31bff"
+    },
+    {
+      "name": "slot0740-p354",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0740-NNUE_W512_v4-vs-NNUE_W384_v4.5-a-white.json",
+      "ply": 354,
+      "stratum": "population",
+      "selection": "fraction-of-game, outcome-independent",
+      "sha256": "0db8abd92918771c536daf4e2f10c8f94f9e07c26b447c093cdce0da516f4c5f"
+    },
+    {
+      "name": "slot0636-p58",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0636-NNUE_W512_v4.5-vs-NNUE_W1536_v3-a-black.json",
+      "ply": 58,
+      "stratum": "population",
+      "selection": "fraction-of-game, outcome-independent",
+      "sha256": "443f4d8ae72d3747141851c55c379a5354a802af44428f72acd0638ac57accbf"
+    },
+    {
+      "name": "slot0745-p136",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0745-NNUE_W512_v4.5-vs-NNUE_W512_v2-a-black.json",
+      "ply": 136,
+      "stratum": "population",
+      "selection": "fraction-of-game, outcome-independent",
+      "sha256": "1caaa00fc89e74db1f91539d99fa0bba8415ac7b2024dd109737cf2cb0f29869"
+    },
+    {
+      "name": "slot0787-p1192",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0787-NNUE_W1024_v4.5-vs-NNUE_W512_v4-a-black.json",
+      "ply": 1192,
+      "stratum": "population",
+      "selection": "fraction-of-game, outcome-independent",
+      "sha256": "1c8b41057e13d54f13e389f0d01f4f5afcf8718f833b9b92dfe034503e632968"
+    },
+    {
+      "name": "slot0780-p601",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0780-NNUE_W1024_v4.5-vs-NNUE_W512_v4.5-a-white.json",
+      "ply": 601,
+      "stratum": "population",
+      "selection": "fraction-of-game, outcome-independent",
+      "sha256": "3ef977a8c9b24e4455927c751c180706b7e2f56920db5d8a1bdbe0551c2a376c"
+    },
+    {
+      "name": "slot0731-p209",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0731-NNUE_W512_v4.5-vs-NNUE_W1024_v3-a-white.json",
+      "ply": 209,
+      "stratum": "population",
+      "selection": "fraction-of-game, outcome-independent",
+      "sha256": "d12fc4979f4b5f734611a5e50be1d87ea88b8797fe881561837a0d01b038ecbe"
+    },
+    {
+      "name": "slot0645-p200",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0645-C2K50A1-vs-NNUE_W384_v4.5-a-white.json",
+      "ply": 200,
+      "stratum": "population",
+      "selection": "fraction-of-game, outcome-independent",
+      "sha256": "5a38eb2157e9817951c2a56868659e793f83eb6fbfd3dc4ae8e6c6384069c6ff"
+    },
+    {
+      "name": "slot0637-p569",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0637-NNUE_W512_v4.5-vs-NNUE_W1536_v3-a-white.json",
+      "ply": 569,
+      "stratum": "population",
+      "selection": "fraction-of-game, outcome-independent",
+      "sha256": "9e254fe3ca2af305dc9691d95052281fad0c7dc1710d3ed93b8294a1d4452cb0"
+    },
+    {
+      "name": "slot0655-p1101",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0655-NNUE_W512_v4.5-vs-NNUE_W512_v4-a-white.json",
+      "ply": 1101,
+      "stratum": "population",
+      "selection": "fraction-of-game, outcome-independent",
+      "sha256": "ec1f7d391c49155a85fad8fd5fcf1b4032e7765c5ccc81efcbd4cb509f9f03ef"
+    },
+    {
+      "name": "slot0640-p38",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0640-NNUE_W512_v4.5-vs-NNUE_W1536_v3-a-black.json",
+      "ply": 38,
+      "stratum": "holdout",
+      "selection": "fraction-of-game, outcome-independent",
+      "sha256": "2be3461bd5fd9ec88b881fcd977303012d07f050b54d285c488802487eb880d6"
+    },
+    {
+      "name": "slot0713-p221",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0713-NNUE_W512_v4.5-vs-BASE_C2S2_A0_Ldefense-a-white.json",
+      "ply": 221,
+      "stratum": "holdout",
+      "selection": "fraction-of-game, outcome-independent",
+      "sha256": "b6959aaae05a033421a586f8e32fe073aa0f71007541cdfda7cba1d869c4d6b8"
+    },
+    {
+      "name": "slot0779-p287",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0779-NNUE_W1024_v4.5-vs-NNUE_W512_v4.5-a-black.json",
+      "ply": 287,
+      "stratum": "holdout",
+      "selection": "fraction-of-game, outcome-independent",
+      "sha256": "1094b127a59c754e88987be190b8eb14df705ed7ee51e6d9ed861db1107e5841"
+    },
+    {
+      "name": "slot0665-p523",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0665-NNUE_W512_v4.5-vs-NNUE_W512_v3-a-white.json",
+      "ply": 523,
+      "stratum": "holdout",
+      "selection": "fraction-of-game, outcome-independent",
+      "sha256": "6d7c146f447270d8b1b8f26dd849df0fd97f81612de62ac0c290d6ae1d78129e"
+    },
+    {
+      "name": "slot0673-p174",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0673-NNUE_W512_v4.5-vs-SEEDS2-a-white.json",
+      "ply": 174,
+      "stratum": "challenge",
+      "selection": "known loss; 174/176 tactical case;420/900 later controls",
+      "sha256": "ee8c2fe6ac1b3699777f7691a41c821c45bc770441db0edfa65869b02be364a9"
+    },
+    {
+      "name": "slot0673-p176",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0673-NNUE_W512_v4.5-vs-SEEDS2-a-white.json",
+      "ply": 176,
+      "stratum": "challenge",
+      "selection": "known loss; 174/176 tactical case;420/900 later controls",
+      "sha256": "ee8c2fe6ac1b3699777f7691a41c821c45bc770441db0edfa65869b02be364a9"
+    },
+    {
+      "name": "slot0673-p420",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0673-NNUE_W512_v4.5-vs-SEEDS2-a-white.json",
+      "ply": 420,
+      "stratum": "challenge",
+      "selection": "known loss; 174/176 tactical case;420/900 later controls",
+      "sha256": "ee8c2fe6ac1b3699777f7691a41c821c45bc770441db0edfa65869b02be364a9"
+    },
+    {
+      "name": "slot0673-p900",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0673-NNUE_W512_v4.5-vs-SEEDS2-a-white.json",
+      "ply": 900,
+      "stratum": "challenge",
+      "selection": "known loss; 174/176 tactical case;420/900 later controls",
+      "sha256": "ee8c2fe6ac1b3699777f7691a41c821c45bc770441db0edfa65869b02be364a9"
+    },
+    {
+      "name": "slot0650-static-p34",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0650-NNUE_W512_v4.5-vs-NNUE_W384_v4.5-a-black.json",
+      "ply": 34,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "d081ec8bd4691fce3a952d907211c197cab00789e4655191ee7f778773446b1d"
+    },
+    {
+      "name": "slot0650-static-p103",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0650-NNUE_W512_v4.5-vs-NNUE_W384_v4.5-a-black.json",
+      "ply": 103,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "d081ec8bd4691fce3a952d907211c197cab00789e4655191ee7f778773446b1d"
+    },
+    {
+      "name": "slot0650-static-p172",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0650-NNUE_W512_v4.5-vs-NNUE_W384_v4.5-a-black.json",
+      "ply": 172,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "d081ec8bd4691fce3a952d907211c197cab00789e4655191ee7f778773446b1d"
+    },
+    {
+      "name": "slot0650-static-p241",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0650-NNUE_W512_v4.5-vs-NNUE_W384_v4.5-a-black.json",
+      "ply": 241,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "d081ec8bd4691fce3a952d907211c197cab00789e4655191ee7f778773446b1d"
+    },
+    {
+      "name": "slot0650-static-p310",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0650-NNUE_W512_v4.5-vs-NNUE_W384_v4.5-a-black.json",
+      "ply": 310,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "d081ec8bd4691fce3a952d907211c197cab00789e4655191ee7f778773446b1d"
+    },
+    {
+      "name": "slot0750-static-p63",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0750-NNUE_W512_v4.5-vs-NNUE_W2048_v3-a-white.json",
+      "ply": 63,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "8d8ba362c5c1a4db75d22613e63ec09478ee6ad9008f4f21151c7e04d52e2ec5"
+    },
+    {
+      "name": "slot0750-static-p190",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0750-NNUE_W512_v4.5-vs-NNUE_W2048_v3-a-white.json",
+      "ply": 190,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "8d8ba362c5c1a4db75d22613e63ec09478ee6ad9008f4f21151c7e04d52e2ec5"
+    },
+    {
+      "name": "slot0750-static-p318",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0750-NNUE_W512_v4.5-vs-NNUE_W2048_v3-a-white.json",
+      "ply": 318,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "8d8ba362c5c1a4db75d22613e63ec09478ee6ad9008f4f21151c7e04d52e2ec5"
+    },
+    {
+      "name": "slot0750-static-p445",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0750-NNUE_W512_v4.5-vs-NNUE_W2048_v3-a-white.json",
+      "ply": 445,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "8d8ba362c5c1a4db75d22613e63ec09478ee6ad9008f4f21151c7e04d52e2ec5"
+    },
+    {
+      "name": "slot0750-static-p572",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0750-NNUE_W512_v4.5-vs-NNUE_W2048_v3-a-white.json",
+      "ply": 572,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "8d8ba362c5c1a4db75d22613e63ec09478ee6ad9008f4f21151c7e04d52e2ec5"
+    },
+    {
+      "name": "slot0755-static-p37",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0755-NNUE_W512_v4.5-vs-BASE_C2S2_A160_Ldefense-a-black.json",
+      "ply": 37,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "016f8ce9550c22250f802d8e725c8665d00967496637206e45d20f3d5ab31bff"
+    },
+    {
+      "name": "slot0755-static-p112",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0755-NNUE_W512_v4.5-vs-BASE_C2S2_A160_Ldefense-a-black.json",
+      "ply": 112,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "016f8ce9550c22250f802d8e725c8665d00967496637206e45d20f3d5ab31bff"
+    },
+    {
+      "name": "slot0755-static-p187",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0755-NNUE_W512_v4.5-vs-BASE_C2S2_A160_Ldefense-a-black.json",
+      "ply": 187,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "016f8ce9550c22250f802d8e725c8665d00967496637206e45d20f3d5ab31bff"
+    },
+    {
+      "name": "slot0755-static-p262",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0755-NNUE_W512_v4.5-vs-BASE_C2S2_A160_Ldefense-a-black.json",
+      "ply": 262,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "016f8ce9550c22250f802d8e725c8665d00967496637206e45d20f3d5ab31bff"
+    },
+    {
+      "name": "slot0755-static-p337",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0755-NNUE_W512_v4.5-vs-BASE_C2S2_A160_Ldefense-a-black.json",
+      "ply": 337,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "016f8ce9550c22250f802d8e725c8665d00967496637206e45d20f3d5ab31bff"
+    },
+    {
+      "name": "slot0740-static-p43",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0740-NNUE_W512_v4-vs-NNUE_W384_v4.5-a-white.json",
+      "ply": 43,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "0db8abd92918771c536daf4e2f10c8f94f9e07c26b447c093cdce0da516f4c5f"
+    },
+    {
+      "name": "slot0740-static-p129",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0740-NNUE_W512_v4-vs-NNUE_W384_v4.5-a-white.json",
+      "ply": 129,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "0db8abd92918771c536daf4e2f10c8f94f9e07c26b447c093cdce0da516f4c5f"
+    },
+    {
+      "name": "slot0740-static-p215",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0740-NNUE_W512_v4-vs-NNUE_W384_v4.5-a-white.json",
+      "ply": 215,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "0db8abd92918771c536daf4e2f10c8f94f9e07c26b447c093cdce0da516f4c5f"
+    },
+    {
+      "name": "slot0740-static-p301",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0740-NNUE_W512_v4-vs-NNUE_W384_v4.5-a-white.json",
+      "ply": 301,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "0db8abd92918771c536daf4e2f10c8f94f9e07c26b447c093cdce0da516f4c5f"
+    },
+    {
+      "name": "slot0740-static-p387",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0740-NNUE_W512_v4-vs-NNUE_W384_v4.5-a-white.json",
+      "ply": 387,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "0db8abd92918771c536daf4e2f10c8f94f9e07c26b447c093cdce0da516f4c5f"
+    },
+    {
+      "name": "slot0636-static-p31",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0636-NNUE_W512_v4.5-vs-NNUE_W1536_v3-a-black.json",
+      "ply": 31,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "443f4d8ae72d3747141851c55c379a5354a802af44428f72acd0638ac57accbf"
+    },
+    {
+      "name": "slot0636-static-p95",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0636-NNUE_W512_v4.5-vs-NNUE_W1536_v3-a-black.json",
+      "ply": 95,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "443f4d8ae72d3747141851c55c379a5354a802af44428f72acd0638ac57accbf"
+    },
+    {
+      "name": "slot0636-static-p159",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0636-NNUE_W512_v4.5-vs-NNUE_W1536_v3-a-black.json",
+      "ply": 159,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "443f4d8ae72d3747141851c55c379a5354a802af44428f72acd0638ac57accbf"
+    },
+    {
+      "name": "slot0636-static-p223",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0636-NNUE_W512_v4.5-vs-NNUE_W1536_v3-a-black.json",
+      "ply": 223,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "443f4d8ae72d3747141851c55c379a5354a802af44428f72acd0638ac57accbf"
+    },
+    {
+      "name": "slot0636-static-p287",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0636-NNUE_W512_v4.5-vs-NNUE_W1536_v3-a-black.json",
+      "ply": 287,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "443f4d8ae72d3747141851c55c379a5354a802af44428f72acd0638ac57accbf"
+    },
+    {
+      "name": "slot0745-static-p35",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0745-NNUE_W512_v4.5-vs-NNUE_W512_v2-a-black.json",
+      "ply": 35,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "1caaa00fc89e74db1f91539d99fa0bba8415ac7b2024dd109737cf2cb0f29869"
+    },
+    {
+      "name": "slot0745-static-p107",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0745-NNUE_W512_v4.5-vs-NNUE_W512_v2-a-black.json",
+      "ply": 107,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "1caaa00fc89e74db1f91539d99fa0bba8415ac7b2024dd109737cf2cb0f29869"
+    },
+    {
+      "name": "slot0745-static-p179",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0745-NNUE_W512_v4.5-vs-NNUE_W512_v2-a-black.json",
+      "ply": 179,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "1caaa00fc89e74db1f91539d99fa0bba8415ac7b2024dd109737cf2cb0f29869"
+    },
+    {
+      "name": "slot0745-static-p251",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0745-NNUE_W512_v4.5-vs-NNUE_W512_v2-a-black.json",
+      "ply": 251,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "1caaa00fc89e74db1f91539d99fa0bba8415ac7b2024dd109737cf2cb0f29869"
+    },
+    {
+      "name": "slot0745-static-p323",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0745-NNUE_W512_v4.5-vs-NNUE_W512_v2-a-black.json",
+      "ply": 323,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "1caaa00fc89e74db1f91539d99fa0bba8415ac7b2024dd109737cf2cb0f29869"
+    },
+    {
+      "name": "slot0787-static-p192",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0787-NNUE_W1024_v4.5-vs-NNUE_W512_v4-a-black.json",
+      "ply": 192,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "1c8b41057e13d54f13e389f0d01f4f5afcf8718f833b9b92dfe034503e632968"
+    },
+    {
+      "name": "slot0787-static-p576",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0787-NNUE_W1024_v4.5-vs-NNUE_W512_v4-a-black.json",
+      "ply": 576,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "1c8b41057e13d54f13e389f0d01f4f5afcf8718f833b9b92dfe034503e632968"
+    },
+    {
+      "name": "slot0787-static-p961",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0787-NNUE_W1024_v4.5-vs-NNUE_W512_v4-a-black.json",
+      "ply": 961,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "1c8b41057e13d54f13e389f0d01f4f5afcf8718f833b9b92dfe034503e632968"
+    },
+    {
+      "name": "slot0787-static-p1346",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0787-NNUE_W1024_v4.5-vs-NNUE_W512_v4-a-black.json",
+      "ply": 1346,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "1c8b41057e13d54f13e389f0d01f4f5afcf8718f833b9b92dfe034503e632968"
+    },
+    {
+      "name": "slot0787-static-p1730",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0787-NNUE_W1024_v4.5-vs-NNUE_W512_v4-a-black.json",
+      "ply": 1730,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "1c8b41057e13d54f13e389f0d01f4f5afcf8718f833b9b92dfe034503e632968"
+    },
+    {
+      "name": "slot0780-static-p73",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0780-NNUE_W1024_v4.5-vs-NNUE_W512_v4.5-a-white.json",
+      "ply": 73,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "3ef977a8c9b24e4455927c751c180706b7e2f56920db5d8a1bdbe0551c2a376c"
+    },
+    {
+      "name": "slot0780-static-p219",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0780-NNUE_W1024_v4.5-vs-NNUE_W512_v4.5-a-white.json",
+      "ply": 219,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "3ef977a8c9b24e4455927c751c180706b7e2f56920db5d8a1bdbe0551c2a376c"
+    },
+    {
+      "name": "slot0780-static-p366",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0780-NNUE_W1024_v4.5-vs-NNUE_W512_v4.5-a-white.json",
+      "ply": 366,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "3ef977a8c9b24e4455927c751c180706b7e2f56920db5d8a1bdbe0551c2a376c"
+    },
+    {
+      "name": "slot0780-static-p513",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0780-NNUE_W1024_v4.5-vs-NNUE_W512_v4.5-a-white.json",
+      "ply": 513,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "3ef977a8c9b24e4455927c751c180706b7e2f56920db5d8a1bdbe0551c2a376c"
+    },
+    {
+      "name": "slot0780-static-p659",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0780-NNUE_W1024_v4.5-vs-NNUE_W512_v4.5-a-white.json",
+      "ply": 659,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "3ef977a8c9b24e4455927c751c180706b7e2f56920db5d8a1bdbe0551c2a376c"
+    },
+    {
+      "name": "slot0731-static-p115",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0731-NNUE_W512_v4.5-vs-NNUE_W1024_v3-a-white.json",
+      "ply": 115,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "d12fc4979f4b5f734611a5e50be1d87ea88b8797fe881561837a0d01b038ecbe"
+    },
+    {
+      "name": "slot0731-static-p346",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0731-NNUE_W512_v4.5-vs-NNUE_W1024_v3-a-white.json",
+      "ply": 346,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "d12fc4979f4b5f734611a5e50be1d87ea88b8797fe881561837a0d01b038ecbe"
+    },
+    {
+      "name": "slot0731-static-p578",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0731-NNUE_W512_v4.5-vs-NNUE_W1024_v3-a-white.json",
+      "ply": 578,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "d12fc4979f4b5f734611a5e50be1d87ea88b8797fe881561837a0d01b038ecbe"
+    },
+    {
+      "name": "slot0731-static-p809",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0731-NNUE_W512_v4.5-vs-NNUE_W1024_v3-a-white.json",
+      "ply": 809,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "d12fc4979f4b5f734611a5e50be1d87ea88b8797fe881561837a0d01b038ecbe"
+    },
+    {
+      "name": "slot0731-static-p1040",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0731-NNUE_W512_v4.5-vs-NNUE_W1024_v3-a-white.json",
+      "ply": 1040,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "d12fc4979f4b5f734611a5e50be1d87ea88b8797fe881561837a0d01b038ecbe"
+    },
+    {
+      "name": "slot0645-static-p52",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0645-C2K50A1-vs-NNUE_W384_v4.5-a-white.json",
+      "ply": 52,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "5a38eb2157e9817951c2a56868659e793f83eb6fbfd3dc4ae8e6c6384069c6ff"
+    },
+    {
+      "name": "slot0645-static-p158",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0645-C2K50A1-vs-NNUE_W384_v4.5-a-white.json",
+      "ply": 158,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "5a38eb2157e9817951c2a56868659e793f83eb6fbfd3dc4ae8e6c6384069c6ff"
+    },
+    {
+      "name": "slot0645-static-p263",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0645-C2K50A1-vs-NNUE_W384_v4.5-a-white.json",
+      "ply": 263,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "5a38eb2157e9817951c2a56868659e793f83eb6fbfd3dc4ae8e6c6384069c6ff"
+    },
+    {
+      "name": "slot0645-static-p368",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0645-C2K50A1-vs-NNUE_W384_v4.5-a-white.json",
+      "ply": 368,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "5a38eb2157e9817951c2a56868659e793f83eb6fbfd3dc4ae8e6c6384069c6ff"
+    },
+    {
+      "name": "slot0645-static-p474",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0645-C2K50A1-vs-NNUE_W384_v4.5-a-white.json",
+      "ply": 474,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "5a38eb2157e9817951c2a56868659e793f83eb6fbfd3dc4ae8e6c6384069c6ff"
+    },
+    {
+      "name": "slot0637-static-p91",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0637-NNUE_W512_v4.5-vs-NNUE_W1536_v3-a-white.json",
+      "ply": 91,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "9e254fe3ca2af305dc9691d95052281fad0c7dc1710d3ed93b8294a1d4452cb0"
+    },
+    {
+      "name": "slot0637-static-p274",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0637-NNUE_W512_v4.5-vs-NNUE_W1536_v3-a-white.json",
+      "ply": 274,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "9e254fe3ca2af305dc9691d95052281fad0c7dc1710d3ed93b8294a1d4452cb0"
+    },
+    {
+      "name": "slot0637-static-p458",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0637-NNUE_W512_v4.5-vs-NNUE_W1536_v3-a-white.json",
+      "ply": 458,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "9e254fe3ca2af305dc9691d95052281fad0c7dc1710d3ed93b8294a1d4452cb0"
+    },
+    {
+      "name": "slot0637-static-p641",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0637-NNUE_W512_v4.5-vs-NNUE_W1536_v3-a-white.json",
+      "ply": 641,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "9e254fe3ca2af305dc9691d95052281fad0c7dc1710d3ed93b8294a1d4452cb0"
+    },
+    {
+      "name": "slot0637-static-p824",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0637-NNUE_W512_v4.5-vs-NNUE_W1536_v3-a-white.json",
+      "ply": 824,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "9e254fe3ca2af305dc9691d95052281fad0c7dc1710d3ed93b8294a1d4452cb0"
+    },
+    {
+      "name": "slot0655-static-p134",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0655-NNUE_W512_v4.5-vs-NNUE_W512_v4-a-white.json",
+      "ply": 134,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "ec1f7d391c49155a85fad8fd5fcf1b4032e7765c5ccc81efcbd4cb509f9f03ef"
+    },
+    {
+      "name": "slot0655-static-p402",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0655-NNUE_W512_v4.5-vs-NNUE_W512_v4-a-white.json",
+      "ply": 402,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "ec1f7d391c49155a85fad8fd5fcf1b4032e7765c5ccc81efcbd4cb509f9f03ef"
+    },
+    {
+      "name": "slot0655-static-p670",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0655-NNUE_W512_v4.5-vs-NNUE_W512_v4-a-white.json",
+      "ply": 670,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "ec1f7d391c49155a85fad8fd5fcf1b4032e7765c5ccc81efcbd4cb509f9f03ef"
+    },
+    {
+      "name": "slot0655-static-p938",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0655-NNUE_W512_v4.5-vs-NNUE_W512_v4-a-white.json",
+      "ply": 938,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "ec1f7d391c49155a85fad8fd5fcf1b4032e7765c5ccc81efcbd4cb509f9f03ef"
+    },
+    {
+      "name": "slot0655-static-p1206",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0655-NNUE_W512_v4.5-vs-NNUE_W512_v4-a-white.json",
+      "ply": 1206,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "ec1f7d391c49155a85fad8fd5fcf1b4032e7765c5ccc81efcbd4cb509f9f03ef"
+    },
+    {
+      "name": "slot0640-static-p20",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0640-NNUE_W512_v4.5-vs-NNUE_W1536_v3-a-black.json",
+      "ply": 20,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "2be3461bd5fd9ec88b881fcd977303012d07f050b54d285c488802487eb880d6"
+    },
+    {
+      "name": "slot0640-static-p62",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0640-NNUE_W512_v4.5-vs-NNUE_W1536_v3-a-black.json",
+      "ply": 62,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "2be3461bd5fd9ec88b881fcd977303012d07f050b54d285c488802487eb880d6"
+    },
+    {
+      "name": "slot0640-static-p103",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0640-NNUE_W512_v4.5-vs-NNUE_W1536_v3-a-black.json",
+      "ply": 103,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "2be3461bd5fd9ec88b881fcd977303012d07f050b54d285c488802487eb880d6"
+    },
+    {
+      "name": "slot0640-static-p144",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0640-NNUE_W512_v4.5-vs-NNUE_W1536_v3-a-black.json",
+      "ply": 144,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "2be3461bd5fd9ec88b881fcd977303012d07f050b54d285c488802487eb880d6"
+    },
+    {
+      "name": "slot0640-static-p186",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0640-NNUE_W512_v4.5-vs-NNUE_W1536_v3-a-black.json",
+      "ply": 186,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "2be3461bd5fd9ec88b881fcd977303012d07f050b54d285c488802487eb880d6"
+    },
+    {
+      "name": "slot0713-static-p58",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0713-NNUE_W512_v4.5-vs-BASE_C2S2_A0_Ldefense-a-white.json",
+      "ply": 58,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "b6959aaae05a033421a586f8e32fe073aa0f71007541cdfda7cba1d869c4d6b8"
+    },
+    {
+      "name": "slot0713-static-p174",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0713-NNUE_W512_v4.5-vs-BASE_C2S2_A0_Ldefense-a-white.json",
+      "ply": 174,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "b6959aaae05a033421a586f8e32fe073aa0f71007541cdfda7cba1d869c4d6b8"
+    },
+    {
+      "name": "slot0713-static-p291",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0713-NNUE_W512_v4.5-vs-BASE_C2S2_A0_Ldefense-a-white.json",
+      "ply": 291,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "b6959aaae05a033421a586f8e32fe073aa0f71007541cdfda7cba1d869c4d6b8"
+    },
+    {
+      "name": "slot0713-static-p407",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0713-NNUE_W512_v4.5-vs-BASE_C2S2_A0_Ldefense-a-white.json",
+      "ply": 407,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "b6959aaae05a033421a586f8e32fe073aa0f71007541cdfda7cba1d869c4d6b8"
+    },
+    {
+      "name": "slot0713-static-p523",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0713-NNUE_W512_v4.5-vs-BASE_C2S2_A0_Ldefense-a-white.json",
+      "ply": 523,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "b6959aaae05a033421a586f8e32fe073aa0f71007541cdfda7cba1d869c4d6b8"
+    },
+    {
+      "name": "slot0779-static-p46",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0779-NNUE_W1024_v4.5-vs-NNUE_W512_v4.5-a-black.json",
+      "ply": 46,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "1094b127a59c754e88987be190b8eb14df705ed7ee51e6d9ed861db1107e5841"
+    },
+    {
+      "name": "slot0779-static-p138",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0779-NNUE_W1024_v4.5-vs-NNUE_W512_v4.5-a-black.json",
+      "ply": 138,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "1094b127a59c754e88987be190b8eb14df705ed7ee51e6d9ed861db1107e5841"
+    },
+    {
+      "name": "slot0779-static-p231",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0779-NNUE_W1024_v4.5-vs-NNUE_W512_v4.5-a-black.json",
+      "ply": 231,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "1094b127a59c754e88987be190b8eb14df705ed7ee51e6d9ed861db1107e5841"
+    },
+    {
+      "name": "slot0779-static-p324",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0779-NNUE_W1024_v4.5-vs-NNUE_W512_v4.5-a-black.json",
+      "ply": 324,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "1094b127a59c754e88987be190b8eb14df705ed7ee51e6d9ed861db1107e5841"
+    },
+    {
+      "name": "slot0779-static-p416",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0779-NNUE_W1024_v4.5-vs-NNUE_W512_v4.5-a-black.json",
+      "ply": 416,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "1094b127a59c754e88987be190b8eb14df705ed7ee51e6d9ed861db1107e5841"
+    },
+    {
+      "name": "slot0665-static-p63",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0665-NNUE_W512_v4.5-vs-NNUE_W512_v3-a-white.json",
+      "ply": 63,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "6d7c146f447270d8b1b8f26dd849df0fd97f81612de62ac0c290d6ae1d78129e"
+    },
+    {
+      "name": "slot0665-static-p191",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0665-NNUE_W512_v4.5-vs-NNUE_W512_v3-a-white.json",
+      "ply": 191,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "6d7c146f447270d8b1b8f26dd849df0fd97f81612de62ac0c290d6ae1d78129e"
+    },
+    {
+      "name": "slot0665-static-p319",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0665-NNUE_W512_v4.5-vs-NNUE_W512_v3-a-white.json",
+      "ply": 319,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "6d7c146f447270d8b1b8f26dd849df0fd97f81612de62ac0c290d6ae1d78129e"
+    },
+    {
+      "name": "slot0665-static-p446",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0665-NNUE_W512_v4.5-vs-NNUE_W512_v3-a-white.json",
+      "ply": 446,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "6d7c146f447270d8b1b8f26dd849df0fd97f81612de62ac0c290d6ae1d78129e"
+    },
+    {
+      "name": "slot0665-static-p574",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0665-NNUE_W512_v4.5-vs-NNUE_W512_v3-a-white.json",
+      "ply": 574,
+      "stratum": "static",
+      "selection": "uniform game quantiles",
+      "sha256": "6d7c146f447270d8b1b8f26dd849df0fd97f81612de62ac0c290d6ae1d78129e"
+    },
+    {
+      "name": "slot0637-event-p195",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0637-NNUE_W512_v4.5-vs-NNUE_W1536_v3-a-white.json",
+      "ply": 195,
+      "stratum": "event-challenge",
+      "selection": "large recorded same-side score swing while preceding eval within +/-5000; no claimed ground truth",
+      "sha256": "9e254fe3ca2af305dc9691d95052281fad0c7dc1710d3ed93b8294a1d4452cb0"
+    },
+    {
+      "name": "slot0731-event-p685",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0731-NNUE_W512_v4.5-vs-NNUE_W1024_v3-a-white.json",
+      "ply": 685,
+      "stratum": "event-challenge",
+      "selection": "large recorded same-side score swing while preceding eval within +/-5000; no claimed ground truth",
+      "sha256": "d12fc4979f4b5f734611a5e50be1d87ea88b8797fe881561837a0d01b038ecbe"
+    },
+    {
+      "name": "slot0655-event-p291",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0655-NNUE_W512_v4.5-vs-NNUE_W512_v4-a-white.json",
+      "ply": 291,
+      "stratum": "event-challenge",
+      "selection": "large recorded same-side score swing while preceding eval within +/-5000; no claimed ground truth",
+      "sha256": "ec1f7d391c49155a85fad8fd5fcf1b4032e7765c5ccc81efcbd4cb509f9f03ef"
+    },
+    {
+      "name": "slot0750-event-p575",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0750-NNUE_W512_v4.5-vs-NNUE_W2048_v3-a-white.json",
+      "ply": 575,
+      "stratum": "event-challenge",
+      "selection": "large recorded same-side score swing while preceding eval within +/-5000; no claimed ground truth",
+      "sha256": "8d8ba362c5c1a4db75d22613e63ec09478ee6ad9008f4f21151c7e04d52e2ec5"
+    },
+    {
+      "name": "slot0787-event-p832",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0787-NNUE_W1024_v4.5-vs-NNUE_W512_v4-a-black.json",
+      "ply": 832,
+      "stratum": "event-challenge",
+      "selection": "large recorded same-side score swing while preceding eval within +/-5000; no claimed ground truth",
+      "sha256": "1c8b41057e13d54f13e389f0d01f4f5afcf8718f833b9b92dfe034503e632968"
+    },
+    {
+      "name": "slot0740-event-p270",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0740-NNUE_W512_v4-vs-NNUE_W384_v4.5-a-white.json",
+      "ply": 270,
+      "stratum": "event-challenge",
+      "selection": "large recorded same-side score swing while preceding eval within +/-5000; no claimed ground truth",
+      "sha256": "0db8abd92918771c536daf4e2f10c8f94f9e07c26b447c093cdce0da516f4c5f"
+    },
+    {
+      "name": "slot0648-holdout-p328",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0648-NNUE_W512_v4.5-vs-NNUE_W384_v3-a-black.json",
+      "ply": 328,
+      "stratum": "validation",
+      "selection": "unused pairing; fixed game fraction before search results",
+      "sha256": "323440239ab36b22c95ae0deee505029a94e59733408106362e9422ec903dc8b"
+    },
+    {
+      "name": "slot0722-holdout-p188",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0722-NNUE_W512_v4.5-vs-BASE_C2S2_A160_Lflight-a-black.json",
+      "ply": 188,
+      "stratum": "validation",
+      "selection": "unused pairing; fixed game fraction before search results",
+      "sha256": "37afb9e8e75618a1d4da75f8d093fd455a120d4ff420e553f215c03aef3e38dc"
+    },
+    {
+      "name": "slot0765-holdout-p222",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0765-NNUE_W512_v4.5-vs-NNUE_W256_v3-a-black.json",
+      "ply": 222,
+      "stratum": "validation",
+      "selection": "unused pairing; fixed game fraction before search results",
+      "sha256": "84b155556cbe5f0be19dd78536530394a4ba012b9b8f6ac54c56ff45df9f5f23"
+    },
+    {
+      "name": "slot0713-holdout-p221",
+      "game": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/input/games/slot0713-NNUE_W512_v4.5-vs-BASE_C2S2_A0_Ldefense-a-white.json",
+      "ply": 221,
+      "stratum": "validation",
+      "selection": "unused pairing; fixed game fraction before search results",
+      "sha256": "b6959aaae05a033421a586f8e32fe073aa0f71007541cdfda7cba1d869c4d6b8"
+    }
+  ],
+  "models": [
+    {
+      "name": "W512-v4.5",
+      "path": "/home/frank/taikyoku_shogi/models/nnue-v4.5/NNUE_W512_v4.5/model.json",
+      "sha256": "42bb57d10d2b01bbe59fb7ab7c75a260158c72bd322b3b8cf8533376f486d37e"
+    }
+  ]
+}

@@ -1,0 +1,69 @@
+{
+  "name": "profile",
+  "binary": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/bin/profile",
+  "binary_sha256": "3aa2b1d0892754b70cdfb51e68f1e8a095a6299bc667e2240d4ebe684d5d426f",
+  "corpus_sha256": "d94a8e0b2f44e158ba2dde0e183b0ba59dcb35abb305b19d9fe2813c40fca096",
+  "cpu": 2,
+  "requests": [
+    {
+      "position": 0,
+      "variant": "base",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "profile": true
+      }
+    },
+    {
+      "position": 2,
+      "variant": "base",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "profile": true
+      }
+    },
+    {
+      "position": 6,
+      "variant": "base",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "profile": true
+      }
+    },
+    {
+      "position": 10,
+      "variant": "base",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "profile": true
+      }
+    },
+    {
+      "position": 16,
+      "variant": "base",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "profile": true
+      }
+    },
+    {
+      "position": 104,
+      "variant": "base",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "profile": true
+      }
+    }
+  ]
+}

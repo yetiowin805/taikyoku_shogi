@@ -1,0 +1,12 @@
+identity_v3 1 12 0 base 3 1582 192582
+identity_v3 2 12 1 base 3 621 85250
+identity_v3 3 12 2 base 3 532 97716
+identity_v3 4 12 6 base 3 30 4611
+identity_v3 5 12 7 base 3 175 29059
+identity_v3 6 12 10 base 3 212 27909
+identity_v3 7 12 16 base 3 1108 118347
+identity_v3 8 12 17 base 3 1504 141201
+identity_v3 9 12 100 base 3 358 69713
+identity_v3 10 12 102 base 3 357 85412
+identity_v3 11 12 104 base 3 111 16587
+identity_v3 12 12 106 base 3 306 21106

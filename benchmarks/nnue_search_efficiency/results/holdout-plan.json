@@ -1,0 +1,569 @@
+{
+  "name": "holdout",
+  "binary": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/bin/study",
+  "binary_sha256": "1cdc6af4a5faccf7564562132857ef6dc549935f51c1281521003c4558a45996",
+  "corpus_sha256": "d94a8e0b2f44e158ba2dde0e183b0ba59dcb35abb305b19d9fe2813c40fca096",
+  "cpu": 2,
+  "requests": [
+    {
+      "position": 3,
+      "variant": "qfast",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_lazy_royal": true,
+        "q_early_filter": true,
+        "q_cached_sort": true
+      }
+    },
+    {
+      "position": 3,
+      "variant": "base",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {}
+    },
+    {
+      "position": 4,
+      "variant": "base",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {}
+    },
+    {
+      "position": 4,
+      "variant": "qfast",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_lazy_royal": true,
+        "q_early_filter": true,
+        "q_cached_sort": true
+      }
+    },
+    {
+      "position": 5,
+      "variant": "qfast",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_lazy_royal": true,
+        "q_early_filter": true,
+        "q_cached_sort": true
+      }
+    },
+    {
+      "position": 5,
+      "variant": "base",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {}
+    },
+    {
+      "position": 8,
+      "variant": "base",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {}
+    },
+    {
+      "position": 8,
+      "variant": "qfast",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_lazy_royal": true,
+        "q_early_filter": true,
+        "q_cached_sort": true
+      }
+    },
+    {
+      "position": 9,
+      "variant": "qfast",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_lazy_royal": true,
+        "q_early_filter": true,
+        "q_cached_sort": true
+      }
+    },
+    {
+      "position": 9,
+      "variant": "base",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {}
+    },
+    {
+      "position": 11,
+      "variant": "qfast",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_lazy_royal": true,
+        "q_early_filter": true,
+        "q_cached_sort": true
+      }
+    },
+    {
+      "position": 11,
+      "variant": "base",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {}
+    },
+    {
+      "position": 18,
+      "variant": "base",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {}
+    },
+    {
+      "position": 18,
+      "variant": "qfast",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_lazy_royal": true,
+        "q_early_filter": true,
+        "q_cached_sort": true
+      }
+    },
+    {
+      "position": 19,
+      "variant": "qfast",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_lazy_royal": true,
+        "q_early_filter": true,
+        "q_cached_sort": true
+      }
+    },
+    {
+      "position": 19,
+      "variant": "base",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {}
+    },
+    {
+      "position": 101,
+      "variant": "qfast",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_lazy_royal": true,
+        "q_early_filter": true,
+        "q_cached_sort": true
+      }
+    },
+    {
+      "position": 101,
+      "variant": "base",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {}
+    },
+    {
+      "position": 103,
+      "variant": "qfast",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_lazy_royal": true,
+        "q_early_filter": true,
+        "q_cached_sort": true
+      }
+    },
+    {
+      "position": 103,
+      "variant": "base",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {}
+    },
+    {
+      "position": 105,
+      "variant": "qfast",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_lazy_royal": true,
+        "q_early_filter": true,
+        "q_cached_sort": true
+      }
+    },
+    {
+      "position": 105,
+      "variant": "base",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {}
+    },
+    {
+      "position": 107,
+      "variant": "qfast",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_lazy_royal": true,
+        "q_early_filter": true,
+        "q_cached_sort": true
+      }
+    },
+    {
+      "position": 107,
+      "variant": "base",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {}
+    },
+    {
+      "position": 108,
+      "variant": "base",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {}
+    },
+    {
+      "position": 108,
+      "variant": "qfast",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_lazy_royal": true,
+        "q_early_filter": true,
+        "q_cached_sort": true
+      }
+    },
+    {
+      "position": 109,
+      "variant": "qfast",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_lazy_royal": true,
+        "q_early_filter": true,
+        "q_cached_sort": true
+      }
+    },
+    {
+      "position": 109,
+      "variant": "base",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {}
+    },
+    {
+      "position": 3,
+      "variant": "base",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 1,
+      "study": {}
+    },
+    {
+      "position": 3,
+      "variant": "qfast",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 1,
+      "study": {
+        "q_lazy_royal": true,
+        "q_early_filter": true,
+        "q_cached_sort": true
+      }
+    },
+    {
+      "position": 4,
+      "variant": "qfast",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 1,
+      "study": {
+        "q_lazy_royal": true,
+        "q_early_filter": true,
+        "q_cached_sort": true
+      }
+    },
+    {
+      "position": 4,
+      "variant": "base",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 1,
+      "study": {}
+    },
+    {
+      "position": 5,
+      "variant": "base",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 1,
+      "study": {}
+    },
+    {
+      "position": 5,
+      "variant": "qfast",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 1,
+      "study": {
+        "q_lazy_royal": true,
+        "q_early_filter": true,
+        "q_cached_sort": true
+      }
+    },
+    {
+      "position": 8,
+      "variant": "qfast",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 1,
+      "study": {
+        "q_lazy_royal": true,
+        "q_early_filter": true,
+        "q_cached_sort": true
+      }
+    },
+    {
+      "position": 8,
+      "variant": "base",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 1,
+      "study": {}
+    },
+    {
+      "position": 9,
+      "variant": "base",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 1,
+      "study": {}
+    },
+    {
+      "position": 9,
+      "variant": "qfast",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 1,
+      "study": {
+        "q_lazy_royal": true,
+        "q_early_filter": true,
+        "q_cached_sort": true
+      }
+    },
+    {
+      "position": 11,
+      "variant": "base",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 1,
+      "study": {}
+    },
+    {
+      "position": 11,
+      "variant": "qfast",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 1,
+      "study": {
+        "q_lazy_royal": true,
+        "q_early_filter": true,
+        "q_cached_sort": true
+      }
+    },
+    {
+      "position": 18,
+      "variant": "qfast",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 1,
+      "study": {
+        "q_lazy_royal": true,
+        "q_early_filter": true,
+        "q_cached_sort": true
+      }
+    },
+    {
+      "position": 18,
+      "variant": "base",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 1,
+      "study": {}
+    },
+    {
+      "position": 19,
+      "variant": "base",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 1,
+      "study": {}
+    },
+    {
+      "position": 19,
+      "variant": "qfast",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 1,
+      "study": {
+        "q_lazy_royal": true,
+        "q_early_filter": true,
+        "q_cached_sort": true
+      }
+    },
+    {
+      "position": 101,
+      "variant": "base",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 1,
+      "study": {}
+    },
+    {
+      "position": 101,
+      "variant": "qfast",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 1,
+      "study": {
+        "q_lazy_royal": true,
+        "q_early_filter": true,
+        "q_cached_sort": true
+      }
+    },
+    {
+      "position": 103,
+      "variant": "base",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 1,
+      "study": {}
+    },
+    {
+      "position": 103,
+      "variant": "qfast",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 1,
+      "study": {
+        "q_lazy_royal": true,
+        "q_early_filter": true,
+        "q_cached_sort": true
+      }
+    },
+    {
+      "position": 105,
+      "variant": "base",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 1,
+      "study": {}
+    },
+    {
+      "position": 105,
+      "variant": "qfast",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 1,
+      "study": {
+        "q_lazy_royal": true,
+        "q_early_filter": true,
+        "q_cached_sort": true
+      }
+    },
+    {
+      "position": 107,
+      "variant": "base",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 1,
+      "study": {}
+    },
+    {
+      "position": 107,
+      "variant": "qfast",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 1,
+      "study": {
+        "q_lazy_royal": true,
+        "q_early_filter": true,
+        "q_cached_sort": true
+      }
+    },
+    {
+      "position": 108,
+      "variant": "qfast",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 1,
+      "study": {
+        "q_lazy_royal": true,
+        "q_early_filter": true,
+        "q_cached_sort": true
+      }
+    },
+    {
+      "position": 108,
+      "variant": "base",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 1,
+      "study": {}
+    },
+    {
+      "position": 109,
+      "variant": "base",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 1,
+      "study": {}
+    },
+    {
+      "position": 109,
+      "variant": "qfast",
+      "depth": 4,
+      "budget_ms": 60000,
+      "repeat": 1,
+      "study": {
+        "q_lazy_royal": true,
+        "q_early_filter": true,
+        "q_cached_sort": true
+      }
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+identity 1 12 0 base 3 1445 192582
+identity 2 12 1 base 3 543 85250
+identity 3 12 2 base 3 471 97716
+identity 4 12 6 base 3 28 4611
+identity 5 12 7 base 3 149 29059
+identity 6 12 10 base 3 164 27909
+identity 7 12 16 base 3 930 118347
+identity 8 12 17 base 3 1361 141201
+identity 9 12 100 base 3 373 69713
+identity 10 12 102 base 3 322 85412
+identity 11 12 104 base 3 114 16587
+identity 12 12 106 base 3 324 21106
