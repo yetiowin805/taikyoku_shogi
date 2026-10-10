@@ -98,7 +98,8 @@ impl GameRecordV2 {
             fs::create_dir_all(parent)
                 .map_err(|e| format!("Failed to create {}: {}", parent.display(), e))?;
         }
-        let json = serde_json::to_string_pretty(self)
+        // Compact: per-move telemetry makes indentation a large share of each game.
+        let json = serde_json::to_string(self)
             .map_err(|e| format!("Failed to serialize game: {}", e))?;
         super::durable::write(path, json.as_bytes(), false)
     }

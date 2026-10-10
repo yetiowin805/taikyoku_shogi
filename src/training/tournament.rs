@@ -1076,7 +1076,8 @@ pub fn save_state(cfg: &TourneyConfig, state: &TourneyState) -> Result<(), Strin
     let mut state = state.clone();
     ensure_ratings(&mut state);
     let path = state_path(cfg);
-    let json = serde_json::to_string_pretty(&state).map_err(|e| e.to_string())?;
+    // Compact: rewritten after every game and holds every slot of a continuous run.
+    let json = serde_json::to_string(&state).map_err(|e| e.to_string())?;
     super::durable::write(&path, json.as_bytes(), true)?;
     let elo_json = serde_json::to_string_pretty(&state.elo).map_err(|e| e.to_string())?;
     super::durable::write(&elo_path(cfg), elo_json.as_bytes(), false)?;
