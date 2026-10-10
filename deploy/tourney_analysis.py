@@ -311,6 +311,8 @@ def search_position(config, moment, ply, db):
                 budget_ms=budget, hard_timeout=hard_timeout, wall_ms=int((time.monotonic()-start)*1000))
     db.execute("INSERT OR REPLACE INTO searches VALUES(?,?)", (key, json.dumps(best)))
     db.commit()
+    # The committed row supersedes the interrupt checkpoint.
+    (run / "analysis" / (key + ".progress.json")).unlink(missing_ok=True)
     return best
 
 

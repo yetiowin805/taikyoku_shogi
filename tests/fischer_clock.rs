@@ -120,7 +120,7 @@ fn clocks_are_independent_recorded_and_round_trip() {
 }
 
 #[test]
-fn rolling_worker_retains_iteration_sidecar_after_parent_consumes_result() {
+fn rolling_worker_parent_keeps_timings_and_drops_iteration_sidecar() {
     use taikyoku_shogi::training::game_process::{self, EngineBundle};
     let dir = std::env::temp_dir().join(format!("iteration-sidecar-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
@@ -139,10 +139,8 @@ fn rolling_worker_retains_iteration_sidecar_after_parent_consumes_result() {
         max_moves: 2, ..Default::default() };
     let record = game_process::play(&cfg, &pointer, &dir, 1).unwrap();
     assert!(!dir.join("slot-1.result.json").exists());
-    let sidecar: serde_json::Value = serde_json::from_slice(
-        &std::fs::read(dir.join("slot-1.result.iterations.json")).unwrap()).unwrap();
-    assert_eq!(sidecar["game_id"], record.game_id);
-    assert_eq!(sidecar["moves"].as_array().unwrap().len(), record.moves.len());
+    assert!(!dir.join("slot-1.result.iterations.json").exists());
+    assert!(!record.moves.is_empty());
     for m in &record.moves {
         assert!(!m.iteration_timings.is_empty());
         assert!(m.iteration_timings.iter().all(|t| t.completed));
