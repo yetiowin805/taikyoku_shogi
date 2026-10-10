@@ -152,5 +152,27 @@ class SidecarTests(unittest.TestCase):
             sidecar.prepare(a,str(cfg),self.run,dry_run=True)
         self.assertEqual(set((self.run/'training').iterdir()),before)
 
+    def test_storage_preflight_does_not_launch_children(self):
+        with patch.object(a.storage_guard, 'require_healthy', side_effect=RuntimeError('disk reserve')), \
+                patch.object(a.subprocess, 'Popen') as launch:
+            with self.assertRaisesRegex(RuntimeError, 'disk reserve'):
+                a.supervise({})
+            launch.assert_not_called()
+
+    def test_unexpected_zero_exit_is_supervisor_failure(self):
+        config = dict(run=str(self.run), cpus=self.cpus, sidecar='none',
+                      command=[sys.executable, '-c', 'import time; time.sleep(2.2)'])
+        a.atomic(self.control/'config.json', config)
+        wrapper = ('import sys;from pathlib import Path;'
+            f'sys.path.insert(0,{str(Path(a.__file__).parent)!r});import tourney_analysis as a;'
+            f'a.ROOT=Path({str(self.root)!r});'
+            f'a.supervise(a.read({str(self.control/"config.json")!r}))')
+        env = dict(os.environ, TAIKYOKU_STORAGE_CONFIG=str(self.root/'no-production-policy'))
+        result = subprocess.run([sys.executable, '-c', wrapper], env=env,
+                                capture_output=True, text=True, timeout=8)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('tournament exited unexpectedly (0)', result.stderr)
+        self.assertEqual(a.read(self.control/'supervisor.json')['state'], 'failed')
+
 
 if __name__=='__main__':unittest.main()

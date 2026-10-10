@@ -619,3 +619,62 @@ order-neutral ranking, including provisional component rankings. There is no
 minimum rating lead; legacy `auto_champion.margin` values are ignored. Exact
 ties retain the current active teacher, otherwise ties use entrant ID. Frozen
 checkpoint validation and bounded, resumable backfill still apply.
+
+## Disk reserve and durable tournament checkpoints
+
+Keep the growing tournament tree on the attached data volume. Stop the
+coordinator and analysis before moving an existing run; copy with `rsync -aH`,
+verify with a checksum dry run, then switch the canonical path using a symlink.
+Remove the old copy only after verification. Model and game paths must continue
+to resolve at their original locations. Do not restart from a truncated state.
+
+`storage_guard.py` refuses startup if a required mount is absent, a filesystem
+is below its configured reserve, or the saved checkpoint is invalid JSON.
+`storage.json.example` reserves 3 GiB on `/` and 5 GiB on the attached volume.
+The supervisor also checks an installed `/etc/taikyoku/storage.json` policy
+every 30 seconds, including supervisors launched by model admission. Override
+the policy location with `TAIKYOKU_STORAGE_CONFIG` if needed. A policy is optional
+for local development; the production service's explicit preflight requires it.
+
+Install the policy as `/etc/taikyoku/storage.json`, adjusting the run, volume,
+and managed unit names. Write `/etc/taikyoku/coordinator.env` with
+`RUN_DIR=/opt/taikyoku_shogi/data/raw/tourney/<run-id>`. The existing
+`analysis/config.json` must already contain a tested resume command using the
+patched coordinator. Install `systemd/taikyoku-coordinator.service`, the
+`taikyoku-storage-guard.{service,timer}` and `taikyoku-logrotate.{service,timer}`
+units in `/etc/systemd/system/`. Install `taikyoku-dual-labels-storage.conf` as
+`/etc/systemd/system/taikyoku-dual-labels.service.d/storage.conf` and
+`logrotate.conf` as `/etc/logrotate-taikyoku.conf`. Adjust mount paths in the
+units too. Run `systemctl daemon-reload`, then enable/start the coordinator,
+storage guard timer, and logrotate timer. Stop any old coordinator first to
+avoid a competing supervisor.
+
+The guard timer checks every minute and stops the named analysis/coordinator
+units if a reserve is exhausted. It writes its health result to
+`/run/taikyoku-storage-status.json` (tmpfs) and logs failures to the journal.
+Inspect it with `systemctl status taikyoku-storage-guard.service` and
+`journalctl -u taikyoku-storage-guard.service`. After freeing space or expanding
+the volume, run the guard without `--enforce`, then explicitly restart the
+coordinator and analysis. There is no automatic restart loop after disk failure.
+The hourly logrotate timer retains four rotated copies of each diagnostic log
+with a 50 MiB rotation threshold; log size can exceed that threshold between
+checks. It does not delete games, labels, or models. Dataset growth still needs
+capacity planning; the reserve safely halts writes when capacity runs low.
+
+The coordinator writes game records, state, ratings, and standings through
+synced temporary files and an atomic rename. `state.json.previous` retains the
+previous complete checkpoint. A failed write leaves the published file intact
+and stops admission of new games. An unexpected coordinator exit makes the
+supervisor fail rather than appear successful. These changes apply to the
+coordinator; a rolling game engine can remain pinned to its existing bundle.
+
+For offline recovery when no current checkpoint parses, `recover_tournament`
+accepts `BACKUP.json FIELDS.json EVENTS.json OUTPUT.json`. It is for an
+order-neutral knockout run: `FIELDS` contains the intact top-level fields and
+slot ledger from a damaged later checkpoint, and `EVENTS` is an array of newly
+completed slot IDs in their actual completion order. First validate every
+completed ledger result against its game record. The tool replays bracket
+advancement from the full backup and refuses missing events or changed
+pairings, colors, and starts. It writes a new file only; never install that file
+until the completed-game ledger and recomputed ratings have been verified.
+Unfinished games resume from their original starts. Keep all recovery inputs.

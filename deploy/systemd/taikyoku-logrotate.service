@@ -1,0 +1,7 @@
+[Unit]
+Description=Bound Taikyoku diagnostic log growth
+RequiresMountsFor=/mnt/HC_Volume_107032879
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/logrotate --state /mnt/HC_Volume_107032879/taikyoku/logrotate.state /etc/logrotate-taikyoku.conf

@@ -1,0 +1,6 @@
+[Unit]
+Description=Taikyoku disk reserve and checkpoint guard
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/taikyoku_shogi/deploy/storage_guard.py /etc/taikyoku/storage.json --enforce

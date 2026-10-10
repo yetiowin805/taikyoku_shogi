@@ -102,9 +102,17 @@ def compact_games(paths, apply):
             continue
         freed += len(raw) - len(compact)
         if apply:
-            tmp = path.with_name(path.name + ".tmp")
-            tmp.write_bytes(compact)
-            os.replace(tmp, path)
+            # Same contract as the coordinator's durable writer: on a full disk
+            # the published game stays intact and no partial temporary remains.
+            tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+            try:
+                with open(tmp, "xb") as out:
+                    out.write(compact)
+                    out.flush()
+                    os.fsync(out.fileno())
+                os.replace(tmp, path)
+            finally:
+                tmp.unlink(missing_ok=True)
     return freed
 
 
