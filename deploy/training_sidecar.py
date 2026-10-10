@@ -4,10 +4,10 @@ import fcntl
 import hashlib
 import json
 import os
-from pathlib import Path
 import signal
 import subprocess
 import time
+from pathlib import Path
 
 
 def prepare(coordinator, config_path, run, previous=None, dry_run=False, entrants=None):

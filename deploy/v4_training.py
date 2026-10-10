@@ -5,9 +5,16 @@ Admission uses the normal restart: unfinished games requeue, finished results pe
 Run under systemd with KillMode=control-group; output is outside the live run.
 """
 
-import argparse, fcntl, json, os, signal, subprocess, sys, time
-from pathlib import Path
+import argparse
+import fcntl
+import json
+import os
 import shutil
+import signal
+import subprocess
+import sys
+import time
+from pathlib import Path
 
 import tourney_analysis as a
 from adaptive_analysis import allocation
@@ -117,7 +124,6 @@ def resume_coordinator(c):
 
 def recover(config):
     c = a.read(config)
-    repo = Path(c["repo"])
     run = Path(c["run"])
     out = Path(c["out"])
     plan = a.read(out / "rollout.json") if (out / "rollout.json").exists() else {}

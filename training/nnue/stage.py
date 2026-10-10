@@ -1,6 +1,9 @@
 """Stage only admitted immutable inference artifacts; omit raw games and optimizer states."""
 
-import argparse, json, shutil, hashlib
+import argparse
+import hashlib
+import json
+import shutil
 from pathlib import Path
 
 p = argparse.ArgumentParser()

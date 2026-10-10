@@ -1,4 +1,6 @@
-import math, unittest
+import math
+import unittest
+
 from analyze import summarize
 
 

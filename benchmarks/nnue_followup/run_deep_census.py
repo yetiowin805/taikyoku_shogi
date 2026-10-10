@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Caller must hold /tmp/nnue-comprehensive/cpu.lock. Census is diagnostic only."""
 
-import argparse, json, subprocess
+import argparse
+import json
+import subprocess
 from pathlib import Path
 
 p = argparse.ArgumentParser()

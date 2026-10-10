@@ -1,8 +1,12 @@
-import copy, json, tempfile, unittest, fcntl
+import copy
+import fcntl
+import tempfile
+import unittest
 from pathlib import Path
-from v4_training import retirement, Pool, resume_coordinator
 from unittest.mock import patch
+
 import tourney_analysis as a
+from v4_training import Pool, resume_coordinator, retirement
 
 
 class V4SupervisorTests(unittest.TestCase):

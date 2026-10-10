@@ -3,8 +3,8 @@ import json
 import subprocess
 from unittest.mock import patch
 
-from test_tourney_analysis import AnalyzerFixture, a
 import champion_teacher as c
+from test_tourney_analysis import AnalyzerFixture, a
 
 
 class ChampionTests(AnalyzerFixture):

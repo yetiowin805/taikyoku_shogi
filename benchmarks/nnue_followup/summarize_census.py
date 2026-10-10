@@ -3,8 +3,8 @@
 
 import gzip
 import json
-from pathlib import Path
 import sys
+from pathlib import Path
 
 out = Path(sys.argv[1])
 out.mkdir(parents=True, exist_ok=True)

@@ -5,9 +5,9 @@ import argparse
 import hashlib
 import json
 import os
-from pathlib import Path
 import select
 import subprocess
+from pathlib import Path
 
 
 def main():

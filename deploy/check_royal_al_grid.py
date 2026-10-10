@@ -5,9 +5,9 @@ import argparse
 import hashlib
 import json
 import os
-from pathlib import Path
 import subprocess
 import sys
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 POLICY = {"policy": "royal-al-v1", "swap_removal": True, "aspiration": 500, "checkpoint_L_modes": True}

@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 """Stream paired measurements; equal-agent summaries keep sample imbalance bounded."""
 
-import collections, gzip, json, math, statistics, sys
+import collections
+import gzip
+import json
+import math
+import statistics
+import sys
 from pathlib import Path
 
 BASELINE = "S0-W0-T0"

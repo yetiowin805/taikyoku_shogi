@@ -3,11 +3,11 @@
 import argparse
 import json
 import os
-from pathlib import Path
 import resource
 import signal
 import subprocess
 import time
+from pathlib import Path
 
 p = argparse.ArgumentParser(description=__doc__)
 p.add_argument("--cpu", type=int, default=max(os.sched_getaffinity(0)))

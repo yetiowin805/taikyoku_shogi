@@ -1,8 +1,8 @@
 import json
 from unittest.mock import patch
 
-from test_tourney_analysis import AnalyzerFixture, a
 import dual_label_sidecar as dual
+from test_tourney_analysis import AnalyzerFixture
 
 
 class DualLabelTests(AnalyzerFixture):

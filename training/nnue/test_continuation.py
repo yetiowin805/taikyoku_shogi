@@ -1,14 +1,15 @@
 import hashlib
 import json
-import os
-from pathlib import Path
 import subprocess
 import sys
 import tempfile
 import unittest
 from dataclasses import asdict
+from pathlib import Path
+
 import numpy as np
 import torch
+
 from plateau import Plateau, Policy
 from train import Net, restore_net
 

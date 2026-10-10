@@ -1,7 +1,8 @@
 import copy
 import unittest
-from test_tourney_analysis import AnalyzerFixture, a
+
 import training_labels as labels
+from test_tourney_analysis import AnalyzerFixture, a
 
 
 class SamplingTests(unittest.TestCase):

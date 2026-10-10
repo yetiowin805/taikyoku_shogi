@@ -1,14 +1,14 @@
 """Compare optimized bookkeeping against the original CPU arithmetic."""
 
 import copy
-from collections import Counter
 import hashlib
 import json
-from pathlib import Path
 import subprocess
 import sys
 import tempfile
 import unittest
+from collections import Counter
+from pathlib import Path
 
 import numpy as np
 import torch

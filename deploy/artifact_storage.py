@@ -6,12 +6,12 @@ import gzip
 import hashlib
 import json
 import os
-from pathlib import Path
 import re
 import shutil
 import sqlite3
 import tempfile
 import time
+from pathlib import Path
 
 
 def digest(path, opener=open):

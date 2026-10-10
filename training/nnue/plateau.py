@@ -1,7 +1,7 @@
 """Serializable stopping policy; validation Huber is the monitored metric."""
 
-from dataclasses import asdict, dataclass
 import math
+from dataclasses import asdict, dataclass
 
 
 @dataclass(frozen=True)

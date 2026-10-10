@@ -1,9 +1,12 @@
-import importlib.util, json, struct, tempfile, unittest
+import tempfile
+import unittest
 from pathlib import Path
+
 import numpy as np
 import torch
-from train import Net, export
+
 from quantized import Quantized
+from train import Net, export
 
 
 class TrainingTests(unittest.TestCase):

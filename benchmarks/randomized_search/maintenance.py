@@ -1,7 +1,17 @@
 #!/usr/bin/env python3
 """Bounded tournament pause, benchmark, and restoration of the frozen configuration."""
 
-import argparse, fcntl, hashlib, importlib.util, json, os, shutil, signal, subprocess, sys, time
+import argparse
+import fcntl
+import hashlib
+import importlib.util
+import json
+import os
+import shutil
+import signal
+import subprocess
+import sys
+import time
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -62,6 +72,10 @@ def stop_group(proc):
         except subprocess.TimeoutExpired:
             os.killpg(proc.pid, signal.SIGKILL)
             proc.wait()
+
+
+def done_slots(state):
+    return {x["id"] for x in state["slots"] if x["status"] == "done"}
 
 
 def main():
@@ -184,10 +198,9 @@ def main():
                 before = json.loads((backup / "state.json").read_text()) if (backup / "state.json").exists() else None
                 after = launcher.read(a.run / "state.json")
                 if before:
-                    done = lambda s: {x["id"] for x in s["slots"] if x["status"] == "done"}
-                    if not done(before) <= done(after):
+                    if not done_slots(before) <= done_slots(after):
                         raise RuntimeError("completed slots missing after restore")
-                    status["completed_slots_preserved"] = len(done(before))
+                    status["completed_slots_preserved"] = len(done_slots(before))
                 status["state"] = "restored"
                 status["restored_utc"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
             except BaseException as exc:

@@ -4,8 +4,8 @@
 import argparse
 import fcntl
 import json
-from pathlib import Path
 import re
+from pathlib import Path
 
 import artifact_storage as storage
 

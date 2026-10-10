@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """Freeze equal samples from eight BASE agents and their original checkpoints."""
 
-import argparse, collections, hashlib, json, random
+import argparse
+import hashlib
+import json
+import random
 from pathlib import Path
 
 PREFIX = "BASE_P120H50B75_"
@@ -24,7 +27,6 @@ def prepare(repo, run, out, per_agent=100, seed=20260914):
     rng = random.Random(seed)
     cases = []
     identities = {}
-    records = {}
 
     def freeze(path):
         data = path.read_bytes()

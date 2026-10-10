@@ -1,10 +1,9 @@
 import importlib.util
 import json
-import os
 import sys
-from pathlib import Path
 import tempfile
 import unittest
+from pathlib import Path
 
 spec = importlib.util.spec_from_file_location("analysis", Path(__file__).with_name("tourney_analysis.py"))
 a = importlib.util.module_from_spec(spec)

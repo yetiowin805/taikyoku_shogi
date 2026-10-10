@@ -5,17 +5,17 @@ import fcntl
 import json
 import multiprocessing
 import os
-from pathlib import Path
 import signal
 import sqlite3
-import time
 import threading
+import time
+from pathlib import Path
 
-import tourney_analysis as a
 import champion_teacher
-import teacher_refresh
-import winner_teacher
 import dual_label_sidecar as dual
+import teacher_refresh
+import tourney_analysis as a
+import winner_teacher
 
 ELIGIBLE = "id NOT IN (SELECT id FROM dual_paired) AND id NOT IN (SELECT id FROM dual_failures)"
 ORDER = (
@@ -139,7 +139,7 @@ def run(config):
                             db,
                             run_dir,
                             labels=True,
-                            label_candidates=lambda game: (
+                            label_candidates=lambda game, config=config: (
                                 [] if winner_teacher.winner_agent(config, game) else a.training_labels.candidates(game)
                             ),
                         )

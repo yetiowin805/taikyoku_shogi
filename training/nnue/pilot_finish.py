@@ -5,11 +5,11 @@ reported instead of silently waiting indefinitely. No live VPS controls are used
 """
 
 import argparse
-from concurrent.futures import ThreadPoolExecutor
 import json
 import os
-from pathlib import Path
 import time
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 
 from pilot_compare import matches, verify
 
@@ -53,7 +53,8 @@ def main():
     # One common held-out metric for all loss functions, including the frozen parent.
     import numpy as np
     import torch
-    from pilot_fit import from_quantized, calibration, evaluate
+
+    from pilot_fit import calibration, evaluate, from_quantized
 
     torch.set_num_threads(1)
     torch.set_num_interop_threads(1)

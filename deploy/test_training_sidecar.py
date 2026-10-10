@@ -3,15 +3,16 @@
 import fcntl
 import json
 import os
-from pathlib import Path
 import signal
 import subprocess
 import sys
 import tempfile
 import time
 import unittest
-from unittest.mock import patch
+from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import patch
+
 import tourney_analysis as a
 import training_sidecar as sidecar
 
@@ -137,7 +138,7 @@ class SidecarTests(unittest.TestCase):
                 pid = a.read(self.root / "started.json")["pid"]
                 p.send_signal(signal.SIGKILL if force else signal.SIGTERM)
                 p.wait(timeout=6)
-                wait_for(lambda: a.process_identity(pid) is None)
+                wait_for(lambda pid=pid: a.process_identity(pid) is None)
                 with (self.control / "shared.lock").open("a+") as game:
                     fcntl.flock(game, fcntl.LOCK_EX | fcntl.LOCK_NB)
                 if not force:

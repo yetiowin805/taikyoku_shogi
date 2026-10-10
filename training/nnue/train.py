@@ -2,15 +2,25 @@
 No downloads, tournament mutations, or checkpoint replacement occur here.
 """
 
-import argparse, hashlib, json, math, os, random, re, signal, struct, time
+import argparse
+import hashlib
+import json
+import math
+import os
+import random
+import re
+import signal
+import struct
+import time
+from dataclasses import asdict
 from pathlib import Path
+
 import numpy as np
 import torch
 from torch import nn
 
-from quantized import Quantized
 from plateau import Plateau, Policy
-from dataclasses import asdict
+from quantized import Quantized
 
 STOPPING = False
 
@@ -449,4 +459,4 @@ if __name__ == "__main__":
         main()
     except InterruptedError as e:
         print(str(e), flush=True)
-        raise SystemExit(130)
+        raise SystemExit(130) from e

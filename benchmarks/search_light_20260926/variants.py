@@ -4,8 +4,8 @@ Always restore the listed sources from the pinned revision first. Do not run
 against a checkout containing unrelated edits to these files.
 """
 
-from pathlib import Path
 import subprocess
+from pathlib import Path
 
 BASE = "61c2875"
 FILES = [

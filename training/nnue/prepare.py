@@ -1,6 +1,10 @@
 """Restore a corpus archive and freeze stratified, finite-score sample requests."""
 
-import argparse, hashlib, json, random, tarfile
+import argparse
+import hashlib
+import json
+import random
+import tarfile
 from pathlib import Path
 
 p = argparse.ArgumentParser()

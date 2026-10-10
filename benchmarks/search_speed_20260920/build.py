@@ -1,4 +1,12 @@
-import argparse, difflib, hashlib, json, pathlib, shutil, subprocess, tarfile
+import argparse
+import difflib
+import hashlib
+import json
+import pathlib
+import shutil
+import subprocess
+import tarfile
+
 from variants import apply
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]

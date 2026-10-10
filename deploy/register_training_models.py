@@ -5,8 +5,9 @@ bindings are never changed. No new teacher is selected and no positions reanalyz
 """
 
 import argparse
-from pathlib import Path
 import subprocess
+from pathlib import Path
+
 import tourney_analysis as a
 
 

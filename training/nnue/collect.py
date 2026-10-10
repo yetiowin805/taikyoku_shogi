@@ -3,7 +3,13 @@ python3 training/nnue/collect.py > corpus.tar.gz
 Only completed immutable game files are copied; no tournament files are modified.
 """
 
-import argparse, hashlib, io, json, random, sys, tarfile
+import argparse
+import hashlib
+import io
+import json
+import random
+import sys
+import tarfile
 from pathlib import Path
 
 

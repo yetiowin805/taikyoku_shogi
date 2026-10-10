@@ -8,11 +8,11 @@ import argparse
 import fcntl
 import json
 import os
-from pathlib import Path
 import signal
 import subprocess
 import sys
 import time
+from pathlib import Path
 
 ROOT = Path("data/nnue-pilot-20260924")
 PARENT = Path("data/nnue-admission-v2/NNUE_W512_v2.json")
@@ -86,7 +86,7 @@ def command(args, log, timeout):
             except subprocess.TimeoutExpired:
                 os.killpg(child.pid, signal.SIGKILL)
                 child.wait()
-            raise TimeoutError(f"Command budget expired: {args}")
+            raise TimeoutError(f"Command budget expired: {args}") from None
         if code:
             raise RuntimeError(f"Command exited {code}: {args}; see {log}")
 
@@ -115,7 +115,7 @@ def run(config):
                     break
                 except BlockingIOError:
                     if time.monotonic() > until:
-                        raise TimeoutError("Fourth game did not finish within two hours")
+                        raise TimeoutError("Fourth game did not finish within two hours") from None
                     time.sleep(0.2)
             report.update(state="training", acquired=time.time())
             write(ROOT / "vps-status.json", report)

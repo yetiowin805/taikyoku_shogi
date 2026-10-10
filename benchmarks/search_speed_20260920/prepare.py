@@ -1,6 +1,11 @@
 """Freeze existing, already-trained models and replayable position identities."""
 
-import hashlib, json, pathlib, subprocess, shutil, os
+import hashlib
+import json
+import os
+import pathlib
+import shutil
+import subprocess
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 OUT = ROOT / "data/derived/search-speed-20260920"

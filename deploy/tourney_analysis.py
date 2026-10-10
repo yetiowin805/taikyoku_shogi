@@ -7,20 +7,19 @@ import fcntl
 import hashlib
 import json
 import os
-from pathlib import Path
 import selectors
-import shutil
 import signal
 import sqlite3
 import subprocess
 import sys
 import time
+from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import training_sidecar
-import training_labels
 import engine_updates
 import storage_guard
+import training_labels
+import training_sidecar
 
 ROOT = Path(__file__).resolve().parent.parent
 STOPPING = False

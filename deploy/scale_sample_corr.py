@@ -18,11 +18,11 @@ import json
 import math
 import sys
 from collections import defaultdict
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 
-def pearson(xs: Sequence[float], ys: Sequence[float]) -> Optional[float]:
+def pearson(xs: Sequence[float], ys: Sequence[float]) -> float | None:
     n = len(xs)
     if n < 3 or n != len(ys):
         return None
@@ -42,13 +42,13 @@ def pearson(xs: Sequence[float], ys: Sequence[float]) -> Optional[float]:
     return num / math.sqrt(dx2 * dy2)
 
 
-def spearman(xs: Sequence[float], ys: Sequence[float]) -> Optional[float]:
+def spearman(xs: Sequence[float], ys: Sequence[float]) -> float | None:
     """Pearson of average ranks (ties get mid-rank)."""
     n = len(xs)
     if n < 3 or n != len(ys):
         return None
 
-    def ranks(vals: Sequence[float]) -> List[float]:
+    def ranks(vals: Sequence[float]) -> list[float]:
         order = sorted(range(n), key=lambda i: vals[i])
         out = [0.0] * n
         i = 0
@@ -66,8 +66,8 @@ def spearman(xs: Sequence[float], ys: Sequence[float]) -> Optional[float]:
     return pearson(ranks(xs), ranks(ys))
 
 
-def match_scores(state: dict) -> Dict[str, float]:
-    scores: Dict[str, float] = defaultdict(float)
+def match_scores(state: dict) -> dict[str, float]:
+    scores: dict[str, float] = defaultdict(float)
     for e in state.get("entrants", []):
         scores[e["id"]] = 0.0
     for slot in state.get("slots", []):
@@ -83,7 +83,7 @@ def match_scores(state: dict) -> Dict[str, float]:
     return dict(scores)
 
 
-def load_elo(path: Path) -> Dict[str, float]:
+def load_elo(path: Path) -> dict[str, float]:
     raw = json.loads(path.read_text())
     return {k: float(v) for k, v in raw.items()}
 
@@ -96,7 +96,7 @@ def mean(xs: Sequence[float]) -> float:
     return sum(xs) / len(xs) if xs else float("nan")
 
 
-def fmt_r(r: Optional[float]) -> str:
+def fmt_r(r: float | None) -> str:
     if r is None:
         return "  n/a "
     return f"{r:+.3f}"
@@ -105,13 +105,13 @@ def fmt_r(r: Optional[float]) -> str:
 def analyze(
     samples_path: Path,
     state_path: Path,
-    elo_path: Optional[Path],
+    elo_path: Path | None,
     include_controls: bool,
     metric: str,
 ) -> int:
     samples = json.loads(samples_path.read_text())
     state = json.loads(state_path.read_text())
-    names: List[str] = list(samples["param_names"])
+    names: list[str] = list(samples["param_names"])
     by_id = {s["id"]: s for s in samples["samples"]}
 
     scores = match_scores(state)
@@ -158,7 +158,7 @@ def analyze(
         r_p = pearson(xs, y)
         r_s = spearman(xs, y)
         # mean target by multiplier level
-        by_lvl: Dict[float, List[float]] = defaultdict(list)
+        by_lvl: dict[float, list[float]] = defaultdict(list)
         for x, yi in zip(xs, y):
             by_lvl[round(x, 3)].append(yi)
         levels = sorted(by_lvl)
@@ -183,7 +183,7 @@ def analyze(
     for name, r_p, r_s, effect, level_means, xs in rows:
         n_unique = len({round(x, 3) for x in xs})
 
-        def m(lv: float) -> str:
+        def m(lv: float, level_means=level_means) -> str:
             return f"{level_means[lv]:7.2f}" if lv in level_means else "    n/a"
 
         eff_s = f"{effect:+10.2f}" if effect is not None else "       n/a"
@@ -214,7 +214,7 @@ def analyze(
     return 0
 
 
-def main(argv: Optional[Sequence[str]] = None) -> int:
+def main(argv: Sequence[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument(
         "--samples",

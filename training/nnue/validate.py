@@ -1,8 +1,13 @@
 """Check exported models independently before tournament admission; write a readiness marker."""
 
-import argparse, hashlib, json, subprocess
+import argparse
+import hashlib
+import json
+import subprocess
 from pathlib import Path
+
 import numpy as np
+
 from quantized import Quantized
 
 WIDTHS = [512, 768, 1024, 1536, 2048]

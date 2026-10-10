@@ -2,9 +2,10 @@
 
 import hashlib
 import json
-from pathlib import Path
 import subprocess
 import sys
+from pathlib import Path
+
 from variants import BASE, balanced_end
 
 root = Path(__file__).resolve().parents[2]

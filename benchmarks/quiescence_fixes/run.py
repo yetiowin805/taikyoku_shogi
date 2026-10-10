@@ -5,10 +5,10 @@ import argparse
 import hashlib
 import json
 import os
-from pathlib import Path
 import random
 import subprocess
 import time
+from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 

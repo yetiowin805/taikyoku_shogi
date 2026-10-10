@@ -10,7 +10,6 @@ import hashlib
 import io
 import json
 import os
-from pathlib import Path
 import random
 import resource
 import statistics
@@ -19,7 +18,7 @@ import sys
 import tarfile
 import tempfile
 import time
-
+from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 
@@ -29,6 +28,7 @@ def worker(a):
     sys.path.insert(0, str(a.module_dir))
     import numpy as np
     import torch
+
     import pilot_fit as fit
 
     torch.set_num_threads(1)

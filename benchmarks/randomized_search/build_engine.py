@@ -1,7 +1,13 @@
 #!/usr/bin/env python3
 """Build the pinned experimental fork without editing the checkout or normal binary."""
 
-import argparse, hashlib, json, shutil, subprocess, tarfile, tempfile
+import argparse
+import hashlib
+import json
+import shutil
+import subprocess
+import tarfile
+import tempfile
 from pathlib import Path
 
 BASE = "9d3058696779ed1664c54e336d351c1ef006acdf"

@@ -1,16 +1,16 @@
 """Frozen v4 corpus: reuse old features/labels; no new searches or live mutations."""
 
 import argparse
-from collections import Counter, defaultdict
-import hashlib
 import json
 import math
-from pathlib import Path
 import sqlite3
 import subprocess
+from collections import Counter, defaultdict
+from pathlib import Path
 
 import numpy as np
-from pilot_data import digest, hashed, position_key, stratified, MOVE_KEYS
+
+from pilot_data import MOVE_KEYS, digest, hashed, position_key, stratified
 
 SCALE = 2822.9057434005167
 
@@ -193,7 +193,7 @@ def build(args):
             dropped["conflicting_parent_group"] += 1
             continue
         selected = {} if r["old"] else {i: "representative" for i in stratified(g, 32, h)}
-        for (gh, i), label in labels.items():
+        for gh, i in labels:
             if gh == h:
                 selected[i] = selections[gh, i]
         if not g.get("result") or g.get("abort_reason"):

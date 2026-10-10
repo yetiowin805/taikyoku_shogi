@@ -1,15 +1,15 @@
 """Isolated 512 data/loss pilot. Never modifies production checkpoints or trainer defaults."""
 
 import argparse
-from collections import Counter
+import gc
 import json
 import math
 import os
-from pathlib import Path
 import random
-import time
-import gc
 import shutil
+import time
+from collections import Counter
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -17,7 +17,7 @@ import torch
 from pilot_data import digest
 from plateau import Plateau, Policy
 from quantized import Quantized
-from train import Net, batch, export, atomic_json
+from train import Net, atomic_json, batch, export
 
 
 def rounded(value, scale, half_up=False):
@@ -456,9 +456,6 @@ def main():
     if a.defer_test:
         atomic_json(a.out / "status.json", dict(state="trained", reason=tracker.stopped, test=None))
         return
-    # The last autograd graph can retain embedding parameters after deleting net.
-    if "pred" in locals():
-        del pred, loss
     del net, emb, dense
     gc.collect()
     cp = json.loads((a.out / "model.json").read_text())

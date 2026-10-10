@@ -1,6 +1,7 @@
 import unittest
-from unittest.mock import patch
 from types import SimpleNamespace
+from unittest.mock import patch
+
 import storage_guard as guard
 
 

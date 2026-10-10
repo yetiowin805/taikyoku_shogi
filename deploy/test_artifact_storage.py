@@ -1,10 +1,10 @@
 import contextlib
 import gzip
 import json
-from pathlib import Path
 import sqlite3
 import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 import artifact_storage as storage

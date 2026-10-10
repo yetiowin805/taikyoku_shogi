@@ -1,6 +1,10 @@
 """Train the five widths sequentially; validate before publishing ready.json."""
 
-import argparse, json, subprocess, sys, time
+import argparse
+import json
+import subprocess
+import sys
+import time
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent

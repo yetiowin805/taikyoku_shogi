@@ -1,6 +1,13 @@
 """Pinned, sequential randomized pairs. No compiler runs during recorded comparisons."""
 
-import argparse, json, os, pathlib, random, select, subprocess, time
+import argparse
+import json
+import os
+import pathlib
+import random
+import select
+import subprocess
+import time
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 OUT = ROOT / "data/derived/search-speed-20260920"

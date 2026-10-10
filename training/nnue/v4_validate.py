@@ -1,13 +1,18 @@
 """Compare the exported v4 and its frozen parent on identical held-out data."""
 
-import argparse, gc, json, subprocess
+import argparse
+import gc
+import json
+import subprocess
 from pathlib import Path
+
 import numpy as np
 import torch
+
 from pilot_data import digest
-from pilot_fit import from_quantized, evaluate
+from pilot_fit import evaluate, from_quantized
 from quantized import Quantized
-from v4_data import Features, SCALE, bucket
+from v4_data import SCALE, Features, bucket
 
 
 def main():

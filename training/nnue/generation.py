@@ -7,16 +7,16 @@ Live model files and the old tournament's entrant identities are never rewritten
 import argparse
 import fcntl
 import json
-import os
-from pathlib import Path
 import shutil
 import subprocess
 import sys
 import time
+from pathlib import Path
 
 import numpy as np
-from pilot_data import digest
+
 import pilot_vps
+from pilot_data import digest
 
 WIDTHS = [256, 384, 512, 768, 1024, 1536, 2048, 3072]
 
@@ -317,7 +317,7 @@ def run(c):
                     break
                 except BlockingIOError:
                     if time.monotonic() > until:
-                        raise TimeoutError("Game did not release shared CPU within two hours")
+                        raise TimeoutError("Game did not release shared CPU within two hours") from None
                     time.sleep(0.2)
             models = []
             for width in WIDTHS:

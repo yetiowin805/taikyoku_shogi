@@ -1,6 +1,12 @@
 """Paired log ratios, treating positions as clusters rather than repetitions as new positions."""
 
-import argparse, itertools, json, math, pathlib, random, statistics
+import argparse
+import itertools
+import json
+import math
+import pathlib
+import random
+import statistics
 
 OUT = pathlib.Path(__file__).resolve().parents[2] / "data/derived/search-speed-20260920"
 
@@ -17,7 +23,7 @@ def summarize(rows, variant, model=None, positions=None, metric="ms"):
         groups.setdefault((row["position"], row["model"]), []).append(math.log(a / b))
     cells = {k: statistics.mean(v) for k, v in groups.items()}
     clusters = {}
-    for (pos, agent), value in cells.items():
+    for (pos, _agent), value in cells.items():
         clusters.setdefault(pos, []).append(value)
     cluster = [statistics.mean(v) for v in clusters.values()]
     mu = statistics.mean(cluster)

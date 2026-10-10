@@ -1,7 +1,17 @@
 #!/usr/bin/env python3
 """Randomized paired three-second searches, balanced over eight BASE checkpoints."""
 
-import argparse, concurrent.futures, gzip, hashlib, json, os, random, signal, subprocess, threading, time
+import argparse
+import concurrent.futures
+import gzip
+import hashlib
+import json
+import os
+import random
+import signal
+import subprocess
+import threading
+import time
 from pathlib import Path
 
 BASELINE = "S0-W0-T0"

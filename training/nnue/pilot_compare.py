@@ -1,10 +1,10 @@
 """Preselect held-out starts, verify exported models, and run paired 3s screening games."""
 
 import argparse
-from collections import Counter
 import json
-from pathlib import Path
 import subprocess
+from collections import Counter
+from pathlib import Path
 
 import numpy as np
 

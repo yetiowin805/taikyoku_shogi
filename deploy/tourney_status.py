@@ -16,8 +16,9 @@ import argparse
 import json
 import sys
 from collections import Counter
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any
 
 DEFAULT_TOURNEY_ROOT = Path("data/raw/tourney")
 
@@ -33,7 +34,7 @@ def stage_label(stage: Any) -> str:
     return str(stage)
 
 
-def stage_sort_key(label: str) -> Tuple[int, int]:
+def stage_sort_key(label: str) -> tuple[int, int]:
     if label == "PlayIn":
         return (0, 0)
     if label == "Final":
@@ -46,11 +47,11 @@ def stage_sort_key(label: str) -> Tuple[int, int]:
     return (3, 0)
 
 
-def slot_by_id(state: Dict[str, Any]) -> Dict[int, Dict[str, Any]]:
+def slot_by_id(state: dict[str, Any]) -> dict[int, dict[str, Any]]:
     return {int(s["id"]): s for s in state.get("slots", [])}
 
 
-def match_score(match: Dict[str, Any], slots: Dict[int, Dict[str, Any]]) -> Tuple[float, float, Counter]:
+def match_score(match: dict[str, Any], slots: dict[int, dict[str, Any]]) -> tuple[float, float, Counter]:
     """A-score, B-score, status counts. Only Done slots add to the score."""
     status: Counter = Counter()
     sa = 0.0
@@ -69,7 +70,7 @@ def match_score(match: Dict[str, Any], slots: Dict[int, Dict[str, Any]]) -> Tupl
     return sa, sb, status
 
 
-def format_status(status: Counter, winner: Optional[str]) -> str:
+def format_status(status: Counter, winner: str | None) -> str:
     if winner:
         return f"→ {winner}"
     parts = []
@@ -89,7 +90,7 @@ def format_status(status: Counter, winner: Optional[str]) -> str:
     return " ".join(parts) if parts else "unplayed"
 
 
-def find_runs(root: Path) -> List[Path]:
+def find_runs(root: Path) -> list[Path]:
     if not root.is_dir():
         return []
     runs = []
@@ -100,7 +101,7 @@ def find_runs(root: Path) -> List[Path]:
     return runs
 
 
-def pick_run(root: Path, run_id: Optional[str], needle: Optional[str]) -> Path:
+def pick_run(root: Path, run_id: str | None, needle: str | None) -> Path:
     runs = find_runs(root)
     if not runs:
         raise SystemExit(f"no tourney runs with state.json under {root}")
@@ -117,11 +118,11 @@ def pick_run(root: Path, run_id: Optional[str], needle: Optional[str]) -> Path:
     return runs[-1]
 
 
-def load_state(run_dir: Path) -> Dict[str, Any]:
+def load_state(run_dir: Path) -> dict[str, Any]:
     return json.loads((run_dir / "state.json").read_text())
 
 
-def print_header(run_dir: Path, state: Dict[str, Any]) -> None:
+def print_header(run_dir: Path, state: dict[str, Any]) -> None:
     slots = state.get("slots", [])
     c = Counter(str(s.get("status", "?")).lower() for s in slots)
     trees = state.get("knockouts", [])
@@ -157,9 +158,9 @@ def print_standings(run_dir: Path) -> None:
     print("(no standings.md yet)\n")
 
 
-def print_tree(tree: Dict[str, Any], slots: Dict[int, Dict[str, Any]]) -> None:
+def print_tree(tree: dict[str, Any], slots: dict[int, dict[str, Any]]) -> None:
     tid = tree.get("id", "?")
-    seeds: List[str] = list(tree.get("seeds") or [])
+    seeds: list[str] = list(tree.get("seeds") or [])
     complete = bool(tree.get("complete"))
     champ = None
     for m in tree.get("matches", []):
@@ -175,7 +176,7 @@ def print_tree(tree: Dict[str, Any], slots: Dict[int, Dict[str, Any]]) -> None:
     if not matches:
         print("(no matches yet)\n")
         return
-    grouped: Dict[str, List[Dict[str, Any]]] = {}
+    grouped: dict[str, list[dict[str, Any]]] = {}
     for m in matches:
         grouped.setdefault(stage_label(m.get("stage")), []).append(m)
     for label in sorted(grouped, key=stage_sort_key):
@@ -194,7 +195,7 @@ def print_tree(tree: Dict[str, Any], slots: Dict[int, Dict[str, Any]]) -> None:
     print()
 
 
-def trees_for_display(trees: List[Dict[str, Any]], which: Optional[str], all_trees: bool) -> List[Dict[str, Any]]:
+def trees_for_display(trees: list[dict[str, Any]], which: str | None, all_trees: bool) -> list[dict[str, Any]]:
     """Specific id, every tree, or unfinished plus the latest complete."""
     if not trees:
         return []
@@ -211,7 +212,7 @@ def trees_for_display(trees: List[Dict[str, Any]], which: Optional[str], all_tre
         return trees
     unfinished = [t for t in trees if not t.get("complete")]
     finished = [t for t in trees if t.get("complete")]
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     if finished:
         out.append(max(finished, key=lambda t: int(t.get("id") or 0)))
     out.extend(unfinished)
@@ -219,8 +220,8 @@ def trees_for_display(trees: List[Dict[str, Any]], which: Optional[str], all_tre
     return out
 
 
-def print_trees(state: Dict[str, Any], which: Optional[str], all_trees: bool = False) -> None:
-    trees: List[Dict[str, Any]] = list(state.get("knockouts") or [])
+def print_trees(state: dict[str, Any], which: str | None, all_trees: bool = False) -> None:
+    trees: list[dict[str, Any]] = list(state.get("knockouts") or [])
     if not trees:
         print("(no knockout trees — Swiss / RR run)\n")
         return
@@ -263,7 +264,7 @@ def self_test() -> None:
     print("self-test ok")
 
 
-def main(argv: Optional[Iterable[str]] = None) -> int:
+def main(argv: Iterable[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("needle", nargs="?", help="substring of run id (picks latest match)")
     ap.add_argument("--root", type=Path, default=DEFAULT_TOURNEY_ROOT)

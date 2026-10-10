@@ -1,10 +1,10 @@
-import json
 import contextlib
+import json
 from unittest.mock import patch
 
-from test_tourney_analysis import AnalyzerFixture
 import dual_label_sidecar as dual
 import teacher_refresh as refresh
+from test_tourney_analysis import AnalyzerFixture
 
 
 class TeacherRefreshTests(AnalyzerFixture):

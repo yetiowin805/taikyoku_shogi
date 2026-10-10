@@ -1,4 +1,9 @@
-import argparse, importlib.util, json, gzip, tempfile, unittest
+import argparse
+import gzip
+import importlib.util
+import json
+import tempfile
+import unittest
 from pathlib import Path
 from unittest.mock import patch
 
@@ -65,7 +70,12 @@ class RandomizedTests(unittest.TestCase):
 
 class MaintenanceRecoveryTests(unittest.TestCase):
     def test_failed_benchmark_restores_original_supervisor_and_completed_slots(self):
-        import hashlib, os, signal, subprocess, sys, time
+        import hashlib
+        import os
+        import signal
+        import subprocess
+        import sys
+        import time
 
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)

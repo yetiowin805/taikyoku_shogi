@@ -1,13 +1,12 @@
 """Sequential, capped full-engine screens. Restores prototype source on exit."""
 
 import argparse
-import hashlib
-import json
-from pathlib import Path
 import shutil
 import subprocess
 import sys
 import time
+from pathlib import Path
+
 import variants
 
 ROOT = Path(__file__).resolve().parents[2]

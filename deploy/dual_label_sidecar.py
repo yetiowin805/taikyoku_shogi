@@ -9,15 +9,15 @@ import argparse
 import fcntl
 import json
 import os
-from pathlib import Path
 import signal
 import sys
 import time
+from pathlib import Path
 
+import champion_teacher
+import teacher_refresh
 import tourney_analysis as a
 import winner_teacher
-import teacher_refresh
-import champion_teacher
 
 BUDGET_MS = 30_000
 
@@ -167,7 +167,7 @@ def run(config):
                     db,
                     run,
                     labels=True,
-                    label_candidates=lambda game: (
+                    label_candidates=lambda game, config=config: (
                         [] if winner_teacher.winner_agent(config, game) else a.training_labels.candidates(game)
                     ),
                 )

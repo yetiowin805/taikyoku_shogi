@@ -7,11 +7,11 @@ import argparse
 import hashlib
 import io
 import json
-from pathlib import Path
 import sqlite3
 import sys
 import tarfile
 import time
+from pathlib import Path
 
 
 def main():

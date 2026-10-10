@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
 """Descriptive smoke results; two timed repeats are not confidence intervals."""
 
-import collections, json, math, statistics, sys
+import json
+import math
+import statistics
+import sys
 from pathlib import Path
 
 p = Path(sys.argv[1])
 
 
 def read(name):
-    return [json.loads(l) for l in (p / name).read_text().splitlines()]
+    return [json.loads(line) for line in (p / name).read_text().splitlines()]
 
 
 micro = read("micro.jsonl")

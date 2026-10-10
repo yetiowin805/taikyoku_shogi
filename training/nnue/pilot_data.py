@@ -1,12 +1,12 @@
 """Freeze a larger, grouped corpus for the 512 pilot; reuse the Rust replay exporter."""
 
 import argparse
-from collections import Counter, defaultdict
 import hashlib
 import json
-from pathlib import Path
 import subprocess
 import tarfile
+from collections import Counter, defaultdict
+from pathlib import Path
 
 import numpy as np
 

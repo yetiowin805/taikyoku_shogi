@@ -1,9 +1,13 @@
-import copy, json, tempfile, unittest
+import json
+import tempfile
+import unittest
 from collections import defaultdict
 from pathlib import Path
+
 import numpy as np
+
 from pilot_data import digest
-from v4_data import combine, Features, set_weights, bucket, probability
+from v4_data import Features, bucket, combine, probability, set_weights
 
 
 class V4DataTests(unittest.TestCase):

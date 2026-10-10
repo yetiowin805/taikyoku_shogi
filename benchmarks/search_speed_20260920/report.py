@@ -1,6 +1,12 @@
 """Package the completed experiment's evidence and human-readable findings."""
 
-import datetime, gzip, hashlib, json, math, pathlib, statistics, subprocess
+import datetime
+import gzip
+import json
+import math
+import pathlib
+import statistics
+import subprocess
 
 HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parents[1]

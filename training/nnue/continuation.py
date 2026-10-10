@@ -1,17 +1,18 @@
 """Continue immutable starter checkpoints sequentially, with one CPU thread per trainer."""
 
 import argparse
+import ctypes
+import fcntl
 import hashlib
 import json
 import os
-from pathlib import Path
 import signal
 import subprocess
 import sys
 import time
-import fcntl
-import ctypes
 from dataclasses import asdict
+from pathlib import Path
+
 from plateau import Policy
 
 HERE = Path(__file__).resolve().parent
@@ -85,8 +86,8 @@ def load_config(path):
 
 def check_inputs(c):
     """Preflight before launching any tournament; map tensors without copying them."""
-    import torch
     import numpy as np
+    import torch
 
     torch.set_num_threads(1)
     dataset = Path(c["dataset"])

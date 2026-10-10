@@ -3,9 +3,11 @@
 import argparse
 import json
 from pathlib import Path
+
 import numpy as np
 import torch
-from pilot_fit import from_quantized, calibration, evaluate
+
+from pilot_fit import calibration, evaluate, from_quantized
 from train import atomic_json
 
 

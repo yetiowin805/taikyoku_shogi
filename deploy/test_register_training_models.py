@@ -1,4 +1,5 @@
 import unittest
+
 from register_training_models import merge_bindings
 
 

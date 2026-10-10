@@ -1,10 +1,9 @@
 import json
-from pathlib import Path
 from unittest.mock import patch
 
-from test_tourney_analysis import AnalyzerFixture, a
 import dual_label_sidecar as dual
 import winner_teacher as w
+from test_tourney_analysis import AnalyzerFixture, a
 
 
 class WinnerTeacherTests(AnalyzerFixture):

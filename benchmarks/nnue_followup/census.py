@@ -2,9 +2,9 @@
 """Run an instrumented benchmark binary once per NNUE case, without timing claims."""
 
 import json
-from pathlib import Path
 import subprocess
 import sys
+from pathlib import Path
 
 binary, corpus, cases, output = map(Path, sys.argv[1:])
 with output.open("x") as out, output.with_suffix(".stderr").open("w") as err:

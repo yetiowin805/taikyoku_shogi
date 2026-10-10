@@ -6,11 +6,11 @@ import hashlib
 import json
 import math
 import os
-from pathlib import Path
 import random
 import statistics
 import subprocess
 import time
+from pathlib import Path
 
 p = argparse.ArgumentParser(description=__doc__)
 p.add_argument("--root", type=Path, required=True)
@@ -27,6 +27,10 @@ for name in ["BASE_C2S2_A40_Lmate", "C2K50A1"]:
 if a.phase == "timed":
     models = {k: v for k, v in models.items() if k in ["W512", "W2048"]}
 reference = prior / "bin" / ("main" if a.phase == "verify" else "probes")
+
+
+def nps(r):
+    return r["result"]["nodes"] / r["result"]["elapsed_ns"]
 
 
 def sha(path):
@@ -151,7 +155,6 @@ else:
                 and r["position"] == row["position"]
                 and r["rep"] == row["rep"]
             )
-            nps = lambda r: r["result"]["nodes"] / r["result"]["elapsed_ns"]
             ratios.append(nps(row) / nps(ref))
         summary[model] = {
             "nps_ratio_to_tested_prototype": math.exp(statistics.mean(map(math.log, ratios))),

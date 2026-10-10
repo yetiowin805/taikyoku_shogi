@@ -3,7 +3,12 @@
 Run under the shared CPU lock. Fixed-time outcomes are search work, not strength.
 """
 
-import argparse, hashlib, json, math, os, random, subprocess, time
+import argparse
+import hashlib
+import json
+import math
+import random
+import subprocess
 from pathlib import Path
 
 p = argparse.ArgumentParser()

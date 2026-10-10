@@ -4,15 +4,15 @@ import argparse
 import hashlib
 import json
 import math
-from pathlib import Path
 import random
 import shutil
 import subprocess
 import sys
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "benchmarks/search_speed_20260920"))
-import run as harness
+import run as harness  # noqa: E402 -- needs the sys.path insert above
 
 p = argparse.ArgumentParser(description=__doc__)
 for name in ["baseline", "candidate", "corpus", "cases", "out"]:

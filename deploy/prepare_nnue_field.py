@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """Replace exactly five Lold entries in a NEW field; never edit a live run/state."""
 
-import argparse, hashlib, json, subprocess
+import argparse
+import hashlib
+import json
+import subprocess
 from pathlib import Path
 
 WIDTHS = [512, 768, 1024, 1536, 2048]
@@ -64,7 +67,7 @@ def main():
     try:
         print(json.dumps(prepare(a.source, a.models, a.out, a.validator), indent=2))
     except Exception as e:
-        raise SystemExit(f"prepare_nnue_field failed: {e}; tournament did not start")
+        raise SystemExit(f"prepare_nnue_field failed: {e}; tournament did not start") from e
 
 
 if __name__ == "__main__":

@@ -1,6 +1,7 @@
 """Independent NumPy reference for the version-1 Rust inference format."""
 
-import json, struct
+import struct
+
 import numpy as np
 
 
