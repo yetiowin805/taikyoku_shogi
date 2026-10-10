@@ -124,6 +124,7 @@ fn build_record(
 /// Play one game and return a complete record (not yet written to disk).
 ///
 /// On mid-game failure, returns [`PlayFailure`] with a partial record (moves so far).
+#[allow(clippy::result_large_err)] // once per game; boxing the partial record buys nothing
 pub fn play_one_game(config: &WorkerConfig) -> Result<GameRecordV2, PlayFailure> {
     if let Some(control) = config.time_control {
         let valid = control.validate().and_then(|_| {

@@ -87,7 +87,7 @@ pub fn hash_file(path: &Path) -> Result<String, String> {
 }
 impl Network {
     pub fn load(checkpoint: &Path, d: &Descriptor) -> Result<Arc<Self>, String> {
-        if d.width < 32 || d.width > 4096 || d.width % 32 != 0 {
+        if d.width < 32 || d.width > 4096 || !d.width.is_multiple_of(32) {
             return Err("invalid NNUE width".into());
         }
         if d.feature_hash

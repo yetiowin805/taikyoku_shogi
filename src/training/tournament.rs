@@ -334,10 +334,7 @@ pub(crate) fn ensure_ratings(state: &mut TourneyState) {
         }
     }
     for e in &state.entrants {
-        state
-            .ratings
-            .entry(e.id.clone())
-            .or_insert_with(GlickoRating::default);
+        state.ratings.entry(e.id.clone()).or_default();
     }
     // Mirror r into elo for legacy consumers.
     state.elo.clear();
@@ -742,7 +739,7 @@ pub fn swiss_pair_pool(state: &TourneyState, names: &[String]) -> Vec<String> {
 
 /// Deterministic 1-in-[`INFORMATIONAL_PAIR_DENOM`] roll for the next slot.
 pub fn informational_pair_due(seed_base: u64, slot_id: usize) -> bool {
-    pairing_u64(seed_base, slot_id, 0xA11C_E11E) % INFORMATIONAL_PAIR_DENOM == 0
+    pairing_u64(seed_base, slot_id, 0xA11C_E11E).is_multiple_of(INFORMATIONAL_PAIR_DENOM)
 }
 
 fn pairing_u64(seed_base: u64, slot_id: usize, salt: u64) -> u64 {
@@ -804,8 +801,7 @@ fn try_informational_pair(state: &TourneyState, names: &[String]) -> Option<(Str
 pub fn apply_passive_rd_tick(rating: GlickoRating) -> GlickoRating {
     let rd = (rating.rd * rating.rd + RD_PASSIVE_C * RD_PASSIVE_C)
         .sqrt()
-        .min(DEFAULT_RD)
-        .max(RD_MIN);
+        .clamp(RD_MIN, DEFAULT_RD);
     GlickoRating { r: rating.r, rd }
 }
 
@@ -2278,7 +2274,7 @@ mod tests {
         st.seed_base = seed_for_info_pair(next_slot_id(&st), false);
         assert!(elite_eligible(&st, "p0"));
         assert!(!elite_eligible(&st, "p1")); // 2100+40+40 ≤ 2400
-        assert_eq!((rs[0] - rs[1]).abs() > PAIRING_WINDOW, true);
+        assert!((rs[0] - rs[1]).abs() > PAIRING_WINDOW);
 
         assert!(schedule_one_swiss_game(&mut st));
         let first = st.slots.last().unwrap();

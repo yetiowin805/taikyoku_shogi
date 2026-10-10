@@ -338,7 +338,7 @@ mod tests {
         assert!(out.join("seed.json").is_file());
 
         let mut keys = HashSet::new();
-        keys.insert(mult_key(&vec![1.0f32; 17]));
+        keys.insert(mult_key(&[1.0f32; 17]));
         for s in &samples.samples {
             assert!(!all_ones(&s.multipliers));
             assert!(keys.insert(mult_key(&s.multipliers)));

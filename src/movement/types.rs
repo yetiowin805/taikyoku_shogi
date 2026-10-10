@@ -131,7 +131,7 @@ mod piece_type_set_tests {
             let mut fast = PieceTypeSet::new();
             let mut old = std::collections::HashSet::new();
             for &piece in crate::eval::ALL_PIECE_TYPES {
-                if piece as usize % modulus == 0 {
+                if (piece as usize).is_multiple_of(modulus) {
                     assert_eq!(fast.insert(piece), old.insert(piece));
                     assert_eq!(fast.insert(piece), old.insert(piece));
                 }

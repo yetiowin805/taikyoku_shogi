@@ -122,6 +122,22 @@ pub fn direction_set_is_empty(set: DirectionSet) -> bool {
     set == 0
 }
 
+/// Allocation-free direction walk with the same order as the Vec API.
+pub fn direction_iter(set: DirectionSet) -> impl Iterator<Item = Direction> {
+    [
+        Direction::N,
+        Direction::NE,
+        Direction::E,
+        Direction::SE,
+        Direction::S,
+        Direction::SW,
+        Direction::W,
+        Direction::NW,
+    ]
+    .into_iter()
+    .filter(move |d| direction_set_contains(set, *d))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -159,20 +175,4 @@ mod tests {
             assert!(direction_set_contains(all, dir));
         }
     }
-}
-
-/// Allocation-free direction walk with the same order as the Vec API.
-pub fn direction_iter(set: DirectionSet) -> impl Iterator<Item = Direction> {
-    [
-        Direction::N,
-        Direction::NE,
-        Direction::E,
-        Direction::SE,
-        Direction::S,
-        Direction::SW,
-        Direction::W,
-        Direction::NW,
-    ]
-    .into_iter()
-    .filter(move |d| direction_set_contains(set, *d))
 }

@@ -407,14 +407,16 @@ fn big_piece_table() -> &'static [bool] {
                 continue;
             }
             let cfg = MovementConfig::for_piece_type(pt);
-            t[pt as usize] = cfg.capabilities.iter().any(|cap| match cap {
-                MovementCapability::TwoStep { .. }
-                | MovementCapability::FreeEagleMultiMove { .. } => true,
-                MovementCapability::Range {
-                    blocking: BlockingMode::Capturing,
-                    ..
-                } => true,
-                _ => false,
+            t[pt as usize] = cfg.capabilities.iter().any(|cap| {
+                matches!(
+                    cap,
+                    MovementCapability::TwoStep { .. }
+                        | MovementCapability::FreeEagleMultiMove { .. }
+                        | MovementCapability::Range {
+                            blocking: BlockingMode::Capturing,
+                            ..
+                        }
+                )
             });
         }
         t
@@ -666,7 +668,7 @@ fn last_royal_flight_penalty(board: &Board, color: Color, weights: &EvalWeights)
         return 0.0;
     }
     let pieces = board.pieces_by_color(color);
-    let Some(royal) = last_royal_of(&pieces) else {
+    let Some(royal) = last_royal_of(pieces) else {
         return 0.0;
     };
     let enemy = color.opposite();
@@ -960,7 +962,7 @@ fn linear_topk_tail_tropism(
         a.0.cmp(&b.0)
             .then_with(|| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal))
     });
-    let k = weights.eg_tropism_topk.max(0) as usize;
+    let k = weights.eg_tropism_topk as usize;
     let mut t_top = 0.0f32;
     let mut t_tail = 0.0f32;
     for (i, (_d, _neg_s, u)) in entries.iter().enumerate() {
@@ -1856,8 +1858,8 @@ pub fn evaluate_absolute_black(board: &Board, weights: &EvalWeights, ply: usize)
     score -= last_royal_flight_penalty(board, Color::Black, weights);
     score += last_royal_flight_penalty(board, Color::White, weights);
 
-    score += two_mover_align_of(board, black, &enemy_royal_positions(&white), weights);
-    score -= two_mover_align_of(board, white, &enemy_royal_positions(&black), weights);
+    score += two_mover_align_of(board, black, &enemy_royal_positions(white), weights);
+    score -= two_mover_align_of(board, white, &enemy_royal_positions(black), weights);
 
     score.round() as i32 + noise_component(board, weights, ply)
 }
@@ -1939,8 +1941,8 @@ fn evaluate_absolute_black_from_inc(
             score += last_royal_flight_penalty(board, Color::White, weights);
         }
         if weights.two_mover_align_k != 0.0 {
-            score += two_mover_align_of(board, black, &enemy_royal_positions(&white), weights);
-            score -= two_mover_align_of(board, white, &enemy_royal_positions(&black), weights);
+            score += two_mover_align_of(board, black, &enemy_royal_positions(white), weights);
+            score -= two_mover_align_of(board, white, &enemy_royal_positions(black), weights);
         }
     }
 

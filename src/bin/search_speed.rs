@@ -54,14 +54,8 @@ fn run(name: &str, state: &GameState, weights: &EvalWeights, depth: u32, time_ms
     #[cfg(feature = "search-profile")]
     {
         let p = taikyoku_shogi::profile_timers::report();
-        let tot = (ms as u128).saturating_mul(1_000_000);
-        let pct = |ns: u128| {
-            if tot == 0 {
-                0
-            } else {
-                ns.saturating_mul(100) / tot
-            }
-        };
+        let tot = ms.saturating_mul(1_000_000);
+        let pct = |ns: u128| ns.saturating_mul(100).checked_div(tot).unwrap_or(0);
         let accounted = p.eval_ns + p.gen_ns + p.atk_ns + p.make_ns + p.order_ns;
         println!(
             "  profile eval={}% gen={}% (two_step={} std={} fe={} filter={}) attack={}% make={}% order={}% other≈{}%",

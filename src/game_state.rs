@@ -1402,7 +1402,7 @@ impl GameState {
                     intermediate,
                     target,
                     false,
-                    seen_empty_routes.as_deref_mut(),
+                    seen_empty_routes,
                 );
             }
         }
@@ -1549,6 +1549,7 @@ impl GameState {
     /// Optimized legality check that assumes:
     /// - The piece at `from` exists and belongs to the current player
     /// - The piece can reach `to` (target was generated from movement generator)
+    ///
     /// Only checks: not capturing own piece, and optionally if move leaves king in check
     /// Uses VirtualBoard for efficient check detection
     fn is_legal_move_assuming_reachable(
@@ -1917,7 +1918,7 @@ impl GameState {
         }
 
         let (execute_result, had_capture, had_promotion) =
-            self.execute_single_move(mv.clone(), record_history, removed_out.as_deref_mut());
+            self.execute_single_move(mv.clone(), record_history, removed_out);
 
         if !execute_result {
             return ApplyOutcome::Failed;
@@ -2505,7 +2506,7 @@ mod tests {
 
         let moves = state.generate_legal_moves();
         // Pawn can move forward (1) or diagonally (2), but only if legal
-        assert!(moves.len() >= 1); // At least forward move
+        assert!(!moves.is_empty()); // At least forward move
     }
 
     #[test]
@@ -2625,7 +2626,7 @@ mod tests {
 
         // Check that there are legal moves from initial position
         let moves = state.generate_legal_moves();
-        assert!(moves.len() > 0);
+        assert!(!moves.is_empty());
     }
 
     #[test]

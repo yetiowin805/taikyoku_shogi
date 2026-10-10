@@ -471,19 +471,19 @@ impl GameHistory {
             let tens = n / 10;
             let ones = n % 10;
             result.push_str(digits[tens]);
-            result.push_str("十");
+            result.push('十');
             if ones > 0 {
                 result.push_str(digits[ones]);
             }
         } else if n >= 20 {
-            result.push_str("二");
-            result.push_str("十");
+            result.push('二');
+            result.push('十');
             let ones = n % 10;
             if ones > 0 {
                 result.push_str(digits[ones]);
             }
         } else if n >= 10 {
-            result.push_str("十");
+            result.push('十');
             let ones = n % 10;
             if ones > 0 {
                 result.push_str(digits[ones]);

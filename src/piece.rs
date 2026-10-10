@@ -950,10 +950,7 @@ impl PieceType {
 
     /// Check if this piece type is a royal piece (game ends when all are captured)
     pub fn is_royal(&self) -> bool {
-        match self {
-            PieceType::King | PieceType::CrownPrince => true,
-            _ => false,
-        }
+        matches!(self, PieceType::King | PieceType::CrownPrince)
     }
 
     /// Get movement configuration for this piece type

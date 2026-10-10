@@ -185,9 +185,7 @@ impl Board {
         if from == to {
             return None;
         }
-        let Some(mut piece) = self.get_piece(from) else {
-            return None;
-        };
+        let mut piece = self.get_piece(from)?;
         let captured = self.remove_piece(to);
         let index = self.piece_slots[from.to_index()] as usize;
         let list = match piece.color {
@@ -215,11 +213,6 @@ impl Board {
             global[to.to_index() / 64] |= 1u64 << (to.to_index() % 64);
         }
         captured
-    }
-
-    /// Create a copy of the board
-    pub fn clone(&self) -> Board {
-        Clone::clone(self)
     }
 
     /// Check if a position is attacked by pieces of a given color

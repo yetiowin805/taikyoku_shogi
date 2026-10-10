@@ -1501,12 +1501,8 @@ fn dest_hang_kind(
         return None;
     }
     let board = state.get_board();
-    let Some(mover) = board.get_piece(mv.from) else {
-        return None;
-    };
-    let Some(victim) = board.get_piece(mv.to) else {
-        return None;
-    };
+    let mover = board.get_piece(mv.from)?;
+    let victim = board.get_piece(mv.to)?;
     if victim.color == mover.color || !is_large_hang_victim(&victim, weights) {
         return None;
     }
@@ -1748,10 +1744,10 @@ fn generate_quiescence_captures_with_hang(
             {
                 return true;
             }
-            if is_loud_promotion_move(state, mv) {
-                if !(loud_promo_simple_only && quiesce_move_looks_path_or_multileg(state, mv)) {
-                    return true;
-                }
+            if is_loud_promotion_move(state, mv)
+                && !(loud_promo_simple_only && quiesce_move_looks_path_or_multileg(state, mv))
+            {
+                return true;
             }
             if !is_quiescence_capture_candidate(state, weights, mv, prev_to) {
                 return false;
@@ -2680,7 +2676,7 @@ pub fn search_with_progress(
                 });
                 if completed_depth == 0 && !iter_lines.is_empty() {
                     // Hard timeout: keep last completed iteration (partial d=1 only if nothing completed yet).
-                    iter_lines.sort_by(|a, b| b.1.cmp(&a.1));
+                    iter_lines.sort_by_key(|l| std::cmp::Reverse(l.1));
                     completed_lines = iter_lines;
                     completed_best = iter_best;
                     completed_score = iter_score;
@@ -2697,7 +2693,7 @@ pub fn search_with_progress(
                 continue;
             }
 
-            iter_lines.sort_by(|a, b| b.1.cmp(&a.1));
+            iter_lines.sort_by_key(|l| std::cmp::Reverse(l.1));
             completed_lines = iter_lines;
             completed_best = iter_best;
             completed_score = iter_score;
@@ -2733,16 +2729,16 @@ pub fn search_with_progress(
 
     // One-shot diagnosis summary for midgame dumps.
     {
-        let fh_pct = if ctx.root_pvs_tried == 0 {
-            0
-        } else {
-            (ctx.root_fail_high.saturating_mul(100)) / ctx.root_pvs_tried
-        };
-        let near_pct = if ctx.root_moves_scored == 0 {
-            0
-        } else {
-            (ctx.root_near_best.saturating_mul(100)) / ctx.root_moves_scored
-        };
+        let fh_pct = ctx
+            .root_fail_high
+            .saturating_mul(100)
+            .checked_div(ctx.root_pvs_tried)
+            .unwrap_or(0);
+        let near_pct = ctx
+            .root_near_best
+            .saturating_mul(100)
+            .checked_div(ctx.root_moves_scored)
+            .unwrap_or(0);
         let mut scores: Vec<i32> = root_lines.iter().map(|(_, s)| *s).collect();
         scores.sort_unstable();
         let spread = if scores.is_empty() {
@@ -2751,11 +2747,11 @@ pub fn search_with_progress(
             scores[scores.len() - 1] - scores[scores.len() / 2]
         };
         let quniq = ctx.q_unique.len();
-        let qhit_pct = if ctx.q_tt_probes == 0 {
-            0
-        } else {
-            (ctx.q_tt_hits.saturating_mul(100)) / ctx.q_tt_probes
-        };
+        let qhit_pct = ctx
+            .q_tt_hits
+            .saturating_mul(100)
+            .checked_div(ctx.q_tt_probes)
+            .unwrap_or(0);
         eprintln!(
             "ab diag: root={} scored={} fh={}% near20={}% spread(max-med)={} qnodes={} quniq={}{} qTThit={}%/{}/{} sib={}/{} abort={}",
             ctx.root_total,
@@ -3283,7 +3279,7 @@ fn same_root_move(a: &Move, b: &Move) -> bool {
 }
 
 /// After an ID iteration: previous best first, then by that iteration's scores, else unchanged.
-fn reorder_root_moves(moves: &mut Vec<Move>, best: &Move, scored: &[(Move, i32)]) {
+fn reorder_root_moves(moves: &mut [Move], best: &Move, scored: &[(Move, i32)]) {
     moves.sort_by(|a, b| {
         let a_best = same_root_move(a, best);
         let b_best = same_root_move(b, best);
@@ -3402,7 +3398,7 @@ fn alphabeta(
 ) -> i32 {
     ctx.nodes += 1;
 
-    if cfg!(debug_assertions) && ctx.nodes % 256 == 0 {
+    if cfg!(debug_assertions) && ctx.nodes.is_multiple_of(256) {
         debug_assert_eq!(
             state.hash(),
             crate::zobrist::compute(state),
@@ -3631,16 +3627,16 @@ fn search_move_list(
         if ctx.timed_out() {
             break;
         }
-        let mv_key = move_tt_key(&mv);
-        let is_capture = move_captures_enemy(state, &mv);
-        let is_loud_promo = is_loud_promotion_move(state, &mv);
+        let mv_key = move_tt_key(mv);
+        let is_capture = move_captures_enemy(state, mv);
+        let is_loud_promo = is_loud_promotion_move(state, mv);
         if is_capture
             && !skip_hang
-            && capture_hangs_high_value_piece(state, weights, &mv, false, &mut hang_cache)
+            && capture_hangs_high_value_piece(state, weights, mv, false, &mut hang_cache)
         {
             continue;
         }
-        let is_killer = killer_rank(ctx, parent_ply, &mv) > 0;
+        let is_killer = killer_rank(ctx, parent_ply, mv) > 0;
         let move_index = move_index_base + i;
 
         // LMR: late quiet non-killers get a reduced child search.
@@ -3659,15 +3655,15 @@ fn search_move_list(
             0
         };
         let wipe_key = if ctx.sibling_mode != 0 {
-            capturing_wipe_group_key(state, &mv)
+            capturing_wipe_group_key(state, mv)
         } else {
             None
         };
-        let is_wipe = quiesce_move_looks_path_or_multileg(state, &mv);
+        let is_wipe = quiesce_move_looks_path_or_multileg(state, mv);
         let child_depth = depth.saturating_sub(1);
 
-        let capture_enemy = move_loudness(state, weights, &mv, is_capture);
-        let mover_large = mover_is_large(state, &mv);
+        let capture_enemy = move_loudness(state, weights, mv, is_capture);
+        let mover_large = mover_is_large(state, mv);
         let Some(undo) = state.make_move_for_search(mv.clone()) else {
             continue;
         };
@@ -3788,7 +3784,7 @@ fn search_move_list(
             did_cutoff = true;
             if !is_capture {
                 store_killer(ctx, parent_ply, mv_key);
-                bump_history(ctx, &mv, depth);
+                bump_history(ctx, mv, depth);
             }
             break;
         }
@@ -3865,11 +3861,11 @@ fn search_leaf_evasions(
         ctx.last_ab_mover_large,
         ctx.quiesce_entry_depth,
     ) = saved_policy;
-    return if best == i32::MIN + 1 {
+    if best == i32::MIN + 1 {
         -weights.mate_score
     } else {
         best
-    };
+    }
 }
 
 fn leaf_or_quiesce(
@@ -4017,19 +4013,17 @@ fn quiesce_impl(
         0
     };
     // Unique-q tracking is diagnostic-only unless `track_q_unique`.
-    if ctx.track_q_unique || cfg!(debug_assertions) {
-        if !ctx.q_unique_saturated {
-            if ctx.q_unique.len()
-                < if ctx.track_q_unique {
-                    1 << 20
-                } else {
-                    Q_UNIQUE_CAP
-                }
-            {
-                ctx.q_unique.insert(key);
+    if (ctx.track_q_unique || cfg!(debug_assertions)) && !ctx.q_unique_saturated {
+        if ctx.q_unique.len()
+            < if ctx.track_q_unique {
+                1 << 20
             } else {
-                ctx.q_unique_saturated = true;
+                Q_UNIQUE_CAP
             }
+        {
+            ctx.q_unique.insert(key);
+        } else {
+            ctx.q_unique_saturated = true;
         }
     }
 
@@ -4128,7 +4122,7 @@ fn quiesce_impl(
 
     let mut cands: Vec<QCand> = raw_moves
         .into_iter()
-        .filter_map(|mv| {
+        .map(|mv| {
             let mover_value = state
                 .get_board()
                 .get_piece(mv.from)
@@ -4150,7 +4144,7 @@ fn quiesce_impl(
                 .is_some_and(|k| !matches!(k, CaptureKind::SimpleTake));
             let is_royal_take = capture_takes_enemy_royal(state, &mv);
             let last_royal_take = false;
-            Some(QCand {
+            QCand {
                 last_royal_take,
                 mv,
                 enemy,
@@ -4163,17 +4157,15 @@ fn quiesce_impl(
                 tactical_gain: enemy + promo_gain,
                 is_hang_dest,
                 is_royal_take,
-            })
+            }
         })
         .collect();
 
     // Recapture-only after the first q-ply.
-    if ctx.q_prune_mode.uses_recapture_only() {
-        if prev_to.is_some() {
-            cands.retain(|c| c.is_recapture || c.is_loud_promo || c.is_royal_take);
-            if cands.is_empty() {
-                return stand_pat;
-            }
+    if ctx.q_prune_mode.uses_recapture_only() && prev_to.is_some() {
+        cands.retain(|c| c.is_recapture || c.is_loud_promo || c.is_royal_take);
+        if cands.is_empty() {
+            return stand_pat;
         }
     }
     // S1: dest recapture onto prev_to only (plus royals / loud promos).
@@ -4426,14 +4418,12 @@ fn quiesce_impl(
             && matches!(kind, CaptureKind::PathClear | CaptureKind::MultiLeg)
             && !takes_royal
             && net_below_hang_frac(enemy, own, mover_value)
-        {
-            if state
+            && state
                 .get_board()
                 .is_position_attacked_by_color(landing, opponent)
-            {
-                state.unmake_move_for_search(undo);
-                continue;
-            }
+        {
+            state.unmake_move_for_search(undo);
+            continue;
         }
 
         let next_prev_to = if ctx.q_prune_mode.uses_recapture_only() || path_aware {
@@ -4696,21 +4686,21 @@ impl SearchContext {
             "-".into()
         };
         let q_this = self.q_nodes.saturating_sub(self.q_nodes_at_root_start);
-        let qpct = if self.nodes > 0 {
-            (self.q_nodes.saturating_mul(100)) / self.nodes
-        } else {
-            0
-        };
-        let fh_pct = if self.root_pvs_tried == 0 {
-            0
-        } else {
-            (self.root_fail_high.saturating_mul(100)) / self.root_pvs_tried
-        };
-        let qhit_pct = if self.q_tt_probes == 0 {
-            0
-        } else {
-            (self.q_tt_hits.saturating_mul(100)) / self.q_tt_probes
-        };
+        let qpct = self
+            .q_nodes
+            .saturating_mul(100)
+            .checked_div(self.nodes)
+            .unwrap_or(0);
+        let fh_pct = self
+            .root_fail_high
+            .saturating_mul(100)
+            .checked_div(self.root_pvs_tried)
+            .unwrap_or(0);
+        let qhit_pct = self
+            .q_tt_hits
+            .saturating_mul(100)
+            .checked_div(self.q_tt_probes)
+            .unwrap_or(0);
         let qinfo = if self.phase == "quiesce" || self.q_nodes > 0 {
             format!(
                 " qnodes={} q%={} qroot={} qlast={} quniq={} qTThit={}% fh={}% qPC/ST/ML={}/{}/{} qleft={} qcaps={}/{} qmv={} spat={}",

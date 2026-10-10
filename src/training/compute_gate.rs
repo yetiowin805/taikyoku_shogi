@@ -117,6 +117,25 @@ impl ComputeGate {
     }
 }
 
+fn lock_file(path: PathBuf, nonblocking: bool) -> Result<Option<File>, String> {
+    let file = OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .read(true)
+        .write(true)
+        .open(path)
+        .map_err(|e| e.to_string())?;
+    let flags = libc::LOCK_EX | if nonblocking { libc::LOCK_NB } else { 0 };
+    if unsafe { libc::flock(file.as_raw_fd(), flags) } != 0 {
+        let e = std::io::Error::last_os_error();
+        if nonblocking && e.kind() == std::io::ErrorKind::WouldBlock {
+            return Ok(None);
+        }
+        return Err(e.to_string());
+    }
+    Ok(Some(file))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -196,23 +215,4 @@ mod tests {
         assert!(gate.claim().unwrap().is_some());
         std::fs::remove_dir_all(dir).unwrap();
     }
-}
-
-fn lock_file(path: PathBuf, nonblocking: bool) -> Result<Option<File>, String> {
-    let file = OpenOptions::new()
-        .create(true)
-        .truncate(false)
-        .read(true)
-        .write(true)
-        .open(path)
-        .map_err(|e| e.to_string())?;
-    let flags = libc::LOCK_EX | if nonblocking { libc::LOCK_NB } else { 0 };
-    if unsafe { libc::flock(file.as_raw_fd(), flags) } != 0 {
-        let e = std::io::Error::last_os_error();
-        if nonblocking && e.kind() == std::io::ErrorKind::WouldBlock {
-            return Ok(None);
-        }
-        return Err(e.to_string());
-    }
-    Ok(Some(file))
 }

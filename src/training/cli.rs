@@ -1242,8 +1242,10 @@ pub fn cmd_royal_s2_grid(args: &[String]) -> Result<(), String> {
 }
 
 pub fn cmd_royal_s2_champs_grid(args: &[String]) -> Result<(), String> {
-    let mut cfg = RoyalS2GridConfig::default();
-    cfg.out_dir = PathBuf::from(DEFAULT_CHAMPS_OUT_DIR);
+    let mut cfg = RoyalS2GridConfig {
+        out_dir: PathBuf::from(DEFAULT_CHAMPS_OUT_DIR),
+        ..Default::default()
+    };
     let mut i = 2;
     while i < args.len() {
         if let Some(v) = take_flag_value(args, &mut i, "--seed")? {
@@ -1266,8 +1268,10 @@ pub fn cmd_royal_s2_champs_grid(args: &[String]) -> Result<(), String> {
 }
 
 pub fn cmd_royal_s2_twins_grid(args: &[String]) -> Result<(), String> {
-    let mut cfg = RoyalS2GridConfig::default();
-    cfg.out_dir = PathBuf::from(DEFAULT_TWINS_OUT_DIR);
+    let mut cfg = RoyalS2GridConfig {
+        out_dir: PathBuf::from(DEFAULT_TWINS_OUT_DIR),
+        ..Default::default()
+    };
     let mut i = 2;
     while i < args.len() {
         if let Some(v) = take_flag_value(args, &mut i, "--seed")? {

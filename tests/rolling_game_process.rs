@@ -81,8 +81,10 @@ fn update_and_rollback_only_affect_next_game_and_preserve_frozen_agents() {
     let a = f.bundle("a");
     let b = f.bundle("b");
     let pointer = f.select(&a);
-    let mut cfg = WorkerConfig::default();
-    cfg.seed = 42;
+    let mut cfg = WorkerConfig {
+        seed: 42,
+        ..Default::default()
+    };
     cfg.white.engine = Some(a.engine_bin.clone());
     let dir = f.0.clone();
     let first = cfg.clone();
@@ -147,9 +149,11 @@ fn real_game_child_matches_in_process_and_records_build() {
         analyzer_sha256: hash,
     };
     let pointer = f.select(&b);
-    let mut cfg = WorkerConfig::default();
-    cfg.max_moves = 2;
-    cfg.seed = 17;
+    let mut cfg = WorkerConfig {
+        max_moves: 2,
+        seed: 17,
+        ..Default::default()
+    };
     use taikyoku_shogi::{
         board_position::BoardPosition,
         piece::{Color, Piece, PieceType},

@@ -54,7 +54,6 @@ fn blocking_set_2() -> PieceTypeSet {
 
 /// Blocking Set 3: Pieces that cannot be jumped over by Flying General, Flying Crocodile, Bishop General, and Rain Demon
 /// Includes: King, CrownPrince, GreatGeneral, FlyingGeneral, FlyingCrocodile, BishopGeneral, ViceGeneral, FierceDragon
-
 pub fn blocking_set_3() -> PieceTypeSet {
     let mut set = PieceTypeSet::new();
     set.insert(PieceType::King);
@@ -6012,7 +6011,8 @@ pub fn lion_movement() -> MovementConfig {
 /// Two-step: First move can be either:
 ///   - Simple 1 space orthogonally (N, S, E, W), OR
 ///   - Range movement diagonally (NE, SE, SW, NW)
-///   Second move: 1 space in any direction
+///
+/// Second move: 1 space in any direction
 pub fn lion_hawk_movement() -> MovementConfig {
     use crate::movement::direction::{
         DIRECTION_SET_ALL, DIRECTION_SET_DIAGONAL, DIRECTION_SET_ORTHOGONAL,

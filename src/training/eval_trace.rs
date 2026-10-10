@@ -438,7 +438,7 @@ fn median(xs: &[f32]) -> f32 {
     let mut v = xs.to_vec();
     v.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
     let m = v.len() / 2;
-    if v.len() % 2 == 0 {
+    if v.len().is_multiple_of(2) {
         (v[m - 1] + v[m]) * 0.5
     } else {
         v[m]
@@ -1158,7 +1158,7 @@ mod tests {
 
     #[test]
     fn mate_clip_limits_interestingness_input() {
-        let series = vec![(0, 10.0), (10, 20.0), (20, 1_000_000.0)];
+        let series = [(0, 10.0), (10, 20.0), (20, 1_000_000.0)];
         let clipped: Vec<_> = series
             .iter()
             .map(|(p, e)| (*p, clip(*e, DEFAULT_EVAL_CLIP)))

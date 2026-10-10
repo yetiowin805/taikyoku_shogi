@@ -219,7 +219,7 @@ impl Accumulator {
                 if let Some(p) = add {
                     self.add_direct(dst, p, side, 1);
                 }
-            } else if w % 64 == 0 {
+            } else if w.is_multiple_of(64) {
                 tiled::<64>(src, dst, rows, &slots);
             } else {
                 tiled::<32>(src, dst, rows, &slots);

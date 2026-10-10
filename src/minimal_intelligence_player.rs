@@ -412,10 +412,8 @@ impl MinimalIntelligencePlayer {
         }
 
         // If capturing any friendly pieces, must capture at least 1 more enemy piece
-        if friendly_count > 0 {
-            if enemy_count < friendly_count + 1 {
-                return false; // Fast rejection: not enough enemy pieces captured
-            }
+        if friendly_count > 0 && enemy_count < friendly_count + 1 {
+            return false; // Fast rejection: not enough enemy pieces captured
         }
 
         // Exception: If we captured a two-step piece, allow ending in an attacked space
@@ -451,12 +449,11 @@ impl MinimalIntelligencePlayer {
             Color::White => mv.from.rank <= 10, // White in opponent's first 11 ranks
         };
 
-        if !is_in_promotion_zone {
-            if (moving_piece.color == Color::Black && mv.to.rank > mv.from.rank)
-                || (moving_piece.color == Color::White && mv.to.rank < mv.from.rank)
-            {
-                weight *= Self::FORWARD_RANK_WEIGHT_MULTIPLIER;
-            }
+        if !is_in_promotion_zone
+            && ((moving_piece.color == Color::Black && mv.to.rank > mv.from.rank)
+                || (moving_piece.color == Color::White && mv.to.rank < mv.from.rank))
+        {
+            weight *= Self::FORWARD_RANK_WEIGHT_MULTIPLIER;
         }
 
         // Center file check (stackable)

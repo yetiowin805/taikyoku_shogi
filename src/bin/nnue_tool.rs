@@ -89,7 +89,7 @@ fn run() -> Result<(), String> {
                             let hash: [u8; 32] = Sha256::digest(&encoded).into();
                             if seen.insert(hash) {
                                 let sign = if stm == Color::Black { 1. } else { -1. };
-                                writeln!(index,"{}",json!({"offset":offset,"us":us.len(),"them":them.len(),"score":score as f32*sign,"material":nnue::material(state.get_board(),&cp.weights)*sign,"split":job.split,"game":job.game,"ply":ply,"position_hash":format!("{:x}",sha2::digest::Output::<Sha256>::from(hash))})).map_err(|e|e.to_string())?;
+                                writeln!(index,"{}",json!({"offset":offset,"us":us.len(),"them":them.len(),"score":score*sign,"material":nnue::material(state.get_board(),&cp.weights)*sign,"split":job.split,"game":job.game,"ply":ply,"position_hash":format!("{:x}",sha2::digest::Output::<Sha256>::from(hash))})).map_err(|e|e.to_string())?;
                                 out.write_all(&encoded).map_err(|e| e.to_string())?;
                                 offset += (us.len() + them.len()) as u64;
                                 count += 1;

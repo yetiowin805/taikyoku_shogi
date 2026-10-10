@@ -143,13 +143,10 @@ impl MovementGenerator {
                         let mut distance = 1u8;
                         let mut seen_victim = false;
                         let mut ray_has_enemy_capture = false;
-                        loop {
-                            let Some(pos) = piece
-                                .position
-                                .offset(file_delta * distance as i8, rank_delta * distance as i8)
-                            else {
-                                break;
-                            };
+                        while let Some(pos) = piece
+                            .position
+                            .offset(file_delta * distance as i8, rank_delta * distance as i8)
+                        {
                             let target_piece = board.get_piece(pos);
                             let is_empty = target_piece.is_none();
                             let is_friendly = target_piece
@@ -169,10 +166,11 @@ impl MovementGenerator {
                                     seen_victim = true;
                                 }
                             }
-                            if !is_friendly && seen_victim {
-                                if is_enemy || (is_empty && ray_has_enemy_capture) {
-                                    landings.push(pos);
-                                }
+                            if !is_friendly
+                                && seen_victim
+                                && (is_enemy || (is_empty && ray_has_enemy_capture))
+                            {
+                                landings.push(pos);
                             }
                             distance = match distance.checked_add(1) {
                                 Some(d) => d,
@@ -272,9 +270,7 @@ impl MovementGenerator {
                         let mut lands = false;
                         match blocking {
                             BlockingMode::NoJump => {
-                                if is_enemy {
-                                    lands = true;
-                                } else if is_empty {
+                                if is_enemy || is_empty {
                                     lands = true;
                                 }
                                 if pos == target {
@@ -285,9 +281,7 @@ impl MovementGenerator {
                                 }
                             }
                             BlockingMode::Jump => {
-                                if is_enemy {
-                                    lands = true;
-                                } else if !is_friendly {
+                                if is_enemy || !is_friendly {
                                     lands = true;
                                 }
                                 if pos == target {
@@ -522,9 +516,7 @@ impl MovementGenerator {
 
                 match blocking {
                     BlockingMode::NoJump => {
-                        if is_enemy {
-                            targets.push(target);
-                        } else if is_empty && !captures_only {
+                        if is_enemy || (is_empty && !captures_only) {
                             targets.push(target);
                         }
                         // Stop at first piece (whether we can capture it or not)
@@ -533,9 +525,7 @@ impl MovementGenerator {
                         }
                     }
                     BlockingMode::Jump => {
-                        if is_enemy {
-                            targets.push(target);
-                        } else if !is_friendly && !captures_only {
+                        if is_enemy || (!is_friendly && !captures_only) {
                             targets.push(target);
                         }
                     }
@@ -548,10 +538,10 @@ impl MovementGenerator {
                         if is_enemy {
                             ray_has_enemy_capture = true;
                         }
-                        if !is_friendly {
-                            if !captures_only || is_enemy || (is_empty && ray_has_enemy_capture) {
-                                targets.push(target);
-                            }
+                        if !is_friendly
+                            && (!captures_only || is_enemy || (is_empty && ray_has_enemy_capture))
+                        {
+                            targets.push(target);
                         }
                     }
                 }

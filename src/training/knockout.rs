@@ -188,7 +188,7 @@ pub(crate) fn pending_slot_claim_index(state: &TourneyState) -> Option<usize> {
         }
         let (tree, round) = slot_tree_and_round(state, slot.id);
         let key = (tree, round, slot.id, idx);
-        if best.map_or(true, |b| key < b) {
+        if best.is_none_or(|b| key < b) {
             best = Some(key);
         }
     }
@@ -604,7 +604,7 @@ fn enqueue_single(
     n_done: usize,
 ) {
     let singles_idx = n_done.saturating_sub(PAIR_GAME_CAP);
-    let (start_seed, start_mode) = if singles_idx % 2 == 0 {
+    let (start_seed, start_mode) = if singles_idx.is_multiple_of(2) {
         let seed = state
             .seed_base
             .wrapping_add((state.knockouts[tree_idx].id as u64).wrapping_mul(1_000_003))
@@ -616,7 +616,7 @@ fn enqueue_single(
         let m = &state.knockouts[tree_idx].matches[match_idx];
         (m.pair_start_seed, m.pair_start_mode)
     };
-    let a_black = singles_idx % 2 == 0;
+    let a_black = singles_idx.is_multiple_of(2);
     let sid = push_slot(
         state,
         a.to_string(),

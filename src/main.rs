@@ -23,19 +23,19 @@ fn to_japanese_numeral(n: u8) -> String {
         let tens = n / 10;
         let ones = n % 10;
         result.push_str(digits[tens]);
-        result.push_str("十");
+        result.push('十');
         if ones > 0 {
             result.push_str(digits[ones]);
         }
     } else if n >= 20 {
-        result.push_str("二");
-        result.push_str("十");
+        result.push('二');
+        result.push('十');
         let ones = n % 10;
         if ones > 0 {
             result.push_str(digits[ones]);
         }
     } else if n >= 10 {
-        result.push_str("十");
+        result.push('十');
         let ones = n % 10;
         if ones > 0 {
             result.push_str(digits[ones]);
@@ -261,14 +261,12 @@ fn main() {
                 println!(
                     r#"{{"policy":"royal-al-v1","swap_removal":true,"aspiration":500,"checkpoint_L_modes":true}}"#
                 );
-                return;
             }
             "royal-al-grid" => {
                 if let Err(e) = taikyoku_shogi::training::royal_al_grid::cli(&args[2..]) {
                     eprintln!("royal-al-grid failed: {e}; tournament did not start");
                     std::process::exit(1);
                 }
-                return;
             }
             "royal-s2-grid" => {
                 if let Err(e) = taikyoku_shogi::training::cli::cmd_royal_s2_grid(&args) {
@@ -457,7 +455,7 @@ fn parse_play_args(args: &[String]) -> Result<(String, Option<u32>, Option<Strin
         i += 1;
     }
     // Validate agent early
-    player_by_name(&agent).map_err(|e| e)?;
+    player_by_name(&agent)?;
     Ok((agent, depth, model))
 }
 
@@ -593,15 +591,14 @@ fn play_game(agent: &str) {
                     let inter_rank_jp = to_japanese_numeral(inter_rank_flipped);
 
                     println!(
-                        "{}. {}: {}{}{}{}{}{}",
+                        "{}. {}: {}{}{}{}{}",
                         move_number,
                         color_str,
                         inter_file_flipped,
                         inter_rank_jp,
                         piece_symbol.clone(),
                         from_file_flipped,
-                        from_rank_jp,
-                        ""
+                        from_rank_jp
                     );
                     println!(
                         "{}. {}: {}{}{}{}{}{}",

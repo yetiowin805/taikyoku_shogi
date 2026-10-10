@@ -50,7 +50,7 @@ pub fn is_cannon_soldier_in_forward_path(cannon_soldier: &Piece, target: Positio
         rank_diff > 0 && rank_diff <= 7
     } else {
         // White moves forward (decreasing rank), so target should be forward
-        rank_diff < 0 && rank_diff >= -7
+        (-7..0).contains(&rank_diff)
     }
 }
 
@@ -432,10 +432,8 @@ pub fn should_check_piece_for_target_position(
 
     // Check Cannon Soldier only if it's in the 7-space forward path
     // (Otherwise it will be caught by 9x9 square filter or can't reach anyway)
-    if is_cannon_soldier(piece) {
-        if is_cannon_soldier_in_forward_path(piece, target_position) {
-            return true;
-        }
+    if is_cannon_soldier(piece) && is_cannon_soldier_in_forward_path(piece, target_position) {
+        return true;
     }
 
     let file_diff = (target_position.file as i8 - piece.position.file as i8).unsigned_abs();

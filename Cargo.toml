@@ -39,3 +39,15 @@ incremental = true
 [[example]]
 name = "royal_probe_smoke"
 required-features = ["royal-probes"]
+
+# CI runs `cargo clippy --all-targets -- -D warnings`. Defaults stay on except
+# lints that fight how engine code is written (index loops over board arrays,
+# wide search/eval entry points).
+[lints.clippy]
+too_many_arguments = "allow"
+needless_range_loop = "allow"
+new_without_default = "allow"
+type_complexity = "allow"
+assertions_on_constants = "allow"  # `assert!(!cfg!(debug_assertions))` guards perf tests
+dbg_macro = "warn"
+todo = "warn"

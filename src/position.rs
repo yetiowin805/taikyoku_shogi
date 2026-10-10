@@ -44,7 +44,7 @@ impl Position {
         let new_file = self.file as i16 + file_delta as i16;
         let new_rank = self.rank as i16 + rank_delta as i16;
 
-        if new_file >= 0 && new_file < 36 && new_rank >= 0 && new_rank < 36 {
+        if (0..36).contains(&new_file) && (0..36).contains(&new_rank) {
             Some(Position {
                 file: new_file as u8,
                 rank: new_rank as u8,

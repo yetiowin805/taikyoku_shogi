@@ -66,7 +66,7 @@ pub fn disk_free_gb(path: &Path) -> Option<f64> {
         path.to_path_buf()
     } else {
         path.parent()
-            .filter(|p| p.as_os_str().len() > 0)
+            .filter(|p| !p.as_os_str().is_empty())
             .unwrap_or_else(|| Path::new("."))
             .to_path_buf()
     };

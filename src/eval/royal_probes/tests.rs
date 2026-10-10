@@ -126,7 +126,7 @@ fn no_flight_is_not_no_defense() {
     put(&mut s, Rook, Color::Black, 4, 1);
     assert_eq!(verified_flights(s.get_board(), Color::Black), Some(0));
     let before = BoardPosition::from_state(&s);
-    let evasions = diagnostic_evasions(&mut s).unwrap();
+    let evasions = diagnostic_evasions(&s).unwrap();
     assert!(evasions
         .iter()
         .any(|m| m.from == Position::new(4, 1).unwrap() && m.to == Position::new(0, 1).unwrap()));
@@ -150,14 +150,14 @@ fn mate_fixture() -> GameState {
 
 #[test]
 fn mating_probe_proves_check_and_restores_state_on_all_paths() {
-    let mut s = mate_fixture();
+    let s = mate_fixture();
     let before = BoardPosition::from_state(&s);
     for (budget, cap, expected) in [
         (Duration::ZERO, 512, ProbeStatus::Unknown),
         (Duration::from_secs(2), 0, ProbeStatus::Unknown),
         (Duration::from_secs(2), 512, ProbeStatus::Found),
     ] {
-        let r = mate_probe(&mut s, budget, cap);
+        let r = mate_probe(&s, budget, cap);
         assert_eq!(r.status, expected, "{r:?}");
         assert_eq!(BoardPosition::from_state(&s), before);
         if let Some(mv) = r.winning_check {
@@ -168,12 +168,12 @@ fn mating_probe_proves_check_and_restores_state_on_all_paths() {
     }
     let mut safe = kings();
     assert_eq!(
-        mate_probe(&mut safe, Duration::from_secs(1), 512).status,
+        mate_probe(&safe, Duration::from_secs(1), 512).status,
         ProbeStatus::NoMate
     );
     put(&mut safe, CrownPrince, Color::White, 34, 34);
     assert_eq!(
-        mate_probe(&mut safe, Duration::from_secs(1), 512).status,
+        mate_probe(&safe, Duration::from_secs(1), 512).status,
         ProbeStatus::NotApplicable
     );
 }
@@ -279,7 +279,7 @@ fn checkpoint_modes_drive_search_and_survive_model_switching() {
     assert_eq!(timeout.completed_depth, 0);
     assert_eq!(timeout.royal_probe.unwrap().status, ProbeStatus::Unknown);
     assert_eq!(
-        search(&state, &cp.weights, &player.config()).completed_depth,
+        search(&state, &cp.weights, player.config()).completed_depth,
         2
     );
 }

@@ -15,14 +15,14 @@ pub fn can_tengu_attack_target<B: BoardLike>(tengu: &Piece, target: Position, bo
     // (same color as target) between them, Tengu can attack via two-step:
     // First move: capture the intervening enemy piece
     // Second move: capture the target/royal piece
-    if is_on_same_diagonal(tengu.position, target) {
-        if find_single_enemy_blocker(tengu, target, board).is_some() {
-            // The blocking piece is already verified to be:
-            // - An enemy of the Tengu (different color)
-            // - Same color as the target (if target has a piece)
-            // So this is a valid two-step attack: capture blocker, then capture target
-            return true;
-        }
+    if is_on_same_diagonal(tengu.position, target)
+        && find_single_enemy_blocker(tengu, target, board).is_some()
+    {
+        // The blocking piece is already verified to be:
+        // - An enemy of the Tengu (different color)
+        // - Same color as the target (if target has a piece)
+        // So this is a valid two-step attack: capture blocker, then capture target
+        return true;
     }
 
     // Third check: can reach via two-step move with calculated intermediate positions?
@@ -79,7 +79,7 @@ fn find_potential_intermediates(tengu_pos: Position, target: Position) -> [Optio
     if sum1 % 2 == 0 && sum2 % 2 == 0 {
         let f_i = sum1 / 2;
         let r_i = sum2 / 2;
-        if f_i >= 0 && f_i < 36 && r_i >= 0 && r_i < 36 {
+        if (0..36).contains(&f_i) && (0..36).contains(&r_i) {
             if let Some(intermediate) = Position::new(f_i as u8, r_i as u8) {
                 if intermediate != tengu_pos && intermediate != target {
                     intermediates[0] = Some(intermediate);
@@ -96,7 +96,7 @@ fn find_potential_intermediates(tengu_pos: Position, target: Position) -> [Optio
     if sum1 % 2 == 0 && sum2 % 2 == 0 {
         let f_i = sum1 / 2;
         let r_i = sum2 / 2;
-        if f_i >= 0 && f_i < 36 && r_i >= 0 && r_i < 36 {
+        if (0..36).contains(&f_i) && (0..36).contains(&r_i) {
             if let Some(intermediate) = Position::new(f_i as u8, r_i as u8) {
                 if intermediate != tengu_pos && intermediate != target {
                     // Avoid duplicates (in case both cases yield the same result)
@@ -155,7 +155,8 @@ fn find_single_enemy_blocker<B: BoardLike>(
     let mut found_blocker: Option<Piece> = None;
 
     while current_file != target.file as i8 || current_rank != target.rank as i8 {
-        if let Some(pos) = Position::new(current_file as u8, current_rank as u8) {
+        {
+            let pos = Position::new(current_file as u8, current_rank as u8)?;
             if let Some(piece) = board.get_piece(pos) {
                 // Found a piece in the path
                 blocker_count += 1;
@@ -183,9 +184,6 @@ fn find_single_enemy_blocker<B: BoardLike>(
                     found_blocker = Some(piece);
                 }
             }
-        } else {
-            // Out of bounds
-            return None;
         }
         current_file += file_step;
         current_rank += rank_step;
@@ -242,16 +240,15 @@ pub fn can_peacock_attack_target<B: BoardLike>(
     // (same color as target) between them, Peacock can attack via two-step:
     // First move: capture the intervening enemy piece
     // Second move: capture the target/royal piece
-    if is_on_same_diagonal(peacock.position, target) {
-        if is_forward_diagonal(peacock, peacock.position, target) {
-            if find_single_enemy_blocker(peacock, target, board).is_some() {
-                // The blocking piece is already verified to be:
-                // - An enemy of the Peacock (different color)
-                // - Same color as the target (if target has a piece)
-                // So this is a valid two-step attack: capture blocker, then capture target
-                return true;
-            }
-        }
+    if is_on_same_diagonal(peacock.position, target)
+        && is_forward_diagonal(peacock, peacock.position, target)
+        && find_single_enemy_blocker(peacock, target, board).is_some()
+    {
+        // The blocking piece is already verified to be:
+        // - An enemy of the Peacock (different color)
+        // - Same color as the target (if target has a piece)
+        // So this is a valid two-step attack: capture blocker, then capture target
+        return true;
     }
 
     // Third check: can reach via two-step move?
@@ -409,14 +406,14 @@ pub fn can_hook_mover_attack_target<B: BoardLike>(
     // (same color as target) between them, Hook Mover can attack via two-step:
     // First move: capture the intervening enemy piece
     // Second move: capture the target/royal piece
-    if is_on_same_orthogonal(hook_mover.position, target) {
-        if find_single_enemy_blocker_orthogonal(hook_mover, target, board).is_some() {
-            // The blocking piece is already verified to be:
-            // - An enemy of the Hook Mover (different color)
-            // - Same color as the target (if target has a piece)
-            // So this is a valid two-step attack: capture blocker, then capture target
-            return true;
-        }
+    if is_on_same_orthogonal(hook_mover.position, target)
+        && find_single_enemy_blocker_orthogonal(hook_mover, target, board).is_some()
+    {
+        // The blocking piece is already verified to be:
+        // - An enemy of the Hook Mover (different color)
+        // - Same color as the target (if target has a piece)
+        // So this is a valid two-step attack: capture blocker, then capture target
+        return true;
     }
 
     // Third check: can reach via two-step move with calculated intermediate positions?
@@ -484,10 +481,11 @@ fn find_potential_intermediates_orthogonal(
 
         // Intermediate 2: (f_t, r_h) - same file as target, same rank as hook_mover
         if let Some(intermediate2) = Position::new(f_t as u8, r_h as u8) {
-            if intermediate2 != hook_mover_pos && intermediate2 != target {
-                if !intermediates.contains(&Some(intermediate2)) {
-                    intermediates[1] = Some(intermediate2);
-                }
+            if intermediate2 != hook_mover_pos
+                && intermediate2 != target
+                && !intermediates.contains(&Some(intermediate2))
+            {
+                intermediates[1] = Some(intermediate2);
             }
         }
     }
@@ -542,7 +540,8 @@ fn find_single_enemy_blocker_orthogonal<B: BoardLike>(
     let mut found_blocker: Option<Piece> = None;
 
     while current_file != target.file as i8 || current_rank != target.rank as i8 {
-        if let Some(pos) = Position::new(current_file as u8, current_rank as u8) {
+        {
+            let pos = Position::new(current_file as u8, current_rank as u8)?;
             if let Some(piece) = BoardLike::get_piece(board, pos) {
                 // Found a piece in the path
                 blocker_count += 1;
@@ -570,9 +569,6 @@ fn find_single_enemy_blocker_orthogonal<B: BoardLike>(
                     found_blocker = Some(piece);
                 }
             }
-        } else {
-            // Out of bounds
-            return None;
         }
         current_file += file_step;
         current_rank += rank_step;
@@ -662,7 +658,7 @@ pub fn can_cannon_soldier_attack_target<B: BoardLike>(
                         let correct_direction = if cannon_soldier.color == Color::Black {
                             rank_diff > 0 && rank_diff <= 7
                         } else {
-                            rank_diff < 0 && rank_diff >= -7
+                            (-7..0).contains(&rank_diff)
                         };
 
                         if correct_direction {
