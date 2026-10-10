@@ -1,0 +1,4 @@
+{
+  "required_mounts": ["/mnt/HC_Volume_107032879"],
+  "model_store": "/mnt/HC_Volume_107032879/taikyoku/model-snapshots"
+}

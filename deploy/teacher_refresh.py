@@ -1,9 +1,9 @@
 """Bounded, resumable replacement of the sidecar's default second teacher."""
 import json
-import sqlite3
 import time
 from collections import defaultdict
 from pathlib import Path
+import artifact_storage
 
 
 def select_backfill(db, new_sha):
@@ -82,16 +82,13 @@ def replace(a, run, model, check_only=False, engine=None):
         if check_only:
             return report
         # Caller owns dual-label.lock, so no collector can race this backup.
-        backup = control / 'teacher-backups' / str(time.time_ns())
-        backup.mkdir(parents=True)
-        (backup / path.name).write_bytes(path.read_bytes())
-        with sqlite3.connect(backup / 'training-labels.sqlite') as dest:
-            db.backup(dest)
+        backup = artifact_storage.teacher_backup(db, path)
         binding = a.snapshot_model(model, data, control)
         config.update(new_model=str(model), new_sha256=sha, new_binding=binding,
                       new_teacher_id=name, new_teacher_agent=dict(name='ab', model=str(model), **({'engine': engine} if engine else {})), teacher_refresh=dict(id=f"{sha}:{time.time_ns()}", ids=ids))
         a.atomic(path, config)
         apply_backfill(db, config)
+        artifact_storage.prune_teacher_backups(backup.parent)
         return dict(report, backup=str(backup))
     finally:
         db.close()
