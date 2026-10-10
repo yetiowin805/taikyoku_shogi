@@ -20,3 +20,27 @@ Do **not** freeze pairing/Swiss, deploy scripts, crash fixes, notation-only, or 
 ## Deploy scripts
 
 Fail **loud**. A wrapper must exit non-zero and print on stderr what step died (pull, build, freeze, grid gen, lock) and that the tourney **did not start**. Do not detach, write a pid, or look successful if a prerequisite failed. A missing `data/run/*.log` / `*.pid` after `./deploy/pull_build_*.sh` means it never launched — do not leave the operator to discover that via `tail: no such file`. Stale git worktrees, missing manifests, and `set -e` mid-freeze are not silent skips.
+
+## Before pushing
+
+CI (`.github/workflows/ci.yml`) runs these; run them yourself first:
+
+```sh
+cargo fmt && cargo clippy --all-targets --all-features -- -D warnings && cargo test
+ruff format . && ruff check --fix .
+python3 -m unittest discover -s deploy -p 'test_*.py'
+```
+
+Lint settings live in `Cargo.toml` (`[lints.clippy]`) and `pyproject.toml`. Fix the warning;
+don't add `#[allow]` / `# noqa` unless the lint is wrong for that line, and say why in the comment.
+Rust tests need full git history (`git fetch --unshallow` in a shallow clone).
+
+## Keeping the code clean
+
+- **Experiment flags get removed.** A new `SearchConfig` / `EvalWeights` toggle needs a comment naming
+  its experiment. When the experiment is decided, delete the losing path (the history freeze keeps old
+  behavior reproducible); don't keep both "just in case".
+- **Don't copy-paste a variant.** No new `*_grid.rs`, `pull_build_*_swiss.sh` or `run_*_swiss.sh` cloned
+  from an existing one: parametrize the shared code instead.
+- **Python is normal Python:** one statement per line, one import per line (the formatter enforces this).
+- **`benchmarks/`** records results and the git rev they ran at, not copies of source files.
