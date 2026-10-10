@@ -1,0 +1,10 @@
+{
+  "required_mounts": ["/mnt/HC_Volume_107032879"],
+  "filesystems": [
+    {"path": "/", "min_free_bytes": 3221225472},
+    {"path": "/mnt/HC_Volume_107032879", "min_free_bytes": 5368709120}
+  ],
+  "state": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/state.json",
+  "status": "/run/taikyoku-storage-status.json",
+  "stop_units": ["taikyoku-dual-labels.service", "taikyoku-coordinator.service"]
+}

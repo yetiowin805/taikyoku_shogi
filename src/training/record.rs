@@ -101,7 +101,7 @@ impl GameRecordV2 {
         // Compact: per-move telemetry makes indentation a large share of each game.
         let json = serde_json::to_string(self)
             .map_err(|e| format!("Failed to serialize game: {}", e))?;
-        fs::write(path, json).map_err(|e| format!("Failed to write {}: {}", path.display(), e))
+        super::durable::write(path, json.as_bytes(), false)
     }
 
     pub fn load_path(path: &Path) -> Result<Self, String> {

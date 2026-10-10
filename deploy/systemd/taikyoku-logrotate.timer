@@ -1,0 +1,9 @@
+[Unit]
+Description=Check Taikyoku log sizes hourly
+
+[Timer]
+OnBootSec=120
+OnUnitActiveSec=1h
+
+[Install]
+WantedBy=timers.target
