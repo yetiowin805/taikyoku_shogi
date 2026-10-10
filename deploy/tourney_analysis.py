@@ -61,6 +61,7 @@ def connect(run, filename="catalogue.sqlite"):
     db.row_factory = sqlite3.Row
     db.executescript("""
         PRAGMA journal_mode=WAL;
+        PRAGMA journal_size_limit=67108864;
         CREATE TABLE IF NOT EXISTS files(path TEXT PRIMARY KEY, hash TEXT);
         CREATE TABLE IF NOT EXISTS moments(
             id TEXT PRIMARY KEY, magnitude INTEGER, status TEXT, payload TEXT, error TEXT);
@@ -366,7 +367,6 @@ def analyzer(config):
                     try:
                         moment["searches"] = [search_position(config, moment, p, db) for p in moment["plies"]]
                         moment["status"] = "completed"
-                        atomic(control / "moments" / (row["id"] + ".json"), moment)
                         db.execute("UPDATE moments SET status='completed',payload=?,error=NULL WHERE id=?",
                                    (json.dumps(moment), row["id"]))
                         print(f"completed {row['id']} swing={row['magnitude']}", flush=True)
@@ -568,7 +568,7 @@ def prepare(args, run):
         validated.append((source, data))
     control = run / "analysis"
     control.mkdir(parents=True, exist_ok=True)
-    for name in ["models", "moments", "bin"]:
+    for name in ["models", "bin"]:
         (control / name).mkdir(exist_ok=True)
     model_map = {}
     for source, data in validated:
@@ -581,8 +581,6 @@ def prepare(args, run):
         with sqlite3.connect(f"file:{old_run / 'analysis/catalogue.sqlite'}?mode=ro", uri=True) as source_db:
             with sqlite3.connect(destination) as destination_db:
                 source_db.backup(destination_db)
-                for moment_id, payload in destination_db.execute("SELECT id,payload FROM moments WHERE status='completed'"):
-                    atomic(control / "moments" / (moment_id + ".json"), json.loads(payload))
     def freeze(binary):
         if binary.resolve().parent == (control / "bin").resolve():
             return binary

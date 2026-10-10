@@ -43,10 +43,10 @@ def position_job(config, cpu, row_id, parent_pid):
     os.sched_setaffinity(0, {cpu})
     db = sqlite3.connect(Path(config['run']) / 'analysis/training-labels.sqlite', timeout=30)
     db.row_factory = sqlite3.Row
+    db.execute('PRAGMA journal_size_limit=67108864')
     try:
         row = db.execute('SELECT payload FROM moments WHERE id=?', (row_id,)).fetchone()
         moment = dual.paired_searches(config, json.loads(row['payload']), db)
-        a.atomic(Path(config['run']) / 'analysis/moments' / (row_id + '.json'), moment)
         db.execute('UPDATE moments SET status=?,payload=?,error=NULL WHERE id=?',
                    ('completed', json.dumps(moment), row_id))
         db.execute('INSERT OR REPLACE INTO dual_paired VALUES(?)', (row_id,))

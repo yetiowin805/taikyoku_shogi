@@ -403,9 +403,9 @@ status and releases the CPU while the tournament continues. Stop/resume restarts
 the analyzer. Do not use a legacy launcher's kill/rebuild wrapper while this pair
 is running.
 
-Each run's `analysis/` contains `catalogue.sqlite`, individual completed
-`moments/*.json`, content-addressed checkpoint/binary snapshots, per-iteration
-progress JSON, and separate supervisor/tournament/analyzer/search stderr logs.
+Each run's `analysis/` contains `catalogue.sqlite` (the only copy of completed
+moments and searches), content-addressed checkpoint/binary snapshots, in-flight
+search progress JSON, and separate supervisor/tournament/analyzer/search stderr logs.
 Status reports backlog, completed/failed moments and cached search count.
 SQLite is authoritative for discovery and completion; interrupted moments retry,
 while failed moments remain recorded for inspection and are not hot-looped.
@@ -503,7 +503,7 @@ Teacher model and analyzer identities are pinned and included in cache keys.
 Changing the teacher or analyzer binding requires a new run/catalogue.
 
 The separate `analysis/training-labels.sqlite` leaves the original catalogue
-untouched. Completed records are also written under `analysis/moments/`, with
+untouched. Completed records (moment payloads in SQLite) carry
 policy-specific IDs, game hashes, result, original agent/evaluation, teacher,
 selection reason/pool/quota, and deterministic train/validation group. The group
 hash uses the original start and first 64 move routes, excluding evaluations and
@@ -657,9 +657,19 @@ Inspect it with `systemctl status taikyoku-storage-guard.service` and
 the volume, run the guard without `--enforce`, then explicitly restart the
 coordinator and analysis. There is no automatic restart loop after disk failure.
 The hourly logrotate timer retains four rotated copies of each diagnostic log
-with a 50 MiB rotation threshold; log size can exceed that threshold between
-checks. It does not delete games, labels, or models. Dataset growth still needs
+(run analysis and training logs, and training-run logs on the volume) with a
+50 MiB rotation threshold; log size can exceed that threshold between checks.
+It does not delete games, labels, or models. Dataset growth still needs
 capacity planning; the reserve safely halts writes when capacity runs low.
+Install `journald-taikyoku.conf` as `/etc/systemd/journald.conf.d/taikyoku.conf`
+and restart `systemd-journald` to cap the journal at 200 MiB.
+
+Label catalogues truncate their SQLite WAL to 64 MiB after checkpoints.
+`prune_run_artifacts.py RUN` (dry run; add `--apply`) removes redundant files
+from runs written by older builds: game-worker iteration sidecars, committed
+search progress files, and `analysis/moments/*.json` copies (no longer written;
+SQLite holds every moment). It never rewrites game files, whose byte SHA-256
+identifies them to label catalogues and NNUE datasets.
 
 The coordinator writes game records, state, ratings, and standings through
 synced temporary files and an atomic rename. `state.json.previous` retains the

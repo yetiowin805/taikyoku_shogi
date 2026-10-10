@@ -7,17 +7,16 @@ Dry run by default; pass --apply to delete/rewrite. Safe while a run is live.
     saved game already carries the same per-move iteration timings.
   * analysis/*.progress.json: deleted only when its search is committed to the
     run's sqlite `searches` table.
-  * --compact-games: rewrite pretty-printed game JSON compactly (content is
-    verified identical). Changes each file's byte hash; the analyzer indexes
-    games by path, so already-scanned games are not rescanned.
+  * analysis/moments/*.json: write-only copies of SQLite moment payloads;
+    deleted only when the moment row exists in the run's catalogue.
 
-Logs are reported, never touched.
+Game files are never rewritten: their byte SHA-256 identifies them to label
+catalogues and NNUE datasets. Logs are reported, never touched.
 
-  ./deploy/prune_run_artifacts.py data/raw/tourney/RUN [RUN ...] [--apply] [--compact-games]
+  ./deploy/prune_run_artifacts.py data/raw/tourney/RUN [RUN ...] [--apply]
 """
 import argparse
 import json
-import os
 import sqlite3
 import sys
 from pathlib import Path
@@ -65,7 +64,7 @@ def prune_sidecars(run, games, apply):
     return freed, kept
 
 
-def committed_search_keys(run):
+def catalogue_keys(run, query):
     keys = set()
     for name in ("catalogue.sqlite", "training-labels.sqlite"):
         path = run / "analysis" / name
@@ -73,14 +72,14 @@ def committed_search_keys(run):
             continue
         with sqlite3.connect(f"file:{path}?mode=ro", uri=True) as db:
             try:
-                keys.update(k for (k,) in db.execute("SELECT key FROM searches"))
+                keys.update(k for (k,) in db.execute(query))
             except sqlite3.OperationalError:
                 pass
     return keys
 
 
 def prune_progress(run, apply):
-    keys = committed_search_keys(run)
+    keys = catalogue_keys(run, "SELECT key FROM searches")
     freed = kept = 0
     for progress in sorted((run / "analysis").glob("*.progress.json")):
         if progress.name[: -len(".progress.json")] not in keys:
@@ -92,35 +91,23 @@ def prune_progress(run, apply):
     return freed, kept
 
 
-def compact_games(paths, apply):
-    freed = 0
-    for path in paths:
-        raw = path.read_bytes()
-        value = json.loads(raw)
-        compact = json.dumps(value, separators=(",", ":")).encode()
-        if len(compact) >= len(raw) or json.loads(compact) != value:
+def prune_moments(run, apply):
+    ids = catalogue_keys(run, "SELECT id FROM moments")
+    freed = kept = 0
+    for moment in sorted((run / "analysis/moments").glob("*.json")):
+        if moment.stem not in ids:
+            kept += 1
             continue
-        freed += len(raw) - len(compact)
+        freed += moment.stat().st_size
         if apply:
-            # Same contract as the coordinator's durable writer: on a full disk
-            # the published game stays intact and no partial temporary remains.
-            tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
-            try:
-                with open(tmp, "xb") as out:
-                    out.write(compact)
-                    out.flush()
-                    os.fsync(out.fileno())
-                os.replace(tmp, path)
-            finally:
-                tmp.unlink(missing_ok=True)
-    return freed
+            moment.unlink(missing_ok=True)
+    return freed, kept
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("runs", nargs="+", type=Path)
     parser.add_argument("--apply", action="store_true", help="actually delete/rewrite (default: dry run)")
-    parser.add_argument("--compact-games", action="store_true", help="rewrite game JSON without indentation")
     args = parser.parse_args()
     verb = "freed" if args.apply else "would free"
     total = 0
@@ -142,10 +129,9 @@ def main():
         freed, kept = prune_progress(run, args.apply)
         total += freed
         print(f"  search progress:    {verb} {mib(freed)} (kept {kept} not yet committed)")
-        if args.compact_games:
-            freed = compact_games(paths, args.apply)
-            total += freed
-            print(f"  compact games:      {verb} {mib(freed)} across {len(paths)} games")
+        freed, kept = prune_moments(run, args.apply)
+        total += freed
+        print(f"  moment copies:      {verb} {mib(freed)} (kept {kept} not in the catalogue)")
         for log in sorted(run.glob("**/*.log")):
             if log.stat().st_size >= 2**20:
                 print(f"  log (untouched):    {mib(log.stat().st_size)} {log.relative_to(run)}")

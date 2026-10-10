@@ -169,7 +169,6 @@ def run(config):
                         moment = json.loads(db.execute('SELECT payload FROM moments WHERE id=?', (row['id'],)).fetchone()['payload'])
                         try:
                             moment = paired_searches(config, moment, db)
-                            a.atomic(control / 'moments' / (row['id'] + '.json'), moment)
                             db.execute('UPDATE moments SET status=?,payload=?,error=NULL WHERE id=?',
                                        ('completed', json.dumps(moment), row['id']))
                             db.execute('INSERT INTO dual_paired VALUES(?)', (row['id'],))

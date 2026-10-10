@@ -214,7 +214,7 @@ class HistoricalAndCarryTests(AnalyzerFixture):
                 with self.assertRaisesRegex(ValueError, 'adaptive dual-label pool'):
                     a.prepare(args, new)
         self.assertEqual(resumed['analysis_sources'], config['analysis_sources'])
-        self.assertEqual(a.read(new/'analysis/moments/completed.json'), payload)
+        self.assertFalse((new/'analysis/moments').exists())
         with a.sqlite3.connect(new/'analysis/catalogue.sqlite') as db:
             self.assertEqual(db.execute('select count(*) from searches').fetchone()[0], 1)
         self.assertEqual(self.db.execute('select count(*) from searches').fetchone()[0], 1)
