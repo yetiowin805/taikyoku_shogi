@@ -77,3 +77,30 @@ does not establish that an earlier mistake was avoidable.
    overlapping window as an independent success.
 
 No search behavior is changed by these tools.
+
+## Verify proposed lines
+
+Build `cargo build --release --bin tactical_line`, then run
+`target/release/tactical_line jobs.json > checks.jsonl`. The job file is an array:
+
+```json
+[{"case":"review-id","game":"/path/to/game.json","ply":43,
+  "lines":[{"label":"candidate","routes":["35,22-34,21-35,20"],
+            "inspect_replies":true}]}]
+```
+
+Routes use the engine's TM1 notation (zero-based coordinates). Each line starts
+at the requested pre-move GUI ply, with the game's prior history intact. The
+helper reports exact captures, friendly path removals, material changes, royal
+attacks, and whether a candidate forces a last-royal evasion. Invalid or ambiguous
+routes are recorded as line errors and must not be treated as verified evidence.
+Identical duplicate moves from move generation are collapsed before matching.
+
+The initial opponent threat map temporarily switches the side to move: it is
+counterfactual capture geometry, not a legal pass or a proof of forced loss.
+Capture summaries keep at most twelve routes with at least 300 seed units of
+enemy victims or a royal victim, ranked by royal victims then material. They are
+not complete lists of all available small captures. Proposed lines respect the
+engine's last-royal evasion generator; two-royal threats are also shown explicitly
+and require interpretation. A capture of both remaining royals can exist even
+when the single-last-royal check flag is false.
