@@ -1077,16 +1077,15 @@ pub fn save_state(cfg: &TourneyConfig, state: &TourneyState) -> Result<(), Strin
     ensure_ratings(&mut state);
     let path = state_path(cfg);
     let json = serde_json::to_string_pretty(&state).map_err(|e| e.to_string())?;
-    fs::write(&path, json).map_err(|e| format!("write {}: {e}", path.display()))?;
+    super::durable::write(&path, json.as_bytes(), true)?;
     let elo_json = serde_json::to_string_pretty(&state.elo).map_err(|e| e.to_string())?;
-    fs::write(elo_path(cfg), elo_json).map_err(|e| e.to_string())?;
+    super::durable::write(&elo_path(cfg), elo_json.as_bytes(), false)?;
     let ratings_json = serde_json::to_string_pretty(&state.ratings).map_err(|e| e.to_string())?;
-    fs::write(ratings_path(cfg), ratings_json).map_err(|e| e.to_string())?;
+    super::durable::write(&ratings_path(cfg), ratings_json.as_bytes(), false)?;
     let neutral = super::order_neutral::from_state(&state);
-    fs::write(dir.join("order-neutral-ratings.json"), serde_json::to_string_pretty(&neutral).map_err(|e| e.to_string())?)
-        .map_err(|e| format!("write order-neutral ratings: {e}"))?;
-    fs::write(standings_path(cfg), format_standings_with_fit(&state, &neutral))
-        .map_err(|e| format!("write standings: {e}"))?;
+    super::durable::write(&dir.join("order-neutral-ratings.json"),
+        serde_json::to_string_pretty(&neutral).map_err(|e| e.to_string())?.as_bytes(), false)?;
+    super::durable::write(&standings_path(cfg), format_standings_with_fit(&state, &neutral).as_bytes(), false)?;
     Ok(())
 }
 
@@ -1356,7 +1355,10 @@ fn abort_claimed_slot(cfg: &TourneyConfig, st: &mut TourneyState, slot_id: usize
         }
     }
     st.updated_at = now_secs();
-    let _ = save_state(cfg, st);
+    if let Err(e) = save_state(cfg, st) {
+        eprintln!("cannot persist aborted game: {e}; stopping tournament");
+        cfg.stop.store(true, Ordering::Relaxed);
+    }
 }
 
 /// Apply an explicit clock transition without rebuilding pairings or ratings.
@@ -1644,7 +1646,11 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
                             }
                             rate_finished_slot(&mut st, slot_id, &model_a, &model_b, score_a);
                             st.updated_at = now_secs();
-                            let _ = save_state(cfg, &st);
+                            if let Err(e) = save_state(cfg, &st) {
+                                eprintln!("cannot persist completed game: {e}; draining workers");
+                                admission_failed.store(true, Ordering::Relaxed);
+                                return;
+                            }
                             if cfg.verbose {
                                 println!(
                                     "slot {slot_id} done {} vs {} score_a={score_a:.1}",
@@ -1694,12 +1700,12 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
                 && inflight_count(&st) < jobs
                 && schedule_one_swiss_game(&mut st)
             {
-                let _ = save_state(cfg, &st);
+                save_state(cfg, &st)?;
                 continue;
             }
             if st.format == TourneyFormat::Knockout && inflight_count(&st) < jobs {
                 fill_knockout_queue(&mut st, jobs);
-                let _ = save_state(cfg, &st);
+                save_state(cfg, &st)?;
                 if inflight_count(&st) > 0 {
                     continue;
                 }
