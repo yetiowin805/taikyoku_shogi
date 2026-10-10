@@ -1,0 +1,160 @@
+{
+  "base_revision": "99f8c9b3d4c4c9fc70e1ee58d362e249310cb5a6",
+  "prior_local_study": "df1ecb34f8e52fe8a3302239267732e2f0fbf02b",
+  "date": "2026-10-10",
+  "model": {
+    "name": "NNUE_W512_v4.5",
+    "descriptor_sha256": "42bb57d10d2b01bbe59fb7ab7c75a260158c72bd322b3b8cf8533376f486d37e",
+    "nnue": {
+      "file": "nnue-81b1c69ab269ecce313a93b0cbe866ede18c37d8a5ff83116dc20d196ba12ea4.bin",
+      "sha256": "81b1c69ab269ecce313a93b0cbe866ede18c37d8a5ff83116dc20d196ba12ea4",
+      "width": 512,
+      "feature_hash": "126bc08ca9871740d5cc545d4c1723d21e7705089bf98a79b8714a598409ca72"
+    },
+    "search_defaults": {
+      "depth": 2,
+      "max_time_ms": null,
+      "quiescence_depth": 2,
+      "sibling_mode": 0,
+      "q_loud_promo_simple_only": false,
+      "hang_q_dest_multileg": true,
+      "hang_q_dest_pathclear": true,
+      "q_open_large_mover": false,
+      "q_open_any_capture": false,
+      "q_recapture_only": false,
+      "q_own_large_only": true
+    }
+  },
+  "corpus_sha256": "d94a8e0b2f44e158ba2dde0e183b0ba59dcb35abb305b19d9fe2813c40fca096",
+  "input_policy": "Original game records, model weights, executables, and private VPS process listing are local only and excluded from Git. The corpus contains paths/checksums, not game records.",
+  "machine": {
+    "cpu": "Intel Core i7-1255U",
+    "logical_cpu": 2,
+    "nice": 10,
+    "architecture": "x86_64",
+    "kernel": "6.8.0-138-generic",
+    "rustc": "rustc 1.92.0 (ded5c06cf 2025-12-08)",
+    "build_flags": "CARGO_BUILD_JOBS=1 RUSTFLAGS=-C target-cpu=native; cargo --offline --release"
+  },
+  "sources": {
+    "Cargo.toml": "e4b2d743b60a2ed512b4a12317bfa300b0d404c1df8c97d3ad6cb9497f683a0e",
+    "src/search.rs": "f937dc0d3720a7a25bf357048d93200a73f269e5a386c9a96614a9837bd22383",
+    "src/profile_timers.rs": "b0eaf5dfbb05eda13160f186760ba6c9388ca2130da4a0f99c9ad5d9b4af81a3",
+    "examples/nnue_efficiency_bench.rs": "2d7e062692ece2f5d4962c219695fc3e595d67771c633c709d5fefcf8c023188"
+  },
+  "patches": {
+    "research-v2.patch": "48df7c369e19fe8861a16ecc63937b57304fd80b296a847fd084419750c5d34c",
+    "research-v1.patch": "7bed6089e0eb1581faa62def7417d076ff3fed05e40d15c26b8e5b65a6cbd2ec",
+    "research-v3.patch": "b3d04ef69ba1a2954bae8f3bf37052ad49d7b4ab34ff1a61b642ef0f172e1a28"
+  },
+  "groups": {
+    "identity": {
+      "source_version": "main, feature disabled",
+      "plan": "results/identity-plan.json",
+      "plan_sha256": "2e2be5ad5ed505323034f5be8cda6aecf53b358abfbc41a8b299de88d339de89",
+      "raw": "results/identity.jsonl",
+      "raw_sha256": "d494b3b5fd626af3186ca03036c1d258adebacf42b6d01fbbfcfc8f609a2efef",
+      "planned_rows": 12,
+      "completed_rows": 12,
+      "binary_sha256": "04b7bf10cda09f31605c1c03fd381c2158260d79aeeaa82113e40a3f73e92168"
+    },
+    "identity_v3": {
+      "source_version": "V3, all study switches off",
+      "plan": "results/identity_v3-plan.json",
+      "plan_sha256": "c4e4b13855d95a4cc0a83b8f5d16239ec7f5b9b508fa5cd41c6f83d741c6324b",
+      "raw": "results/identity_v3.jsonl",
+      "raw_sha256": "efc3919c8307e5edb6b3fd8e8de71694fa7e6445319115e71ec9abe4ac06c648",
+      "planned_rows": 12,
+      "completed_rows": 12,
+      "binary_sha256": "1cdc6af4a5faccf7564562132857ef6dc549935f51c1281521003c4558a45996"
+    },
+    "screen": {
+      "source_version": "V1",
+      "plan": "results/screen-plan.json",
+      "plan_sha256": "58ea80d750dbcc5f90d5ab07c868e81731021b4846a725595596abd4ee4398b9",
+      "raw": "results/screen.jsonl",
+      "raw_sha256": "f62c125d8db0492bb17da98aaf67d8badfd885280067080bf0956944d16bb7ae",
+      "planned_rows": 84,
+      "completed_rows": 84,
+      "binary_sha256": "747e9a4295becbec74f35e9208e6806623343cc829790f237c872bf6ae712814"
+    },
+    "profile": {
+      "source_version": "V1 + search-profile",
+      "plan": "results/profile-plan.json",
+      "plan_sha256": "ccf431e4c57a6f19e2952e690fc33e7492d40a0486aa7389322dddae14f79621",
+      "raw": "results/profile.jsonl",
+      "raw_sha256": "b4c0444a2036cbcb3b35a43cd12f6105a75f07b0676681879fd304cf72ef2078",
+      "planned_rows": 6,
+      "completed_rows": 6,
+      "binary_sha256": "3aa2b1d0892754b70cdfb51e68f1e8a095a6299bc667e2240d4ebe684d5d426f"
+    },
+    "pvs_deep_v2": {
+      "source_version": "V2, preliminary",
+      "plan": "results/pvs_deep_v2-plan.json",
+      "plan_sha256": "2c2b98ea33642ae2f7f7df524e788623ebd0569322bd19b41b708b53fc21a3b2",
+      "raw": "results/pvs_deep_v2.jsonl",
+      "raw_sha256": "2782e463361c84a7f57ece39fb12b18d53b38ef0fd1085ebb9ed0c6dcc7b3d94",
+      "planned_rows": 60,
+      "completed_rows": 60,
+      "binary_sha256": "11afb299931704d104b5d4a13de80ae1d55b17b8d8772c1aec651ae5d0c50167"
+    },
+    "pvs_deep": {
+      "source_version": "V3",
+      "plan": "results/pvs_deep-plan.json",
+      "plan_sha256": "61345c7ae1f91d6ba1af8f7f783f488dd48edb85d844a234e02ea24f399d1af6",
+      "raw": "results/pvs_deep.jsonl",
+      "raw_sha256": "8d978929ac75cf38a94585c36eea2d56e7f7e230c681dc17f7b54ee4c70b76f2",
+      "planned_rows": 60,
+      "completed_rows": 60,
+      "binary_sha256": "1cdc6af4a5faccf7564562132857ef6dc549935f51c1281521003c4558a45996"
+    },
+    "confirm": {
+      "source_version": "V3",
+      "plan": "results/confirm-plan.json",
+      "plan_sha256": "f03b4f6e86d3424ad9ffc4c8c78761c19f83c5aa5ccc5d4ac0782a8c80ef6c95",
+      "raw": "results/confirm.jsonl",
+      "raw_sha256": "fee379bbce50b50ec62b4ba1ef6e1d771cbf3b35ab03b63d7310111f559e1ab5",
+      "planned_rows": 144,
+      "completed_rows": 144,
+      "binary_sha256": "1cdc6af4a5faccf7564562132857ef6dc549935f51c1281521003c4558a45996"
+    },
+    "holdout": {
+      "source_version": "V3, interrupted and timing excluded",
+      "plan": "results/holdout-plan.json",
+      "plan_sha256": "c40a03363dab64e6c359e7e5f22d02e1a2d9d3cc5f8fb9984a3d372aa98e9eab",
+      "raw": "results/holdout.jsonl",
+      "raw_sha256": "21e79a6d8a0f5b35c85e4da5742411f95a2b13053b5d551cf092c849a9702820",
+      "planned_rows": 56,
+      "completed_rows": 9,
+      "binary_sha256": "1cdc6af4a5faccf7564562132857ef6dc549935f51c1281521003c4558a45996"
+    },
+    "timed": {
+      "source_version": "V3, AC monitored",
+      "plan": "results/timed-plan.json",
+      "plan_sha256": "429577fe44f56906c36711605b4ce43a4ee0a386ec3e42fde0f8e8cf668105c0",
+      "raw": "results/timed.jsonl",
+      "raw_sha256": "418f6fc60682207017e2cf3b8ec8217091c5d02776d85593ae13fafd2587c984",
+      "planned_rows": 96,
+      "completed_rows": 96,
+      "binary_sha256": "1cdc6af4a5faccf7564562132857ef6dc549935f51c1281521003c4558a45996"
+    }
+  },
+  "power_incident": {
+    "snapshot": "results/host-power-snapshot.json",
+    "snapshot_utc": "2026-10-10T22:56:40.003347+00:00",
+    "known_transition_time": false,
+    "action": "Interrupted holdout after 9/56 rows. Excluded its timing/depth comparisons. User restored AC; timed group records pre/post power state for all searches."
+  },
+  "validation": {
+    "library_tests": {
+      "passed": 433,
+      "failed": 0,
+      "ignored": 4,
+      "log": "results/all-tests.log"
+    },
+    "all_targets_check": "results/all-targets-check.log",
+    "final_identity_cases": 12,
+    "canvas_typescript": "results/canvas-check.log",
+    "default_all_targets_check": "results/default-build-check.log"
+  }
+}

@@ -1,0 +1,13 @@
+ab diag: root=1150 scored=1069 fh=0% near20=0% spread(max-med)=816 qnodes=854 quniq=0 qTThit=6%/27/434 sib=0/0 abort=false
+ab diag: root=1150 scored=5347 fh=0% near20=0% spread(max-med)=1021 qnodes=124921 quniq=0 qTThit=16%/5857/36140 sib=0/0 abort=false
+ab diag: root=989 scored=4643 fh=0% near20=0% spread(max-med)=1315 qnodes=24896 quniq=0 qTThit=9%/2086/21508 sib=0/0 abort=false
+ab diag: root=1014 scored=5813 fh=0% near20=0% spread(max-med)=503 qnodes=48454 quniq=0 qTThit=21%/8323/38445 sib=0/0 abort=false
+ab diag: root=343 scored=1029 fh=0% near20=2% spread(max-med)=171 qnodes=314 quniq=0 qTThit=27%/53/192 sib=0/0 abort=false
+ab diag: root=630 scored=3783 fh=0% near20=0% spread(max-med)=159 qnodes=5944 quniq=0 qTThit=45%/1736/3830 sib=0/0 abort=false
+ab diag: root=713 scored=4995 fh=0% near20=0% spread(max-med)=590 qnodes=364 quniq=0 qTThit=39%/84/211 sib=0/0 abort=false
+ab diag: root=588 scored=2587 fh=0% near20=0% spread(max-med)=2525 qnodes=88550 quniq=0 qTThit=16%/4598/27409 sib=0/0 abort=false
+ab diag: root=605 scored=3738 fh=0% near20=0% spread(max-med)=206 qnodes=102134 quniq=0 qTThit=13%/4916/35420 sib=0/0 abort=false
+ab diag: root=792 scored=5548 fh=0% near20=0% spread(max-med)=390 qnodes=33052 quniq=0 qTThit=16%/4666/28559 sib=0/0 abort=false
+ab diag: root=683 scored=4659 fh=0% near20=0% spread(max-med)=606 qnodes=49754 quniq=0 qTThit=16%/3879/23037 sib=0/0 abort=false
+ab diag: root=620 scored=1860 fh=0% near20=0% spread(max-med)=5686 qnodes=596 quniq=0 qTThit=23%/77/323 sib=0/0 abort=false
+ab diag: root=813 scored=2316 fh=0% near20=0% spread(max-med)=4585 qnodes=5853 quniq=0 qTThit=11%/161/1446 sib=0/0 abort=false

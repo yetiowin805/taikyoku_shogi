@@ -1,0 +1,10 @@
+   Compiling taikyoku_shogi v0.1.0 (/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency)
+    Finished `release` profile [optimized] target(s) in 1m 25s
+     Running unittests src/lib.rs (target/release/deps/taikyoku_shogi-3a3b3963a30dcc2c)
+
+running 2 tests
+test search::tests::study_pvs_research_matches_full_window_at_unpruned_frontier ... ok
+test search::tests::study_q_savings_preserve_exchange_and_royal_defenses ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 434 filtered out; finished in 0.00s
+

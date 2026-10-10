@@ -1,0 +1,849 @@
+{
+  "name": "screen",
+  "binary": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/bin/study",
+  "binary_sha256": "747e9a4295becbec74f35e9208e6806623343cc829790f237c872bf6ae712814",
+  "corpus_sha256": "d94a8e0b2f44e158ba2dde0e183b0ba59dcb35abb305b19d9fe2813c40fca096",
+  "cpu": 2,
+  "requests": [
+    {
+      "position": 0,
+      "variant": "pvs1",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "pvs_min_depth": 1
+      }
+    },
+    {
+      "position": 0,
+      "variant": "base",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {}
+    },
+    {
+      "position": 0,
+      "variant": "pvs2",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "pvs_min_depth": 2
+      }
+    },
+    {
+      "position": 0,
+      "variant": "sort",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_cached_sort": true
+      }
+    },
+    {
+      "position": 0,
+      "variant": "lazy",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_lazy_royal": true
+      }
+    },
+    {
+      "position": 0,
+      "variant": "qfast",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_lazy_royal": true,
+        "q_early_filter": true,
+        "q_cached_sort": true
+      }
+    },
+    {
+      "position": 0,
+      "variant": "early",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_early_filter": true
+      }
+    },
+    {
+      "position": 1,
+      "variant": "early",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_early_filter": true
+      }
+    },
+    {
+      "position": 1,
+      "variant": "qfast",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_lazy_royal": true,
+        "q_early_filter": true,
+        "q_cached_sort": true
+      }
+    },
+    {
+      "position": 1,
+      "variant": "base",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {}
+    },
+    {
+      "position": 1,
+      "variant": "sort",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_cached_sort": true
+      }
+    },
+    {
+      "position": 1,
+      "variant": "pvs2",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "pvs_min_depth": 2
+      }
+    },
+    {
+      "position": 1,
+      "variant": "pvs1",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "pvs_min_depth": 1
+      }
+    },
+    {
+      "position": 1,
+      "variant": "lazy",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_lazy_royal": true
+      }
+    },
+    {
+      "position": 2,
+      "variant": "lazy",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_lazy_royal": true
+      }
+    },
+    {
+      "position": 2,
+      "variant": "sort",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_cached_sort": true
+      }
+    },
+    {
+      "position": 2,
+      "variant": "base",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {}
+    },
+    {
+      "position": 2,
+      "variant": "qfast",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_lazy_royal": true,
+        "q_early_filter": true,
+        "q_cached_sort": true
+      }
+    },
+    {
+      "position": 2,
+      "variant": "pvs1",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "pvs_min_depth": 1
+      }
+    },
+    {
+      "position": 2,
+      "variant": "early",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_early_filter": true
+      }
+    },
+    {
+      "position": 2,
+      "variant": "pvs2",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "pvs_min_depth": 2
+      }
+    },
+    {
+      "position": 6,
+      "variant": "early",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_early_filter": true
+      }
+    },
+    {
+      "position": 6,
+      "variant": "qfast",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_lazy_royal": true,
+        "q_early_filter": true,
+        "q_cached_sort": true
+      }
+    },
+    {
+      "position": 6,
+      "variant": "pvs1",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "pvs_min_depth": 1
+      }
+    },
+    {
+      "position": 6,
+      "variant": "sort",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_cached_sort": true
+      }
+    },
+    {
+      "position": 6,
+      "variant": "base",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {}
+    },
+    {
+      "position": 6,
+      "variant": "lazy",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_lazy_royal": true
+      }
+    },
+    {
+      "position": 6,
+      "variant": "pvs2",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "pvs_min_depth": 2
+      }
+    },
+    {
+      "position": 7,
+      "variant": "sort",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_cached_sort": true
+      }
+    },
+    {
+      "position": 7,
+      "variant": "lazy",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_lazy_royal": true
+      }
+    },
+    {
+      "position": 7,
+      "variant": "qfast",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_lazy_royal": true,
+        "q_early_filter": true,
+        "q_cached_sort": true
+      }
+    },
+    {
+      "position": 7,
+      "variant": "base",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {}
+    },
+    {
+      "position": 7,
+      "variant": "pvs1",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "pvs_min_depth": 1
+      }
+    },
+    {
+      "position": 7,
+      "variant": "pvs2",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "pvs_min_depth": 2
+      }
+    },
+    {
+      "position": 7,
+      "variant": "early",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_early_filter": true
+      }
+    },
+    {
+      "position": 10,
+      "variant": "early",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_early_filter": true
+      }
+    },
+    {
+      "position": 10,
+      "variant": "pvs2",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "pvs_min_depth": 2
+      }
+    },
+    {
+      "position": 10,
+      "variant": "sort",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_cached_sort": true
+      }
+    },
+    {
+      "position": 10,
+      "variant": "qfast",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_lazy_royal": true,
+        "q_early_filter": true,
+        "q_cached_sort": true
+      }
+    },
+    {
+      "position": 10,
+      "variant": "lazy",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_lazy_royal": true
+      }
+    },
+    {
+      "position": 10,
+      "variant": "pvs1",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "pvs_min_depth": 1
+      }
+    },
+    {
+      "position": 10,
+      "variant": "base",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {}
+    },
+    {
+      "position": 16,
+      "variant": "pvs2",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "pvs_min_depth": 2
+      }
+    },
+    {
+      "position": 16,
+      "variant": "pvs1",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "pvs_min_depth": 1
+      }
+    },
+    {
+      "position": 16,
+      "variant": "base",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {}
+    },
+    {
+      "position": 16,
+      "variant": "sort",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_cached_sort": true
+      }
+    },
+    {
+      "position": 16,
+      "variant": "early",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_early_filter": true
+      }
+    },
+    {
+      "position": 16,
+      "variant": "qfast",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_lazy_royal": true,
+        "q_early_filter": true,
+        "q_cached_sort": true
+      }
+    },
+    {
+      "position": 16,
+      "variant": "lazy",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_lazy_royal": true
+      }
+    },
+    {
+      "position": 17,
+      "variant": "sort",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_cached_sort": true
+      }
+    },
+    {
+      "position": 17,
+      "variant": "qfast",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_lazy_royal": true,
+        "q_early_filter": true,
+        "q_cached_sort": true
+      }
+    },
+    {
+      "position": 17,
+      "variant": "pvs2",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "pvs_min_depth": 2
+      }
+    },
+    {
+      "position": 17,
+      "variant": "pvs1",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "pvs_min_depth": 1
+      }
+    },
+    {
+      "position": 17,
+      "variant": "base",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {}
+    },
+    {
+      "position": 17,
+      "variant": "lazy",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_lazy_royal": true
+      }
+    },
+    {
+      "position": 17,
+      "variant": "early",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_early_filter": true
+      }
+    },
+    {
+      "position": 100,
+      "variant": "early",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_early_filter": true
+      }
+    },
+    {
+      "position": 100,
+      "variant": "qfast",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_lazy_royal": true,
+        "q_early_filter": true,
+        "q_cached_sort": true
+      }
+    },
+    {
+      "position": 100,
+      "variant": "base",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {}
+    },
+    {
+      "position": 100,
+      "variant": "lazy",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_lazy_royal": true
+      }
+    },
+    {
+      "position": 100,
+      "variant": "pvs2",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "pvs_min_depth": 2
+      }
+    },
+    {
+      "position": 100,
+      "variant": "pvs1",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "pvs_min_depth": 1
+      }
+    },
+    {
+      "position": 100,
+      "variant": "sort",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_cached_sort": true
+      }
+    },
+    {
+      "position": 102,
+      "variant": "pvs2",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "pvs_min_depth": 2
+      }
+    },
+    {
+      "position": 102,
+      "variant": "pvs1",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "pvs_min_depth": 1
+      }
+    },
+    {
+      "position": 102,
+      "variant": "sort",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_cached_sort": true
+      }
+    },
+    {
+      "position": 102,
+      "variant": "qfast",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_lazy_royal": true,
+        "q_early_filter": true,
+        "q_cached_sort": true
+      }
+    },
+    {
+      "position": 102,
+      "variant": "lazy",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_lazy_royal": true
+      }
+    },
+    {
+      "position": 102,
+      "variant": "base",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {}
+    },
+    {
+      "position": 102,
+      "variant": "early",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_early_filter": true
+      }
+    },
+    {
+      "position": 104,
+      "variant": "base",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {}
+    },
+    {
+      "position": 104,
+      "variant": "pvs1",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "pvs_min_depth": 1
+      }
+    },
+    {
+      "position": 104,
+      "variant": "lazy",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_lazy_royal": true
+      }
+    },
+    {
+      "position": 104,
+      "variant": "early",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_early_filter": true
+      }
+    },
+    {
+      "position": 104,
+      "variant": "sort",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_cached_sort": true
+      }
+    },
+    {
+      "position": 104,
+      "variant": "qfast",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_lazy_royal": true,
+        "q_early_filter": true,
+        "q_cached_sort": true
+      }
+    },
+    {
+      "position": 104,
+      "variant": "pvs2",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "pvs_min_depth": 2
+      }
+    },
+    {
+      "position": 106,
+      "variant": "qfast",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_lazy_royal": true,
+        "q_early_filter": true,
+        "q_cached_sort": true
+      }
+    },
+    {
+      "position": 106,
+      "variant": "early",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_early_filter": true
+      }
+    },
+    {
+      "position": 106,
+      "variant": "lazy",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_lazy_royal": true
+      }
+    },
+    {
+      "position": 106,
+      "variant": "pvs2",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "pvs_min_depth": 2
+      }
+    },
+    {
+      "position": 106,
+      "variant": "base",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {}
+    },
+    {
+      "position": 106,
+      "variant": "pvs1",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "pvs_min_depth": 1
+      }
+    },
+    {
+      "position": 106,
+      "variant": "sort",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {
+        "q_cached_sort": true
+      }
+    }
+  ]
+}

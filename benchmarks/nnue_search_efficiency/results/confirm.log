@@ -1,0 +1,261 @@
+ab diag: root=683 scored=665 fh=0% near20=0% spread(max-med)=365 qnodes=1663 quniq=0 qTThit=0%/0/724 sib=0/0 abort=false
+ab search: 3.0s nodes=470784 nps=156771 depth=4 q=2 phase=quiesce root=84/683 P 19,11→19,12 best=3433 rms=41 qnodes=156547 q%=33 qroot=284 qlast=2712 quniq=0 qTThit=10% fh=1% qPC/ST/ML=38182/10474/5 qleft=1 qcaps=2/2 qmv=RW 32,4→31,5 spat=2502
+ab search: 6.0s nodes=849408 nps=141473 depth=4 q=2 phase=quiesce root=226/683 SC 17,17→16,18 best=3440 rms=32 qnodes=282983 q%=33 qroot=1256 qlast=3 quniq=0 qTThit=6% fh=3% qPC/ST/ML=54092/17298/8 qleft=1 qcaps=1/11 qmv=RO 31,34→31,5+ spat=3275
+ab diag: root=683 scored=5328 fh=4% near20=7% spread(max-med)=50 qnodes=372542 quniq=0 qTThit=4%/12952/283473 sib=0/0 abort=false
+ab search: 3.0s nodes=449280 nps=149710 depth=4 q=2 phase=quiesce root=80/683 RN 34,3→33,3 best=3433 rms=7 qnodes=150963 q%=33 qroot=44 qlast=1568 quniq=0 qTThit=10% fh=1% qPC/ST/ML=37326/10024/5 qleft=1 qcaps=1/1 qmv=D 31,12→31,13 spat=1300
+ab search: 6.0s nodes=836096 nps=139326 depth=4 q=2 phase=quiesce root=222/683 BN 26,10→24,10 best=3440 rms=52 qnodes=278599 q%=33 qroot=1349 qlast=785 quniq=0 qTThit=6% fh=3% qPC/ST/ML=53468/17067/8 qleft=1 qcaps=1/11 qmv=RO 31,34→31,5+ spat=2644
+ab diag: root=683 scored=5328 fh=4% near20=7% spread(max-med)=50 qnodes=372542 quniq=0 qTThit=4%/12952/283473 sib=0/0 abort=false
+ab search: 3.0s nodes=465408 nps=155136 depth=4 q=2 phase=quiesce root=83/683 P 28,11→28,12 best=3433 rms=61 qnodes=155776 q%=33 qroot=2225 qlast=3 quniq=0 qTThit=10% fh=1% qPC/ST/ML=38106/10358/5 qleft=1 qcaps=2/2 qmv=RW 32,4→31,5 spat=2438
+ab search: 6.0s nodes=860160 nps=143336 depth=4 q=2 phase=quiesce root=236/683 WN 5,11→5,13 best=3440 rms=8 qnodes=286040 q%=33 qroot=44 qlast=38 quniq=0 qTThit=5% fh=3% qPC/ST/ML=54573/17514/8 qleft=1 qcaps=1/1 qmv=D 31,12→31,13 spat=1373
+ab diag: root=683 scored=5328 fh=4% near20=7% spread(max-med)=50 qnodes=372542 quniq=0 qTThit=4%/12952/283473 sib=0/0 abort=false
+ab search: 3.0s nodes=448000 nps=149333 depth=4 q=2 phase=quiesce root=79/683 VM 3,10→4,10 best=3433 rms=28 qnodes=150858 q%=33 qroot=1507 qlast=829 quniq=0 qTThit=10% fh=1% qPC/ST/ML=37295/9994/5 qleft=1 qcaps=1/11 qmv=RO 31,34→31,5+ spat=3367
+ab search: 6.0s nodes=852480 nps=141914 depth=4 q=2 phase=quiesce root=230/683 MK 35,10→36,10 best=3440 rms=24 qnodes=283404 q%=33 qroot=85 qlast=0 quniq=0 qTThit=6% fh=3% qPC/ST/ML=54145/17362/8 qleft=1 qcaps=5/5 qmv=+BG 28,26→18,36 spat=2143
+ab diag: root=683 scored=5328 fh=4% near20=7% spread(max-med)=50 qnodes=372542 quniq=0 qTThit=4%/12952/283473 sib=0/0 abort=false
+ab diag: root=713 scored=5712 fh=1% near20=10% spread(max-med)=11 qnodes=9398 quniq=0 qTThit=3%/146/4736 sib=0/0 abort=false
+ab diag: root=713 scored=5712 fh=1% near20=10% spread(max-med)=11 qnodes=9398 quniq=0 qTThit=3%/146/4736 sib=0/0 abort=false
+ab diag: root=713 scored=5712 fh=1% near20=10% spread(max-med)=11 qnodes=9398 quniq=0 qTThit=3%/146/4736 sib=0/0 abort=false
+ab diag: root=713 scored=5712 fh=1% near20=10% spread(max-med)=11 qnodes=9398 quniq=0 qTThit=3%/146/4736 sib=0/0 abort=false
+ab diag: root=792 scored=6344 fh=0% near20=0% spread(max-med)=1320 qnodes=61685 quniq=0 qTThit=34%/18318/53510 sib=0/0 abort=false
+ab diag: root=792 scored=6344 fh=0% near20=0% spread(max-med)=1320 qnodes=61685 quniq=0 qTThit=34%/18318/53510 sib=0/0 abort=false
+ab diag: root=792 scored=6344 fh=0% near20=0% spread(max-med)=1320 qnodes=61685 quniq=0 qTThit=34%/18318/53510 sib=0/0 abort=false
+ab diag: root=792 scored=6344 fh=0% near20=0% spread(max-med)=1320 qnodes=61685 quniq=0 qTThit=34%/18318/53510 sib=0/0 abort=false
+ab search: 3.0s nodes=604160 nps=201386 depth=4 q=2 phase=quiesce root=1/1014 +VG 27,18→27,1 best=18504 rms=1844 qnodes=372697 q%=61 qroot=241625 qlast=20105 quniq=0 qTThit=5% fh=0% qPC/ST/ML=145728/7312/12 qleft=1 qcaps=22/22 qmv=RO 31,34→31,9+ spat=19668
+ab search: 6.0s nodes=1342976 nps=223829 depth=4 q=2 phase=quiesce root=1/1014 +VG 27,18→27,1 best=18504 rms=4844 qnodes=853216 q%=63 qroot=722144 qlast=20105 quniq=0 qTThit=4% fh=0% qPC/ST/ML=364738/11064/12 qleft=1 qcaps=22/22 qmv=RO 31,34→31,9+ spat=19586
+ab search: 9.0s nodes=2043136 nps=226989 depth=4 q=2 phase=quiesce root=1/1014 +VG 27,18→27,1 best=18504 rms=7844 qnodes=1309403 q%=64 qroot=1178331 qlast=20105 quniq=0 qTThit=3% fh=0% qPC/ST/ML=573914/14616/12 qleft=1 qcaps=22/22 qmv=RO 31,34→31,9+ spat=19723
+ab diag: root=1014 scored=6765 fh=0% near20=0% spread(max-med)=2167 qnodes=1677943 quniq=0 qTThit=3%/28851/923653 sib=0/0 abort=false
+ab search: 3.0s nodes=771584 nps=257194 depth=4 q=2 phase=quiesce root=1/1014 +VG 27,18→27,1 best=18504 rms=2098 qnodes=481420 q%=62 qroot=350348 qlast=20105 quniq=0 qTThit=4% fh=0% qPC/ST/ML=195022/8160/12 qleft=0 qcaps=14/24 qmv=RO 31,34→31,1+ spat=-14764
+ab search: 6.0s nodes=1530112 nps=254976 depth=4 q=2 phase=quiesce root=1/1014 +VG 27,18→27,1 best=18504 rms=5098 qnodes=975137 q%=63 qroot=844065 qlast=20105 quniq=0 qTThit=4% fh=0% qPC/ST/ML=420618/12030/12 qleft=1 qcaps=22/22 qmv=RO 31,34→31,9+ spat=19711
+ab search: 9.0s nodes=2337536 nps=259697 depth=4 q=2 phase=quiesce root=1/1014 +VG 27,18→27,1 best=18504 rms=8099 qnodes=1500611 q%=64 qroot=1369539 qlast=20105 quniq=0 qTThit=3% fh=0% qPC/ST/ML=660692/16070/12 qleft=1 qcaps=22/22 qmv=RO 31,34→31,9+ spat=19634
+ab diag: root=1014 scored=6765 fh=0% near20=0% spread(max-med)=2167 qnodes=1677943 quniq=0 qTThit=3%/28851/923653 sib=0/0 abort=false
+ab search: 3.0s nodes=699904 nps=233301 depth=4 q=2 phase=quiesce root=1/1014 +VG 27,18→27,1 best=18504 rms=2087 qnodes=434988 q%=62 qroot=303916 qlast=20105 quniq=0 qTThit=5% fh=0% qPC/ST/ML=174130/7816/12 qleft=1 qcaps=22/22 qmv=RO 31,34→31,9+ spat=19644
+ab search: 6.0s nodes=1410560 nps=235054 depth=4 q=2 phase=quiesce root=1/1014 +VG 27,18→27,1 best=18504 rms=5088 qnodes=897261 q%=63 qroot=766189 qlast=20105 quniq=0 qTThit=4% fh=0% qPC/ST/ML=384934/11424/12 qleft=1 qcaps=22/22 qmv=RO 31,34→31,9+ spat=19685
+ab search: 9.0s nodes=2145536 nps=238339 depth=4 q=2 phase=quiesce root=1/1014 +VG 27,18→27,1 best=18504 rms=8089 qnodes=1375864 q%=64 qroot=1244792 qlast=20105 quniq=0 qTThit=3% fh=0% qPC/ST/ML=603979/15148/12 qleft=0 qcaps=13/22 qmv=RO 31,34→31,2+ spat=-14606
+ab diag: root=1014 scored=6765 fh=0% near20=0% spread(max-med)=2167 qnodes=1677943 quniq=0 qTThit=3%/28851/923653 sib=0/0 abort=false
+ab search: 3.0s nodes=659712 nps=219904 depth=4 q=2 phase=quiesce root=1/1014 +VG 27,18→27,1 best=18504 rms=1836 qnodes=409009 q%=61 qroot=277937 qlast=20105 quniq=0 qTThit=5% fh=0% qPC/ST/ML=162536/7616/12 qleft=1 qcaps=22/22 qmv=RO 31,34→31,9+ spat=19881
+ab search: 6.0s nodes=1331456 nps=221872 depth=4 q=2 phase=quiesce root=1/1014 +VG 27,18→27,1 best=18504 rms=4837 qnodes=845605 q%=63 qroot=714533 qlast=20105 quniq=0 qTThit=4% fh=0% qPC/ST/ML=361086/11004/12 qleft=1 qcaps=22/22 qmv=RO 31,34→31,9+ spat=19811
+ab search: 9.0s nodes=1935872 nps=215049 depth=4 q=2 phase=quiesce root=1/1014 +VG 27,18→27,1 best=18504 rms=7838 qnodes=1239668 q%=64 qroot=1108596 qlast=20105 quniq=0 qTThit=3% fh=0% qPC/ST/ML=542158/14090/12 qleft=0 qcaps=12/22 qmv=RO 31,34→31,3+ spat=-14652
+ab search: 12.0s nodes=2594531 nps=216174 depth=4 q=2 phase=root root=695/1014 LL 18,32→5,19 best=18493 rms=0 qnodes=1665979 q%=64 qroot=0 qlast=1 quniq=0 qTThit=3% fh=0% qPC/ST/ML=734811/18613/14 qleft=1 qcaps=0/0 qmv=- spat=16324
+ab diag: root=1014 scored=6765 fh=0% near20=0% spread(max-med)=2167 qnodes=1677943 quniq=0 qTThit=3%/28851/923653 sib=0/0 abort=false
+ab search: 3.0s nodes=352512 nps=117386 depth=4 q=2 phase=quiesce root=1/1150 GG 19,33→33,33 best=575 rms=395 qnodes=215163 q%=61 qroot=22206 qlast=68036 quniq=0 qTThit=8% fh=0% qPC/ST/ML=112165/25985/2511 qleft=1 qcaps=1/3 qmv=P 2,26→2,25 spat=-2021
+ab search: 6.0s nodes=674816 nps=112356 depth=4 q=2 phase=quiesce root=6/1150 SP 14,27→14,11 best=1310 rms=392 qnodes=419589 q%=62 qroot=36306 qlast=39437 quniq=0 qTThit=5% fh=0% qPC/ST/ML=231631/37645/6402 qleft=1 qcaps=1/3 qmv=P 10,26→10,25 spat=-1705
+ab search: 9.0s nodes=1143296 nps=126948 depth=4 q=2 phase=quiesce root=266/1150 RO 6,34→9,34 best=1394 rms=1432 qnodes=786603 q%=68 qroot=229049 qlast=4 quniq=0 qTThit=3% fh=0% qPC/ST/ML=495773/56949/15782 qleft=0 qcaps=7/13 qmv=RO 9,34→9,8+ spat=-144
+ab diag: root=1150 scored=6418 fh=0% near20=0% spread(max-med)=602 qnodes=822003 quniq=0 qTThit=4%/9121/226161 sib=0/0 abort=false
+ab search: 3.0s nodes=359680 nps=119853 depth=4 q=2 phase=quiesce root=1/1150 GG 19,33→33,33 best=575 rms=475 qnodes=218587 q%=60 qroot=25630 qlast=68036 quniq=0 qTThit=7% fh=0% qPC/ST/ML=112932/26140/2519 qleft=1 qcaps=1/1 qmv=GG 33,1→30,1 spat=3386
+ab search: 6.0s nodes=703421 nps=117217 depth=4 q=2 phase=quiesce root=59/1150 PR 32,31→33,30 best=1310 rms=141 qnodes=439808 q%=62 qroot=17256 qlast=4 quniq=0 qTThit=5% fh=0% qPC/ST/ML=243635/39942/6954 qleft=1 qcaps=14/21 qmv=RO 6,34→6,9+ spat=-1139
+ab search: 9.0s nodes=1136384 nps=126236 depth=4 q=2 phase=quiesce root=266/1150 RO 6,34→9,34 best=1394 rms=1637 qnodes=780691 q%=68 qroot=223137 qlast=4 quniq=0 qTThit=3% fh=0% qPC/ST/ML=491166/56793/15629 qleft=0 qcaps=4/14 qmv=RO 9,34→9,4+ spat=-158
+ab diag: root=1150 scored=6418 fh=0% near20=0% spread(max-med)=602 qnodes=822003 quniq=0 qTThit=4%/9121/226161 sib=0/0 abort=false
+ab search: 3.0s nodes=344064 nps=114611 depth=4 q=2 phase=quiesce root=1/1150 GG 19,33→33,33 best=575 rms=351 qnodes=210940 q%=61 qroot=17983 qlast=68036 quniq=0 qTThit=8% fh=0% qPC/ST/ML=110571/25741/2494 qleft=1 qcaps=1/1 qmv=GG 33,1→30,1 spat=-2134
+ab search: 6.0s nodes=639232 nps=106485 depth=4 q=2 phase=quiesce root=6/1150 SP 14,27→14,11 best=1310 rms=146 qnodes=394677 q%=61 qroot=11394 qlast=39437 quniq=0 qTThit=5% fh=0% qPC/ST/ML=216253/36920/6030 qleft=1 qcaps=11/11 qmv=RO 31,34→31,11+ spat=3517
+ab search: 9.0s nodes=1040640 nps=115588 depth=4 q=2 phase=quiesce root=266/1150 RO 6,34→9,34 best=1394 rms=961 qnodes=701376 q%=67 qroot=143822 qlast=4 quniq=0 qTThit=4% fh=0% qPC/ST/ML=432825/54073/13680 qleft=0 qcaps=5/13 qmv=RO 9,34→9,5+ spat=718
+ab diag: root=1150 scored=6418 fh=0% near20=0% spread(max-med)=602 qnodes=822003 quniq=0 qTThit=4%/9121/226161 sib=0/0 abort=false
+ab search: 3.0s nodes=302336 nps=100711 depth=4 q=2 phase=quiesce root=1/1150 GG 19,33→33,33 best=64 rms=1238 qnodes=187838 q%=62 qroot=62917 qlast=1 quniq=0 qTThit=9% fh=0% qPC/ST/ML=98866/24175/1677 qleft=1 qcaps=1/5 qmv=FH 32,30→31,29 spat=-2113
+ab search: 6.0s nodes=566016 nps=94304 depth=4 q=2 phase=quiesce root=5/1150 SP 14,27→14,11+ best=1310 rms=12 qnodes=344727 q%=60 qroot=881 qlast=0 quniq=0 qTThit=6% fh=0% qPC/ST/ML=186834/34635/5177 qleft=0 qcaps=3/10 qmv=RO 6,34→6,6+ spat=55
+ab search: 9.0s nodes=986880 nps=109616 depth=4 q=2 phase=quiesce root=266/1150 RO 6,34→9,34 best=1394 rms=634 qnodes=655621 q%=66 qroot=98067 qlast=4 quniq=0 qTThit=4% fh=0% qPC/ST/ML=398666/52071/12034 qleft=1 qcaps=26/26 qmv=+CA 34,14→28,26 spat=3075
+ab diag: root=1150 scored=6418 fh=0% near20=0% spread(max-med)=602 qnodes=822003 quniq=0 qTThit=4%/9121/226161 sib=0/0 abort=false
+ab diag: root=813 scored=3088 fh=0% near20=0% spread(max-med)=172 qnodes=101276 quniq=0 qTThit=1%/839/44595 sib=0/0 abort=false
+ab diag: root=813 scored=3088 fh=0% near20=0% spread(max-med)=172 qnodes=101276 quniq=0 qTThit=1%/839/44595 sib=0/0 abort=false
+ab diag: root=813 scored=3088 fh=0% near20=0% spread(max-med)=172 qnodes=101276 quniq=0 qTThit=1%/839/44595 sib=0/0 abort=false
+ab diag: root=813 scored=3088 fh=0% near20=0% spread(max-med)=172 qnodes=101276 quniq=0 qTThit=1%/839/44595 sib=0/0 abort=false
+ab diag: root=343 scored=1510 fh=1% near20=3% spread(max-med)=558 qnodes=10405 quniq=0 qTThit=14%/960/6839 sib=0/0 abort=false
+ab diag: root=343 scored=1510 fh=1% near20=3% spread(max-med)=558 qnodes=10405 quniq=0 qTThit=14%/960/6839 sib=0/0 abort=false
+ab diag: root=343 scored=1510 fh=1% near20=3% spread(max-med)=558 qnodes=10405 quniq=0 qTThit=14%/960/6839 sib=0/0 abort=false
+ab diag: root=343 scored=1510 fh=1% near20=3% spread(max-med)=558 qnodes=10405 quniq=0 qTThit=14%/960/6839 sib=0/0 abort=false
+ab diag: root=620 scored=2480 fh=0% near20=3% spread(max-med)=101 qnodes=4023 quniq=0 qTThit=11%/191/1628 sib=0/0 abort=false
+ab diag: root=620 scored=2480 fh=0% near20=3% spread(max-med)=101 qnodes=4023 quniq=0 qTThit=11%/191/1628 sib=0/0 abort=false
+ab diag: root=620 scored=2480 fh=0% near20=3% spread(max-med)=101 qnodes=4023 quniq=0 qTThit=11%/191/1628 sib=0/0 abort=false
+ab diag: root=620 scored=2480 fh=0% near20=3% spread(max-med)=101 qnodes=4023 quniq=0 qTThit=11%/191/1628 sib=0/0 abort=false
+ab diag: root=605 scored=4268 fh=0% near20=1% spread(max-med)=98 qnodes=355353 quniq=0 qTThit=7%/9432/120180 sib=0/0 abort=false
+ab search: 3.0s nodes=470856 nps=156952 depth=4 q=2 phase=root root=67/605 WB 30,30→31,31 best=1588 rms=0 qnodes=346245 q%=73 qroot=0 qlast=25 quniq=0 qTThit=7% fh=0% qPC/ST/ML=207678/19514/4 qleft=1 qcaps=22/22 qmv=RO 36,18→36,11+ spat=2820
+ab diag: root=605 scored=4268 fh=0% near20=1% spread(max-med)=98 qnodes=355353 quniq=0 qTThit=7%/9432/120180 sib=0/0 abort=false
+ab diag: root=605 scored=4268 fh=0% near20=1% spread(max-med)=98 qnodes=355353 quniq=0 qTThit=7%/9432/120180 sib=0/0 abort=false
+ab search: 3.0s nodes=393197 nps=131021 depth=4 q=2 phase=quiesce root=1/605 G 20,36→19,35 best=1521 rms=520 qnodes=288000 q%=73 qroot=60764 qlast=72793 quniq=0 qTThit=6% fh=0% qPC/ST/ML=170917/16738/4 qleft=1 qcaps=20/27 qmv=RO 31,34→31,11+ spat=2577
+ab diag: root=605 scored=4268 fh=0% near20=1% spread(max-med)=98 qnodes=355353 quniq=0 qTThit=7%/9432/120180 sib=0/0 abort=false
+ab search: 3.0s nodes=558314 nps=186104 depth=4 q=2 phase=quiesce root=1/588 VO 15,26→18,23 best=-1513 rms=918 qnodes=441344 q%=79 qroot=225997 qlast=0 quniq=0 qTThit=10% fh=0% qPC/ST/ML=251159/77205/639 qleft=1 qcaps=14/24 qmv=RO 36,18→36,10+ spat=2626
+ab diag: root=588 scored=3099 fh=0% near20=0% spread(max-med)=1974 qnodes=511161 quniq=0 qTThit=11%/14019/122047 sib=0/0 abort=false
+ab diag: root=588 scored=3099 fh=0% near20=0% spread(max-med)=1974 qnodes=511161 quniq=0 qTThit=11%/14019/122047 sib=0/0 abort=false
+ab diag: root=588 scored=3099 fh=0% near20=0% spread(max-med)=1974 qnodes=511161 quniq=0 qTThit=11%/14019/122047 sib=0/0 abort=false
+ab diag: root=588 scored=3099 fh=0% near20=0% spread(max-med)=1974 qnodes=511161 quniq=0 qTThit=11%/14019/122047 sib=0/0 abort=false
+ab diag: root=989 scored=5573 fh=0% near20=2% spread(max-med)=199 qnodes=65446 quniq=0 qTThit=29%/14305/48005 sib=0/0 abort=false
+ab diag: root=989 scored=5573 fh=0% near20=2% spread(max-med)=199 qnodes=65446 quniq=0 qTThit=29%/14305/48005 sib=0/0 abort=false
+ab diag: root=989 scored=5573 fh=0% near20=2% spread(max-med)=199 qnodes=65446 quniq=0 qTThit=29%/14305/48005 sib=0/0 abort=false
+ab diag: root=989 scored=5573 fh=0% near20=2% spread(max-med)=199 qnodes=65446 quniq=0 qTThit=29%/14305/48005 sib=0/0 abort=false
+ab search: 3.0s nodes=598016 nps=199338 depth=4 q=2 phase=quiesce root=27/630 WD 10,3→2,11 best=-4530 rms=1114 qnodes=367715 q%=61 qroot=167256 qlast=64 quniq=0 qTThit=4% fh=0% qPC/ST/ML=0/191068/214 qleft=1 qcaps=1/1 qmv=+CH 18,23→18,36 spat=5732
+ab diag: root=630 scored=4416 fh=0% near20=1% spread(max-med)=122 qnodes=471171 quniq=0 qTThit=3%/7924/227673 sib=0/0 abort=false
+ab search: 3.0s nodes=641792 nps=213574 depth=4 q=2 phase=quiesce root=27/630 WD 10,3→2,11 best=-4530 rms=1311 qnodes=396488 q%=61 qroot=196029 qlast=64 quniq=0 qTThit=3% fh=0% qPC/ST/ML=0/205648/214 qleft=0 qcaps=1/1 qmv=+CH 18,23→18,36 spat=-3320
+ab diag: root=630 scored=4416 fh=0% near20=1% spread(max-med)=122 qnodes=471171 quniq=0 qTThit=3%/7924/227673 sib=0/0 abort=false
+ab search: 3.0s nodes=628224 nps=209338 depth=4 q=2 phase=quiesce root=27/630 WD 10,3→2,11 best=-4530 rms=1324 qnodes=387796 q%=61 qroot=187337 qlast=64 quniq=0 qTThit=3% fh=0% qPC/ST/ML=0/201245/214 qleft=1 qcaps=1/1 qmv=+CH 18,23→18,36 spat=5889
+ab diag: root=630 scored=4416 fh=0% near20=1% spread(max-med)=122 qnodes=471171 quniq=0 qTThit=3%/7924/227673 sib=0/0 abort=false
+ab search: 3.0s nodes=526080 nps=175360 depth=4 q=2 phase=quiesce root=27/630 WD 10,3→2,11 best=-4530 rms=1168 qnodes=318520 q%=60 qroot=118061 qlast=64 quniq=0 qTThit=4% fh=0% qPC/ST/ML=0/164187/214 qleft=1 qcaps=3/3 qmv=+CH 18,23→18,36 spat=5897
+ab diag: root=630 scored=4416 fh=0% near20=1% spread(max-med)=122 qnodes=471171 quniq=0 qTThit=3%/7924/227673 sib=0/0 abort=false
+ab diag: root=792 scored=6344 fh=0% near20=0% spread(max-med)=1320 qnodes=61685 quniq=0 qTThit=34%/18318/53510 sib=0/0 abort=false
+ab diag: root=792 scored=6344 fh=0% near20=0% spread(max-med)=1320 qnodes=61685 quniq=0 qTThit=34%/18318/53510 sib=0/0 abort=false
+ab diag: root=792 scored=6344 fh=0% near20=0% spread(max-med)=1320 qnodes=61685 quniq=0 qTThit=34%/18318/53510 sib=0/0 abort=false
+ab diag: root=792 scored=6344 fh=0% near20=0% spread(max-med)=1320 qnodes=61685 quniq=0 qTThit=34%/18318/53510 sib=0/0 abort=false
+ab diag: root=620 scored=2480 fh=0% near20=3% spread(max-med)=101 qnodes=4023 quniq=0 qTThit=11%/191/1628 sib=0/0 abort=false
+ab diag: root=620 scored=2480 fh=0% near20=3% spread(max-med)=101 qnodes=4023 quniq=0 qTThit=11%/191/1628 sib=0/0 abort=false
+ab diag: root=620 scored=2480 fh=0% near20=3% spread(max-med)=101 qnodes=4023 quniq=0 qTThit=11%/191/1628 sib=0/0 abort=false
+ab diag: root=620 scored=2480 fh=0% near20=3% spread(max-med)=101 qnodes=4023 quniq=0 qTThit=11%/191/1628 sib=0/0 abort=false
+ab diag: root=605 scored=4268 fh=0% near20=1% spread(max-med)=98 qnodes=355353 quniq=0 qTThit=7%/9432/120180 sib=0/0 abort=false
+ab diag: root=605 scored=4268 fh=0% near20=1% spread(max-med)=98 qnodes=355353 quniq=0 qTThit=7%/9432/120180 sib=0/0 abort=false
+ab diag: root=605 scored=4268 fh=0% near20=1% spread(max-med)=98 qnodes=355353 quniq=0 qTThit=7%/9432/120180 sib=0/0 abort=false
+ab diag: root=605 scored=4268 fh=0% near20=1% spread(max-med)=98 qnodes=355353 quniq=0 qTThit=7%/9432/120180 sib=0/0 abort=false
+ab diag: root=343 scored=1510 fh=1% near20=3% spread(max-med)=558 qnodes=10405 quniq=0 qTThit=14%/960/6839 sib=0/0 abort=false
+ab diag: root=343 scored=1510 fh=1% near20=3% spread(max-med)=558 qnodes=10405 quniq=0 qTThit=14%/960/6839 sib=0/0 abort=false
+ab diag: root=343 scored=1510 fh=1% near20=3% spread(max-med)=558 qnodes=10405 quniq=0 qTThit=14%/960/6839 sib=0/0 abort=false
+ab diag: root=343 scored=1510 fh=1% near20=3% spread(max-med)=558 qnodes=10405 quniq=0 qTThit=14%/960/6839 sib=0/0 abort=false
+ab search: 3.0s nodes=353536 nps=117806 depth=4 q=2 phase=quiesce root=1/1150 GG 19,33→33,33 best=575 rms=403 qnodes=215753 q%=61 qroot=22796 qlast=68036 quniq=0 qTThit=8% fh=0% qPC/ST/ML=112325/25988/2511 qleft=1 qcaps=1/3 qmv=GG 33,1→30,1 spat=-2494
+ab search: 6.0s nodes=672602 nps=112081 depth=4 q=2 phase=quiesce root=6/1150 SP 14,27→14,11 best=1310 rms=364 qnodes=418304 q%=62 qroot=35021 qlast=39437 quniq=0 qTThit=5% fh=0% qPC/ST/ML=230989/37569/6351 qleft=1 qcaps=1/10 qmv=RO 6,34→6,4+ spat=4539
+ab search: 9.0s nodes=1087359 nps=120790 depth=4 q=2 phase=quiesce root=266/1150 RO 6,34→9,34 best=1394 rms=1227 qnodes=740608 q%=68 qroot=183054 qlast=4 quniq=0 qTThit=4% fh=0% qPC/ST/ML=461877/55660/14850 qleft=1 qcaps=3/25 qmv=RO 9,34→9,2+ spat=-504
+ab diag: root=1150 scored=6418 fh=0% near20=0% spread(max-med)=602 qnodes=822003 quniq=0 qTThit=4%/9121/226161 sib=0/0 abort=false
+ab search: 3.0s nodes=354304 nps=118061 depth=4 q=2 phase=quiesce root=1/1150 GG 19,33→33,33 best=575 rms=417 qnodes=216183 q%=61 qroot=23226 qlast=68036 quniq=0 qTThit=7% fh=0% qPC/ST/ML=112416/25988/2511 qleft=0 qcaps=1/3 qmv=GG 33,1→30,1 spat=4654
+ab search: 6.0s nodes=678144 nps=112892 depth=4 q=2 phase=quiesce root=11/1150 DG 18,27→2,11+ best=1310 rms=10 qnodes=421556 q%=62 qroot=46 qlast=0 quniq=0 qTThit=5% fh=0% qPC/ST/ML=231634/38399/6409 qleft=1 qcaps=4/4 qmv=+CA 34,14→6,36 spat=-4610
+ab search: 9.0s nodes=1134848 nps=125982 depth=4 q=2 phase=quiesce root=266/1150 RO 6,34→9,34 best=1394 rms=1417 qnodes=779528 q%=68 qroot=221974 qlast=4 quniq=0 qTThit=3% fh=0% qPC/ST/ML=490404/56779/15615 qleft=0 qcaps=3/12 qmv=RO 9,34→9,3+ spat=-62
+ab diag: root=1150 scored=6418 fh=0% near20=0% spread(max-med)=602 qnodes=822003 quniq=0 qTThit=4%/9121/226161 sib=0/0 abort=false
+ab search: 3.0s nodes=364267 nps=121422 depth=4 q=2 phase=quiesce root=1/1150 GG 19,33→33,33 best=575 rms=513 qnodes=220672 q%=60 qroot=27715 qlast=68036 quniq=0 qTThit=7% fh=0% qPC/ST/ML=113594/26298/2527 qleft=1 qcaps=1/11 qmv=RO 6,34→6,5+ spat=3254
+ab search: 6.0s nodes=695552 nps=115886 depth=4 q=2 phase=quiesce root=59/1150 PR 32,31→33,30 best=1310 rms=95 qnodes=433619 q%=62 qroot=11067 qlast=4 quniq=0 qTThit=5% fh=0% qPC/ST/ML=238986/39642/6858 qleft=0 qcaps=11/30 qmv=RO 31,34→31,11+ spat=-26
+ab search: 9.0s nodes=1172992 nps=130260 depth=4 q=2 phase=quiesce root=266/1150 RO 6,34→9,34 best=1394 rms=1612 qnodes=811599 q%=69 qroot=254045 qlast=4 quniq=0 qTThit=4% fh=0% qPC/ST/ML=513923/58343/16618 qleft=1 qcaps=16/16 qmv=+CA 36,19→31,31 spat=-5266
+ab diag: root=1150 scored=6418 fh=0% near20=0% spread(max-med)=602 qnodes=822003 quniq=0 qTThit=4%/9121/226161 sib=0/0 abort=false
+ab search: 3.0s nodes=362752 nps=120877 depth=4 q=2 phase=quiesce root=1/1150 GG 19,33→33,33 best=575 rms=506 qnodes=219912 q%=60 qroot=26955 qlast=68036 quniq=0 qTThit=7% fh=0% qPC/ST/ML=113293/26258/2527 qleft=1 qcaps=1/3 qmv=GG 33,3→24,3 spat=-1970
+ab search: 6.0s nodes=708352 nps=118038 depth=4 q=2 phase=quiesce root=59/1150 PR 32,31→33,30 best=1310 rms=165 qnodes=443751 q%=62 qroot=21199 qlast=4 quniq=0 qTThit=5% fh=0% qPC/ST/ML=246401/40081/7007 qleft=1 qcaps=14/14 qmv=VG 18,33→10,25 spat=3431
+ab search: 9.0s nodes=1144024 nps=127099 depth=4 q=2 phase=quiesce root=266/1150 RO 6,34→9,34 best=1394 rms=1680 qnodes=787200 q%=68 qroot=229646 qlast=4 quniq=0 qTThit=3% fh=0% qPC/ST/ML=496212/56975/15790 qleft=1 qcaps=6/16 qmv=RO 9,34→9,6+ spat=-291
+ab diag: root=1150 scored=6418 fh=0% near20=0% spread(max-med)=602 qnodes=822003 quniq=0 qTThit=4%/9121/226161 sib=0/0 abort=false
+ab diag: root=989 scored=5573 fh=0% near20=2% spread(max-med)=199 qnodes=65446 quniq=0 qTThit=29%/14305/48005 sib=0/0 abort=false
+ab diag: root=989 scored=5573 fh=0% near20=2% spread(max-med)=199 qnodes=65446 quniq=0 qTThit=29%/14305/48005 sib=0/0 abort=false
+ab diag: root=989 scored=5573 fh=0% near20=2% spread(max-med)=199 qnodes=65446 quniq=0 qTThit=29%/14305/48005 sib=0/0 abort=false
+ab diag: root=989 scored=5573 fh=0% near20=2% spread(max-med)=199 qnodes=65446 quniq=0 qTThit=29%/14305/48005 sib=0/0 abort=false
+ab diag: root=713 scored=5712 fh=1% near20=10% spread(max-med)=11 qnodes=9398 quniq=0 qTThit=3%/146/4736 sib=0/0 abort=false
+ab diag: root=713 scored=5712 fh=1% near20=10% spread(max-med)=11 qnodes=9398 quniq=0 qTThit=3%/146/4736 sib=0/0 abort=false
+ab diag: root=713 scored=5712 fh=1% near20=10% spread(max-med)=11 qnodes=9398 quniq=0 qTThit=3%/146/4736 sib=0/0 abort=false
+ab diag: root=713 scored=5712 fh=1% near20=10% spread(max-med)=11 qnodes=9398 quniq=0 qTThit=3%/146/4736 sib=0/0 abort=false
+ab diag: root=588 scored=3099 fh=0% near20=0% spread(max-med)=1974 qnodes=511161 quniq=0 qTThit=11%/14019/122047 sib=0/0 abort=false
+ab diag: root=588 scored=3099 fh=0% near20=0% spread(max-med)=1974 qnodes=511161 quniq=0 qTThit=11%/14019/122047 sib=0/0 abort=false
+ab diag: root=588 scored=3099 fh=0% near20=0% spread(max-med)=1974 qnodes=511161 quniq=0 qTThit=11%/14019/122047 sib=0/0 abort=false
+ab search: 3.0s nodes=632544 nps=210848 depth=4 q=2 phase=quiesce root=210/588 C 17,34→16,33 best=894 rms=0 qnodes=505600 q%=79 qroot=15 qlast=24 quniq=0 qTThit=11% fh=0% qPC/ST/ML=290771/92936/649 qleft=1 qcaps=15/23 qmv=RO 31,34→31,5+ spat=5262
+ab diag: root=588 scored=3099 fh=0% near20=0% spread(max-med)=1974 qnodes=511161 quniq=0 qTThit=11%/14019/122047 sib=0/0 abort=false
+ab search: 3.0s nodes=706304 nps=235434 depth=4 q=2 phase=quiesce root=1/1014 +VG 27,18→27,1 best=18504 rms=1999 qnodes=439102 q%=62 qroot=308030 qlast=20105 quniq=0 qTThit=5% fh=0% qPC/ST/ML=175934/7844/12 qleft=1 qcaps=22/22 qmv=RO 31,34→31,9+ spat=19626
+ab search: 6.0s nodes=1430272 nps=238378 depth=4 q=2 phase=quiesce root=1/1014 +VG 27,18→27,1 best=18504 rms=5000 qnodes=910185 q%=63 qroot=779113 qlast=20105 quniq=0 qTThit=4% fh=0% qPC/ST/ML=390984/11526/12 qleft=1 qcaps=22/22 qmv=RO 31,34→31,9+ spat=19564
+ab search: 9.0s nodes=2165504 nps=240584 depth=4 q=2 phase=quiesce root=1/1014 +VG 27,18→27,1 best=18504 rms=8000 qnodes=1388943 q%=64 qroot=1257871 qlast=20105 quniq=0 qTThit=3% fh=0% qPC/ST/ML=610070/15260/12 qleft=1 qcaps=22/22 qmv=RO 31,34→31,9+ spat=19594
+ab diag: root=1014 scored=6765 fh=0% near20=0% spread(max-med)=2167 qnodes=1677943 quniq=0 qTThit=3%/28851/923653 sib=0/0 abort=false
+ab search: 3.0s nodes=701952 nps=233984 depth=4 q=2 phase=quiesce root=1/1014 +VG 27,18→27,1 best=18504 rms=1993 qnodes=436403 q%=62 qroot=305331 qlast=20105 quniq=0 qTThit=5% fh=0% qPC/ST/ML=174900/7830/12 qleft=1 qcaps=22/22 qmv=RO 31,34→31,9+ spat=19679
+ab search: 6.0s nodes=1454336 nps=242348 depth=4 q=2 phase=quiesce root=1/1014 +VG 27,18→27,1 best=18504 rms=4993 qnodes=925835 q%=63 qroot=794763 qlast=20105 quniq=0 qTThit=4% fh=0% qPC/ST/ML=398112/11652/12 qleft=1 qcaps=22/22 qmv=RO 31,34→31,9+ spat=19661
+ab search: 9.0s nodes=2173440 nps=241466 depth=4 q=2 phase=quiesce root=1/1014 +VG 27,18→27,1 best=18504 rms=7993 qnodes=1394085 q%=64 qroot=1263013 qlast=20105 quniq=0 qTThit=3% fh=0% qPC/ST/ML=612424/15260/12 qleft=1 qcaps=22/22 qmv=RO 31,34→31,9+ spat=19561
+ab diag: root=1014 scored=6765 fh=0% near20=0% spread(max-med)=2167 qnodes=1677943 quniq=0 qTThit=3%/28851/923653 sib=0/0 abort=false
+ab search: 3.0s nodes=706304 nps=235434 depth=4 q=2 phase=quiesce root=1/1014 +VG 27,18→27,1 best=18504 rms=2002 qnodes=439102 q%=62 qroot=308030 qlast=20105 quniq=0 qTThit=5% fh=0% qPC/ST/ML=175934/7844/12 qleft=1 qcaps=22/22 qmv=RO 31,34→31,9+ spat=19626
+ab search: 6.0s nodes=1436672 nps=239405 depth=4 q=2 phase=quiesce root=1/1014 +VG 27,18→27,1 best=18504 rms=5003 qnodes=914337 q%=63 qroot=783265 qlast=20105 quniq=0 qTThit=4% fh=0% qPC/ST/ML=392854/11564/12 qleft=1 qcaps=22/22 qmv=RO 31,34→31,9+ spat=19676
+ab search: 9.0s nodes=2113536 nps=234811 depth=4 q=2 phase=quiesce root=1/1014 +VG 27,18→27,1 best=18504 rms=8003 qnodes=1355044 q%=64 qroot=1223972 qlast=20105 quniq=0 qTThit=3% fh=0% qPC/ST/ML=594484/14980/12 qleft=1 qcaps=22/22 qmv=RO 31,34→31,9+ spat=19780
+ab diag: root=1014 scored=6765 fh=0% near20=0% spread(max-med)=2167 qnodes=1677943 quniq=0 qTThit=3%/28851/923653 sib=0/0 abort=false
+ab search: 3.0s nodes=698112 nps=232704 depth=4 q=2 phase=quiesce root=1/1014 +VG 27,18→27,1 best=18504 rms=1982 qnodes=433838 q%=62 qroot=302766 qlast=20105 quniq=0 qTThit=5% fh=0% qPC/ST/ML=173624/7812/12 qleft=1 qcaps=22/22 qmv=RO 31,34→31,9+ spat=19675
+ab search: 6.0s nodes=1416704 nps=236077 depth=4 q=2 phase=quiesce root=1/1014 +VG 27,18→27,1 best=18504 rms=4983 qnodes=901380 q%=63 qroot=770308 qlast=20105 quniq=0 qTThit=4% fh=0% qPC/ST/ML=387002/11456/12 qleft=1 qcaps=22/22 qmv=RO 31,34→31,9+ spat=19632
+ab search: 9.0s nodes=2165504 nps=240584 depth=4 q=2 phase=quiesce root=1/1014 +VG 27,18→27,1 best=18504 rms=7983 qnodes=1388943 q%=64 qroot=1257871 qlast=20105 quniq=0 qTThit=3% fh=0% qPC/ST/ML=610070/15260/12 qleft=1 qcaps=22/22 qmv=RO 31,34→31,9+ spat=19594
+ab diag: root=1014 scored=6765 fh=0% near20=0% spread(max-med)=2167 qnodes=1677943 quniq=0 qTThit=3%/28851/923653 sib=0/0 abort=false
+ab search: 3.0s nodes=619008 nps=206336 depth=4 q=2 phase=quiesce root=27/630 WD 10,3→2,11 best=-4530 rms=1236 qnodes=381667 q%=61 qroot=181208 qlast=64 quniq=0 qTThit=4% fh=0% qPC/ST/ML=0/198140/214 qleft=1 qcaps=1/1 qmv=+CH 18,23→18,36 spat=-3321
+ab diag: root=630 scored=4416 fh=0% near20=1% spread(max-med)=122 qnodes=471171 quniq=0 qTThit=3%/7924/227673 sib=0/0 abort=false
+ab search: 3.0s nodes=638976 nps=212992 depth=4 q=2 phase=quiesce root=27/630 WD 10,3→2,11 best=-4530 rms=1291 qnodes=394942 q%=61 qroot=194483 qlast=64 quniq=0 qTThit=3% fh=0% qPC/ST/ML=0/204864/214 qleft=0 qcaps=1/1 qmv=+CH 18,23→18,36 spat=-3256
+ab diag: root=630 scored=4416 fh=0% near20=1% spread(max-med)=122 qnodes=471171 quniq=0 qTThit=3%/7924/227673 sib=0/0 abort=false
+ab search: 3.0s nodes=642816 nps=214129 depth=4 q=2 phase=quiesce root=27/630 WD 10,3→2,11 best=-4530 rms=1292 qnodes=396746 q%=61 qroot=196287 qlast=64 quniq=0 qTThit=3% fh=0% qPC/ST/ML=0/205777/214 qleft=1 qcaps=1/1 qmv=+CH 18,23→18,36 spat=-3398
+ab diag: root=630 scored=4416 fh=0% near20=1% spread(max-med)=122 qnodes=471171 quniq=0 qTThit=3%/7924/227673 sib=0/0 abort=false
+ab search: 3.0s nodes=616960 nps=205653 depth=4 q=2 phase=quiesce root=27/630 WD 10,3→2,11 best=-4530 rms=1287 qnodes=380307 q%=61 qroot=179848 qlast=64 quniq=0 qTThit=4% fh=0% qPC/ST/ML=0/197448/214 qleft=0 qcaps=1/2 qmv=WL 19,5→20,5 spat=-3289
+ab diag: root=630 scored=4416 fh=0% near20=1% spread(max-med)=122 qnodes=471171 quniq=0 qTThit=3%/7924/227673 sib=0/0 abort=false
+ab search: 3.0s nodes=437901 nps=145967 depth=4 q=2 phase=quiesce root=77/683 SD 7,9→6,9 best=3433 rms=23 qnodes=147712 q%=33 qroot=756 qlast=2645 quniq=0 qTThit=10% fh=1% qPC/ST/ML=36990/9880/5 qleft=1 qcaps=1/71 qmv=RO 31,5→1,5+ spat=3070
+ab search: 6.0s nodes=811776 nps=135205 depth=4 q=2 phase=quiesce root=214/683 FO 6,3→6,5 best=3440 rms=28 qnodes=269869 q%=33 qroot=836 qlast=1758 quniq=0 qTThit=6% fh=3% qPC/ST/ML=52300/16643/8 qleft=1 qcaps=2/2 qmv=RW 32,4→31,5 spat=2138
+ab diag: root=683 scored=5328 fh=4% near20=7% spread(max-med)=50 qnodes=372542 quniq=0 qTThit=4%/12952/283473 sib=0/0 abort=false
+ab search: 3.0s nodes=407296 nps=135674 depth=4 q=2 phase=quiesce root=69/683 CM 31,8→31,7 best=3433 rms=31 qnodes=137579 q%=33 qroot=819 qlast=832 quniq=0 qTThit=11% fh=1% qPC/ST/ML=35612/9277/5 qleft=1 qcaps=2/2 qmv=RW 32,4→31,5 spat=2791
+ab search: 6.0s nodes=772864 nps=128746 depth=4 q=2 phase=quiesce root=206/683 BN 26,10→27,10 best=3440 rms=25 qnodes=257467 q%=33 qroot=189 qlast=3 quniq=0 qTThit=6% fh=3% qPC/ST/ML=50735/15930/8 qleft=1 qcaps=1/1 qmv=+RO 31,5→20,5 spat=3018
+ab search: 9.0s nodes=1094912 nps=121589 depth=4 q=2 phase=quiesce root=377/683 WA 22,3→22,4 best=3440 rms=12 qnodes=362811 q%=33 qroot=44 qlast=3 quniq=0 qTThit=4% fh=4% qPC/ST/ML=64762/21620/588 qleft=1 qcaps=1/1 qmv=D 31,12→31,13 spat=1444
+ab diag: root=683 scored=5328 fh=4% near20=7% spread(max-med)=50 qnodes=372542 quniq=0 qTThit=4%/12952/283473 sib=0/0 abort=false
+ab search: 3.0s nodes=413696 nps=137852 depth=4 q=2 phase=quiesce root=73/683 CS 30,8→29,9 best=3433 rms=12 qnodes=140035 q%=33 qroot=138 qlast=3 quniq=0 qTThit=11% fh=1% qPC/ST/ML=35893/9409/5 qleft=1 qcaps=1/1 qmv=P 31,11→31,12 spat=2993
+ab search: 6.0s nodes=774912 nps=129108 depth=4 q=2 phase=quiesce root=207/683 WN 33,9→33,10 best=3440 rms=10 qnodes=258234 q%=33 qroot=139 qlast=817 quniq=0 qTThit=6% fh=3% qPC/ST/ML=50811/15962/8 qleft=1 qcaps=2/2 qmv=RW 32,4→31,5 spat=2945
+ab diag: root=683 scored=5328 fh=4% near20=7% spread(max-med)=50 qnodes=372542 quniq=0 qTThit=4%/12952/283473 sib=0/0 abort=false
+ab search: 3.0s nodes=444672 nps=148174 depth=4 q=2 phase=quiesce root=79/683 VM 3,10→4,10 best=3433 rms=5 qnodes=149439 q%=33 qroot=88 qlast=829 quniq=0 qTThit=10% fh=1% qPC/ST/ML=37174/9984/5 qleft=1 qcaps=1/1 qmv=P 31,11→31,12 spat=1148
+ab search: 6.0s nodes=815872 nps=135956 depth=4 q=2 phase=quiesce root=215/683 HS 18,20→17,21 best=3440 rms=22 qnodes=271511 q%=33 qroot=772 qlast=1706 quniq=0 qTThit=6% fh=3% qPC/ST/ML=52588/16677/8 qleft=0 qcaps=1/70 qmv=RO 31,5→1,5+ spat=2890
+ab diag: root=683 scored=5328 fh=4% near20=7% spread(max-med)=50 qnodes=372542 quniq=0 qTThit=4%/12952/283473 sib=0/0 abort=false
+ab diag: root=813 scored=3088 fh=0% near20=0% spread(max-med)=172 qnodes=101276 quniq=0 qTThit=1%/839/44595 sib=0/0 abort=false
+ab diag: root=813 scored=3088 fh=0% near20=0% spread(max-med)=172 qnodes=101276 quniq=0 qTThit=1%/839/44595 sib=0/0 abort=false
+ab diag: root=813 scored=3088 fh=0% near20=0% spread(max-med)=172 qnodes=101276 quniq=0 qTThit=1%/839/44595 sib=0/0 abort=false
+ab diag: root=813 scored=3088 fh=0% near20=0% spread(max-med)=172 qnodes=101276 quniq=0 qTThit=1%/839/44595 sib=0/0 abort=false
+ab search: 3.0s nodes=431872 nps=143909 depth=4 q=2 phase=quiesce root=76/683 WN 33,9→33,12 best=3433 rms=38 qnodes=145256 q%=33 qroot=945 qlast=1616 quniq=0 qTThit=11% fh=1% qPC/ST/ML=36598/9823/5 qleft=1 qcaps=1/1 qmv=P 31,11→31,12 spat=1086
+ab search: 6.0s nodes=804864 nps=134121 depth=4 q=2 phase=quiesce root=213/683 +RC 35,27→33,29 best=3440 rms=29 qnodes=267360 q%=33 qroot=85 qlast=1530 quniq=0 qTThit=6% fh=3% qPC/ST/ML=51962/16521/8 qleft=1 qcaps=1/1 qmv=+RO 31,6→14,6 spat=2797
+ab diag: root=683 scored=5328 fh=4% near20=7% spread(max-med)=50 qnodes=372542 quniq=0 qTThit=4%/12952/283473 sib=0/0 abort=false
+ab search: 3.0s nodes=445440 nps=148331 depth=4 q=2 phase=quiesce root=79/683 VM 3,10→4,10 best=3433 rms=14 qnodes=149558 q%=33 qroot=207 qlast=829 quniq=0 qTThit=10% fh=1% qPC/ST/ML=37188/9988/5 qleft=1 qcaps=1/11 qmv=RO 31,34→31,5+ spat=3139
+ab search: 6.0s nodes=827080 nps=137777 depth=4 q=2 phase=root root=219/683 WR 16,2→15,3 best=3440 rms=0 qnodes=275687 q%=33 qroot=0 qlast=785 quniq=0 qTThit=6% fh=3% qPC/ST/ML=53124/16903/8 qleft=1 qcaps=1/11 qmv=RO 31,34→31,5+ spat=3293
+ab diag: root=683 scored=5328 fh=4% near20=7% spread(max-med)=50 qnodes=372542 quniq=0 qTThit=4%/12952/283473 sib=0/0 abort=false
+ab search: 3.0s nodes=423936 nps=141264 depth=4 q=2 phase=quiesce root=75/683 SC 17,17→17,20 best=3433 rms=9 qnodes=142780 q%=33 qroot=85 qlast=1914 quniq=0 qTThit=11% fh=1% qPC/ST/ML=36370/9641/5 qleft=1 qcaps=1/1 qmv=P 31,11→31,12 spat=1183
+ab search: 6.0s nodes=724736 nps=120769 depth=4 q=2 phase=quiesce root=181/683 CT 23,4→21,4 best=3440 rms=24 qnodes=240031 q%=33 qroot=583 qlast=832 quniq=0 qTThit=7% fh=2% qPC/ST/ML=48767/15063/8 qleft=1 qcaps=1/70 qmv=RO 31,5→1,5+ spat=2682
+ab search: 9.0s nodes=1090560 nps=121146 depth=4 q=2 phase=quiesce root=372/683 GR 12,2→13,1 best=3440 rms=11 qnodes=361835 q%=33 qroot=53 qlast=3 quniq=0 qTThit=4% fh=4% qPC/ST/ML=64577/21553/588 qleft=1 qcaps=1/1 qmv=D 31,12→31,13 spat=2516
+ab diag: root=683 scored=5328 fh=4% near20=7% spread(max-med)=50 qnodes=372542 quniq=0 qTThit=4%/12952/283473 sib=0/0 abort=false
+ab search: 3.0s nodes=418816 nps=139605 depth=4 q=2 phase=quiesce root=74/683 TT 30,3→28,1 best=3433 rms=30 qnodes=140977 q%=33 qroot=196 qlast=884 quniq=0 qTThit=11% fh=1% qPC/ST/ML=36039/9514/5 qleft=1 qcaps=1/1 qmv=P 31,11→31,12 spat=1301
+ab search: 6.0s nodes=790016 nps=131603 depth=4 q=2 phase=quiesce root=211/683 SC 17,17→17,22 best=3440 rms=69 qnodes=263076 q%=33 qroot=935 qlast=786 quniq=0 qTThit=6% fh=3% qPC/ST/ML=51398/16249/8 qleft=1 qcaps=1/1 qmv=P 31,11→31,12 spat=1179
+ab diag: root=683 scored=5328 fh=4% near20=7% spread(max-med)=50 qnodes=372542 quniq=0 qTThit=4%/12952/283473 sib=0/0 abort=false
+ab diag: root=588 scored=3099 fh=0% near20=0% spread(max-med)=1974 qnodes=511161 quniq=0 qTThit=11%/14019/122047 sib=0/0 abort=false
+ab search: 3.0s nodes=616704 nps=205499 depth=4 q=2 phase=quiesce root=1/588 VO 15,26→18,23 best=781 rms=19 qnodes=492705 q%=79 qroot=3970 qlast=273388 quniq=0 qTThit=11% fh=0% qPC/ST/ML=282497/90441/641 qleft=0 qcaps=3/26 qmv=RO 36,18→36,3+ spat=3443
+ab diag: root=588 scored=3099 fh=0% near20=0% spread(max-med)=1974 qnodes=511161 quniq=0 qTThit=11%/14019/122047 sib=0/0 abort=false
+ab diag: root=588 scored=3099 fh=0% near20=0% spread(max-med)=1974 qnodes=511161 quniq=0 qTThit=11%/14019/122047 sib=0/0 abort=false
+ab diag: root=588 scored=3099 fh=0% near20=0% spread(max-med)=1974 qnodes=511161 quniq=0 qTThit=11%/14019/122047 sib=0/0 abort=false
+ab diag: root=989 scored=5573 fh=0% near20=2% spread(max-med)=199 qnodes=65446 quniq=0 qTThit=29%/14305/48005 sib=0/0 abort=false
+ab diag: root=989 scored=5573 fh=0% near20=2% spread(max-med)=199 qnodes=65446 quniq=0 qTThit=29%/14305/48005 sib=0/0 abort=false
+ab diag: root=989 scored=5573 fh=0% near20=2% spread(max-med)=199 qnodes=65446 quniq=0 qTThit=29%/14305/48005 sib=0/0 abort=false
+ab diag: root=989 scored=5573 fh=0% near20=2% spread(max-med)=199 qnodes=65446 quniq=0 qTThit=29%/14305/48005 sib=0/0 abort=false
+ab search: 3.0s nodes=364032 nps=121344 depth=4 q=2 phase=quiesce root=1/1150 GG 19,33→33,33 best=575 rms=569 qnodes=220495 q%=60 qroot=27538 qlast=68036 quniq=0 qTThit=7% fh=0% qPC/ST/ML=113475/26298/2527 qleft=0 qcaps=1/14 qmv=RO 31,34→31,1+ spat=3196
+ab search: 6.0s nodes=748544 nps=124757 depth=4 q=2 phase=quiesce root=59/1150 PR 32,31→33,30 best=1310 rms=357 qnodes=475479 q%=63 qroot=52927 qlast=4 quniq=0 qTThit=5% fh=0% qPC/ST/ML=269235/41248/7496 qleft=0 qcaps=5/8 qmv=RO 6,34→6,8+ spat=-1591
+ab diag: root=1150 scored=6418 fh=0% near20=0% spread(max-med)=602 qnodes=822003 quniq=0 qTThit=4%/9121/226161 sib=0/0 abort=false
+ab search: 3.0s nodes=383744 nps=127872 depth=4 q=2 phase=quiesce root=1/1150 GG 19,33→33,33 best=1064 rms=8 qnodes=231646 q%=60 qroot=76 qlast=38613 quniq=0 qTThit=7% fh=0% qPC/ST/ML=119680/27121/2696 qleft=1 qcaps=1/2 qmv=GG 33,3→24,3 spat=-2359
+ab search: 6.0s nodes=786688 nps=131070 depth=4 q=2 phase=quiesce root=59/1150 PR 32,31→33,30 best=1310 rms=604 qnodes=503725 q%=64 qroot=81173 qlast=4 quniq=0 qTThit=4% fh=0% qPC/ST/ML=288004/43075/8096 qleft=1 qcaps=1/11 qmv=RO 6,34→6,4+ spat=4663
+ab diag: root=1150 scored=6418 fh=0% near20=0% spread(max-med)=602 qnodes=822003 quniq=0 qTThit=4%/9121/226161 sib=0/0 abort=false
+ab search: 3.0s nodes=343552 nps=114517 depth=4 q=2 phase=quiesce root=1/1150 GG 19,33→33,33 best=575 rms=291 qnodes=210651 q%=61 qroot=17694 qlast=68036 quniq=0 qTThit=8% fh=0% qPC/ST/ML=110504/25741/2494 qleft=1 qcaps=1/4 qmv=GG 33,1→30,1 spat=-2309
+ab search: 6.0s nodes=654748 nps=109124 depth=4 q=2 phase=quiesce root=6/1150 SP 14,27→14,11 best=1310 rms=247 qnodes=404992 q%=61 qroot=21709 qlast=39437 quniq=0 qTThit=5% fh=0% qPC/ST/ML=222104/37239/6188 qleft=1 qcaps=3/16 qmv=RO 31,34→31,5+ spat=-947
+ab search: 9.0s nodes=1096704 nps=121842 depth=4 q=2 phase=quiesce root=266/1150 RO 6,34→9,34 best=1394 rms=1232 qnodes=748561 q%=68 qroot=191007 qlast=4 quniq=0 qTThit=4% fh=0% qPC/ST/ML=468065/55885/15006 qleft=1 qcaps=11/11 qmv=RO 9,34→9,11+ spat=3751
+ab diag: root=1150 scored=6418 fh=0% near20=0% spread(max-med)=602 qnodes=822003 quniq=0 qTThit=4%/9121/226161 sib=0/0 abort=false
+ab search: 3.0s nodes=348416 nps=116138 depth=4 q=2 phase=quiesce root=1/1150 GG 19,33→33,33 best=575 rms=366 qnodes=212959 q%=61 qroot=20002 qlast=68036 quniq=0 qTThit=8% fh=0% qPC/ST/ML=111267/25845/2502 qleft=1 qcaps=3/10 qmv=RO 6,34→6,6+ spat=-1100
+ab search: 6.0s nodes=609280 nps=101546 depth=4 q=2 phase=quiesce root=5/1150 SP 14,27→14,11+ best=1310 rms=341 qnodes=374705 q%=61 qroot=30859 qlast=0 quniq=0 qTThit=5% fh=0% qPC/ST/ML=204626/35541/5616 qleft=1 qcaps=3/11 qmv=RO 6,34→6,6+ spat=4595
+ab search: 9.0s nodes=965888 nps=107320 depth=4 q=2 phase=quiesce root=266/1150 RO 6,34→9,34 best=1394 rms=595 qnodes=637548 q%=66 qroot=79994 qlast=4 quniq=0 qTThit=4% fh=0% qPC/ST/ML=384284/51553/11757 qleft=0 qcaps=10/11 qmv=RO 9,34→9,10+ spat=-1528
+ab diag: root=1150 scored=6418 fh=0% near20=0% spread(max-med)=602 qnodes=822003 quniq=0 qTThit=4%/9121/226161 sib=0/0 abort=false
+ab search: 3.0s nodes=642816 nps=213915 depth=4 q=2 phase=quiesce root=27/630 WD 10,3→2,11 best=-4530 rms=1295 qnodes=396746 q%=61 qroot=196287 qlast=64 quniq=0 qTThit=3% fh=0% qPC/ST/ML=0/205777/214 qleft=1 qcaps=1/1 qmv=+CH 18,23→18,36 spat=-3398
+ab diag: root=630 scored=4416 fh=0% near20=1% spread(max-med)=122 qnodes=471171 quniq=0 qTThit=3%/7924/227673 sib=0/0 abort=false
+ab search: 3.0s nodes=641536 nps=213489 depth=4 q=2 phase=quiesce root=27/630 WD 10,3→2,11 best=-4530 rms=1235 qnodes=396424 q%=61 qroot=195965 qlast=64 quniq=0 qTThit=3% fh=0% qPC/ST/ML=0/205616/214 qleft=0 qcaps=1/1 qmv=+CH 18,23→18,36 spat=-3330
+ab diag: root=630 scored=4416 fh=0% near20=1% spread(max-med)=122 qnodes=471171 quniq=0 qTThit=3%/7924/227673 sib=0/0 abort=false
+ab search: 3.0s nodes=642816 nps=214129 depth=4 q=2 phase=quiesce root=27/630 WD 10,3→2,11 best=-4530 rms=1296 qnodes=396746 q%=61 qroot=196287 qlast=64 quniq=0 qTThit=3% fh=0% qPC/ST/ML=0/205777/214 qleft=1 qcaps=1/1 qmv=+CH 18,23→18,36 spat=-3398
+ab diag: root=630 scored=4416 fh=0% near20=1% spread(max-med)=122 qnodes=471171 quniq=0 qTThit=3%/7924/227673 sib=0/0 abort=false
+ab search: 3.0s nodes=643868 nps=214622 depth=4 q=2 phase=quiesce root=27/630 WD 10,3→2,11 best=-4530 rms=1279 qnodes=397056 q%=61 qroot=196597 qlast=64 quniq=0 qTThit=3% fh=0% qPC/ST/ML=0/205916/214 qleft=1 qcaps=1/1 qmv=+CH 18,23→18,36 spat=-3306
+ab diag: root=630 scored=4416 fh=0% near20=1% spread(max-med)=122 qnodes=471171 quniq=0 qTThit=3%/7924/227673 sib=0/0 abort=false
+ab diag: root=792 scored=6344 fh=0% near20=0% spread(max-med)=1320 qnodes=61685 quniq=0 qTThit=34%/18318/53510 sib=0/0 abort=false
+ab diag: root=792 scored=6344 fh=0% near20=0% spread(max-med)=1320 qnodes=61685 quniq=0 qTThit=34%/18318/53510 sib=0/0 abort=false
+ab diag: root=792 scored=6344 fh=0% near20=0% spread(max-med)=1320 qnodes=61685 quniq=0 qTThit=34%/18318/53510 sib=0/0 abort=false
+ab diag: root=792 scored=6344 fh=0% near20=0% spread(max-med)=1320 qnodes=61685 quniq=0 qTThit=34%/18318/53510 sib=0/0 abort=false
+ab diag: root=620 scored=2480 fh=0% near20=3% spread(max-med)=101 qnodes=4023 quniq=0 qTThit=11%/191/1628 sib=0/0 abort=false
+ab diag: root=620 scored=2480 fh=0% near20=3% spread(max-med)=101 qnodes=4023 quniq=0 qTThit=11%/191/1628 sib=0/0 abort=false
+ab diag: root=620 scored=2480 fh=0% near20=3% spread(max-med)=101 qnodes=4023 quniq=0 qTThit=11%/191/1628 sib=0/0 abort=false
+ab diag: root=620 scored=2480 fh=0% near20=3% spread(max-med)=101 qnodes=4023 quniq=0 qTThit=11%/191/1628 sib=0/0 abort=false
+ab diag: root=343 scored=1510 fh=1% near20=3% spread(max-med)=558 qnodes=10405 quniq=0 qTThit=14%/960/6839 sib=0/0 abort=false
+ab diag: root=343 scored=1510 fh=1% near20=3% spread(max-med)=558 qnodes=10405 quniq=0 qTThit=14%/960/6839 sib=0/0 abort=false
+ab diag: root=343 scored=1510 fh=1% near20=3% spread(max-med)=558 qnodes=10405 quniq=0 qTThit=14%/960/6839 sib=0/0 abort=false
+ab diag: root=343 scored=1510 fh=1% near20=3% spread(max-med)=558 qnodes=10405 quniq=0 qTThit=14%/960/6839 sib=0/0 abort=false
+ab diag: root=713 scored=5712 fh=1% near20=10% spread(max-med)=11 qnodes=9398 quniq=0 qTThit=3%/146/4736 sib=0/0 abort=false
+ab diag: root=713 scored=5712 fh=1% near20=10% spread(max-med)=11 qnodes=9398 quniq=0 qTThit=3%/146/4736 sib=0/0 abort=false
+ab diag: root=713 scored=5712 fh=1% near20=10% spread(max-med)=11 qnodes=9398 quniq=0 qTThit=3%/146/4736 sib=0/0 abort=false
+ab diag: root=713 scored=5712 fh=1% near20=10% spread(max-med)=11 qnodes=9398 quniq=0 qTThit=3%/146/4736 sib=0/0 abort=false
+ab diag: root=605 scored=4268 fh=0% near20=1% spread(max-med)=98 qnodes=355353 quniq=0 qTThit=7%/9432/120180 sib=0/0 abort=false
+ab search: 3.0s nodes=481155 nps=160385 depth=4 q=2 phase=root root=493/605 BG 32,34→18,20 best=1588 rms=0 qnodes=355061 q%=73 qroot=0 qlast=9 quniq=0 qTThit=7% fh=0% qPC/ST/ML=215481/19901/4 qleft=1 qcaps=0/0 qmv=- spat=2911
+ab diag: root=605 scored=4268 fh=0% near20=1% spread(max-med)=98 qnodes=355353 quniq=0 qTThit=7%/9432/120180 sib=0/0 abort=false
+ab diag: root=605 scored=4268 fh=0% near20=1% spread(max-med)=98 qnodes=355353 quniq=0 qTThit=7%/9432/120180 sib=0/0 abort=false
+ab diag: root=605 scored=4268 fh=0% near20=1% spread(max-med)=98 qnodes=355353 quniq=0 qTThit=7%/9432/120180 sib=0/0 abort=false
+ab diag: root=813 scored=3088 fh=0% near20=0% spread(max-med)=172 qnodes=101276 quniq=0 qTThit=1%/839/44595 sib=0/0 abort=false
+ab diag: root=813 scored=3088 fh=0% near20=0% spread(max-med)=172 qnodes=101276 quniq=0 qTThit=1%/839/44595 sib=0/0 abort=false
+ab diag: root=813 scored=3088 fh=0% near20=0% spread(max-med)=172 qnodes=101276 quniq=0 qTThit=1%/839/44595 sib=0/0 abort=false
+ab diag: root=813 scored=3088 fh=0% near20=0% spread(max-med)=172 qnodes=101276 quniq=0 qTThit=1%/839/44595 sib=0/0 abort=false
+ab search: 3.0s nodes=700160 nps=233386 depth=4 q=2 phase=quiesce root=1/1014 +VG 27,18→27,1 best=18504 rms=1987 qnodes=435116 q%=62 qroot=304044 qlast=20105 quniq=0 qTThit=5% fh=0% qPC/ST/ML=174130/7816/12 qleft=1 qcaps=22/22 qmv=RO 31,34→31,9+ spat=19689
+ab search: 6.0s nodes=1448704 nps=241450 depth=4 q=2 phase=quiesce root=1/1014 +VG 27,18→27,1 best=18504 rms=4987 qnodes=922215 q%=63 qroot=791143 qlast=20105 quniq=0 qTThit=4% fh=0% qPC/ST/ML=396528/11624/12 qleft=1 qcaps=22/22 qmv=RO 31,34→31,9+ spat=19663
+ab search: 9.0s nodes=2155008 nps=239418 depth=4 q=2 phase=quiesce root=1/1014 +VG 27,18→27,1 best=18504 rms=7988 qnodes=1382119 q%=64 qroot=1251047 qlast=20105 quniq=0 qTThit=3% fh=0% qPC/ST/ML=606968/15204/12 qleft=1 qcaps=22/22 qmv=RO 31,34→31,9+ spat=19607
+ab diag: root=1014 scored=6765 fh=0% near20=0% spread(max-med)=2167 qnodes=1677943 quniq=0 qTThit=3%/28851/923653 sib=0/0 abort=false
+ab search: 3.0s nodes=655360 nps=218453 depth=4 q=2 phase=quiesce root=1/1014 +VG 27,18→27,1 best=18504 rms=1943 qnodes=406029 q%=61 qroot=274957 qlast=20105 quniq=0 qTThit=5% fh=0% qPC/ST/ML=160952/7588/12 qleft=1 qcaps=22/22 qmv=RO 31,34→31,9+ spat=19635
+ab search: 6.0s nodes=1366272 nps=227712 depth=4 q=2 phase=quiesce root=1/1014 +VG 27,18→27,1 best=18504 rms=4943 qnodes=868465 q%=63 qroot=737393 qlast=20105 quniq=0 qTThit=4% fh=0% qPC/ST/ML=371833/11186/12 qleft=0 qcaps=11/22 qmv=RO 31,34→31,4+ spat=-14569
+ab search: 9.0s nodes=2066944 nps=229660 depth=4 q=2 phase=quiesce root=1/1014 +VG 27,18→27,1 best=18504 rms=7944 qnodes=1324925 q%=64 qroot=1193853 qlast=20105 quniq=0 qTThit=3% fh=0% qPC/ST/ML=581042/14742/12 qleft=1 qcaps=22/22 qmv=RO 31,34→31,9+ spat=19710
+ab diag: root=1014 scored=6765 fh=0% near20=0% spread(max-med)=2167 qnodes=1677943 quniq=0 qTThit=3%/28851/923653 sib=0/0 abort=false
+ab search: 3.0s nodes=640512 nps=213504 depth=4 q=2 phase=quiesce root=1/1014 +VG 27,18→27,1 best=18504 rms=1914 qnodes=396447 q%=61 qroot=265375 qlast=20105 quniq=0 qTThit=5% fh=0% qPC/ST/ML=156706/7508/12 qleft=1 qcaps=22/22 qmv=RO 31,34→31,9+ spat=19714
+ab search: 6.0s nodes=1255168 nps=209194 depth=4 q=2 phase=quiesce root=1/1014 +VG 27,18→27,1 best=18504 rms=4914 qnodes=796038 q%=63 qroot=664966 qlast=20105 quniq=0 qTThit=4% fh=0% qPC/ST/ML=338558/10630/12 qleft=1 qcaps=22/22 qmv=RO 31,34→31,9+ spat=19713
+ab search: 9.0s nodes=1941191 nps=215687 depth=4 q=2 phase=quiesce root=1/1014 +VG 27,18→27,1 best=18504 rms=7915 qnodes=1243136 q%=64 qroot=1112064 qlast=20105 quniq=0 qTThit=3% fh=0% qPC/ST/ML=543751/14118/12 qleft=1 qcaps=22/22 qmv=RO 31,34→31,9+ spat=-14627
+ab search: 12.0s nodes=2497024 nps=208067 depth=4 q=2 phase=quiesce root=1/1014 +VG 27,18→27,1 best=18504 rms=10915 qnodes=1604086 q%=64 qroot=1473014 qlast=20105 quniq=0 qTThit=3% fh=0% qPC/ST/ML=707442/16896/12 qleft=1 qcaps=22/22 qmv=RO 31,34→31,9+ spat=19677
+ab diag: root=1014 scored=6765 fh=0% near20=0% spread(max-med)=2167 qnodes=1677943 quniq=0 qTThit=3%/28851/923653 sib=0/0 abort=false
+ab search: 3.0s nodes=546304 nps=182101 depth=4 q=2 phase=quiesce root=1/1014 +VG 27,18→27,1 best=18504 rms=1578 qnodes=335217 q%=61 qroot=204145 qlast=20105 quniq=0 qTThit=6% fh=0% qPC/ST/ML=128876/7018/12 qleft=1 qcaps=22/22 qmv=RO 31,34→31,9+ spat=19632
+ab search: 6.0s nodes=1300992 nps=216795 depth=4 q=2 phase=quiesce root=1/1014 +VG 27,18→27,1 best=18504 rms=4579 qnodes=825803 q%=63 qroot=694731 qlast=20105 quniq=0 qTThit=4% fh=0% qPC/ST/ML=352088/10840/12 qleft=1 qcaps=22/22 qmv=RO 31,34→31,9+ spat=19732
+ab search: 9.0s nodes=2090240 nps=232223 depth=4 q=2 phase=quiesce root=1/1014 +VG 27,18→27,1 best=18504 rms=7579 qnodes=1340081 q%=64 qroot=1209009 qlast=20105 quniq=0 qTThit=3% fh=0% qPC/ST/ML=587950/14868/12 qleft=1 qcaps=22/22 qmv=RO 31,34→31,9+ spat=19704
+ab diag: root=1014 scored=6765 fh=0% near20=0% spread(max-med)=2167 qnodes=1677943 quniq=0 qTThit=3%/28851/923653 sib=0/0 abort=false

@@ -1,0 +1,585 @@
+{
+  "name": "pvs_deep",
+  "binary": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/bin/study",
+  "binary_sha256": "1cdc6af4a5faccf7564562132857ef6dc549935f51c1281521003c4558a45996",
+  "corpus_sha256": "d94a8e0b2f44e158ba2dde0e183b0ba59dcb35abb305b19d9fe2813c40fca096",
+  "cpu": 2,
+  "requests": [
+    {
+      "position": 0,
+      "variant": "base",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {}
+    },
+    {
+      "position": 0,
+      "variant": "pvs1",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {
+        "pvs_min_depth": 1
+      }
+    },
+    {
+      "position": 0,
+      "variant": "guard",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {
+        "pv_tt_guard": true
+      }
+    },
+    {
+      "position": 0,
+      "variant": "stageb",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {
+        "stage_b_cached_sort": true
+      }
+    },
+    {
+      "position": 0,
+      "variant": "pvs2",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {
+        "pvs_min_depth": 2
+      }
+    },
+    {
+      "position": 1,
+      "variant": "stageb",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {
+        "stage_b_cached_sort": true
+      }
+    },
+    {
+      "position": 1,
+      "variant": "pvs2",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {
+        "pvs_min_depth": 2
+      }
+    },
+    {
+      "position": 1,
+      "variant": "base",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {}
+    },
+    {
+      "position": 1,
+      "variant": "guard",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {
+        "pv_tt_guard": true
+      }
+    },
+    {
+      "position": 1,
+      "variant": "pvs1",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {
+        "pvs_min_depth": 1
+      }
+    },
+    {
+      "position": 2,
+      "variant": "pvs2",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {
+        "pvs_min_depth": 2
+      }
+    },
+    {
+      "position": 2,
+      "variant": "pvs1",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {
+        "pvs_min_depth": 1
+      }
+    },
+    {
+      "position": 2,
+      "variant": "base",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {}
+    },
+    {
+      "position": 2,
+      "variant": "guard",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {
+        "pv_tt_guard": true
+      }
+    },
+    {
+      "position": 2,
+      "variant": "stageb",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {
+        "stage_b_cached_sort": true
+      }
+    },
+    {
+      "position": 6,
+      "variant": "stageb",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {
+        "stage_b_cached_sort": true
+      }
+    },
+    {
+      "position": 6,
+      "variant": "pvs2",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {
+        "pvs_min_depth": 2
+      }
+    },
+    {
+      "position": 6,
+      "variant": "pvs1",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {
+        "pvs_min_depth": 1
+      }
+    },
+    {
+      "position": 6,
+      "variant": "base",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {}
+    },
+    {
+      "position": 6,
+      "variant": "guard",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {
+        "pv_tt_guard": true
+      }
+    },
+    {
+      "position": 7,
+      "variant": "pvs1",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {
+        "pvs_min_depth": 1
+      }
+    },
+    {
+      "position": 7,
+      "variant": "pvs2",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {
+        "pvs_min_depth": 2
+      }
+    },
+    {
+      "position": 7,
+      "variant": "guard",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {
+        "pv_tt_guard": true
+      }
+    },
+    {
+      "position": 7,
+      "variant": "stageb",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {
+        "stage_b_cached_sort": true
+      }
+    },
+    {
+      "position": 7,
+      "variant": "base",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {}
+    },
+    {
+      "position": 10,
+      "variant": "pvs2",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {
+        "pvs_min_depth": 2
+      }
+    },
+    {
+      "position": 10,
+      "variant": "pvs1",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {
+        "pvs_min_depth": 1
+      }
+    },
+    {
+      "position": 10,
+      "variant": "guard",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {
+        "pv_tt_guard": true
+      }
+    },
+    {
+      "position": 10,
+      "variant": "stageb",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {
+        "stage_b_cached_sort": true
+      }
+    },
+    {
+      "position": 10,
+      "variant": "base",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {}
+    },
+    {
+      "position": 16,
+      "variant": "base",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {}
+    },
+    {
+      "position": 16,
+      "variant": "stageb",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {
+        "stage_b_cached_sort": true
+      }
+    },
+    {
+      "position": 16,
+      "variant": "pvs2",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {
+        "pvs_min_depth": 2
+      }
+    },
+    {
+      "position": 16,
+      "variant": "pvs1",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {
+        "pvs_min_depth": 1
+      }
+    },
+    {
+      "position": 16,
+      "variant": "guard",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {
+        "pv_tt_guard": true
+      }
+    },
+    {
+      "position": 17,
+      "variant": "stageb",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {
+        "stage_b_cached_sort": true
+      }
+    },
+    {
+      "position": 17,
+      "variant": "pvs1",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {
+        "pvs_min_depth": 1
+      }
+    },
+    {
+      "position": 17,
+      "variant": "guard",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {
+        "pv_tt_guard": true
+      }
+    },
+    {
+      "position": 17,
+      "variant": "pvs2",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {
+        "pvs_min_depth": 2
+      }
+    },
+    {
+      "position": 17,
+      "variant": "base",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {}
+    },
+    {
+      "position": 100,
+      "variant": "guard",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {
+        "pv_tt_guard": true
+      }
+    },
+    {
+      "position": 100,
+      "variant": "pvs1",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {
+        "pvs_min_depth": 1
+      }
+    },
+    {
+      "position": 100,
+      "variant": "stageb",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {
+        "stage_b_cached_sort": true
+      }
+    },
+    {
+      "position": 100,
+      "variant": "pvs2",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {
+        "pvs_min_depth": 2
+      }
+    },
+    {
+      "position": 100,
+      "variant": "base",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {}
+    },
+    {
+      "position": 102,
+      "variant": "pvs1",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {
+        "pvs_min_depth": 1
+      }
+    },
+    {
+      "position": 102,
+      "variant": "base",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {}
+    },
+    {
+      "position": 102,
+      "variant": "guard",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {
+        "pv_tt_guard": true
+      }
+    },
+    {
+      "position": 102,
+      "variant": "stageb",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {
+        "stage_b_cached_sort": true
+      }
+    },
+    {
+      "position": 102,
+      "variant": "pvs2",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {
+        "pvs_min_depth": 2
+      }
+    },
+    {
+      "position": 104,
+      "variant": "base",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {}
+    },
+    {
+      "position": 104,
+      "variant": "guard",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {
+        "pv_tt_guard": true
+      }
+    },
+    {
+      "position": 104,
+      "variant": "pvs1",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {
+        "pvs_min_depth": 1
+      }
+    },
+    {
+      "position": 104,
+      "variant": "stageb",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {
+        "stage_b_cached_sort": true
+      }
+    },
+    {
+      "position": 104,
+      "variant": "pvs2",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {
+        "pvs_min_depth": 2
+      }
+    },
+    {
+      "position": 106,
+      "variant": "guard",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {
+        "pv_tt_guard": true
+      }
+    },
+    {
+      "position": 106,
+      "variant": "pvs2",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {
+        "pvs_min_depth": 2
+      }
+    },
+    {
+      "position": 106,
+      "variant": "base",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {}
+    },
+    {
+      "position": 106,
+      "variant": "pvs1",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {
+        "pvs_min_depth": 1
+      }
+    },
+    {
+      "position": 106,
+      "variant": "stageb",
+      "depth": 4,
+      "budget_ms": 30000,
+      "repeat": 0,
+      "study": {
+        "stage_b_cached_sort": true
+      }
+    }
+  ]
+}

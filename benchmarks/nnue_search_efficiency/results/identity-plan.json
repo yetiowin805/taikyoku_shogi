@@ -1,0 +1,105 @@
+{
+  "name": "identity",
+  "binary": "/home/frank/taikyoku_shogi/.worktrees/nnue-search-efficiency/benchmarks/nnue_search_efficiency/bin/baseline",
+  "binary_sha256": "04b7bf10cda09f31605c1c03fd381c2158260d79aeeaa82113e40a3f73e92168",
+  "corpus_sha256": "d94a8e0b2f44e158ba2dde0e183b0ba59dcb35abb305b19d9fe2813c40fca096",
+  "cpu": 2,
+  "requests": [
+    {
+      "position": 0,
+      "variant": "base",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {}
+    },
+    {
+      "position": 1,
+      "variant": "base",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {}
+    },
+    {
+      "position": 2,
+      "variant": "base",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {}
+    },
+    {
+      "position": 6,
+      "variant": "base",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {}
+    },
+    {
+      "position": 7,
+      "variant": "base",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {}
+    },
+    {
+      "position": 10,
+      "variant": "base",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {}
+    },
+    {
+      "position": 16,
+      "variant": "base",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {}
+    },
+    {
+      "position": 17,
+      "variant": "base",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {}
+    },
+    {
+      "position": 100,
+      "variant": "base",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {}
+    },
+    {
+      "position": 102,
+      "variant": "base",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {}
+    },
+    {
+      "position": 104,
+      "variant": "base",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {}
+    },
+    {
+      "position": 106,
+      "variant": "base",
+      "depth": 3,
+      "budget_ms": 60000,
+      "repeat": 0,
+      "study": {}
+    }
+  ]
+}
