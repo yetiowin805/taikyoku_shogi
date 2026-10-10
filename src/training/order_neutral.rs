@@ -34,14 +34,15 @@ pub fn from_state(state: &TourneyState) -> Fit {
         ));
     }
     let mut result = fit(&names.into_iter().collect::<Vec<_>>(), &games);
-    let inactive = if state.order_neutral_only { inactive_agents(&result) } else { state.retired.clone() };
+    let inactive = if state.order_neutral_only {
+        inactive_agents(&result)
+    } else {
+        state.retired.clone()
+    };
     // Inactive opponents retain all their evidence, but the active field defines
     // the displayed center. Translation cannot alter any fitted difference.
     for group in &result.weak_components {
-        let active: Vec<_> = group
-            .iter()
-            .filter(|id| !inactive.contains(*id))
-            .collect();
+        let active: Vec<_> = group.iter().filter(|id| !inactive.contains(*id)).collect();
         if active.is_empty() {
             continue;
         }
@@ -66,13 +67,23 @@ pub fn from_state(state: &TourneyState) -> Fit {
 /// use lexicographic membership as a deterministic tie-break. Agents outside it
 /// remain eligible so connectivity repair can gather comparison evidence.
 pub(crate) fn inactive_agents(fit: &Fit) -> BTreeSet<String> {
-    let core = fit.components.iter().filter(|g| g.len() > 1)
-        .min_by(|a,b| b.len().cmp(&a.len()).then_with(|| a.cmp(b)));
-    let Some(core) = core else { return BTreeSet::new(); };
-    let best = core.iter().filter_map(|id| fit.ratings.get(id)).copied()
+    let core = fit
+        .components
+        .iter()
+        .filter(|g| g.len() > 1)
+        .min_by(|a, b| b.len().cmp(&a.len()).then_with(|| a.cmp(b)));
+    let Some(core) = core else {
+        return BTreeSet::new();
+    };
+    let best = core
+        .iter()
+        .filter_map(|id| fit.ratings.get(id))
+        .copied()
         .fold(f64::NEG_INFINITY, f64::max);
-    core.iter().filter(|id| fit.ratings.get(*id).is_some_and(|r| best - r > 400.0))
-        .cloned().collect()
+    core.iter()
+        .filter(|id| fit.ratings.get(*id).is_some_and(|r| best - r > 400.0))
+        .cloned()
+        .collect()
 }
 
 fn fit(names: &[String], games: &[(String, String, f64)]) -> Fit {
@@ -379,9 +390,18 @@ mod tests {
     #[test]
     fn resume_refreshes_old_retirement_without_dropping_results() {
         use crate::training::tournament::*;
-        let cfg = TourneyConfig { format: TourneyFormat::RoundRobin, entrants: ["a", "b"].iter().map(|n| TourneyEntrant {
-            id: n.to_string(), model: format!("{n}.json"), engine: None,
-        }).collect(), ..Default::default() };
+        let cfg = TourneyConfig {
+            format: TourneyFormat::RoundRobin,
+            entrants: ["a", "b"]
+                .iter()
+                .map(|n| TourneyEntrant {
+                    id: n.to_string(),
+                    model: format!("{n}.json"),
+                    engine: None,
+                })
+                .collect(),
+            ..Default::default()
+        };
         let mut state = build_schedule(&cfg);
         state.order_neutral_only = true;
         state.retired.insert("b".into());

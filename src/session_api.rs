@@ -187,7 +187,9 @@ impl DebugTool {
                     color: color_name(piece.color),
                     piece_type: format!("{:?}", piece.piece_type),
                     symbol: piece.base_symbol().to_string(),
-                    promotion_symbol: piece.piece_type.promotes_to()
+                    promotion_symbol: piece
+                        .piece_type
+                        .promotes_to()
                         .map(|kind| kind.display_symbol().to_string()),
                     promoted: piece.is_promoted,
                 });
@@ -275,12 +277,9 @@ impl DebugTool {
             .into_iter()
             .enumerate()
             .map(|(index, mv)| {
-                let via = mv.intermediate().map(|pos| {
-                    (
-                        Self::to_shogi_file(pos.file),
-                        Self::to_shogi_rank(pos.rank),
-                    )
-                });
+                let via = mv
+                    .intermediate()
+                    .map(|pos| (Self::to_shogi_file(pos.file), Self::to_shogi_rank(pos.rank)));
                 MoveDto {
                     index,
                     from_file: Self::to_shogi_file(mv.from.file),
@@ -480,10 +479,18 @@ mod tests {
     fn snapshot_exposes_actual_promotion_symbol() {
         let tool = DebugTool::new();
         let snapshot = tool.snapshot();
-        let pawn = snapshot.pieces.iter().find(|p| p.piece_type == "Pawn").unwrap();
+        let pawn = snapshot
+            .pieces
+            .iter()
+            .find(|p| p.piece_type == "Pawn")
+            .unwrap();
         assert_eq!(pawn.symbol, "P");
         assert_eq!(pawn.promotion_symbol.as_deref(), Some("G"));
-        let king = snapshot.pieces.iter().find(|p| p.piece_type == "King").unwrap();
+        let king = snapshot
+            .pieces
+            .iter()
+            .find(|p| p.piece_type == "King")
+            .unwrap();
         assert!(king.promotion_symbol.is_none());
     }
 
@@ -503,7 +510,7 @@ mod tests {
             static_eval: Some(10),
             nodes: Some(99),
             completed_depth: None,
-                iteration_timings: Vec::new(),
+            iteration_timings: Vec::new(),
         };
         let v2 = GameRecordV2 {
             format_version: FORMAT_VERSION,
@@ -591,8 +598,8 @@ mod tests {
             eval: None,
             static_eval: None,
             nodes: None,
-                completed_depth: None,
-                iteration_timings: Vec::new(),
+            completed_depth: None,
+            iteration_timings: Vec::new(),
         }];
         assert!(EvalSeriesDto::from_recorded_moves(&moves, "g1").is_none());
     }

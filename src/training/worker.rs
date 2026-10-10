@@ -252,7 +252,9 @@ pub fn play_one_game(config: &WorkerConfig) -> Result<GameRecordV2, PlayFailure>
         let choice = if let Some(control) = config.time_control {
             let spent = turn_started.elapsed().as_millis() as u64;
             let mut budget = control.budget(banks[clock_index].saturating_sub(spent));
-            budget.soft_ms = budget.soft_ms.min(control.increment_ms.saturating_sub(spent));
+            budget.soft_ms = budget
+                .soft_ms
+                .min(control.increment_ms.saturating_sub(spent));
             if budget.hard_ms == 0 {
                 Some((legal[0].clone(), Default::default()))
             } else {
@@ -322,12 +324,7 @@ pub fn play_one_game(config: &WorkerConfig) -> Result<GameRecordV2, PlayFailure>
         if config.verbose {
             println!(
                 "{}. {:?}: {}{}-{}{}",
-                move_number,
-                color,
-                mv.from.file,
-                mv.from.rank,
-                mv.to.file,
-                mv.to.rank
+                move_number, color, mv.from.file, mv.from.rank, mv.to.file, mv.to.rank
             );
         }
 

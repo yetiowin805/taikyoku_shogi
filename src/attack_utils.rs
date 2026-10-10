@@ -1,25 +1,21 @@
-use crate::piece::{Piece, PieceType, Color};
+use crate::movement::{direction::Direction, types::MovementCapability, MovementConfig};
+use crate::piece::{Color, Piece, PieceType};
 use crate::position::Position;
-use crate::movement::{
-    MovementConfig,
-    direction::Direction,
-    types::MovementCapability,
-};
 use std::sync::OnceLock;
 
 /// Check if a piece is Tengu, promoted Peacock, promoted Capricorn, or promoted Old Kite
 pub fn is_tengu_or_promoted_peacock(piece: &Piece) -> bool {
-    piece.piece_type == PieceType::Tengu || 
-    piece.piece_type == PieceType::Capricorn ||
-    (piece.piece_type == PieceType::Peacock && piece.is_promoted) ||
-    (piece.piece_type == PieceType::OldKite && piece.is_promoted)
+    piece.piece_type == PieceType::Tengu
+        || piece.piece_type == PieceType::Capricorn
+        || (piece.piece_type == PieceType::Peacock && piece.is_promoted)
+        || (piece.piece_type == PieceType::OldKite && piece.is_promoted)
 }
 
 /// Check if a piece is Hook Mover, promoted Capricorn, or promoted Poisonous Serpent (all have Hook Mover movement)
 pub fn is_hook_mover_like_piece(piece: &Piece) -> bool {
-    piece.piece_type == PieceType::HookMover ||
-    (piece.piece_type == PieceType::Capricorn && piece.is_promoted) ||
-    (piece.piece_type == PieceType::PoisonousSerpent && piece.is_promoted)
+    piece.piece_type == PieceType::HookMover
+        || (piece.piece_type == PieceType::Capricorn && piece.is_promoted)
+        || (piece.piece_type == PieceType::PoisonousSerpent && piece.is_promoted)
 }
 
 /// Check if a piece is unpromoted Peacock
@@ -43,11 +39,11 @@ pub fn is_cannon_soldier_in_forward_path(cannon_soldier: &Piece, target: Positio
     // Must be on same file (orthogonal forward)
     let file_diff = target.file as i8 - cannon_soldier.position.file as i8;
     let rank_diff = target.rank as i8 - cannon_soldier.position.rank as i8;
-    
+
     if file_diff != 0 {
         return false; // Not on same file
     }
-    
+
     // Check if rank_diff is in the correct forward direction and within 7 spaces
     if cannon_soldier.color == Color::Black {
         // Black moves forward (increasing rank), so target should be forward
@@ -71,12 +67,12 @@ pub fn is_within_9x9_square(piece_pos: Position, target_pos: Position) -> bool {
 pub fn get_direction_toward(from: Position, to: Position) -> Option<Direction> {
     let file_diff = to.file as i8 - from.file as i8;
     let rank_diff = to.rank as i8 - from.rank as i8;
-    
+
     // Same position
     if file_diff == 0 && rank_diff == 0 {
         return None;
     }
-    
+
     // Orthogonal directions
     if file_diff == 0 {
         return if rank_diff > 0 {
@@ -85,7 +81,7 @@ pub fn get_direction_toward(from: Position, to: Position) -> Option<Direction> {
             Some(Direction::S)
         };
     }
-    
+
     if rank_diff == 0 {
         return if file_diff > 0 {
             Some(Direction::E)
@@ -93,7 +89,7 @@ pub fn get_direction_toward(from: Position, to: Position) -> Option<Direction> {
             Some(Direction::W)
         };
     }
-    
+
     // Diagonal directions - must have equal absolute values
     if file_diff.abs() == rank_diff.abs() {
         return match (file_diff > 0, rank_diff > 0) {
@@ -103,7 +99,7 @@ pub fn get_direction_toward(from: Position, to: Position) -> Option<Direction> {
             (false, true) => Some(Direction::NW),
         };
     }
-    
+
     // Not aligned in any of the 8 directions
     None
 }
@@ -111,23 +107,42 @@ pub fn get_direction_toward(from: Position, to: Position) -> Option<Direction> {
 /// Adjust directions for piece color (180-degree rotation for White)
 /// Black moves "up" (increasing rank), White moves "down" (decreasing rank)
 /// Configs store directions from Black's perspective, so we flip for White
-pub fn adjust_directions_for_color(directions: crate::movement::direction::DirectionSet, color: Color) -> crate::movement::direction::DirectionSet {
+pub fn adjust_directions_for_color(
+    directions: crate::movement::direction::DirectionSet,
+    color: Color,
+) -> crate::movement::direction::DirectionSet {
     use crate::movement::direction::Direction;
-    
+
     if color == Color::Black {
         // No adjustment needed for Black (N is forward)
         directions
     } else {
         // For White, flip all directions in 180-degree rotation: N<->S, E<->W, NE<->SW, SE<->NW
         let mut adjusted = 0u8;
-        if directions & Direction::N.to_bit() != 0 { adjusted |= Direction::S.to_bit(); }
-        if directions & Direction::S.to_bit() != 0 { adjusted |= Direction::N.to_bit(); }
-        if directions & Direction::E.to_bit() != 0 { adjusted |= Direction::W.to_bit(); }
-        if directions & Direction::W.to_bit() != 0 { adjusted |= Direction::E.to_bit(); }
-        if directions & Direction::NE.to_bit() != 0 { adjusted |= Direction::SW.to_bit(); }
-        if directions & Direction::SW.to_bit() != 0 { adjusted |= Direction::NE.to_bit(); }
-        if directions & Direction::SE.to_bit() != 0 { adjusted |= Direction::NW.to_bit(); }
-        if directions & Direction::NW.to_bit() != 0 { adjusted |= Direction::SE.to_bit(); }
+        if directions & Direction::N.to_bit() != 0 {
+            adjusted |= Direction::S.to_bit();
+        }
+        if directions & Direction::S.to_bit() != 0 {
+            adjusted |= Direction::N.to_bit();
+        }
+        if directions & Direction::E.to_bit() != 0 {
+            adjusted |= Direction::W.to_bit();
+        }
+        if directions & Direction::W.to_bit() != 0 {
+            adjusted |= Direction::E.to_bit();
+        }
+        if directions & Direction::NE.to_bit() != 0 {
+            adjusted |= Direction::SW.to_bit();
+        }
+        if directions & Direction::SW.to_bit() != 0 {
+            adjusted |= Direction::NE.to_bit();
+        }
+        if directions & Direction::SE.to_bit() != 0 {
+            adjusted |= Direction::NW.to_bit();
+        }
+        if directions & Direction::NW.to_bit() != 0 {
+            adjusted |= Direction::SE.to_bit();
+        }
         adjusted
     }
 }
@@ -251,7 +266,9 @@ fn global_scan_table() -> &'static [[bool; 2]] {
         let mut table = vec![[true; 2]; PIECE_TYPE_CACHE_LEN];
         for &kind in crate::eval::ALL_PIECE_TYPES {
             let idx = kind as usize;
-            if idx >= table.len() { continue; }
+            if idx >= table.len() {
+                continue;
+            }
             let mut piece = Piece::new(kind, Color::Black, Position::new(0, 0).unwrap());
             table[idx][0] = needs_global_scan_uncached(&piece);
             piece.is_promoted = true;
@@ -362,7 +379,11 @@ pub(crate) fn candidate_square_masks() -> &'static [[u64; 21]] {
                         if !(0..36).contains(&next_file) || !(0..36).contains(&next_rank) {
                             break;
                         }
-                        let square = Position { file: next_file as u8, rank: next_rank as u8 }.to_index();
+                        let square = Position {
+                            file: next_file as u8,
+                            rank: next_rank as u8,
+                        }
+                        .to_index();
                         mask[square / 64] |= 1u64 << (square % 64);
                         k += 1;
                     }
@@ -376,11 +397,11 @@ pub(crate) fn candidate_square_masks() -> &'static [[u64; 21]] {
 
 /// Returns true if piece should be checked for attacking a specific target position
 /// Filters based on proximity to target position and movement capabilities
-/// 
+///
 /// `for_check`: If true, optimizes for check detection on royal pieces by treating
 ///              pieces with only capturing range movement as short-range only
 pub fn should_check_piece_for_target_position(
-    piece: &Piece, 
+    piece: &Piece,
     target_position: Position,
     for_check: bool,
 ) -> bool {
@@ -388,12 +409,12 @@ pub fn should_check_piece_for_target_position(
     if is_tengu_or_promoted_peacock(piece) || is_unpromoted_peacock(piece) {
         return true;
     }
-    
+
     // Always check Hook Mover and its promoted forms due to highly mobile two-step movement
     if is_hook_mover_like_piece(piece) {
         return true;
     }
-    
+
     // Check Lion Hawk: can reach via diagonal range + 1 space any direction
     // Optimized: check if coordinate changes differ by at most 1
     if is_lion_hawk(piece) {
@@ -408,7 +429,7 @@ pub fn should_check_piece_for_target_position(
             return true;
         }
     }
-    
+
     // Check Cannon Soldier only if it's in the 7-space forward path
     // (Otherwise it will be caught by 9x9 square filter or can't reach anyway)
     if is_cannon_soldier(piece) {
@@ -433,25 +454,25 @@ pub fn should_check_piece_for_target_position(
         }
         ReachClass::Always => {}
     }
-    
+
     // Check if piece is within 9x9 square of target position
     if is_within_9x9_square(piece.position, target_position) {
         return true;
     }
-    
+
     // For check detection, skip long-range check for pieces with only capturing range movement
     // (They can't attack royal pieces at range anyway)
     if for_check && has_only_capturing_range_movement(piece) {
         return false; // Only short-range check (9x9 square) already done above
     }
-    
+
     // Check if piece has range movement in direction toward target position
     if let Some(direction) = get_direction_toward(piece.position, target_position) {
         if has_range_movement_in_direction(piece, direction) {
             return true;
         }
     }
-    
+
     false
 }
 
@@ -466,9 +487,17 @@ mod global_scan_cache_tests {
                 for promoted in [false, true] {
                     let mut piece = Piece::new(kind, color, Position::new(18, 18).unwrap());
                     piece.is_promoted = promoted;
-                    assert_eq!(needs_global_scan(&piece), needs_global_scan_uncached(&piece), "{kind:?} {color:?} {promoted}");
+                    assert_eq!(
+                        needs_global_scan(&piece),
+                        needs_global_scan_uncached(&piece),
+                        "{kind:?} {color:?} {promoted}"
+                    );
                     piece.base_piece_type = Some(PieceType::Pawn);
-                    assert_eq!(needs_global_scan(&piece), needs_global_scan_uncached(&piece), "base {kind:?} {color:?} {promoted}");
+                    assert_eq!(
+                        needs_global_scan(&piece),
+                        needs_global_scan_uncached(&piece),
+                        "base {kind:?} {color:?} {promoted}"
+                    );
                 }
             }
         }
@@ -484,12 +513,17 @@ mod global_scan_cache_tests {
                     for base in [None, Some(PieceType::Pawn)] {
                         piece.base_piece_type = base;
                         let expected = range_filter_info_uncached(&piece);
-                        assert_eq!(has_only_capturing_range_movement(&piece), expected.only_capturing,
-                            "{kind:?} {color:?} {promoted} {base:?}");
+                        assert_eq!(
+                            has_only_capturing_range_movement(&piece),
+                            expected.only_capturing,
+                            "{kind:?} {color:?} {promoted} {base:?}"
+                        );
                         for direction in Direction::all() {
-                            assert_eq!(has_range_movement_in_direction(&piece, direction),
+                            assert_eq!(
+                                has_range_movement_in_direction(&piece, direction),
                                 expected.directions & direction.to_bit() != 0,
-                                "{kind:?} {color:?} {promoted} {base:?} {direction:?}");
+                                "{kind:?} {color:?} {promoted} {base:?} {direction:?}"
+                            );
                         }
                     }
                 }

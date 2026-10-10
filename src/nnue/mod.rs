@@ -1,8 +1,7 @@
 //! Versioned, content-verified NNUE residual on a fixed material baseline.
 pub mod features;
-mod storage;
 mod packed;
-pub(crate) use storage::Snapshot;
+mod storage;
 use crate::{
     board::Board,
     piece::{Color, Piece},
@@ -15,6 +14,7 @@ use std::{
     path::Path,
     sync::{Arc, Mutex, OnceLock},
 };
+pub(crate) use storage::Snapshot;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -211,7 +211,11 @@ impl Accumulator {
     pub fn new(net: Arc<Network>, board: &Board) -> Self {
         let mut sums = net.bias.clone();
         sums.extend_from_slice(&net.bias);
-        let mut a = Self { net, sums, storage: storage::Storage::default() };
+        let mut a = Self {
+            net,
+            sums,
+            storage: storage::Storage::default(),
+        };
         for c in [Color::Black, Color::White] {
             for p in board.pieces_by_color(c) {
                 a.change(p, 1);
@@ -423,9 +427,12 @@ pub(crate) mod tests {
                 w.nnue_runtime = Some(net(32, "before"));
                 s.ensure_eval_inc(&w);
             }
-            let undo = s.make_move_for_search(Move::new(
-                Position::new(5, 5).unwrap(), Position::new(5, 8).unwrap(),
-            )).unwrap();
+            let undo = s
+                .make_move_for_search(Move::new(
+                    Position::new(5, 5).unwrap(),
+                    Position::new(5, 8).unwrap(),
+                ))
+                .unwrap();
             w.nnue_runtime = Some(net(64, "after"));
             s.ensure_eval_inc(&w);
             s.unmake_move_for_search(undo);

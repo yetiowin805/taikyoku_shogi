@@ -16,8 +16,13 @@ pub struct GameRecord {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum MoveRecordData {
     Standard,
-    TwoStep { intermediate_file: u8, intermediate_rank: u8 },
-    FreeEagle { path: Vec<Position> },
+    TwoStep {
+        intermediate_file: u8,
+        intermediate_rank: u8,
+    },
+    FreeEagle {
+        path: Vec<Position>,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -76,7 +81,7 @@ impl GameHistory {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_secs();
-        
+
         self.current_game = Some(GameRecord {
             timestamp,
             moves: Vec::new(),
@@ -85,32 +90,35 @@ impl GameHistory {
     }
 
     /// Record a move
-    pub fn record_move(&mut self, mv: &Move, color: Color, move_number: usize, promoted: bool, intermediate: Option<Position>) {
+    pub fn record_move(
+        &mut self,
+        mv: &Move,
+        color: Color,
+        move_number: usize,
+        promoted: bool,
+        intermediate: Option<Position>,
+    ) {
         if let Some(ref mut game) = self.current_game {
             // Convert MoveData to MoveRecordData
             let data = match &mv.data {
                 MoveData::Standard => {
                     // Use intermediate parameter if provided (for backwards compatibility)
                     if let Some(inter) = intermediate {
-                        MoveRecordData::TwoStep { 
-                            intermediate_file: inter.file, 
-                            intermediate_rank: inter.rank 
+                        MoveRecordData::TwoStep {
+                            intermediate_file: inter.file,
+                            intermediate_rank: inter.rank,
                         }
                     } else {
                         MoveRecordData::Standard
                     }
                 }
-                MoveData::TwoStep { intermediate } => {
-                    MoveRecordData::TwoStep { 
-                        intermediate_file: intermediate.file, 
-                        intermediate_rank: intermediate.rank 
-                    }
-                }
-                MoveData::FreeEagle { path } => {
-                    MoveRecordData::FreeEagle { path: path.clone() }
-                }
+                MoveData::TwoStep { intermediate } => MoveRecordData::TwoStep {
+                    intermediate_file: intermediate.file,
+                    intermediate_rank: intermediate.rank,
+                },
+                MoveData::FreeEagle { path } => MoveRecordData::FreeEagle { path: path.clone() },
             };
-            
+
             game.moves.push(MoveRecord {
                 move_number,
                 color,
@@ -163,8 +171,7 @@ impl GameHistory {
         let json = serde_json::to_string_pretty(game)
             .map_err(|e| format!("Failed to serialize game: {}", e))?;
 
-        fs::write(&path, json)
-            .map_err(|e| format!("Failed to write game file: {}", e))?;
+        fs::write(&path, json).map_err(|e| format!("Failed to write game file: {}", e))?;
 
         Ok(path)
     }
@@ -177,9 +184,7 @@ impl GameHistory {
                 intermediate_file: intermediate.file,
                 intermediate_rank: intermediate.rank,
             },
-            MoveData::FreeEagle { path } => MoveRecordData::FreeEagle {
-                path: path.clone(),
-            },
+            MoveData::FreeEagle { path } => MoveRecordData::FreeEagle { path: path.clone() },
         };
 
         MoveRecord {
@@ -194,8 +199,8 @@ impl GameHistory {
             eval: None,
             static_eval: None,
             nodes: None,
-                completed_depth: None,
-                iteration_timings: Vec::new(),
+            completed_depth: None,
+            iteration_timings: Vec::new(),
         }
     }
 
@@ -217,8 +222,12 @@ impl GameHistory {
 
     /// Convert a MoveRecord back into a live Move
     pub fn record_to_move(mv: &MoveRecord) -> Result<Move, String> {
-        let from = Position::new(mv.from_file, mv.from_rank)
-            .ok_or_else(|| format!("Invalid from position: ({}, {})", mv.from_file, mv.from_rank))?;
+        let from = Position::new(mv.from_file, mv.from_rank).ok_or_else(|| {
+            format!(
+                "Invalid from position: ({}, {})",
+                mv.from_file, mv.from_rank
+            )
+        })?;
         let to = Position::new(mv.to_file, mv.to_rank)
             .ok_or_else(|| format!("Invalid to position: ({}, {})", mv.to_file, mv.to_rank))?;
 
@@ -341,9 +350,7 @@ impl GameHistory {
 
     /// Resolve a game path: absolute/relative with `/`, else under `games_dir`.
     pub fn resolve_game_path(&self, filename: &str) -> std::path::PathBuf {
-        let filename = filename
-            .strip_prefix("games/")
-            .unwrap_or(filename);
+        let filename = filename.strip_prefix("games/").unwrap_or(filename);
         let p = Path::new(filename);
         if p.is_absolute() || filename.contains('/') {
             p.to_path_buf()
@@ -377,7 +384,7 @@ impl GameHistory {
     pub fn format_board(&self, state: &GameState) -> String {
         let board = state.get_board();
         let mut result = String::new();
-        
+
         // Header with file numbers (flipped: rightmost is 1, leftmost is 36, showing every 6th for readability)
         for file_display in (1..=36).rev() {
             // Match the exact spacing pattern used in the board
@@ -395,20 +402,20 @@ impl GameHistory {
             }
         }
         result.push('\n');
-        
+
         // Board rows (top rank is 1一, bottom rank is 36三十六)
         // Iterate from top (rank 35 in 0-indexed = rank 1一 in display) to bottom (rank 0 in 0-indexed = rank 36三十六 in display)
         for rank_display in 1..=36 {
             // rank_display is the displayed rank (1-36, top to bottom)
             // Convert to 0-indexed internal rank: rank 1 (top) -> rank 35, rank 36 (bottom) -> rank 0
             let rank_internal = 36 - rank_display;
-            
+
             // Files from right (file 1) to left (file 36)
             for file_display in 1..=36 {
                 // file_display is the displayed file (1-36, rightmost to leftmost)
                 // Convert to 0-indexed internal file: file 1 (rightmost) -> file 35, file 0 (leftmost) -> file 35
                 let file_internal = file_display - 1;
-                
+
                 let pos = Position::new(file_internal, rank_internal).unwrap();
                 if let Some(piece) = board.get_piece(pos) {
                     let symbol = self.piece_to_symbol(&piece);
@@ -425,7 +432,7 @@ impl GameHistory {
             let rank_jp = self.to_japanese_numeral(rank_display);
             result.push_str(&format!("  {}\n", rank_jp));
         }
-        
+
         // Footer with file numbers (same as header)
         for file_display in (1..=36).rev() {
             // Match the exact spacing pattern used in the board
@@ -443,7 +450,7 @@ impl GameHistory {
             }
         }
         result.push('\n');
-        
+
         result
     }
 
@@ -454,14 +461,12 @@ impl GameHistory {
         if n == 0 {
             return "零".to_string();
         }
-        
-        let digits = [
-            "", "一", "二", "三", "四", "五", "六", "七", "八", "九"
-        ];
-        
+
+        let digits = ["", "一", "二", "三", "四", "五", "六", "七", "八", "九"];
+
         let mut result = String::new();
         let n = n as usize;
-        
+
         if n >= 30 {
             let tens = n / 10;
             let ones = n % 10;
@@ -486,45 +491,45 @@ impl GameHistory {
         } else {
             result.push_str(digits[n]);
         }
-        
+
         result
     }
-    
+
     /// Flip file number for shogi notation (rightmost is 1, leftmost is 36)
     /// Takes 0-indexed file (0-35) and returns 1-indexed flipped file (1-36)
     /// File 0 (leftmost) becomes 36, file 35 (rightmost) becomes 1
     fn flip_file(&self, file: u8) -> u8 {
-        36 - file  // This already gives 1-indexed: file 0 -> 36, file 35 -> 1
+        36 - file // This already gives 1-indexed: file 0 -> 36, file 35 -> 1
     }
-    
+
     /// Flip rank number for shogi notation (top is 1, bottom is 36)
     /// Takes 0-indexed rank (0-35) and returns 1-indexed flipped rank (1-36)
     /// Rank 0 (bottom) becomes 36, rank 35 (top) becomes 1
     fn flip_rank(&self, rank: u8) -> u8 {
-        36 - rank  // This already gives 1-indexed: rank 0 -> 36, rank 35 -> 1
+        36 - rank // This already gives 1-indexed: rank 0 -> 36, rank 35 -> 1
     }
-    
+
     fn piece_to_symbol(&self, piece: &Piece) -> String {
         // Get the base piece type for display (unpromoted form)
         // For promoted pieces, show what they were before promotion
         // For unpromoted pieces, show the piece type itself
         // Use the base_type() method which uses stored base_piece_type if available
         let display_type = piece.base_type();
-        
+
         let base = display_type.display_symbol();
-        
+
         // Use uppercase for Black, lowercase for White
         let symbol = if piece.color == Color::Black {
             base.to_string()
         } else {
             base.to_lowercase()
         };
-        
+
         // Add "+" at the start if promoted, pad to 3 characters
         if piece.is_promoted {
-            format!("+{:<2}", symbol)  // + at start, left-align symbol to 2 chars
+            format!("+{:<2}", symbol) // + at start, left-align symbol to 2 chars
         } else {
-            format!("{:<3}", symbol)  // Left-align symbol to 3 chars
+            format!("{:<3}", symbol) // Left-align symbol to 3 chars
         }
     }
 
@@ -554,11 +559,23 @@ impl GameHistory {
             // Calculate direction for this step
             let file_delta = path[i].file as i16 - path[i - 1].file as i16;
             let rank_delta = path[i].rank as i16 - path[i - 1].rank as i16;
-            
+
             // Normalize direction to sign only
             let direction = (
-                if file_delta == 0 { 0 } else if file_delta > 0 { 1 } else { -1 },
-                if rank_delta == 0 { 0 } else if rank_delta > 0 { 1 } else { -1 },
+                if file_delta == 0 {
+                    0
+                } else if file_delta > 0 {
+                    1
+                } else {
+                    -1
+                },
+                if rank_delta == 0 {
+                    0
+                } else if rank_delta > 0 {
+                    1
+                } else {
+                    -1
+                },
             );
 
             // Check if direction changed
@@ -571,35 +588,39 @@ impl GameHistory {
         }
 
         // Should display as multiple if: returns to origin, has captures, or has direction changes
-        let should_display_as_multiple = returns_to_origin 
-            || !capture_positions.is_empty() 
+        let should_display_as_multiple = returns_to_origin
+            || !capture_positions.is_empty()
             || !direction_change_indices.is_empty();
 
-        (should_display_as_multiple, capture_positions, direction_change_indices)
+        (
+            should_display_as_multiple,
+            capture_positions,
+            direction_change_indices,
+        )
     }
 
     /// Get a formatted string representation of a game
     pub fn format_game(&self, game: &GameRecord) -> String {
         let mut result = format!("Game from {}\n", game.timestamp);
         result.push_str(&format!("Moves: {}\n", game.moves.len()));
-        
+
         if let Some(ref game_result) = game.result {
             result.push_str(&format!("Result: {:?}\n", game_result));
         }
-        
+
         // Show initial board
         result.push_str("\n=== Initial Position ===\n");
         let mut initial_state = GameState::new();
         initial_state.setup_initial_position();
         result.push_str(&self.format_board(&initial_state));
-        
+
         // Show board after each move (or every N moves for long games)
         let show_every = if game.moves.len() > 50 { 2 } else { 1 };
-        
+
         result.push_str("\n=== Move list ===\n");
         let mut current_state = GameState::new();
         current_state.setup_initial_position();
-        
+
         let mut idx = 0;
         while idx < game.moves.len() {
             let mv = &game.moves[idx];
@@ -607,33 +628,39 @@ impl GameHistory {
                 Color::Black => "Black",
                 Color::White => "White",
             };
-            
+
             // Get piece type before applying the move (for shogi-style notation)
             let from = Position::new(mv.from_file, mv.from_rank).unwrap();
             let to = Position::new(mv.to_file, mv.to_rank).unwrap();
             let piece = current_state.get_board().get_piece(from);
-            
+
             // Track how many moves will be displayed for this MoveRecord
             let mut moves_displayed_this_record = 0;
-            
+
             // Analyze Free Eagle path before applying move (if applicable)
             let free_eagle_analysis = if let MoveRecordData::FreeEagle { path } = &mv.data {
                 Some(self.analyze_free_eagle_path(path, current_state.get_board()))
             } else {
                 None
             };
-            
-            
+
             if let Some(p) = piece {
                 // Check if this piece type has two-step movement capability
                 let config = crate::movement::MovementConfig::for_piece(&p);
                 let has_two_step = config.capabilities.iter().any(|cap| {
-                    matches!(cap, crate::movement::types::MovementCapability::TwoStep { .. })
+                    matches!(
+                        cap,
+                        crate::movement::types::MovementCapability::TwoStep { .. }
+                    )
                 });
-                
+
                 if has_two_step {
                     // Check if this is a two-step move by checking stored intermediate position
-                    if let MoveRecordData::TwoStep { intermediate_file: inter_file, intermediate_rank: inter_rank } = &mv.data {
+                    if let MoveRecordData::TwoStep {
+                        intermediate_file: inter_file,
+                        intermediate_rank: inter_rank,
+                    } = &mv.data
+                    {
                         // This is a two-step move - format as two lines showing the two steps
                         let intermediate = Position::new(*inter_file, *inter_rank).unwrap();
                         let piece_symbol = {
@@ -644,7 +671,7 @@ impl GameHistory {
                                 symbol.to_string()
                             }
                         };
-                        
+
                         // Format first step: from -> intermediate
                         let inter_file_flipped = self.flip_file(intermediate.file);
                         let inter_rank_flipped = self.flip_rank(intermediate.rank);
@@ -652,28 +679,34 @@ impl GameHistory {
                         let from_rank_flipped = self.flip_rank(mv.from_rank);
                         let inter_rank_jp = self.to_japanese_numeral(inter_rank_flipped);
                         let from_rank_jp = self.to_japanese_numeral(from_rank_flipped);
-                        
+
                         result.push_str(&format!(
                             "{}. {}: {}{}{}{}{}{}\n",
-                            mv.move_number, color_str,
-                            inter_file_flipped, inter_rank_jp,  // Destination (intermediate)
-                            piece_symbol.clone(),                  // Piece type
-                            from_file_flipped, from_rank_jp,  // Source
-                            ""  // No promotion on first step
+                            mv.move_number,
+                            color_str,
+                            inter_file_flipped,
+                            inter_rank_jp,        // Destination (intermediate)
+                            piece_symbol.clone(), // Piece type
+                            from_file_flipped,
+                            from_rank_jp, // Source
+                            ""            // No promotion on first step
                         ));
                         moves_displayed_this_record += 1;
-                        
+
                         // Format second step: intermediate -> to (with next move number)
                         let to_file_flipped = self.flip_file(mv.to_file);
                         let to_rank_flipped = self.flip_rank(mv.to_rank);
                         let to_rank_jp = self.to_japanese_numeral(to_rank_flipped);
-                        
+
                         result.push_str(&format!(
                             "{}. {}: {}{}{}{}{}{}\n",
-                            mv.move_number + 1, color_str,  // Next move number for second step
-                            to_file_flipped, to_rank_jp,  // Destination (final)
-                            piece_symbol,                  // Piece type
-                            inter_file_flipped, inter_rank_jp,  // Source (intermediate)
+                            mv.move_number + 1,
+                            color_str, // Next move number for second step
+                            to_file_flipped,
+                            to_rank_jp,   // Destination (final)
+                            piece_symbol, // Piece type
+                            inter_file_flipped,
+                            inter_rank_jp, // Source (intermediate)
                             if mv.promoted { "成" } else { "" }  // Promotion indicator
                         ));
                         moves_displayed_this_record += 1;
@@ -693,13 +726,16 @@ impl GameHistory {
                         let from_rank_flipped = self.flip_rank(mv.from_rank);
                         let to_rank_jp = self.to_japanese_numeral(to_rank_flipped);
                         let from_rank_jp = self.to_japanese_numeral(from_rank_flipped);
-                        
+
                         result.push_str(&format!(
                             "{}. {}: {}{}{}{}{}{}\n",
-                            mv.move_number, color_str,
-                            to_file_flipped, to_rank_jp,
+                            mv.move_number,
+                            color_str,
+                            to_file_flipped,
+                            to_rank_jp,
                             piece_symbol,
-                            from_file_flipped, from_rank_jp,
+                            from_file_flipped,
+                            from_rank_jp,
                             if mv.promoted { "成" } else { "" }
                         ));
                         moves_displayed_this_record += 1;
@@ -707,9 +743,12 @@ impl GameHistory {
                 } else {
                     // Check if this is a Free Eagle move with a path
                     if let MoveRecordData::FreeEagle { path } = &mv.data {
-                        if let Some((should_display_as_multiple, ref capture_positions, ref direction_change_indices)) = 
-                            free_eagle_analysis {
-                            
+                        if let Some((
+                            should_display_as_multiple,
+                            ref capture_positions,
+                            ref direction_change_indices,
+                        )) = free_eagle_analysis
+                        {
                             let piece_symbol = {
                                 let symbol = p.base_symbol();
                                 if p.is_promoted {
@@ -718,11 +757,11 @@ impl GameHistory {
                                     symbol.to_string()
                                 }
                             };
-                            
+
                             if should_display_as_multiple {
                                 // Display as multiple moves - show each step with capture or direction change
                                 let mut current_move_number = mv.move_number;
-                                
+
                                 // Create a set of positions that should be displayed
                                 let mut positions_to_display = std::collections::HashSet::new();
                                 for capture_pos in capture_positions {
@@ -735,39 +774,47 @@ impl GameHistory {
                                 }
                                 // Always show final position
                                 positions_to_display.insert(to);
-                                
+
                                 // Display each step
                                 for i in 1..path.len() {
                                     let step_to = path[i];
-                                    
+
                                     // Display this step if it's a capture, direction change, or final position
                                     if positions_to_display.contains(&step_to) {
                                         let step_from = if i > 0 { path[i - 1] } else { from };
-                                        
+
                                         let to_file_flipped = self.flip_file(step_to.file);
                                         let to_rank_flipped = self.flip_rank(step_to.rank);
                                         let from_file_flipped = self.flip_file(step_from.file);
                                         let from_rank_flipped = self.flip_rank(step_from.rank);
                                         let to_rank_jp = self.to_japanese_numeral(to_rank_flipped);
-                                        let from_rank_jp = self.to_japanese_numeral(from_rank_flipped);
-                                        
+                                        let from_rank_jp =
+                                            self.to_japanese_numeral(from_rank_flipped);
+
                                         // Only show promotion on final step
-                                        let promotion_str = if step_to == to && mv.promoted { "成" } else { "" };
-                                        
+                                        let promotion_str = if step_to == to && mv.promoted {
+                                            "成"
+                                        } else {
+                                            ""
+                                        };
+
                                         result.push_str(&format!(
                                             "{}. {}: {}{}{}{}{}{}\n",
-                                            current_move_number, color_str,
-                                            to_file_flipped, to_rank_jp,
+                                            current_move_number,
+                                            color_str,
+                                            to_file_flipped,
+                                            to_rank_jp,
                                             piece_symbol.clone(),
-                                            from_file_flipped, from_rank_jp,
+                                            from_file_flipped,
+                                            from_rank_jp,
                                             promotion_str
                                         ));
-                                        
+
                                         current_move_number += 1;
                                         moves_displayed_this_record += 1;
                                     }
                                 }
-                                } else {
+                            } else {
                                 // Display as single move
                                 let to_file_flipped = self.flip_file(mv.to_file);
                                 let from_file_flipped = self.flip_file(mv.from_file);
@@ -775,13 +822,16 @@ impl GameHistory {
                                 let from_rank_flipped = self.flip_rank(mv.from_rank);
                                 let to_rank_jp = self.to_japanese_numeral(to_rank_flipped);
                                 let from_rank_jp = self.to_japanese_numeral(from_rank_flipped);
-                                
+
                                 result.push_str(&format!(
                                     "{}. {}: {}{}{}{}{}{}\n",
-                                    mv.move_number, color_str,
-                                    to_file_flipped, to_rank_jp,
+                                    mv.move_number,
+                                    color_str,
+                                    to_file_flipped,
+                                    to_rank_jp,
                                     piece_symbol,
-                                    from_file_flipped, from_rank_jp,
+                                    from_file_flipped,
+                                    from_rank_jp,
                                     if mv.promoted { "成" } else { "" }
                                 ));
                                 moves_displayed_this_record += 1;
@@ -797,20 +847,23 @@ impl GameHistory {
                                 symbol.to_string()
                             }
                         };
-                        
+
                         let to_file_flipped = self.flip_file(mv.to_file);
                         let from_file_flipped = self.flip_file(mv.from_file);
                         let to_rank_flipped = self.flip_rank(mv.to_rank);
                         let from_rank_flipped = self.flip_rank(mv.from_rank);
                         let to_rank_jp = self.to_japanese_numeral(to_rank_flipped);
                         let from_rank_jp = self.to_japanese_numeral(from_rank_flipped);
-                        
+
                         result.push_str(&format!(
                             "{}. {}: {}{}{}{}{}{}\n",
-                            mv.move_number, color_str,
-                            to_file_flipped, to_rank_jp,
+                            mv.move_number,
+                            color_str,
+                            to_file_flipped,
+                            to_rank_jp,
                             piece_symbol,
-                            from_file_flipped, from_rank_jp,
+                            from_file_flipped,
+                            from_rank_jp,
                             if mv.promoted { "成" } else { "" }
                         ));
                         moves_displayed_this_record += 1;
@@ -824,45 +877,51 @@ impl GameHistory {
                 let from_rank_flipped = self.flip_rank(mv.from_rank);
                 let to_rank_jp = self.to_japanese_numeral(to_rank_flipped);
                 let from_rank_jp = self.to_japanese_numeral(from_rank_flipped);
-                
+
                 result.push_str(&format!(
                     "{}. {}: {}{}?{}{}{}\n",
-                    mv.move_number, color_str,
-                    to_file_flipped, to_rank_jp,
-                    from_file_flipped, from_rank_jp,
+                    mv.move_number,
+                    color_str,
+                    to_file_flipped,
+                    to_rank_jp,
+                    from_file_flipped,
+                    from_rank_jp,
                     if mv.promoted { "成" } else { "" }
                 ));
             }
-            
+
             // Apply move to current state
             // Create Move from MoveRecordData
             let move_obj = match &mv.data {
-                MoveRecordData::Standard => {
-                    Move::new_with_promotion(from, to, mv.promoted)
-                }
-                MoveRecordData::TwoStep { intermediate_file, intermediate_rank } => {
-                    let intermediate = Position::new(*intermediate_file, *intermediate_rank).unwrap();
+                MoveRecordData::Standard => Move::new_with_promotion(from, to, mv.promoted),
+                MoveRecordData::TwoStep {
+                    intermediate_file,
+                    intermediate_rank,
+                } => {
+                    let intermediate =
+                        Position::new(*intermediate_file, *intermediate_rank).unwrap();
                     Move::new_two_step_with_promotion(from, intermediate, to, mv.promoted)
                 }
-                MoveRecordData::FreeEagle { path } => {
-                    Move::new_free_eagle(from, to, path.clone())
-                }
+                MoveRecordData::FreeEagle { path } => Move::new_free_eagle(from, to, path.clone()),
             };
             let turn_before = current_state.get_current_turn();
             let move_result = current_state.make_move(move_obj);
             let turn_after = current_state.get_current_turn();
-            
+
             // Check if move succeeded:
             // - Two-step moves return Some(intermediate)
             // - Single moves return None but turn changes
             // - Failed moves return None and turn doesn't change
             let move_succeeded = move_result.is_some() || (turn_before != turn_after);
-            
+
             if !move_succeeded {
                 // Move failed - this shouldn't happen in a valid game, but log it
-                result.push_str(&format!("WARNING: Move {} failed to apply!\n", mv.move_number));
+                result.push_str(&format!(
+                    "WARNING: Move {} failed to apply!\n",
+                    mv.move_number
+                ));
             }
-            
+
             // Show board periodically
             // For two-step moves, show after the second step (move_number + 1)
             // For Free Eagle multi-moves, show after the last displayed step
@@ -881,10 +940,10 @@ impl GameHistory {
                 result.push_str(&format!("\n=== After move {} ===\n", display_move_number));
                 result.push_str(&self.format_board(&current_state));
             }
-            
+
             idx += 1;
         }
-        
+
         result
     }
 }
@@ -938,4 +997,3 @@ mod tests {
         let _ = fs::remove_dir_all(&root);
     }
 }
-

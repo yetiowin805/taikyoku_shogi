@@ -126,17 +126,26 @@ fn rolling_worker_parent_keeps_timings_and_drops_iteration_sidecar() {
     std::fs::create_dir_all(&dir).unwrap();
     let binary = env!("CARGO_BIN_EXE_taikyoku_shogi");
     let hash = game_process::file_hash(std::path::Path::new(binary)).unwrap();
-    let bundle = EngineBundle { protocol: 1, revision: "test".into(),
-        engine_bin: binary.into(), engine_sha256: hash.clone(),
-        analyzer_bin: binary.into(), analyzer_sha256: hash };
+    let bundle = EngineBundle {
+        protocol: 1,
+        revision: "test".into(),
+        engine_bin: binary.into(),
+        engine_sha256: hash.clone(),
+        analyzer_bin: binary.into(),
+        analyzer_sha256: hash,
+    };
     let pointer = dir.join("active.json");
     std::fs::write(&pointer, serde_json::to_vec(&bundle).unwrap()).unwrap();
     let mut agent = AgentSpec::new("ab");
     agent.depth = Some(2);
     agent.quiescence_depth = Some(0);
-    let cfg = WorkerConfig { black: agent.clone(), white: agent,
+    let cfg = WorkerConfig {
+        black: agent.clone(),
+        white: agent,
         start: start_from_position(BoardPosition::from_state(&position())),
-        max_moves: 2, ..Default::default() };
+        max_moves: 2,
+        ..Default::default()
+    };
     let record = game_process::play(&cfg, &pointer, &dir, 1).unwrap();
     assert!(!dir.join("slot-1.result.json").exists());
     assert!(!dir.join("slot-1.result.iterations.json").exists());

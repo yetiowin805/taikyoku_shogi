@@ -308,9 +308,17 @@ fn score_from_result(a_is_black: bool, result: &Option<GameResult>) -> f64 {
 pub(crate) fn ensure_ratings(state: &mut TourneyState) {
     if state.order_neutral_only {
         let fit = super::order_neutral::from_state(state);
-        assert!(!fit.ratings.is_empty(), "order-neutral fit failed: {}", fit.status);
+        assert!(
+            !fit.ratings.is_empty(),
+            "order-neutral fit failed: {}",
+            fit.status
+        );
         state.retired = super::order_neutral::inactive_agents(&fit);
-        state.ratings = fit.ratings.iter().map(|(id,r)| (id.clone(), GlickoRating {r:*r, rd:0.})).collect();
+        state.ratings = fit
+            .ratings
+            .iter()
+            .map(|(id, r)| (id.clone(), GlickoRating { r: *r, rd: 0. }))
+            .collect();
         state.elo = fit.ratings;
         return;
     }
@@ -803,7 +811,9 @@ pub fn apply_passive_rd_tick(rating: GlickoRating) -> GlickoRating {
 
 /// Record a finished game toward the every-N passive RD tick.
 pub fn note_finished_game_for_rd_tick(state: &mut TourneyState, a: &str, b: &str) {
-    if state.order_neutral_only { return; }
+    if state.order_neutral_only {
+        return;
+    }
     state.rd_tick_participants.insert(a.to_string());
     state.rd_tick_participants.insert(b.to_string());
     state.rd_tick_done_counter += 1;
@@ -874,7 +884,12 @@ pub fn schedule_one_swiss_game(state: &mut TourneyState) -> bool {
     // Engines are copies of weights, not humans: the same id may sit in many
     // in-flight games. Occupancy does not shrink the pairing pool; `jobs` is
     // the only concurrency cap.
-    let names: Vec<String> = state.entrants.iter().filter(|e| !state.retired.contains(&e.id)).map(|e| e.id.clone()).collect();
+    let names: Vec<String> = state
+        .entrants
+        .iter()
+        .filter(|e| !state.retired.contains(&e.id))
+        .map(|e| e.id.clone())
+        .collect();
     if names.len() < 2 {
         return false;
     }
@@ -1084,9 +1099,18 @@ pub fn save_state(cfg: &TourneyConfig, state: &TourneyState) -> Result<(), Strin
     let ratings_json = serde_json::to_string_pretty(&state.ratings).map_err(|e| e.to_string())?;
     super::durable::write(&ratings_path(cfg), ratings_json.as_bytes(), false)?;
     let neutral = super::order_neutral::from_state(&state);
-    super::durable::write(&dir.join("order-neutral-ratings.json"),
-        serde_json::to_string_pretty(&neutral).map_err(|e| e.to_string())?.as_bytes(), false)?;
-    super::durable::write(&standings_path(cfg), format_standings_with_fit(&state, &neutral).as_bytes(), false)?;
+    super::durable::write(
+        &dir.join("order-neutral-ratings.json"),
+        serde_json::to_string_pretty(&neutral)
+            .map_err(|e| e.to_string())?
+            .as_bytes(),
+        false,
+    )?;
+    super::durable::write(
+        &standings_path(cfg),
+        format_standings_with_fit(&state, &neutral).as_bytes(),
+        false,
+    )?;
     Ok(())
 }
 
@@ -1098,13 +1122,27 @@ fn format_standings_with_fit(state: &TourneyState, neutral: &super::order_neutra
     let scores = match_scores(state);
     let games = games_played(state);
     if state.order_neutral_only {
-        let mut rows: Vec<_> = neutral.ratings.iter().filter(|(id,_)| !state.retired.contains(*id)).collect();
-        rows.sort_by(|a,b| b.1.total_cmp(a.1).then_with(|| a.0.cmp(b.0)));
+        let mut rows: Vec<_> = neutral
+            .ratings
+            .iter()
+            .filter(|(id, _)| !state.retired.contains(*id))
+            .collect();
+        rows.sort_by(|a, b| b.1.total_cmp(a.1).then_with(|| a.0.cmp(b.0)));
         let mut text = format!("# Tournament {}\n\nOrder-neutral ratings: {}. All completed games have equal weight. Component gaps are provisional; disconnected groups are incomparable.\n\n| Rank | Agent | Rating | Games | Score |\n|---:|---|---:|---:|---:|\n",state.run_id,neutral.status);
-        for (i,(id,r)) in rows.iter().enumerate() {
-            text.push_str(&format!("| {} | {} | {:.1} | {} | {:.1} |\n", i+1,id,r,games.get(*id).unwrap_or(&0),scores.get(*id).unwrap_or(&0.)));
+        for (i, (id, r)) in rows.iter().enumerate() {
+            text.push_str(&format!(
+                "| {} | {} | {:.1} | {} | {:.1} |\n",
+                i + 1,
+                id,
+                r,
+                games.get(*id).unwrap_or(&0),
+                scores.get(*id).unwrap_or(&0.)
+            ));
         }
-        text.push_str(&format!("\nCurrently inactive agents: {:?}\n",state.retired));
+        text.push_str(&format!(
+            "\nCurrently inactive agents: {:?}\n",
+            state.retired
+        ));
         text.push_str(&format_knockout_stage_table(state));
         return text;
     }
@@ -1152,9 +1190,11 @@ fn format_standings_with_fit(state: &TourneyState, neutral: &super::order_neutra
     out.push_str("\n## Order-neutral ratings\n\nEqual-weight Bradley–Terry fit over all completed games; draws count half, mean rating 1500. These are separate from live Glicko and do not seed the bracket.\n\n");
     if neutral.status == "converged" {
         let mut fitted: Vec<_> = neutral.ratings.iter().collect();
-        fitted.sort_by(|a,b| b.1.total_cmp(a.1).then_with(||a.0.cmp(b.0)));
+        fitted.sort_by(|a, b| b.1.total_cmp(a.1).then_with(|| a.0.cmp(b.0)));
         out.push_str("| Agent | Rating |\n|---|---:|\n");
-        for (id,r) in fitted { out.push_str(&format!("| {id} | {r:.1} |\n")); }
+        for (id, r) in fitted {
+            out.push_str(&format!("| {id} | {r:.1} |\n"));
+        }
     } else {
         out.push_str(&format!("Fit unavailable: {}. Result-graph components: {:?}. No regularized or arbitrary extreme ratings are substituted.\n", neutral.status, neutral.components));
     }
@@ -1330,7 +1370,11 @@ fn claim_or_schedule_slot(st: &mut TourneyState, cfg: &TourneyConfig) -> Option<
 }
 
 pub(crate) fn rate_finished_slot(
-    st: &mut TourneyState, slot_id: usize, model_a: &str, model_b: &str, score_a: f64,
+    st: &mut TourneyState,
+    slot_id: usize,
+    model_a: &str,
+    model_b: &str,
+    score_a: f64,
 ) {
     if super::top_two::is_slot(st, slot_id) {
         ensure_ratings(st);
@@ -1843,13 +1887,20 @@ mod tests {
 
     #[test]
     fn fischer_transition_preserves_results_and_survives_legacy_resume() {
-        let mut cfg = TourneyConfig { entrants: entrants(2), max_time_ms: Some(3000),
-            format: TourneyFormat::RoundRobin, ..Default::default() };
+        let mut cfg = TourneyConfig {
+            entrants: entrants(2),
+            max_time_ms: Some(3000),
+            format: TourneyFormat::RoundRobin,
+            ..Default::default()
+        };
         let mut state = build_schedule(&cfg);
         state.slots[0].status = SlotStatus::Done;
         state.slots[0].score_a = Some(1.0);
         let before = serde_json::to_value(&state).unwrap();
-        cfg.time_control = Some(super::super::clock::FischerControl { initial_ms: 900000, increment_ms: 5000 });
+        cfg.time_control = Some(super::super::clock::FischerControl {
+            initial_ms: 900000,
+            increment_ms: 5000,
+        });
         cfg.max_time_ms = None;
         cfg.depth = 64;
         apply_time_control(&mut state, &cfg).unwrap();

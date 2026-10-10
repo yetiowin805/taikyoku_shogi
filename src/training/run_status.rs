@@ -54,7 +54,8 @@ impl RunStatus {
     }
 
     pub fn load_path(path: &Path) -> Result<Self, String> {
-        let data = fs::read_to_string(path).map_err(|e| format!("read {}: {}", path.display(), e))?;
+        let data =
+            fs::read_to_string(path).map_err(|e| format!("read {}: {}", path.display(), e))?;
         serde_json::from_str(&data).map_err(|e| format!("parse {}: {}", path.display(), e))
     }
 }
@@ -132,10 +133,7 @@ mod tests {
 
     #[test]
     fn status_roundtrip_json() {
-        let dir = std::env::temp_dir().join(format!(
-            "taikyoku-status-{}",
-            std::process::id()
-        ));
+        let dir = std::env::temp_dir().join(format!("taikyoku-status-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
         let path = dir.join("status.json");

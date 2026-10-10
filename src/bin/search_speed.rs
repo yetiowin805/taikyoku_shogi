@@ -20,10 +20,9 @@ fn midgame() -> GameState {
     let mut state = GameState::new();
     state.setup_initial_position();
     for file in [4u8, 8, 12, 16, 20, 24, 28] {
-        for &(from_rank, to_rank, color) in &[
-            (10u8, 11u8, Color::Black),
-            (25u8, 24u8, Color::White),
-        ] {
+        for &(from_rank, to_rank, color) in
+            &[(10u8, 11u8, Color::Black), (25u8, 24u8, Color::White)]
+        {
             state.set_current_turn(color);
             let from = Position::new(file, from_rank).unwrap();
             let to = Position::new(file, to_rank).unwrap();

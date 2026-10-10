@@ -198,10 +198,12 @@ mod tests {
         );
         assert!((w.rank_factor_fast[RANK_PST_PROMO as usize] - 1.30).abs() < 1e-6);
         assert_eq!(w.rank_factor_slow, seed.rank_factor_slow);
-        assert!((w.piece_value(crate::piece::PieceType::HookMover)
-            - seed.piece_value(crate::piece::PieceType::HookMover))
+        assert!(
+            (w.piece_value(crate::piece::PieceType::HookMover)
+                - seed.piece_value(crate::piece::PieceType::HookMover))
             .abs()
-            < 1e-3);
+                < 1e-3
+        );
     }
 
     #[test]

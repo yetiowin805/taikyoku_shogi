@@ -233,13 +233,7 @@ pub fn run_scale_sample(cfg: &ScaleSampleConfig) -> Result<(TourneyManifest, Sam
         }
         random_idx += 1;
         let id = format!("R{:02}", random_idx);
-        samples.push(write_sample(
-            &base_cp,
-            base,
-            &cfg.out_dir,
-            &id,
-            &mults,
-        )?);
+        samples.push(write_sample(&base_cp, base, &cfg.out_dir, &id, &mults)?);
     }
 
     let samples_file = SamplesFile {
@@ -312,10 +306,8 @@ mod tests {
 
     #[test]
     fn sample_rejects_seed_and_dupes() {
-        let dir = std::env::temp_dir().join(format!(
-            "taikyoku-scale-sample-{}",
-            std::process::id()
-        ));
+        let dir =
+            std::env::temp_dir().join(format!("taikyoku-scale-sample-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
         let seed_path = dir.join("ab-seed.json");

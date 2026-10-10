@@ -11,10 +11,10 @@ impl RoyalCapturePlayer {
         if legal_moves.is_empty() {
             return None;
         }
-        
+
         let current_color = game_state.get_current_turn();
         let opponent_color = current_color.opposite();
-        
+
         // Filter moves that capture royal pieces
         let royal_capture_moves: Vec<&Move> = legal_moves
             .iter()
@@ -27,18 +27,17 @@ impl RoyalCapturePlayer {
                 }
             })
             .collect();
-        
+
         let mut rng = rand::thread_rng();
-        
+
         // If there are moves that capture royal pieces, randomly choose from those
         if !royal_capture_moves.is_empty() {
             let index = rng.gen_range(0..royal_capture_moves.len());
             return Some(royal_capture_moves[index].clone());
         }
-        
+
         // Otherwise, randomly choose from all legal moves
         let index = rng.gen_range(0..legal_moves.len());
         Some(legal_moves[index].clone())
     }
 }
-

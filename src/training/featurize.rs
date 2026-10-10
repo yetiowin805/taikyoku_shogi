@@ -380,7 +380,8 @@ pub fn featurize_dir(cfg: &FeaturizeConfig) -> Result<usize, String> {
         };
         let rows = featurize_game(&record, cfg, &weights)?;
         for (j, row) in rows.iter().enumerate() {
-            let out_path = Path::new(&cfg.out_dir).join(format!("{}-{:04}.json", record.game_id, j));
+            let out_path =
+                Path::new(&cfg.out_dir).join(format!("{}-{:04}.json", record.game_id, j));
             let json =
                 serde_json::to_string(row).map_err(|e| format!("serialize feature: {}", e))?;
             fs::write(&out_path, json)
@@ -397,8 +398,8 @@ pub fn featurize_dir(cfg: &FeaturizeConfig) -> Result<usize, String> {
 pub fn load_labeled_dir(dir: &Path) -> Result<Vec<LabeledPosition>, String> {
     let mut rows = Vec::new();
     for path in paths::list_json_files(dir)? {
-        let contents = fs::read_to_string(&path)
-            .map_err(|e| format!("read {}: {}", path.display(), e))?;
+        let contents =
+            fs::read_to_string(&path).map_err(|e| format!("read {}: {}", path.display(), e))?;
         let row: LabeledPosition = serde_json::from_str(&contents)
             .map_err(|e| format!("parse {}: {}", path.display(), e))?;
         rows.push(row);
@@ -436,9 +437,7 @@ mod tests {
     #[test]
     fn candidates_include_burst_ends_and_ply0() {
         // plies 0..=8; captures into 2,3 then quiet; capture into 6 then quiet.
-        let was = vec![
-            false, false, true, true, false, false, true, false, false,
-        ];
+        let was = vec![false, false, true, true, false, false, true, false, false];
         let counts = vec![(36, 36); was.len()];
         let cfg = FeaturizeConfig {
             quiet_stride: 100, // disable quiet stride noise

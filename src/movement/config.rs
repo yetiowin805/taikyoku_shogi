@@ -1,5 +1,5 @@
-use crate::movement::types::{BlockingMode, MovementCapability, PieceTypeSet};
 use crate::movement::direction::DIRECTION_SET_ALL;
+use crate::movement::types::{BlockingMode, MovementCapability, PieceTypeSet};
 use crate::piece::PieceType;
 
 /// Movement configuration for a piece type
@@ -11,7 +11,10 @@ pub struct MovementConfig {
 
 /// Helper function to create a Range capability with an empty cannot_jump_over set
 /// This is the default for most pieces
-fn range_capability(directions: crate::movement::direction::DirectionSet, blocking: BlockingMode) -> MovementCapability {
+fn range_capability(
+    directions: crate::movement::direction::DirectionSet,
+    blocking: BlockingMode,
+) -> MovementCapability {
     MovementCapability::Range {
         directions,
         blocking,
@@ -292,12 +295,12 @@ impl MovementConfig {
             crate::piece::PieceType::WoodenDove => wooden_dove_movement(),
             crate::piece::PieceType::CeramicDove => ceramic_dove_movement(),
             crate::piece::PieceType::EarthDragon => earth_dragon_movement(),
-            crate::piece::PieceType::RainDragon => rain_dragon_unpromoted_movement(),  // Default to unpromoted, but for_piece() handles the promoted case
+            crate::piece::PieceType::RainDragon => rain_dragon_unpromoted_movement(), // Default to unpromoted, but for_piece() handles the promoted case
             crate::piece::PieceType::LeftMountainEagle => left_mountain_eagle_movement(),
             crate::piece::PieceType::RightMountainEagle => right_mountain_eagle_movement(),
             crate::piece::PieceType::FireDemon => fire_demon_movement(),
             crate::piece::PieceType::FreeFire => free_fire_movement(),
-            crate::piece::PieceType::Whale => whale_starting_movement(),  // Default to starting, but for_piece() handles the promoted case
+            crate::piece::PieceType::Whale => whale_starting_movement(), // Default to starting, but for_piece() handles the promoted case
             crate::piece::PieceType::ReverseChariot => reverse_chariot_movement(),
             crate::piece::PieceType::LeftDragon => left_dragon_movement(),
             crate::piece::PieceType::RightDragon => right_dragon_movement(),
@@ -407,14 +410,14 @@ impl MovementConfig {
             crate::piece::PieceType::Shiten => shiten_movement(),
             crate::piece::PieceType::RunningBear => running_bear_movement(),
             crate::piece::PieceType::FreeBear => free_bear_movement(),
-            crate::piece::PieceType::RunningTiger => running_bear_movement(),  // Same movement as running bear
+            crate::piece::PieceType::RunningTiger => running_bear_movement(), // Same movement as running bear
             crate::piece::PieceType::FreeTiger => free_tiger_movement(),
             crate::piece::PieceType::GreatDove => great_dove_movement(),
             crate::piece::PieceType::SideSerpent => side_serpent_movement(),
             crate::piece::PieceType::GreatShark => great_shark_movement(),
             crate::piece::PieceType::RunningSerpent => running_serpent_movement(),
             crate::piece::PieceType::FreeSerpent => free_serpent_movement(),
-            crate::piece::PieceType::RunningPup => running_serpent_movement(),  // Same movement as running serpent
+            crate::piece::PieceType::RunningPup => running_serpent_movement(), // Same movement as running serpent
             crate::piece::PieceType::FreeLeopard => free_leopard_movement(),
             crate::piece::PieceType::ForestDemon => forest_demon_movement(),
             crate::piece::PieceType::ThunderRunner => thunder_runner_movement(),
@@ -422,7 +425,7 @@ impl MovementConfig {
             crate::piece::PieceType::Fowl => fowl_movement(),
             crate::piece::PieceType::Turtledove => turtledove_movement(),
             crate::piece::PieceType::WhiteElephant => white_elephant_movement(),
-            crate::piece::PieceType::FragrantElephant => white_elephant_movement(),  // Same movement as white elephant
+            crate::piece::PieceType::FragrantElephant => white_elephant_movement(), // Same movement as white elephant
             crate::piece::PieceType::ElephantKing => elephant_king_movement(),
         }
     }
@@ -433,12 +436,10 @@ impl MovementConfig {
 /// King movement: Simple movement, all 8 directions, max 2 squares
 pub fn king_movement() -> MovementConfig {
     MovementConfig {
-        capabilities: vec![
-            MovementCapability::Simple {
-                directions: DIRECTION_SET_ALL,
-                max_distance: 2,
-            },
-        ],
+        capabilities: vec![MovementCapability::Simple {
+            directions: DIRECTION_SET_ALL,
+            max_distance: 2,
+        }],
     }
 }
 
@@ -465,14 +466,12 @@ pub fn pawn_movement() -> MovementConfig {
 /// For White: flipped (S, N, E, W, SE, SW)
 pub fn gold_general_movement() -> MovementConfig {
     MovementConfig {
-        capabilities: vec![
-            MovementCapability::Simple {
-                // N, S, E, W, NE, NW (will be adjusted by color)
-                // N (1) | S (16) | E (4) | W (64) | NE (2) | NW (128) = 215 = 0xD7
-                directions: 0xD7,
-                max_distance: 1,
-            },
-        ],
+        capabilities: vec![MovementCapability::Simple {
+            // N, S, E, W, NE, NW (will be adjusted by color)
+            // N (1) | S (16) | E (4) | W (64) | NE (2) | NW (128) = 215 = 0xD7
+            directions: 0xD7,
+            max_distance: 1,
+        }],
     }
 }
 
@@ -500,7 +499,7 @@ pub fn dog_movement() -> MovementConfig {
 pub fn mixed_general_movement() -> MovementConfig {
     MovementConfig {
         capabilities: vec![
-            range_capability(0x93, BlockingMode::NoJump),  // N, NE, NW, S (will be adjusted by color)
+            range_capability(0x93, BlockingMode::NoJump), // N, NE, NW, S (will be adjusted by color)
         ],
     }
 }
@@ -511,14 +510,12 @@ pub fn mixed_general_movement() -> MovementConfig {
 /// For White: flipped (S, N)
 pub fn go_between_movement() -> MovementConfig {
     MovementConfig {
-        capabilities: vec![
-            MovementCapability::Simple {
-                // N, S (will be adjusted by color)
-                // N (1) | S (16) = 17 = 0x11
-                directions: 0x11,
-                max_distance: 1,
-            },
-        ],
+        capabilities: vec![MovementCapability::Simple {
+            // N, S (will be adjusted by color)
+            // N (1) | S (16) = 17 = 0x11
+            directions: 0x11,
+            max_distance: 1,
+        }],
     }
 }
 
@@ -528,15 +525,13 @@ pub fn go_between_movement() -> MovementConfig {
 /// For White: flipped (S, SE, E, NE, NW, W, SW - all except N)
 pub fn drunken_elephant_movement() -> MovementConfig {
     MovementConfig {
-        capabilities: vec![
-            MovementCapability::Simple {
-                // All directions except S (will be adjusted by color)
-                // N (1) | NE (2) | E (4) | SE (8) | SW (32) | W (64) | NW (128) = 239 = 0xEF
-                // Or: 0xFF - 0x10 (S) = 0xEF
-                directions: 0xEF,
-                max_distance: 1,
-            },
-        ],
+        capabilities: vec![MovementCapability::Simple {
+            // All directions except S (will be adjusted by color)
+            // N (1) | NE (2) | E (4) | SE (8) | SW (32) | W (64) | NW (128) = 239 = 0xEF
+            // Or: 0xFF - 0x10 (S) = 0xEF
+            directions: 0xEF,
+            max_distance: 1,
+        }],
     }
 }
 
@@ -544,26 +539,22 @@ pub fn drunken_elephant_movement() -> MovementConfig {
 /// Same as standard king in chess/shogi
 pub fn crown_prince_movement() -> MovementConfig {
     MovementConfig {
-        capabilities: vec![
-            MovementCapability::Simple {
-                directions: DIRECTION_SET_ALL,
-                max_distance: 1,
-            },
-        ],
+        capabilities: vec![MovementCapability::Simple {
+            directions: DIRECTION_SET_ALL,
+            max_distance: 1,
+        }],
     }
 }
 
 /// Neighboring King movement: Same as Drunken Elephant (all directions except backward, 1 space)
 pub fn neighboring_king_movement() -> MovementConfig {
     MovementConfig {
-        capabilities: vec![
-            MovementCapability::Simple {
-                // All directions except S (will be adjusted by color)
-                // N (1) | NE (2) | E (4) | SE (8) | SW (32) | W (64) | NW (128) = 239 = 0xEF
-                directions: 0xEF,
-                max_distance: 1,
-            },
-        ],
+        capabilities: vec![MovementCapability::Simple {
+            // All directions except S (will be adjusted by color)
+            // N (1) | NE (2) | E (4) | SE (8) | SW (32) | W (64) | NW (128) = 239 = 0xEF
+            directions: 0xEF,
+            max_distance: 1,
+        }],
     }
 }
 
@@ -590,13 +581,11 @@ pub fn front_standard_movement() -> MovementConfig {
 /// Rook movement: Unlimited range in orthogonal directions (N, S, E, W)
 pub fn rook_movement() -> MovementConfig {
     MovementConfig {
-        capabilities: vec![
-            range_capability(
-                // N (1) | S (16) | E (4) | W (64) = 85 = 0x55
-                0x55,
-                BlockingMode::NoJump,
-            ),
-        ],
+        capabilities: vec![range_capability(
+            // N (1) | S (16) | E (4) | W (64) = 85 = 0x55
+            0x55,
+            BlockingMode::NoJump,
+        )],
     }
 }
 
@@ -604,16 +593,14 @@ pub fn rook_movement() -> MovementConfig {
 /// Directions are relative to piece color (Black moves up, White moves down)
 /// Diagonally: All 4 diagonals NE (2), SE (8), SW (32), NW (128) = 170 = 0xAA (same for both colors)
 pub fn bishop_movement() -> MovementConfig {
-    use crate::movement::types::BlockingMode;
     use crate::movement::direction::DIRECTION_SET_DIAGONAL;
-    
+    use crate::movement::types::BlockingMode;
+
     MovementConfig {
-        capabilities: vec![
-            range_capability(
-                DIRECTION_SET_DIAGONAL,  // All diagonals (same for both colors)
-                BlockingMode::NoJump,
-            ),
-        ],
+        capabilities: vec![range_capability(
+            DIRECTION_SET_DIAGONAL, // All diagonals (same for both colors)
+            BlockingMode::NoJump,
+        )],
     }
 }
 
@@ -622,22 +609,22 @@ pub fn bishop_movement() -> MovementConfig {
 /// Diagonally: All 4 diagonals NE (2), SE (8), SW (32), NW (128) = 170 = 0xAA (same for both colors)
 /// Orthogonally: N (1), E (4), S (16), W (64) = 85 = 0x55 (same for both colors)
 pub fn dragon_horse_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
-    use crate::movement::types::BlockingMode;
     use crate::movement::direction::{DIRECTION_SET_DIAGONAL, DIRECTION_SET_ORTHOGONAL};
-    
+    use crate::movement::types::BlockingMode;
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Range movement: diagonally
             // All 4 diagonals NE (2), SE (8), SW (32), NW (128) = 170 = 0xAA (same for both colors)
             range_capability(
-                DIRECTION_SET_DIAGONAL,  // All diagonals (same for both colors)
+                DIRECTION_SET_DIAGONAL, // All diagonals (same for both colors)
                 BlockingMode::NoJump,
             ),
             // Simple movement: 1 space orthogonally
             // N (1), E (4), S (16), W (64) = 85 = 0x55 (same for both colors)
             MovementCapability::Simple {
-                directions: DIRECTION_SET_ORTHOGONAL,  // All orthogonal directions (same for both colors)
+                directions: DIRECTION_SET_ORTHOGONAL, // All orthogonal directions (same for both colors)
                 max_distance: 1,
             },
         ],
@@ -650,22 +637,22 @@ pub fn dragon_horse_movement() -> MovementConfig {
 /// All other directions: N (1) | NE (2) | SE (8) | S (16) | SW (32) | NW (128) = 187 = 0xBB (for Black)
 /// Jump: 3 spaces straight forwards and backwards (N and S for Black)
 pub fn great_turtle_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::types::BlockingMode;
-    
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 3 spaces sideways
             // E (4), W (64) = 68 = 0x44 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x44,  // E, W (same for both colors)
+                directions: 0x44, // E, W (same for both colors)
                 max_distance: 3,
             },
             // Range movement: all other directions (all except sideways)
             // For Black: All except E (4), W (64) = N (1) | NE (2) | SE (8) | S (16) | SW (32) | NW (128) = 187 = 0xBB
             // For White: All except E (4), W (64) (adjusted automatically)
             range_capability(
-                0xBB,  // All directions except E, W (for Black) - will be adjusted for White
+                0xBB, // All directions except E, W (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
             // Jump movement: 3 spaces straight forwards and backwards
@@ -673,8 +660,8 @@ pub fn great_turtle_movement() -> MovementConfig {
             // For White: S (0, -3), N (0, 3) (adjusted automatically)
             MovementCapability::Jumping {
                 offsets: vec![
-                    (0, 3),   // N for Black
-                    (0, -3),  // S for Black
+                    (0, 3),  // N for Black
+                    (0, -3), // S for Black
                 ],
             },
         ],
@@ -686,26 +673,26 @@ pub fn great_turtle_movement() -> MovementConfig {
 /// All 8 directions: N (1) | NE (2) | E (4) | SE (8) | S (16) | SW (32) | W (64) | NW (128) = 255 = 0xFF
 /// Jump: 3 spaces in all 4 orthogonal directions (N, E, S, W)
 pub fn spirit_turtle_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
-    use crate::movement::types::BlockingMode;
     use crate::movement::direction::DIRECTION_SET_ALL;
-    
+    use crate::movement::types::BlockingMode;
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Range movement: all directions
             // All 8 directions: N (1) | NE (2) | E (4) | SE (8) | S (16) | SW (32) | W (64) | NW (128) = 255 = 0xFF
             range_capability(
-                DIRECTION_SET_ALL,  // All directions (same for both colors)
+                DIRECTION_SET_ALL, // All directions (same for both colors)
                 BlockingMode::NoJump,
             ),
             // Jump movement: 3 spaces in all 4 orthogonal directions
             // N (0, 3), E (3, 0), S (0, -3), W (-3, 0)
             MovementCapability::Jumping {
                 offsets: vec![
-                    (0, 3),   // N for Black
-                    (3, 0),   // E (same for both colors)
-                    (0, -3),  // S for Black
-                    (-3, 0),  // W (same for both colors)
+                    (0, 3),  // N for Black
+                    (3, 0),  // E (same for both colors)
+                    (0, -3), // S for Black
+                    (-3, 0), // W (same for both colors)
                 ],
             },
         ],
@@ -718,22 +705,22 @@ pub fn spirit_turtle_movement() -> MovementConfig {
 /// All other directions: N (1) | NE (2) | SE (8) | S (16) | SW (32) | NW (128) = 187 = 0xBB (for Black)
 /// Jump: 2 spaces straight forwards and backwards (N and S for Black)
 pub fn little_turtle_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::types::BlockingMode;
-    
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 3 spaces sideways
             // E (4), W (64) = 68 = 0x44 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x44,  // E, W (same for both colors)
+                directions: 0x44, // E, W (same for both colors)
                 max_distance: 3,
             },
             // Range movement: all other directions (all except sideways)
             // For Black: All except E (4), W (64) = N (1) | NE (2) | SE (8) | S (16) | SW (32) | NW (128) = 187 = 0xBB
             // For White: All except E (4), W (64) (adjusted automatically)
             range_capability(
-                0xBB,  // All directions except E, W (for Black) - will be adjusted for White
+                0xBB, // All directions except E, W (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
             // Jump movement: 2 spaces straight forwards and backwards
@@ -741,8 +728,8 @@ pub fn little_turtle_movement() -> MovementConfig {
             // For White: S (0, -2), N (0, 2) (adjusted automatically)
             MovementCapability::Jumping {
                 offsets: vec![
-                    (0, 2),   // N for Black
-                    (0, -2),  // S for Black
+                    (0, 2),  // N for Black
+                    (0, -2), // S for Black
                 ],
             },
         ],
@@ -754,26 +741,26 @@ pub fn little_turtle_movement() -> MovementConfig {
 /// All 8 directions: N (1) | NE (2) | E (4) | SE (8) | S (16) | SW (32) | W (64) | NW (128) = 255 = 0xFF
 /// Jump: 2 spaces in all 4 orthogonal directions (N, E, S, W)
 pub fn treasure_turtle_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
-    use crate::movement::types::BlockingMode;
     use crate::movement::direction::DIRECTION_SET_ALL;
-    
+    use crate::movement::types::BlockingMode;
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Range movement: all directions
             // All 8 directions: N (1) | NE (2) | E (4) | SE (8) | S (16) | SW (32) | W (64) | NW (128) = 255 = 0xFF
             range_capability(
-                DIRECTION_SET_ALL,  // All directions (same for both colors)
+                DIRECTION_SET_ALL, // All directions (same for both colors)
                 BlockingMode::NoJump,
             ),
             // Jump movement: 2 spaces in all 4 orthogonal directions
             // N (0, 2), E (2, 0), S (0, -2), W (-2, 0)
             MovementCapability::Jumping {
                 offsets: vec![
-                    (0, 2),   // N for Black
-                    (2, 0),   // E (same for both colors)
-                    (0, -2),  // S for Black
-                    (-2, 0),  // W (same for both colors)
+                    (0, 2),  // N for Black
+                    (2, 0),  // E (same for both colors)
+                    (0, -2), // S for Black
+                    (-2, 0), // W (same for both colors)
                 ],
             },
         ],
@@ -784,16 +771,16 @@ pub fn treasure_turtle_movement() -> MovementConfig {
 /// Directions are relative to piece color (Black moves up, White moves down)
 /// Diagonally: All 4 diagonals NE (2), SE (8), SW (32), NW (128) = 170 = 0xAA (same for both colors)
 pub fn capricorn_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::direction::DIRECTION_SET_DIAGONAL;
     use crate::movement::types::BlockingMode;
-    
+    use crate::movement::types::MovementCapability;
+
     // Single step: range diagonal movement
     let diagonal_range = range_capability(
-        DIRECTION_SET_DIAGONAL,  // 0xAA = NE, SE, SW, NW
+        DIRECTION_SET_DIAGONAL, // 0xAA = NE, SE, SW, NW
         BlockingMode::NoJump,
     );
-    
+
     MovementConfig {
         capabilities: vec![
             // Single step: range diagonal movement
@@ -811,16 +798,16 @@ pub fn capricorn_movement() -> MovementConfig {
 /// Directions are relative to piece color (Black moves up, White moves down)
 /// Orthogonally: N (1), E (4), S (16), W (64) = 85 = 0x55 (same for both colors)
 pub fn hook_mover_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::direction::DIRECTION_SET_ORTHOGONAL;
     use crate::movement::types::BlockingMode;
-    
+    use crate::movement::types::MovementCapability;
+
     // Single step: range orthogonal movement
     let orthogonal_range = range_capability(
-        DIRECTION_SET_ORTHOGONAL,  // 0x55 = N, E, S, W
+        DIRECTION_SET_ORTHOGONAL, // 0x55 = N, E, S, W
         BlockingMode::NoJump,
     );
-    
+
     MovementConfig {
         capabilities: vec![
             // Single step: range orthogonal movement
@@ -841,22 +828,22 @@ pub fn hook_mover_movement() -> MovementConfig {
 /// Jump: 2 spaces sideways (E, W)
 pub fn kirin_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space in all directions except sideways
             // For Black: N (1) | NE (2) | SE (8) | S (16) | SW (32) | NW (128) = 187 = 0xBB
             // For White: S (16) | SW (32) | NW (128) | N (1) | NE (2) | SE (8) = 187 = 0xBB (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0xBB,  // All directions except E, W (for Black) - will be adjusted for White
+                directions: 0xBB, // All directions except E, W (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Jump movement: 2 spaces sideways
             // E (2, 0), W (-2, 0)
             MovementCapability::Jumping {
                 offsets: vec![
-                    (2, 0),   // E (same for both colors)
-                    (-2, 0),  // W (same for both colors)
+                    (2, 0),  // E (same for both colors)
+                    (-2, 0), // W (same for both colors)
                 ],
             },
         ],
@@ -869,25 +856,25 @@ pub fn kirin_movement() -> MovementConfig {
 /// Diagonally: All 4 diagonals NE (2), SE (8), SW (32), NW (128) = 170 = 0xAA (same for both colors)
 /// Jump: 2 spaces in all diagonal directions
 pub fn phoenix_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::direction::DIRECTION_SET_ORTHOGONAL;
-    
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space orthogonally
             // N (1), E (4), S (16), W (64) = 85 = 0x55 (same for both colors)
             MovementCapability::Simple {
-                directions: DIRECTION_SET_ORTHOGONAL,  // All orthogonal directions (same for both colors)
+                directions: DIRECTION_SET_ORTHOGONAL, // All orthogonal directions (same for both colors)
                 max_distance: 1,
             },
             // Jump movement: 2 spaces in all diagonal directions
             // NE (2, 2), SE (2, -2), SW (-2, -2), NW (-2, 2)
             MovementCapability::Jumping {
                 offsets: vec![
-                    (2, 2),    // NE for Black
-                    (2, -2),   // SE for Black
-                    (-2, -2),  // SW for Black
-                    (-2, 2),   // NW for Black
+                    (2, 2),   // NE for Black
+                    (2, -2),  // SE for Black
+                    (-2, -2), // SW for Black
+                    (-2, 2),  // NW for Black
                 ],
             },
         ],
@@ -901,20 +888,20 @@ pub fn phoenix_movement() -> MovementConfig {
 /// Vertically: N (1), S (16) = 17 = 0x11 (same for both colors)
 pub fn fire_general_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space in forwards diagonal directions
             // For Black: NE (2), NW (128) = 130 = 0x82
             // For White: SE (8), SW (32) = 40 = 0x28 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x82,  // NE, NW (for Black) - will be adjusted for White
+                directions: 0x82, // NE, NW (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Simple movement: up to 3 spaces vertically
             // N (1), S (16) = 17 = 0x11 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x11,  // N, S (same for both colors)
+                directions: 0x11, // N, S (same for both colors)
                 max_distance: 3,
             },
         ],
@@ -928,20 +915,20 @@ pub fn fire_general_movement() -> MovementConfig {
 ///                      For White: SE (8), SW (32) = 40 = 0x28 (adjusted automatically)
 pub fn water_general_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space vertically
             // N (1), S (16) = 17 = 0x11 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x11,  // N, S (same for both colors)
+                directions: 0x11, // N, S (same for both colors)
                 max_distance: 1,
             },
             // Simple movement: up to 3 spaces in forwards diagonal directions
             // For Black: NE (2), NW (128) = 130 = 0x82
             // For White: SE (8), SW (32) = 40 = 0x28 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x82,  // NE, NW (for Black) - will be adjusted for White
+                directions: 0x82, // NE, NW (for Black) - will be adjusted for White
                 max_distance: 3,
             },
         ],
@@ -960,14 +947,14 @@ pub fn water_general_movement() -> MovementConfig {
 ///            Combined: 0x28 | 0x44 | 0x01 = 109 = 0x6D (adjusted automatically)
 pub fn blind_dog_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space in forwards diagonal directions, sideways, and straight backwards
             // For Black: NE (2) | NW (128) | E (4) | W (64) | S (16) = 214 = 0xD6
             // For White: SE (8) | SW (32) | E (4) | W (64) | N (1) = 109 = 0x6D (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0xD6,  // NE, NW, E, W, S (for Black) - will be adjusted for White
+                directions: 0xD6, // NE, NW, E, W, S (for Black) - will be adjusted for White
                 max_distance: 1,
             },
         ],
@@ -981,14 +968,14 @@ pub fn blind_dog_movement() -> MovementConfig {
 /// For White: Diagonals are symmetric, forward S (16) is substituted for N (1) (handled automatically)
 pub fn fierce_stag_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space in all diagonals and straight forward
             // For Black: Diagonals NE (2), SE (8), SW (32), NW (128) = 0xAA; Forward N (1) = 0x01; Combined = 0xAB
             // For White: Diagonals are symmetric, forward S (16) is substituted for N (1) (handled automatically)
             MovementCapability::Simple {
-                directions: 0xAB,  // All diagonals and N (forward for Black); adjusted automatically for White
+                directions: 0xAB, // All diagonals and N (forward for Black); adjusted automatically for White
                 max_distance: 1,
             },
         ],
@@ -1002,15 +989,13 @@ pub fn fierce_stag_movement() -> MovementConfig {
 /// For White: adjusted automatically (excludes N which is backwards for White)
 pub fn moving_boar_movement() -> MovementConfig {
     MovementConfig {
-        capabilities: vec![
-            MovementCapability::Simple {
-                // All directions except straight backwards
-                // For Black: N (1) | NE (2) | E (4) | SE (8) | SW (32) | W (64) | NW (128) = 239 = 0xEF
-                // For White: adjusted automatically (excludes N which is backwards for White)
-                directions: 0xEF,  // All except S (16) for Black - will be adjusted for White
-                max_distance: 1,
-            },
-        ],
+        capabilities: vec![MovementCapability::Simple {
+            // All directions except straight backwards
+            // For Black: N (1) | NE (2) | E (4) | SE (8) | SW (32) | W (64) | NW (128) = 239 = 0xEF
+            // For White: adjusted automatically (excludes N which is backwards for White)
+            directions: 0xEF, // All except S (16) for Black - will be adjusted for White
+            max_distance: 1,
+        }],
     }
 }
 
@@ -1024,14 +1009,14 @@ pub fn moving_boar_movement() -> MovementConfig {
 ///           For White: 0x82 | 0x10 = 146 = 0x92 (adjusted automatically)
 pub fn crow_mover_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space in backwards diagonal directions and straight forwards
             // For Black: SW (32) | SE (8) | N (1) = 41 = 0x29
             // For White: NW (128) | NE (2) | S (16) = 146 = 0x92 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x29,  // SW, SE, N (for Black) - will be adjusted for White
+                directions: 0x29, // SW, SE, N (for Black) - will be adjusted for White
                 max_distance: 1,
             },
         ],
@@ -1044,23 +1029,23 @@ pub fn crow_mover_movement() -> MovementConfig {
 ///                    For White: S (16) = 16 = 0x10 (adjusted automatically)
 /// Diagonally: All 4 diagonals NE (2), SE (8), SW (32), NW (128) = 170 = 0xAA (same for both colors)
 pub fn flying_hawk_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
-    use crate::movement::types::BlockingMode;
     use crate::movement::direction::DIRECTION_SET_DIAGONAL;
-    
+    use crate::movement::types::BlockingMode;
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space straight forwards
             // For Black: N (1) = 1 = 0x01
             // For White: S (16) = 16 = 0x10 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x01,  // N (for Black) - will be adjusted for White
+                directions: 0x01, // N (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Range movement: diagonally
             // All 4 diagonals NE (2), SE (8), SW (32), NW (128) = 170 = 0xAA (same for both colors)
             range_capability(
-                DIRECTION_SET_DIAGONAL,  // All diagonals (same for both colors)
+                DIRECTION_SET_DIAGONAL, // All diagonals (same for both colors)
                 BlockingMode::NoJump,
             ),
         ],
@@ -1077,14 +1062,14 @@ pub fn flying_hawk_movement() -> MovementConfig {
 ///           For White: 0x38 | 0x01 = 57 = 0x39 (adjusted automatically)
 pub fn flying_goose_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space in all 3 forwards directions and straight backwards
             // For Black: N (1) | NE (2) | NW (128) | S (16) = 147 = 0x93
             // For White: S (16) | SE (8) | SW (32) | N (1) = 57 = 0x39 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x93,  // N, NE, NW, S (for Black) - will be adjusted for White
+                directions: 0x93, // N, NE, NW, S (for Black) - will be adjusted for White
                 max_distance: 1,
             },
         ],
@@ -1096,21 +1081,21 @@ pub fn flying_goose_movement() -> MovementConfig {
 /// Vertically: N (1), S (16) = 17 = 0x11 (same for both colors)
 /// Sideways: E (4), W (64) = 68 = 0x44 (same for both colors)
 pub fn swallows_wings_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::types::BlockingMode;
-    
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space vertically
             // N (1), S (16) = 17 = 0x11 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x11,  // N, S (same for both colors)
+                directions: 0x11, // N, S (same for both colors)
                 max_distance: 1,
             },
             // Range movement: sideways
             // E (4), W (64) = 68 = 0x44 (same for both colors)
             range_capability(
-                0x44,  // E, W (same for both colors)
+                0x44, // E, W (same for both colors)
                 BlockingMode::NoJump,
             ),
         ],
@@ -1121,15 +1106,15 @@ pub fn swallows_wings_movement() -> MovementConfig {
 /// Directions are relative to piece color (Black moves up, White moves down)
 /// Orthogonally: N (1) | E (4) | S (16) | W (64) = 85 = 0x55 (same for both colors)
 pub fn swallow_mover_movement() -> MovementConfig {
-    use crate::movement::types::BlockingMode;
     use crate::movement::direction::DIRECTION_SET_ORTHOGONAL;
-    
+    use crate::movement::types::BlockingMode;
+
     MovementConfig {
         capabilities: vec![
             // Range movement: orthogonally
             // All 4 orthogonal directions: N (1) | E (4) | S (16) | W (64) = 85 = 0x55 (same for both colors)
             range_capability(
-                DIRECTION_SET_ORTHOGONAL,  // All orthogonals (same for both colors)
+                DIRECTION_SET_ORTHOGONAL, // All orthogonals (same for both colors)
                 BlockingMode::NoJump,
             ),
         ],
@@ -1140,15 +1125,15 @@ pub fn swallow_mover_movement() -> MovementConfig {
 /// Directions are relative to piece color (Black moves up, White moves down)
 /// Diagonally: NE (2) | SE (8) | SW (32) | NW (128) = 170 = 0xAA (same for both colors)
 pub fn cat_sword_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::direction::DIRECTION_SET_DIAGONAL;
-    
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space diagonally
             // All 4 diagonal directions: NE (2) | SE (8) | SW (32) | NW (128) = 170 = 0xAA (same for both colors)
             MovementCapability::Simple {
-                directions: DIRECTION_SET_DIAGONAL,  // All diagonals (same for both colors)
+                directions: DIRECTION_SET_DIAGONAL, // All diagonals (same for both colors)
                 max_distance: 1,
             },
         ],
@@ -1161,14 +1146,14 @@ pub fn cat_sword_movement() -> MovementConfig {
 /// For White: S (16) | SE (8) | SW (32) | N (1) = 57 = 0x39 (adjusted automatically)
 pub fn climbing_monkey_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space in all 3 forwards directions and straight backwards
             // For Black: N (1) | NE (2) | NW (128) | S (16) = 147 = 0x93
             // For White: S (16) | SE (8) | SW (32) | N (1) = 57 = 0x39 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x93,  // N, NE, NW, S (for Black) - will be adjusted for White
+                directions: 0x93, // N, NE, NW, S (for Black) - will be adjusted for White
                 max_distance: 1,
             },
         ],
@@ -1181,14 +1166,14 @@ pub fn climbing_monkey_movement() -> MovementConfig {
 /// For White: Straight forward: S (16) = 0x10, Backward diagonally: NE (2) | NW (128) = 130 = 0x82
 pub fn owl_mover_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space straight forward and backward diagonally
             // For Black: N (1) | SE (8) | SW (32) = 41 = 0x29
             // For White: S (16) | NE (2) | NW (128) = 146 = 0x92 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x29,  // N, SE, SW (for Black) - will be adjusted for White
+                directions: 0x29, // N, SE, SW (for Black) - will be adjusted for White
                 max_distance: 1,
             },
         ],
@@ -1201,8 +1186,8 @@ pub fn owl_mover_movement() -> MovementConfig {
 /// For Black: Forwards: N (1), NE (2), NW (128) = 131 = 0x83, Backwards: S (16) = 0x10
 /// For White: Forwards: S (16), SE (8), SW (32) = 56 = 0x38, Backwards: N (1) = 0x01
 pub fn horseman_movement() -> MovementConfig {
-    use crate::movement::types::{BlockingMode};
-    
+    use crate::movement::types::BlockingMode;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 2 spaces sideways
@@ -1214,10 +1199,7 @@ pub fn horseman_movement() -> MovementConfig {
             // Range movement: all 3 forward directions and straight backwards
             // For Black: N (1) | NE (2) | NW (128) | S (16) = 147 = 0x93
             // For White: S (16) | SE (8) | SW (32) | N (1) = 57 = 0x39 (adjusted automatically)
-            range_capability(
-                0x93,
-                BlockingMode::NoJump,
-            ),
+            range_capability(0x93, BlockingMode::NoJump),
         ],
     }
 }
@@ -1227,13 +1209,13 @@ pub fn horseman_movement() -> MovementConfig {
 /// Orthogonally: N (1) | E (4) | S (16) | W (64) = 85 = 0x55 (same for both colors)
 pub fn tanuki_movement() -> MovementConfig {
     use crate::movement::direction::DIRECTION_SET_ORTHOGONAL;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 2 spaces orthogonally
             // All 4 orthogonal directions: N (1) | E (4) | S (16) | W (64) = 85 = 0x55 (same for both colors)
             MovementCapability::Simple {
-                directions: DIRECTION_SET_ORTHOGONAL,  // All orthogonals (same for both colors)
+                directions: DIRECTION_SET_ORTHOGONAL, // All orthogonals (same for both colors)
                 max_distance: 2,
             },
         ],
@@ -1245,20 +1227,20 @@ pub fn tanuki_movement() -> MovementConfig {
 /// Sideways: E (4), W (64) = 68 = 0x44 (same for both colors)
 /// Vertically: N (1), S (16) = 17 = 0x11 (same for both colors)
 pub fn earth_chariot_movement() -> MovementConfig {
-    use crate::movement::types::{MovementCapability, BlockingMode};
-    
+    use crate::movement::types::{BlockingMode, MovementCapability};
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space sideways
             // E (4), W (64) = 68 = 0x44 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x44,  // E, W (same for both colors)
+                directions: 0x44, // E, W (same for both colors)
                 max_distance: 1,
             },
             // Range movement: vertically
             // N (1), S (16) = 17 = 0x11 (same for both colors)
             range_capability(
-                0x11,  // N, S (same for both colors)
+                0x11, // N, S (same for both colors)
                 BlockingMode::NoJump,
             ),
         ],
@@ -1272,21 +1254,21 @@ pub fn earth_chariot_movement() -> MovementConfig {
 /// For White: Backwards diagonally: NE (2), NW (128) = 130 = 0x82
 /// Vertically: N (1), S (16) = 17 = 0x11 (same for both colors)
 pub fn reed_bird_movement() -> MovementConfig {
-    use crate::movement::types::{MovementCapability, BlockingMode};
-    
+    use crate::movement::types::{BlockingMode, MovementCapability};
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 2 spaces sideways and backwards diagonally
             // For Black: E (4) | W (64) | SE (8) | SW (32) = 108 = 0x6C
             // For White: E (4) | W (64) | NE (2) | NW (128) = 198 = 0xC6 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x6C,  // E, W, SE, SW (for Black) - will be adjusted for White
+                directions: 0x6C, // E, W, SE, SW (for Black) - will be adjusted for White
                 max_distance: 2,
             },
             // Range movement: vertically
             // N (1), S (16) = 17 = 0x11 (same for both colors)
             range_capability(
-                0x11,  // N, S (same for both colors)
+                0x11, // N, S (same for both colors)
                 BlockingMode::NoJump,
             ),
         ],
@@ -1303,22 +1285,22 @@ pub fn reed_bird_movement() -> MovementConfig {
 /// For Black: Forwards directions (jump 3): N (1), NE (2), NW (128) = 131 = 0x83
 /// For White: Forwards directions (jump 3): S (16), SE (8), SW (32) = 56 = 0x38
 pub fn great_master_movement() -> MovementConfig {
-    use crate::movement::types::{MovementCapability, BlockingMode};
-    
+    use crate::movement::types::{BlockingMode, MovementCapability};
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 5 spaces sideways and backwards diagonally
             // For Black: E (4) | W (64) | SE (8) | SW (32) = 108 = 0x6C
             // For White: E (4) | W (64) | NE (2) | NW (128) = 198 = 0xC6 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x6C,  // E, W, SE, SW (for Black) - will be adjusted for White
+                directions: 0x6C, // E, W, SE, SW (for Black) - will be adjusted for White
                 max_distance: 5,
             },
             // Range movement: in the other 4 directions (straight forwards/backwards and forwards diagonals)
             // For Black: N (1) | S (16) | NE (2) | NW (128) = 147 = 0x93
             // For White: S (16) | N (1) | SE (8) | SW (32) = 57 = 0x39 (adjusted automatically)
             range_capability(
-                0x93,  // N, S, NE, NW (for Black) - will be adjusted for White
+                0x93, // N, S, NE, NW (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
             // Jump movement: 3 spaces in all 3 forwards directions
@@ -1345,22 +1327,22 @@ pub fn great_master_movement() -> MovementConfig {
 /// For Black: Other 6 directions (range): N (1), S (16), E (4), W (64), NE (2), NW (128) = 215 = 0xD7
 /// For White: Other 6 directions (range): S (16), N (1), E (4), W (64), SE (8), SW (32) = 125 = 0x7D
 pub fn great_standard_movement() -> MovementConfig {
-    use crate::movement::types::{MovementCapability, BlockingMode};
-    
+    use crate::movement::types::{BlockingMode, MovementCapability};
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 3 spaces backwards diagonally
             // For Black: SE (8), SW (32) = 40 = 0x28
             // For White: NE (2), NW (128) = 130 = 0x82 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x28,  // SE, SW (for Black) - will be adjusted for White
+                directions: 0x28, // SE, SW (for Black) - will be adjusted for White
                 max_distance: 3,
             },
             // Range movement: in the other 6 directions (orthogonally and forwards diagonals)
             // For Black: N (1) | S (16) | E (4) | W (64) | NE (2) | NW (128) = 215 = 0xD7
             // For White: S (16) | N (1) | E (4) | W (64) | SE (8) | SW (32) = 125 = 0x7D (adjusted automatically)
             range_capability(
-                0xD7,  // N, S, E, W, NE, NW (for Black) - will be adjusted for White
+                0xD7, // N, S, E, W, NE, NW (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
         ],
@@ -1373,14 +1355,14 @@ pub fn great_standard_movement() -> MovementConfig {
 /// For White: S (16) | SE (8) | SW (32) = 56 = 0x38 (adjusted automatically)
 pub fn iron_general_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space in all 3 forward directions
             // For Black: N (1) | NE (2) | NW (128) = 131 = 0x83
             // For White: S (16) | SE (8) | SW (32) = 56 = 0x38 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x83,  // N, NE, NW (for Black) - will be adjusted for White
+                directions: 0x83, // N, NE, NW (for Black) - will be adjusted for White
                 max_distance: 1,
             },
         ],
@@ -1395,22 +1377,22 @@ pub fn iron_general_movement() -> MovementConfig {
 /// For Black: Forwards: N (1) | NE (2) | NW (128) = 131 = 0x83
 /// For White: Forwards: S (16) | SE (8) | SW (32) = 56 = 0x38 (adjusted automatically)
 pub fn running_ox_movement() -> MovementConfig {
-    use crate::movement::types::{BlockingMode};
-    
+    use crate::movement::types::BlockingMode;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 2 spaces straight backwards
             // For Black: S (16) = 0x10
             // For White: N (1) = 0x01 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x10,  // S (for Black) - will be adjusted for White
+                directions: 0x10, // S (for Black) - will be adjusted for White
                 max_distance: 2,
             },
             // Range movement: sideways and in all 3 forwards directions
             // For Black: E (4) | W (64) | N (1) | NE (2) | NW (128) = 199 = 0xC7
             // For White: E (4) | W (64) | S (16) | SE (8) | SW (32) = 124 = 0x7C (adjusted automatically)
             range_capability(
-                0xC7,  // E, W, N, NE, NW (for Black) - will be adjusted for White
+                0xC7, // E, W, N, NE, NW (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
         ],
@@ -1425,28 +1407,28 @@ pub fn running_ox_movement() -> MovementConfig {
 /// For Black: Forwards: N (1) | NE (2) | NW (128) = 131 = 0x83
 /// For White: Forwards: S (16) | SE (8) | SW (32) = 56 = 0x38 (adjusted automatically)
 pub fn bear_soldier_movement() -> MovementConfig {
-    use crate::movement::types::{MovementCapability, BlockingMode};
-    
+    use crate::movement::types::{BlockingMode, MovementCapability};
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space straight backwards
             // For Black: S (16) = 0x10
             // For White: N (1) = 0x01 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x10,  // S (for Black) - will be adjusted for White
+                directions: 0x10, // S (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Simple movement: up to 2 spaces sideways
             // E (4), W (64) = 68 = 0x44 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x44,  // E, W (same for both colors)
+                directions: 0x44, // E, W (same for both colors)
                 max_distance: 2,
             },
             // Range movement: in all 3 forwards directions
             // For Black: N (1) | NE (2) | NW (128) = 131 = 0x83
             // For White: S (16) | SE (8) | SW (32) = 56 = 0x38 (adjusted automatically)
             range_capability(
-                0x83,  // N, NE, NW (for Black) - will be adjusted for White
+                0x83, // N, NE, NW (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
         ],
@@ -1460,22 +1442,22 @@ pub fn bear_soldier_movement() -> MovementConfig {
 /// All other directions: For Black: N (1) | NE (2) | NW (128) | E (4) | W (64) = 199 = 0xC7
 ///                        For White: S (16) | SE (8) | SW (32) | E (4) | W (64) = 124 = 0x7C (adjusted automatically)
 pub fn strong_bear_movement() -> MovementConfig {
-    use crate::movement::types::{MovementCapability, BlockingMode};
-    
+    use crate::movement::types::{BlockingMode, MovementCapability};
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 2 spaces straight backwards
             // For Black: S (16) = 0x10
             // For White: N (1) = 0x01 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x10,  // S (for Black) - will be adjusted for White
+                directions: 0x10, // S (for Black) - will be adjusted for White
                 max_distance: 2,
             },
             // Range movement: in all other directions (forwards and sideways)
             // For Black: N (1) | NE (2) | NW (128) | E (4) | W (64) = 199 = 0xC7
             // For White: S (16) | SE (8) | SW (32) | E (4) | W (64) = 124 = 0x7C (adjusted automatically)
             range_capability(
-                0xC7,  // N, NE, NW, E, W (for Black) - will be adjusted for White
+                0xC7, // N, NE, NW, E, W (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
         ],
@@ -1490,14 +1472,14 @@ pub fn strong_bear_movement() -> MovementConfig {
 ///                     For White: N (1) = 0x01 (adjusted automatically)
 pub fn tile_general_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space in forwards diagonal and straight backwards directions
             // For Black: NE (2) | NW (128) | S (16) = 146 = 0x92
             // For White: SE (8) | SW (32) | N (1) = 41 = 0x29 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x92,  // NE, NW, S (for Black) - will be adjusted for White
+                directions: 0x92, // NE, NW, S (for Black) - will be adjusted for White
                 max_distance: 1,
             },
         ],
@@ -1512,28 +1494,28 @@ pub fn tile_general_movement() -> MovementConfig {
 /// For Black: Forwards: N (1) | NE (2) | NW (128) = 131 = 0x83
 /// For White: Forwards: S (16) | SE (8) | SW (32) = 56 = 0x38 (adjusted automatically)
 pub fn leopard_soldier_movement() -> MovementConfig {
-    use crate::movement::types::{MovementCapability, BlockingMode};
-    
+    use crate::movement::types::{BlockingMode, MovementCapability};
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space straight backwards
             // For Black: S (16) = 0x10
             // For White: N (1) = 0x01 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x10,  // S (for Black) - will be adjusted for White
+                directions: 0x10, // S (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Simple movement: up to 2 spaces sideways
             // E (4), W (64) = 68 = 0x44 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x44,  // E, W (same for both colors)
+                directions: 0x44, // E, W (same for both colors)
                 max_distance: 2,
             },
             // Range movement: in all 3 forwards directions
             // For Black: N (1) | NE (2) | NW (128) = 131 = 0x83
             // For White: S (16) | SE (8) | SW (32) = 56 = 0x38 (adjusted automatically)
             range_capability(
-                0x83,  // N, NE, NW (for Black) - will be adjusted for White
+                0x83, // N, NE, NW (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
         ],
@@ -1547,15 +1529,15 @@ pub fn leopard_soldier_movement() -> MovementConfig {
 /// For Black: N (1) | NE (2) | NW (128) | E (4) | W (64) = 199 = 0xC7
 /// For White: S (16) | SE (8) | SW (32) | E (4) | W (64) = 124 = 0x7C (adjusted automatically)
 pub fn running_leopard_movement() -> MovementConfig {
-    use crate::movement::types::{BlockingMode};
-    
+    use crate::movement::types::BlockingMode;
+
     MovementConfig {
         capabilities: vec![
             // Range movement: in all directions except the 3 backwards directions
             // For Black: N (1) | NE (2) | NW (128) | E (4) | W (64) = 199 = 0xC7
             // For White: S (16) | SE (8) | SW (32) | E (4) | W (64) = 124 = 0x7C (adjusted automatically)
             range_capability(
-                0xC7,  // N, NE, NW, E, W (for Black) - will be adjusted for White
+                0xC7, // N, NE, NW, E, W (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
         ],
@@ -1568,14 +1550,14 @@ pub fn running_leopard_movement() -> MovementConfig {
 /// For White: SE (8) | SW (32) = 40 = 0x28 (adjusted automatically)
 pub fn stone_general_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space in forward diagonal directions
             // For Black: NE (2) | NW (128) = 130 = 0x82
             // For White: SE (8) | SW (32) = 40 = 0x28 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x82,  // NE, NW (for Black) - will be adjusted for White
+                directions: 0x82, // NE, NW (for Black) - will be adjusted for White
                 max_distance: 1,
             },
         ],
@@ -1590,28 +1572,28 @@ pub fn stone_general_movement() -> MovementConfig {
 /// For Black: Forwards: N (1) | NE (2) | NW (128) = 131 = 0x83
 /// For White: Forwards: S (16) | SE (8) | SW (32) = 56 = 0x38 (adjusted automatically)
 pub fn boar_soldier_movement() -> MovementConfig {
-    use crate::movement::types::{MovementCapability, BlockingMode};
-    
+    use crate::movement::types::{BlockingMode, MovementCapability};
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space straight backwards
             // For Black: S (16) = 0x10
             // For White: N (1) = 0x01 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x10,  // S (for Black) - will be adjusted for White
+                directions: 0x10, // S (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Simple movement: up to 2 spaces sideways
             // E (4), W (64) = 68 = 0x44 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x44,  // E, W (same for both colors)
+                directions: 0x44, // E, W (same for both colors)
                 max_distance: 2,
             },
             // Range movement: in all 3 forwards directions
             // For Black: N (1) | NE (2) | NW (128) = 131 = 0x83
             // For White: S (16) | SE (8) | SW (32) = 56 = 0x38 (adjusted automatically)
             range_capability(
-                0x83,  // N, NE, NW (for Black) - will be adjusted for White
+                0x83, // N, NE, NW (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
         ],
@@ -1623,20 +1605,20 @@ pub fn boar_soldier_movement() -> MovementConfig {
 /// Sideways: E (4), W (64) = 68 = 0x44 (same for both colors)
 /// Vertically: N (1), S (16) = 17 = 0x11 (same for both colors)
 pub fn running_boar_movement() -> MovementConfig {
-    use crate::movement::types::{BlockingMode};
-    
+    use crate::movement::types::BlockingMode;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space sideways
             // E (4), W (64) = 68 = 0x44 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x44,  // E, W (same for both colors)
+                directions: 0x44, // E, W (same for both colors)
                 max_distance: 1,
             },
             // Range movement: vertically
             // N (1), S (16) = 17 = 0x11 (same for both colors)
             range_capability(
-                0x11,  // N, S (same for both colors)
+                0x11, // N, S (same for both colors)
                 BlockingMode::NoJump,
             ),
         ],
@@ -1647,13 +1629,12 @@ pub fn running_boar_movement() -> MovementConfig {
 /// Directions are relative to piece color (Black moves up, White moves down)
 /// Vertically: N (1), S (16) = 17 = 0x11 (same for both colors)
 pub fn earth_general_movement() -> MovementConfig {
-    
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space vertically
             // N (1), S (16) = 17 = 0x11 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x11,  // N, S (same for both colors)
+                directions: 0x11, // N, S (same for both colors)
                 max_distance: 1,
             },
         ],
@@ -1668,28 +1649,28 @@ pub fn earth_general_movement() -> MovementConfig {
 /// For Black: Forwards: N (1) | NE (2) | NW (128) = 131 = 0x83
 /// For White: Forwards: S (16) | SE (8) | SW (32) = 56 = 0x38 (adjusted automatically)
 pub fn ox_soldier_movement() -> MovementConfig {
-    use crate::movement::types::{MovementCapability, BlockingMode};
-    
+    use crate::movement::types::{BlockingMode, MovementCapability};
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space straight backwards
             // For Black: S (16) = 0x10
             // For White: N (1) = 0x01 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x10,  // S (for Black) - will be adjusted for White
+                directions: 0x10, // S (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Simple movement: up to 3 spaces sideways
             // E (4), W (64) = 68 = 0x44 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x44,  // E, W (same for both colors)
+                directions: 0x44, // E, W (same for both colors)
                 max_distance: 3,
             },
             // Range movement: in all 3 forwards directions
             // For Black: N (1) | NE (2) | NW (128) = 131 = 0x83
             // For White: S (16) | SE (8) | SW (32) = 56 = 0x38 (adjusted automatically)
             range_capability(
-                0x83,  // N, NE, NW (for Black) - will be adjusted for White
+                0x83, // N, NE, NW (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
         ],
@@ -1702,14 +1683,14 @@ pub fn ox_soldier_movement() -> MovementConfig {
 /// For White: SE (8) | SW (32) = 40 = 0x28 (adjusted automatically)
 pub fn wood_general_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 2 spaces forwards diagonally
             // For Black: NE (2) | NW (128) = 130 = 0x82
             // For White: SE (8) | SW (32) = 40 = 0x28 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x82,  // NE, NW (for Black) - will be adjusted for White
+                directions: 0x82, // NE, NW (for Black) - will be adjusted for White
                 max_distance: 2,
             },
         ],
@@ -1724,28 +1705,28 @@ pub fn wood_general_movement() -> MovementConfig {
 /// For Black: Forwards: N (1) | NE (2) | NW (128) = 131 = 0x83
 /// For White: Forwards: S (16) | SE (8) | SW (32) = 56 = 0x38 (adjusted automatically)
 pub fn horse_soldier_movement() -> MovementConfig {
-    use crate::movement::types::{MovementCapability, BlockingMode};
-    
+    use crate::movement::types::{BlockingMode, MovementCapability};
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space straight backwards
             // For Black: S (16) = 0x10
             // For White: N (1) = 0x01 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x10,  // S (for Black) - will be adjusted for White
+                directions: 0x10, // S (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Simple movement: up to 3 spaces sideways
             // E (4), W (64) = 68 = 0x44 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x44,  // E, W (same for both colors)
+                directions: 0x44, // E, W (same for both colors)
                 max_distance: 3,
             },
             // Range movement: in all 3 forwards directions
             // For Black: N (1) | NE (2) | NW (128) = 131 = 0x83
             // For White: S (16) | SE (8) | SW (32) = 56 = 0x38 (adjusted automatically)
             range_capability(
-                0x83,  // N, NE, NW (for Black) - will be adjusted for White
+                0x83, // N, NE, NW (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
         ],
@@ -1759,20 +1740,20 @@ pub fn horse_soldier_movement() -> MovementConfig {
 ///                     For White: SE (8) | SW (32) = 40 = 0x28 (adjusted automatically)
 pub fn mountain_general_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space vertically
             // N (1), S (16) = 17 = 0x11 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x11,  // N, S (same for both colors)
+                directions: 0x11, // N, S (same for both colors)
                 max_distance: 1,
             },
             // Simple movement: up to 3 spaces in forwards diagonal directions
             // For Black: NE (2) | NW (128) = 130 = 0x82
             // For White: SE (8) | SW (32) = 40 = 0x28 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x82,  // NE, NW (for Black) - will be adjusted for White
+                directions: 0x82, // NE, NW (for Black) - will be adjusted for White
                 max_distance: 3,
             },
         ],
@@ -1785,21 +1766,21 @@ pub fn mountain_general_movement() -> MovementConfig {
 ///                                For White: S (16) | E (4) | W (64) = 84 = 0x54 (adjusted automatically)
 /// Diagonally: NE (2), SE (8), SW (32), NW (128) = 170 = 0xAA (same for both colors)
 pub fn mount_tai_movement() -> MovementConfig {
-    use crate::movement::types::{MovementCapability, BlockingMode};
-    
+    use crate::movement::types::{BlockingMode, MovementCapability};
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 5 spaces orthogonally except backwards
             // For Black: N (1) | E (4) | W (64) = 69 = 0x45
             // For White: S (16) | E (4) | W (64) = 84 = 0x54 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x45,  // N, E, W (for Black) - will be adjusted for White
+                directions: 0x45, // N, E, W (for Black) - will be adjusted for White
                 max_distance: 5,
             },
             // Range movement: diagonally
             // NE (2), SE (8), SW (32), NW (128) = 170 = 0xAA (same for both colors)
             range_capability(
-                0xAA,  // NE, SE, SW, NW (same for both colors)
+                0xAA, // NE, SE, SW, NW (same for both colors)
                 BlockingMode::NoJump,
             ),
         ],
@@ -1816,21 +1797,21 @@ pub fn mount_tai_movement() -> MovementConfig {
 ///                   For White: S (16) = 0x10 (adjusted automatically)
 pub fn river_general_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space in forward diagonal and straight backward directions
             // For Black: NE (2) | NW (128) | S (16) = 146 = 0x92
             // For White: SE (8) | SW (32) | N (1) = 41 = 0x29 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x92,  // NE, NW, S (for Black) - will be adjusted for White
+                directions: 0x92, // NE, NW, S (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Simple movement: up to 3 spaces straight forwards
             // For Black: N (1) = 0x01
             // For White: S (16) = 0x10 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x01,  // N (for Black) - will be adjusted for White
+                directions: 0x01, // N (for Black) - will be adjusted for White
                 max_distance: 3,
             },
         ],
@@ -1843,20 +1824,20 @@ pub fn river_general_movement() -> MovementConfig {
 /// All other directions: For Black: NE (2) | NW (128) | E (4) | W (64) | SE (8) | SW (32) = 238 = 0xEE
 ///                        For White: SE (8) | SW (32) | E (4) | W (64) | NE (2) | NW (128) = 238 = 0xEE (same for both colors)
 pub fn huai_river_movement() -> MovementConfig {
-    use crate::movement::types::{MovementCapability, BlockingMode};
-    
+    use crate::movement::types::{BlockingMode, MovementCapability};
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space vertically
             // N (1), S (16) = 17 = 0x11 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x11,  // N, S (same for both colors)
+                directions: 0x11, // N, S (same for both colors)
                 max_distance: 1,
             },
             // Range movement: in all other directions (diagonally and sideways)
             // NE (2) | NW (128) | E (4) | W (64) | SE (8) | SW (32) = 238 = 0xEE (same for both colors)
             range_capability(
-                0xEE,  // NE, NW, E, W, SE, SW (same for both colors)
+                0xEE, // NE, NW, E, W, SE, SW (same for both colors)
                 BlockingMode::NoJump,
             ),
         ],
@@ -1867,21 +1848,21 @@ pub fn huai_river_movement() -> MovementConfig {
 /// Simple 1 space in forward diagonal and straight backward directions, simple up to 3 spaces straight forwards
 pub fn wind_general_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space in forward diagonal and straight backward directions
             // For Black: NE (2) | NW (128) | S (16) = 146 = 0x92
             // For White: SE (8) | SW (32) | N (1) = 41 = 0x29 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x92,  // NE, NW, S (for Black) - will be adjusted for White
+                directions: 0x92, // NE, NW, S (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Simple movement: up to 3 spaces straight forwards
             // For Black: N (1) = 0x01
             // For White: S (16) = 0x10 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x01,  // N (for Black) - will be adjusted for White
+                directions: 0x01, // N (for Black) - will be adjusted for White
                 max_distance: 3,
             },
         ],
@@ -1894,20 +1875,20 @@ pub fn wind_general_movement() -> MovementConfig {
 /// All other directions: For Black: N (1) | NE (2) | NW (128) | S (16) | SE (8) | SW (32) = 187 = 0xBB
 ///                        For White: S (16) | SE (8) | SW (32) | N (1) | NE (2) | NW (128) = 187 = 0xBB (same for both colors)
 pub fn fierce_wind_movement() -> MovementConfig {
-    use crate::movement::types::{MovementCapability, BlockingMode};
-    
+    use crate::movement::types::{BlockingMode, MovementCapability};
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space sideways
             // E (4), W (64) = 68 = 0x44 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x44,  // E, W (same for both colors)
+                directions: 0x44, // E, W (same for both colors)
                 max_distance: 1,
             },
             // Range movement: in all other directions (vertically and diagonally)
             // N (1) | NE (2) | NW (128) | S (16) | SE (8) | SW (32) = 187 = 0xBB (same for both colors)
             range_capability(
-                0xBB,  // N, NE, NW, S, SE, SW (same for both colors)
+                0xBB, // N, NE, NW, S, SE, SW (same for both colors)
                 BlockingMode::NoJump,
             ),
         ],
@@ -1922,28 +1903,28 @@ pub fn fierce_wind_movement() -> MovementConfig {
 /// Straight forwards: For Black: N (1) = 0x01
 ///                   For White: S (16) = 0x10 (adjusted automatically)
 pub fn vertical_soldier_movement() -> MovementConfig {
-    use crate::movement::types::{MovementCapability, BlockingMode};
-    
+    use crate::movement::types::{BlockingMode, MovementCapability};
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space straight backwards
             // For Black: S (16) = 0x10
             // For White: N (1) = 0x01 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x10,  // S (for Black) - will be adjusted for White
+                directions: 0x10, // S (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Simple movement: up to 2 spaces sideways
             // E (4), W (64) = 68 = 0x44 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x44,  // E, W (same for both colors)
+                directions: 0x44, // E, W (same for both colors)
                 max_distance: 2,
             },
             // Range movement: straight forwards
             // For Black: N (1) = 0x01
             // For White: S (16) = 0x10 (adjusted automatically)
             range_capability(
-                0x01,  // N (for Black) - will be adjusted for White
+                0x01, // N (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
         ],
@@ -1956,20 +1937,20 @@ pub fn vertical_soldier_movement() -> MovementConfig {
 /// All other directions: For Black: N (1) | NE (2) | NW (128) | S (16) | SE (8) | SW (32) = 187 = 0xBB
 ///                        For White: S (16) | SE (8) | SW (32) | N (1) | NE (2) | NW (128) = 187 = 0xBB (same for both colors)
 pub fn chariot_soldier_movement() -> MovementConfig {
-    use crate::movement::types::{MovementCapability, BlockingMode};
-    
+    use crate::movement::types::{BlockingMode, MovementCapability};
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 2 spaces sideways
             // E (4), W (64) = 68 = 0x44 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x44,  // E, W (same for both colors)
+                directions: 0x44, // E, W (same for both colors)
                 max_distance: 2,
             },
             // Range movement: in all other directions (vertically and diagonally)
             // N (1) | NE (2) | NW (128) | S (16) | SE (8) | SW (32) = 187 = 0xBB (same for both colors)
             range_capability(
-                0xBB,  // N, NE, NW, S, SE, SW (same for both colors)
+                0xBB, // N, NE, NW, S, SE, SW (same for both colors)
                 BlockingMode::NoJump,
             ),
         ],
@@ -1982,20 +1963,20 @@ pub fn chariot_soldier_movement() -> MovementConfig {
 /// All other directions: For Black: NE (2) | NW (128) | E (4) | W (64) | SE (8) | SW (32) = 238 = 0xEE
 ///                        For White: SE (8) | SW (32) | E (4) | W (64) | NE (2) | NW (128) = 238 = 0xEE (same for both colors)
 pub fn side_general_movement() -> MovementConfig {
-    use crate::movement::types::{MovementCapability, BlockingMode};
-    
+    use crate::movement::types::{BlockingMode, MovementCapability};
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 2 spaces vertically
             // N (1), S (16) = 17 = 0x11 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x11,  // N, S (same for both colors)
+                directions: 0x11, // N, S (same for both colors)
                 max_distance: 2,
             },
             // Range movement: in all other directions (diagonally and sideways)
             // NE (2) | NW (128) | E (4) | W (64) | SE (8) | SW (32) = 238 = 0xEE (same for both colors)
             range_capability(
-                0xEE,  // NE, NW, E, W, SE, SW (same for both colors)
+                0xEE, // NE, NW, E, W, SE, SW (same for both colors)
                 BlockingMode::NoJump,
             ),
         ],
@@ -2006,15 +1987,15 @@ pub fn side_general_movement() -> MovementConfig {
 /// Directions are relative to piece color (Black moves up, White moves down)
 /// All directions: N (1) | NE (2) | E (4) | SE (8) | S (16) | SW (32) | W (64) | NW (128) = 255 = 0xFF (same for both colors)
 pub fn shitennou_movement() -> MovementConfig {
-    use crate::movement::types::{BlockingMode};
-    
+    use crate::movement::types::BlockingMode;
+
     MovementConfig {
         capabilities: vec![
             // Range movement with jumping: in all 8 directions
             // N (1) | NE (2) | E (4) | SE (8) | S (16) | SW (32) | W (64) | NW (128) = 255 = 0xFF (same for both colors)
             range_capability(
-                0xFF,  // All 8 directions (same for both colors)
-                BlockingMode::Jump,  // Can jump over pieces
+                0xFF,               // All 8 directions (same for both colors)
+                BlockingMode::Jump, // Can jump over pieces
             ),
         ],
     }
@@ -2029,14 +2010,14 @@ pub fn shitennou_movement() -> MovementConfig {
 /// Note: Jump movement means it can jump over pieces, but is limited to 3 spaces. We use Jumping with all offsets 1-3.
 pub fn great_elephant_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 3 spaces in forward diagonal directions
             // For Black: NE (2) | NW (128) = 130 = 0x82
             // For White: SE (8) | SW (32) = 40 = 0x28 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x82,  // NE, NW (for Black) - will be adjusted for White
+                directions: 0x82, // NE, NW (for Black) - will be adjusted for White
                 max_distance: 3,
             },
             // Jump movement: up to 3 spaces in all other directions
@@ -2047,17 +2028,29 @@ pub fn great_elephant_movement() -> MovementConfig {
             MovementCapability::Jumping {
                 offsets: vec![
                     // N (for Black), S (for White): 1, 2, 3 spaces
-                    (0, -1), (0, -2), (0, -3),
+                    (0, -1),
+                    (0, -2),
+                    (0, -3),
                     // S (for Black), N (for White): 1, 2, 3 spaces
-                    (0, 1), (0, 2), (0, 3),
+                    (0, 1),
+                    (0, 2),
+                    (0, 3),
                     // E (same for both): 1, 2, 3 spaces
-                    (1, 0), (2, 0), (3, 0),
+                    (1, 0),
+                    (2, 0),
+                    (3, 0),
                     // W (same for both): 1, 2, 3 spaces
-                    (-1, 0), (-2, 0), (-3, 0),
+                    (-1, 0),
+                    (-2, 0),
+                    (-3, 0),
                     // SE (for Black), NE (for White): 1, 2, 3 spaces
-                    (1, 1), (2, 2), (3, 3),
+                    (1, 1),
+                    (2, 2),
+                    (3, 3),
                     // SW (for Black), NW (for White): 1, 2, 3 spaces
-                    (-1, 1), (-2, 2), (-3, 3),
+                    (-1, 1),
+                    (-2, 2),
+                    (-3, 3),
                 ],
             },
         ],
@@ -2075,21 +2068,21 @@ pub fn great_elephant_movement() -> MovementConfig {
 /// Sideways: E (4), W (64) = 68 = 0x44 (same for both colors)
 pub fn poisonous_serpent_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space straight backwards and forwards diagonals
             // For Black: S (16) | NE (2) | NW (128) = 146 = 0x92
             // For White: N (1) | SE (8) | SW (32) = 41 = 0x29 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x92,  // S, NE, NW (for Black) - will be adjusted for White
+                directions: 0x92, // S, NE, NW (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Simple movement: up to 2 spaces straight forwards and sideways
             // For Black: N (1) | E (4) | W (64) = 69 = 0x45
             // For White: S (16) | E (4) | W (64) = 84 = 0x54 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x45,  // N, E, W (for Black) - will be adjusted for White
+                directions: 0x45, // N, E, W (for Black) - will be adjusted for White
                 max_distance: 2,
             },
         ],
@@ -2103,22 +2096,22 @@ pub fn poisonous_serpent_movement() -> MovementConfig {
 /// All other directions: For Black: N (1) | E (4) | S (16) | W (64) | NE (2) | NW (128) = 199 = 0xC7
 ///                       For White: S (16) | E (4) | N (1) | W (64) | SE (8) | SW (32) = 125 = 0x7D (adjusted automatically)
 pub fn roaring_dog_movement() -> MovementConfig {
-    use crate::movement::types::{MovementCapability, BlockingMode};
-    
+    use crate::movement::types::{BlockingMode, MovementCapability};
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 3 spaces in backwards diagonal directions
             // For Black: SE (8) | SW (32) = 40 = 0x28
             // For White: NE (2) | NW (128) = 130 = 0x82 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x28,  // SE, SW (for Black) - will be adjusted for White
+                directions: 0x28, // SE, SW (for Black) - will be adjusted for White
                 max_distance: 3,
             },
             // Range movement: in all other directions
             // For Black: N (1) | E (4) | S (16) | W (64) | NE (2) | NW (128) = 199 = 0xC7
             // For White: S (16) | E (4) | N (1) | W (64) | SE (8) | SW (32) = 125 = 0x7D (adjusted automatically)
             MovementCapability::Range {
-                directions: 0xC7,  // N, E, S, W, NE, NW (for Black) - will be adjusted for White
+                directions: 0xC7, // N, E, S, W, NE, NW (for Black) - will be adjusted for White
                 blocking: BlockingMode::NoJump,
                 cannot_jump_over: PieceTypeSet::new(),
             },
@@ -2158,28 +2151,28 @@ pub fn roaring_dog_movement() -> MovementConfig {
 ///                   For White: S (16) = 0x10 (adjusted automatically)
 pub fn crossbow_soldier_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space straight backwards
             // For Black: S (16) = 0x10
             // For White: N (1) = 0x01 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x10,  // S (for Black) - will be adjusted for White
+                directions: 0x10, // S (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Simple movement: up to 3 spaces sideways and forwards diagonals (combined)
             // For Black: E (4) | W (64) | NE (2) | NW (128) = 0xC6
             // For White: E (4) | W (64) | SE (8) | SW (32) = 0x6C (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0xC6,  // E, W, NE, NW (for Black) - will be adjusted for White
+                directions: 0xC6, // E, W, NE, NW (for Black) - will be adjusted for White
                 max_distance: 3,
             },
             // Simple movement: up to 5 spaces straight forwards
             // For Black: N (1) = 0x01
             // For White: S (16) = 0x10 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x01,  // N (for Black) - will be adjusted for White
+                directions: 0x01, // N (for Black) - will be adjusted for White
                 max_distance: 5,
             },
         ],
@@ -2196,35 +2189,35 @@ pub fn crossbow_soldier_movement() -> MovementConfig {
 /// Straight forwards: For Black: N (1) = 0x01
 ///                   For White: S (16) = 0x10 (adjusted automatically)
 pub fn crossbow_general_movement() -> MovementConfig {
-    use crate::movement::types::{MovementCapability, BlockingMode};
-    
+    use crate::movement::types::{BlockingMode, MovementCapability};
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 2 spaces straight backwards
             // For Black: S (16) = 0x10
             // For White: N (1) = 0x01 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x10,  // S (for Black) - will be adjusted for White
+                directions: 0x10, // S (for Black) - will be adjusted for White
                 max_distance: 2,
             },
             // Simple movement: up to 3 spaces sideways
             // E (4), W (64) = 68 = 0x44 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x44,  // E, W (same for both colors)
+                directions: 0x44, // E, W (same for both colors)
                 max_distance: 3,
             },
             // Simple movement: up to 5 spaces in forwards diagonal directions
             // For Black: NE (2) | NW (128) = 130 = 0x82
             // For White: SE (8) | SW (32) = 40 = 0x28 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x82,  // NE, NW (for Black) - will be adjusted for White
+                directions: 0x82, // NE, NW (for Black) - will be adjusted for White
                 max_distance: 5,
             },
             // Range movement: straight forwards
             // For Black: N (1) = 0x01
             // For White: S (16) = 0x10 (adjusted automatically)
             MovementCapability::Range {
-                directions: 0x01,  // N (for Black) - will be adjusted for White
+                directions: 0x01, // N (for Black) - will be adjusted for White
                 blocking: BlockingMode::NoJump,
                 cannot_jump_over: PieceTypeSet::new(),
             },
@@ -2243,34 +2236,34 @@ pub fn crossbow_general_movement() -> MovementConfig {
 ///                   For White: S (16) = 0x10 (adjusted automatically)
 pub fn cannon_soldier_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space straight backwards
             // For Black: S (16) = 0x10
             // For White: N (1) = 0x01 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x10,  // S (for Black) - will be adjusted for White
+                directions: 0x10, // S (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Simple movement: up to 3 spaces sideways
             // E (4), W (64) = 68 = 0x44 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x44,  // E, W (same for both colors)
+                directions: 0x44, // E, W (same for both colors)
                 max_distance: 3,
             },
             // Simple movement: up to 5 spaces in forwards diagonal directions
             // For Black: NE (2) | NW (128) = 130 = 0x82
             // For White: SE (8) | SW (32) = 40 = 0x28 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x82,  // NE, NW (for Black) - will be adjusted for White
+                directions: 0x82, // NE, NW (for Black) - will be adjusted for White
                 max_distance: 5,
             },
             // Simple movement: up to 7 spaces straight forwards
             // For Black: N (1) = 0x01
             // For White: S (16) = 0x10 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x01,  // N (for Black) - will be adjusted for White
+                directions: 0x01, // N (for Black) - will be adjusted for White
                 max_distance: 7,
             },
         ],
@@ -2285,28 +2278,28 @@ pub fn cannon_soldier_movement() -> MovementConfig {
 /// All 3 forwards directions: For Black: N (1) | NE (2) | NW (128) = 131 = 0x83
 ///                            For White: S (16) | SE (8) | SW (32) = 56 = 0x38 (adjusted automatically)
 pub fn cannon_general_movement() -> MovementConfig {
-    use crate::movement::types::{MovementCapability, BlockingMode};
-    
+    use crate::movement::types::{BlockingMode, MovementCapability};
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 2 spaces straight backwards
             // For Black: S (16) = 0x10
             // For White: N (1) = 0x01 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x10,  // S (for Black) - will be adjusted for White
+                directions: 0x10, // S (for Black) - will be adjusted for White
                 max_distance: 2,
             },
             // Simple movement: up to 3 spaces sideways
             // E (4), W (64) = 68 = 0x44 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x44,  // E, W (same for both colors)
+                directions: 0x44, // E, W (same for both colors)
                 max_distance: 3,
             },
             // Range movement: in all 3 forwards directions
             // For Black: N (1) | NE (2) | NW (128) = 131 = 0x83
             // For White: S (16) | SE (8) | SW (32) = 56 = 0x38 (adjusted automatically)
             MovementCapability::Range {
-                directions: 0x83,  // N, NE, NW (for Black) - will be adjusted for White
+                directions: 0x83, // N, NE, NW (for Black) - will be adjusted for White
                 blocking: BlockingMode::NoJump,
                 cannot_jump_over: PieceTypeSet::new(),
             },
@@ -2321,22 +2314,22 @@ pub fn cannon_general_movement() -> MovementConfig {
 /// Straight forwards: For Black: N (1) = 0x01
 ///                   For White: S (16) = 0x10 (adjusted automatically)
 pub fn vertical_horse_movement() -> MovementConfig {
-    use crate::movement::types::{MovementCapability, BlockingMode};
-    
+    use crate::movement::types::{BlockingMode, MovementCapability};
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space in forwards diagonal and straight backwards directions
             // For Black: NE (2) | NW (128) | S (16) = 146 = 0x92
             // For White: SE (8) | SW (32) | N (1) = 41 = 0x29 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x92,  // NE, NW, S (for Black) - will be adjusted for White
+                directions: 0x92, // NE, NW, S (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Range movement: straight forwards
             // For Black: N (1) = 0x01
             // For White: S (16) = 0x10 (adjusted automatically)
             MovementCapability::Range {
-                directions: 0x01,  // N (for Black) - will be adjusted for White
+                directions: 0x01, // N (for Black) - will be adjusted for White
                 blocking: BlockingMode::NoJump,
                 cannot_jump_over: PieceTypeSet::new(),
             },
@@ -2351,22 +2344,22 @@ pub fn vertical_horse_movement() -> MovementConfig {
 /// Straight forwards: For Black: N (1) = 0x01
 ///                   For White: S (16) = 0x10 (adjusted automatically)
 pub fn vertical_pup_movement() -> MovementConfig {
-    use crate::movement::types::{MovementCapability, BlockingMode};
-    
+    use crate::movement::types::{BlockingMode, MovementCapability};
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space in all 3 backwards directions
             // For Black: S (16) | SW (32) | SE (8) = 56 = 0x38
             // For White: N (1) | NE (2) | NW (128) = 131 = 0x83 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x38,  // S, SW, SE (for Black) - will be adjusted for White
+                directions: 0x38, // S, SW, SE (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Range movement: straight forwards
             // For Black: N (1) = 0x01
             // For White: S (16) = 0x10 (adjusted automatically)
             MovementCapability::Range {
-                directions: 0x01,  // N (for Black) - will be adjusted for White
+                directions: 0x01, // N (for Black) - will be adjusted for White
                 blocking: BlockingMode::NoJump,
                 cannot_jump_over: PieceTypeSet::new(),
             },
@@ -2379,13 +2372,13 @@ pub fn vertical_pup_movement() -> MovementConfig {
 /// All directions: N (1) | NE (2) | E (4) | SE (8) | S (16) | SW (32) | W (64) | NW (128) = 255 = 0xFF (same for both colors)
 pub fn leopard_king_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 5 spaces in all 8 directions
             // N (1) | NE (2) | E (4) | SE (8) | S (16) | SW (32) | W (64) | NW (128) = 255 = 0xFF (same for both colors)
             MovementCapability::Simple {
-                directions: 0xFF,  // All 8 directions (same for both colors)
+                directions: 0xFF, // All 8 directions (same for both colors)
                 max_distance: 5,
             },
         ],
@@ -2402,35 +2395,35 @@ pub fn leopard_king_movement() -> MovementConfig {
 /// Straight forwards: For Black: N (1) = 0x01
 ///                   For White: S (16) = 0x10 (adjusted automatically)
 pub fn longbow_soldier_movement() -> MovementConfig {
-    use crate::movement::types::{MovementCapability, BlockingMode};
-    
+    use crate::movement::types::{BlockingMode, MovementCapability};
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space straight backwards
             // For Black: S (16) = 0x10
             // For White: N (1) = 0x01 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x10,  // S (for Black) - will be adjusted for White
+                directions: 0x10, // S (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Simple movement: up to 2 spaces sideways
             // E (4), W (64) = 68 = 0x44 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x44,  // E, W (same for both colors)
+                directions: 0x44, // E, W (same for both colors)
                 max_distance: 2,
             },
             // Simple movement: up to 5 spaces in forwards diagonal directions
             // For Black: NE (2) | NW (128) = 130 = 0x82
             // For White: SE (8) | SW (32) = 40 = 0x28 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x82,  // NE, NW (for Black) - will be adjusted for White
+                directions: 0x82, // NE, NW (for Black) - will be adjusted for White
                 max_distance: 5,
             },
             // Range movement: straight forwards
             // For Black: N (1) = 0x01
             // For White: S (16) = 0x10 (adjusted automatically)
             MovementCapability::Range {
-                directions: 0x01,  // N (for Black) - will be adjusted for White
+                directions: 0x01, // N (for Black) - will be adjusted for White
                 blocking: BlockingMode::NoJump,
                 cannot_jump_over: PieceTypeSet::new(),
             },
@@ -2444,21 +2437,21 @@ pub fn longbow_soldier_movement() -> MovementConfig {
 /// All 3 forwards directions and straight backwards: For Black: N (1) | NE (2) | NW (128) | S (16) = 147 = 0x93
 ///                                                  For White: S (16) | SE (8) | SW (32) | N (1) = 57 = 0x39 (adjusted automatically)
 pub fn longbow_general_movement() -> MovementConfig {
-    use crate::movement::types::{MovementCapability, BlockingMode};
-    
+    use crate::movement::types::{BlockingMode, MovementCapability};
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 5 spaces sideways
             // E (4), W (64) = 68 = 0x44 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x44,  // E, W (same for both colors)
+                directions: 0x44, // E, W (same for both colors)
                 max_distance: 5,
             },
             // Range movement: in all 3 forwards directions and straight backwards
             // For Black: N (1) | NE (2) | NW (128) | S (16) = 147 = 0x93
             // For White: S (16) | SE (8) | SW (32) | N (1) = 57 = 0x39 (adjusted automatically)
             MovementCapability::Range {
-                directions: 0x93,  // N, NE, NW, S (for Black) - will be adjusted for White
+                directions: 0x93, // N, NE, NW, S (for Black) - will be adjusted for White
                 blocking: BlockingMode::NoJump,
                 cannot_jump_over: PieceTypeSet::new(),
             },
@@ -2472,21 +2465,21 @@ pub fn longbow_general_movement() -> MovementConfig {
 ///                                          For White: SE (8) | SW (32) | N (1) = 41 = 0x29 (adjusted automatically)
 /// Sideways: E (4), W (64) = 68 = 0x44 (same for both colors)
 pub fn side_monkey_movement() -> MovementConfig {
-    use crate::movement::types::{MovementCapability, BlockingMode};
-    
+    use crate::movement::types::{BlockingMode, MovementCapability};
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space forwards diagonally and straight backwards
             // For Black: NE (2) | NW (128) | S (16) = 146 = 0x92
             // For White: SE (8) | SW (32) | N (1) = 41 = 0x29 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x92,  // NE, NW, S (for Black) - will be adjusted for White
+                directions: 0x92, // NE, NW, S (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Range movement: sideways
             // E (4), W (64) = 68 = 0x44 (same for both colors)
             MovementCapability::Range {
-                directions: 0x44,  // E, W (same for both colors)
+                directions: 0x44, // E, W (same for both colors)
                 blocking: BlockingMode::NoJump,
                 cannot_jump_over: PieceTypeSet::new(),
             },
@@ -2501,22 +2494,22 @@ pub fn side_monkey_movement() -> MovementConfig {
 /// Straight forwards, forwards right, and backwards left: For Black: N (1) | NE (2) | SW (32) = 35 = 0x23
 ///                                                      For White: S (16) | SE (8) | NW (128) = 152 = 0x98 (adjusted automatically)
 pub fn left_chariot_movement() -> MovementConfig {
-    use crate::movement::types::{MovementCapability, BlockingMode};
-    
+    use crate::movement::types::{BlockingMode, MovementCapability};
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space leftwards
             // For Black: W (64) = 0x40
             // For White: E (4) = 0x04 (mirrored - left for Black is right for White)
             MovementCapability::Simple {
-                directions: 0x40,  // W (for Black) - will be adjusted for White (becomes E)
+                directions: 0x40, // W (for Black) - will be adjusted for White (becomes E)
                 max_distance: 1,
             },
             // Range movement: straight forwards, forwards right, and backwards left
             // For Black: N (1) | NE (2) | SW (32) = 35 = 0x23
             // For White: S (16) | SE (8) | NW (128) = 152 = 0x98 (adjusted automatically)
             MovementCapability::Range {
-                directions: 0x23,  // N, NE, SW (for Black) - will be adjusted for White
+                directions: 0x23, // N, NE, SW (for Black) - will be adjusted for White
                 blocking: BlockingMode::NoJump,
                 cannot_jump_over: PieceTypeSet::new(),
             },
@@ -2531,22 +2524,22 @@ pub fn left_chariot_movement() -> MovementConfig {
 /// Diagonally except forwards left: For Black: NE (2) | SE (8) | SW (32) = 42 = 0x2A (excludes NW (128))
 ///                                  For White: NW (128) | NE (2) | SW (32) = 162 = 0xA2 (excludes SE (8), adjusted automatically)
 pub fn left_iron_chariot_movement() -> MovementConfig {
-    use crate::movement::types::{MovementCapability, BlockingMode};
-    
+    use crate::movement::types::{BlockingMode, MovementCapability};
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space leftwards
             // For Black: W (64) = 0x40
             // For White: E (4) = 0x04 (mirrored)
             MovementCapability::Simple {
-                directions: 0x40,  // W (for Black) - will be adjusted for White (becomes E)
+                directions: 0x40, // W (for Black) - will be adjusted for White (becomes E)
                 max_distance: 1,
             },
             // Range movement: diagonally except forwards left
             // For Black: NE (2) | SE (8) | SW (32) = 42 = 0x2A (excludes NW (128))
             // For White: NW (128) | NE (2) | SW (32) = 162 = 0xA2 (excludes SE (8), adjusted automatically)
             MovementCapability::Range {
-                directions: 0x2A,  // NE, SE, SW (for Black) - will be adjusted for White
+                directions: 0x2A, // NE, SE, SW (for Black) - will be adjusted for White
                 blocking: BlockingMode::NoJump,
                 cannot_jump_over: PieceTypeSet::new(),
             },
@@ -2561,22 +2554,22 @@ pub fn left_iron_chariot_movement() -> MovementConfig {
 /// Straight forwards, forwards left, and backwards right: For Black: N (1) | NW (128) | SE (8) = 137 = 0x89
 ///                                                       For White: S (16) | SW (32) | NE (2) = 50 = 0x32 (adjusted automatically)
 pub fn right_chariot_movement() -> MovementConfig {
-    use crate::movement::types::{MovementCapability, BlockingMode};
-    
+    use crate::movement::types::{BlockingMode, MovementCapability};
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space rightwards
             // For Black: E (4) = 0x04
             // For White: W (64) = 0x40 (mirrored - right for Black is left for White)
             MovementCapability::Simple {
-                directions: 0x04,  // E (for Black) - will be adjusted for White (becomes W)
+                directions: 0x04, // E (for Black) - will be adjusted for White (becomes W)
                 max_distance: 1,
             },
             // Range movement: straight forwards, forwards left, and backwards right
             // For Black: N (1) | NW (128) | SE (8) = 137 = 0x89
             // For White: S (16) | SW (32) | NE (2) = 50 = 0x32 (adjusted automatically)
             MovementCapability::Range {
-                directions: 0x89,  // N, NW, SE (for Black) - will be adjusted for White
+                directions: 0x89, // N, NW, SE (for Black) - will be adjusted for White
                 blocking: BlockingMode::NoJump,
                 cannot_jump_over: PieceTypeSet::new(),
             },
@@ -2591,22 +2584,22 @@ pub fn right_chariot_movement() -> MovementConfig {
 /// Diagonally except forwards right: For Black: NW (128) | SE (8) | SW (32) = 168 = 0xA8 (excludes NE (2))
 ///                                   For White: NE (2) | SW (32) | SE (8) = 42 = 0x2A (excludes NW (128), adjusted automatically)
 pub fn right_iron_chariot_movement() -> MovementConfig {
-    use crate::movement::types::{MovementCapability, BlockingMode};
-    
+    use crate::movement::types::{BlockingMode, MovementCapability};
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space rightwards
             // For Black: E (4) = 0x04
             // For White: W (64) = 0x40 (mirrored)
             MovementCapability::Simple {
-                directions: 0x04,  // E (for Black) - will be adjusted for White (becomes W)
+                directions: 0x04, // E (for Black) - will be adjusted for White (becomes W)
                 max_distance: 1,
             },
             // Range movement: diagonally except forwards right
             // For Black: NW (128) | SE (8) | SW (32) = 168 = 0xA8 (excludes NE (2))
             // For White: NE (2) | SW (32) | SE (8) = 42 = 0x2A (excludes NW (128), adjusted automatically)
             MovementCapability::Range {
-                directions: 0xA8,  // NW, SE, SW (for Black) - will be adjusted for White
+                directions: 0xA8, // NW, SE, SW (for Black) - will be adjusted for White
                 blocking: BlockingMode::NoJump,
                 cannot_jump_over: PieceTypeSet::new(),
             },
@@ -2619,15 +2612,15 @@ pub fn right_iron_chariot_movement() -> MovementConfig {
 /// Straight forwards: For Black: N (1) = 0x01
 ///                   For White: S (16) = 0x10 (adjusted automatically)
 pub fn fierce_tiger_movement() -> MovementConfig {
-    use crate::movement::types::{MovementCapability, BlockingMode};
-    
+    use crate::movement::types::{BlockingMode, MovementCapability};
+
     MovementConfig {
         capabilities: vec![
             // Range movement: straight forwards
             // For Black: N (1) = 0x01
             // For White: S (16) = 0x10 (adjusted automatically)
             MovementCapability::Range {
-                directions: 0x01,  // N (for Black) - will be adjusted for White
+                directions: 0x01, // N (for Black) - will be adjusted for White
                 blocking: BlockingMode::NoJump,
                 cannot_jump_over: PieceTypeSet::new(),
             },
@@ -2642,22 +2635,22 @@ pub fn fierce_tiger_movement() -> MovementConfig {
 /// Other orthogonal directions: For Black: E (4) | S (16) | W (64) = 84 = 0x54
 ///                              For White: E (4) | N (1) | W (64) = 69 = 0x45 (adjusted automatically)
 pub fn great_tiger_movement() -> MovementConfig {
-    use crate::movement::types::{MovementCapability, BlockingMode};
-    
+    use crate::movement::types::{BlockingMode, MovementCapability};
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space straight forwards
             // For Black: N (1) = 0x01
             // For White: S (16) = 0x10 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x01,  // N (for Black) - will be adjusted for White
+                directions: 0x01, // N (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Range movement: in other orthogonal directions (E, S, W for Black; E, N, W for White)
             // For Black: E (4) | S (16) | W (64) = 84 = 0x54
             // For White: E (4) | N (1) | W (64) = 69 = 0x45 (adjusted automatically)
             MovementCapability::Range {
-                directions: 0x54,  // E, S, W (for Black) - will be adjusted for White
+                directions: 0x54, // E, S, W (for Black) - will be adjusted for White
                 blocking: BlockingMode::NoJump,
                 cannot_jump_over: PieceTypeSet::new(),
             },
@@ -2677,22 +2670,22 @@ pub fn great_tiger_movement() -> MovementConfig {
 /// Straight forwards: For Black: N (1) = 0x01
 ///                   For White: S (16) = 0x10 (adjusted automatically)
 pub fn vertical_leopard_movement() -> MovementConfig {
-    use crate::movement::types::{MovementCapability, BlockingMode};
-    
+    use crate::movement::types::{BlockingMode, MovementCapability};
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space in forwards diagonal, sideways, and straight backwards directions
             // For Black: NE (2) | NW (128) | E (4) | W (64) | S (16) = 0xD6
             // For White: SE (8) | SW (32) | E (4) | W (64) | N (1) = 0x6D (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0xD6,  // NE, NW, E, W, S (for Black) - will be adjusted for White
+                directions: 0xD6, // NE, NW, E, W, S (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Range movement: straight forwards
             // For Black: N (1) = 0x01
             // For White: S (16) = 0x10 (adjusted automatically)
             MovementCapability::Range {
-                directions: 0x01,  // N (for Black) - will be adjusted for White
+                directions: 0x01, // N (for Black) - will be adjusted for White
                 blocking: BlockingMode::NoJump,
                 cannot_jump_over: PieceTypeSet::new(),
             },
@@ -2710,35 +2703,35 @@ pub fn vertical_leopard_movement() -> MovementConfig {
 /// Straight forwards: For Black: N (1) = 0x01
 ///                   For White: S (16) = 0x10 (adjusted automatically)
 pub fn great_leopard_movement() -> MovementConfig {
-    use crate::movement::types::{MovementCapability, BlockingMode};
-    
+    use crate::movement::types::{BlockingMode, MovementCapability};
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space straight backwards
             // For Black: S (16) = 0x10
             // For White: N (1) = 0x01 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x10,  // S (for Black) - will be adjusted for White
+                directions: 0x10, // S (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Simple movement: 2 spaces sideways
             // E (4), W (64) = 68 = 0x44 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x44,  // E, W (same for both colors)
+                directions: 0x44, // E, W (same for both colors)
                 max_distance: 2,
             },
             // Simple movement: 3 spaces in forwards diagonal directions
             // For Black: NE (2) | NW (128) = 130 = 0x82
             // For White: SE (8) | SW (32) = 40 = 0x28 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x82,  // NE, NW (for Black) - will be adjusted for White
+                directions: 0x82, // NE, NW (for Black) - will be adjusted for White
                 max_distance: 3,
             },
             // Range movement: straight forwards
             // For Black: N (1) = 0x01
             // For White: S (16) = 0x10 (adjusted automatically)
             MovementCapability::Range {
-                directions: 0x01,  // N (for Black) - will be adjusted for White
+                directions: 0x01, // N (for Black) - will be adjusted for White
                 blocking: BlockingMode::NoJump,
                 cannot_jump_over: PieceTypeSet::new(),
             },
@@ -2756,22 +2749,22 @@ pub fn great_leopard_movement() -> MovementConfig {
 /// Straight forwards: For Black: N (1) = 0x01
 ///                   For White: S (16) = 0x10 (adjusted automatically)
 pub fn spear_soldier_movement() -> MovementConfig {
-    use crate::movement::types::{MovementCapability, BlockingMode};
-    
+    use crate::movement::types::{BlockingMode, MovementCapability};
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space sideways and straight backwards
             // For Black: E (4) | W (64) | S (16) = 0x54
             // For White: E (4) | W (64) | N (1) = 0x45 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x54,  // E, W, S (for Black) - will be adjusted for White
+                directions: 0x54, // E, W, S (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Range movement: straight forwards
             // For Black: N (1) = 0x01
             // For White: S (16) = 0x10 (adjusted automatically)
             MovementCapability::Range {
-                directions: 0x01,  // N (for Black) - will be adjusted for White
+                directions: 0x01, // N (for Black) - will be adjusted for White
                 blocking: BlockingMode::NoJump,
                 cannot_jump_over: PieceTypeSet::new(),
             },
@@ -2787,28 +2780,28 @@ pub fn spear_soldier_movement() -> MovementConfig {
 /// Straight forwards: For Black: N (1) = 0x01
 ///                   For White: S (16) = 0x10 (adjusted automatically)
 pub fn spear_general_movement() -> MovementConfig {
-    use crate::movement::types::{MovementCapability, BlockingMode};
-    
+    use crate::movement::types::{BlockingMode, MovementCapability};
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 2 spaces straight backwards
             // For Black: S (16) = 0x10
             // For White: N (1) = 0x01 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x10,  // S (for Black) - will be adjusted for White
+                directions: 0x10, // S (for Black) - will be adjusted for White
                 max_distance: 2,
             },
             // Simple movement: up to 3 spaces sideways
             // E (4), W (64) = 68 = 0x44 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x44,  // E, W (same for both colors)
+                directions: 0x44, // E, W (same for both colors)
                 max_distance: 3,
             },
             // Range movement: straight forwards
             // For Black: N (1) = 0x01
             // For White: S (16) = 0x10 (adjusted automatically)
             MovementCapability::Range {
-                directions: 0x01,  // N (for Black) - will be adjusted for White
+                directions: 0x01, // N (for Black) - will be adjusted for White
                 blocking: BlockingMode::NoJump,
                 cannot_jump_over: PieceTypeSet::new(),
             },
@@ -2823,23 +2816,23 @@ pub fn spear_general_movement() -> MovementConfig {
 /// All other directions: For Black: N (1) | E (4) | S (16) | W (64) | SE (8) | SW (32) = 125 = 0x7D
 ///                       For White: S (16) | E (4) | N (1) | W (64) | NE (2) | NW (128) = 199 = 0xC7 (adjusted automatically)
 pub fn great_eagle_movement() -> MovementConfig {
-    use crate::movement::types::{MovementCapability, BlockingMode};
-    
+    use crate::movement::types::{BlockingMode, MovementCapability};
+
     MovementConfig {
         capabilities: vec![
             // Range movement with jumping: in forward diagonal directions
             // For Black: NE (2) | NW (128) = 130 = 0x82
             // For White: SE (8) | SW (32) = 40 = 0x28 (adjusted automatically)
             MovementCapability::Range {
-                directions: 0x82,  // NE, NW (for Black) - will be adjusted for White
-                blocking: BlockingMode::Jump,  // Can jump over pieces
+                directions: 0x82,             // NE, NW (for Black) - will be adjusted for White
+                blocking: BlockingMode::Jump, // Can jump over pieces
                 cannot_jump_over: PieceTypeSet::new(),
             },
             // Range movement (normal): in all other directions
             // For Black: N (1) | E (4) | S (16) | W (64) | SE (8) | SW (32) = 125 = 0x7D
             // For White: S (16) | E (4) | N (1) | W (64) | NE (2) | NW (128) = 199 = 0xC7 (adjusted automatically)
             MovementCapability::Range {
-                directions: 0x7D,  // N, E, S, W, SE, SW (for Black) - will be adjusted for White
+                directions: 0x7D, // N, E, S, W, SE, SW (for Black) - will be adjusted for White
                 blocking: BlockingMode::NoJump,
                 cannot_jump_over: PieceTypeSet::new(),
             },
@@ -2854,22 +2847,22 @@ pub fn great_eagle_movement() -> MovementConfig {
 /// All other directions: For Black: NE (2) | E (4) | SE (8) | S (16) | SW (32) | W (64) | NW (128) = 254 = 0xFE
 ///                       For White: SE (8) | E (4) | NE (2) | S (16) | NW (128) | W (64) | SW (32) = 254 = 0xFE (same for both colors)
 pub fn great_hawk_movement() -> MovementConfig {
-    use crate::movement::types::{BlockingMode};
-    
+    use crate::movement::types::BlockingMode;
+
     MovementConfig {
         capabilities: vec![
             // Range movement with jumping: straight forwards
             // For Black: N (1) = 0x01
             // For White: S (16) = 0x10 (adjusted automatically)
             MovementCapability::Range {
-                directions: 0x01,  // N (for Black) - will be adjusted for White
-                blocking: BlockingMode::Jump,  // Can jump over pieces
+                directions: 0x01,             // N (for Black) - will be adjusted for White
+                blocking: BlockingMode::Jump, // Can jump over pieces
                 cannot_jump_over: PieceTypeSet::new(),
             },
             // Range movement (normal): in all other directions
             // NE (2) | E (4) | SE (8) | S (16) | SW (32) | W (64) | NW (128) = 254 = 0xFE (same for both colors)
             MovementCapability::Range {
-                directions: 0xFE,  // All directions except N (for Black) - will be adjusted for White
+                directions: 0xFE, // All directions except N (for Black) - will be adjusted for White
                 blocking: BlockingMode::NoJump,
                 cannot_jump_over: PieceTypeSet::new(),
             },
@@ -2887,14 +2880,14 @@ pub fn great_hawk_movement() -> MovementConfig {
 ///           For White: 0x28 | 0x01 = 0x29 (adjusted automatically)
 pub fn sword_soldier_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space in forwards diagonal and straight backwards directions
             // For Black: NE (2) | NW (128) | S (16) = 0x92
             // For White: SE (8) | SW (32) | N (1) = 0x29 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x92,  // NE, NW, S (for Black) - will be adjusted for White
+                directions: 0x92, // NE, NW, S (for Black) - will be adjusted for White
                 max_distance: 1,
             },
         ],
@@ -2909,21 +2902,21 @@ pub fn sword_soldier_movement() -> MovementConfig {
 ///                    For White: SE (8) | SW (32) = 40 = 0x28 (adjusted automatically)
 pub fn sword_general_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space straight backwards
             // For Black: S (16) = 0x10
             // For White: N (1) = 0x01 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x10,  // S (for Black) - will be adjusted for White
+                directions: 0x10, // S (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Simple movement: up to 3 spaces in forwards diagonal directions
             // For Black: NE (2) | NW (128) = 130 = 0x82
             // For White: SE (8) | SW (32) = 40 = 0x28 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x82,  // NE, NW (for Black) - will be adjusted for White
+                directions: 0x82, // NE, NW (for Black) - will be adjusted for White
                 max_distance: 3,
             },
         ],
@@ -2936,17 +2929,17 @@ pub fn sword_general_movement() -> MovementConfig {
 /// Jump: 2 spaces in all diagonal directions
 pub fn flying_dragon_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Jump movement: 2 spaces in all 4 diagonal directions
             // NE (2, 2), SE (2, -2), SW (-2, -2), NW (-2, 2)
             MovementCapability::Jumping {
                 offsets: vec![
-                    (2, 2),    // NE for Black
-                    (2, -2),   // SE for Black
-                    (-2, -2),  // SW for Black
-                    (-2, 2),   // NW for Black
+                    (2, 2),   // NE for Black
+                    (2, -2),  // SE for Black
+                    (-2, -2), // SW for Black
+                    (-2, 2),  // NW for Black
                 ],
             },
         ],
@@ -2960,22 +2953,22 @@ pub fn flying_dragon_movement() -> MovementConfig {
 /// Sideways: E (4), W (64) = 68 = 0x44 (same for both colors)
 /// Diagonally: All 4 diagonals NE (2), SE (8), SW (32), NW (128) = 170 = 0xAA (same for both colors)
 pub fn fierce_eagle_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::direction::DIRECTION_SET_DIAGONAL;
-    
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space straight forwards and sideways
             // For Black: N (1) | E (4) | W (64) = 69 = 0x45
             // For White: S (16) | E (4) | W (64) = 84 = 0x54 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x45,  // N, E, W (for Black) - will be adjusted for White
+                directions: 0x45, // N, E, W (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Simple movement: up to 2 spaces diagonally
             // All 4 diagonals NE (2), SE (8), SW (32), NW (128) = 170 = 0xAA (same for both colors)
             MovementCapability::Simple {
-                directions: DIRECTION_SET_DIAGONAL,  // All diagonals (same for both colors)
+                directions: DIRECTION_SET_DIAGONAL, // All diagonals (same for both colors)
                 max_distance: 2,
             },
         ],
@@ -2989,14 +2982,14 @@ pub fn fierce_eagle_movement() -> MovementConfig {
 /// Sideways: E (4), W (64) = 68 = 0x44 (excluded)
 pub fn fierce_leopard_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space in all directions except sideways
             // For Black: N (1) | NE (2) | SE (8) | S (16) | SW (32) | NW (128) = 187 = 0xBB
             // For White: S (16) | SW (32) | NW (128) | N (1) | NE (2) | SE (8) = 187 = 0xBB (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0xBB,  // All directions except E, W (for Black) - will be adjusted for White
+                directions: 0xBB, // All directions except E, W (for Black) - will be adjusted for White
                 max_distance: 1,
             },
         ],
@@ -3008,21 +3001,21 @@ pub fn fierce_leopard_movement() -> MovementConfig {
 /// Vertically: N (1), S (16) = 17 = 0x11 (same for both colors)
 /// All other directions: NE (2), SE (8), SW (32), NW (128), E (4), W (64) = 238 = 0xEE (same for both colors)
 pub fn water_ox_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::types::BlockingMode;
-    
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 2 spaces vertically
             // N (1), S (16) = 17 = 0x11 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x11,  // N, S (same for both colors)
+                directions: 0x11, // N, S (same for both colors)
                 max_distance: 2,
             },
             // Range movement: all other directions (all except vertical)
             // NE (2), SE (8), SW (32), NW (128), E (4), W (64) = 238 = 0xEE (same for both colors)
             range_capability(
-                0xEE,  // All directions except N, S (same for both colors)
+                0xEE, // All directions except N, S (same for both colors)
                 BlockingMode::NoJump,
             ),
         ],
@@ -3034,24 +3027,24 @@ pub fn water_ox_movement() -> MovementConfig {
 /// All 8 directions: N (1) | NE (2) | E (4) | SE (8) | S (16) | SW (32) | W (64) | NW (128) = 255 = 0xFF
 /// Sideways: E (4), W (64) = 68 = 0x44 (same for both colors)
 pub fn great_baku_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
-    use crate::movement::types::BlockingMode;
     use crate::movement::direction::DIRECTION_SET_ALL;
-    
+    use crate::movement::types::BlockingMode;
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Range movement: all directions
             // All 8 directions: N (1) | NE (2) | E (4) | SE (8) | S (16) | SW (32) | W (64) | NW (128) = 255 = 0xFF
             range_capability(
-                DIRECTION_SET_ALL,  // All directions (same for both colors)
+                DIRECTION_SET_ALL, // All directions (same for both colors)
                 BlockingMode::NoJump,
             ),
             // Jump movement: 3 spaces sideways
             // E (3, 0), W (-3, 0)
             MovementCapability::Jumping {
                 offsets: vec![
-                    (3, 0),   // E (same for both colors)
-                    (-3, 0),  // W (same for both colors)
+                    (3, 0),  // E (same for both colors)
+                    (-3, 0), // W (same for both colors)
                 ],
             },
         ],
@@ -3067,20 +3060,20 @@ pub fn great_baku_movement() -> MovementConfig {
 /// Sideways: E (4), W (64) = 68 = 0x44 (same for both colors)
 pub fn dancing_stag_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space in all forwards directions and straight backwards
             // For Black: N (1) | NE (2) | NW (128) | S (16) = 147 = 0x93
             // For White: S (16) | SE (8) | SW (32) | N (1) = 57 = 0x39 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x93,  // N, NE, NW, S (for Black) - will be adjusted for White
+                directions: 0x93, // N, NE, NW, S (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Simple movement: up to 2 spaces sideways
             // E (4), W (64) = 68 = 0x44 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x44,  // E, W (same for both colors)
+                directions: 0x44, // E, W (same for both colors)
                 max_distance: 2,
             },
         ],
@@ -3091,15 +3084,15 @@ pub fn dancing_stag_movement() -> MovementConfig {
 /// Directions are relative to piece color (Black moves up, White moves down)
 /// Diagonally: All 4 diagonals NE (2), SE (8), SW (32), NW (128) = 170 = 0xAA (same for both colors)
 pub fn square_mover_movement() -> MovementConfig {
-    use crate::movement::types::BlockingMode;
     use crate::movement::direction::DIRECTION_SET_DIAGONAL;
-    
+    use crate::movement::types::BlockingMode;
+
     MovementConfig {
         capabilities: vec![
             // Range movement: diagonally
             // All 4 diagonals NE (2), SE (8), SW (32), NW (128) = 170 = 0xAA (same for both colors)
             range_capability(
-                DIRECTION_SET_DIAGONAL,  // All diagonals (same for both colors)
+                DIRECTION_SET_DIAGONAL, // All diagonals (same for both colors)
                 BlockingMode::NoJump,
             ),
         ],
@@ -3112,22 +3105,22 @@ pub fn square_mover_movement() -> MovementConfig {
 /// Forwards diagonals: For Black: NE (2) | NW (128) = 130 = 0x82
 ///                    For White: SE (8) | SW (32) = 40 = 0x28 (adjusted automatically)
 pub fn strong_chariot_movement() -> MovementConfig {
-    use crate::movement::types::BlockingMode;
     use crate::movement::direction::DIRECTION_SET_ORTHOGONAL;
-    
+    use crate::movement::types::BlockingMode;
+
     MovementConfig {
         capabilities: vec![
             // Range movement: orthogonally
             // All 4 orthogonal directions: N (1) | E (4) | S (16) | W (64) = 85 = 0x55 (same for both colors)
             range_capability(
-                DIRECTION_SET_ORTHOGONAL,  // All orthogonals (same for both colors)
+                DIRECTION_SET_ORTHOGONAL, // All orthogonals (same for both colors)
                 BlockingMode::NoJump,
             ),
             // Range movement: forwards diagonally
             // For Black: NE (2) | NW (128) = 130 = 0x82
             // For White: SE (8) | SW (32) = 40 = 0x28 (adjusted automatically)
             range_capability(
-                0x82,  // NE, NW (for Black) - will be adjusted for White
+                0x82, // NE, NW (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
         ],
@@ -3142,14 +3135,14 @@ pub fn strong_chariot_movement() -> MovementConfig {
 ///                      For White: NE (2) | NW (128) = 130 = 0x82 (adjusted automatically)
 pub fn old_rat_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space straight forwards and backwards diagonally
             // For Black: N (1) | SE (8) | SW (32) = 41 = 0x29
             // For White: S (16) | NE (2) | NW (128) = 146 = 0x92 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x29,  // N, SE, SW (for Black) - will be adjusted for White
+                directions: 0x29, // N, SE, SW (for Black) - will be adjusted for White
                 max_distance: 1,
             },
         ],
@@ -3164,21 +3157,21 @@ pub fn old_rat_movement() -> MovementConfig {
 ///                    For White: N (1) = 1 = 0x01 (adjusted automatically)
 pub fn ji_bird_movement() -> MovementConfig {
     use crate::movement::types::BlockingMode;
-    
+
     MovementConfig {
         capabilities: vec![
             // Range movement: all 3 forwards directions
             // For Black: N (1) | NE (2) | NW (128) = 131 = 0x83
             // For White: S (16) | SE (8) | SW (32) = 56 = 0x38 (adjusted automatically)
             range_capability(
-                0x83,  // N, NE, NW (for Black) - will be adjusted for White
+                0x83, // N, NE, NW (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
             // Range movement: straight backwards
             // For Black: S (16) = 16 = 0x10
             // For White: N (1) = 1 = 0x01 (adjusted automatically)
             range_capability(
-                0x10,  // S (for Black) - will be adjusted for White
+                0x10, // S (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
         ],
@@ -3192,13 +3185,13 @@ pub fn ji_bird_movement() -> MovementConfig {
 /// All except vertically: 0xFF & !0x11 = 0xEE = NE (2) | E (4) | SE (8) | SW (32) | W (64) | NW (128) = 238 = 0xEE (same for both colors)
 pub fn blind_bear_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space in all directions except vertically
             // All diagonals and sideways: NE (2) | E (4) | SE (8) | SW (32) | W (64) | NW (128) = 238 = 0xEE (same for both colors)
             MovementCapability::Simple {
-                directions: 0xEE,  // All except N, S (same for both colors)
+                directions: 0xEE, // All except N, S (same for both colors)
                 max_distance: 1,
             },
         ],
@@ -3210,21 +3203,21 @@ pub fn blind_bear_movement() -> MovementConfig {
 /// All directions except vertically: NE (2) | E (4) | SE (8) | SW (32) | W (64) | NW (128) = 238 = 0xEE (same for both colors)
 /// Vertically: N (1) | S (16) = 17 = 0x11 (same for both colors)
 pub fn flying_stag_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::types::BlockingMode;
-    
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space in all directions except vertically (same as Blind Bear)
             // All diagonals and sideways: NE (2) | E (4) | SE (8) | SW (32) | W (64) | NW (128) = 238 = 0xEE (same for both colors)
             MovementCapability::Simple {
-                directions: 0xEE,  // All except N, S (same for both colors)
+                directions: 0xEE, // All except N, S (same for both colors)
                 max_distance: 1,
             },
             // Range movement: vertically
             // N (1) | S (16) = 17 = 0x11 (same for both colors)
             range_capability(
-                0x11,  // N, S (same for both colors)
+                0x11, // N, S (same for both colors)
                 BlockingMode::NoJump,
             ),
         ],
@@ -3236,21 +3229,21 @@ pub fn flying_stag_movement() -> MovementConfig {
 /// Vertically: N (1), S (16) = 17 = 0x11 (same for both colors)
 /// Sideways: E (4), W (64) = 68 = 0x44 (same for both colors)
 pub fn side_mover_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::types::BlockingMode;
-    
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space vertically
             // N (1), S (16) = 17 = 0x11 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x11,  // N, S (same for both colors)
+                directions: 0x11, // N, S (same for both colors)
                 max_distance: 1,
             },
             // Range movement: sideways
             // E (4), W (64) = 68 = 0x44 (same for both colors)
             range_capability(
-                0x44,  // E, W (same for both colors)
+                0x44, // E, W (same for both colors)
                 BlockingMode::NoJump,
             ),
         ],
@@ -3262,22 +3255,22 @@ pub fn side_mover_movement() -> MovementConfig {
 /// Diagonally: NE (2) | SE (8) | SW (32) | NW (128) = 170 = 0xAA (same for both colors)
 /// Sideways: E (4) | W (64) = 68 = 0x44 (same for both colors)
 pub fn side_flyer_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
-    use crate::movement::types::BlockingMode;
     use crate::movement::direction::DIRECTION_SET_DIAGONAL;
-    
+    use crate::movement::types::BlockingMode;
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space diagonally
             // All 4 diagonal directions: NE (2) | SE (8) | SW (32) | NW (128) = 170 = 0xAA (same for both colors)
             MovementCapability::Simple {
-                directions: DIRECTION_SET_DIAGONAL,  // All diagonals (same for both colors)
+                directions: DIRECTION_SET_DIAGONAL, // All diagonals (same for both colors)
                 max_distance: 1,
             },
             // Range movement: sideways
             // E (4) | W (64) = 68 = 0x44 (same for both colors)
             range_capability(
-                0x44,  // E, W (same for both colors)
+                0x44, // E, W (same for both colors)
                 BlockingMode::NoJump,
             ),
         ],
@@ -3290,14 +3283,14 @@ pub fn side_flyer_movement() -> MovementConfig {
 ///                    For White: S (16) = 16 = 0x10 (adjusted automatically)
 pub fn ox_chariot_movement() -> MovementConfig {
     use crate::movement::types::BlockingMode;
-    
+
     MovementConfig {
         capabilities: vec![
             // Range movement: straight forwards
             // For Black: N (1) = 1 = 0x01
             // For White: S (16) = 16 = 0x10 (adjusted automatically)
             range_capability(
-                0x01,  // N (for Black) - will be adjusted for White
+                0x01, // N (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
         ],
@@ -3309,22 +3302,22 @@ pub fn ox_chariot_movement() -> MovementConfig {
 /// Diagonally: NE (2) | SE (8) | SW (32) | NW (128) = 170 = 0xAA (same for both colors)
 /// Vertically: N (1) | S (16) = 17 = 0x11 (same for both colors)
 pub fn plodding_ox_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
-    use crate::movement::types::BlockingMode;
     use crate::movement::direction::DIRECTION_SET_DIAGONAL;
-    
+    use crate::movement::types::BlockingMode;
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space diagonally
             // All 4 diagonal directions: NE (2) | SE (8) | SW (32) | NW (128) = 170 = 0xAA (same for both colors)
             MovementCapability::Simple {
-                directions: DIRECTION_SET_DIAGONAL,  // All diagonals (same for both colors)
+                directions: DIRECTION_SET_DIAGONAL, // All diagonals (same for both colors)
                 max_distance: 1,
             },
             // Range movement: vertically
             // N (1) | S (16) = 17 = 0x11 (same for both colors)
             range_capability(
-                0x11,  // N, S (same for both colors)
+                0x11, // N, S (same for both colors)
                 BlockingMode::NoJump,
             ),
         ],
@@ -3340,14 +3333,14 @@ pub fn plodding_ox_movement() -> MovementConfig {
 ///                              For White: 0xFF & !0x10 = 0xEF = N (1) | NE (2) | E (4) | SE (8) | SW (32) | W (64) | NW (128) = 239 = 0xEF (adjusted automatically)
 pub fn blind_tiger_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space in all directions except straight forwards
             // For Black: NE (2) | E (4) | SE (8) | S (16) | SW (32) | W (64) | NW (128) = 254 = 0xFE
             // For White: N (1) | NE (2) | E (4) | SE (8) | SW (32) | W (64) | NW (128) = 239 = 0xEF (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0xFE,  // All except N (for Black) - will be adjusted for White
+                directions: 0xFE, // All except N (for Black) - will be adjusted for White
                 max_distance: 1,
             },
         ],
@@ -3361,13 +3354,13 @@ pub fn blind_tiger_movement() -> MovementConfig {
 /// All except vertically: 0xFF & !0x11 = 0xEE = NE (2) | E (4) | SE (8) | SW (32) | W (64) | NW (128) = 238 = 0xEE (same for both colors)
 pub fn blind_monkey_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space in all directions except vertically
             // All diagonals and sideways: NE (2) | E (4) | SE (8) | SW (32) | W (64) | NW (128) = 238 = 0xEE (same for both colors)
             MovementCapability::Simple {
-                directions: 0xEE,  // All except N, S (same for both colors)
+                directions: 0xEE, // All except N, S (same for both colors)
                 max_distance: 1,
             },
         ],
@@ -3381,23 +3374,23 @@ pub fn blind_monkey_movement() -> MovementConfig {
 /// Straight forwards: For Black: N (1) = 1 = 0x01
 ///                     For White: S (16) = 16 = 0x10 (adjusted automatically)
 pub fn left_howling_dog_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::types::BlockingMode;
-    
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space straight backwards
             // For Black: S (16) = 16 = 0x10
             // For White: N (1) = 1 = 0x01 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x10,  // S (for Black) - will be adjusted for White
+                directions: 0x10, // S (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Range movement: straight forwards
             // For Black: N (1) = 1 = 0x01
             // For White: S (16) = 16 = 0x10 (adjusted automatically)
             range_capability(
-                0x01,  // N (for Black) - will be adjusted for White
+                0x01, // N (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
         ],
@@ -3411,23 +3404,23 @@ pub fn left_howling_dog_movement() -> MovementConfig {
 /// Straight forwards: For Black: N (1) = 1 = 0x01
 ///                     For White: S (16) = 16 = 0x10 (adjusted automatically)
 pub fn right_howling_dog_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::types::BlockingMode;
-    
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space straight backwards
             // For Black: S (16) = 16 = 0x10
             // For White: N (1) = 1 = 0x01 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x10,  // S (for Black) - will be adjusted for White
+                directions: 0x10, // S (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Range movement: straight forwards
             // For Black: N (1) = 1 = 0x01
             // For White: S (16) = 16 = 0x10 (adjusted automatically)
             range_capability(
-                0x01,  // N (for Black) - will be adjusted for White
+                0x01, // N (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
         ],
@@ -3443,30 +3436,30 @@ pub fn right_howling_dog_movement() -> MovementConfig {
 /// Backwards right diagonal: For Black: SE (8) = 8 = 0x08
 ///                            For White: NW (128) = 128 = 0x80 (adjusted automatically)
 pub fn left_dog_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::types::BlockingMode;
-    
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space straight backwards
             // For Black: S (16) = 16 = 0x10
             // For White: N (1) = 1 = 0x01 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x10,  // S (for Black) - will be adjusted for White
+                directions: 0x10, // S (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Range movement: straight forwards
             // For Black: N (1) = 1 = 0x01
             // For White: S (16) = 16 = 0x10 (adjusted automatically)
             range_capability(
-                0x01,  // N (for Black) - will be adjusted for White
+                0x01, // N (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
             // Range movement: backwards right diagonal
             // For Black: SE (8) = 8 = 0x08
             // For White: NW (128) = 128 = 0x80 (adjusted automatically)
             range_capability(
-                0x08,  // SE (for Black) - will be adjusted for White
+                0x08, // SE (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
         ],
@@ -3482,30 +3475,30 @@ pub fn left_dog_movement() -> MovementConfig {
 /// Backwards left diagonal: For Black: SW (32) = 32 = 0x20
 ///                           For White: NE (2) = 2 = 0x02 (adjusted automatically)
 pub fn right_dog_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::types::BlockingMode;
-    
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space straight backwards
             // For Black: S (16) = 16 = 0x10
             // For White: N (1) = 1 = 0x01 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x10,  // S (for Black) - will be adjusted for White
+                directions: 0x10, // S (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Range movement: straight forwards
             // For Black: N (1) = 1 = 0x01
             // For White: S (16) = 16 = 0x10 (adjusted automatically)
             range_capability(
-                0x01,  // N (for Black) - will be adjusted for White
+                0x01, // N (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
             // Range movement: backwards left diagonal
             // For Black: SW (32) = 32 = 0x20
             // For White: NE (2) = 2 = 0x02 (adjusted automatically)
             range_capability(
-                0x20,  // SW (for Black) - will be adjusted for White
+                0x20, // SW (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
         ],
@@ -3517,22 +3510,22 @@ pub fn right_dog_movement() -> MovementConfig {
 /// Orthogonally: N (1), E (4), S (16), W (64) = 85 = 0x55 (same for both colors)
 /// Diagonally: All 4 diagonals NE (2), SE (8), SW (32), NW (128) = 170 = 0xAA (same for both colors)
 pub fn dragon_king_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
+    use crate::movement::direction::{DIRECTION_SET_DIAGONAL, DIRECTION_SET_ORTHOGONAL};
     use crate::movement::types::BlockingMode;
-    use crate::movement::direction::{DIRECTION_SET_ORTHOGONAL, DIRECTION_SET_DIAGONAL};
-    
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Range movement: orthogonally
             // N (1), E (4), S (16), W (64) = 85 = 0x55 (same for both colors)
             range_capability(
-                DIRECTION_SET_ORTHOGONAL,  // All orthogonal directions (same for both colors)
+                DIRECTION_SET_ORTHOGONAL, // All orthogonal directions (same for both colors)
                 BlockingMode::NoJump,
             ),
             // Simple movement: 1 space diagonally
             // All 4 diagonals NE (2), SE (8), SW (32), NW (128) = 170 = 0xAA (same for both colors)
             MovementCapability::Simple {
-                directions: DIRECTION_SET_DIAGONAL,  // All diagonals (same for both colors)
+                directions: DIRECTION_SET_DIAGONAL, // All diagonals (same for both colors)
                 max_distance: 1,
             },
         ],
@@ -3546,26 +3539,26 @@ pub fn dragon_king_movement() -> MovementConfig {
 /// Vertically: N (1), S (16) = 17 = 0x11 (same for both colors)
 pub fn cloud_eagle_movement() -> MovementConfig {
     use crate::movement::types::BlockingMode;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space sideways
             // E (4), W (64) = 68 = 0x44 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x44,  // E, W (same for both colors)
+                directions: 0x44, // E, W (same for both colors)
                 max_distance: 1,
             },
             // Simple movement: up to 3 spaces in forward diagonal directions
             // For Black: NE (2), NW (128) = 130 = 0x82
             // For White: SE (8), SW (32) = 40 = 0x28 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x82,  // NE, NW (for Black) - will be adjusted for White
+                directions: 0x82, // NE, NW (for Black) - will be adjusted for White
                 max_distance: 3,
             },
             // Range movement: vertically
             // N (1), S (16) = 17 = 0x11 (same for both colors)
             range_capability(
-                0x11,  // N, S (same for both colors)
+                0x11, // N, S (same for both colors)
                 BlockingMode::NoJump,
             ),
         ],
@@ -3576,15 +3569,15 @@ pub fn cloud_eagle_movement() -> MovementConfig {
 /// Directions are relative to piece color (Black moves up, White moves down)
 /// All 8 directions: N (1) | NE (2) | E (4) | SE (8) | S (16) | SW (32) | W (64) | NW (128) = 255 = 0xFF
 pub fn strong_eagle_movement() -> MovementConfig {
-    use crate::movement::types::BlockingMode;
     use crate::movement::direction::DIRECTION_SET_ALL;
-    
+    use crate::movement::types::BlockingMode;
+
     MovementConfig {
         capabilities: vec![
             // Range movement: all 8 directions
             // All 8 directions: N (1) | NE (2) | E (4) | SE (8) | S (16) | SW (32) | W (64) | NW (128) = 255 = 0xFF
             range_capability(
-                DIRECTION_SET_ALL,  // All directions (same for both colors)
+                DIRECTION_SET_ALL, // All directions (same for both colors)
                 BlockingMode::NoJump,
             ),
         ],
@@ -3597,28 +3590,28 @@ pub fn strong_eagle_movement() -> MovementConfig {
 /// Sideways: E (4), W (64) = 68 = 0x44 (same for both colors)
 /// Vertically: N (1), S (16) = 17 = 0x11 (same for both colors)
 pub fn stone_chariot_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::types::BlockingMode;
-    
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space in forward diagonal directions
             // For Black: NE (2), NW (128) = 130 = 0x82
             // For White: SE (8), SW (32) = 40 = 0x28 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x82,  // NE, NW (for Black) - will be adjusted for White
+                directions: 0x82, // NE, NW (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Simple movement: up to 2 spaces sideways
             // E (4), W (64) = 68 = 0x44 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x44,  // E, W (same for both colors)
+                directions: 0x44, // E, W (same for both colors)
                 max_distance: 2,
             },
             // Range movement: vertically
             // N (1), S (16) = 17 = 0x11 (same for both colors)
             range_capability(
-                0x11,  // N, S (same for both colors)
+                0x11, // N, S (same for both colors)
                 BlockingMode::NoJump,
             ),
         ],
@@ -3630,22 +3623,22 @@ pub fn stone_chariot_movement() -> MovementConfig {
 /// Sideways and forward diagonals: For Black E (4) | W (64) | NE (2) | NW (128) = 198 = 0xC6, For White E (4) | W (64) | SE (8) | SW (32) = 108 = 0x6C (adjusted automatically)
 /// Vertically: N (1), S (16) = 17 = 0x11 (same for both colors)
 pub fn walking_heron_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::types::BlockingMode;
-    
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 2 spaces sideways and in forward diagonal directions
             // For Black: E (4) | W (64) | NE (2) | NW (128) = 198 = 0xC6
             // For White: E (4) | W (64) | SE (8) | SW (32) = 108 = 0x6C (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0xC6,  // E, W, NE, NW (for Black) - will be adjusted for White
+                directions: 0xC6, // E, W, NE, NW (for Black) - will be adjusted for White
                 max_distance: 2,
             },
             // Range movement: vertically
             // N (1), S (16) = 17 = 0x11 (same for both colors)
             range_capability(
-                0x11,  // N, S (same for both colors)
+                0x11, // N, S (same for both colors)
                 BlockingMode::NoJump,
             ),
         ],
@@ -3655,24 +3648,20 @@ pub fn walking_heron_movement() -> MovementConfig {
 /// Left General movement: 1 space in all 8 directions (same as Crown Prince)
 pub fn left_general_movement() -> MovementConfig {
     MovementConfig {
-        capabilities: vec![
-            MovementCapability::Simple {
-                directions: DIRECTION_SET_ALL,
-                max_distance: 1,
-            },
-        ],
+        capabilities: vec![MovementCapability::Simple {
+            directions: DIRECTION_SET_ALL,
+            max_distance: 1,
+        }],
     }
 }
 
 /// Right General movement: 1 space in all 8 directions (same as Crown Prince)
 pub fn right_general_movement() -> MovementConfig {
     MovementConfig {
-        capabilities: vec![
-            MovementCapability::Simple {
-                directions: DIRECTION_SET_ALL,
-                max_distance: 1,
-            },
-        ],
+        capabilities: vec![MovementCapability::Simple {
+            directions: DIRECTION_SET_ALL,
+            max_distance: 1,
+        }],
     }
 }
 
@@ -3759,9 +3748,7 @@ pub fn center_standard_movement() -> MovementConfig {
 /// Free King movement: Range movement in all 8 directions (like chess queen)
 pub fn free_king_movement() -> MovementConfig {
     MovementConfig {
-        capabilities: vec![
-            range_capability(DIRECTION_SET_ALL, BlockingMode::NoJump),
-        ],
+        capabilities: vec![range_capability(DIRECTION_SET_ALL, BlockingMode::NoJump)],
     }
 }
 
@@ -3769,15 +3756,12 @@ pub fn free_king_movement() -> MovementConfig {
 /// Captures all pieces in path (both enemy and friendly) but cannot land on friendly piece
 /// Cannot jump over King, CrownPrince, or GreatGeneral (regardless of promotion status)
 pub fn great_general_movement() -> MovementConfig {
-    
     MovementConfig {
-        capabilities: vec![
-            range_capability_with_restrictions(
-                DIRECTION_SET_ALL,
-                BlockingMode::Capturing,
-                blocking_set_1(),
-            ),
-        ],
+        capabilities: vec![range_capability_with_restrictions(
+            DIRECTION_SET_ALL,
+            BlockingMode::Capturing,
+            blocking_set_1(),
+        )],
     }
 }
 
@@ -3809,15 +3793,14 @@ pub fn free_demon_movement() -> MovementConfig {
             // For Black: NE (2) | E (4) | SE (8) | SW (32) | W (64) | NW (128) = 238 = 0xEE
             // For White: same (E and W are not color-dependent, diagonals adjusted automatically)
             range_capability(
-                0xEE,  // NE, E, SE, SW, W, NW (for Black) - will be adjusted for White
+                0xEE, // NE, E, SE, SW, W, NW (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
-
             // Limited to 5 spaces in directly forwards and backwards directions
             // For Black: N (1) | S (16) = 17 = 0x11
             // For White: S (16) | N (1) = 17 = 0x11 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x11,  // N, S (for Black) - will be adjusted for White
+                directions: 0x11, // N, S (for Black) - will be adjusted for White
                 max_distance: 5,
             },
         ],
@@ -3834,14 +3817,13 @@ pub fn running_horse_movement() -> MovementConfig {
             // For Black: N (1), NE (2), NW (128) = 131 = 0x83
             // For White: S (16), SE (8), SW (32) = 56 = 0x38 (adjusted automatically)
             range_capability(
-                0x83,  // N, NE, NW (for Black) - will be adjusted for White
+                0x83, // N, NE, NW (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
-
             // Simple movement: 1 space directly backwards
             // For Black: S (16), For White: N (1) (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x10,  // S (16) for Black, will be adjusted for White
+                directions: 0x10, // S (16) for Black, will be adjusted for White
                 max_distance: 1,
             },
             // Jumping movement: exactly 2 spaces in backwards diagonal directions
@@ -3849,8 +3831,8 @@ pub fn running_horse_movement() -> MovementConfig {
             // For White: NE (2, 2), NW (-2, 2) (adjusted automatically)
             MovementCapability::Jumping {
                 offsets: vec![
-                    (2, -2),   // SE (for Black)
-                    (-2, -2),  // SW (for Black)
+                    (2, -2),  // SE (for Black)
+                    (-2, -2), // SW (for Black)
                 ],
             },
         ],
@@ -3860,16 +3842,16 @@ pub fn running_horse_movement() -> MovementConfig {
 /// Tengu movement: Can move once (range diagonal) or twice (two range diagonal moves)
 /// In notation, two-step moves are written as two separate moves
 pub fn tengu_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::direction::DIRECTION_SET_DIAGONAL;
     use crate::movement::types::BlockingMode;
-    
+    use crate::movement::types::MovementCapability;
+
     // Single step: range diagonal movement
     let diagonal_range = range_capability(
-        DIRECTION_SET_DIAGONAL,  // 0xAA = NE, SE, SW, NW
+        DIRECTION_SET_DIAGONAL, // 0xAA = NE, SE, SW, NW
         BlockingMode::NoJump,
     );
-    
+
     MovementConfig {
         capabilities: vec![
             // Single step: range diagonal movement
@@ -3883,23 +3865,22 @@ pub fn tengu_movement() -> MovementConfig {
     }
 }
 
-/// Wooden Dove movement: Range diagonal, orthogonal up to 2 spaces, 
+/// Wooden Dove movement: Range diagonal, orthogonal up to 2 spaces,
 /// jump exactly 3 spaces diagonally, and conditional diagonal jumps of 4-5 spaces
 pub fn wooden_dove_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::direction::DIRECTION_SET_DIAGONAL;
-    
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Range movement in diagonal directions (unlimited)
             range_capability(
-                DIRECTION_SET_DIAGONAL,  // 0xAA = NE, SE, SW, NW
+                DIRECTION_SET_DIAGONAL, // 0xAA = NE, SE, SW, NW
                 BlockingMode::NoJump,
             ),
-
             // Orthogonal movement up to 2 spaces
             MovementCapability::Simple {
-                directions: 0x55,  // N, S, E, W
+                directions: 0x55, // N, S, E, W
                 max_distance: 2,
             },
             // Jump exactly 3 spaces diagonally
@@ -3913,11 +3894,11 @@ pub fn wooden_dove_movement() -> MovementConfig {
             },
             // Conditional diagonal jump: can jump 4-5 spaces if positions 1-2 have pieces and position 3 is empty
             MovementCapability::ConditionalDiagonalJump {
-                directions: DIRECTION_SET_DIAGONAL,  // 0xAA = NE, SE, SW, NW
-                base_jump: 3,  // Base jump is 3 spaces (handled by Jumping above, but included for consistency)
-                conditional_jumps: vec![4, 5],  // Can jump 4 or 5 spaces conditionally
-                required_jump_positions: 2,  // Positions 1-2 must have pieces
-                empty_after_jump: 1,  // Position 3 must be empty
+                directions: DIRECTION_SET_DIAGONAL, // 0xAA = NE, SE, SW, NW
+                base_jump: 3, // Base jump is 3 spaces (handled by Jumping above, but included for consistency)
+                conditional_jumps: vec![4, 5], // Can jump 4 or 5 spaces conditionally
+                required_jump_positions: 2, // Positions 1-2 must have pieces
+                empty_after_jump: 1, // Position 3 must be empty
             },
         ],
     }
@@ -3925,20 +3906,19 @@ pub fn wooden_dove_movement() -> MovementConfig {
 
 /// Ceramic Dove movement: Range diagonal, orthogonal up to 2 spaces
 pub fn ceramic_dove_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::direction::DIRECTION_SET_DIAGONAL;
-    
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Range movement in diagonal directions (unlimited)
             range_capability(
-                DIRECTION_SET_DIAGONAL,  // 0xAA = NE, SE, SW, NW
+                DIRECTION_SET_DIAGONAL, // 0xAA = NE, SE, SW, NW
                 BlockingMode::NoJump,
             ),
-
             // Orthogonal movement up to 2 spaces
             MovementCapability::Simple {
-                directions: 0x55,  // N, S, E, W
+                directions: 0x55, // N, S, E, W
                 max_distance: 2,
             },
         ],
@@ -3949,28 +3929,27 @@ pub fn ceramic_dove_movement() -> MovementConfig {
 /// Directions are relative to piece color (Black moves up, White moves down)
 pub fn earth_dragon_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Range movement in backwards diagonal directions
             // For Black: SW (32), SE (8) = 40 = 0x28
             // For White: NW (128), NE (2) = 130 = 0x82 (adjusted automatically)
             range_capability(
-                0x28,  // SW, SE (for Black) - will be adjusted for White
+                0x28, // SW, SE (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
-
             // Simple movement: up to 2 spaces directly forwards
             // For Black: N (1), For White: S (16) (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x01,  // N (1) for Black, will be adjusted for White
+                directions: 0x01, // N (1) for Black, will be adjusted for White
                 max_distance: 2,
             },
             // Simple movement: 1 space in forward diagonals and backwards
             // For Black: NE (2), NW (128), S (16) = 146 = 0x92
             // For White: SE (8), SW (32), N (1) = 41 = 0x29 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x92,  // NE, NW, S (for Black) - will be adjusted for White
+                directions: 0x92, // NE, NW, S (for Black) - will be adjusted for White
                 max_distance: 1,
             },
         ],
@@ -3983,22 +3962,21 @@ pub fn earth_dragon_movement() -> MovementConfig {
 /// For White: Range in E (4), W (64), NW (128), NE (2) = 198 = 0xC6 (adjusted automatically)
 pub fn rain_dragon_unpromoted_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Range movement: sideways and backwards diagonal directions (NOT straight backwards)
             // For Black: E (4), W (64), SW (32), SE (8) = 108 = 0x6C
             // For White: E (4), W (64), NW (128), NE (2) = 198 = 0xC6 (adjusted automatically)
             range_capability(
-                0x6C,  // E, W, SW, SE (for Black) - will be adjusted for White
+                0x6C, // E, W, SW, SE (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
-
             // Simple movement: 1 space in all 3 forwards directions
             // For Black: N (1), NE (2), NW (128) = 131 = 0x83
             // For White: S (16), SW (32), SE (8) = 56 = 0x38 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x83,  // N, NE, NW (for Black) - will be adjusted for White
+                directions: 0x83, // N, NE, NW (for Black) - will be adjusted for White
                 max_distance: 1,
             },
         ],
@@ -4011,22 +3989,20 @@ pub fn rain_dragon_unpromoted_movement() -> MovementConfig {
 /// For Black: Range in E (4), W (64), S (16), SW (32), SE (8) = 124 = 0x7C
 /// For White: Range in E (4), W (64), N (1), NE (2), NW (128) = 199 = 0xC7 (adjusted automatically)
 pub fn rain_dragon_promoted_movement() -> MovementConfig {
-    
     MovementConfig {
         capabilities: vec![
             // Range movement: sideways and all 3 backwards directions (including straight backwards)
             // For Black: E (4), W (64), S (16), SW (32), SE (8) = 124 = 0x7C
             // For White: E (4), W (64), N (1), NE (2), NW (128) = 199 = 0xC7 (adjusted automatically)
             range_capability(
-                0x7C,  // E, W, S, SW, SE (for Black) - will be adjusted for White
+                0x7C, // E, W, S, SW, SE (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
-
             // Simple movement: 1 space in all 3 forwards directions
             // For Black: N (1), NE (2), NW (128) = 131 = 0x83
             // For White: S (16), SW (32), SE (8) = 56 = 0x38 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x83,  // N, NE, NW (for Black) - will be adjusted for White
+                directions: 0x83, // N, NE, NW (for Black) - will be adjusted for White
                 max_distance: 1,
             },
         ],
@@ -4039,21 +4015,20 @@ pub fn rain_dragon_promoted_movement() -> MovementConfig {
 /// For White: right backwards = NE (2), left diagonals = SE (8), NW (128) - adjusted automatically
 pub fn left_mountain_eagle_movement() -> MovementConfig {
     use crate::movement::types::BlockingMode;
-    
+
     MovementConfig {
         capabilities: vec![
             // Range movement in all directions EXCEPT right backwards
             // For Black: N (1) | NE (2) | E (4) | S (16) | SW (32) | W (64) | NW (128) = 247 = 0xF7
             // For White: adjusted automatically (excludes NE which is right backwards for White)
             range_capability(
-                0xF7,  // All except SE (8) for Black - will be adjusted for White
+                0xF7, // All except SE (8) for Black - will be adjusted for White
                 BlockingMode::NoJump,
             ),
-
             // Simple movement up to 2 spaces in right backwards direction
             // For Black: SE (8), For White: NE (2) (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x08,  // SE (8) for Black - will be adjusted for White
+                directions: 0x08, // SE (8) for Black - will be adjusted for White
                 max_distance: 2,
             },
             // Jump exactly 2 spaces in left diagonal directions
@@ -4061,8 +4036,8 @@ pub fn left_mountain_eagle_movement() -> MovementConfig {
             // For White: SE (8), NW (128) = 136 = 0x88 (adjusted automatically)
             MovementCapability::Jumping {
                 offsets: vec![
-                    (-2, -2),  // SW for Black
-                    (-2, 2),   // NW for Black
+                    (-2, -2), // SW for Black
+                    (-2, 2),  // NW for Black
                 ],
             },
         ],
@@ -4074,23 +4049,22 @@ pub fn left_mountain_eagle_movement() -> MovementConfig {
 /// For Black: left backwards = SW (32), right diagonals = NE (2), SE (8)
 /// For White: left backwards = NW (128), right diagonals = SW (32), SE (8) - adjusted automatically
 pub fn right_mountain_eagle_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::types::BlockingMode;
-    
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Range movement in all directions EXCEPT left backwards
             // For Black: N (1) | NE (2) | E (4) | SE (8) | S (16) | W (64) | NW (128) = 223 = 0xDF
             // For White: adjusted automatically (excludes NW which is left backwards for White)
             range_capability(
-                0xDF,  // All except SW (32) for Black - will be adjusted for White
+                0xDF, // All except SW (32) for Black - will be adjusted for White
                 BlockingMode::NoJump,
             ),
-
             // Simple movement up to 2 spaces in left backwards direction
             // For Black: SW (32), For White: NW (128) (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x20,  // SW (32) for Black - will be adjusted for White
+                directions: 0x20, // SW (32) for Black - will be adjusted for White
                 max_distance: 2,
             },
             // Jump exactly 2 spaces in right diagonal directions
@@ -4098,8 +4072,8 @@ pub fn right_mountain_eagle_movement() -> MovementConfig {
             // For White: SW (32), SE (8) = 40 = 0x28 (adjusted automatically)
             MovementCapability::Jumping {
                 offsets: vec![
-                    (2, 2),    // NE for Black
-                    (2, -2),   // SE for Black
+                    (2, 2),  // NE for Black
+                    (2, -2), // SE for Black
                 ],
             },
         ],
@@ -4111,25 +4085,24 @@ pub fn right_mountain_eagle_movement() -> MovementConfig {
 /// For Black: forward diagonals = NE (2), NW (128)
 /// For White: forward diagonals = SE (8), SW (32) - adjusted automatically
 pub fn flying_eagle_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
-    use crate::movement::types::BlockingMode;
     use crate::movement::direction::DIRECTION_SET_ALL;
-    
+    use crate::movement::types::BlockingMode;
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Range movement in all 8 directions
             range_capability(
-                DIRECTION_SET_ALL,  // 0xFF = all 8 directions
+                DIRECTION_SET_ALL, // 0xFF = all 8 directions
                 BlockingMode::NoJump,
             ),
-
             // Jump exactly 2 spaces in forward diagonal directions
             // For Black: NE (2), NW (128) = 130 = 0x82
             // For White: SE (8), SW (32) = 40 = 0x28 (adjusted automatically)
             MovementCapability::Jumping {
                 offsets: vec![
-                    (2, 2),    // NE for Black
-                    (-2, 2),   // NW for Black
+                    (2, 2),  // NE for Black
+                    (-2, 2), // NW for Black
                 ],
             },
         ],
@@ -4141,24 +4114,23 @@ pub fn flying_eagle_movement() -> MovementConfig {
 /// For Black: forwards = N (1), backwards = S (16)
 /// For White: forwards = S (16), backwards = N (1) - adjusted automatically
 pub fn fire_demon_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::types::BlockingMode;
-    
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Range movement in all directions EXCEPT directly forwards and backwards
             // For Black: NE (2) | E (4) | SE (8) | SW (32) | W (64) | NW (128) = 238 = 0xEE
             // For White: adjusted automatically (excludes N and S)
             range_capability(
-                0xEE,  // All except N (1) and S (16) for Black - will be adjusted for White
+                0xEE, // All except N (1) and S (16) for Black - will be adjusted for White
                 BlockingMode::NoJump,
             ),
-
             // Simple movement up to 2 spaces in forwards and backwards directions
             // For Black: N (1), S (16) = 17 = 0x11
             // For White: S (16), N (1) = 17 = 0x11 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x11,  // N, S (for Black) - will be adjusted for White
+                directions: 0x11, // N, S (for Black) - will be adjusted for White
                 max_distance: 2,
             },
         ],
@@ -4170,22 +4142,21 @@ pub fn fire_demon_movement() -> MovementConfig {
 /// Same as Fire Demon but with max_distance 5 instead of 2
 pub fn free_fire_movement() -> MovementConfig {
     use crate::movement::types::BlockingMode;
-    
+
     MovementConfig {
         capabilities: vec![
             // Range movement in all directions EXCEPT directly forwards and backwards
             // For Black: NE (2) | E (4) | SE (8) | SW (32) | W (64) | NW (128) = 238 = 0xEE
             // For White: adjusted automatically (excludes N and S)
             range_capability(
-                0xEE,  // All except N (1) and S (16) for Black - will be adjusted for White
+                0xEE, // All except N (1) and S (16) for Black - will be adjusted for White
                 BlockingMode::NoJump,
             ),
-
             // Simple movement up to 5 spaces in forwards and backwards directions
             // For Black: N (1), S (16) = 17 = 0x11
             // For White: S (16), N (1) = 17 = 0x11 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x11,  // N, S (for Black) - will be adjusted for White
+                directions: 0x11, // N, S (for Black) - will be adjusted for White
                 max_distance: 5,
             },
         ],
@@ -4199,17 +4170,16 @@ pub fn free_fire_movement() -> MovementConfig {
 /// For White: adjusted automatically
 pub fn whale_starting_movement() -> MovementConfig {
     use crate::movement::types::BlockingMode;
-    
+
     MovementConfig {
         capabilities: vec![
             // Range movement in all 3 backwards directions and directly forwards
             // For Black: N (1) | S (16) | SW (32) | SE (8) = 57 = 0x39
             // For White: adjusted automatically
             range_capability(
-                0x39,  // N, S, SW, SE (for Black) - will be adjusted for White
+                0x39, // N, S, SW, SE (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
-
         ],
     }
 }
@@ -4220,24 +4190,23 @@ pub fn whale_starting_movement() -> MovementConfig {
 /// For White: adjusted automatically
 pub fn whale_promoted_movement() -> MovementConfig {
     use crate::movement::types::BlockingMode;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space straight forwards
             // For Black: N (1)
             // For White: S (16) (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x01,  // N (1) for Black - will be adjusted for White
+                directions: 0x01, // N (1) for Black - will be adjusted for White
                 max_distance: 1,
             },
             // Range movement in all 3 backwards directions
             // For Black: S (16), SW (32), SE (8) = 56 = 0x38
             // For White: N (1), NE (2), NW (128) = 131 = 0x83 (adjusted automatically)
             range_capability(
-                0x38,  // S, SW, SE (for Black) - will be adjusted for White
+                0x38, // S, SW, SE (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
-
         ],
     }
 }
@@ -4250,17 +4219,16 @@ pub fn whale_promoted_movement() -> MovementConfig {
 /// For White: adjusted automatically
 pub fn great_whale_movement() -> MovementConfig {
     use crate::movement::types::BlockingMode;
-    
+
     MovementConfig {
         capabilities: vec![
             // Range movement in all 3 forwards and all 3 backwards directions
             // For Black: N (1) | NE (2) | NW (128) | S (16) | SW (32) | SE (8) = 187 = 0xBB
             // For White: adjusted automatically
             range_capability(
-                0xBB,  // N, NE, NW, S, SW, SE (for Black) - will be adjusted for White
+                0xBB, // N, NE, NW, S, SW, SE (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
-
         ],
     }
 }
@@ -4272,22 +4240,21 @@ pub fn great_whale_movement() -> MovementConfig {
 /// For White: adjusted automatically
 pub fn running_rabbit_movement() -> MovementConfig {
     use crate::movement::types::BlockingMode;
-    
+
     MovementConfig {
         capabilities: vec![
             // Range movement in all 3 forwards directions
             // For Black: N (1) | NE (2) | NW (128) = 131 = 0x83
             // For White: adjusted automatically
             range_capability(
-                0x83,  // N, NE, NW (for Black) - will be adjusted for White
+                0x83, // N, NE, NW (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
-
             // Simple movement 1 space in all 3 backwards directions
             // For Black: S (16) | SW (32) | SE (8) = 56 = 0x38
             // For White: adjusted automatically
             MovementCapability::Simple {
-                directions: 0x38,  // S, SW, SE (for Black) - will be adjusted for White
+                directions: 0x38, // S, SW, SE (for Black) - will be adjusted for White
                 max_distance: 1,
             },
         ],
@@ -4302,17 +4269,16 @@ pub fn running_rabbit_movement() -> MovementConfig {
 /// For White: adjusted automatically
 pub fn treacherous_fox_movement() -> MovementConfig {
     use crate::movement::types::BlockingMode;
-    
+
     MovementConfig {
         capabilities: vec![
             // Range movement in all 6 forwards and backwards directions
             // For Black: N (1) | NE (2) | NW (128) | S (16) | SW (32) | SE (8) = 187 = 0xBB
             // For White: adjusted automatically
             range_capability(
-                0xBB,  // N, NE, NW, S, SW, SE (for Black) - will be adjusted for White
+                0xBB, // N, NE, NW, S, SW, SE (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
-
         ],
     }
 }
@@ -4323,14 +4289,14 @@ pub fn treacherous_fox_movement() -> MovementConfig {
 /// For White: adjusted automatically
 pub fn mountain_crane_movement() -> MovementConfig {
     use crate::movement::types::BlockingMode;
-    
+
     MovementConfig {
         capabilities: vec![
             // Range movement in all 8 directions
             // For Black: N (1) | NE (2) | E (4) | SE (8) | S (16) | SW (32) | W (64) | NW (128) = 255 = 0xFF
             // For White: adjusted automatically
             range_capability(
-                0xFF,  // All 8 directions (for Black) - will be adjusted for White
+                0xFF, // All 8 directions (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
         ],
@@ -4343,24 +4309,23 @@ pub fn mountain_crane_movement() -> MovementConfig {
 /// For Black: other 6 = N (1) | E (4) | SE (8) | S (16) | W (64) | NW (128) = 221 = 0xDD
 /// For White: adjusted automatically
 pub fn turtle_snake_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::types::BlockingMode;
-    
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Range movement in forward-right and backward-left
             // For Black: NE (2) | SW (32) = 34 = 0x22
             // For White: adjusted automatically
             range_capability(
-                0x22,  // NE, SW (for Black) - will be adjusted for White
+                0x22, // NE, SW (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
-
             // Simple movement 1 space in the other 6 directions
             // For Black: N (1) | E (4) | SE (8) | S (16) | W (64) | NW (128) = 221 = 0xDD
             // For White: adjusted automatically
             MovementCapability::Simple {
-                directions: 0xDD,  // N, E, SE, S, W, NW (for Black) - will be adjusted for White
+                directions: 0xDD, // N, E, SE, S, W, NW (for Black) - will be adjusted for White
                 max_distance: 1,
             },
         ],
@@ -4374,22 +4339,21 @@ pub fn turtle_snake_movement() -> MovementConfig {
 /// For White: adjusted automatically
 pub fn divine_turtle_movement() -> MovementConfig {
     use crate::movement::types::BlockingMode;
-    
+
     MovementConfig {
         capabilities: vec![
             // Range movement in forward-right, backward-left, and backward-right
             // For Black: NE (2) | SW (32) | SE (8) = 42 = 0x2A
             // For White: adjusted automatically
             range_capability(
-                0x2A,  // NE, SW, SE (for Black) - will be adjusted for White
+                0x2A, // NE, SW, SE (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
-
             // Simple movement 1 space in the other 5 directions
             // For Black: N (1) | E (4) | S (16) | W (64) | NW (128) = 213 = 0xD5
             // For White: adjusted automatically
             MovementCapability::Simple {
-                directions: 0xD5,  // N, E, S, W, NW (for Black) - will be adjusted for White
+                directions: 0xD5, // N, E, S, W, NW (for Black) - will be adjusted for White
                 max_distance: 1,
             },
         ],
@@ -4405,22 +4369,21 @@ pub fn divine_turtle_movement() -> MovementConfig {
 /// For White: adjusted automatically
 pub fn white_tiger_movement() -> MovementConfig {
     use crate::movement::types::BlockingMode;
-    
+
     MovementConfig {
         capabilities: vec![
             // Range movement in sideways and forward-right
             // For Black: E (4) | W (64) | NE (2) = 70 = 0x46
             // For White: adjusted automatically
             range_capability(
-                0x46,  // E, W, NE (for Black) - will be adjusted for White
+                0x46, // E, W, NE (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
-
             // Simple movement up to 2 spaces in forward and backward
             // For Black: N (1), S (16) = 17 = 0x11
             // For White: adjusted automatically
             MovementCapability::Simple {
-                directions: 0x11,  // N, S (for Black) - will be adjusted for White
+                directions: 0x11, // N, S (for Black) - will be adjusted for White
                 max_distance: 2,
             },
         ],
@@ -4436,22 +4399,21 @@ pub fn white_tiger_movement() -> MovementConfig {
 /// For White: adjusted automatically
 pub fn divine_tiger_movement() -> MovementConfig {
     use crate::movement::types::BlockingMode;
-    
+
     MovementConfig {
         capabilities: vec![
             // Range movement in sideways, forward-right, and forward
             // For Black: E (4) | W (64) | NE (2) | N (1) = 71 = 0x47
             // For White: adjusted automatically
             range_capability(
-                0x47,  // E, W, NE, N (for Black) - will be adjusted for White
+                0x47, // E, W, NE, N (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
-
             // Simple movement up to 2 spaces in backward
             // For Black: S (16) = 16 = 0x10
             // For White: adjusted automatically
             MovementCapability::Simple {
-                directions: 0x10,  // S (16) for Black - will be adjusted for White
+                directions: 0x10, // S (16) for Black - will be adjusted for White
                 max_distance: 2,
             },
         ],
@@ -4464,17 +4426,16 @@ pub fn divine_tiger_movement() -> MovementConfig {
 /// For White: forward = S (16) - adjusted automatically
 pub fn lance_movement() -> MovementConfig {
     use crate::movement::types::BlockingMode;
-    
+
     MovementConfig {
         capabilities: vec![
             // Range movement straight forward only
             // For Black: N (1)
             // For White: S (16) - adjusted automatically
             range_capability(
-                0x01,  // N (1) for Black - will be adjusted for White
+                0x01, // N (1) for Black - will be adjusted for White
                 BlockingMode::NoJump,
             ),
-
         ],
     }
 }
@@ -4487,17 +4448,16 @@ pub fn lance_movement() -> MovementConfig {
 /// For White: adjusted automatically
 pub fn white_foal_movement() -> MovementConfig {
     use crate::movement::types::BlockingMode;
-    
+
     MovementConfig {
         capabilities: vec![
             // Range movement in all 3 forwards directions and straight backwards
             // For Black: N (1) | NE (2) | NW (128) | S (16) = 147 = 0x93
             // For White: adjusted automatically
             range_capability(
-                0x93,  // N, NE, NW, S (for Black) - will be adjusted for White
+                0x93, // N, NE, NW, S (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
-
         ],
     }
 }
@@ -4509,20 +4469,20 @@ pub fn white_foal_movement() -> MovementConfig {
 /// Sideways: E (4), W (64) = 68 = 0x44 (same for both colors)
 pub fn great_foal_movement() -> MovementConfig {
     use crate::movement::types::BlockingMode;
-    
+
     MovementConfig {
         capabilities: vec![
             // Range movement in all 3 forwards directions and straight backwards
             // For Black: N (1) | NE (2) | NW (128) | S (16) = 147 = 0x93
             // For White: adjusted automatically
             range_capability(
-                0x93,  // N, NE, NW, S (for Black) - will be adjusted for White
+                0x93, // N, NE, NW, S (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
             // Simple movement: up to 2 spaces sideways
             // E (4), W (64) = 68 = 0x44 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x44,  // E, W (same for both colors)
+                directions: 0x44, // E, W (same for both colors)
                 max_distance: 2,
             },
         ],
@@ -4538,20 +4498,20 @@ pub fn great_foal_movement() -> MovementConfig {
 /// Vertically: N (1), S (16) = 17 = 0x11 (same for both colors)
 pub fn wood_chariot_movement() -> MovementConfig {
     use crate::movement::types::BlockingMode;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space forward left and backward right
             // For Black: NW (128) | SE (8) = 136 = 0x88
             // For White: SE (8) | NW (128) = 136 = 0x88 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x88,  // NW, SE (for Black) - will be adjusted for White
+                directions: 0x88, // NW, SE (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Range movement: vertically
             // N (1), S (16) = 17 = 0x11 (same for both colors)
             range_capability(
-                0x11,  // N, S (same for both colors)
+                0x11, // N, S (same for both colors)
                 BlockingMode::NoJump,
             ),
         ],
@@ -4565,20 +4525,20 @@ pub fn wood_chariot_movement() -> MovementConfig {
 /// Vertically: N (1), S (16) = 17 = 0x11 (same for both colors)
 pub fn wind_snapping_turtle_movement() -> MovementConfig {
     use crate::movement::types::BlockingMode;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 2 spaces in forwards diagonal directions
             // For Black: NE (2) | NW (128) = 130 = 0x82
             // For White: SE (8) | SW (32) = 40 = 0x28 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x82,  // NE, NW (for Black) - will be adjusted for White
+                directions: 0x82, // NE, NW (for Black) - will be adjusted for White
                 max_distance: 2,
             },
             // Range movement: vertically
             // N (1), S (16) = 17 = 0x11 (same for both colors)
             range_capability(
-                0x11,  // N, S (same for both colors)
+                0x11, // N, S (same for both colors)
                 BlockingMode::NoJump,
             ),
         ],
@@ -4596,7 +4556,7 @@ pub fn wind_snapping_turtle_movement() -> MovementConfig {
 ///                             For White: SE (8) | SW (32) = 40 = 0x28 (adjusted automatically)
 pub fn peng_master_movement() -> MovementConfig {
     use crate::movement::types::BlockingMode;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 5 spaces sideways and in backwards diagonal directions
@@ -4605,14 +4565,14 @@ pub fn peng_master_movement() -> MovementConfig {
             //                       For White: NE (2) | NW (128) = 130 = 0x82 (adjusted automatically)
             // Combined: 0x44 | 0x28 = 0x6C (for Black) - will be adjusted for White
             MovementCapability::Simple {
-                directions: 0x6C,  // E, W, SE, SW (for Black) - will be adjusted for White
+                directions: 0x6C, // E, W, SE, SW (for Black) - will be adjusted for White
                 max_distance: 5,
             },
             // Range movement: in the other 4 directions
             // For Black: N (1) | NE (2) | NW (128) | S (16) = 147 = 0x93
             // For White: S (16) | SE (8) | SW (32) | N (1) = 57 = 0x39 (adjusted automatically)
             range_capability(
-                0x93,  // N, NE, NW, S (for Black) - will be adjusted for White
+                0x93, // N, NE, NW, S (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
             // Jumping movement: 3 spaces in forward diagonal directions
@@ -4644,9 +4604,9 @@ pub fn peng_master_movement() -> MovementConfig {
 /// Jump 2 in 3 forward directions and straight backwards: For Black: N (1) | NE (2) | NW (128) | S (16) = 147 = 0x93
 ///                                                          For White: S (16) | SE (8) | SW (32) | N (1) = 57 = 0x39 (adjusted automatically)
 pub fn center_master_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::types::BlockingMode;
-    
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 3 spaces sideways and in backwards diagonal directions
@@ -4655,14 +4615,14 @@ pub fn center_master_movement() -> MovementConfig {
             //                       For White: NE (2) | NW (128) = 130 = 0x82 (adjusted automatically)
             // Combined: 0x44 | 0x28 = 0x6C (for Black) - will be adjusted for White
             MovementCapability::Simple {
-                directions: 0x6C,  // E, W, SE, SW (for Black) - will be adjusted for White
+                directions: 0x6C, // E, W, SE, SW (for Black) - will be adjusted for White
                 max_distance: 3,
             },
             // Range movement: in the other 4 directions
             // For Black: N (1) | NE (2) | NW (128) | S (16) = 147 = 0x93
             // For White: S (16) | SE (8) | SW (32) | N (1) = 57 = 0x39 (adjusted automatically)
             range_capability(
-                0x93,  // N, NE, NW, S (for Black) - will be adjusted for White
+                0x93, // N, NE, NW, S (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
             // Jumping movement: 2 spaces in 3 forward directions and straight backwards
@@ -4698,14 +4658,12 @@ pub fn center_master_movement() -> MovementConfig {
 /// For White: adjusted automatically
 pub fn fierce_wolf_movement() -> MovementConfig {
     MovementConfig {
-        capabilities: vec![
-            MovementCapability::Simple {
-                // N, S, E, W, NE, NW (will be adjusted by color)
-                // N (1) | S (16) | E (4) | W (64) | NE (2) | NW (128) = 215 = 0xD7
-                directions: 0xD7,
-                max_distance: 1,
-            },
-        ],
+        capabilities: vec![MovementCapability::Simple {
+            // N, S, E, W, NE, NW (will be adjusted by color)
+            // N (1) | S (16) | E (4) | W (64) | NE (2) | NW (128) = 215 = 0xD7
+            directions: 0xD7,
+            max_distance: 1,
+        }],
     }
 }
 
@@ -4715,12 +4673,10 @@ pub fn fierce_wolf_movement() -> MovementConfig {
 /// For White: adjusted automatically
 pub fn bears_eyes_movement() -> MovementConfig {
     MovementConfig {
-        capabilities: vec![
-            MovementCapability::Simple {
-                directions: DIRECTION_SET_ALL,  // All 8 directions
-                max_distance: 1,
-            },
-        ],
+        capabilities: vec![MovementCapability::Simple {
+            directions: DIRECTION_SET_ALL, // All 8 directions
+            max_distance: 1,
+        }],
     }
 }
 
@@ -4732,7 +4688,7 @@ pub fn bears_eyes_movement() -> MovementConfig {
 /// Vertically: N (1) | S (16) = 17 = 0x11 (same for both colors)
 pub fn eastern_barbarian_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space sideways and forward diagonal
@@ -4741,13 +4697,13 @@ pub fn eastern_barbarian_movement() -> MovementConfig {
             //                     For White: SE (8) | SW (32) = 40 = 0x28 (adjusted automatically)
             // Combined: 0x44 | 0x82 = 0xC6 (for Black) - will be adjusted for White
             MovementCapability::Simple {
-                directions: 0xC6,  // E, W, NE, NW (for Black) - will be adjusted for White
+                directions: 0xC6, // E, W, NE, NW (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Simple movement: up to 2 spaces vertically
             // N (1) | S (16) = 17 = 0x11 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x11,  // N, S (same for both colors)
+                directions: 0x11, // N, S (same for both colors)
                 max_distance: 2,
             },
         ],
@@ -4762,7 +4718,7 @@ pub fn eastern_barbarian_movement() -> MovementConfig {
 /// Vertically: N (1) | S (16) = 17 = 0x11 (same for both colors)
 pub fn western_barbarian_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space sideways and forward diagonal
@@ -4771,13 +4727,13 @@ pub fn western_barbarian_movement() -> MovementConfig {
             //                     For White: SE (8) | SW (32) = 40 = 0x28 (adjusted automatically)
             // Combined: 0x44 | 0x82 = 0xC6 (for Black) - will be adjusted for White
             MovementCapability::Simple {
-                directions: 0xC6,  // E, W, NE, NW (for Black) - will be adjusted for White
+                directions: 0xC6, // E, W, NE, NW (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Simple movement: up to 2 spaces vertically
             // N (1) | S (16) = 17 = 0x11 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x11,  // N, S (same for both colors)
+                directions: 0x11, // N, S (same for both colors)
                 max_distance: 2,
             },
         ],
@@ -4795,20 +4751,20 @@ pub fn western_barbarian_movement() -> MovementConfig {
 /// Sideways: E (4) | W (64) = 68 = 0x44 (same for both colors)
 pub fn southern_barbarian_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space in all 3 forward directions and straight backward
             // For Black: N (1) | NE (2) | NW (128) | S (16) = 147 = 0x93
             // For White: S (16) | SE (8) | SW (32) | N (1) = 57 = 0x39 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x93,  // N, NE, NW, S (for Black) - will be adjusted for White
+                directions: 0x93, // N, NE, NW, S (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Simple movement: up to 2 spaces sideways
             // E (4) | W (64) = 68 = 0x44 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x44,  // E, W (same for both colors)
+                directions: 0x44, // E, W (same for both colors)
                 max_distance: 2,
             },
         ],
@@ -4826,20 +4782,20 @@ pub fn southern_barbarian_movement() -> MovementConfig {
 /// Sideways: E (4) | W (64) = 68 = 0x44 (same for both colors)
 pub fn northern_barbarian_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space in all 3 forward directions and straight backward
             // For Black: N (1) | NE (2) | NW (128) | S (16) = 147 = 0x93
             // For White: S (16) | SE (8) | SW (32) | N (1) = 57 = 0x39 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x93,  // N, NE, NW, S (for Black) - will be adjusted for White
+                directions: 0x93, // N, NE, NW, S (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Simple movement: up to 2 spaces sideways
             // E (4) | W (64) = 68 = 0x44 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x44,  // E, W (same for both colors)
+                directions: 0x44, // E, W (same for both colors)
                 max_distance: 2,
             },
         ],
@@ -4851,30 +4807,30 @@ pub fn northern_barbarian_movement() -> MovementConfig {
 /// All 8 directions: N (1) | NE (2) | E (4) | SE (8) | S (16) | SW (32) | W (64) | NW (128) = 255 = 0xFF
 /// Jump: 3 spaces in all 8 directions
 pub fn lion_dog_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
-    use crate::movement::types::BlockingMode;
     use crate::movement::direction::DIRECTION_SET_ALL;
-    
+    use crate::movement::types::BlockingMode;
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Range movement: all directions
             // All 8 directions: N (1) | NE (2) | E (4) | SE (8) | S (16) | SW (32) | W (64) | NW (128) = 255 = 0xFF
             range_capability(
-                DIRECTION_SET_ALL,  // All directions (same for both colors)
+                DIRECTION_SET_ALL, // All directions (same for both colors)
                 BlockingMode::NoJump,
             ),
             // Jump movement: 3 spaces in all 8 directions
             // N (0, 3), NE (3, 3), E (3, 0), SE (3, -3), S (0, -3), SW (-3, -3), W (-3, 0), NW (-3, 3)
             MovementCapability::Jumping {
                 offsets: vec![
-                    (0, 3),    // N for Black
-                    (3, 3),    // NE for Black
-                    (3, 0),    // E (same for both colors)
-                    (3, -3),   // SE for Black
-                    (0, -3),   // S for Black
-                    (-3, -3),  // SW for Black
-                    (-3, 0),   // W (same for both colors)
-                    (-3, 3),   // NW for Black
+                    (0, 3),   // N for Black
+                    (3, 3),   // NE for Black
+                    (3, 0),   // E (same for both colors)
+                    (3, -3),  // SE for Black
+                    (0, -3),  // S for Black
+                    (-3, -3), // SW for Black
+                    (-3, 0),  // W (same for both colors)
+                    (-3, 3),  // NW for Black
                 ],
             },
         ],
@@ -4888,14 +4844,14 @@ pub fn lion_dog_movement() -> MovementConfig {
 /// For White: adjusted automatically
 pub fn beast_cadet_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement up to 2 steps in all directions except directly backwards
             // For Black: N (1) | NE (2) | E (4) | SE (8) | SW (32) | W (64) | NW (128) = 239 = 0xEF
             // For White: adjusted automatically (excludes N which is backwards for White)
             MovementCapability::Simple {
-                directions: 0xEF,  // All except S (16) for Black - will be adjusted for White
+                directions: 0xEF, // All except S (16) for Black - will be adjusted for White
                 max_distance: 2,
             },
         ],
@@ -4909,21 +4865,20 @@ pub fn beast_cadet_movement() -> MovementConfig {
 /// For Black: sideways = E (4), W (64) = 68 = 0x44
 /// For White: adjusted automatically
 pub fn beast_officer_movement() -> MovementConfig {
-    
     MovementConfig {
         capabilities: vec![
             // Simple movement up to 3 steps in all diagonals and forwards
             // For Black: N (1) | NE (2) | NW (128) | SW (32) | SE (8) = 171 = 0xAB
             // For White: adjusted automatically
             MovementCapability::Simple {
-                directions: 0xAB,  // N, NE, NW, SW, SE (for Black) - will be adjusted for White
+                directions: 0xAB, // N, NE, NW, SW, SE (for Black) - will be adjusted for White
                 max_distance: 3,
             },
             // Simple movement up to 2 steps in sideways directions
             // For Black: E (4) | W (64) = 68 = 0x44
             // For White: same (E and W are not color-dependent)
             MovementCapability::Simple {
-                directions: 0x44,  // E, W (same for both colors)
+                directions: 0x44, // E, W (same for both colors)
                 max_distance: 2,
             },
         ],
@@ -4931,104 +4886,100 @@ pub fn beast_officer_movement() -> MovementConfig {
 }
 
 pub fn beast_bird_movement() -> MovementConfig {
-    use crate::movement::types::{MovementCapability, BlockingMode};
-    
+    use crate::movement::types::{BlockingMode, MovementCapability};
+
     MovementConfig {
         capabilities: vec![
             // Simple movement up to 2 steps straight backwards
             // For Black: S (16) = 0x10
             // For White: adjusted automatically
             MovementCapability::Simple {
-                directions: 0x10,  // S (for Black) - will be adjusted for White
+                directions: 0x10, // S (for Black) - will be adjusted for White
                 max_distance: 2,
             },
             // Simple movement up to 3 steps sideways
             // For Black: E (4) | W (64) = 68 = 0x44
             // For White: same (E and W are not color-dependent)
             MovementCapability::Simple {
-                directions: 0x44,  // E, W (same for both colors)
+                directions: 0x44, // E, W (same for both colors)
                 max_distance: 3,
             },
             // Range movement: all diagonals + straight forwards
             // For Black: NE (2) | NW (128) | SW (32) | SE (8) | N (1) = 171 = 0xAB
             // For White: adjusted automatically
             range_capability(
-                0xAB,  // All diagonals and straight forward (for Black) - will be adjusted for White
+                0xAB, // All diagonals and straight forward (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
-
         ],
     }
 }
 
 pub fn left_dragon_movement() -> MovementConfig {
-    use crate::movement::types::{MovementCapability, BlockingMode};
-    
+    use crate::movement::types::{BlockingMode, MovementCapability};
+
     MovementConfig {
         capabilities: vec![
             // Simple movement up to 2 steps straight left
             // For Black: W (64) = 0x40
             // For White: same (W is not color-dependent)
             MovementCapability::Simple {
-                directions: 0x40,  // W (same for both colors)
+                directions: 0x40, // W (same for both colors)
                 max_distance: 2,
             },
             // Range movement in all 3 rightward directions
             // For Black: E (4), NE (2), SE (8) = 14 = 0x0E
             // For White: adjusted automatically
             range_capability(
-                0x0E,  // E, NE, SE (for Black) - will be adjusted for White
+                0x0E, // E, NE, SE (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
-
         ],
     }
 }
 
 pub fn right_dragon_movement() -> MovementConfig {
-    use crate::movement::types::{MovementCapability, BlockingMode};
-    
+    use crate::movement::types::{BlockingMode, MovementCapability};
+
     MovementConfig {
         capabilities: vec![
             // Simple movement up to 2 steps straight right
             // For Black: E (4) = 0x04
             // For White: same (E is not color-dependent)
             MovementCapability::Simple {
-                directions: 0x04,  // E (same for both colors)
+                directions: 0x04, // E (same for both colors)
                 max_distance: 2,
             },
             // Range movement in all 3 leftward directions
             // For Black: W (64), NW (128), SW (32) = 224 = 0xE0
             // For White: adjusted automatically
             range_capability(
-                0xE0,  // W, NW, SW (for Black) - will be adjusted for White
+                0xE0, // W, NW, SW (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
-
         ],
     }
 }
 
 pub fn vermillion_sparrow_movement() -> MovementConfig {
-    use crate::movement::types::{MovementCapability, BlockingMode};
-    
+    use crate::movement::types::{BlockingMode, MovementCapability};
+
     MovementConfig {
         capabilities: vec![
             // Simple movement 1 space orthogonally and in forwards rightward/backwards leftward
             // For Black: N (1), S (16), E (4), W (64), NE (2), SW (32) = 119 = 0x77
             // For White: N, S, NE, SW are adjusted automatically, E and W are same
             MovementCapability::Simple {
-                directions: 0x77,  // N, S, E, W, NE, SW (N, S, NE, SW adjusted for White)
+                directions: 0x77, // N, S, E, W, NE, SW (N, S, NE, SW adjusted for White)
                 max_distance: 1,
             },
             // Range movement in forwards leftward and backwards rightward
             // For Black: NW (128), SE (8) = 136 = 0x88
             // For White: adjusted automatically
             range_capability(
-                0x88,  // NW, SE (for Black) - will be adjusted for White
+                0x88, // NW, SE (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
-
         ],
     }
 }
@@ -5039,22 +4990,22 @@ pub fn vermillion_sparrow_movement() -> MovementConfig {
 ///            Range in NW (128), SE (8), SW (32) = 168 = 0xA8
 /// For White: adjusted automatically
 pub fn divine_sparrow_movement() -> MovementConfig {
-    use crate::movement::types::{MovementCapability, BlockingMode};
-    
+    use crate::movement::types::{BlockingMode, MovementCapability};
+
     MovementConfig {
         capabilities: vec![
             // Simple movement 1 space orthogonally and in forwards rightward (backwards left is now range)
             // For Black: N (1), S (16), E (4), W (64), NE (2) = 87 = 0x57
             // For White: N, S, NE are adjusted automatically, E and W are same
             MovementCapability::Simple {
-                directions: 0x57,  // N, S, E, W, NE (N, S, NE adjusted for White)
+                directions: 0x57, // N, S, E, W, NE (N, S, NE adjusted for White)
                 max_distance: 1,
             },
             // Range movement in forwards leftward, backwards rightward, and backwards leftward
             // For Black: NW (128), SE (8), SW (32) = 168 = 0xA8
             // For White: adjusted automatically
             range_capability(
-                0xA8,  // NW, SE, SW (for Black) - will be adjusted for White
+                0xA8, // NW, SE, SW (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
         ],
@@ -5062,25 +5013,24 @@ pub fn divine_sparrow_movement() -> MovementConfig {
 }
 
 pub fn blue_dragon_movement() -> MovementConfig {
-    use crate::movement::types::{BlockingMode};
-    
+    use crate::movement::types::BlockingMode;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement up to 2 steps sideways
             // For Black: E (4), W (64) = 68 = 0x44
             // For White: same (E and W are not color-dependent)
             MovementCapability::Simple {
-                directions: 0x44,  // E, W (same for both colors)
+                directions: 0x44, // E, W (same for both colors)
                 max_distance: 2,
             },
             // Range movement vertically and forwards rightward
             // For Black: N (1), S (16), NE (2) = 19 = 0x13
             // For White: adjusted automatically
             range_capability(
-                0x13,  // N, S, NE (for Black) - will be adjusted for White
+                0x13, // N, S, NE (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
-
         ],
     }
 }
@@ -5091,22 +5041,22 @@ pub fn blue_dragon_movement() -> MovementConfig {
 ///            Simple 2 in W (64) = 0x40
 /// For White: adjusted automatically
 pub fn divine_dragon_movement() -> MovementConfig {
-    use crate::movement::types::{BlockingMode};
-    
+    use crate::movement::types::BlockingMode;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement up to 2 steps left (W)
             // For Black: W (64) = 0x40
             // For White: same (W is not color-dependent)
             MovementCapability::Simple {
-                directions: 0x40,  // W (same for both colors)
+                directions: 0x40, // W (same for both colors)
                 max_distance: 2,
             },
             // Range movement straight right, vertically, and forward-right
             // For Black: E (4), N (1), S (16), NE (2) = 23 = 0x17
             // For White: adjusted automatically
             range_capability(
-                0x17,  // E, N, S, NE (for Black) - will be adjusted for White
+                0x17, // E, N, S, NE (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
         ],
@@ -5114,49 +5064,47 @@ pub fn divine_dragon_movement() -> MovementConfig {
 }
 
 pub fn left_tiger_movement() -> MovementConfig {
-    use crate::movement::types::{BlockingMode};
-    
+    use crate::movement::types::BlockingMode;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement 1 space in leftward diagonal directions
             // For Black: NW (128), SW (32) = 160 = 0xA0
             // For White: adjusted automatically
             MovementCapability::Simple {
-                directions: 0xA0,  // NW, SW (for Black) - will be adjusted for White
+                directions: 0xA0, // NW, SW (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Range movement in all 3 rightward directions
             // For Black: E (4), NE (2), SE (8) = 14 = 0x0E
             // For White: adjusted automatically
             range_capability(
-                0x0E,  // E, NE, SE (for Black) - will be adjusted for White
+                0x0E, // E, NE, SE (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
-
         ],
     }
 }
 
 pub fn right_tiger_movement() -> MovementConfig {
-    use crate::movement::types::{BlockingMode};
-    
+    use crate::movement::types::BlockingMode;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement 1 space in rightward diagonal directions
             // For Black: NE (2), SE (8) = 10 = 0x0A
             // For White: adjusted automatically
             MovementCapability::Simple {
-                directions: 0x0A,  // NE, SE (for Black) - will be adjusted for White
+                directions: 0x0A, // NE, SE (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Range movement in all 3 leftward directions
             // For Black: W (64), NW (128), SW (32) = 224 = 0xE0
             // For White: adjusted automatically
             range_capability(
-                0xE0,  // W, NW, SW (for Black) - will be adjusted for White
+                0xE0, // W, NW, SW (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
-
         ],
     }
 }
@@ -5165,24 +5113,22 @@ pub fn right_tiger_movement() -> MovementConfig {
 /// Cannot jump over King, CrownPrince, GreatGeneral, FlyingGeneral, or FlyingCrocodile (regardless of promotion status)
 /// Directions: N (1), S (16), E (4), W (64) = 85 = 0x55 (same for both colors)
 pub fn flying_general_movement() -> MovementConfig {
-    use crate::movement::types::{BlockingMode};
     use crate::movement::direction::DIRECTION_SET_ORTHOGONAL;
-    
+    use crate::movement::types::BlockingMode;
+
     let mut cannot_jump_over = PieceTypeSet::new();
     cannot_jump_over.insert(PieceType::King);
     cannot_jump_over.insert(PieceType::CrownPrince);
     cannot_jump_over.insert(PieceType::GreatGeneral);
     cannot_jump_over.insert(PieceType::FlyingGeneral);
     cannot_jump_over.insert(PieceType::FlyingCrocodile);
-    
+
     MovementConfig {
-        capabilities: vec![
-            range_capability_with_restrictions(
-                DIRECTION_SET_ORTHOGONAL,  // N, S, E, W = 0x55
-                BlockingMode::Capturing,
-                cannot_jump_over,
-            ),
-        ],
+        capabilities: vec![range_capability_with_restrictions(
+            DIRECTION_SET_ORTHOGONAL, // N, S, E, W = 0x55
+            BlockingMode::Capturing,
+            cannot_jump_over,
+        )],
     }
 }
 
@@ -5190,14 +5136,14 @@ pub fn flying_general_movement() -> MovementConfig {
 /// plus simple movement up to 2 spaces in backwards diagonals and up to 3 spaces in forwards diagonals
 /// Directions are relative to piece color (Black moves up, White moves down)
 pub fn flying_crocodile_movement() -> MovementConfig {
-    use crate::movement::types::{BlockingMode};
     use crate::movement::direction::DIRECTION_SET_ORTHOGONAL;
-    
+    use crate::movement::types::BlockingMode;
+
     MovementConfig {
         capabilities: vec![
             // Range capturing movement orthogonally (same restrictions as Flying General)
             range_capability_with_restrictions(
-                DIRECTION_SET_ORTHOGONAL,  // N, S, E, W = 0x55
+                DIRECTION_SET_ORTHOGONAL, // N, S, E, W = 0x55
                 BlockingMode::Capturing,
                 blocking_set_3(),
             ),
@@ -5205,14 +5151,14 @@ pub fn flying_crocodile_movement() -> MovementConfig {
             // For Black: SW (32), NW (128) = 160 = 0xA0
             // For White: adjusted automatically
             MovementCapability::Simple {
-                directions: 0xA0,  // SW, NW (for Black) - will be adjusted for White
+                directions: 0xA0, // SW, NW (for Black) - will be adjusted for White
                 max_distance: 2,
             },
             // Simple movement up to 3 spaces in forwards diagonal directions
             // For Black: NE (2), SE (8) = 10 = 0x0A
             // For White: adjusted automatically
             MovementCapability::Simple {
-                directions: 0x0A,  // NE, SE (for Black) - will be adjusted for White
+                directions: 0x0A, // NE, SE (for Black) - will be adjusted for White
                 max_distance: 3,
             },
         ],
@@ -5223,17 +5169,15 @@ pub fn flying_crocodile_movement() -> MovementConfig {
 /// Cannot jump over blocking set 3 pieces (regardless of promotion status)
 /// Directions: NE (2), SE (8), SW (32), NW (128) = 170 = 0xAA (same for both colors)
 pub fn bishop_general_movement() -> MovementConfig {
-    use crate::movement::types::{BlockingMode};
     use crate::movement::direction::DIRECTION_SET_DIAGONAL;
-    
+    use crate::movement::types::BlockingMode;
+
     MovementConfig {
-        capabilities: vec![
-            range_capability_with_restrictions(
-                DIRECTION_SET_DIAGONAL,  // NE, SE, SW, NW = 0xAA
-                BlockingMode::Capturing,
-                blocking_set_3(),
-            ),
-        ],
+        capabilities: vec![range_capability_with_restrictions(
+            DIRECTION_SET_DIAGONAL, // NE, SE, SW, NW = 0xAA
+            BlockingMode::Capturing,
+            blocking_set_3(),
+        )],
     }
 }
 
@@ -5241,37 +5185,37 @@ pub fn bishop_general_movement() -> MovementConfig {
 /// and regular (non-capturing) range movement backwards
 /// Directions are relative to piece color (Black moves up, White moves down)
 pub fn rain_demon_movement() -> MovementConfig {
-    use crate::movement::types::{BlockingMode};
-    
+    use crate::movement::types::BlockingMode;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 2 spaces sideways and backwards diagonals
             // For Black: E (4), W (64), SW (32), SE (8) = 108 = 0x6C
             // For White: E (4), W (64), NW (128), NE (2) = 198 = 0xC6 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x6C,  // E, W, SW, SE (for Black) - will be adjusted for White
+                directions: 0x6C, // E, W, SW, SE (for Black) - will be adjusted for White
                 max_distance: 2,
             },
             // Simple movement up to 3 spaces straight forwards
             // For Black: N (1)
             // For White: S (16) (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x01,  // N (1) for Black - will be adjusted for White
+                directions: 0x01, // N (1) for Black - will be adjusted for White
                 max_distance: 3,
             },
             // Regular (non-capturing) range movement backwards
             // For Black: S (16)
             // For White: N (1) (adjusted automatically)
             range_capability(
-                0x10,  // S (16) for Black - will be adjusted for White
+                0x10, // S (16) for Black - will be adjusted for White
                 BlockingMode::NoJump,
             ),
             // Jumping (not capturing) range movement: forwards diagonal directions
             // For Black: NE (2), NW (128) = 130 = 0x82
             // For White: SE (8), SW (32) = 40 = 0x28 (adjusted automatically)
             range_capability(
-                0x82,  // NE, NW (for Black) - will be adjusted for White
-                BlockingMode::Jump,  // Jumping (not capturing) range movement
+                0x82,               // NE, NW (for Black) - will be adjusted for White
+                BlockingMode::Jump, // Jumping (not capturing) range movement
             ),
         ],
     }
@@ -5281,29 +5225,26 @@ pub fn rain_demon_movement() -> MovementConfig {
 /// Directions are relative to piece color (Black moves up, White moves down)
 pub fn kirin_master_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement up to 3 spaces sideways
             // E (4), W (64) = 68 = 0x44 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x44,  // E, W (same for both colors)
+                directions: 0x44, // E, W (same for both colors)
                 max_distance: 3,
             },
             // Range movement in other 6 directions (all except E, W)
             // N (1), NE (2), SE (8), S (16), SW (32), NW (128) = 187 = 0xBB
             range_capability(
-                0xBB,  // All directions except E, W
+                0xBB, // All directions except E, W
                 BlockingMode::NoJump,
             ),
             // Jump movement: forward exactly 3 spaces
             // For Black: N (0, 3)
             // For White: S (0, -3) (adjusted automatically)
             MovementCapability::Jumping {
-                offsets: vec![
-                    (0, 3),
-                    (0, -3),
-                ],
+                offsets: vec![(0, 3), (0, -3)],
             },
         ],
     }
@@ -5313,19 +5254,19 @@ pub fn kirin_master_movement() -> MovementConfig {
 /// Directions are relative to piece color (Black moves up, White moves down)
 pub fn phoenix_master_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement up to 3 spaces sideways
             // E (4), W (64) = 68 = 0x44 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x44,  // E, W (same for both colors)
+                directions: 0x44, // E, W (same for both colors)
                 max_distance: 3,
             },
             // Range movement in other 6 directions (all except E, W)
             // N (1), NE (2), SE (8), S (16), SW (32), NW (128) = 187 = 0xBB
             range_capability(
-                0xBB,  // All directions except E, W
+                0xBB, // All directions except E, W
                 BlockingMode::NoJump,
             ),
             // Jump movement: forward diagonals exactly 3 spaces
@@ -5333,8 +5274,8 @@ pub fn phoenix_master_movement() -> MovementConfig {
             // For White: SE (3, -3), SW (-3, -3) (adjusted automatically)
             MovementCapability::Jumping {
                 offsets: vec![
-                    (3, 3),    // NE for Black
-                    (-3, 3),   // NW for Black
+                    (3, 3),  // NE for Black
+                    (-3, 3), // NW for Black
                 ],
             },
         ],
@@ -5347,14 +5288,14 @@ pub fn phoenix_master_movement() -> MovementConfig {
 /// For White: adjusted automatically
 pub fn copper_general_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space in all 3 forwards directions and straight backward
             // For Black: N (1), NE (2), NW (128), S (16) = 147 = 0x93
             // For White: S (16), SE (8), SW (32), N (1) = 57 = 0x39 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x93,  // N, NE, NW, S (for Black) - will be adjusted for White
+                directions: 0x93, // N, NE, NW, S (for Black) - will be adjusted for White
                 max_distance: 1,
             },
         ],
@@ -5367,19 +5308,19 @@ pub fn copper_general_movement() -> MovementConfig {
 /// Sideways: E (4), W (64) = 68 = 0x44 (same for both colors)
 pub fn horizontal_mover_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space vertically (forwards and backwards)
             // N (1), S (16) = 17 = 0x11 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x11,  // N, S (same for both colors)
+                directions: 0x11, // N, S (same for both colors)
                 max_distance: 1,
             },
             // Range movement sideways
             // E (4), W (64) = 68 = 0x44 (same for both colors)
             range_capability(
-                0x44,  // E, W (same for both colors)
+                0x44, // E, W (same for both colors)
                 BlockingMode::NoJump,
             ),
         ],
@@ -5392,27 +5333,27 @@ pub fn horizontal_mover_movement() -> MovementConfig {
 /// For White: Backwards diagonals NW (128), NE (2) = 130 = 0x82, Forwards diagonals SE (8), SW (32) = 40 = 0x28 (adjusted automatically)
 pub fn fire_dragon_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 2 spaces in backwards diagonal directions
             // For Black: SW (32), SE (8) = 40 = 0x28
             // For White: NW (128), NE (2) = 130 = 0x82 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x28,  // SW, SE (for Black) - will be adjusted for White
+                directions: 0x28, // SW, SE (for Black) - will be adjusted for White
                 max_distance: 2,
             },
             // Simple movement: up to 4 spaces in forwards diagonal directions
             // For Black: NE (2), NW (128) = 130 = 0x82
             // For White: SE (8), SW (32) = 40 = 0x28 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x82,  // NE, NW (for Black) - will be adjusted for White
+                directions: 0x82, // NE, NW (for Black) - will be adjusted for White
                 max_distance: 4,
             },
             // Range movement in all orthogonal directions
             // N (1), S (16), E (4), W (64) = 85 = 0x55 (same for both colors)
             range_capability(
-                0x55,  // N, S, E, W (same for both colors)
+                0x55, // N, S, E, W (same for both colors)
                 BlockingMode::NoJump,
             ),
         ],
@@ -5425,27 +5366,27 @@ pub fn fire_dragon_movement() -> MovementConfig {
 /// For White: Forwards diagonals SE (8), SW (32) = 40 = 0x28, Backwards diagonals NW (128), NE (2) = 130 = 0x82 (adjusted automatically)
 pub fn water_dragon_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 2 spaces in forwards diagonal directions
             // For Black: NE (2), NW (128) = 130 = 0x82
             // For White: SE (8), SW (32) = 40 = 0x28 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x82,  // NE, NW (for Black) - will be adjusted for White
+                directions: 0x82, // NE, NW (for Black) - will be adjusted for White
                 max_distance: 2,
             },
             // Simple movement: up to 4 spaces in backwards diagonal directions
             // For Black: SW (32), SE (8) = 40 = 0x28
             // For White: NW (128), NE (2) = 130 = 0x82 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x28,  // SW, SE (for Black) - will be adjusted for White
+                directions: 0x28, // SW, SE (for Black) - will be adjusted for White
                 max_distance: 4,
             },
             // Range movement in all orthogonal directions
             // N (1), S (16), E (4), W (64) = 85 = 0x55 (same for both colors)
             range_capability(
-                0x55,  // N, S, E, W (same for both colors)
+                0x55, // N, S, E, W (same for both colors)
                 BlockingMode::NoJump,
             ),
         ],
@@ -5455,31 +5396,31 @@ pub fn water_dragon_movement() -> MovementConfig {
 /// Peacock movement: Simple 2 backwards diagonals, two-step: forward diagonal then any diagonal
 /// Directions are relative to piece color (Black moves up, White moves down)
 pub fn peacock_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::direction::DIRECTION_SET_DIAGONAL;
     use crate::movement::types::BlockingMode;
-    
+    use crate::movement::types::MovementCapability;
+
     // Forward diagonal range movement (for first step)
     // For Black: NE (2), NW (128) = 130 = 0x82
     // For White: SE (8), SW (32) = 40 = 0x28 (adjusted automatically)
     let forward_diagonal_range = range_capability(
-        0x82,  // NE, NW (for Black) - will be adjusted for White
+        0x82, // NE, NW (for Black) - will be adjusted for White
         BlockingMode::NoJump,
     );
-    
+
     // Any diagonal range movement (for second step)
     let diagonal_range = range_capability(
-        DIRECTION_SET_DIAGONAL,  // 0xAA = NE, SE, SW, NW (all diagonals)
+        DIRECTION_SET_DIAGONAL, // 0xAA = NE, SE, SW, NW (all diagonals)
         BlockingMode::NoJump,
     );
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 2 spaces in backwards diagonal directions
             // For Black: SW (32), SE (8) = 40 = 0x28
             // For White: NW (128), NE (2) = 130 = 0x82 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x28,  // SW, SE (for Black) - will be adjusted for White
+                directions: 0x28, // SW, SE (for Black) - will be adjusted for White
                 max_distance: 2,
             },
             // Two-step: first move forward diagonal (range), second move any diagonal (range)
@@ -5497,19 +5438,19 @@ pub fn peacock_movement() -> MovementConfig {
 /// Diagonals: NE (2), SE (8), SW (32), NW (128) = 170 = 0xAA (same for both colors)
 pub fn old_kite_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space sideways
             // E (4), W (64) = 68 = 0x44 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x44,  // E, W (same for both colors)
+                directions: 0x44, // E, W (same for both colors)
                 max_distance: 1,
             },
             // Simple movement: up to 2 spaces diagonally
             // NE (2), SE (8), SW (32), NW (128) = 170 = 0xAA (same for both colors)
             MovementCapability::Simple {
-                directions: 0xAA,  // All diagonals (same for both colors)
+                directions: 0xAA, // All diagonals (same for both colors)
                 max_distance: 2,
             },
         ],
@@ -5522,20 +5463,20 @@ pub fn old_kite_movement() -> MovementConfig {
 /// Straight forwards: N (1) for Black, S (16) for White (adjusted automatically)
 pub fn rushing_bird_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space in all directions except vertically
             // NE (2), E (4), SE (8), SW (32), W (64), NW (128) = 238 = 0xEE (same for both colors)
             MovementCapability::Simple {
-                directions: 0xEE,  // All directions except N, S (same for both colors)
+                directions: 0xEE, // All directions except N, S (same for both colors)
                 max_distance: 1,
             },
             // Simple movement: up to 2 spaces straight forwards
             // For Black: N (1) = 0x01
             // For White: S (16) = 0x10 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x01,  // N (for Black) - will be adjusted for White
+                directions: 0x01, // N (for Black) - will be adjusted for White
                 max_distance: 2,
             },
         ],
@@ -5549,29 +5490,29 @@ pub fn rushing_bird_movement() -> MovementConfig {
 /// Straight backwards: For Black S (16), For White N (1) (adjusted automatically)
 /// All 3 forwards: For Black N (1), NE (2), NW (128) = 131 = 0x83; For White S (16), SE (8), SW (32) = 56 = 0x38 (adjusted automatically)
 pub fn free_pup_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::types::BlockingMode;
-    
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space in backwards diagonal directions
             // For Black: SW (32), SE (8) = 40 = 0x28
             // For White: NW (128), NE (2) = 130 = 0x82 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x28,  // SW, SE (for Black) - will be adjusted for White
+                directions: 0x28, // SW, SE (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Simple movement: up to 2 spaces sideways
             // E (4), W (64) = 68 = 0x44 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x44,  // E, W (same for both colors)
+                directions: 0x44, // E, W (same for both colors)
                 max_distance: 2,
             },
             // Range movement: straight backwards and all 3 forwards directions
             // For Black: S (16), N (1), NE (2), NW (128) = 147 = 0x93
             // For White: N (1), S (16), SE (8), SW (32) = 57 = 0x39 (adjusted automatically)
             range_capability(
-                0x93,  // S, N, NE, NW (for Black) - will be adjusted for White
+                0x93, // S, N, NE, NW (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
         ],
@@ -5582,23 +5523,23 @@ pub fn free_pup_movement() -> MovementConfig {
 /// Same as Free Pup except backwards diagonals can move up to 2 spaces instead of 1
 /// Directions are relative to piece color (Black moves up, White moves down)
 pub fn free_dog_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::types::BlockingMode;
-    
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 2 spaces in backwards diagonal and sideways directions
             // For Black: SW (32), SE (8), E (4), W (64) = 108 = 0x6C
             // For White: NW (128), NE (2), E (4), W (64) = 198 = 0xC6 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x6C,  // SW, SE, E, W (for Black) - will be adjusted for White
+                directions: 0x6C, // SW, SE, E, W (for Black) - will be adjusted for White
                 max_distance: 2,
             },
             // Range movement: straight backwards and all 3 forwards directions
             // For Black: S (16), N (1), NE (2), NW (128) = 147 = 0x93
             // For White: N (1), S (16), SE (8), SW (32) = 57 = 0x39 (adjusted automatically)
             range_capability(
-                0x93,  // S, N, NE, NW (for Black) - will be adjusted for White
+                0x93, // S, N, NE, NW (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
         ],
@@ -5612,21 +5553,21 @@ pub fn free_dog_movement() -> MovementConfig {
 /// Sideways: E (4), W (64) = 68 = 0x44 (same for both colors)
 pub fn wind_dragon_movement() -> MovementConfig {
     use crate::movement::types::BlockingMode;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space in backward left direction
             // For Black: SW (32) = 0x20
             // For White: NE (2) = 0x02 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x20,  // SW (32) for Black - will be adjusted to NE (2) for White
+                directions: 0x20, // SW (32) for Black - will be adjusted to NE (2) for White
                 max_distance: 1,
             },
             // Range movement: other 3 diagonal directions and sideways
             // For Black: NE (2), SE (8), NW (128), E (4), W (64) = 206 = 0xCE
             // For White: NW (128), SE (8), SW (32), E (4), W (64) = 236 = 0xEC (adjusted automatically)
             range_capability(
-                0xCE,  // NE, SE, NW, E, W (for Black) - will be adjusted for White
+                0xCE, // NE, SE, NW, E, W (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
         ],
@@ -5639,14 +5580,14 @@ pub fn wind_dragon_movement() -> MovementConfig {
 /// For White: All except S (16) = 239 = 0xEF (adjusted automatically)
 pub fn free_dragon_movement() -> MovementConfig {
     use crate::movement::types::BlockingMode;
-    
+
     MovementConfig {
         capabilities: vec![
             // Range movement in all directions except straight forwards
             // For Black: All except N (1) = NE (2) | E (4) | SE (8) | S (16) | SW (32) | W (64) | NW (128) = 254 = 0xFE
             // For White: All except S (16) = N (1) | NE (2) | E (4) | SE (8) | SW (32) | W (64) | NW (128) = 239 = 0xEF (adjusted automatically)
             range_capability(
-                0xFE,  // All except N (for Black) - will be adjusted for White
+                0xFE, // All except N (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
         ],
@@ -5659,23 +5600,23 @@ pub fn free_dragon_movement() -> MovementConfig {
 /// Forward diagonals and sideways: For Black NE (2), NW (128), E (4), W (64) = 198 = 0xC6
 /// For White SE (8), SW (32), E (4), W (64) = 108 = 0x6C (adjusted automatically)
 pub fn running_wolf_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::types::BlockingMode;
-    
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space straight forwards
             // For Black: N (1) = 0x01
             // For White: S (16) = 0x10 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x01,  // N (1) for Black - will be adjusted for White
+                directions: 0x01, // N (1) for Black - will be adjusted for White
                 max_distance: 1,
             },
             // Range movement: forward diagonals and sideways
             // For Black: NE (2), NW (128), E (4), W (64) = 198 = 0xC6
             // For White: SE (8), SW (32), E (4), W (64) = 108 = 0x6C (adjusted automatically)
             range_capability(
-                0xC6,  // NE, NW, E, W (for Black) - will be adjusted for White
+                0xC6, // NE, NW, E, W (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
         ],
@@ -5688,14 +5629,14 @@ pub fn running_wolf_movement() -> MovementConfig {
 /// For White: S (16), SE (8), SW (32), E (4), W (64) = 124 = 0x7C (adjusted automatically)
 pub fn free_wolf_movement() -> MovementConfig {
     use crate::movement::types::BlockingMode;
-    
+
     MovementConfig {
         capabilities: vec![
             // Range movement in all 3 forwards and both sideways directions
             // For Black: N (1), NE (2), NW (128), E (4), W (64) = 199 = 0xC7
             // For White: S (16), SE (8), SW (32), E (4), W (64) = 124 = 0x7C (adjusted automatically)
             range_capability(
-                0xC7,  // N, NE, NW, E, W (for Black) - will be adjusted for White
+                0xC7, // N, NE, NW, E, W (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
         ],
@@ -5708,23 +5649,23 @@ pub fn free_wolf_movement() -> MovementConfig {
 /// Sideways and forward diagonals: For Black E (4), W (64), NE (2), NW (128) = 198 = 0xC6
 /// For White E (4), W (64), SE (8), SW (32) = 108 = 0x6C (adjusted automatically)
 pub fn running_stag_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::types::BlockingMode;
-    
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 2 spaces straight backwards
             // For Black: S (16) = 0x10
             // For White: N (1) = 0x01 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x10,  // S (16) for Black - will be adjusted for White
+                directions: 0x10, // S (16) for Black - will be adjusted for White
                 max_distance: 2,
             },
             // Range movement: sideways and forward diagonal directions
             // For Black: E (4), W (64), NE (2), NW (128) = 198 = 0xC6
             // For White: E (4), W (64), SE (8), SW (32) = 108 = 0x6C (adjusted automatically)
             range_capability(
-                0xC6,  // E, W, NE, NW (for Black) - will be adjusted for White
+                0xC6, // E, W, NE, NW (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
         ],
@@ -5736,13 +5677,13 @@ pub fn running_stag_movement() -> MovementConfig {
 /// All 8 directions: N (1), NE (2), E (4), SE (8), S (16), SW (32), W (64), NW (128) = 255 = 0xFF
 pub fn free_stag_movement() -> MovementConfig {
     use crate::movement::types::BlockingMode;
-    
+
     MovementConfig {
         capabilities: vec![
             // Range movement in all 8 directions
             // All directions: N (1), NE (2), E (4), SE (8), S (16), SW (32), W (64), NW (128) = 255 = 0xFF
             range_capability(
-                DIRECTION_SET_ALL,  // All 8 directions (0xFF)
+                DIRECTION_SET_ALL, // All 8 directions (0xFF)
                 BlockingMode::NoJump,
             ),
         ],
@@ -5755,14 +5696,14 @@ pub fn free_stag_movement() -> MovementConfig {
 /// For White: S (16), E (4), W (64) = 84 = 0x54 (adjusted automatically)
 pub fn side_dragon_movement() -> MovementConfig {
     use crate::movement::types::BlockingMode;
-    
+
     MovementConfig {
         capabilities: vec![
             // Range movement: sideways and straight forward
             // For Black: N (1), E (4), W (64) = 69 = 0x45
             // For White: S (16), E (4), W (64) = 84 = 0x54 (adjusted automatically)
             range_capability(
-                0x45,  // N, E, W (for Black) - will be adjusted for White
+                0x45, // N, E, W (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
         ],
@@ -5775,23 +5716,23 @@ pub fn side_dragon_movement() -> MovementConfig {
 /// All other directions: For Black all except S (16) = N (1), NE (2), E (4), SE (8), SW (32), W (64), NW (128) = 239 = 0xEF
 /// For White all except N (1) = NE (2), E (4), SE (8), S (16), SW (32), W (64), NW (128) = 254 = 0xFE (adjusted automatically)
 pub fn running_dragon_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::types::BlockingMode;
-    
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 5 spaces straight backwards
             // For Black: S (16) = 0x10
             // For White: N (1) = 0x01 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x10,  // S (16) for Black - will be adjusted for White
+                directions: 0x10, // S (16) for Black - will be adjusted for White
                 max_distance: 5,
             },
             // Range movement: all other directions (all except straight backwards)
             // For Black: all except S (16) = N (1), NE (2), E (4), SE (8), SW (32), W (64), NW (128) = 239 = 0xEF
             // For White: all except N (1) = NE (2), E (4), SE (8), S (16), SW (32), W (64), NW (128) = 254 = 0xFE (adjusted automatically)
             range_capability(
-                0xEF,  // All except S (for Black) - will be adjusted for White
+                0xEF, // All except S (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
         ],
@@ -5804,27 +5745,27 @@ pub fn running_dragon_movement() -> MovementConfig {
 /// Sideways: E (4), W (64) = 68 = 0x44 (same for both colors)
 /// Vertically: N (1), S (16) = 17 = 0x11 (same for both colors)
 pub fn golden_chariot_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
-    use crate::movement::types::BlockingMode;
     use crate::movement::direction::DIRECTION_SET_DIAGONAL;
-    
+    use crate::movement::types::BlockingMode;
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space diagonally (all 4 diagonals)
             MovementCapability::Simple {
-                directions: DIRECTION_SET_DIAGONAL,  // All diagonals (same for both colors)
+                directions: DIRECTION_SET_DIAGONAL, // All diagonals (same for both colors)
                 max_distance: 1,
             },
             // Simple movement: up to 2 spaces sideways
             // E (4), W (64) = 68 = 0x44 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x44,  // E, W (same for both colors)
+                directions: 0x44, // E, W (same for both colors)
                 max_distance: 2,
             },
             // Range movement: vertically
             // N (1), S (16) = 17 = 0x11 (same for both colors)
             range_capability(
-                0x11,  // N, S (same for both colors)
+                0x11, // N, S (same for both colors)
                 BlockingMode::NoJump,
             ),
         ],
@@ -5838,35 +5779,35 @@ pub fn golden_chariot_movement() -> MovementConfig {
 /// Sideways: E (4), W (64) = 68 = 0x44 (same for both colors)
 /// Vertically: N (1), S (16) = 17 = 0x11 (same for both colors)
 pub fn playful_parrot_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::types::BlockingMode;
-    
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 2 spaces in backwards diagonal directions
             // For Black: SW (32), SE (8) = 40 = 0x28
             // For White: NW (128), NE (2) = 130 = 0x82 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x28,  // SW, SE (for Black) - will be adjusted for White
+                directions: 0x28, // SW, SE (for Black) - will be adjusted for White
                 max_distance: 2,
             },
             // Simple movement: up to 3 spaces in forwards diagonal directions
             // For Black: NE (2), NW (128) = 130 = 0x82
             // For White: SE (8), SW (32) = 40 = 0x28 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x82,  // NE, NW (for Black) - will be adjusted for White
+                directions: 0x82, // NE, NW (for Black) - will be adjusted for White
                 max_distance: 3,
             },
             // Simple movement: up to 5 spaces sideways
             // E (4), W (64) = 68 = 0x44 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x44,  // E, W (same for both colors)
+                directions: 0x44, // E, W (same for both colors)
                 max_distance: 5,
             },
             // Range movement: vertically
             // N (1), S (16) = 17 = 0x11 (same for both colors)
             range_capability(
-                0x11,  // N, S (same for both colors)
+                0x11, // N, S (same for both colors)
                 BlockingMode::NoJump,
             ),
         ],
@@ -5879,24 +5820,24 @@ pub fn playful_parrot_movement() -> MovementConfig {
 /// Cannot jump over blocking set 2: King, CrownPrince, GreatGeneral, ViceGeneral
 /// Jump: Exactly 2 spaces in all 4 orthogonal directions (N, S, E, W) = 85 = 0x55 (same for both colors)
 pub fn vice_general_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::direction::DIRECTION_SET_DIAGONAL;
-    
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Capturing range movement: all diagonal directions, constrained by blocking set 2
             range_capability_with_restrictions(
-                DIRECTION_SET_DIAGONAL,  // All 4 diagonals (same for both colors)
+                DIRECTION_SET_DIAGONAL, // All 4 diagonals (same for both colors)
                 BlockingMode::Capturing,
                 blocking_set_2(),
             ),
             // Jumping movement: exactly 2 spaces in all 4 orthogonal directions
             MovementCapability::Jumping {
                 offsets: vec![
-                    (0, 2),   // N (2 spaces up)
-                    (0, -2),  // S (2 spaces down)
-                    (2, 0),   // E (2 spaces right)
-                    (-2, 0),  // W (2 spaces left)
+                    (0, 2),  // N (2 spaces up)
+                    (0, -2), // S (2 spaces down)
+                    (2, 0),  // E (2 spaces right)
+                    (-2, 0), // W (2 spaces left)
                 ],
             },
         ],
@@ -5908,27 +5849,27 @@ pub fn vice_general_movement() -> MovementConfig {
 /// Simple 2: Sideways and backwards diagonals
 /// For Black: E (4), W (64), SW (32), SE (8) = 108 = 0x6C
 /// For White: E (4), W (64), NW (128), NE (2) = 198 = 0xC6 (adjusted automatically)
-/// Other 4 directions (straight forwards, straight backwards, forward diagonals): 
+/// Other 4 directions (straight forwards, straight backwards, forward diagonals):
 /// For Black: N (1), S (16), NE (2), NW (128) = 147 = 0x93
 /// For White: S (16), N (1), SE (8), SW (32) = 57 = 0x39 (adjusted automatically)
 pub fn woodland_demon_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::types::BlockingMode;
-    
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 2 spaces sideways and backwards diagonals
             // For Black: E (4), W (64), SW (32), SE (8) = 108 = 0x6C
             // For White: E (4), W (64), NW (128), NE (2) = 198 = 0xC6 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x6C,  // E, W, SW, SE (for Black) - will be adjusted for White
+                directions: 0x6C, // E, W, SW, SE (for Black) - will be adjusted for White
                 max_distance: 2,
             },
             // Range movement: other 4 directions (straight forwards, straight backwards, forward diagonals)
             // For Black: N (1), S (16), NE (2), NW (128) = 147 = 0x93
             // For White: S (16), N (1), SE (8), SW (32) = 57 = 0x39 (adjusted automatically)
             range_capability(
-                0x93,  // N, S, NE, NW (for Black) - will be adjusted for White
+                0x93, // N, S, NE, NW (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
         ],
@@ -5940,21 +5881,21 @@ pub fn woodland_demon_movement() -> MovementConfig {
 /// Sideways: E (4), W (64) = 68 = 0x44 (same for both colors)
 /// Diagonally: All 4 diagonals NE (2), SE (8), SW (32), NW (128) = 170 = 0xAA (same for both colors)
 pub fn old_peng_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
-    use crate::movement::types::BlockingMode;
     use crate::movement::direction::DIRECTION_SET_DIAGONAL;
-    
+    use crate::movement::types::BlockingMode;
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 5 spaces sideways
             // E (4), W (64) = 68 = 0x44 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x44,  // E, W (same for both colors)
+                directions: 0x44, // E, W (same for both colors)
                 max_distance: 5,
             },
             // Range movement: diagonally (all 4 diagonals)
             range_capability(
-                DIRECTION_SET_DIAGONAL,  // All diagonals (same for both colors)
+                DIRECTION_SET_DIAGONAL, // All diagonals (same for both colors)
                 BlockingMode::NoJump,
             ),
         ],
@@ -5967,22 +5908,22 @@ pub fn old_peng_movement() -> MovementConfig {
 /// Cannot jump over blocking set 3: King, CrownPrince, GreatGeneral, FlyingGeneral, FlyingCrocodile, BishopGeneral, ViceGeneral, FierceDragon
 /// Simple 2: Orthogonal directions (N, S, E, W) = 85 = 0x55 (same for both colors)
 pub fn fierce_dragon_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::direction::DIRECTION_SET_DIAGONAL;
     use crate::movement::direction::DIRECTION_SET_ORTHOGONAL;
-    
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Capturing range movement: all diagonal directions, constrained by blocking set 3
             range_capability_with_restrictions(
-                DIRECTION_SET_DIAGONAL,  // All 4 diagonals (same for both colors)
+                DIRECTION_SET_DIAGONAL, // All 4 diagonals (same for both colors)
                 BlockingMode::Capturing,
                 blocking_set_3(),
             ),
             // Simple movement: up to 2 spaces orthogonally
             // N (1), S (16), E (4), W (64) = 85 = 0x55 (same for both colors)
             MovementCapability::Simple {
-                directions: DIRECTION_SET_ORTHOGONAL,  // All orthogonals (same for both colors)
+                directions: DIRECTION_SET_ORTHOGONAL, // All orthogonals (same for both colors)
                 max_distance: 2,
             },
         ],
@@ -5995,14 +5936,14 @@ pub fn fierce_dragon_movement() -> MovementConfig {
 /// For White: All except N (1) = NE (2), E (4), SE (8), S (16), SW (32), W (64), NW (128) = 254 = 0xFE (adjusted automatically)
 pub fn fowl_cadet_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 3 spaces in all directions except directly backwards
             // For Black: All except S (16) = N (1), NE (2), E (4), SE (8), SW (32), W (64), NW (128) = 239 = 0xEF
             // For White: All except N (1) = NE (2), E (4), SE (8), S (16), SW (32), W (64), NW (128) = 254 = 0xFE (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0xEF,  // All except S (for Black) - will be adjusted for White
+                directions: 0xEF, // All except S (for Black) - will be adjusted for White
                 max_distance: 3,
             },
         ],
@@ -6013,9 +5954,9 @@ pub fn fowl_cadet_movement() -> MovementConfig {
 /// Jump offsets: Either coordinate changes by exactly 2, and the other changes by at most 2
 /// Two-step: First move 1 space in any direction, second move 1 space in any direction
 pub fn lion_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::direction::DIRECTION_SET_ALL;
-    
+    use crate::movement::types::MovementCapability;
+
     // Jump offsets: all positions where either file_delta or rank_delta is exactly 2 or -2,
     // and the other is at most 2 in absolute value
     // This gives us: (2, -2), (2, -1), (2, 0), (2, 1), (2, 2), (-2, -2), (-2, -1), (-2, 0), (-2, 1), (-2, 2),
@@ -6023,22 +5964,34 @@ pub fn lion_movement() -> MovementConfig {
     // After removing duplicates: (2, -2), (2, -1), (2, 0), (2, 1), (2, 2), (-2, -2), (-2, -1), (-2, 0), (-2, 1), (-2, 2),
     //                            (-1, 2), (0, 2), (1, 2), (-1, -2), (0, -2), (1, -2)
     let jump_offsets = vec![
-        (2, -2), (2, -1), (2, 0), (2, 1), (2, 2),
-        (-2, -2), (-2, -1), (-2, 0), (-2, 1), (-2, 2),
-        (-1, 2), (0, 2), (1, 2),
-        (-1, -2), (0, -2), (1, -2),
+        (2, -2),
+        (2, -1),
+        (2, 0),
+        (2, 1),
+        (2, 2),
+        (-2, -2),
+        (-2, -1),
+        (-2, 0),
+        (-2, 1),
+        (-2, 2),
+        (-1, 2),
+        (0, 2),
+        (1, 2),
+        (-1, -2),
+        (0, -2),
+        (1, -2),
     ];
-    
+
     // Two-step: first move 1 space in any direction, second move 1 space in any direction
     let first_step = MovementCapability::Simple {
-        directions: DIRECTION_SET_ALL,  // All 8 directions
+        directions: DIRECTION_SET_ALL, // All 8 directions
         max_distance: 1,
     };
     let second_step = MovementCapability::Simple {
-        directions: DIRECTION_SET_ALL,  // All 8 directions
+        directions: DIRECTION_SET_ALL, // All 8 directions
         max_distance: 1,
     };
-    
+
     MovementConfig {
         capabilities: vec![
             // Jump movement: all squares 2 steps away
@@ -6061,36 +6014,50 @@ pub fn lion_movement() -> MovementConfig {
 ///   - Range movement diagonally (NE, SE, SW, NW)
 ///   Second move: 1 space in any direction
 pub fn lion_hawk_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
-    use crate::movement::direction::{DIRECTION_SET_ALL, DIRECTION_SET_ORTHOGONAL, DIRECTION_SET_DIAGONAL};
+    use crate::movement::direction::{
+        DIRECTION_SET_ALL, DIRECTION_SET_DIAGONAL, DIRECTION_SET_ORTHOGONAL,
+    };
     use crate::movement::types::BlockingMode;
-    
+    use crate::movement::types::MovementCapability;
+
     // Jump offsets: same as Lion
     let jump_offsets = vec![
-        (2, -2), (2, -1), (2, 0), (2, 1), (2, 2),
-        (-2, -2), (-2, -1), (-2, 0), (-2, 1), (-2, 2),
-        (-1, 2), (0, 2), (1, 2),
-        (-1, -2), (0, -2), (1, -2),
+        (2, -2),
+        (2, -1),
+        (2, 0),
+        (2, 1),
+        (2, 2),
+        (-2, -2),
+        (-2, -1),
+        (-2, 0),
+        (-2, 1),
+        (-2, 2),
+        (-1, 2),
+        (0, 2),
+        (1, 2),
+        (-1, -2),
+        (0, -2),
+        (1, -2),
     ];
-    
+
     // Second step: 1 space in any direction
     let second_step = MovementCapability::Simple {
-        directions: DIRECTION_SET_ALL,  // All 8 directions
+        directions: DIRECTION_SET_ALL, // All 8 directions
         max_distance: 1,
     };
-    
+
     // First step option 1: Simple 1 space orthogonally
     let first_step_orthogonal = MovementCapability::Simple {
-        directions: DIRECTION_SET_ORTHOGONAL,  // N, S, E, W
+        directions: DIRECTION_SET_ORTHOGONAL, // N, S, E, W
         max_distance: 1,
     };
-    
+
     // First step option 2: Range movement diagonally
     let first_step_diagonal_range = range_capability(
-        DIRECTION_SET_DIAGONAL,  // NE, SE, SW, NW
+        DIRECTION_SET_DIAGONAL, // NE, SE, SW, NW
         BlockingMode::NoJump,
     );
-    
+
     MovementConfig {
         capabilities: vec![
             // Jump movement: all squares 2 steps away (same as Lion)
@@ -6115,15 +6082,15 @@ pub fn lion_hawk_movement() -> MovementConfig {
 /// Directions are relative to piece color (Black moves up, White moves down)
 /// Orthogonally: N (1), E (4), S (16), W (64) = 85 = 0x55 (same for both colors)
 pub fn reclining_dragon_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::direction::DIRECTION_SET_ORTHOGONAL;
-    
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space orthogonally
             // N (1), E (4), S (16), W (64) = 85 = 0x55 (same for both colors)
             MovementCapability::Simple {
-                directions: DIRECTION_SET_ORTHOGONAL,  // N, S, E, W (same for both colors)
+                directions: DIRECTION_SET_ORTHOGONAL, // N, S, E, W (same for both colors)
                 max_distance: 1,
             },
         ],
@@ -6140,14 +6107,14 @@ pub fn reclining_dragon_movement() -> MovementConfig {
 ///           For White: 0x10 | 0x83 = 147 = 0x93 (adjusted automatically)
 pub fn coiled_serpent_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space straight forwards and all 3 backwards directions
             // For Black: N (1) | S (16) | SE (8) | SW (32) = 57 = 0x39
             // For White: S (16) | N (1) | NE (2) | NW (128) = 147 = 0x93 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x39,  // N, S, SE, SW (for Black) - will be adjusted for White
+                directions: 0x39, // N, S, SE, SW (for Black) - will be adjusted for White
                 max_distance: 1,
             },
         ],
@@ -6164,14 +6131,14 @@ pub fn coiled_serpent_movement() -> MovementConfig {
 ///           For White: 0x10 | 0x83 = 147 = 0x93 (adjusted automatically)
 pub fn coiled_dragon_movement() -> MovementConfig {
     use crate::movement::types::BlockingMode;
-    
+
     MovementConfig {
         capabilities: vec![
             // Range movement: straight forwards and all 3 backwards directions
             // For Black: N (1) | S (16) | SE (8) | SW (32) = 57 = 0x39
             // For White: S (16) | N (1) | NE (2) | NW (128) = 147 = 0x93 (adjusted automatically)
             range_capability(
-                0x39,  // N, S, SE, SW (for Black) - will be adjusted for White
+                0x39, // N, S, SE, SW (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
         ],
@@ -6189,14 +6156,14 @@ pub fn coiled_dragon_movement() -> MovementConfig {
 ///           For White: 0x28 | 0x44 | 0x01 = 109 = 0x6D (adjusted automatically)
 pub fn huai_chicken_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space forward diagonal, sideways, and straight backwards
             // For Black: NE (2) | NW (128) | E (4) | W (64) | S (16) = 214 = 0xD6
             // For White: SE (8) | SW (32) | E (4) | W (64) | N (1) = 109 = 0x6D (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0xD6,  // NE, NW, E, W, S (for Black) - will be adjusted for White
+                directions: 0xD6, // NE, NW, E, W, S (for Black) - will be adjusted for White
                 max_distance: 1,
             },
         ],
@@ -6214,14 +6181,14 @@ pub fn huai_chicken_movement() -> MovementConfig {
 ///           For White: 0x28 | 0x44 | 0x01 = 109 = 0x6D (adjusted automatically)
 pub fn wizard_stork_movement() -> MovementConfig {
     use crate::movement::types::BlockingMode;
-    
+
     MovementConfig {
         capabilities: vec![
             // Range movement: forward diagonal, sideways, and straight backwards
             // For Black: NE (2) | NW (128) | E (4) | W (64) | S (16) = 214 = 0xD6
             // For White: SE (8) | SW (32) | E (4) | W (64) | N (1) = 109 = 0x6D (adjusted automatically)
             range_capability(
-                0xD6,  // NE, NW, E, W, S (for Black) - will be adjusted for White
+                0xD6, // NE, NW, E, W, S (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
         ],
@@ -6237,14 +6204,14 @@ pub fn wizard_stork_movement() -> MovementConfig {
 ///           For White: 0xAA | 0x01 = 171 = 0xAB (adjusted automatically)
 pub fn old_monkey_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space diagonally and straight backwards
             // For Black: NE (2) | SE (8) | SW (32) | NW (128) | S (16) = 186 = 0xBA
             // For White: NE (2) | SE (8) | SW (32) | NW (128) | N (1) = 171 = 0xAB (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0xBA,  // All diagonals + S (for Black) - will be adjusted for White
+                directions: 0xBA, // All diagonals + S (for Black) - will be adjusted for White
                 max_distance: 1,
             },
         ],
@@ -6260,14 +6227,14 @@ pub fn old_monkey_movement() -> MovementConfig {
 ///           For White: 0xAA | 0x01 = 171 = 0xAB (adjusted automatically)
 pub fn mountain_witch_movement() -> MovementConfig {
     use crate::movement::types::BlockingMode;
-    
+
     MovementConfig {
         capabilities: vec![
             // Range movement: diagonally and straight backwards
             // For Black: NE (2) | SE (8) | SW (32) | NW (128) | S (16) = 186 = 0xBA
             // For White: NE (2) | SE (8) | SW (32) | NW (128) | N (1) = 171 = 0xAB (adjusted automatically)
             range_capability(
-                0xBA,  // All diagonals + S (for Black) - will be adjusted for White
+                0xBA, // All diagonals + S (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
         ],
@@ -6283,14 +6250,14 @@ pub fn mountain_witch_movement() -> MovementConfig {
 ///           For White: 0x28 | 0x44 = 108 = 0x6C (adjusted automatically)
 pub fn flying_chicken_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space forward diagonal and sideways
             // For Black: NE (2) | NW (128) | E (4) | W (64) = 214 = 0xD6
             // For White: SE (8) | SW (32) | E (4) | W (64) = 108 = 0x6C (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0xD6,  // NE, NW, E, W (for Black) - will be adjusted for White
+                directions: 0xD6, // NE, NW, E, W (for Black) - will be adjusted for White
                 max_distance: 1,
             },
         ],
@@ -6305,23 +6272,23 @@ pub fn flying_chicken_movement() -> MovementConfig {
 /// Straight forwards: For Black: N (1) = 1 = 0x01
 ///                    For White: S (16) = 16 = 0x10 (adjusted automatically)
 pub fn raiding_hawk_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::types::BlockingMode;
-    
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space forward diagonal and sideways (same as Flying Chicken)
             // For Black: NE (2) | NW (128) | E (4) | W (64) = 214 = 0xD6
             // For White: SE (8) | SW (32) | E (4) | W (64) = 108 = 0x6C (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0xD6,  // NE, NW, E, W (for Black) - will be adjusted for White
+                directions: 0xD6, // NE, NW, E, W (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Range movement: straight forwards
             // For Black: N (1) = 1 = 0x01
             // For White: S (16) = 16 = 0x10 (adjusted automatically)
             range_capability(
-                0x01,  // N (for Black) - will be adjusted for White
+                0x01, // N (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
         ],
@@ -6337,30 +6304,30 @@ pub fn raiding_hawk_movement() -> MovementConfig {
 /// Straight forwards: For Black: N (1) = 1 = 0x01
 ///                    For White: S (16) = 16 = 0x10 (adjusted automatically)
 pub fn wind_horse_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::types::BlockingMode;
-    
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space forward diagonal
             // For Black: NE (2) | NW (128) = 130 = 0x82
             // For White: SE (8) | SW (32) = 40 = 0x28 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x82,  // NE, NW (for Black) - will be adjusted for White
+                directions: 0x82, // NE, NW (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Simple movement: up to 2 spaces straight backwards
             // For Black: S (16) = 16 = 0x10
             // For White: N (1) = 1 = 0x01 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x10,  // S (for Black) - will be adjusted for White
+                directions: 0x10, // S (for Black) - will be adjusted for White
                 max_distance: 2,
             },
             // Range movement: straight forwards
             // For Black: N (1) = 1 = 0x01
             // For White: S (16) = 16 = 0x10 (adjusted automatically)
             range_capability(
-                0x01,  // N (for Black) - will be adjusted for White
+                0x01, // N (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
         ],
@@ -6375,16 +6342,16 @@ pub fn wind_horse_movement() -> MovementConfig {
 /// Forward knight: (1, 2) and (-1, 2) for Black
 /// Backward knight: (1, -2) and (-1, -2) for Black
 pub fn heavenly_horse_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::types::BlockingMode;
-    
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Range movement: straight forwards
             // For Black: N (1) = 1 = 0x01
             // For White: S (16) = 16 = 0x10 (adjusted automatically)
             range_capability(
-                0x01,  // N (for Black) - will be adjusted for White
+                0x01, // N (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
             // Jumping movement: 4 knight movements (forwards and backwards)
@@ -6393,10 +6360,10 @@ pub fn heavenly_horse_movement() -> MovementConfig {
             // System automatically adjusts for White
             MovementCapability::Jumping {
                 offsets: vec![
-                    (1, 2),    // Forward right knight (for Black)
-                    (-1, 2),   // Forward left knight (for Black)
-                    (1, -2),   // Backward right knight (for Black)
-                    (-1, -2),  // Backward left knight (for Black)
+                    (1, 2),   // Forward right knight (for Black)
+                    (-1, 2),  // Forward left knight (for Black)
+                    (1, -2),  // Backward right knight (for Black)
+                    (-1, -2), // Backward left knight (for Black)
                 ],
             },
         ],
@@ -6412,14 +6379,14 @@ pub fn heavenly_horse_movement() -> MovementConfig {
 ///                       For White: 0xFF & !0x83 = 0x7C = S (16) | SE (8) | SW (32) | E (4) | W (64) = 124 = 0x7C (adjusted automatically)
 pub fn evil_wolf_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space in all directions except the 3 backwards directions
             // For Black: N (1) | NE (2) | E (4) | W (64) | NW (128) = 199 = 0xC7
             // For White: S (16) | SE (8) | SW (32) | E (4) | W (64) = 124 = 0x7C (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0xC7,  // All except S, SE, SW (for Black) - will be adjusted for White
+                directions: 0xC7, // All except S, SE, SW (for Black) - will be adjusted for White
                 max_distance: 1,
             },
         ],
@@ -6430,15 +6397,15 @@ pub fn evil_wolf_movement() -> MovementConfig {
 /// Directions are relative to piece color (Black moves up, White moves down)
 /// All directions: N (1) | NE (2) | E (4) | SE (8) | S (16) | SW (32) | W (64) | NW (128) = 255 = 0xFF
 pub fn poisonous_wolf_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::direction::DIRECTION_SET_ALL;
-    
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space in all directions
             // All 8 directions: N (1) | NE (2) | E (4) | SE (8) | S (16) | SW (32) | W (64) | NW (128) = 255 = 0xFF
             MovementCapability::Simple {
-                directions: DIRECTION_SET_ALL,  // All 8 directions (same for both colors)
+                directions: DIRECTION_SET_ALL, // All 8 directions (same for both colors)
                 max_distance: 1,
             },
         ],
@@ -6452,7 +6419,7 @@ pub fn poisonous_wolf_movement() -> MovementConfig {
 /// Combined: 0xAA | 0x44 = 238 = 0xEE (same for both colors)
 pub fn angry_boar_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space diagonally and sideways
@@ -6460,7 +6427,7 @@ pub fn angry_boar_movement() -> MovementConfig {
             // Sideways: E (4) | W (64) = 68 = 0x44
             // Combined: 0xAA | 0x44 = 238 = 0xEE (same for both colors)
             MovementCapability::Simple {
-                directions: 0xEE,  // All diagonals + E, W (same for both colors)
+                directions: 0xEE, // All diagonals + E, W (same for both colors)
                 max_distance: 1,
             },
         ],
@@ -6474,20 +6441,20 @@ pub fn angry_boar_movement() -> MovementConfig {
 ///                     For White: SE (8) | SW (32) = 40 = 0x28 (adjusted automatically)
 pub fn fierce_bear_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space sideways
             // E (4) | W (64) = 68 = 0x44 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x44,  // E, W (same for both colors)
+                directions: 0x44, // E, W (same for both colors)
                 max_distance: 1,
             },
             // Simple movement: up to 2 spaces in forwards diagonal directions
             // For Black: NE (2) | NW (128) = 130 = 0x82
             // For White: SE (8) | SW (32) = 40 = 0x28 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x82,  // NE, NW (for Black) - will be adjusted for White
+                directions: 0x82, // NE, NW (for Black) - will be adjusted for White
                 max_distance: 2,
             },
         ],
@@ -6501,23 +6468,23 @@ pub fn fierce_bear_movement() -> MovementConfig {
 /// All 3 forwards: For Black: N (1) | NE (2) | NW (128) = 131 = 0x83
 ///                 For White: S (16) | SE (8) | SW (32) = 56 = 0x38 (adjusted automatically)
 pub fn great_bear_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::types::BlockingMode;
-    
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space orthogonally except forwards
             // For Black: E (4) | W (64) | S (16) = 84 = 0x54
             // For White: E (4) | W (64) | N (1) = 69 = 0x45 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x54,  // E, W, S (for Black) - will be adjusted for White
+                directions: 0x54, // E, W, S (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Range movement: all 3 forwards directions
             // For Black: N (1) | NE (2) | NW (128) = 131 = 0x83
             // For White: S (16) | SE (8) | SW (32) = 56 = 0x38 (adjusted automatically)
             range_capability(
-                0x83,  // N, NE, NW (for Black) - will be adjusted for White
+                0x83, // N, NE, NW (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
         ],
@@ -6528,15 +6495,15 @@ pub fn great_bear_movement() -> MovementConfig {
 /// Directions are relative to piece color (Black moves up, White moves down)
 /// Diagonally: NE (2) | SE (8) | SW (32) | NW (128) = 170 = 0xAA (same for both colors)
 pub fn flying_horse_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::direction::DIRECTION_SET_DIAGONAL;
-    
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 2 spaces diagonally
             // All 4 diagonal directions: NE (2) | SE (8) | SW (32) | NW (128) = 170 = 0xAA (same for both colors)
             MovementCapability::Simple {
-                directions: DIRECTION_SET_DIAGONAL,  // All diagonals (same for both colors)
+                directions: DIRECTION_SET_DIAGONAL, // All diagonals (same for both colors)
                 max_distance: 2,
             },
         ],
@@ -6547,15 +6514,15 @@ pub fn flying_horse_movement() -> MovementConfig {
 /// Directions are relative to piece color (Black moves up, White moves down)
 /// Orthogonally: N (1) | E (4) | S (16) | W (64) = 85 = 0x55 (same for both colors)
 pub fn donkey_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::direction::DIRECTION_SET_ORTHOGONAL;
-    
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 2 spaces orthogonally
             // All 4 orthogonal directions: N (1) | E (4) | S (16) | W (64) = 85 = 0x55 (same for both colors)
             MovementCapability::Simple {
-                directions: DIRECTION_SET_ORTHOGONAL,  // All orthogonals (same for both colors)
+                directions: DIRECTION_SET_ORTHOGONAL, // All orthogonals (same for both colors)
                 max_distance: 2,
             },
         ],
@@ -6568,22 +6535,22 @@ pub fn donkey_movement() -> MovementConfig {
 ///                            For White: SE (8) | NW (128) = 136 = 0x88 (adjusted automatically)
 /// Sideways: E (4) | W (64) = 68 = 0x44 (same for both colors)
 pub fn side_ox_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::types::BlockingMode;
-    
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space to upper right and lower left
             // For Black: NE (2) | SW (32) = 34 = 0x22
             // For White: SE (8) | NW (128) = 136 = 0x88 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x22,  // NE, SW (for Black) - will be adjusted for White
+                directions: 0x22, // NE, SW (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Range movement: sideways
             // E (4) | W (64) = 68 = 0x44 (same for both colors)
             range_capability(
-                0x44,  // E, W (same for both colors)
+                0x44, // E, W (same for both colors)
                 BlockingMode::NoJump,
             ),
         ],
@@ -6598,29 +6565,29 @@ pub fn side_ox_movement() -> MovementConfig {
 /// Straight forwards: For Black: N (1) = 1 = 0x01
 ///                    For White: S (16) = 16 = 0x10 (adjusted automatically)
 pub fn vertical_wolf_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::types::BlockingMode;
-    
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space sideways
             // E (4) | W (64) = 68 = 0x44 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x44,  // E, W (same for both colors)
+                directions: 0x44, // E, W (same for both colors)
                 max_distance: 1,
             },
             // Simple movement: up to 3 spaces straight backwards
             // For Black: S (16) = 16 = 0x10
             // For White: N (1) = 1 = 0x01 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x10,  // S (for Black) - will be adjusted for White
+                directions: 0x10, // S (for Black) - will be adjusted for White
                 max_distance: 3,
             },
             // Range movement: straight forwards
             // For Black: N (1) = 1 = 0x01
             // For White: S (16) = 16 = 0x10 (adjusted automatically)
             range_capability(
-                0x01,  // N (for Black) - will be adjusted for White
+                0x01, // N (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
         ],
@@ -6633,22 +6600,22 @@ pub fn vertical_wolf_movement() -> MovementConfig {
 ///                            For White: SE (8) | NW (128) = 136 = 0x88 (adjusted automatically)
 /// Vertically: N (1) | S (16) = 17 = 0x11 (same for both colors)
 pub fn tile_chariot_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::types::BlockingMode;
-    
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space to upper right and lower left
             // For Black: NE (2) | SW (32) = 34 = 0x22
             // For White: SE (8) | NW (128) = 136 = 0x88 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x22,  // NE, SW (for Black) - will be adjusted for White
+                directions: 0x22, // NE, SW (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Range movement: vertically
             // N (1) | S (16) = 17 = 0x11 (same for both colors)
             range_capability(
-                0x11,  // N, S (same for both colors)
+                0x11, // N, S (same for both colors)
                 BlockingMode::NoJump,
             ),
         ],
@@ -6661,19 +6628,19 @@ pub fn tile_chariot_movement() -> MovementConfig {
 /// Vertically: N (1) | S (16) = 17 = 0x11 (same for both colors)
 pub fn running_tile_movement() -> MovementConfig {
     use crate::movement::types::BlockingMode;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 2 spaces sideways
             // E (4) | W (64) = 68 = 0x44 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x44,  // E, W (same for both colors)
+                directions: 0x44, // E, W (same for both colors)
                 max_distance: 2,
             },
             // Range movement: vertically
             // N (1) | S (16) = 17 = 0x11 (same for both colors)
             range_capability(
-                0x11,  // N, S (same for both colors)
+                0x11, // N, S (same for both colors)
                 BlockingMode::NoJump,
             ),
         ],
@@ -6685,25 +6652,37 @@ pub fn running_tile_movement() -> MovementConfig {
 /// Two-step: First move up to 3 spaces in any direction, second move 1 space in any direction
 pub fn furious_fiend_movement() -> MovementConfig {
     use crate::movement::direction::DIRECTION_SET_ALL;
-    
+
     // Jump offsets: same as Lion
     let jump_offsets = vec![
-        (2, -2), (2, -1), (2, 0), (2, 1), (2, 2),
-        (-2, -2), (-2, -1), (-2, 0), (-2, 1), (-2, 2),
-        (-1, 2), (0, 2), (1, 2),
-        (-1, -2), (0, -2), (1, -2),
+        (2, -2),
+        (2, -1),
+        (2, 0),
+        (2, 1),
+        (2, 2),
+        (-2, -2),
+        (-2, -1),
+        (-2, 0),
+        (-2, 1),
+        (-2, 2),
+        (-1, 2),
+        (0, 2),
+        (1, 2),
+        (-1, -2),
+        (0, -2),
+        (1, -2),
     ];
-    
+
     // Two-step: first move up to 3 spaces in any direction, second move 1 space in any direction
     let first_step = MovementCapability::Simple {
-        directions: DIRECTION_SET_ALL,  // All 8 directions
+        directions: DIRECTION_SET_ALL, // All 8 directions
         max_distance: 3,
     };
     let second_step = MovementCapability::Simple {
-        directions: DIRECTION_SET_ALL,  // All 8 directions
+        directions: DIRECTION_SET_ALL, // All 8 directions
         max_distance: 1,
     };
-    
+
     MovementConfig {
         capabilities: vec![
             // Jump movement: all squares 2 steps away
@@ -6724,23 +6703,23 @@ pub fn furious_fiend_movement() -> MovementConfig {
 /// Backwards diagonals: For Black SW (32), SE (8) = 40 = 0x28, For White NW (128), NE (2) = 130 = 0x82 (adjusted automatically)
 /// Forwards diagonals: For Black NE (2), NW (128) = 130 = 0x82, For White SE (8), SW (32) = 40 = 0x28 (adjusted automatically)
 pub fn gold_stag_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::types::BlockingMode;
-    
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 2 spaces in backwards diagonal directions
             // For Black: SW (32), SE (8) = 40 = 0x28
             // For White: NW (128), NE (2) = 130 = 0x82 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x28,  // SW, SE (for Black) - will be adjusted for White
+                directions: 0x28, // SW, SE (for Black) - will be adjusted for White
                 max_distance: 2,
             },
             // Range movement: forwards diagonal directions
             // For Black: NE (2), NW (128) = 130 = 0x82
             // For White: SE (8), SW (32) = 40 = 0x28 (adjusted automatically)
             range_capability(
-                0x82,  // NE, NW (for Black) - will be adjusted for White
+                0x82, // NE, NW (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
         ],
@@ -6752,23 +6731,23 @@ pub fn gold_stag_movement() -> MovementConfig {
 /// Forwards diagonals: For Black NE (2), NW (128) = 130 = 0x82, For White SE (8), SW (32) = 40 = 0x28 (adjusted automatically)
 /// Backwards diagonals: For Black SW (32), SE (8) = 40 = 0x28, For White NW (128), NE (2) = 130 = 0x82 (adjusted automatically)
 pub fn silver_rabbit_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::types::BlockingMode;
-    
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 2 spaces in forwards diagonal directions
             // For Black: NE (2), NW (128) = 130 = 0x82
             // For White: SE (8), SW (32) = 40 = 0x28 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x82,  // NE, NW (for Black) - will be adjusted for White
+                directions: 0x82, // NE, NW (for Black) - will be adjusted for White
                 max_distance: 2,
             },
             // Range movement: backwards diagonal directions
             // For Black: SW (32), SE (8) = 40 = 0x28
             // For White: NW (128), NE (2) = 130 = 0x82 (adjusted automatically)
             range_capability(
-                0x28,  // SW, SE (for Black) - will be adjusted for White
+                0x28, // SW, SE (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
         ],
@@ -6782,21 +6761,21 @@ pub fn silver_rabbit_movement() -> MovementConfig {
 /// For Black: N (1), S (16), NE (2), SE (8), SW (32), NW (128) = 187 = 0xBB
 /// For White: S (16), N (1), SE (8), SW (32), NW (128), NE (2) = 187 = 0xBB (same)
 pub fn side_boar_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::types::BlockingMode;
-    
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Range movement: sideways
             // E (4), W (64) = 68 = 0x44 (same for both colors)
             range_capability(
-                0x44,  // E, W (same for both colors)
+                0x44, // E, W (same for both colors)
                 BlockingMode::NoJump,
             ),
             // Simple movement: 1 space in all other directions
             // N (1), S (16), NE (2), SE (8), SW (32), NW (128) = 187 = 0xBB (same for both colors)
             MovementCapability::Simple {
-                directions: 0xBB,  // All except sideways (same for both colors)
+                directions: 0xBB, // All except sideways (same for both colors)
                 max_distance: 1,
             },
         ],
@@ -6809,16 +6788,16 @@ pub fn side_boar_movement() -> MovementConfig {
 /// Range: For Black N (1), NE (2), NW (128), E (4), W (64) = 199 = 0xC7
 /// Range: For White S (16), SE (8), SW (32), E (4), W (64) = 124 = 0x7C (adjusted automatically)
 pub fn free_boar_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::types::BlockingMode;
-    
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space straight backwards
             // For Black: S (16)
             // For White: N (1) (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x10,  // S (16) for Black - will be adjusted for White
+                directions: 0x10, // S (16) for Black - will be adjusted for White
                 max_distance: 1,
             },
             // Range movement: all 3 forwards and sideways
@@ -6828,7 +6807,7 @@ pub fn free_boar_movement() -> MovementConfig {
             // Sideways: E (4), W (64) = 68 = 0x44 (same for both colors)
             // Combined: 0x83 | 0x44 = 0xC7 for Black, adjusted for White
             range_capability(
-                0xC7,  // N, NE, NW, E, W (for Black) - will be adjusted for White
+                0xC7, // N, NE, NW, E, W (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
         ],
@@ -6842,21 +6821,21 @@ pub fn free_boar_movement() -> MovementConfig {
 /// Straight forwards: For Black N (1), For White S (16) (adjusted automatically)
 pub fn ox_general_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space in forward diagonal and straight backwards directions
             // For Black: NE (2), NW (128), S (16) = 146 = 0x92
             // For White: SE (8), SW (32), N (1) = 41 = 0x29 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x92,  // NE, NW, S (for Black) - will be adjusted for White
+                directions: 0x92, // NE, NW, S (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Simple movement: up to 3 spaces straight forwards
             // For Black: N (1)
             // For White: S (16) (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x01,  // N (1) for Black - will be adjusted for White
+                directions: 0x01, // N (1) for Black - will be adjusted for White
                 max_distance: 3,
             },
         ],
@@ -6870,29 +6849,29 @@ pub fn ox_general_movement() -> MovementConfig {
 /// Range: For Black N (1), NE (2), NW (128), S (16) = 147 = 0x93
 /// Range: For White S (16), SE (8), SW (32), N (1) = 57 = 0x39 (adjusted automatically)
 pub fn free_ox_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::types::BlockingMode;
-    
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space in backwards diagonal directions
             // For Black: SW (32), SE (8) = 40 = 0x28
             // For White: NW (128), NE (2) = 130 = 0x82 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x28,  // SW, SE (for Black) - will be adjusted for White
+                directions: 0x28, // SW, SE (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Simple movement: up to 2 spaces sideways
             // E (4), W (64) = 68 = 0x44 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x44,  // E, W (same for both colors)
+                directions: 0x44, // E, W (same for both colors)
                 max_distance: 2,
             },
             // Range movement: all 3 forwards and straight backwards
             // For Black: N (1), NE (2), NW (128), S (16) = 147 = 0x93
             // For White: S (16), SE (8), SW (32), N (1) = 57 = 0x39 (adjusted automatically)
             range_capability(
-                0x93,  // N, NE, NW, S (for Black) - will be adjusted for White
+                0x93, // N, NE, NW, S (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
         ],
@@ -6906,21 +6885,21 @@ pub fn free_ox_movement() -> MovementConfig {
 /// Straight forwards: For Black N (1), For White S (16) (adjusted automatically)
 pub fn horse_general_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space in forward diagonal and straight backwards directions
             // For Black: NE (2), NW (128), S (16) = 146 = 0x92
             // For White: SE (8), SW (32), N (1) = 41 = 0x29 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x92,  // NE, NW, S (for Black) - will be adjusted for White
+                directions: 0x92, // NE, NW, S (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Simple movement: up to 3 spaces straight forwards
             // For Black: N (1)
             // For White: S (16) (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x01,  // N (1) for Black - will be adjusted for White
+                directions: 0x01, // N (1) for Black - will be adjusted for White
                 max_distance: 3,
             },
         ],
@@ -6934,29 +6913,29 @@ pub fn horse_general_movement() -> MovementConfig {
 /// Range: For Black N (1), NE (2), NW (128), S (16) = 147 = 0x93
 /// Range: For White S (16), SE (8), SW (32), N (1) = 57 = 0x39 (adjusted automatically)
 pub fn free_horse_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::types::BlockingMode;
-    
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space in backwards diagonal directions
             // For Black: SW (32), SE (8) = 40 = 0x28
             // For White: NW (128), NE (2) = 130 = 0x82 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x28,  // SW, SE (for Black) - will be adjusted for White
+                directions: 0x28, // SW, SE (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Simple movement: up to 2 spaces sideways
             // E (4), W (64) = 68 = 0x44 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x44,  // E, W (same for both colors)
+                directions: 0x44, // E, W (same for both colors)
                 max_distance: 2,
             },
             // Range movement: all 3 forwards and straight backwards
             // For Black: N (1), NE (2), NW (128), S (16) = 147 = 0x93
             // For White: S (16), SE (8), SW (32), N (1) = 57 = 0x39 (adjusted automatically)
             range_capability(
-                0x93,  // N, NE, NW, S (for Black) - will be adjusted for White
+                0x93, // N, NE, NW, S (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
         ],
@@ -6969,21 +6948,21 @@ pub fn free_horse_movement() -> MovementConfig {
 /// Straight forwards: For Black N (1), For White S (16) (adjusted automatically)
 pub fn pup_general_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space in backwards diagonal directions
             // For Black: SW (32), SE (8) = 40 = 0x28
             // For White: NW (128), NE (2) = 130 = 0x82 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x28,  // SW, SE (for Black) - will be adjusted for White
+                directions: 0x28, // SW, SE (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Simple movement: up to 4 spaces straight forwards
             // For Black: N (1)
             // For White: S (16) (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x01,  // N (1) for Black - will be adjusted for White
+                directions: 0x01, // N (1) for Black - will be adjusted for White
                 max_distance: 4,
             },
         ],
@@ -6996,21 +6975,21 @@ pub fn pup_general_movement() -> MovementConfig {
 /// Straight forwards: For Black N (1), For White S (16) (adjusted automatically)
 pub fn chicken_general_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space in backwards diagonal directions
             // For Black: SW (32), SE (8) = 40 = 0x28
             // For White: NW (128), NE (2) = 130 = 0x82 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x28,  // SW, SE (for Black) - will be adjusted for White
+                directions: 0x28, // SW, SE (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Simple movement: up to 4 spaces straight forwards
             // For Black: N (1)
             // For White: S (16) (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x01,  // N (1) for Black - will be adjusted for White
+                directions: 0x01, // N (1) for Black - will be adjusted for White
                 max_distance: 4,
             },
         ],
@@ -7024,23 +7003,23 @@ pub fn chicken_general_movement() -> MovementConfig {
 /// Range: For Black N (1), NE (2), NW (128), S (16) = 147 = 0x93
 /// Range: For White S (16), SE (8), SW (32), N (1) = 57 = 0x39 (adjusted automatically)
 pub fn free_chicken_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::types::BlockingMode;
-    
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 2 spaces sideways and backwards diagonals
             // For Black: E (4), W (64), SW (32), SE (8) = 108 = 0x6C
             // For White: E (4), W (64), NW (128), NE (2) = 198 = 0xC6 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x6C,  // E, W, SW, SE (for Black) - will be adjusted for White
+                directions: 0x6C, // E, W, SW, SE (for Black) - will be adjusted for White
                 max_distance: 2,
             },
             // Range movement: all 3 forwards and straight backwards
             // For Black: N (1), NE (2), NW (128), S (16) = 147 = 0x93
             // For White: S (16), SE (8), SW (32), N (1) = 57 = 0x39 (adjusted automatically)
             range_capability(
-                0x93,  // N, NE, NW, S (for Black) - will be adjusted for White
+                0x93, // N, NE, NW, S (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
         ],
@@ -7053,21 +7032,21 @@ pub fn free_chicken_movement() -> MovementConfig {
 /// Forward diagonals: For Black NE (2), NW (128) = 130 = 0x82, For White SE (8), SW (32) = 40 = 0x28 (adjusted automatically)
 pub fn pig_general_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 2 spaces straight backwards
             // For Black: S (16)
             // For White: N (1) (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x10,  // S (16) for Black - will be adjusted for White
+                directions: 0x10, // S (16) for Black - will be adjusted for White
                 max_distance: 2,
             },
             // Simple movement: up to 4 spaces in forward diagonal directions
             // For Black: NE (2), NW (128) = 130 = 0x82
             // For White: SE (8), SW (32) = 40 = 0x28 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x82,  // NE, NW (for Black) - will be adjusted for White
+                directions: 0x82, // NE, NW (for Black) - will be adjusted for White
                 max_distance: 4,
             },
         ],
@@ -7082,29 +7061,29 @@ pub fn pig_general_movement() -> MovementConfig {
 /// Range: For Black N (1), NE (2), NW (128), S (16) = 147 = 0x93
 /// Range: For White S (16), SE (8), SW (32), N (1) = 57 = 0x39 (adjusted automatically)
 pub fn free_pig_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::types::BlockingMode;
-    
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space in backwards diagonal directions
             // For Black: SW (32), SE (8) = 40 = 0x28
             // For White: NW (128), NE (2) = 130 = 0x82 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x28,  // SW, SE (for Black) - will be adjusted for White
+                directions: 0x28, // SW, SE (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Simple movement: up to 2 spaces sideways
             // E (4), W (64) = 68 = 0x44 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x44,  // E, W (same for both colors)
+                directions: 0x44, // E, W (same for both colors)
                 max_distance: 2,
             },
             // Range movement: all 3 forwards and straight backwards
             // For Black: N (1), NE (2), NW (128), S (16) = 147 = 0x93
             // For White: S (16), SE (8), SW (32), N (1) = 57 = 0x39 (adjusted automatically)
             range_capability(
-                0x93,  // N, NE, NW, S (for Black) - will be adjusted for White
+                0x93, // N, NE, NW, S (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
         ],
@@ -7117,7 +7096,7 @@ pub fn free_pig_movement() -> MovementConfig {
 /// For White: 2 spaces down (rank -2) and 1 space left or right (file ±1)
 pub fn knight_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Jumping movement: 2 spaces forward and 1 space sideways
@@ -7126,8 +7105,8 @@ pub fn knight_movement() -> MovementConfig {
             // Note: The movement system will automatically adjust directions for White
             MovementCapability::Jumping {
                 offsets: vec![
-                    (1, 2),   // Right and forward (for Black) / Right and forward (for White)
-                    (-1, 2),  // Left and forward (for Black) / Left and forward (for White)
+                    (1, 2),  // Right and forward (for Black) / Right and forward (for White)
+                    (-1, 2), // Left and forward (for Black) / Left and forward (for White)
                 ],
             },
         ],
@@ -7140,29 +7119,29 @@ pub fn knight_movement() -> MovementConfig {
 /// Straight forwards: For Black N (1), For White S (16) (adjusted automatically)
 /// Sideways: E (4), W (64) = 68 = 0x44 (same for both colors)
 pub fn side_soldier_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::types::BlockingMode;
-    
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space straight backwards
             // For Black: S (16)
             // For White: N (1) (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x10,  // S (16) for Black - will be adjusted for White
+                directions: 0x10, // S (16) for Black - will be adjusted for White
                 max_distance: 1,
             },
             // Simple movement: up to 2 spaces straight forwards
             // For Black: N (1)
             // For White: S (16) (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x01,  // N (1) for Black - will be adjusted for White
+                directions: 0x01, // N (1) for Black - will be adjusted for White
                 max_distance: 2,
             },
             // Range movement: sideways
             // E (4), W (64) = 68 = 0x44 (same for both colors)
             range_capability(
-                0x44,  // E, W (same for both colors)
+                0x44, // E, W (same for both colors)
                 BlockingMode::NoJump,
             ),
         ],
@@ -7175,29 +7154,29 @@ pub fn side_soldier_movement() -> MovementConfig {
 /// Sideways: E (4), W (64) = 68 = 0x44 (same for both colors)
 /// Straight forwards: For Black N (1), For White S (16) (adjusted automatically)
 pub fn vertical_bear_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::types::BlockingMode;
-    
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space straight backwards
             // For Black: S (16)
             // For White: N (1) (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x10,  // S (16) for Black - will be adjusted for White
+                directions: 0x10, // S (16) for Black - will be adjusted for White
                 max_distance: 1,
             },
             // Simple movement: up to 2 spaces sideways
             // E (4), W (64) = 68 = 0x44 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x44,  // E, W (same for both colors)
+                directions: 0x44, // E, W (same for both colors)
                 max_distance: 2,
             },
             // Range movement: straight forwards
             // For Black: N (1)
             // For White: S (16) (adjusted automatically)
             range_capability(
-                0x01,  // N (1) for Black - will be adjusted for White
+                0x01, // N (1) for Black - will be adjusted for White
                 BlockingMode::NoJump,
             ),
         ],
@@ -7210,29 +7189,29 @@ pub fn vertical_bear_movement() -> MovementConfig {
 /// Forwards diagonals: For Black NE (2), NW (128) = 130 = 0x82, For White SE (8), SW (32) = 40 = 0x28 (adjusted automatically)
 /// Vertically: N (1), S (16) = 17 = 0x11 (same for both colors)
 pub fn silver_chariot_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
     use crate::movement::types::BlockingMode;
-    
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space in backwards diagonal directions
             // For Black: SW (32), SE (8) = 40 = 0x28
             // For White: NW (128), NE (2) = 130 = 0x82 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x28,  // SW, SE (for Black) - will be adjusted for White
+                directions: 0x28, // SW, SE (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Simple movement: up to 2 spaces in forwards diagonal directions
             // For Black: NE (2), NW (128) = 130 = 0x82
             // For White: SE (8), SW (32) = 40 = 0x28 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x82,  // NE, NW (for Black) - will be adjusted for White
+                directions: 0x82, // NE, NW (for Black) - will be adjusted for White
                 max_distance: 2,
             },
             // Range movement: vertically
             // N (1), S (16) = 17 = 0x11 (same for both colors)
             range_capability(
-                0x11,  // N, S (same for both colors)
+                0x11, // N, S (same for both colors)
                 BlockingMode::NoJump,
             ),
         ],
@@ -7245,28 +7224,28 @@ pub fn silver_chariot_movement() -> MovementConfig {
 /// Sideways: E (4), W (64) = 68 = 0x44 (same for both colors)
 /// Vertically: N (1), S (16) = 17 = 0x11 (same for both colors)
 pub fn goose_wing_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
-    use crate::movement::types::BlockingMode;
     use crate::movement::direction::DIRECTION_SET_DIAGONAL;
-    
+    use crate::movement::types::BlockingMode;
+    use crate::movement::types::MovementCapability;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space diagonally
             // All 4 diagonals NE (2), SE (8), SW (32), NW (128) = 170 = 0xAA (same for both colors)
             MovementCapability::Simple {
-                directions: DIRECTION_SET_DIAGONAL,  // All diagonals (same for both colors)
+                directions: DIRECTION_SET_DIAGONAL, // All diagonals (same for both colors)
                 max_distance: 1,
             },
             // Simple movement: up to 3 spaces sideways
             // E (4), W (64) = 68 = 0x44 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x44,  // E, W (same for both colors)
+                directions: 0x44, // E, W (same for both colors)
                 max_distance: 3,
             },
             // Range movement: vertically
             // N (1), S (16) = 17 = 0x11 (same for both colors)
             range_capability(
-                0x11,  // N, S (same for both colors)
+                0x11, // N, S (same for both colors)
                 BlockingMode::NoJump,
             ),
         ],
@@ -7281,14 +7260,14 @@ pub fn goose_wing_movement() -> MovementConfig {
 /// For White: excludes SE (8) (adjusted automatically)
 pub fn daiba_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space in all directions except upper right
             // For Black: all except NE (2) = N (1) | E (4) | SE (8) | S (16) | SW (32) | W (64) | NW (128) = 253 = 0xFD
             // For White: all except SE (8) (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0xFD,  // All directions except NE (for Black) - will be adjusted for White
+                directions: 0xFD, // All directions except NE (for Black) - will be adjusted for White
                 max_distance: 1,
             },
         ],
@@ -7300,7 +7279,7 @@ pub fn daiba_movement() -> MovementConfig {
 /// All 8 directions at distances 1, 2, and 3
 pub fn king_of_teachings_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Jumping movement: up to 3 spaces in all directions
@@ -7309,21 +7288,37 @@ pub fn king_of_teachings_movement() -> MovementConfig {
             MovementCapability::Jumping {
                 offsets: vec![
                     // N direction: (0, 1), (0, 2), (0, 3)
-                    (0, 1), (0, 2), (0, 3),
+                    (0, 1),
+                    (0, 2),
+                    (0, 3),
                     // NE direction: (1, 1), (2, 2), (3, 3)
-                    (1, 1), (2, 2), (3, 3),
+                    (1, 1),
+                    (2, 2),
+                    (3, 3),
                     // E direction: (1, 0), (2, 0), (3, 0)
-                    (1, 0), (2, 0), (3, 0),
+                    (1, 0),
+                    (2, 0),
+                    (3, 0),
                     // SE direction: (1, -1), (2, -2), (3, -3)
-                    (1, -1), (2, -2), (3, -3),
+                    (1, -1),
+                    (2, -2),
+                    (3, -3),
                     // S direction: (0, -1), (0, -2), (0, -3)
-                    (0, -1), (0, -2), (0, -3),
+                    (0, -1),
+                    (0, -2),
+                    (0, -3),
                     // SW direction: (-1, -1), (-2, -2), (-3, -3)
-                    (-1, -1), (-2, -2), (-3, -3),
+                    (-1, -1),
+                    (-2, -2),
+                    (-3, -3),
                     // W direction: (-1, 0), (-2, 0), (-3, 0)
-                    (-1, 0), (-2, 0), (-3, 0),
+                    (-1, 0),
+                    (-2, 0),
+                    (-3, 0),
                     // NW direction: (-1, 1), (-2, 2), (-3, 3)
-                    (-1, 1), (-2, 2), (-3, 3),
+                    (-1, 1),
+                    (-2, 2),
+                    (-3, 3),
                 ],
             },
         ],
@@ -7338,14 +7333,14 @@ pub fn king_of_teachings_movement() -> MovementConfig {
 /// For White: excludes SW (32) (adjusted automatically)
 pub fn dark_spirit_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space in all directions except upper left
             // For Black: all except NW (128) = N (1) | NE (2) | E (4) | SE (8) | S (16) | SW (32) | W (64) = 127 = 0x7F
             // For White: all except SW (32) (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x7F,  // All directions except NW (for Black) - will be adjusted for White
+                directions: 0x7F, // All directions except NW (for Black) - will be adjusted for White
                 max_distance: 1,
             },
         ],
@@ -7355,30 +7350,42 @@ pub fn dark_spirit_movement() -> MovementConfig {
 /// Buddhist Spirit movement: Jump to all squares 2 steps away, two-step: range all directions then 1 space any direction
 /// Same jumping move as Lion, but two-step first move is range in all directions (not just 1 space)
 pub fn buddhist_spirit_movement() -> MovementConfig {
-    use crate::movement::types::MovementCapability;
-    use crate::movement::types::BlockingMode;
     use crate::movement::direction::DIRECTION_SET_ALL;
-    
+    use crate::movement::types::BlockingMode;
+    use crate::movement::types::MovementCapability;
+
     // Jump offsets: all positions where either file_delta or rank_delta is exactly 2 or -2,
     // and the other is at most 2 in absolute value (same as Lion)
     let jump_offsets = vec![
-        (2, -2), (2, -1), (2, 0), (2, 1), (2, 2),
-        (-2, -2), (-2, -1), (-2, 0), (-2, 1), (-2, 2),
-        (-1, 2), (0, 2), (1, 2),
-        (-1, -2), (0, -2), (1, -2),
+        (2, -2),
+        (2, -1),
+        (2, 0),
+        (2, 1),
+        (2, 2),
+        (-2, -2),
+        (-2, -1),
+        (-2, 0),
+        (-2, 1),
+        (-2, 2),
+        (-1, 2),
+        (0, 2),
+        (1, 2),
+        (-1, -2),
+        (0, -2),
+        (1, -2),
     ];
-    
+
     // Two-step: first move is range in all directions, second move is 1 space in any direction
     let first_step = MovementCapability::Range {
-        directions: DIRECTION_SET_ALL,  // All 8 directions
+        directions: DIRECTION_SET_ALL, // All 8 directions
         blocking: BlockingMode::NoJump,
         cannot_jump_over: PieceTypeSet::new(),
     };
     let second_step = MovementCapability::Simple {
-        directions: DIRECTION_SET_ALL,  // All 8 directions
+        directions: DIRECTION_SET_ALL, // All 8 directions
         max_distance: 1,
     };
-    
+
     MovementConfig {
         capabilities: vec![
             // Jump movement: all squares 2 steps away (same as Lion)
@@ -7402,7 +7409,7 @@ pub fn buddhist_spirit_movement() -> MovementConfig {
 /// Forward diagonals: For Black NE (2), NW (128) = 130 = 0x82, For White SE (8), SW (32) = 40 = 0x28 (adjusted automatically)
 pub fn gold_bird_movement() -> MovementConfig {
     use crate::movement::types::BlockingMode;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 3 spaces sideways and backward diagonals
@@ -7410,13 +7417,13 @@ pub fn gold_bird_movement() -> MovementConfig {
             // Backward diagonals: For Black SW (32), SE (8) = 40 = 0x28, For White NW (128), NE (2) = 130 = 0x82 (adjusted automatically)
             // Combined: 0x44 | 0x28 = 0x6C (for Black), 0x44 | 0x82 = 0xC6 (for White, adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x6C,  // E, W, SW, SE (for Black) - will be adjusted for White
+                directions: 0x6C, // E, W, SW, SE (for Black) - will be adjusted for White
                 max_distance: 3,
             },
             // Range movement: vertically
             // N (1), S (16) = 17 = 0x11 (same for both colors)
             range_capability(
-                0x11,  // N, S (same for both colors)
+                0x11, // N, S (same for both colors)
                 BlockingMode::NoJump,
             ),
             // Jumping movement: up to 3 spaces in forward diagonal directions
@@ -7425,9 +7432,13 @@ pub fn gold_bird_movement() -> MovementConfig {
             MovementCapability::Jumping {
                 offsets: vec![
                     // NE direction: (1, 1), (2, 2), (3, 3)
-                    (1, 1), (2, 2), (3, 3),
+                    (1, 1),
+                    (2, 2),
+                    (3, 3),
                     // NW direction: (-1, 1), (-2, 2), (-3, 3)
-                    (-1, 1), (-2, 2), (-3, 3),
+                    (-1, 1),
+                    (-2, 2),
+                    (-3, 3),
                 ],
             },
         ],
@@ -7438,7 +7449,7 @@ pub fn gold_bird_movement() -> MovementConfig {
 /// Same as Gold Bird except sideways is range movement instead of simple up to 3 spaces
 pub fn free_bird_movement() -> MovementConfig {
     use crate::movement::types::BlockingMode;
-    
+
     MovementConfig {
         capabilities: vec![
             // Range movement: sideways and vertically
@@ -7446,14 +7457,14 @@ pub fn free_bird_movement() -> MovementConfig {
             // Vertically: N (1), S (16) = 17 = 0x11 (same for both colors)
             // Combined: 0x44 | 0x11 = 0x55 (same for both colors)
             range_capability(
-                0x55,  // E, W, N, S (same for both colors)
+                0x55, // E, W, N, S (same for both colors)
                 BlockingMode::NoJump,
             ),
             // Simple movement: up to 3 spaces in backward diagonal directions
             // For Black: SW (32), SE (8) = 40 = 0x28
             // For White: NW (128), NE (2) = 130 = 0x82 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x28,  // SW, SE (for Black) - will be adjusted for White
+                directions: 0x28, // SW, SE (for Black) - will be adjusted for White
                 max_distance: 3,
             },
             // Jumping movement: up to 3 spaces in forward diagonal directions
@@ -7462,9 +7473,13 @@ pub fn free_bird_movement() -> MovementConfig {
             MovementCapability::Jumping {
                 offsets: vec![
                     // NE direction: (1, 1), (2, 2), (3, 3)
-                    (1, 1), (2, 2), (3, 3),
+                    (1, 1),
+                    (2, 2),
+                    (3, 3),
                     // NW direction: (-1, 1), (-2, 2), (-3, 3)
-                    (-1, 1), (-2, 2), (-3, 3),
+                    (-1, 1),
+                    (-2, 2),
+                    (-3, 3),
                 ],
             },
         ],
@@ -7477,20 +7492,20 @@ pub fn free_bird_movement() -> MovementConfig {
 /// Forward diagonals: For Black NE (2), NW (128) = 130 = 0x82, For White SE (8), SW (32) = 40 = 0x28 (adjusted automatically)
 pub fn fierce_ox_movement() -> MovementConfig {
     use crate::movement::types::BlockingMode;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space vertically
             // N (1), S (16) = 17 = 0x11 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x11,  // N, S (same for both colors)
+                directions: 0x11, // N, S (same for both colors)
                 max_distance: 1,
             },
             // Range movement: forward diagonal directions
             // For Black: NE (2), NW (128) = 130 = 0x82
             // For White: SE (8), SW (32) = 40 = 0x28 (adjusted automatically)
             range_capability(
-                0x82,  // NE, NW (for Black) - will be adjusted for White
+                0x82, // NE, NW (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
         ],
@@ -7503,14 +7518,14 @@ pub fn fierce_ox_movement() -> MovementConfig {
 /// Sideways: E (4), W (64) = 68 = 0x44 (excluded)
 pub fn flying_ox_movement() -> MovementConfig {
     use crate::movement::types::BlockingMode;
-    
+
     MovementConfig {
         capabilities: vec![
             // Range movement: all directions except sideways
             // N (1) | NE (2) | SE (8) | S (16) | SW (32) | NW (128) = 187 = 0xBB
             // Excludes: E (4), W (64) = 0x44
             range_capability(
-                0xBB,  // All directions except E, W (same for both colors)
+                0xBB, // All directions except E, W (same for both colors)
                 BlockingMode::NoJump,
             ),
         ],
@@ -7522,20 +7537,20 @@ pub fn flying_ox_movement() -> MovementConfig {
 /// Sideways: E (4), W (64) = 68 = 0x44 (same for both colors)
 /// All other directions: N (1) | NE (2) | SE (8) | S (16) | SW (32) | NW (128) = 187 = 0xBB (same for both colors)
 pub fn fire_ox_movement() -> MovementConfig {
-    use crate::movement::types::{BlockingMode};
-    
+    use crate::movement::types::BlockingMode;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space sideways
             // E (4), W (64) = 68 = 0x44 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x44,  // E, W (same for both colors)
+                directions: 0x44, // E, W (same for both colors)
                 max_distance: 1,
             },
             // Range movement: in all other directions
             // N (1) | NE (2) | SE (8) | S (16) | SW (32) | NW (128) = 187 = 0xBB (same for both colors)
             MovementCapability::Range {
-                directions: 0xBB,  // All directions except E, W (same for both colors)
+                directions: 0xBB, // All directions except E, W (same for both colors)
                 blocking: BlockingMode::NoJump,
                 cannot_jump_over: PieceTypeSet::new(),
             },
@@ -7549,21 +7564,21 @@ pub fn fire_ox_movement() -> MovementConfig {
 /// Forward diagonals: For Black NE (2), NW (128) = 130 = 0x82, For White SE (8), SW (32) = 40 = 0x28 (adjusted automatically)
 pub fn sheep_soldier_movement() -> MovementConfig {
     use crate::movement::types::BlockingMode;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space straight backwards
             // For Black: S (16)
             // For White: N (1) (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x10,  // S (16) for Black - will be adjusted for White
+                directions: 0x10, // S (16) for Black - will be adjusted for White
                 max_distance: 1,
             },
             // Range movement: forward diagonal directions
             // For Black: NE (2), NW (128) = 130 = 0x82
             // For White: SE (8), SW (32) = 40 = 0x28 (adjusted automatically)
             range_capability(
-                0x82,  // NE, NW (for Black) - will be adjusted for White
+                0x82, // NE, NW (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
         ],
@@ -7574,28 +7589,28 @@ pub fn sheep_soldier_movement() -> MovementConfig {
 /// Same as Sheep Soldier, plus simple 2 straight forward
 pub fn tiger_soldier_movement() -> MovementConfig {
     use crate::movement::types::BlockingMode;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space straight backwards
             // For Black: S (16)
             // For White: N (1) (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x10,  // S (16) for Black - will be adjusted for White
+                directions: 0x10, // S (16) for Black - will be adjusted for White
                 max_distance: 1,
             },
             // Range movement: forward diagonal directions
             // For Black: NE (2), NW (128) = 130 = 0x82
             // For White: SE (8), SW (32) = 40 = 0x28 (adjusted automatically)
             range_capability(
-                0x82,  // NE, NW (for Black) - will be adjusted for White
+                0x82, // NE, NW (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
             // Simple movement: up to 2 spaces straight forward
             // For Black: N (1)
             // For White: S (16) (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x01,  // N (1) for Black - will be adjusted for White
+                directions: 0x01, // N (1) for Black - will be adjusted for White
                 max_distance: 2,
             },
         ],
@@ -7606,15 +7621,15 @@ pub fn tiger_soldier_movement() -> MovementConfig {
 /// Directions are relative to piece color (Black moves up, White moves down)
 /// Orthogonal: N (1), E (4), S (16), W (64) = 85 = 0x55 (same for both colors)
 pub fn running_chariot_movement() -> MovementConfig {
-    use crate::movement::types::BlockingMode;
     use crate::movement::direction::DIRECTION_SET_ORTHOGONAL;
-    
+    use crate::movement::types::BlockingMode;
+
     MovementConfig {
         capabilities: vec![
             // Range movement: orthogonally
             // N (1), E (4), S (16), W (64) = 85 = 0x55 (same for both colors)
             range_capability(
-                DIRECTION_SET_ORTHOGONAL,  // All orthogonal directions (same for both colors)
+                DIRECTION_SET_ORTHOGONAL, // All orthogonal directions (same for both colors)
                 BlockingMode::NoJump,
             ),
         ],
@@ -7627,20 +7642,20 @@ pub fn running_chariot_movement() -> MovementConfig {
 /// All 3 forward directions + straight backwards: For Black N (1), NE (2), NW (128), S (16) = 147 = 0x93, For White S (16), SE (8), SW (32), N (1) = 57 = 0x39 (adjusted automatically)
 pub fn cannon_chariot_movement() -> MovementConfig {
     use crate::movement::types::BlockingMode;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space sideways
             // E (4), W (64) = 68 = 0x44 (same for both colors)
             MovementCapability::Simple {
-                directions: 0x44,  // E, W (same for both colors)
+                directions: 0x44, // E, W (same for both colors)
                 max_distance: 1,
             },
             // Range movement: all 3 forward directions and straight backwards
             // For Black: N (1), NE (2), NW (128), S (16) = 147 = 0x93
             // For White: S (16), SE (8), SW (32), N (1) = 57 = 0x39 (adjusted automatically)
             range_capability(
-                0x93,  // N, NE, NW, S (for Black) - will be adjusted for White
+                0x93, // N, NE, NW, S (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
         ],
@@ -7653,20 +7668,20 @@ pub fn cannon_chariot_movement() -> MovementConfig {
 /// Vertically: N (1), S (16) = 17 = 0x11 (same for both colors)
 pub fn copper_chariot_movement() -> MovementConfig {
     use crate::movement::types::BlockingMode;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 3 spaces in forward diagonal directions
             // For Black: NE (2), NW (128) = 130 = 0x82
             // For White: SE (8), SW (32) = 40 = 0x28 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x82,  // NE, NW (for Black) - will be adjusted for White
+                directions: 0x82, // NE, NW (for Black) - will be adjusted for White
                 max_distance: 3,
             },
             // Range movement: vertically
             // N (1), S (16) = 17 = 0x11 (same for both colors)
             range_capability(
-                0x11,  // N, S (same for both colors)
+                0x11, // N, S (same for both colors)
                 BlockingMode::NoJump,
             ),
         ],
@@ -7679,19 +7694,19 @@ pub fn copper_chariot_movement() -> MovementConfig {
 /// All other directions: NE (2), E (4), SE (8), SW (32), W (64), NW (128) = 238 = 0xEE (same for both colors)
 pub fn copper_elephant_movement() -> MovementConfig {
     use crate::movement::types::BlockingMode;
-    
+
     MovementConfig {
         capabilities: vec![
             // Range movement: vertically
             // N (1), S (16) = 17 = 0x11 (same for both colors)
             range_capability(
-                0x11,  // N, S (same for both colors)
+                0x11, // N, S (same for both colors)
                 BlockingMode::NoJump,
             ),
             // Simple movement: 1 space in all other directions
             // NE (2), E (4), SE (8), SW (32), W (64), NW (128) = 238 = 0xEE (same for both colors)
             MovementCapability::Simple {
-                directions: 0xEE,  // All directions except N, S (same for both colors)
+                directions: 0xEE, // All directions except N, S (same for both colors)
                 max_distance: 1,
             },
         ],
@@ -7706,7 +7721,7 @@ pub fn copper_elephant_movement() -> MovementConfig {
 /// Straight backwards: For Black S (16), For White N (1) (adjusted automatically)
 pub fn cloud_dragon_movement() -> MovementConfig {
     use crate::movement::types::BlockingMode;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space sideways and straight forward
@@ -7714,7 +7729,7 @@ pub fn cloud_dragon_movement() -> MovementConfig {
             // Straight forward: For Black N (1), For White S (16) (adjusted automatically)
             // Combined: For Black N (1) | E (4) | W (64) = 69 = 0x45, For White S (16) | E (4) | W (64) = 84 = 0x54 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x45,  // N, E, W (for Black) - will be adjusted for White
+                directions: 0x45, // N, E, W (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Range movement: diagonally and straight backwards
@@ -7722,7 +7737,7 @@ pub fn cloud_dragon_movement() -> MovementConfig {
             // Straight backwards: For Black S (16), For White N (1) (adjusted automatically)
             // Combined: For Black 0xAA | S (16) = 186 = 0xBA, For White 0xAA | N (1) = 171 = 0xAB (adjusted automatically)
             range_capability(
-                0xBA,  // All diagonals + S (for Black) - will be adjusted for White
+                0xBA, // All diagonals + S (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
         ],
@@ -7735,29 +7750,29 @@ pub fn cloud_dragon_movement() -> MovementConfig {
 /// Forward diagonals: For Black NE (2), NW (128) = 130 = 0x82, For White SE (8), SW (32) = 40 = 0x28 (adjusted automatically)
 /// Orthogonally: N (1), E (4), S (16), W (64) = 85 = 0x55 (same for both colors)
 pub fn little_standard_movement() -> MovementConfig {
-    use crate::movement::types::BlockingMode;
     use crate::movement::direction::DIRECTION_SET_ORTHOGONAL;
-    
+    use crate::movement::types::BlockingMode;
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space in backwards diagonal directions
             // For Black: SW (32), SE (8) = 40 = 0x28
             // For White: NW (128), NE (2) = 130 = 0x82 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x28,  // SW, SE (for Black) - will be adjusted for White
+                directions: 0x28, // SW, SE (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Simple movement: up to 2 spaces in forward diagonal directions
             // For Black: NE (2), NW (128) = 130 = 0x82
             // For White: SE (8), SW (32) = 40 = 0x28 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x82,  // NE, NW (for Black) - will be adjusted for White
+                directions: 0x82, // NE, NW (for Black) - will be adjusted for White
                 max_distance: 2,
             },
             // Range movement: orthogonally
             // N (1), E (4), S (16), W (64) = 85 = 0x55 (same for both colors)
             range_capability(
-                DIRECTION_SET_ORTHOGONAL,  // All orthogonal directions (same for both colors)
+                DIRECTION_SET_ORTHOGONAL, // All orthogonal directions (same for both colors)
                 BlockingMode::NoJump,
             ),
         ],
@@ -7768,15 +7783,15 @@ pub fn little_standard_movement() -> MovementConfig {
 /// Directions are relative to piece color (Black moves up, White moves down)
 /// Orthogonally: N (1), E (4), S (16), W (64) = 85 = 0x55 (same for both colors)
 pub fn soldier_movement() -> MovementConfig {
-    use crate::movement::types::BlockingMode;
     use crate::movement::direction::DIRECTION_SET_ORTHOGONAL;
-    
+    use crate::movement::types::BlockingMode;
+
     MovementConfig {
         capabilities: vec![
             // Range movement: orthogonally
             // N (1), E (4), S (16), W (64) = 85 = 0x55 (same for both colors)
             range_capability(
-                DIRECTION_SET_ORTHOGONAL,  // All orthogonal directions (same for both colors)
+                DIRECTION_SET_ORTHOGONAL, // All orthogonal directions (same for both colors)
                 BlockingMode::NoJump,
             ),
         ],
@@ -7791,14 +7806,14 @@ pub fn soldier_movement() -> MovementConfig {
 /// For White, backwards diagonals are NW (128) and NE (2), so all except those (adjusted automatically)
 pub fn cavalier_movement() -> MovementConfig {
     use crate::movement::types::BlockingMode;
-    
+
     MovementConfig {
         capabilities: vec![
             // Range movement: all directions except backwards diagonals
             // For Black: All except SW (32), SE (8) = N (1) | NE (2) | E (4) | S (16) | W (64) | NW (128) = 223 = 0xDF
             // For White: All except NW (128), NE (2) (adjusted automatically)
             range_capability(
-                0xDF,  // All directions except SW, SE (for Black) - will be adjusted for White
+                0xDF, // All directions except SW, SE (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
         ],
@@ -7811,21 +7826,21 @@ pub fn cavalier_movement() -> MovementConfig {
 /// Straight forwards: For Black N (1), For White S (16) (adjusted automatically)
 pub fn vertical_tiger_movement() -> MovementConfig {
     use crate::movement::types::BlockingMode;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 2 spaces straight backwards
             // For Black: S (16)
             // For White: N (1) (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x10,  // S (16) for Black - will be adjusted for White
+                directions: 0x10, // S (16) for Black - will be adjusted for White
                 max_distance: 2,
             },
             // Range movement: straight forwards
             // For Black: N (1)
             // For White: S (16) (adjusted automatically)
             range_capability(
-                0x01,  // N (1) for Black - will be adjusted for White
+                0x01, // N (1) for Black - will be adjusted for White
                 BlockingMode::NoJump,
             ),
         ],
@@ -7839,21 +7854,21 @@ pub fn vertical_tiger_movement() -> MovementConfig {
 /// Jump: 2 spaces straight ahead (N for Black, S for White)
 pub fn mountain_hawk_movement() -> MovementConfig {
     use crate::movement::types::BlockingMode;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 2 spaces in backwards diagonal directions
             // For Black: SW (32), SE (8) = 40 = 0x28
             // For White: NW (128), NE (2) = 130 = 0x82 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x28,  // SW, SE (for Black) - will be adjusted for White
+                directions: 0x28, // SW, SE (for Black) - will be adjusted for White
                 max_distance: 2,
             },
             // Range movement: all other directions (all except backwards diagonals)
             // For Black: All except SW (32), SE (8) = N (1) | NE (2) | E (4) | S (16) | W (64) | NW (128) = 223 = 0xDF
             // For White: All except NW (128), NE (2) (adjusted automatically)
             range_capability(
-                0xDF,  // All directions except SW, SE (for Black) - will be adjusted for White
+                0xDF, // All directions except SW, SE (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
             // Jump movement: 2 spaces straight ahead
@@ -7861,7 +7876,7 @@ pub fn mountain_hawk_movement() -> MovementConfig {
             // For White: S (0, -2) (adjusted automatically)
             MovementCapability::Jumping {
                 offsets: vec![
-                    (0, 2),  // N for Black - will be adjusted for White
+                    (0, 2), // N for Black - will be adjusted for White
                 ],
             },
         ],
@@ -7873,15 +7888,15 @@ pub fn mountain_hawk_movement() -> MovementConfig {
 /// All directions: N (1) | NE (2) | E (4) | SE (8) | S (16) | SW (32) | W (64) | NW (128) = 255 = 0xFF
 /// Jump: 2 spaces straight forwards (N for Black, S for White)
 pub fn horned_hawk_movement() -> MovementConfig {
-    use crate::movement::types::BlockingMode;
     use crate::movement::direction::DIRECTION_SET_ALL;
-    
+    use crate::movement::types::BlockingMode;
+
     MovementConfig {
         capabilities: vec![
             // Range movement: all directions
             // All 8 directions: N (1) | NE (2) | E (4) | SE (8) | S (16) | SW (32) | W (64) | NW (128) = 255 = 0xFF
             range_capability(
-                DIRECTION_SET_ALL,  // All directions (same for both colors)
+                DIRECTION_SET_ALL, // All directions (same for both colors)
                 BlockingMode::NoJump,
             ),
             // Jump movement: 2 spaces straight forwards
@@ -7889,7 +7904,7 @@ pub fn horned_hawk_movement() -> MovementConfig {
             // For White: S (0, -2) (adjusted automatically)
             MovementCapability::Jumping {
                 offsets: vec![
-                    (0, 2),  // N for Black - will be adjusted for White
+                    (0, 2), // N for Black - will be adjusted for White
                 ],
             },
         ],
@@ -7902,14 +7917,13 @@ pub fn horned_hawk_movement() -> MovementConfig {
 /// Sideways: E (4), W (64) = 68 = 0x44 (same for both colors)
 /// All 3 forwards directions: For Black N (1), NE (2), NW (128) = 131 = 0x83, For White S (16), SE (8), SW (32) = 56 = 0x38 (adjusted automatically)
 pub fn flying_cat_movement() -> MovementConfig {
-    
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space in all 3 backwards directions
             // For Black: S (16), SW (32), SE (8) = 56 = 0x38
             // For White: N (1), NW (128), NE (2) = 131 = 0x83 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x38,  // S, SW, SE (for Black) - will be adjusted for White
+                directions: 0x38, // S, SW, SE (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Jump movement: 3 spaces sideways
@@ -7917,8 +7931,8 @@ pub fn flying_cat_movement() -> MovementConfig {
             // Offsets: (3, 0) and (-3, 0)
             MovementCapability::Jumping {
                 offsets: vec![
-                    (3, 0),   // E (same for both colors)
-                    (-3, 0),  // W (same for both colors)
+                    (3, 0),  // E (same for both colors)
+                    (-3, 0), // W (same for both colors)
                 ],
             },
             // Jump movement: 3 spaces in all 3 forwards directions
@@ -7926,9 +7940,9 @@ pub fn flying_cat_movement() -> MovementConfig {
             // For White: S (0, -3), SE (3, -3), SW (-3, -3) (adjusted automatically)
             MovementCapability::Jumping {
                 offsets: vec![
-                    (0, 3),   // N for Black
-                    (3, 3),   // NE for Black
-                    (-3, 3),  // NW for Black
+                    (0, 3),  // N for Black
+                    (3, 3),  // NE for Black
+                    (-3, 3), // NW for Black
                 ],
             },
         ],
@@ -7942,20 +7956,20 @@ pub fn flying_cat_movement() -> MovementConfig {
 /// Sideways: E (4), W (64) = 68 = 0x44 (same for both colors)
 pub fn side_wolf_movement() -> MovementConfig {
     use crate::movement::types::BlockingMode;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space in forward left diagonal and backward right diagonal
             // For Black: NW (128), SE (8) = 136 = 0x88
             // For White: SW (32), NE (2) = 34 = 0x22 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x88,  // NW, SE (for Black) - will be adjusted for White
+                directions: 0x88, // NW, SE (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Range movement: sideways
             // E (4), W (64) = 68 = 0x44 (same for both colors)
             range_capability(
-                0x44,  // E, W (same for both colors)
+                0x44, // E, W (same for both colors)
                 BlockingMode::NoJump,
             ),
         ],
@@ -7967,22 +7981,20 @@ pub fn side_wolf_movement() -> MovementConfig {
 /// For Black: Range in NE (2), NW (128) = 130 = 0x82
 /// For White: Range in SE (8), SW (32) = 40 = 0x28 (adjusted automatically)
 pub fn flying_swallow_movement() -> MovementConfig {
-    
     MovementConfig {
         capabilities: vec![
             // Range movement in forward diagonal directions
             // For Black: NE (2), NW (128) = 130 = 0x82
             // For White: SE (8), SW (32) = 40 = 0x28 (adjusted automatically)
             range_capability(
-                0x82,  // NE, NW (for Black) - will be adjusted for White
+                0x82, // NE, NW (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
-
             // Simple movement: 1 space directly backwards
             // For Black: S (16)
             // For White: N (1) (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x10,  // S (16) for Black - will be adjusted for White
+                directions: 0x10, // S (16) for Black - will be adjusted for White
                 max_distance: 1,
             },
         ],
@@ -7994,22 +8006,20 @@ pub fn flying_swallow_movement() -> MovementConfig {
 /// For Black: Range in NE (2), NW (128), SW (32), SE (8) = 170 = 0xAA
 /// For White: same (diagonals are symmetric)
 pub fn great_dragon_movement() -> MovementConfig {
-    
     MovementConfig {
         capabilities: vec![
             // Range movement in all diagonal directions
             // For Black: NE (2), NW (128), SW (32), SE (8) = 170 = 0xAA
             // For White: same (diagonals are symmetric)
             range_capability(
-                0xAA,  // All diagonals (same for both colors)
+                0xAA, // All diagonals (same for both colors)
                 BlockingMode::NoJump,
             ),
-
             // Simple movement: up to 3 spaces straight forwards or backwards
             // For Black: N (1), S (16) = 17 = 0x11
             // For White: S (16), N (1) (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x11,  // N and S (for Black) - will be adjusted for White
+                directions: 0x11, // N and S (for Black) - will be adjusted for White
                 max_distance: 3,
             },
         ],
@@ -8022,21 +8032,21 @@ pub fn great_dragon_movement() -> MovementConfig {
 /// Vertically: N (1), S (16) = 17 = 0x11 (same for both colors)
 /// Jumping range means it can jump over pieces without capturing them
 pub fn primordial_dragon_movement() -> MovementConfig {
-    use crate::movement::types::BlockingMode;
     use crate::movement::direction::DIRECTION_SET_DIAGONAL;
-    
+    use crate::movement::types::BlockingMode;
+
     MovementConfig {
         capabilities: vec![
             // Range movement: diagonally (standard, blocked by pieces)
             // All 4 diagonals NE (2), SE (8), SW (32), NW (128) = 170 = 0xAA (same for both colors)
             range_capability(
-                DIRECTION_SET_DIAGONAL,  // All diagonals (same for both colors)
+                DIRECTION_SET_DIAGONAL, // All diagonals (same for both colors)
                 BlockingMode::NoJump,
             ),
             // Jumping range movement: vertically (can jump over pieces without capturing)
             // N (1), S (16) = 17 = 0x11 (same for both colors)
             range_capability(
-                0x11,  // N, S (same for both colors)
+                0x11, // N, S (same for both colors)
                 BlockingMode::Jump,
             ),
         ],
@@ -8049,35 +8059,35 @@ pub fn primordial_dragon_movement() -> MovementConfig {
 /// For White: Forward S (16), Sideways E (4) W (64), Forward diagonals SE (8) SW (32), Backwards N (1) (adjusted automatically)
 pub fn mountain_stag_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space straight forward
             // For Black: N (1)
             // For White: S (16) (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x01,  // N (1) for Black - will be adjusted for White
+                directions: 0x01, // N (1) for Black - will be adjusted for White
                 max_distance: 1,
             },
             // Simple movement: up to 2 spaces sideways
             // For Black: E (4), W (64) = 68 = 0x44
             // For White: same (sideways are symmetric)
             MovementCapability::Simple {
-                directions: 0x44,  // E, W (same for both colors)
+                directions: 0x44, // E, W (same for both colors)
                 max_distance: 2,
             },
             // Simple movement: up to 3 spaces in forward diagonal directions
             // For Black: NE (2), NW (128) = 130 = 0x82
             // For White: SE (8), SW (32) = 40 = 0x28 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x82,  // NE, NW (for Black) - will be adjusted for White
+                directions: 0x82, // NE, NW (for Black) - will be adjusted for White
                 max_distance: 3,
             },
             // Simple movement: up to 4 spaces straight backwards
             // For Black: S (16)
             // For White: N (1) (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x10,  // S (16) for Black - will be adjusted for White
+                directions: 0x10, // S (16) for Black - will be adjusted for White
                 max_distance: 4,
             },
         ],
@@ -8092,22 +8102,21 @@ pub fn mountain_stag_movement() -> MovementConfig {
 /// Forward diagonal jumps: NE (2, 2), NW (-2, 2) (for Black)
 pub fn great_stag_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Range movement in all orthogonal directions
             // For Black: N (1), E (4), S (16), W (64) = 85 = 0x55
             // For White: same (orthogonal are symmetric)
             range_capability(
-                0x55,  // N, E, S, W (same for both colors)
+                0x55, // N, E, S, W (same for both colors)
                 BlockingMode::NoJump,
             ),
-
             // Simple movement: up to 2 spaces in backwards diagonal directions
             // For Black: SW (32), SE (8) = 40 = 0x28
             // For White: NW (128), NE (2) = 130 = 0x82 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x28,  // SW, SE (for Black) - will be adjusted for White
+                directions: 0x28, // SW, SE (for Black) - will be adjusted for White
                 max_distance: 2,
             },
             // Jump exactly 2 spaces in forward diagonal directions
@@ -8115,8 +8124,8 @@ pub fn great_stag_movement() -> MovementConfig {
             // For White: SE (2, -2), SW (-2, -2) (adjusted automatically)
             MovementCapability::Jumping {
                 offsets: vec![
-                    (2, 2),    // NE for Black
-                    (-2, 2),   // NW for Black
+                    (2, 2),  // NE for Black
+                    (-2, 2), // NW for Black
                 ],
             },
         ],
@@ -8129,14 +8138,14 @@ pub fn great_stag_movement() -> MovementConfig {
 /// For White: Diagonals same (symmetric), Forward S (16) (adjusted automatically)
 pub fn silver_general_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space in all diagonals and straight forward
             // For Black: Diagonals NE (2), SE (8), SW (32), NW (128) = 0xAA; Forward N (1) = 0x01; Combined = 0xAB
             // For White: Diagonals are symmetric, forward S (16) is substituted for N (1) (handled automatically)
             MovementCapability::Simple {
-                directions: 0xAB,  // All diagonals and N (forward for Black); adjusted automatically for White
+                directions: 0xAB, // All diagonals and N (forward for Black); adjusted automatically for White
                 max_distance: 1,
             },
         ],
@@ -8150,22 +8159,21 @@ pub fn silver_general_movement() -> MovementConfig {
 /// Sideways: E (4), W (64) = 68 = 0x44 (same for both colors)
 pub fn vertical_mover_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Range movement in straight forwards and backwards directions
             // For Black: N (1), S (16) = 17 = 0x11
             // For White: same (forwards/backwards are symmetric)
             range_capability(
-                0x11,  // N, S (same for both colors)
+                0x11, // N, S (same for both colors)
                 BlockingMode::NoJump,
             ),
-
             // Simple movement: 1 space sideways
             // For Black: E (4), W (64) = 68 = 0x44
             // For White: same (sideways are symmetric)
             MovementCapability::Simple {
-                directions: 0x44,  // E, W (same for both colors)
+                directions: 0x44, // E, W (same for both colors)
                 max_distance: 1,
             },
         ],
@@ -8178,14 +8186,14 @@ pub fn vertical_mover_movement() -> MovementConfig {
 /// For White: same (diagonals are symmetric)
 pub fn rikishi_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 3 spaces in all diagonal directions
             // For Black: NE (2), SE (8), SW (32), NW (128) = 170 = 0xAA
             // For White: same (diagonals are symmetric)
             MovementCapability::Simple {
-                directions: 0xAA,  // All diagonals (same for both colors)
+                directions: 0xAA, // All diagonals (same for both colors)
                 max_distance: 3,
             },
         ],
@@ -8198,14 +8206,14 @@ pub fn rikishi_movement() -> MovementConfig {
 /// For White: same (orthogonal are symmetric)
 pub fn kongou_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 3 spaces in all orthogonal directions
             // For Black: N (1), E (4), S (16), W (64) = 85 = 0x55
             // For White: same (orthogonal are symmetric)
             MovementCapability::Simple {
-                directions: 0x55,  // All orthogonals (same for both colors)
+                directions: 0x55, // All orthogonals (same for both colors)
                 max_distance: 3,
             },
         ],
@@ -8218,21 +8226,21 @@ pub fn kongou_movement() -> MovementConfig {
 /// For White: Sideways same, Backwards N (1), Forward diagonals SE (8), SW (32) = 40 = 0x28 (adjusted automatically)
 pub fn rasetsu_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space sideways and straight backwards
             // For Black: E (4), W (64), S (16) = 84 = 0x54
             // For White: E (4), W (64), N (1) = 69 = 0x45 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x54,  // E, W, S (for Black) - will be adjusted for White
+                directions: 0x54, // E, W, S (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Simple movement: up to 3 spaces in forward diagonal directions
             // For Black: NE (2), NW (128) = 130 = 0x82
             // For White: SE (8), SW (32) = 40 = 0x28 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x82,  // NE, NW (for Black) - will be adjusted for White
+                directions: 0x82, // NE, NW (for Black) - will be adjusted for White
                 max_distance: 3,
             },
         ],
@@ -8244,21 +8252,20 @@ pub fn rasetsu_movement() -> MovementConfig {
 /// For Black: Forward diagonals NE (2), NW (128) = 130 = 0x82, Backwards S (16), Sideways E (4), W (64) = 68 = 0x44
 /// For White: Forward diagonals SE (8), SW (32) = 40 = 0x28, Backwards N (1), Sideways same (adjusted automatically)
 pub fn yasha_movement() -> MovementConfig {
-    
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space in forward diagonal directions and straight backwards
             // For Black: NE (2), NW (128), S (16) = 146 = 0x92
             // For White: SE (8), SW (32), N (1) = 41 = 0x29 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x92,  // NE, NW, S (for Black) - will be adjusted for White
+                directions: 0x92, // NE, NW, S (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Simple movement: up to 3 spaces sideways
             // For Black: E (4), W (64) = 68 = 0x44
             // For White: same (sideways are symmetric)
             MovementCapability::Simple {
-                directions: 0x44,  // E, W (same for both colors)
+                directions: 0x44, // E, W (same for both colors)
                 max_distance: 3,
             },
         ],
@@ -8270,14 +8277,13 @@ pub fn yasha_movement() -> MovementConfig {
 /// For Black: All 8 directions = 255 = 0xFF
 /// For White: same (all directions are symmetric)
 pub fn shiten_movement() -> MovementConfig {
-    
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 4 spaces in all 8 directions
             // For Black: N (1), NE (2), E (4), SE (8), S (16), SW (32), W (64), NW (128) = 255 = 0xFF
             // For White: same (all directions are symmetric)
             MovementCapability::Simple {
-                directions: 0xFF,  // All 8 directions (same for both colors)
+                directions: 0xFF, // All 8 directions (same for both colors)
                 max_distance: 4,
             },
         ],
@@ -8289,24 +8295,22 @@ pub fn shiten_movement() -> MovementConfig {
 /// For Black: Sideways E (4), W (64) = 68 = 0x44, Range in N (1), S (16) = 17 = 0x11
 /// For White: Sideways same, Range same (forwards/backwards are symmetric)
 pub fn running_bear_movement() -> MovementConfig {
-    
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 2 spaces sideways
             // For Black: E (4), W (64) = 68 = 0x44
             // For White: same (sideways are symmetric)
             MovementCapability::Simple {
-                directions: 0x44,  // E, W (same for both colors)
+                directions: 0x44, // E, W (same for both colors)
                 max_distance: 2,
             },
             // Range movement in straight forwards and backwards directions
             // For Black: N (1), S (16) = 17 = 0x11
             // For White: same (forwards/backwards are symmetric)
             range_capability(
-                0x11,  // N, S (same for both colors)
+                0x11, // N, S (same for both colors)
                 BlockingMode::NoJump,
             ),
-
         ],
     }
 }
@@ -8316,17 +8320,15 @@ pub fn running_bear_movement() -> MovementConfig {
 /// For Black: N (1), NE (2), NW (128), S (16), SE (8), SW (32) = 187 = 0xBB
 /// For White: same (all 3 forwards and all 3 backwards are symmetric when combined)
 pub fn free_bear_movement() -> MovementConfig {
-    
     MovementConfig {
         capabilities: vec![
             // Range movement in all 3 forwards and all 3 backwards directions
             // For Black: N (1), NE (2), NW (128), S (16), SE (8), SW (32) = 187 = 0xBB
             // For White: same (all 3 forwards and all 3 backwards are symmetric when combined)
             range_capability(
-                0xBB,  // N, NE, NW, S, SE, SW (same for both colors)
+                0xBB, // N, NE, NW, S, SE, SW (same for both colors)
                 BlockingMode::NoJump,
             ),
-
         ],
     }
 }
@@ -8336,17 +8338,15 @@ pub fn free_bear_movement() -> MovementConfig {
 /// For Black: All directions except N (1) = 0xFF - 0x01 = 0xFE (NE, E, SE, S, SW, W, NW)
 /// For White: All directions except S (16) = 0xFF - 0x10 = 0xEF (N, NE, E, SE, SW, W, NW) (adjusted automatically)
 pub fn free_tiger_movement() -> MovementConfig {
-    
     MovementConfig {
         capabilities: vec![
             // Range movement in all directions except straight forwards
             // For Black: NE (2), E (4), SE (8), S (16), SW (32), W (64), NW (128) = 254 = 0xFE
             // For White: N (1), NE (2), E (4), SE (8), SW (32), W (64), NW (128) = 239 = 0xEF (adjusted automatically)
             range_capability(
-                0xFE,  // All except N (for Black) - will be adjusted for White
+                0xFE, // All except N (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
-
         ],
     }
 }
@@ -8358,24 +8358,23 @@ pub fn free_tiger_movement() -> MovementConfig {
 /// Diagonals: NE (2), SE (8), SW (32), NW (128) = 170 = 0xAA (same for both colors)
 pub fn great_dove_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 3 spaces in all orthogonal directions
             // For Black: N (1), E (4), S (16), W (64) = 85 = 0x55
             // For White: same (orthogonal are symmetric)
             MovementCapability::Simple {
-                directions: 0x55,  // All orthogonals (same for both colors)
+                directions: 0x55, // All orthogonals (same for both colors)
                 max_distance: 3,
             },
             // Range movement in all diagonal directions
             // For Black: NE (2), SE (8), SW (32), NW (128) = 170 = 0xAA
             // For White: same (diagonals are symmetric)
             range_capability(
-                0xAA,  // All diagonals (same for both colors)
+                0xAA, // All diagonals (same for both colors)
                 BlockingMode::NoJump,
             ),
-
         ],
     }
 }
@@ -8386,31 +8385,30 @@ pub fn great_dove_movement() -> MovementConfig {
 /// For White: Backwards N (1), Forwards S (16), Sideways same (adjusted automatically)
 pub fn side_serpent_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space straight backwards
             // For Black: S (16)
             // For White: N (1) (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x10,  // S (16) for Black - will be adjusted for White
+                directions: 0x10, // S (16) for Black - will be adjusted for White
                 max_distance: 1,
             },
             // Simple movement: up to 3 spaces straight forwards
             // For Black: N (1)
             // For White: S (16) (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x01,  // N (1) for Black - will be adjusted for White
+                directions: 0x01, // N (1) for Black - will be adjusted for White
                 max_distance: 3,
             },
             // Range movement sideways
             // For Black: E (4), W (64) = 68 = 0x44
             // For White: same (sideways are symmetric)
             range_capability(
-                0x44,  // E, W (same for both colors)
+                0x44, // E, W (same for both colors)
                 BlockingMode::NoJump,
             ),
-
         ],
     }
 }
@@ -8422,31 +8420,30 @@ pub fn side_serpent_movement() -> MovementConfig {
 /// Orthogonal: N (1), E (4), S (16), W (64) = 85 = 0x55 (same for both colors)
 pub fn great_shark_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 2 spaces in backwards diagonal directions
             // For Black: SW (32), SE (8) = 40 = 0x28
             // For White: NW (128), NE (2) = 130 = 0x82 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x28,  // SW, SE (for Black) - will be adjusted for White
+                directions: 0x28, // SW, SE (for Black) - will be adjusted for White
                 max_distance: 2,
             },
             // Simple movement: up to 5 spaces in forwards diagonal directions
             // For Black: NE (2), NW (128) = 130 = 0x82
             // For White: SE (8), SW (32) = 40 = 0x28 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x82,  // NE, NW (for Black) - will be adjusted for White
+                directions: 0x82, // NE, NW (for Black) - will be adjusted for White
                 max_distance: 5,
             },
             // Range movement in all orthogonal directions
             // For Black: N (1), E (4), S (16), W (64) = 85 = 0x55
             // For White: same (orthogonal are symmetric)
             range_capability(
-                0x55,  // All orthogonals (same for both colors)
+                0x55, // All orthogonals (same for both colors)
                 BlockingMode::NoJump,
             ),
-
         ],
     }
 }
@@ -8457,24 +8454,23 @@ pub fn great_shark_movement() -> MovementConfig {
 /// For White: Sideways same, Range same (forwards/backwards are symmetric)
 pub fn running_serpent_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space sideways
             // For Black: E (4), W (64) = 68 = 0x44
             // For White: same (sideways are symmetric)
             MovementCapability::Simple {
-                directions: 0x44,  // E, W (same for both colors)
+                directions: 0x44, // E, W (same for both colors)
                 max_distance: 1,
             },
             // Range movement in straight forwards and backwards directions
             // For Black: N (1), S (16) = 17 = 0x11
             // For White: same (forwards/backwards are symmetric)
             range_capability(
-                0x11,  // N, S (same for both colors)
+                0x11, // N, S (same for both colors)
                 BlockingMode::NoJump,
             ),
-
         ],
     }
 }
@@ -8484,17 +8480,15 @@ pub fn running_serpent_movement() -> MovementConfig {
 /// For Black: N (1), S (16), SE (8), SW (32) = 57 = 0x39
 /// For White: S (16), N (1), NE (2), NW (128) = 147 = 0x93 (adjusted automatically)
 pub fn free_serpent_movement() -> MovementConfig {
-    
     MovementConfig {
         capabilities: vec![
             // Range movement in straight forwards and all 3 backwards directions
             // For Black: N (1), S (16), SE (8), SW (32) = 57 = 0x39
             // For White: S (16), N (1), NE (2), NW (128) = 147 = 0x93 (adjusted automatically)
             range_capability(
-                0x39,  // N, S, SE, SW (for Black) - will be adjusted for White
+                0x39, // N, S, SE, SW (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
-
         ],
     }
 }
@@ -8504,17 +8498,15 @@ pub fn free_serpent_movement() -> MovementConfig {
 /// For Black: N (1), NE (2), NW (128), S (16), SE (8), SW (32) = 187 = 0xBB
 /// For White: same (all 3 forwards and all 3 backwards are symmetric when combined)
 pub fn free_leopard_movement() -> MovementConfig {
-    
     MovementConfig {
         capabilities: vec![
             // Range movement in all 3 forwards and all 3 backwards directions
             // For Black: N (1), NE (2), NW (128), S (16), SE (8), SW (32) = 187 = 0xBB
             // For White: same (all 3 forwards and all 3 backwards are symmetric when combined)
             range_capability(
-                0xBB,  // N, NE, NW, S, SE, SW (same for both colors)
+                0xBB, // N, NE, NW, S, SE, SW (same for both colors)
                 BlockingMode::NoJump,
             ),
-
         ],
     }
 }
@@ -8525,24 +8517,23 @@ pub fn free_leopard_movement() -> MovementConfig {
 /// For White: Sideways same, Forwards S (16), Forwards diagonals SE (8), SW (32) = 40 = 0x28, Backwards N (1) (adjusted automatically)
 pub fn forest_demon_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 3 spaces sideways and straight forwards
             // For Black: E (4), W (64), N (1) = 69 = 0x45
             // For White: E (4), W (64), S (16) = 84 = 0x54 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x45,  // E, W, N (for Black) - will be adjusted for White
+                directions: 0x45, // E, W, N (for Black) - will be adjusted for White
                 max_distance: 3,
             },
             // Range movement in forwards diagonal directions and straight backwards
             // For Black: NE (2), NW (128), S (16) = 146 = 0x92
             // For White: SE (8), SW (32), N (1) = 41 = 0x29 (adjusted automatically)
             range_capability(
-                0x92,  // NE, NW, S (for Black) - will be adjusted for White
+                0x92, // NE, NW, S (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
-
         ],
     }
 }
@@ -8553,24 +8544,23 @@ pub fn forest_demon_movement() -> MovementConfig {
 /// For White: Sideways same, Backwards N (1), Forwards S (16), SE (8), SW (32) = 56 = 0x38 (adjusted automatically)
 pub fn thunder_runner_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 4 spaces sideways and straight backwards
             // For Black: E (4), W (64), S (16) = 84 = 0x54
             // For White: E (4), W (64), N (1) = 69 = 0x45 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x54,  // E, W, S (for Black) - will be adjusted for White
+                directions: 0x54, // E, W, S (for Black) - will be adjusted for White
                 max_distance: 4,
             },
             // Range movement in all 3 forwards directions
             // For Black: N (1), NE (2), NW (128) = 131 = 0x83
             // For White: S (16), SE (8), SW (32) = 56 = 0x38 (adjusted automatically)
             range_capability(
-                0x83,  // N, NE, NW (for Black) - will be adjusted for White
+                0x83, // N, NE, NW (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
-
         ],
     }
 }
@@ -8581,21 +8571,21 @@ pub fn thunder_runner_movement() -> MovementConfig {
 /// For White: Sideways same, Forwards S (16), Diagonals same (adjusted automatically)
 pub fn fowl_officer_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 2 spaces sideways and straight forwards
             // For Black: E (4), W (64), N (1) = 69 = 0x45
             // For White: E (4), W (64), S (16) = 84 = 0x54 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x45,  // E, W, N (for Black) - will be adjusted for White
+                directions: 0x45, // E, W, N (for Black) - will be adjusted for White
                 max_distance: 2,
             },
             // Simple movement: up to 3 spaces diagonally
             // For Black: NE (2), SE (8), SW (32), NW (128) = 170 = 0xAA
             // For White: same (diagonals are symmetric)
             MovementCapability::Simple {
-                directions: 0xAA,  // All diagonals (same for both colors)
+                directions: 0xAA, // All diagonals (same for both colors)
                 max_distance: 3,
             },
         ],
@@ -8608,31 +8598,30 @@ pub fn fowl_officer_movement() -> MovementConfig {
 /// For White: Backwards N (1), Sideways same, Diagonals same, Forwards S (16) (adjusted automatically)
 pub fn fowl_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 2 spaces straight backwards
             // For Black: S (16)
             // For White: N (1) (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x10,  // S (16) for Black - will be adjusted for White
+                directions: 0x10, // S (16) for Black - will be adjusted for White
                 max_distance: 2,
             },
             // Simple movement: up to 3 spaces sideways
             // For Black: E (4), W (64) = 68 = 0x44
             // For White: same (sideways are symmetric)
             MovementCapability::Simple {
-                directions: 0x44,  // E, W (same for both colors)
+                directions: 0x44, // E, W (same for both colors)
                 max_distance: 3,
             },
             // Range movement in diagonal directions and straight forwards
             // For Black: NE (2), SE (8), SW (32), NW (128), N (1) = 171 = 0xAB
             // For White: NE (2), SE (8), SW (32), NW (128), S (16) = 186 = 0xBA (adjusted automatically)
             range_capability(
-                0xAB,  // All diagonals + N (for Black) - will be adjusted for White
+                0xAB, // All diagonals + N (for Black) - will be adjusted for White
                 BlockingMode::NoJump,
             ),
-
         ],
     }
 }
@@ -8643,21 +8632,21 @@ pub fn fowl_movement() -> MovementConfig {
 /// For White: Sideways same, Backwards N (1), Forwards diagonals SE (8), SW (32) = 40 = 0x28 (adjusted automatically)
 pub fn turtledove_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: 1 space sideways and straight backwards
             // For Black: E (4), W (64), S (16) = 84 = 0x54
             // For White: E (4), W (64), N (1) = 69 = 0x45 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x54,  // E, W, S (for Black) - will be adjusted for White
+                directions: 0x54, // E, W, S (for Black) - will be adjusted for White
                 max_distance: 1,
             },
             // Simple movement: up to 5 spaces in forwards diagonal directions
             // For Black: NE (2), NW (128) = 130 = 0x82
             // For White: SE (8), SW (32) = 40 = 0x28 (adjusted automatically)
             MovementCapability::Simple {
-                directions: 0x82,  // NE, NW (for Black) - will be adjusted for White
+                directions: 0x82, // NE, NW (for Black) - will be adjusted for White
                 max_distance: 5,
             },
         ],
@@ -8670,14 +8659,14 @@ pub fn turtledove_movement() -> MovementConfig {
 /// For White: same (all directions are symmetric)
 pub fn white_elephant_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 2 spaces in all 8 directions
             // For Black: N (1), NE (2), E (4), SE (8), S (16), SW (32), W (64), NW (128) = 255 = 0xFF
             // For White: same (all directions are symmetric)
             MovementCapability::Simple {
-                directions: 0xFF,  // All 8 directions (same for both colors)
+                directions: 0xFF, // All 8 directions (same for both colors)
                 max_distance: 2,
             },
         ],
@@ -8691,24 +8680,23 @@ pub fn white_elephant_movement() -> MovementConfig {
 /// Diagonals: NE (2), SE (8), SW (32), NW (128) = 170 = 0xAA (same for both colors)
 pub fn elephant_king_movement() -> MovementConfig {
     use crate::movement::types::MovementCapability;
-    
+
     MovementConfig {
         capabilities: vec![
             // Simple movement: up to 2 spaces in all orthogonal directions
             // For Black: N (1), E (4), S (16), W (64) = 85 = 0x55
             // For White: same (orthogonal are symmetric)
             MovementCapability::Simple {
-                directions: 0x55,  // All orthogonals (same for both colors)
+                directions: 0x55, // All orthogonals (same for both colors)
                 max_distance: 2,
             },
             // Range movement in all diagonal directions
             // For Black: NE (2), SE (8), SW (32), NW (128) = 170 = 0xAA
             // For White: same (diagonals are symmetric)
             range_capability(
-                0xAA,  // All diagonals (same for both colors)
+                0xAA, // All diagonals (same for both colors)
                 BlockingMode::NoJump,
             ),
-
         ],
     }
 }
@@ -8719,17 +8707,16 @@ pub fn elephant_king_movement() -> MovementConfig {
 /// For White: same (forwards/backwards are symmetric)
 pub fn reverse_chariot_movement() -> MovementConfig {
     use crate::movement::types::BlockingMode;
-    
+
     MovementConfig {
         capabilities: vec![
             // Range movement in straight forwards and backwards directions
             // For Black: N (1), S (16) = 17 = 0x11
             // For White: same (forwards/backwards are symmetric)
             range_capability(
-                0x11,  // N, S (same for both colors)
+                0x11, // N, S (same for both colors)
                 BlockingMode::NoJump,
             ),
-
         ],
     }
 }
@@ -8746,14 +8733,14 @@ pub fn reverse_chariot_movement() -> MovementConfig {
 ///    - Stay in place: capture enemy 1 space away in any direction
 ///    - Stay in place: capture enemies on 1st or 2nd space along forward diagonals (only if 2nd space has capture)
 pub fn free_eagle_movement() -> MovementConfig {
-    use crate::movement::types::{MovementCapability, BlockingMode};
     use crate::movement::direction::DIRECTION_SET_ALL;
-    
+    use crate::movement::types::{BlockingMode, MovementCapability};
+
     MovementConfig {
         capabilities: vec![
             // Standard range movement in all 8 directions
             range_capability(
-                DIRECTION_SET_ALL,  // All 8 directions
+                DIRECTION_SET_ALL, // All 8 directions
                 BlockingMode::NoJump,
             ),
             // Free Eagle multi-move capability

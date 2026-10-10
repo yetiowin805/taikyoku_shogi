@@ -7,12 +7,12 @@
 use std::path::Path;
 use std::time::Instant;
 use taikyoku_shogi::board_position::BoardPosition;
+use taikyoku_shogi::eval::{evaluate_with_ply, EvalWeights};
 use taikyoku_shogi::game_state::{GameState, Move};
 use taikyoku_shogi::notation::move_encode;
+use taikyoku_shogi::path_utils;
 use taikyoku_shogi::piece::{Color, PieceType};
 use taikyoku_shogi::position::Position;
-use taikyoku_shogi::eval::{evaluate_with_ply, EvalWeights};
-use taikyoku_shogi::path_utils;
 use taikyoku_shogi::search::{
     generate_loud_promotions, is_loud_promotion_move, probe_quiescence, search, QPruneMode,
     SearchConfig, SearchResult,
@@ -58,10 +58,9 @@ fn pawn_midgame() -> GameState {
     let mut state = GameState::new();
     state.setup_initial_position();
     for file in [4u8, 8, 12, 16, 20, 24, 28] {
-        for &(from_rank, to_rank, color) in &[
-            (10u8, 11u8, Color::Black),
-            (25u8, 24u8, Color::White),
-        ] {
+        for &(from_rank, to_rank, color) in
+            &[(10u8, 11u8, Color::Black), (25u8, 24u8, Color::White)]
+        {
             state.set_current_turn(color);
             let from = Position::new(file, from_rank).unwrap();
             let to = Position::new(file, to_rank).unwrap();

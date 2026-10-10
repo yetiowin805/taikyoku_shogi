@@ -6,18 +6,30 @@ use crate::position::Position;
 /// Returns positions excluding start, including end
 pub fn get_path_positions(from: Position, to: Position) -> Vec<Position> {
     let mut positions = Vec::new();
-    
+
     let file_diff = to.file as i8 - from.file as i8;
     let rank_diff = to.rank as i8 - from.rank as i8;
-    
+
     // Normalize direction
-    let file_step = if file_diff == 0 { 0 } else if file_diff > 0 { 1 } else { -1 };
-    let rank_step = if rank_diff == 0 { 0 } else if rank_diff > 0 { 1 } else { -1 };
-    
+    let file_step = if file_diff == 0 {
+        0
+    } else if file_diff > 0 {
+        1
+    } else {
+        -1
+    };
+    let rank_step = if rank_diff == 0 {
+        0
+    } else if rank_diff > 0 {
+        1
+    } else {
+        -1
+    };
+
     // Get all positions along the path (including destination)
     let mut current_file = from.file as i8 + file_step;
     let mut current_rank = from.rank as i8 + rank_step;
-    
+
     loop {
         // Check if we've reached or passed the destination
         if file_step != 0 && (current_file - to.file as i8) * file_step > 0 {
@@ -29,7 +41,7 @@ pub fn get_path_positions(from: Position, to: Position) -> Vec<Position> {
         if file_step == 0 && rank_step == 0 {
             break;
         }
-        
+
         if let Some(pos) = Position::new(current_file as u8, current_rank as u8) {
             positions.push(pos);
             if pos == to {
@@ -38,11 +50,11 @@ pub fn get_path_positions(from: Position, to: Position) -> Vec<Position> {
         } else {
             break;
         }
-        
+
         current_file += file_step;
         current_rank += rank_step;
     }
-    
+
     positions
 }
 
@@ -55,15 +67,27 @@ pub fn is_path_clear_for_boardlike<B: crate::move_simulation::BoardLike>(
 ) -> bool {
     let file_diff = to.file as i8 - from.file as i8;
     let rank_diff = to.rank as i8 - from.rank as i8;
-    
+
     // Normalize direction
-    let file_step = if file_diff == 0 { 0 } else if file_diff > 0 { 1 } else { -1 };
-    let rank_step = if rank_diff == 0 { 0 } else if rank_diff > 0 { 1 } else { -1 };
-    
+    let file_step = if file_diff == 0 {
+        0
+    } else if file_diff > 0 {
+        1
+    } else {
+        -1
+    };
+    let rank_step = if rank_diff == 0 {
+        0
+    } else if rank_diff > 0 {
+        1
+    } else {
+        -1
+    };
+
     // Check each square along the path (excluding the destination)
     let mut current_file = from.file as i8 + file_step;
     let mut current_rank = from.rank as i8 + rank_step;
-    
+
     while current_file != to.file as i8 || current_rank != to.rank as i8 {
         if let Some(pos) = Position::new(current_file as u8, current_rank as u8) {
             if !board.is_empty(pos) {
@@ -77,7 +101,7 @@ pub fn is_path_clear_for_boardlike<B: crate::move_simulation::BoardLike>(
         current_file += file_step;
         current_rank += rank_step;
     }
-    
+
     true
 }
 
@@ -90,20 +114,32 @@ pub fn is_diagonal_path_clear_for_boardlike<B: crate::move_simulation::BoardLike
 ) -> bool {
     let file_diff = to.file as i8 - from.file as i8;
     let rank_diff = to.rank as i8 - from.rank as i8;
-    
+
     // Must be diagonal
     if file_diff.abs() != rank_diff.abs() {
         return false;
     }
-    
+
     // Normalize direction (step size 1 in both file and rank)
-    let file_step = if file_diff == 0 { 0 } else if file_diff > 0 { 1 } else { -1 };
-    let rank_step = if rank_diff == 0 { 0 } else if rank_diff > 0 { 1 } else { -1 };
-    
+    let file_step = if file_diff == 0 {
+        0
+    } else if file_diff > 0 {
+        1
+    } else {
+        -1
+    };
+    let rank_step = if rank_diff == 0 {
+        0
+    } else if rank_diff > 0 {
+        1
+    } else {
+        -1
+    };
+
     // Check each square along the path (excluding the destination)
     let mut current_file = from.file as i8 + file_step;
     let mut current_rank = from.rank as i8 + rank_step;
-    
+
     while current_file != to.file as i8 || current_rank != to.rank as i8 {
         if let Some(pos) = Position::new(current_file as u8, current_rank as u8) {
             if !board.is_empty(pos) {
@@ -117,7 +153,7 @@ pub fn is_diagonal_path_clear_for_boardlike<B: crate::move_simulation::BoardLike
         current_file += file_step;
         current_rank += rank_step;
     }
-    
+
     true
 }
 
@@ -130,7 +166,7 @@ pub fn is_orthogonal_path_clear_for_boardlike<B: crate::move_simulation::BoardLi
 ) -> bool {
     let file_diff = to.file as i8 - from.file as i8;
     let rank_diff = to.rank as i8 - from.rank as i8;
-    
+
     // Must be orthogonal (either file_diff == 0 or rank_diff == 0, but not both)
     if file_diff != 0 && rank_diff != 0 {
         return false;
@@ -138,15 +174,27 @@ pub fn is_orthogonal_path_clear_for_boardlike<B: crate::move_simulation::BoardLi
     if file_diff == 0 && rank_diff == 0 {
         return false; // Same position
     }
-    
+
     // Normalize direction (step size 1 in either file or rank)
-    let file_step = if file_diff == 0 { 0 } else if file_diff > 0 { 1 } else { -1 };
-    let rank_step = if rank_diff == 0 { 0 } else if rank_diff > 0 { 1 } else { -1 };
-    
+    let file_step = if file_diff == 0 {
+        0
+    } else if file_diff > 0 {
+        1
+    } else {
+        -1
+    };
+    let rank_step = if rank_diff == 0 {
+        0
+    } else if rank_diff > 0 {
+        1
+    } else {
+        -1
+    };
+
     // Check each square along the path (excluding the destination)
     let mut current_file = from.file as i8 + file_step;
     let mut current_rank = from.rank as i8 + rank_step;
-    
+
     while current_file != to.file as i8 || current_rank != to.rank as i8 {
         if let Some(pos) = Position::new(current_file as u8, current_rank as u8) {
             if !board.is_empty(pos) {
@@ -160,21 +208,21 @@ pub fn is_orthogonal_path_clear_for_boardlike<B: crate::move_simulation::BoardLi
         current_file += file_step;
         current_rank += rank_step;
     }
-    
+
     true
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::piece::{Piece, PieceType, Color};
+    use crate::piece::{Color, Piece, PieceType};
 
     #[test]
     fn test_get_path_positions_horizontal() {
         let from = Position::new(5, 10).unwrap();
         let to = Position::new(8, 10).unwrap();
         let path = get_path_positions(from, to);
-        
+
         assert_eq!(path.len(), 3);
         assert_eq!(path[0], Position::new(6, 10).unwrap());
         assert_eq!(path[1], Position::new(7, 10).unwrap());
@@ -186,7 +234,7 @@ mod tests {
         let from = Position::new(10, 5).unwrap();
         let to = Position::new(10, 8).unwrap();
         let path = get_path_positions(from, to);
-        
+
         assert_eq!(path.len(), 3);
         assert_eq!(path[0], Position::new(10, 6).unwrap());
         assert_eq!(path[1], Position::new(10, 7).unwrap());
@@ -198,7 +246,7 @@ mod tests {
         let from = Position::new(5, 5).unwrap();
         let to = Position::new(8, 8).unwrap();
         let path = get_path_positions(from, to);
-        
+
         assert_eq!(path.len(), 3);
         assert_eq!(path[0], Position::new(6, 6).unwrap());
         assert_eq!(path[1], Position::new(7, 7).unwrap());
@@ -217,7 +265,7 @@ mod tests {
         let from = Position::new(10, 10).unwrap();
         let to = Position::new(11, 10).unwrap();
         let path = get_path_positions(from, to);
-        
+
         assert_eq!(path.len(), 1);
         assert_eq!(path[0], to);
     }
@@ -227,7 +275,7 @@ mod tests {
         let board = Board::new();
         let from = Position::new(5, 10).unwrap();
         let to = Position::new(8, 10).unwrap();
-        
+
         assert!(is_path_clear_for_boardlike(&board, from, to));
     }
 
@@ -237,10 +285,10 @@ mod tests {
         let from = Position::new(5, 10).unwrap();
         let blocker = Position::new(7, 10).unwrap();
         let to = Position::new(8, 10).unwrap();
-        
+
         let piece = Piece::new(PieceType::Pawn, Color::Black, blocker);
         board.place_piece(piece);
-        
+
         assert!(!is_path_clear_for_boardlike(&board, from, to));
     }
 
@@ -249,7 +297,7 @@ mod tests {
         let board = Board::new();
         let from = Position::new(5, 5).unwrap();
         let to = Position::new(8, 8).unwrap();
-        
+
         assert!(is_diagonal_path_clear_for_boardlike(&board, from, to));
     }
 
@@ -258,7 +306,7 @@ mod tests {
         let board = Board::new();
         let from = Position::new(5, 5).unwrap();
         let to = Position::new(8, 6).unwrap(); // Not diagonal
-        
+
         assert!(!is_diagonal_path_clear_for_boardlike(&board, from, to));
     }
 
@@ -267,7 +315,7 @@ mod tests {
         let board = Board::new();
         let from = Position::new(5, 10).unwrap();
         let to = Position::new(8, 10).unwrap();
-        
+
         assert!(is_orthogonal_path_clear_for_boardlike(&board, from, to));
     }
 
@@ -276,7 +324,7 @@ mod tests {
         let board = Board::new();
         let from = Position::new(5, 5).unwrap();
         let to = Position::new(8, 8).unwrap(); // Diagonal, not orthogonal
-        
+
         assert!(!is_orthogonal_path_clear_for_boardlike(&board, from, to));
     }
 
@@ -284,11 +332,10 @@ mod tests {
     fn test_is_orthogonal_path_clear_same_position() {
         let board = Board::new();
         let pos = Position::new(10, 10).unwrap();
-        
+
         assert!(!is_orthogonal_path_clear_for_boardlike(&board, pos, pos));
     }
 }
-
 
 /// Lazy equivalent of get_path_positions, including its off-ray stopping rules.
 pub fn path_positions(from: Position, to: Position) -> impl Iterator<Item = Position> {
@@ -298,11 +345,16 @@ pub fn path_positions(from: Position, to: Position) -> impl Iterator<Item = Posi
     let mut rank = from.rank as i8 + dr;
     let mut done = df == 0 && dr == 0;
     std::iter::from_fn(move || {
-        if done || (df != 0 && (file - to.file as i8) * df > 0)
-            || (dr != 0 && (rank - to.rank as i8) * dr > 0) { return None; }
+        if done
+            || (df != 0 && (file - to.file as i8) * df > 0)
+            || (dr != 0 && (rank - to.rank as i8) * dr > 0)
+        {
+            return None;
+        }
         let p = Position::new(file as u8, rank as u8)?;
         done = p == to;
-        file += df; rank += dr;
+        file += df;
+        rank += dr;
         Some(p)
     })
 }
@@ -312,16 +364,24 @@ mod iterator_parity {
     use super::*;
     #[test]
     fn every_square_pair_matches_old_path() {
-        for a in 0..1296 { for b in 0..1296 {
-            let from=Position::from_index(a).unwrap();let to=Position::from_index(b).unwrap();
-            assert_eq!(get_path_positions(from,to),path_positions(from,to).collect::<Vec<_>>());
-        }}
+        for a in 0..1296 {
+            for b in 0..1296 {
+                let from = Position::from_index(a).unwrap();
+                let to = Position::from_index(b).unwrap();
+                assert_eq!(
+                    get_path_positions(from, to),
+                    path_positions(from, to).collect::<Vec<_>>()
+                );
+            }
+        }
     }
     #[test]
     fn every_direction_mask_matches_old_order() {
         for mask in 0..=255 {
-            assert_eq!(crate::movement::direction::direction_set_to_directions(mask),
-                crate::movement::direction::direction_iter(mask).collect::<Vec<_>>());
+            assert_eq!(
+                crate::movement::direction::direction_set_to_directions(mask),
+                crate::movement::direction::direction_iter(mask).collect::<Vec<_>>()
+            );
         }
     }
 }

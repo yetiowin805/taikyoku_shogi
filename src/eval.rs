@@ -391,10 +391,7 @@ pub fn seed_loud_capture_floor() -> f32 {
 /// Used by scale-sample free params and by search for "loud" promotions into
 /// these types (e.g. FreeKing→GreatGeneral).
 pub fn is_big_piece(pt: PieceType) -> bool {
-    big_piece_table()
-        .get(pt as usize)
-        .copied()
-        .unwrap_or(false)
+    big_piece_table().get(pt as usize).copied().unwrap_or(false)
 }
 
 fn big_piece_table() -> &'static [bool] {
@@ -540,7 +537,8 @@ fn two_mover_mobility_of(pieces: &[Piece], board: &Board, weights: &EvalWeights)
             continue;
         }
         let m = first_leg_landing_count(p, board) as f32;
-        s += weights.two_mover_mob_k * two_mover_mob_curve(m, weights.two_mover_mob_curve)
+        s += weights.two_mover_mob_k
+            * two_mover_mob_curve(m, weights.two_mover_mob_curve)
             * two_mover_mob_apply(p, weights);
     }
     s
@@ -658,7 +656,10 @@ fn last_royal_flight_penalty(board: &Board, color: Color, weights: &EvalWeights)
     {
         return royal_probes::verified_flight_penalty(board, color, weights.lr_flight_k);
     }
-    if matches!(weights.last_royal_mode, LastRoyalMode::ScarceDefenses | LastRoyalMode::MateProbe) {
+    if matches!(
+        weights.last_royal_mode,
+        LastRoyalMode::ScarceDefenses | LastRoyalMode::MateProbe
+    ) {
         return 0.0;
     }
     if weights.lr_flight_k == 0.0 {
@@ -1498,7 +1499,8 @@ impl EvalWeights {
             piece.insert(pt, seed_piece_value(pt));
         }
         let mut w = Self {
-            nnue: None, nnue_runtime: None,
+            nnue: None,
+            nnue_runtime: None,
             piece,
             royal_alive: 0,
             sole_royal_factor: 0,
@@ -1556,10 +1558,7 @@ impl EvalWeights {
         if i < self.piece_value_table.len() {
             self.piece_value_table[i]
         } else {
-            self.piece
-                .get(&pt)
-                .copied()
-                .unwrap_or(DEFAULT_PIECE_VALUE)
+            self.piece.get(&pt).copied().unwrap_or(DEFAULT_PIECE_VALUE)
         }
     }
 
@@ -1774,14 +1773,29 @@ pub fn evaluate_with_ply(state: &GameState, weights: &EvalWeights, ply: usize) -
     let _prof = crate::profile_timers::eval_scope();
     if let Some(net) = &weights.nnue_runtime {
         let fresh;
-        let acc = if let Some(a) = state.nnue.as_ref().filter(|a|a.matches(net)) { a } else {
-            fresh = crate::nnue::Accumulator::new(net.clone(),state.get_board()); &fresh
+        let acc = if let Some(a) = state.nnue.as_ref().filter(|a| a.matches(net)) {
+            a
+        } else {
+            fresh = crate::nnue::Accumulator::new(net.clone(), state.get_board());
+            &fresh
         };
-        let material = state.eval_inc().filter(|i|i.matches(weights)).map(|i|i.mat[0]-i.mat[1]).unwrap_or_else(||crate::nnue::material(state.get_board(),weights));
-        let signed = if stm == Color::Black {material} else {-material};
-        return (signed.round() as i32 + acc.residual(stm)).clamp(-weights.mate_score/2,weights.mate_score/2);
+        let material = state
+            .eval_inc()
+            .filter(|i| i.matches(weights))
+            .map(|i| i.mat[0] - i.mat[1])
+            .unwrap_or_else(|| crate::nnue::material(state.get_board(), weights));
+        let signed = if stm == Color::Black {
+            material
+        } else {
+            -material
+        };
+        return (signed.round() as i32 + acc.residual(stm))
+            .clamp(-weights.mate_score / 2, weights.mate_score / 2);
     }
-    assert!(weights.nnue.is_none(), "NNUE descriptor has not been loaded from its checkpoint");
+    assert!(
+        weights.nnue.is_none(),
+        "NNUE descriptor has not been loaded from its checkpoint"
+    );
 
     let absolute_black = if let Some(inc) = state.eval_inc() {
         if inc.matches(weights) {
@@ -1815,10 +1829,14 @@ pub fn evaluate_absolute_black(board: &Board, weights: &EvalWeights, ply: usize)
     }
 
     if let Some(net) = &weights.nnue_runtime {
-        let a=crate::nnue::Accumulator::new(net.clone(),board);
-        return (crate::nnue::material(board,weights).round() as i32+a.residual(Color::Black)).clamp(-weights.mate_score/2,weights.mate_score/2);
+        let a = crate::nnue::Accumulator::new(net.clone(), board);
+        return (crate::nnue::material(board, weights).round() as i32 + a.residual(Color::Black))
+            .clamp(-weights.mate_score / 2, weights.mate_score / 2);
     }
-    assert!(weights.nnue.is_none(), "NNUE descriptor has not been loaded");
+    assert!(
+        weights.nnue.is_none(),
+        "NNUE descriptor has not been loaded"
+    );
     let mut score = 0.0f32;
     // Base material (no PST) + phase-blended positional (PST ↔ tropism).
     score += raw_material_of(black, weights) - raw_material_of(white, weights);
@@ -1936,7 +1954,12 @@ fn initial_non_royal_home_ranks() -> &'static [[u8; 2]] {
     HOMES.get_or_init(|| {
         let mut state = GameState::new();
         state.setup_initial_position();
-        let len = ALL_PIECE_TYPES.iter().map(|&pt| pt as usize).max().unwrap_or(0) + 1;
+        let len = ALL_PIECE_TYPES
+            .iter()
+            .map(|&pt| pt as usize)
+            .max()
+            .unwrap_or(0)
+            + 1;
         let mut ranks = vec![[36; 2]; len];
         for color in [Color::Black, Color::White] {
             for p in state.get_board().pieces_by_color(color) {
@@ -2064,7 +2087,12 @@ pub fn list_model_files(dir: impl AsRef<Path>) -> Result<Vec<String>, String> {
                             continue;
                         }
                     }
-                    names.push(path.strip_prefix(root).unwrap().to_string_lossy().replace('\\', "/"));
+                    names.push(
+                        path.strip_prefix(root)
+                            .unwrap()
+                            .to_string_lossy()
+                            .replace('\\', "/"),
+                    );
                 }
             }
         }
@@ -2085,10 +2113,18 @@ pub fn load_checkpoint_or_seed(path: impl AsRef<Path>) -> EvalCheckpoint {
         Ok(cp) => cp,
         Err(error) => {
             // An explicitly declared NNUE must never silently become the seed engine.
-            let declared = fs::read_to_string(path.as_ref()).ok().and_then(|s|serde_json::from_str::<serde_json::Value>(&s).ok()).is_some_and(|v|!v["weights"]["nnue"].is_null());
-            if declared { panic!("NNUE checkpoint {} failed: {error}",path.as_ref().display()); }
+            let declared = fs::read_to_string(path.as_ref())
+                .ok()
+                .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
+                .is_some_and(|v| !v["weights"]["nnue"].is_null());
+            if declared {
+                panic!(
+                    "NNUE checkpoint {} failed: {error}",
+                    path.as_ref().display()
+                );
+            }
             EvalCheckpoint::seed("ab-seed")
-        },
+        }
     }
 }
 
@@ -2165,9 +2201,7 @@ mod tests {
         promo_fk.promote();
         assert_eq!(promo_fk.piece_type, PieceType::FreeKing);
         assert!(promo_fk.is_promoted);
-        assert!(
-            (material_piece_value(&promo_fk, &w) - PROMOTED_FREE_KING_VALUE).abs() < 1e-3
-        );
+        assert!((material_piece_value(&promo_fk, &w) - PROMOTED_FREE_KING_VALUE).abs() < 1e-3);
         let natural_fk = Piece::new(
             PieceType::FreeKing,
             Color::Black,
@@ -2228,8 +2262,9 @@ mod tests {
         assert!((seed_loud_capture_floor() - 648.0).abs() < 1e-3);
         assert!(
             (seed_loud_capture_floor()
-                - (TARIFF_RANGE_CAPTURING * SEED_CAPTURER_SCALE * 2.4).max(TARIFF_RANGE_JUMP * 8.0))
-                .abs()
+                - (TARIFF_RANGE_CAPTURING * SEED_CAPTURER_SCALE * 2.4)
+                    .max(TARIFF_RANGE_JUMP * 8.0))
+            .abs()
                 < 1e-6
         );
         assert!(TARIFF_RANGE_CAPTURING * SEED_CAPTURER_SCALE * 2.4 >= TARIFF_RANGE_JUMP * 8.0);
@@ -2283,7 +2318,9 @@ mod tests {
         assert!((back.weights.eg_tropism_d_ref - 18.0).abs() < 1e-6);
         assert_eq!(back.weights.eg_tropism_topk, 8);
         assert!((back.weights.eg_tropism_tail_scale - 0.25).abs() < 1e-6);
-        assert!((back.weights.eg_tropism_range_scale - DEFAULT_EG_TROPISM_RANGE_SCALE).abs() < 1e-6);
+        assert!(
+            (back.weights.eg_tropism_range_scale - DEFAULT_EG_TROPISM_RANGE_SCALE).abs() < 1e-6
+        );
     }
 
     #[test]
@@ -2408,12 +2445,22 @@ mod tests {
         fs::write(root.join("manifest.json"), r#"{"entrants": []}"#).unwrap();
         fs::write(root.join("invalid.json"), "invalid").unwrap();
         cp.weights.nnue = Some(crate::nnue::Descriptor {
-            file: "weights.bin".into(), sha256: "unused-by-discovery".into(), feature_hash: "unused".into(), width: 512,
+            file: "weights.bin".into(),
+            sha256: "unused-by-discovery".into(),
+            feature_hash: "unused".into(),
+            width: 512,
         });
         cp.save_path(root.join("nnue-v2/model.json")).unwrap();
         assert_eq!(list_model_files(&root).unwrap(), vec!["seed.json"]);
-        fs::write(root.join("nnue-v2/weights.bin"), b"not loaded during discovery").unwrap();
-        assert_eq!(list_model_files(&root).unwrap(), vec!["nnue-v2/model.json", "seed.json"]);
+        fs::write(
+            root.join("nnue-v2/weights.bin"),
+            b"not loaded during discovery",
+        )
+        .unwrap();
+        assert_eq!(
+            list_model_files(&root).unwrap(),
+            vec!["nnue-v2/model.json", "seed.json"]
+        );
     }
 
     #[test]
@@ -2455,7 +2502,10 @@ mod tests {
         state.set_current_turn(Color::Black);
         let score = evaluate(&state, &weights);
         // Two royals → +100 royal bonus vs one (0), plus CP material 8.
-        assert!(score > 100, "black with two royals vs one should be positive, got {score}");
+        assert!(
+            score > 100,
+            "black with two royals vs one should be positive, got {score}"
+        );
     }
 
     #[test]
@@ -2485,7 +2535,10 @@ mod tests {
         let white_pen =
             undeveloped_home_penalty(state.get_board().pieces_by_color(Color::White), &weights);
         assert!((black_pen - white_pen).abs() < 1e-3);
-        assert!(black_pen > 100.0, "expected full-army undeveloped penalty, got {black_pen}");
+        assert!(
+            black_pen > 100.0,
+            "expected full-army undeveloped penalty, got {black_pen}"
+        );
 
         // Pawn value is now 1.0 → 90% cap = 0.9.
         let from = Position::new(16, 10).unwrap();
@@ -2560,10 +2613,7 @@ mod tests {
         );
         let a = evaluate_absolute_black(&back, &weights, 0);
         let b = evaluate_absolute_black(&fwd, &weights, 0);
-        assert!(
-            b > a,
-            "forward gold should score higher: back={a} fwd={b}"
-        );
+        assert!(b > a, "forward gold should score higher: back={a} fwd={b}");
     }
 
     fn quiet_weights() -> EvalWeights {
@@ -2585,7 +2635,10 @@ mod tests {
     fn tropism_class_scales_short_range_capturing() {
         assert!((tropism_class_scale(PieceType::GoldGeneral) - 1.0).abs() < 1e-6);
         assert!((tropism_class_scale(PieceType::Pawn) - 1.0).abs() < 1e-6);
-        assert!((tropism_class_scale(PieceType::FreeKing) - DEFAULT_EG_TROPISM_RANGE_SCALE).abs() < 1e-6);
+        assert!(
+            (tropism_class_scale(PieceType::FreeKing) - DEFAULT_EG_TROPISM_RANGE_SCALE).abs()
+                < 1e-6
+        );
         assert!((tropism_class_scale(PieceType::GreatGeneral) - 0.0).abs() < 1e-6);
         assert!((tropism_class_scale(PieceType::King) - 0.0).abs() < 1e-6);
         assert!((tropism_class_scale(PieceType::CrownPrince) - 0.0).abs() < 1e-6);
@@ -3001,7 +3054,10 @@ mod tests {
             .copied()
             .unwrap();
         let open_n = first_leg_landing_count(&hook, &open_hook);
-        assert!(open_n > 10, "open Hook first-leg should be many, got {open_n}");
+        assert!(
+            open_n > 10,
+            "open Hook first-leg should be many, got {open_n}"
+        );
 
         let mut boxed = open_hook.clone();
         for (df, dr) in [(0i8, 1), (0, -1), (1, 0), (-1, 0)] {
@@ -3009,7 +3065,10 @@ mod tests {
             boxed.place_piece(Piece::new(PieceType::Pawn, Color::Black, pos));
         }
         let boxed_n = first_leg_landing_count(&hook, &boxed);
-        assert!(boxed_n <= 2, "boxed Hook first-leg should be 0–2, got {boxed_n}");
+        assert!(
+            boxed_n <= 2,
+            "boxed Hook first-leg should be 0–2, got {boxed_n}"
+        );
 
         let tengu_board = kings_and(Piece::new(
             PieceType::Tengu,
@@ -3260,10 +3319,10 @@ mod tests {
         on.two_mover_align_k = 80.0;
         on.two_mover_align_cap = 400.0;
 
-        let d_file =
-            evaluate_absolute_black(&file_board, &on, 0) - evaluate_absolute_black(&file_board, &off, 0);
-        let d_diag =
-            evaluate_absolute_black(&diag_board, &on, 0) - evaluate_absolute_black(&diag_board, &off, 0);
+        let d_file = evaluate_absolute_black(&file_board, &on, 0)
+            - evaluate_absolute_black(&file_board, &off, 0);
+        let d_diag = evaluate_absolute_black(&diag_board, &on, 0)
+            - evaluate_absolute_black(&diag_board, &off, 0);
         assert_eq!(d_file, 80, "Hook first-leg is orthogonal");
         assert_eq!(d_diag, 0, "Hook should not score a diagonal royal");
     }
@@ -3306,10 +3365,10 @@ mod tests {
         let mut on = off.clone();
         on.two_mover_align_k = 80.0;
 
-        let d_diag =
-            evaluate_absolute_black(&diag_board, &on, 0) - evaluate_absolute_black(&diag_board, &off, 0);
-        let d_file =
-            evaluate_absolute_black(&file_board, &on, 0) - evaluate_absolute_black(&file_board, &off, 0);
+        let d_diag = evaluate_absolute_black(&diag_board, &on, 0)
+            - evaluate_absolute_black(&diag_board, &off, 0);
+        let d_file = evaluate_absolute_black(&file_board, &on, 0)
+            - evaluate_absolute_black(&file_board, &off, 0);
         assert_eq!(d_diag, 80, "Tengu first-leg is diagonal");
         assert_eq!(d_file, 0, "Tengu should not score a file royal");
     }

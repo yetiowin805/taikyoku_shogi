@@ -152,7 +152,11 @@ async fn api_new(State(state): State<AppState>) -> Json<CommandResult> {
 async fn api_list(State(state): State<AppState>) -> impl IntoResponse {
     let tool = state.tool.lock().await;
     match tool.list_games_pub() {
-        Ok(games) => (StatusCode::OK, Json(serde_json::json!({ "ok": true, "games": games }))).into_response(),
+        Ok(games) => (
+            StatusCode::OK,
+            Json(serde_json::json!({ "ok": true, "games": games })),
+        )
+            .into_response(),
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(serde_json::json!({ "ok": false, "message": e })),
@@ -285,7 +289,11 @@ async fn api_play_agent(
 
 async fn api_list_models() -> impl IntoResponse {
     match crate::eval::list_model_files("models") {
-        Ok(models) => (StatusCode::OK, Json(serde_json::json!({ "ok": true, "models": models }))).into_response(),
+        Ok(models) => (
+            StatusCode::OK,
+            Json(serde_json::json!({ "ok": true, "models": models })),
+        )
+            .into_response(),
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(serde_json::json!({ "ok": false, "message": e })),
@@ -348,34 +356,31 @@ async fn api_analysis_start(
             let progress_view = Arc::clone(&view);
             let progress_state = game_state.clone();
             let progress_side = side.clone();
-            let mut progress = move |depth,
-                                     score,
-                                     best_move: &crate::game_state::Move,
-                                     nodes,
-                                     root_lines: &[(crate::game_state::Move, i32)]| {
-                let search = crate::search::search_info_from_iteration(
-                    "ab",
-                    &progress_side,
-                    &progress_state,
-                    &progress_weights,
-                    requested_depth,
-                    depth,
-                    score,
-                    best_move,
-                    nodes,
-                    root_lines,
-                );
-                let mut current = progress_view.lock().unwrap_or_else(|e| e.into_inner());
-                current.elapsed_ms = search_started.elapsed().as_millis() as u64;
-                current.message = format!("Depth {depth} complete · deepening");
-                current.search = Some(search);
-            };
-            let result = crate::search::search_with_progress(
-                &game_state,
-                &weights,
-                &config,
-                &mut progress,
-            );
+            let mut progress =
+                move |depth,
+                      score,
+                      best_move: &crate::game_state::Move,
+                      nodes,
+                      root_lines: &[(crate::game_state::Move, i32)]| {
+                    let search = crate::search::search_info_from_iteration(
+                        "ab",
+                        &progress_side,
+                        &progress_state,
+                        &progress_weights,
+                        requested_depth,
+                        depth,
+                        score,
+                        best_move,
+                        nodes,
+                        root_lines,
+                    );
+                    let mut current = progress_view.lock().unwrap_or_else(|e| e.into_inner());
+                    current.elapsed_ms = search_started.elapsed().as_millis() as u64;
+                    current.message = format!("Depth {depth} complete · deepening");
+                    current.search = Some(search);
+                };
+            let result =
+                crate::search::search_with_progress(&game_state, &weights, &config, &mut progress);
             if cancel.load(Ordering::Relaxed) {
                 let mut current = view.lock().unwrap_or_else(|e| e.into_inner());
                 current.running = false;
@@ -384,14 +389,7 @@ async fn api_analysis_start(
                 return;
             }
             let final_search = result.best_move.as_ref().map_or_else(
-                || {
-                    crate::search::search_info_from_result(
-                        "ab",
-                        &side,
-                        requested_depth,
-                        &result,
-                    )
-                },
+                || crate::search::search_info_from_result("ab", &side, requested_depth, &result),
                 |best_move| {
                     crate::search::search_info_from_iteration(
                         "ab",
@@ -471,7 +469,11 @@ async fn api_analysis_stop(
 async fn api_training_status() -> impl IntoResponse {
     let path = crate::training::paths::status_path();
     match crate::training::run_status::RunStatus::load_path(&path) {
-        Ok(status) => (StatusCode::OK, Json(serde_json::json!({ "ok": true, "status": status }))).into_response(),
+        Ok(status) => (
+            StatusCode::OK,
+            Json(serde_json::json!({ "ok": true, "status": status })),
+        )
+            .into_response(),
         Err(e) => {
             let missing = !path.exists();
             let code = if missing {
@@ -523,9 +525,8 @@ pub fn app_router(state: AppState, static_dir: Option<PathBuf>) -> Router {
     if let Some(dir) = static_dir {
         if dir.exists() {
             let index = dir.join("index.html");
-            router = router.fallback_service(
-                ServeDir::new(dir).not_found_service(ServeFile::new(index)),
-            );
+            router = router
+                .fallback_service(ServeDir::new(dir).not_found_service(ServeFile::new(index)));
         }
     }
 

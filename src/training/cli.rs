@@ -110,17 +110,11 @@ pub fn print_training_usage() {
         "            (7 chassis × current/R/S1/S2 + 5 history baselines; R/S1/S2 independent)"
     );
     println!("  royal-s2-grid [--seed PATH] [--out DIR]");
-    println!(
-        "            (2 chassis × ±S2 × {{none,L,A,LA}} + 6 leftover history; 22 agents)"
-    );
+    println!("            (2 chassis × ±S2 × {{none,L,A,LA}} + 6 leftover history; 22 agents)");
     println!("  royal-s2-champs-grid [--seed PATH] [--out DIR]");
-    println!(
-        "            (11 royal-s2 title-winners; same cells, filtered manifest)"
-    );
+    println!("            (11 royal-s2 title-winners; same cells, filtered manifest)");
     println!("  royal-s2-twins-grid [--seed PATH] [--out DIR]");
-    println!(
-        "            (AVG_P120_SEED_C2 and BASE_P120H50B75_C2 × ±S2 × {{none,L,A,LA}}; 16)"
-    );
+    println!("            (AVG_P120_SEED_C2 and BASE_P120H50B75_C2 × ±S2 × {{none,L,A,LA}}; 16)");
     println!("  texel-fit [--features DIR] [--out PATH] [--iters N] [--lr F] [--k F]");
     println!("            [--init seed|mobility|PATH] [--late-frac F] [--keep-draws]");
     println!("            [--no-log-space] [--no-lr-scale-k] [--no-renorm-pawn]");
