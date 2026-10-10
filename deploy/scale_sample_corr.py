@@ -115,10 +115,11 @@ def analyze(
     by_id = {s["id"]: s for s in samples["samples"]}
 
     scores = match_scores(state)
-    elo = load_elo(elo_path) if elo_path and elo_path.exists() else {
-        e["id"]: float(state.get("elo", {}).get(e["id"], 1500.0))
-        for e in state.get("entrants", [])
-    }
+    elo = (
+        load_elo(elo_path)
+        if elo_path and elo_path.exists()
+        else {e["id"]: float(state.get("elo", {}).get(e["id"], 1500.0)) for e in state.get("entrants", [])}
+    )
     # state.json usually embeds elo
     if "elo" in state and isinstance(state["elo"], dict):
         for k, v in state["elo"].items():
@@ -134,8 +135,7 @@ def analyze(
 
     if len(ids) < 5:
         print(
-            f"Need more entrants with scores (got {len(ids)}). "
-            "Try --include-controls or check paths.",
+            f"Need more entrants with scores (got {len(ids)}). Try --include-controls or check paths.",
             file=sys.stderr,
         )
         return 1
@@ -182,13 +182,12 @@ def analyze(
     print("-" * 100)
     for name, r_p, r_s, effect, level_means, xs in rows:
         n_unique = len({round(x, 3) for x in xs})
+
         def m(lv: float) -> str:
             return f"{level_means[lv]:7.2f}" if lv in level_means else "    n/a"
+
         eff_s = f"{effect:+10.2f}" if effect is not None else "       n/a"
-        print(
-            f"{name:20s}  {fmt_r(r_p):>8s}  {fmt_r(r_s):>8s}  {eff_s}  "
-            f"{m(0.9)}  {m(1.0)}  {m(1.1)}  {n_unique}"
-        )
+        print(f"{name:20s}  {fmt_r(r_p):>8s}  {fmt_r(r_s):>8s}  {eff_s}  {m(0.9)}  {m(1.0)}  {m(1.1)}  {n_unique}")
 
     print()
     print("Notes:")
@@ -204,20 +203,12 @@ def analyze(
     print(f"Top 3 by {y_label}:")
     for sid, yi in ranked[:3]:
         s = by_id[sid]
-        changed = [
-            (n, m)
-            for n, m in zip(names, s["multipliers"])
-            if abs(float(m) - 1.0) > 1e-6
-        ]
+        changed = [(n, m) for n, m in zip(names, s["multipliers"]) if abs(float(m) - 1.0) > 1e-6]
         print(f"  {sid:6s}  {y_label}={yi:.1f}  changed={changed}")
     print(f"Bottom 3 by {y_label}:")
     for sid, yi in ranked[-3:]:
         s = by_id[sid]
-        changed = [
-            (n, m)
-            for n, m in zip(names, s["multipliers"])
-            if abs(float(m) - 1.0) > 1e-6
-        ]
+        changed = [(n, m) for n, m in zip(names, s["multipliers"]) if abs(float(m) - 1.0) > 1e-6]
         print(f"  {sid:6s}  {y_label}={yi:.1f}  changed={changed}")
 
     return 0

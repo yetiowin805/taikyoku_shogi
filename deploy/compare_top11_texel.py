@@ -216,9 +216,7 @@ def render(
         )
 
     if missing:
-        raise SystemExit(
-            "missing chassis or fit for: " + ", ".join(missing) + f"\n  grid={grid}\n  fits={fits}"
-        )
+        raise SystemExit("missing chassis or fit for: " + ", ".join(missing) + f"\n  grid={grid}\n  fits={fits}")
 
     lines: List[str] = []
     lines.append("# Top-11 Texel piece-value deltas")
@@ -309,10 +307,7 @@ def render(
     lines.append(
         md_table(
             ["Piece", "mean /P", "stdev", "min", "max"],
-            [
-                [p, fmt_val(m), fmt_val(s), fmt_val(lo), fmt_val(hi)]
-                for p, m, s, lo, hi in collapse
-            ],
+            [[p, fmt_val(m), fmt_val(s), fmt_val(lo), fmt_val(hi)] for p, m, s, lo, hi in collapse],
         )
     )
     lines.append("")

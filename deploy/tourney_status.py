@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """Print standings and knockout trees for a tourney run.
 
-  ./deploy/tourney_status.py                 # latest run under data/raw/tourney
-  ./deploy/tourney_status.py top11-c2        # latest run whose id contains that
-  ./deploy/tourney_status.py --run-id ID
-  ./deploy/tourney_status.py --standings     # table only
-  ./deploy/tourney_status.py --tree          # trees only (unfinished + latest complete)
-  ./deploy/tourney_status.py --tree 1        # one tree (1-based or tree id)
-  ./deploy/tourney_status.py --all-trees     # every knockout tree
+./deploy/tourney_status.py                 # latest run under data/raw/tourney
+./deploy/tourney_status.py top11-c2        # latest run whose id contains that
+./deploy/tourney_status.py --run-id ID
+./deploy/tourney_status.py --standings     # table only
+./deploy/tourney_status.py --tree          # trees only (unfinished + latest complete)
+./deploy/tourney_status.py --tree 1        # one tree (1-based or tree id)
+./deploy/tourney_status.py --all-trees     # every knockout tree
 """
 
 from __future__ import annotations
@@ -50,9 +50,7 @@ def slot_by_id(state: Dict[str, Any]) -> Dict[int, Dict[str, Any]]:
     return {int(s["id"]): s for s in state.get("slots", [])}
 
 
-def match_score(
-    match: Dict[str, Any], slots: Dict[int, Dict[str, Any]]
-) -> Tuple[float, float, Counter]:
+def match_score(match: Dict[str, Any], slots: Dict[int, Dict[str, Any]]) -> Tuple[float, float, Counter]:
     """A-score, B-score, status counts. Only Done slots add to the score."""
     status: Counter = Counter()
     sa = 0.0
@@ -130,18 +128,17 @@ def print_header(run_dir: Path, state: Dict[str, Any]) -> None:
     titles = state.get("knockout_titles") or {}
     title_bits = ", ".join(f"{k}×{v}" for k, v in sorted(titles.items(), key=lambda kv: -kv[1]))
     print(f"run={run_dir.name}  format={state.get('format')}  path={run_dir}")
-    print(
-        f"slots={len(slots)}  "
-        + " ".join(f"{k}={v}" for k, v in sorted(c.items()))
-    )
+    print(f"slots={len(slots)}  " + " ".join(f"{k}={v}" for k, v in sorted(c.items())))
     pairs = state.get("top_two_pairs", [])
     if pairs:
         pair = pairs[-1]
         by_id = {s["id"]: s for s in slots}
         games = [by_id[i] for i in pair["slot_ids"] if i in by_id]
-        print(f"top-two pairs={len(pairs)} latest={' vs '.join(pair['agents'])} "
-              f"done={sum(s['status'] == 'done' for s in games)}/2 "
-              "(order-neutral only)")
+        print(
+            f"top-two pairs={len(pairs)} latest={' vs '.join(pair['agents'])} "
+            f"done={sum(s['status'] == 'done' for s in games)}/2 "
+            "(order-neutral only)"
+        )
     if trees:
         print(
             f"trees={len(trees)}  complete={sum(1 for t in trees if t.get('complete'))}"
@@ -197,9 +194,7 @@ def print_tree(tree: Dict[str, Any], slots: Dict[int, Dict[str, Any]]) -> None:
     print()
 
 
-def trees_for_display(
-    trees: List[Dict[str, Any]], which: Optional[str], all_trees: bool
-) -> List[Dict[str, Any]]:
+def trees_for_display(trees: List[Dict[str, Any]], which: Optional[str], all_trees: bool) -> List[Dict[str, Any]]:
     """Specific id, every tree, or unfinished plus the latest complete."""
     if not trees:
         return []
@@ -224,9 +219,7 @@ def trees_for_display(
     return out
 
 
-def print_trees(
-    state: Dict[str, Any], which: Optional[str], all_trees: bool = False
-) -> None:
+def print_trees(state: Dict[str, Any], which: Optional[str], all_trees: bool = False) -> None:
     trees: List[Dict[str, Any]] = list(state.get("knockouts") or [])
     if not trees:
         print("(no knockout trees — Swiss / RR run)\n")
@@ -235,8 +228,7 @@ def print_trees(
     shown = trees_for_display(trees, which, all_trees)
     if which is None and not all_trees and len(shown) < len(trees):
         print(
-            f"showing {len(shown)}/{len(trees)} trees "
-            f"(unfinished + latest complete; --all-trees for every bracket)\n"
+            f"showing {len(shown)}/{len(trees)} trees (unfinished + latest complete; --all-trees for every bracket)\n"
         )
     for t in shown:
         print_tree(t, slots)
@@ -266,9 +258,7 @@ def self_test() -> None:
     assert [t["id"] for t in shown] == [2, 3, 4]
     assert [t["id"] for t in trees_for_display(trees, None, True)] == [1, 2, 3, 4]
     assert [t["id"] for t in trees_for_display(trees, "1", False)] == [1]
-    only_done = trees_for_display(
-        [{"id": 1, "complete": True}, {"id": 5, "complete": True}], None, False
-    )
+    only_done = trees_for_display([{"id": 1, "complete": True}, {"id": 5, "complete": True}], None, False)
     assert [t["id"] for t in only_done] == [5]
     print("self-test ok")
 

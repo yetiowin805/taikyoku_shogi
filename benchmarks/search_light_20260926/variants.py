@@ -3,12 +3,19 @@
 Always restore the listed sources from the pinned revision first. Do not run
 against a checkout containing unrelated edits to these files.
 """
+
 from pathlib import Path
 import subprocess
 
-BASE = '61c2875'
-FILES = ['src/movement/types.rs', 'src/movement/config.rs', 'src/movement/generator.rs',
-         'src/game_state.rs', 'src/attack_utils.rs', 'src/search.rs']
+BASE = "61c2875"
+FILES = [
+    "src/movement/types.rs",
+    "src/movement/config.rs",
+    "src/movement/generator.rs",
+    "src/game_state.rs",
+    "src/attack_utils.rs",
+    "src/search.rs",
+]
 
 
 def change(root, file, before, after):
@@ -21,25 +28,31 @@ def change(root, file, before, after):
 def replace_function(root, file, name, body):
     p = root / file
     s = p.read_text()
-    start = s.index('fn ' + name + '(')
-    a = s.index('{', start)
+    start = s.index("fn " + name + "(")
+    a = s.index("{", start)
     end = balanced_end(s, a)
-    p.write_text(s[:a] + '{\n' + body + '\n}' + s[end:])
+    p.write_text(s[:a] + "{\n" + body + "\n}" + s[end:])
 
 
 def balanced_end(s, start):
     count = 0
     for i in range(start, len(s)):
-        if s[i] == '{': count += 1
-        if s[i] == '}':
+        if s[i] == "{":
+            count += 1
+        if s[i] == "}":
             count -= 1
-            if count == 0: return i + 1
-    raise ValueError('unbalanced source')
+            if count == 0:
+                return i + 1
+    raise ValueError("unbalanced source")
 
 
 def bitset(root):
-    p = root / 'src/movement/types.rs'
-    s = p.read_text().replace('use std::collections::HashSet;', '''/// Experimental replacement for the immutable capturing-ray blocker sets.
+    p = root / "src/movement/types.rs"
+    s = (
+        p.read_text()
+        .replace(
+            "use std::collections::HashSet;",
+            """/// Experimental replacement for the immutable capturing-ray blocker sets.
 #[derive(Clone)]
 pub struct PieceTypeSet {
     bits: [u64; (crate::piece::PieceType::SwordGeneral as usize + 64) / 64],
@@ -69,33 +82,46 @@ impl PieceTypeSet {
     pub fn iter(&self) -> impl Iterator<Item = &'static PieceType> + '_ {
         crate::eval::ALL_PIECE_TYPES.iter().filter(move |p| self.contains(p))
     }
-}''').replace('HashSet<PieceType>', 'PieceTypeSet')
+}""",
+        )
+        .replace("HashSet<PieceType>", "PieceTypeSet")
+    )
     p.write_text(s)
-    p = root / 'src/movement/config.rs'
-    s = p.read_text().replace('std::collections::HashSet::new()', 'PieceTypeSet::new()')
-    s = s.replace('use std::collections::HashSet;', 'use crate::movement::types::PieceTypeSet;')
-    s = s.replace('HashSet<PieceType>', 'PieceTypeSet').replace('HashSet::new()', 'PieceTypeSet::new()')
+    p = root / "src/movement/config.rs"
+    s = p.read_text().replace("std::collections::HashSet::new()", "PieceTypeSet::new()")
+    s = s.replace("use std::collections::HashSet;", "use crate::movement::types::PieceTypeSet;")
+    s = s.replace("HashSet<PieceType>", "PieceTypeSet").replace("HashSet::new()", "PieceTypeSet::new()")
     p.write_text(s)
-    change(root, 'src/movement/generator.rs', '&std::collections::HashSet<crate::piece::PieceType>',
-           '&crate::movement::types::PieceTypeSet')
+    change(
+        root,
+        "src/movement/generator.rs",
+        "&std::collections::HashSet<crate::piece::PieceType>",
+        "&crate::movement::types::PieceTypeSet",
+    )
 
 
 def props(root):
-    p = root / 'src/movement/config.rs'
+    p = root / "src/movement/config.rs"
     s = p.read_text()
     # Route all literal configs through their constructor, preserving capabilities.
     import re
-    for m in reversed(list(re.finditer(r'MovementConfig \{\s*capabilities:', s))):
-        brace = s.index('{', m.start())
+
+    for m in reversed(list(re.finditer(r"MovementConfig \{\s*capabilities:", s))):
+        brace = s.index("{", m.start())
         end = balanced_end(s, brace)
-        caps = s[s.index(':', brace)+1:end-1].strip().rstrip(',')
-        s = s[:m.start()] + 'MovementConfig::new(' + caps + ')' + s[end:]
-    s = s.replace('    pub capabilities: Vec<MovementCapability>,', '''    pub capabilities: Vec<MovementCapability>,
+        caps = s[s.index(":", brace) + 1 : end - 1].strip().rstrip(",")
+        s = s[: m.start()] + "MovementConfig::new(" + caps + ")" + s[end:]
+    s = s.replace(
+        "    pub capabilities: Vec<MovementCapability>,",
+        """    pub capabilities: Vec<MovementCapability>,
     pub has_two_step: bool,
     pub uses_capturing: bool,
     pub only_capturing_range: bool,
-    pub range_dirs: u8,''')
-    s = s.replace('        MovementConfig { capabilities }', '''        let has_two_step = capabilities.iter().any(|c| matches!(c, MovementCapability::TwoStep { .. }));
+    pub range_dirs: u8,""",
+    )
+    s = s.replace(
+        "        MovementConfig { capabilities }",
+        """        let has_two_step = capabilities.iter().any(|c| matches!(c, MovementCapability::TwoStep { .. }));
         let mut uses_capturing = false;
         let mut other_range = false;
         let mut range_dirs = 0;
@@ -107,30 +133,53 @@ def props(root):
             }
         }
         MovementConfig { capabilities, has_two_step, uses_capturing,
-            only_capturing_range: uses_capturing && !other_range, range_dirs }''')
+            only_capturing_range: uses_capturing && !other_range, range_dirs }""",
+    )
     p.write_text(s)
-    change(root, 'src/game_state.rs', '''            let has_two_step = config.capabilities.iter().any(|cap| {
+    change(
+        root,
+        "src/game_state.rs",
+        """            let has_two_step = config.capabilities.iter().any(|cap| {
                 matches!(cap, crate::movement::types::MovementCapability::TwoStep { .. })
-            });''', '            let has_two_step = config.has_two_step;')
-    change(root, 'src/game_state.rs', '''        let uses_capturing = config.capabilities.iter().any(|cap| {
+            });""",
+        "            let has_two_step = config.has_two_step;",
+    )
+    change(
+        root,
+        "src/game_state.rs",
+        """        let uses_capturing = config.capabilities.iter().any(|cap| {
             if let crate::movement::MovementCapability::Range { blocking, .. } = cap {
                 *blocking == crate::movement::BlockingMode::Capturing
             } else {
                 false
             }
-        });''', '        let uses_capturing = config.uses_capturing;')
-    replace_function(root, 'src/attack_utils.rs', 'has_range_movement_in_direction', '''    let config = MovementConfig::for_piece(piece);
-    direction_set_contains(adjust_directions_for_color(config.range_dirs, piece.color), direction)''')
-    replace_function(root, 'src/attack_utils.rs', 'has_only_capturing_range_movement', '''    MovementConfig::for_piece(piece).only_capturing_range''')
+        });""",
+        "        let uses_capturing = config.uses_capturing;",
+    )
+    replace_function(
+        root,
+        "src/attack_utils.rs",
+        "has_range_movement_in_direction",
+        """    let config = MovementConfig::for_piece(piece);
+    direction_set_contains(adjust_directions_for_color(config.range_dirs, piece.color), direction)""",
+    )
+    replace_function(
+        root,
+        "src/attack_utils.rs",
+        "has_only_capturing_range_movement",
+        """    MovementConfig::for_piece(piece).only_capturing_range""",
+    )
 
 
 def lazy_gates(root):
-    p = root / 'src/search.rs'
+    p = root / "src/search.rs"
     s = p.read_text()
-    start = s.index('    // Q after loud AB captures/promos', s.index('fn leaf_or_quiesce'))
+    start = s.index("    // Q after loud AB captures/promos", s.index("fn leaf_or_quiesce"))
     end = s.index('        ctx.phase = "quiesce";', start)
     # Keep royal evasions first, and preserve every q-entry argument below.
-    s = s[:start]+'''    let q = leaf_quiescence_depth(ctx, is_pv);
+    s = (
+        s[:start]
+        + """    let q = leaf_quiescence_depth(ctx, is_pv);
     if q == 0 { return evaluate_with_ply(state, weights, ctx.ply); }
     let capture_parent = ctx.last_ab_capture_enemy > 0.0;
     let include_caps = ctx.last_ab_capture_enemy >= min_quiescence_enemy_material()
@@ -142,19 +191,28 @@ def lazy_gates(root):
     if !include_caps && generate_loud_promotions(state).is_empty() {
         evaluate_with_ply(state, weights, ctx.ply)
     } else {
-'''+s[end:]
+"""
+        + s[end:]
+    )
     p.write_text(s)
 
 
 def lazy_labels(root):
-    p = root/'src/search.rs'
+    p = root / "src/search.rs"
     s = p.read_text()
-    s = s.replace('root_label: String', 'root_label: LazyMoveLabel').replace('q_label: String', 'q_label: LazyMoveLabel')
-    s = s.replace('root_label: LazyMoveLabel::new()', 'root_label: LazyMoveLabel::default()').replace('q_label: LazyMoveLabel::new()', 'q_label: LazyMoveLabel::default()')
-    s = s.replace('ctx.root_label = move_label(state, mv);', 'ctx.root_label = LazyMoveLabel::new(state, mv);')
-    s = s.replace('ctx.q_label = move_label(state, &c.mv);', 'ctx.q_label = LazyMoveLabel::new(state, &c.mv);')
-    s = s.replace('                if self.q_label.is_empty() {\n                    "-"\n                } else {\n                    &self.q_label\n                },', '                if self.q_label.0.is_none() { "-".to_string() } else { self.q_label.to_string() },')
-    marker = 'fn move_label(state: &GameState, mv: &Move) -> String {'
+    s = s.replace("root_label: String", "root_label: LazyMoveLabel").replace(
+        "q_label: String", "q_label: LazyMoveLabel"
+    )
+    s = s.replace("root_label: LazyMoveLabel::new()", "root_label: LazyMoveLabel::default()").replace(
+        "q_label: LazyMoveLabel::new()", "q_label: LazyMoveLabel::default()"
+    )
+    s = s.replace("ctx.root_label = move_label(state, mv);", "ctx.root_label = LazyMoveLabel::new(state, mv);")
+    s = s.replace("ctx.q_label = move_label(state, &c.mv);", "ctx.q_label = LazyMoveLabel::new(state, &c.mv);")
+    s = s.replace(
+        '                if self.q_label.is_empty() {\n                    "-"\n                } else {\n                    &self.q_label\n                },',
+        '                if self.q_label.0.is_none() { "-".to_string() } else { self.q_label.to_string() },',
+    )
+    marker = "fn move_label(state: &GameState, mv: &Move) -> String {"
     definition = """
 #[derive(Clone, Copy, Default)]
 struct LazyMoveLabel(Option<(Option<crate::piece::Piece>, crate::position::Position, crate::position::Position, bool)>);
@@ -179,13 +237,13 @@ impl std::fmt::Display for LazyMoveLabel {
 }
 """
     assert marker in s
-    s = s.replace(marker, definition+'\n'+marker)
+    s = s.replace(marker, definition + "\n" + marker)
     p.write_text(s)
 
 
 def append_tests(root, variant):
-    if 'bitset' in variant:
-        with (root/'src/movement/types.rs').open('a') as f:
+    if "bitset" in variant:
+        with (root / "src/movement/types.rs").open("a") as f:
             f.write("""
 #[cfg(test)]
 mod bitset_experiment_tests {
@@ -207,8 +265,8 @@ mod bitset_experiment_tests {
     }
 }
 """)
-    if 'props' in variant:
-        with (root/'src/movement/config.rs').open('a') as f:
+    if "props" in variant:
+        with (root / "src/movement/config.rs").open("a") as f:
             f.write("""
 #[cfg(test)]
 mod props_experiment_tests {
@@ -237,8 +295,8 @@ mod props_experiment_tests {
 }
 """)
 
-    if 'lazy-labels' in variant:
-        with (root/'src/search.rs').open('a') as f:
+    if "lazy-labels" in variant:
+        with (root / "src/search.rs").open("a") as f:
             f.write("""
 #[cfg(test)]
 mod lazy_label_experiment_tests {
@@ -275,17 +333,25 @@ mod lazy_label_experiment_tests {
 def apply(root, variant):
     root = Path(root)
     for f in FILES:
-        (root/f).write_bytes(subprocess.check_output(['git', 'show', f'{BASE}:{f}'], cwd=root))
-    if variant == 'baseline': return
-    for item in variant.split('+'):
-        {'bitset': bitset, 'bitset-compat': bitset, 'props': props, 'lazy-gates': lazy_gates, 'lazy-labels': lazy_labels}[item](root)
+        (root / f).write_bytes(subprocess.check_output(["git", "show", f"{BASE}:{f}"], cwd=root))
+    if variant == "baseline":
+        return
+    for item in variant.split("+"):
+        {
+            "bitset": bitset,
+            "bitset-compat": bitset,
+            "props": props,
+            "lazy-gates": lazy_gates,
+            "lazy-labels": lazy_labels,
+        }[item](root)
     append_tests(root, variant)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import argparse
+
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument('variant')
-    p.add_argument('--root', type=Path, required=True)
+    p.add_argument("variant")
+    p.add_argument("--root", type=Path, required=True)
     a = p.parse_args()
     apply(a.root, a.variant)
