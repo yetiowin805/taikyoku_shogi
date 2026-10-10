@@ -171,6 +171,7 @@ def validate_model_binding(original, model):
 
 def snapshot_model(source, data, control):
     """Pin NNUE dependencies and rewrite only the analysis snapshot's blob path."""
+    import artifact_storage
     sha = digest(data)
     snapshot = control / "models" / (sha + ".json")
     binding = {"sha256": sha, "snapshot": str(snapshot)}
@@ -181,16 +182,7 @@ def snapshot_model(source, data, control):
         if file_digest(original) != descriptor["sha256"]:
             raise ValueError(f"NNUE artifact hash mismatch: {original}")
         blob = control / "models" / (descriptor["sha256"] + ".nnue")
-        if blob.exists():
-            if file_digest(blob) != descriptor["sha256"]:
-                raise ValueError(f"corrupt existing NNUE snapshot: {blob}")
-        else:
-            temporary = blob.with_suffix(".tmp")
-            shutil.copyfile(original, temporary)
-            if file_digest(temporary) != descriptor["sha256"]:
-                temporary.unlink()
-                raise ValueError("NNUE source changed while copying")
-            temporary.replace(blob)
+        artifact_storage.snapshot_blob(original, blob, descriptor["sha256"])
         descriptor["file"] = str(blob)
         data = json.dumps(checkpoint, sort_keys=True).encode()
         binding["snapshot_sha256"] = digest(data)
