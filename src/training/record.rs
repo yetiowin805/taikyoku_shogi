@@ -100,7 +100,7 @@ impl GameRecordV2 {
         }
         let json = serde_json::to_string_pretty(self)
             .map_err(|e| format!("Failed to serialize game: {}", e))?;
-        fs::write(path, json).map_err(|e| format!("Failed to write {}: {}", path.display(), e))
+        super::durable::write(path, json.as_bytes(), false)
     }
 
     pub fn load_path(path: &Path) -> Result<Self, String> {

@@ -19,6 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import training_sidecar
 import training_labels
 import engine_updates
+import storage_guard
 
 ROOT = Path(__file__).resolve().parent.parent
 STOPPING = False
@@ -405,6 +406,8 @@ def sidecar_result(mode, code):
 
 
 def supervise(config):
+    storage_policy = os.environ.get('TAIKYOKU_STORAGE_CONFIG', '/etc/taikyoku/storage.json')
+    storage_guard.require_healthy(storage_policy)
     run = Path(config["run"])
     control = run / "analysis"
     mode = config.get("sidecar", "analysis")
@@ -449,7 +452,11 @@ def supervise(config):
                     raise RuntimeError("sidecar failed during startup; see its log")
                 meta["state"] = "running"
                 atomic(control / "supervisor.json", meta)
+                next_storage_check = 0.
                 while not STOPPING and tourney.poll() is None:
+                    if time.monotonic() >= next_storage_check:
+                        storage_guard.require_healthy(storage_policy)
+                        next_storage_check = time.monotonic() + 30
                     if worker and worker.poll() is not None and meta['sidecar_state'] == 'running':
                         request.unlink(missing_ok=True)
                         meta.update(sidecar_state=sidecar_result(mode, worker.returncode), sidecar_exit=worker.returncode)
@@ -470,6 +477,8 @@ def supervise(config):
                 tourney.wait()
                 meta.update(state="stopped" if STOPPING else "failed", tournament_exit=tourney.returncode)
                 atomic(control / "supervisor.json", meta)
+            if not STOPPING:
+                raise RuntimeError(f"tournament exited unexpectedly ({tourney.returncode}); tournament is not running; see tournament.log")
 
 
 def game_clock(args, state):
