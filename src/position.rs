@@ -1,9 +1,11 @@
 /// Represents a position on the 36x36 board
 /// Coordinates are (file, rank) where file is column (0-35) and rank is row (0-35)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
+)]
 pub struct Position {
-    pub file: u8,  // column (0-35)
-    pub rank: u8,  // row (0-35)
+    pub file: u8, // column (0-35)
+    pub rank: u8, // row (0-35)
 }
 
 impl Position {
@@ -41,8 +43,8 @@ impl Position {
     pub fn offset(&self, file_delta: i8, rank_delta: i8) -> Option<Position> {
         let new_file = self.file as i16 + file_delta as i16;
         let new_rank = self.rank as i16 + rank_delta as i16;
-        
-        if new_file >= 0 && new_file < 36 && new_rank >= 0 && new_rank < 36 {
+
+        if (0..36).contains(&new_file) && (0..36).contains(&new_rank) {
             Some(Position {
                 file: new_file as u8,
                 rank: new_rank as u8,
@@ -69,13 +71,13 @@ mod tests {
     fn test_position_index_conversion() {
         let pos = Position::new(0, 0).unwrap();
         assert_eq!(pos.to_index(), 0);
-        
+
         let pos = Position::new(35, 35).unwrap();
         assert_eq!(pos.to_index(), 1295);
-        
+
         let pos = Position::new(10, 20).unwrap();
         assert_eq!(pos.to_index(), 20 * 36 + 10);
-        
+
         // Test round-trip
         for i in 0..1296 {
             let pos = Position::from_index(i).unwrap();
@@ -86,15 +88,14 @@ mod tests {
     #[test]
     fn test_position_offset() {
         let pos = Position::new(10, 10).unwrap();
-        
+
         assert_eq!(pos.offset(1, 0), Position::new(11, 10));
         assert_eq!(pos.offset(-1, 0), Position::new(9, 10));
         assert_eq!(pos.offset(0, 1), Position::new(10, 11));
         assert_eq!(pos.offset(0, -1), Position::new(10, 9));
-        
+
         // Out of bounds
         assert_eq!(pos.offset(-11, 0), None);
         assert_eq!(pos.offset(26, 0), None);
     }
 }
-

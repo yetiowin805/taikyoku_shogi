@@ -524,7 +524,10 @@ mod tests {
                 break;
             }
         }
-        assert!(found_shuffle, "expected at least one light shuffle in 200 seeds");
+        assert!(
+            found_shuffle,
+            "expected at least one light shuffle in 200 seeds"
+        );
     }
 
     #[test]

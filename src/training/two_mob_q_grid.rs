@@ -16,12 +16,8 @@ pub const DEFAULT_OUT_DIR: &str = "models/two-mob-q-grid";
 pub const DEFAULT_SEED_MODEL: &str = "models/ab-seed.json";
 
 /// (curve, k, apply) finalists from the 18-cell two-mob Swiss.
-pub const FINALISTS: [(u8, f32, u8); 4] = [
-    (1, 100.0, 1),
-    (1, 200.0, 1),
-    (2, 100.0, 1),
-    (2, 200.0, 1),
-];
+pub const FINALISTS: [(u8, f32, u8); 4] =
+    [(1, 100.0, 1), (1, 200.0, 1), (2, 100.0, 1), (2, 200.0, 1)];
 
 /// Same-wipe LMR R=2 (see `SearchConfig::sibling_mode`).
 pub const Q_BLOWUP_SIBLING_MODE: u8 = 2;
@@ -277,7 +273,10 @@ mod tests {
         let plain = EvalCheckpoint::load_path(tmp.join("C2K100A1.json")).unwrap();
         assert_eq!(plain.search_defaults.sibling_mode, 0);
         assert!(!plain.search_defaults.q_loud_promo_simple_only);
-        assert_eq!(q.weights.two_mover_mob_curve, plain.weights.two_mover_mob_curve);
+        assert_eq!(
+            q.weights.two_mover_mob_curve,
+            plain.weights.two_mover_mob_curve
+        );
         assert!((q.weights.two_mover_mob_k - plain.weights.two_mover_mob_k).abs() < 1e-6);
     }
 }

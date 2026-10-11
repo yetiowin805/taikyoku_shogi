@@ -110,17 +110,11 @@ pub fn print_training_usage() {
         "            (7 chassis × current/R/S1/S2 + 5 history baselines; R/S1/S2 independent)"
     );
     println!("  royal-s2-grid [--seed PATH] [--out DIR]");
-    println!(
-        "            (2 chassis × ±S2 × {{none,L,A,LA}} + 6 leftover history; 22 agents)"
-    );
+    println!("            (2 chassis × ±S2 × {{none,L,A,LA}} + 6 leftover history; 22 agents)");
     println!("  royal-s2-champs-grid [--seed PATH] [--out DIR]");
-    println!(
-        "            (11 royal-s2 title-winners; same cells, filtered manifest)"
-    );
+    println!("            (11 royal-s2 title-winners; same cells, filtered manifest)");
     println!("  royal-s2-twins-grid [--seed PATH] [--out DIR]");
-    println!(
-        "            (AVG_P120_SEED_C2 and BASE_P120H50B75_C2 × ±S2 × {{none,L,A,LA}}; 16)"
-    );
+    println!("            (AVG_P120_SEED_C2 and BASE_P120H50B75_C2 × ±S2 × {{none,L,A,LA}}; 16)");
     println!("  texel-fit [--features DIR] [--out PATH] [--iters N] [--lr F] [--k F]");
     println!("            [--init seed|mobility|PATH] [--late-frac F] [--keep-draws]");
     println!("            [--no-log-space] [--no-lr-scale-k] [--no-renorm-pawn]");
@@ -1248,8 +1242,10 @@ pub fn cmd_royal_s2_grid(args: &[String]) -> Result<(), String> {
 }
 
 pub fn cmd_royal_s2_champs_grid(args: &[String]) -> Result<(), String> {
-    let mut cfg = RoyalS2GridConfig::default();
-    cfg.out_dir = PathBuf::from(DEFAULT_CHAMPS_OUT_DIR);
+    let mut cfg = RoyalS2GridConfig {
+        out_dir: PathBuf::from(DEFAULT_CHAMPS_OUT_DIR),
+        ..Default::default()
+    };
     let mut i = 2;
     while i < args.len() {
         if let Some(v) = take_flag_value(args, &mut i, "--seed")? {
@@ -1272,8 +1268,10 @@ pub fn cmd_royal_s2_champs_grid(args: &[String]) -> Result<(), String> {
 }
 
 pub fn cmd_royal_s2_twins_grid(args: &[String]) -> Result<(), String> {
-    let mut cfg = RoyalS2GridConfig::default();
-    cfg.out_dir = PathBuf::from(DEFAULT_TWINS_OUT_DIR);
+    let mut cfg = RoyalS2GridConfig {
+        out_dir: PathBuf::from(DEFAULT_TWINS_OUT_DIR),
+        ..Default::default()
+    };
     let mut i = 2;
     while i < args.len() {
         if let Some(v) = take_flag_value(args, &mut i, "--seed")? {

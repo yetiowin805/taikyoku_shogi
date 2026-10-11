@@ -41,7 +41,9 @@ pub struct MoveBudget {
 
 impl MoveBudget {
     /// hard_ms is the original bank minus the one-second reserve, before caps.
-    fn bank_ms(self) -> u64 { self.hard_ms.saturating_add(1000) }
+    fn bank_ms(self) -> u64 {
+        self.hard_ms.saturating_add(1000)
+    }
     pub fn admission_ms(self) -> u64 {
         (5000u64.saturating_add(self.bank_ms() / 100)).min(self.hard_ms)
     }
@@ -107,11 +109,17 @@ mod tests {
     }
     #[test]
     fn bank_scaled_limits_and_threefold_admission() {
-        let clock = FischerControl { initial_ms: 900000, increment_ms: 5000 };
+        let clock = FischerControl {
+            initial_ms: 900000,
+            increment_ms: 5000,
+        };
         for (remaining, admission, hard) in [
-            (900000, 14000, 95000), (300000, 8000, 35000),
-            (60000, 5600, 11000), (10000, 5100, 6000),
-            (6000, 5000, 5000), (800, 0, 0),
+            (900000, 14000, 95000),
+            (300000, 8000, 35000),
+            (60000, 5600, 11000),
+            (10000, 5100, 6000),
+            (6000, 5000, 5000),
+            (800, 0, 0),
         ] {
             let budget = clock.budget(remaining);
             assert_eq!(budget.admission_ms(), admission);

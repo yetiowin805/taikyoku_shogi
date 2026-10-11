@@ -108,8 +108,11 @@ pub fn child_main(request: &Path, output: &Path) -> Result<(), String> {
     });
     let timing_path = output.with_extension("iterations.json");
     let timing_tmp = output.with_extension("iterations.tmp");
-    fs::write(&timing_tmp, serde_json::to_vec(&timings).map_err(|e| e.to_string())?)
-        .map_err(|e| e.to_string())?;
+    fs::write(
+        &timing_tmp,
+        serde_json::to_vec(&timings).map_err(|e| e.to_string())?,
+    )
+    .map_err(|e| e.to_string())?;
     fs::rename(timing_tmp, timing_path).map_err(|e| e.to_string())?;
     let temporary = output.with_extension("tmp");
     record.save_path(&temporary)?;
@@ -131,8 +134,11 @@ impl Drop for GameChild {
 
 /// Older binaries ignore unknown JSON fields; never let them silently ignore clocks.
 pub fn require_clock_support(binary: &str) -> Result<(), String> {
-    let mut child = Command::new(binary).arg("tournament-game-clock-protocol")
-        .stdout(Stdio::piped()).stderr(Stdio::null()).spawn()
+    let mut child = Command::new(binary)
+        .arg("tournament-game-clock-protocol")
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
         .map_err(|e| format!("clock capability probe failed: {e}"))?;
     let deadline = std::time::Instant::now() + Duration::from_secs(5);
     while child.try_wait().map_err(|e| e.to_string())?.is_none() {

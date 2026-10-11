@@ -3,9 +3,9 @@
 use crate::eval::{
     is_range_capturer, is_range_two_mover, EvalCheckpoint, EvalWeights, ALL_PIECE_TYPES,
 };
-use crate::piece::PieceType;
 #[cfg(test)]
 use crate::piece::Color;
+use crate::piece::PieceType;
 use crate::training::featurize::{load_labeled_dir, LabeledPosition};
 use crate::training::mobility_seed::{run_mobility_seed, MobilitySeedConfig};
 use crate::training::paths;
@@ -515,10 +515,7 @@ mod tests {
 
     #[test]
     fn fit_moves_weights_when_label_correlates_with_material() {
-        let dir = std::env::temp_dir().join(format!(
-            "taikyoku-texel-test-{}",
-            std::process::id()
-        ));
+        let dir = std::env::temp_dir().join(format!("taikyoku-texel-test-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
 
@@ -594,10 +591,7 @@ mod tests {
 
     #[test]
     fn only_large_freezes_mid_table_and_moves_hook() {
-        let dir = std::env::temp_dir().join(format!(
-            "taikyoku-texel-large-{}",
-            std::process::id()
-        ));
+        let dir = std::env::temp_dir().join(format!("taikyoku-texel-large-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         let rows = synthetic_hook_rows(64);
@@ -628,8 +622,9 @@ mod tests {
             "pawn must stay at init"
         );
         assert!(
-            (cp.weights.piece_value(PieceType::GoldGeneral) - seed.piece_value(PieceType::GoldGeneral))
-                .abs()
+            (cp.weights.piece_value(PieceType::GoldGeneral)
+                - seed.piece_value(PieceType::GoldGeneral))
+            .abs()
                 < 1e-5,
             "gold must stay at init"
         );

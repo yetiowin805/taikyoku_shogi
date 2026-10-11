@@ -71,9 +71,7 @@ pub fn other_range_two_mover_types() -> Vec<PieceType> {
         .iter()
         .copied()
         .filter(|pt| {
-            is_range_two_mover(*pt)
-                && *pt != PieceType::HookMover
-                && *pt != PieceType::Capricorn
+            is_range_two_mover(*pt) && *pt != PieceType::HookMover && *pt != PieceType::Capricorn
         })
         .collect()
 }
@@ -147,9 +145,8 @@ pub fn run_loud_grid(cfg: &LoudGridConfig) -> Result<(TourneyManifest, GridFile)
             for &om in &OTHER_TWO_MOVER_MULTS {
                 let id = cell_id(pct(hm), pct(cm), pct(om));
                 let model_path = cfg.out_dir.join(format!("{id}.json"));
-                let is_center = (hm - 1.0).abs() < 1e-6
-                    && (cm - 1.0).abs() < 1e-6
-                    && (om - 1.0).abs() < 1e-6;
+                let is_center =
+                    (hm - 1.0).abs() < 1e-6 && (cm - 1.0).abs() < 1e-6 && (om - 1.0).abs() < 1e-6;
                 if is_center {
                     fs::copy(&cfg.seed_model, &model_path).map_err(|e| {
                         format!(
@@ -248,8 +245,7 @@ mod tests {
                 < 1e-2
         );
         assert!(
-            (w.piece_value(PieceType::GreatGeneral)
-                - seed.piece_value(PieceType::GreatGeneral))
+            (w.piece_value(PieceType::GreatGeneral) - seed.piece_value(PieceType::GreatGeneral))
                 .abs()
                 < 1e-3
         );

@@ -80,7 +80,11 @@ impl Accumulator {
         // original ability list (White jumping pieces may differ from Black).
         let ability = features::schema().row_classes[features::key(piece)];
         let relative_color = usize::from(piece.color == Color::White) ^ side;
-        let square = if side == 1 { 1295 - piece.position.to_index() } else { piece.position.to_index() };
+        let square = if side == 1 {
+            1295 - piece.position.to_index()
+        } else {
+            piece.position.to_index()
+        };
         let key = (ability * 2 + relative_color) * 1296 + square;
         let slot = ((key as u64)
             .wrapping_mul(0x9e3779b97f4a7c15)
@@ -215,7 +219,7 @@ impl Accumulator {
                 if let Some(p) = add {
                     self.add_direct(dst, p, side, 1);
                 }
-            } else if w % 64 == 0 {
+            } else if w.is_multiple_of(64) {
                 tiled::<64>(src, dst, rows, &slots);
             } else {
                 tiled::<32>(src, dst, rows, &slots);
@@ -297,7 +301,8 @@ mod tests {
                 for reverse in [false, true] {
                     let mut black = Piece::new(pt, Color::Black, Position::from_index(37).unwrap());
                     black.is_promoted = promoted;
-                    black.base_piece_type = reverse.then_some(crate::piece::PieceType::ReverseChariot);
+                    black.base_piece_type =
+                        reverse.then_some(crate::piece::PieceType::ReverseChariot);
                     let mut white = black;
                     white.color = Color::White;
                     white.position = Position::from_index(1295 - 37).unwrap();
