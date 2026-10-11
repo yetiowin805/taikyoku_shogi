@@ -356,6 +356,7 @@ fn solve(mut a: Vec<Vec<f64>>, mut b: Vec<f64>) -> Option<Vec<f64>> {
         b.swap(k, pivot);
         for i in k + 1..n {
             let factor = a[i][k] / a[k][k];
+            #[allow(clippy::needless_range_loop)] // row update reads row k while writing row i
             for j in k..n {
                 a[i][j] -= factor * a[k][j];
             }

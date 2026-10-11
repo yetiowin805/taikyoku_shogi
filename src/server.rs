@@ -248,10 +248,8 @@ async fn api_move(
         }
     };
     match tool.apply_human_move(
-        body.from_file,
-        body.from_rank,
-        body.to_file,
-        body.to_rank,
+        (body.from_file, body.from_rank),
+        (body.to_file, body.to_rank),
         body.promote,
         body.path_index,
         via,

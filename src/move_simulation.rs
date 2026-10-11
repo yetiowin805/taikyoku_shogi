@@ -23,6 +23,12 @@ pub struct MoveDelta {
     pub piece_promoted: Option<(Position, PieceType, PieceType)>,
 }
 
+impl Default for MoveDelta {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MoveDelta {
     /// Create empty delta (no changes)
     pub fn new() -> Self {

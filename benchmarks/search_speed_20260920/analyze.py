@@ -30,7 +30,7 @@ def summarize(rows, variant, model=None, positions=None, metric="ms"):
     rng = random.Random(241107)
     boots = sorted(statistics.mean(rng.choices(cluster, k=len(cluster))) for _ in range(20000))
     p = sum(
-        abs(statistics.mean(s * x for s, x in zip(signs, cluster))) >= abs(mu) - 1e-14
+        abs(statistics.mean(s * x for s, x in zip(signs, cluster, strict=True))) >= abs(mu) - 1e-14
         for signs in itertools.product([-1, 1], repeat=len(cluster))
     ) / 2 ** len(cluster)
     return dict(

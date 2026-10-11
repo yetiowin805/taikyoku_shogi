@@ -67,14 +67,14 @@ unsafe fn avx_vnni32(x: &[u8], h1: &[i8], out: &mut [i32; 32]) {
         let mut acc = [_mm256_setzero_si256(); 4];
         for i in (0..n).step_by(32) {
             let input = _mm256_loadu_si256(x.as_ptr().add(i).cast());
-            for k in 0..4 {
+            for (k, a) in acc.iter_mut().enumerate() {
                 let weights = _mm256_loadu_si256(h1.as_ptr().add((j + k) * n + i).cast());
-                acc[k] = _mm256_dpbusd_avx_epi32(acc[k], input, weights);
+                *a = _mm256_dpbusd_avx_epi32(*a, input, weights);
             }
         }
-        for k in 0..4 {
+        for (k, a) in acc.iter().enumerate() {
             let mut lanes = [0i32; 8];
-            _mm256_storeu_si256(lanes.as_mut_ptr().cast(), acc[k]);
+            _mm256_storeu_si256(lanes.as_mut_ptr().cast(), *a);
             out[j + k] = lanes.into_iter().sum();
         }
     }

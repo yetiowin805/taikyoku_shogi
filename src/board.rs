@@ -18,6 +18,12 @@ pub struct Board {
     white_pieces: Vec<Piece>, // Fast iteration over white pieces
 }
 
+impl Default for Board {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Board {
     pub fn new() -> Board {
         Board {

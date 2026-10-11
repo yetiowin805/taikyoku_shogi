@@ -39,7 +39,7 @@ class Quantized:
         h = np.clip((self.h2.astype(np.int32) @ h + self.b2 + 32) // 64, 0, 127)
         # Match Rust's f32 accumulation order rather than a reassociated BLAS dot.
         value = np.float32(self.out_bias)
-        for a, b in zip(h, self.out):
+        for a, b in zip(h, self.out, strict=True):
             value = np.float32(value + np.float32(np.float32(a) / np.float32(127)) * b)
         score = np.float32(value * np.float32(1000))
         rounded = np.floor(score + 0.5) if score >= 0 else np.ceil(score - 0.5)

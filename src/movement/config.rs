@@ -3891,13 +3891,11 @@ pub fn wooden_dove_movement() -> MovementConfig {
                     (-3, 3),  // NW
                 ],
             },
-            // Conditional diagonal jump: can jump 4-5 spaces if positions 1-2 have pieces and position 3 is empty
+            // Conditional diagonal jump: 4-5 spaces when the squares from 3 on are empty
             MovementCapability::ConditionalDiagonalJump {
                 directions: DIRECTION_SET_DIAGONAL, // 0xAA = NE, SE, SW, NW
                 base_jump: 3, // Base jump is 3 spaces (handled by Jumping above, but included for consistency)
                 conditional_jumps: vec![4, 5], // Can jump 4 or 5 spaces conditionally
-                required_jump_positions: 2, // Positions 1-2 must have pieces
-                empty_after_jump: 1, // Position 3 must be empty
             },
         ],
     }

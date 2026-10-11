@@ -32,6 +32,7 @@ for i, name in zip(
         "twins-midgame-b",
         "late-endgame",
     ],
+    strict=True,
 ):
     p = sanity[i]
     positions.append(dict(name=name, game=p["game"], ply=p["ply"]))

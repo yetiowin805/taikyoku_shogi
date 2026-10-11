@@ -22,7 +22,7 @@ class GenerationTests(unittest.TestCase):
         la, _ = backward_batch(a, samples, data, [0, 1], 2, "wdl", 2000, 0)
         lb, _ = backward_batch(b, samples, data, [0, 1], 1, "wdl", 2000, 0)
         self.assertAlmostEqual(la, lb, places=6)
-        for x, y in zip(a.parameters(), b.parameters()):
+        for x, y in zip(a.parameters(), b.parameters(), strict=True):
             gx = x.grad.to_dense() if x.grad.is_sparse else x.grad
             gy = y.grad.to_dense() if y.grad.is_sparse else y.grad
             self.assertTrue(torch.allclose(gx, gy, atol=1e-6, rtol=1e-4))
