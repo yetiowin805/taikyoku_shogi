@@ -20,10 +20,9 @@ fn midgame() -> GameState {
     let mut state = GameState::new();
     state.setup_initial_position();
     for file in [4u8, 8, 12, 16, 20, 24, 28] {
-        for &(from_rank, to_rank, color) in &[
-            (10u8, 11u8, Color::Black),
-            (25u8, 24u8, Color::White),
-        ] {
+        for &(from_rank, to_rank, color) in
+            &[(10u8, 11u8, Color::Black), (25u8, 24u8, Color::White)]
+        {
             state.set_current_turn(color);
             let from = Position::new(file, from_rank).unwrap();
             let to = Position::new(file, to_rank).unwrap();
@@ -55,14 +54,8 @@ fn run(name: &str, state: &GameState, weights: &EvalWeights, depth: u32, time_ms
     #[cfg(feature = "search-profile")]
     {
         let p = taikyoku_shogi::profile_timers::report();
-        let tot = (ms as u128).saturating_mul(1_000_000);
-        let pct = |ns: u128| {
-            if tot == 0 {
-                0
-            } else {
-                ns.saturating_mul(100) / tot
-            }
-        };
+        let tot = ms.saturating_mul(1_000_000);
+        let pct = |ns: u128| ns.saturating_mul(100).checked_div(tot).unwrap_or(0);
         let accounted = p.eval_ns + p.gen_ns + p.atk_ns + p.make_ns + p.order_ns;
         println!(
             "  profile eval={}% gen={}% (two_step={} std={} fe={} filter={}) attack={}% make={}% order={}% other≈{}%",

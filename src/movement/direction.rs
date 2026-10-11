@@ -1,14 +1,14 @@
 /// Represents one of the 8 main directions
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Direction {
-    N,   // North (up, increasing rank)
-    NE,  // Northeast
-    E,   // East (right, increasing file)
-    SE,  // Southeast
-    S,   // South (down, decreasing rank)
-    SW,  // Southwest
-    W,   // West (left, decreasing file)
-    NW,  // Northwest
+    N,  // North (up, increasing rank)
+    NE, // Northeast
+    E,  // East (right, increasing file)
+    SE, // Southeast
+    S,  // South (down, decreasing rank)
+    SW, // Southwest
+    W,  // West (left, decreasing file)
+    NW, // Northwest
 }
 
 /// Bitmask for direction sets (u8: 8 bits for 8 directions)
@@ -76,8 +76,14 @@ impl Direction {
     /// Get all 8 directions
     pub fn all() -> Vec<Direction> {
         vec![
-            Direction::N, Direction::NE, Direction::E, Direction::SE,
-            Direction::S, Direction::SW, Direction::W, Direction::NW,
+            Direction::N,
+            Direction::NE,
+            Direction::E,
+            Direction::SE,
+            Direction::S,
+            Direction::SW,
+            Direction::W,
+            Direction::NW,
         ]
     }
 }
@@ -116,6 +122,22 @@ pub fn direction_set_is_empty(set: DirectionSet) -> bool {
     set == 0
 }
 
+/// Allocation-free direction walk with the same order as the Vec API.
+pub fn direction_iter(set: DirectionSet) -> impl Iterator<Item = Direction> {
+    [
+        Direction::N,
+        Direction::NE,
+        Direction::E,
+        Direction::SE,
+        Direction::S,
+        Direction::SW,
+        Direction::W,
+        Direction::NW,
+    ]
+    .into_iter()
+    .filter(move |d| direction_set_contains(set, *d))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -129,15 +151,18 @@ mod tests {
 
     #[test]
     fn test_direction_set() {
-        use super::{direction_set_contains, direction_set_add, direction_set_remove, DIRECTION_SET_ORTHOGONAL};
+        use super::{
+            direction_set_add, direction_set_contains, direction_set_remove,
+            DIRECTION_SET_ORTHOGONAL,
+        };
         let mut set = DIRECTION_SET_ORTHOGONAL;
         assert!(direction_set_contains(set, Direction::N));
         assert!(direction_set_contains(set, Direction::E));
         assert!(!direction_set_contains(set, Direction::NE));
-        
+
         direction_set_add(&mut set, Direction::NE);
         assert!(direction_set_contains(set, Direction::NE));
-        
+
         direction_set_remove(&mut set, Direction::N);
         assert!(!direction_set_contains(set, Direction::N));
     }
@@ -150,12 +175,4 @@ mod tests {
             assert!(direction_set_contains(all, dir));
         }
     }
-}
-
-
-/// Allocation-free direction walk with the same order as the Vec API.
-pub fn direction_iter(set: DirectionSet) -> impl Iterator<Item = Direction> {
-    [Direction::N, Direction::NE, Direction::E, Direction::SE,
-     Direction::S, Direction::SW, Direction::W, Direction::NW]
-        .into_iter().filter(move |d| direction_set_contains(set, *d))
 }

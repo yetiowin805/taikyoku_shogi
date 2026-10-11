@@ -1,0 +1,6 @@
+# Mechanical reformatting; `git blame` skips these (GitHub does automatically,
+# locally: git config blame.ignoreRevsFile .git-blame-ignore-revs).
+# cargo fmt
+329b361a9ca5907f9a278b3119832aea35e2853f
+# ruff format
+1b9381af172986f382212733cefaaf74fa2eb3af

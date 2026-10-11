@@ -341,7 +341,11 @@ pub fn run_royal_s2_twins_grid(
     let (mut man, mut grid) = run_royal_s2_grid(cfg)?;
     let keep: HashSet<String> = CHASSIS
         .iter()
-        .flat_map(|base| FACTORIAL.iter().map(|(suffix, ..)| variant_id(base, suffix)))
+        .flat_map(|base| {
+            FACTORIAL
+                .iter()
+                .map(|(suffix, ..)| variant_id(base, suffix))
+        })
         .collect();
     let want = keep.len();
     man.entrants.retain(|e| keep.contains(&e.id));

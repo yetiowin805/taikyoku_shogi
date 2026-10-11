@@ -99,8 +99,8 @@ impl GameRecordV2 {
                 .map_err(|e| format!("Failed to create {}: {}", parent.display(), e))?;
         }
         // Compact: per-move telemetry makes indentation a large share of each game.
-        let json = serde_json::to_string(self)
-            .map_err(|e| format!("Failed to serialize game: {}", e))?;
+        let json =
+            serde_json::to_string(self).map_err(|e| format!("Failed to serialize game: {}", e))?;
         super::durable::write(path, json.as_bytes(), false)
     }
 
@@ -126,8 +126,8 @@ pub fn load_game_json(contents: &str) -> Result<GameRecordV2, String> {
             return Ok(v2);
         }
     }
-    let legacy: GameRecord = serde_json::from_str(contents)
-        .map_err(|e| format!("Failed to parse game JSON: {}", e))?;
+    let legacy: GameRecord =
+        serde_json::from_str(contents).map_err(|e| format!("Failed to parse game JSON: {}", e))?;
     Ok(legacy_to_v2(legacy))
 }
 

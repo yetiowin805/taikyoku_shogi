@@ -1,25 +1,25 @@
 #!/usr/bin/env python3
 """Run a tournament with analysis, NNUE training, or four game workers on Linux."""
+
 import argparse
 import ctypes
 import fcntl
 import hashlib
 import json
 import os
-from pathlib import Path
 import selectors
-import shutil
 import signal
 import sqlite3
 import subprocess
 import sys
 import time
+from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import training_sidecar
-import training_labels
 import engine_updates
 import storage_guard
+import training_labels
+import training_sidecar
 
 ROOT = Path(__file__).resolve().parent.parent
 STOPPING = False
@@ -83,10 +83,17 @@ def candidates(game):
         change = b["eval"] - a["eval"]
         if abs(change) >= 1000:
             # i is zero-based N+1, so the center's one-based number N is i.
-            yield dict(center_ply=i, earlier_ply=i - 1, later_ply=i + 1,
-                       color=b["color"], earlier_eval=a["eval"], later_eval=b["eval"],
-                       change=change, magnitude=abs(change),
-                       plies=list(range(max(1, i - 3), min(len(moves), i + 3) + 1)))
+            yield dict(
+                center_ply=i,
+                earlier_ply=i - 1,
+                later_ply=i + 1,
+                color=b["color"],
+                earlier_eval=a["eval"],
+                later_eval=b["eval"],
+                change=change,
+                magnitude=abs(change),
+                plies=list(range(max(1, i - 3), min(len(moves), i + 3) + 1)),
+            )
 
 
 def scan(db, run, labels=False, label_candidates=None):
@@ -103,13 +110,14 @@ def scan(db, run, labels=False, label_candidates=None):
             if game.get("abort_reason") or game.get("result") is None:
                 continue
             game_hash = digest(data)
-            for moment in ((label_candidates or training_labels.candidates)(game) if labels else candidates(game)):
+            for moment in (label_candidates or training_labels.candidates)(game) if labels else candidates(game):
                 policy = training_labels.POLICY if labels else POLICY
                 key = digest(f"{policy}:{game_hash}:{moment['center_ply']}".encode())
-                moment.update(id=key, game=str(path), game_hash=game_hash,
-                              game_id=game["game_id"], slot_id=slot["id"])
-                db.execute("INSERT OR IGNORE INTO moments VALUES(?,?,'pending',?,NULL)",
-                           (key, moment["magnitude"], json.dumps(moment)))
+                moment.update(id=key, game=str(path), game_hash=game_hash, game_id=game["game_id"], slot_id=slot["id"])
+                db.execute(
+                    "INSERT OR IGNORE INTO moments VALUES(?,?,'pending',?,NULL)",
+                    (key, moment["magnitude"], json.dumps(moment)),
+                )
             db.execute("INSERT INTO files VALUES(?,?)", (str(path), game_hash))
             db.commit()
             missing = sum(m.get("eval") is None for m in game["moves"])
@@ -127,14 +135,15 @@ def parent_death_guard(parent):
             raise OSError(ctypes.get_errno(), "PR_SET_PDEATHSIG failed")
         if os.getppid() != parent:
             os.kill(os.getpid(), signal.SIGKILL)
+
     return setup
 
 
 def analyzer_for_agent(config, agent):
     if not agent.get("engine") and agent.get("engine_build"):
-        bundle = engine_updates.verify(sys.modules[__name__], agent['engine_build'])
-        if agent.get('engine_sha256') not in (None, bundle['engine_sha256']):
-            raise ValueError('game engine hash differs from recorded bundle')
+        bundle = engine_updates.verify(sys.modules[__name__], agent["engine_build"])
+        if agent.get("engine_sha256") not in (None, bundle["engine_sha256"]):
+            raise ValueError("game engine hash differs from recorded bundle")
         return bundle
     if not agent.get("engine"):
         return config
@@ -174,6 +183,7 @@ def validate_model_binding(original, model):
 def snapshot_model(source, data, control):
     """Pin NNUE dependencies and rewrite only the analysis snapshot's blob path."""
     import artifact_storage
+
     sha = digest(data)
     snapshot = control / "models" / (sha + ".json")
     binding = {"sha256": sha, "snapshot": str(snapshot)}
@@ -213,8 +223,12 @@ def historical_pair(source, previous, carried=()):
     if not os.access(source, os.X_OK) or not os.access(helper, os.X_OK):
         raise ValueError(f"missing historical engine/helper pair for {source}; run freeze_history.sh")
     fields = dict(line.split("=", 1) for line in meta.read_text().splitlines() if "=" in line)
-    entry = dict(engine_sha256=digest(source.read_bytes()), analyzer_bin=str(helper),
-                 analyzer_sha256=digest(helper.read_bytes()), revision=fields.get("rev"))
+    entry = dict(
+        engine_sha256=digest(source.read_bytes()),
+        analyzer_bin=str(helper),
+        analyzer_sha256=digest(helper.read_bytes()),
+        revision=fields.get("rev"),
+    )
     if not entry["revision"] or any(entry[k] != fields.get(k) for k in ("engine_sha256", "analyzer_sha256")):
         raise ValueError(f"historical engine/helper metadata mismatch: {source}")
     return entry
@@ -224,7 +238,7 @@ def search_position(config, moment, ply, db):
     # Carried games keep their original analysis engine/checkpoint bindings while
     # results are written into the new run's catalogue and CPU lease.
     destination = config["run"]
-    for source in ([] if config.get("label_teacher") else config.get("analysis_sources", [])):
+    for source in [] if config.get("label_teacher") else config.get("analysis_sources", []):
         if Path(moment["game"]).resolve().parent == Path(source["run"]).resolve():
             config = dict(source, run=destination)
             break
@@ -238,7 +252,7 @@ def search_position(config, moment, ply, db):
     if agent["name"] != "ab":
         raise ValueError("only ab agents are supported")
     helper = analyzer_for_agent(config, agent)
-    if config.get('label_teacher') and config.get('rolling_engines'):
+    if config.get("label_teacher") and config.get("rolling_engines"):
         # Freeze once for this request; an in-flight search keeps its helper.
         helper = engine_updates.active(sys.modules[__name__], Path(destination))
     model_key = str(absolute(agent["model"]).resolve())
@@ -250,9 +264,16 @@ def search_position(config, moment, ply, db):
     budget = 300_000 if isinstance(recorded_depth, int) and recorded_depth > 0 else 30_000
     if config.get("label_teacher"):
         depth, budget = 64, config.get("label_budget_ms", 10_000)
-    identity = dict(policy=training_labels.POLICY if config.get("label_teacher") else POLICY, game=moment["game_hash"], ply=ply, agent=agent,
-                    model=model["sha256"], binary=helper["analyzer_sha256"],
-                    depth=depth, budget=budget)
+    identity = dict(
+        policy=training_labels.POLICY if config.get("label_teacher") else POLICY,
+        game=moment["game_hash"],
+        ply=ply,
+        agent=agent,
+        model=model["sha256"],
+        binary=helper["analyzer_sha256"],
+        depth=depth,
+        budget=budget,
+    )
     key = digest(json.dumps(identity, sort_keys=True).encode())
     cached = db.execute("SELECT payload FROM searches WHERE key=?", (key,)).fetchone()
     if cached:
@@ -268,9 +289,9 @@ def search_position(config, moment, ply, db):
     if agent.get("engine"):
         command.append("--allow-historical")
     with log_path.open("ab") as err:
-        proc = subprocess.Popen(command,
-                                stdout=subprocess.PIPE, stderr=err, env=env,
-                                preexec_fn=parent_death_guard(os.getpid()))
+        proc = subprocess.Popen(
+            command, stdout=subprocess.PIPE, stderr=err, env=env, preexec_fn=parent_death_guard(os.getpid())
+        )
         selector = selectors.DefaultSelector()
         selector.register(proc.stdout, selectors.EVENT_READ)
         try:
@@ -303,14 +324,28 @@ def search_position(config, moment, ply, db):
         raise ValueError(f"no completed iteration (exit {proc.returncode}); see {log_path}")
     if proc.returncode != 0 and not hard_timeout:
         raise ValueError(f"search failed (exit {proc.returncode}); see {log_path}")
-    best.update(key=key, ply=ply, agent=agent, original_agent=original_agent,
-                iterations=iterations, score_perspective="black-absolute",
-                game_hash=moment["game_hash"], game_result=game.get("result"),
-                original_quiescence_depth=original_agent.get("quiescence_depth"), model_sha256=model["sha256"],
-                analyzer_sha256=helper["analyzer_sha256"], engine_sha256=helper.get("engine_sha256"),
-                original_eval=move.get("eval"), original_static_eval=move.get("static_eval"),
-                original_depth=recorded_depth, original_move=move, target_depth=depth,
-                budget_ms=budget, hard_timeout=hard_timeout, wall_ms=int((time.monotonic()-start)*1000))
+    best.update(
+        key=key,
+        ply=ply,
+        agent=agent,
+        original_agent=original_agent,
+        iterations=iterations,
+        score_perspective="black-absolute",
+        game_hash=moment["game_hash"],
+        game_result=game.get("result"),
+        original_quiescence_depth=original_agent.get("quiescence_depth"),
+        model_sha256=model["sha256"],
+        analyzer_sha256=helper["analyzer_sha256"],
+        engine_sha256=helper.get("engine_sha256"),
+        original_eval=move.get("eval"),
+        original_static_eval=move.get("static_eval"),
+        original_depth=recorded_depth,
+        original_move=move,
+        target_depth=depth,
+        budget_ms=budget,
+        hard_timeout=hard_timeout,
+        wall_ms=int((time.monotonic() - start) * 1000),
+    )
     db.execute("INSERT OR REPLACE INTO searches VALUES(?,?)", (key, json.dumps(best)))
     db.commit()
     # The committed row supersedes the interrupt checkpoint.
@@ -328,23 +363,23 @@ def analyzer(config):
         while not STOPPING:
             try:
                 scan(db, run, labels=bool(config.get("label_teacher")))
-                for source in ([] if config.get("label_teacher") else config.get("analysis_sources", [])):
+                for source in [] if config.get("label_teacher") else config.get("analysis_sources", []):
                     scan(db, Path(source["run"]))
             except (OSError, ValueError, KeyError) as e:
                 print(f"scan state retry: {e}", file=sys.stderr, flush=True)
             order = "id" if config.get("label_teacher") else "magnitude DESC,id"
-            batch = db.execute(
-                f"SELECT * FROM moments WHERE status='pending' ORDER BY {order} LIMIT 20"
-            ).fetchall()
+            batch = db.execute(f"SELECT * FROM moments WHERE status='pending' ORDER BY {order} LIMIT 20").fetchall()
             backlog = db.execute("SELECT count(*) FROM moments WHERE status='pending'").fetchone()[0]
-            atomic(control / "analyzer-status.json", {"state": "waiting_for_cpu" if batch else "idle",
-                                                     "backlog": backlog, "updated": time.time()})
+            atomic(
+                control / "analyzer-status.json",
+                {"state": "waiting_for_cpu" if batch else "idle", "backlog": backlog, "updated": time.time()},
+            )
             if not batch:
                 request.unlink(missing_ok=True)
                 for _ in range(100):
                     if STOPPING:
                         break
-                    time.sleep(.1)
+                    time.sleep(0.1)
                 continue
             request.touch()
             with (control / "shared.lock").open("a+") as lease:
@@ -353,22 +388,26 @@ def analyzer(config):
                         fcntl.flock(lease, fcntl.LOCK_EX | fcntl.LOCK_NB)
                         break
                     except BlockingIOError:
-                        time.sleep(.2)
+                        time.sleep(0.2)
                 if STOPPING:
                     break
                 for row in batch:
                     if STOPPING:
                         break
                     moment = json.loads(row["payload"])
-                    atomic(control / "analyzer-status.json", {
-                        "state": "analyzing", "moment": row["id"], "backlog": backlog, "updated": time.time()})
+                    atomic(
+                        control / "analyzer-status.json",
+                        {"state": "analyzing", "moment": row["id"], "backlog": backlog, "updated": time.time()},
+                    )
                     db.execute("UPDATE moments SET status='running' WHERE id=?", (row["id"],))
                     db.commit()
                     try:
                         moment["searches"] = [search_position(config, moment, p, db) for p in moment["plies"]]
                         moment["status"] = "completed"
-                        db.execute("UPDATE moments SET status='completed',payload=?,error=NULL WHERE id=?",
-                                   (json.dumps(moment), row["id"]))
+                        db.execute(
+                            "UPDATE moments SET status='completed',payload=?,error=NULL WHERE id=?",
+                            (json.dumps(moment), row["id"]),
+                        )
                         print(f"completed {row['id']} swing={row['magnitude']}", flush=True)
                     except InterruptedError:
                         db.execute("UPDATE moments SET status='pending' WHERE id=?", (row["id"],))
@@ -400,7 +439,7 @@ def sidecar_result(mode, code):
 
 
 def supervise(config):
-    storage_policy = os.environ.get('TAIKYOKU_STORAGE_CONFIG', '/etc/taikyoku/storage.json')
+    storage_policy = os.environ.get("TAIKYOKU_STORAGE_CONFIG", "/etc/taikyoku/storage.json")
     storage_guard.require_healthy(storage_policy)
     run = Path(config["run"])
     control = run / "analysis"
@@ -413,50 +452,64 @@ def supervise(config):
         request = control / "analysis.request"
         request.unlink(missing_ok=True)
         (ROOT / "data/run/TOURNEY_STOP").unlink(missing_ok=True)
-        env = dict(os.environ, TAIKYOKU_COMPUTE_DIR=str(control),
-                   TAIKYOKU_COMPUTE_CPUS=",".join(map(str, config["cpus"])))
-        if config.get('rolling_engines'):
-            env['TAIKYOKU_ENGINE_POINTER'] = str(control / 'active-engine.json')
+        env = dict(
+            os.environ, TAIKYOKU_COMPUTE_DIR=str(control), TAIKYOKU_COMPUTE_CPUS=",".join(map(str, config["cpus"]))
+        )
+        if config.get("rolling_engines"):
+            env["TAIKYOKU_ENGINE_POINTER"] = str(control / "active-engine.json")
         else:
-            env.pop('TAIKYOKU_ENGINE_POINTER', None)
+            env.pop("TAIKYOKU_ENGINE_POINTER", None)
         if mode != "none":
             request.touch()  # Reserve before a fourth game can be admitted.
         log_path = run / "training/trainer.log" if mode == "training" else control / "analyzer.log"
         log_path.parent.mkdir(parents=True, exist_ok=True)
         with (control / "tournament.log").open("ab") as tlog, log_path.open("ab") as slog:
             tourney = subprocess.Popen(config["command"], cwd=ROOT, env=env, stdout=tlog, stderr=tlog)
-            meta = {"pid": os.getpid(), "identity": process_identity(os.getpid()),
-                    "tournament_pid": tourney.pid, "analyzer_pid": None, "sidecar_pid": None,
-                    "sidecar_mode": mode, "sidecar_state": "disabled" if mode == "none" else "running", "state": "starting"}
+            meta = {
+                "pid": os.getpid(),
+                "identity": process_identity(os.getpid()),
+                "tournament_pid": tourney.pid,
+                "analyzer_pid": None,
+                "sidecar_pid": None,
+                "sidecar_mode": mode,
+                "sidecar_state": "disabled" if mode == "none" else "running",
+                "state": "starting",
+            }
             try:
                 if mode != "none":
                     action = "_train" if mode == "training" else "_analyze"
-                    worker = subprocess.Popen([sys.executable, str(Path(__file__).resolve()), action,
-                                               "--run-dir", str(run)], cwd=ROOT, stdout=slog, stderr=slog,
-                                               preexec_fn=parent_death_guard(os.getpid()))
-                    meta['sidecar_pid'] = worker.pid
-                    if mode == 'analysis':
-                        meta['analyzer_pid'] = worker.pid
+                    worker = subprocess.Popen(
+                        [sys.executable, str(Path(__file__).resolve()), action, "--run-dir", str(run)],
+                        cwd=ROOT,
+                        stdout=slog,
+                        stderr=slog,
+                        preexec_fn=parent_death_guard(os.getpid()),
+                    )
+                    meta["sidecar_pid"] = worker.pid
+                    if mode == "analysis":
+                        meta["analyzer_pid"] = worker.pid
                 time.sleep(2)
                 if tourney.poll() is not None:
                     raise RuntimeError("tournament exited during startup; see tournament.log")
                 # Training prerequisites were checked before launch. A runtime
                 # training failure, even an immediate one, must not stop games.
-                if mode == 'analysis' and worker and worker.poll() is not None:
+                if mode == "analysis" and worker and worker.poll() is not None:
                     raise RuntimeError("sidecar failed during startup; see its log")
                 meta["state"] = "running"
                 atomic(control / "supervisor.json", meta)
-                next_storage_check = 0.
+                next_storage_check = 0.0
                 while not STOPPING and tourney.poll() is None:
                     if time.monotonic() >= next_storage_check:
                         storage_guard.require_healthy(storage_policy)
                         next_storage_check = time.monotonic() + 30
-                    if worker and worker.poll() is not None and meta['sidecar_state'] == 'running':
+                    if worker and worker.poll() is not None and meta["sidecar_state"] == "running":
                         request.unlink(missing_ok=True)
-                        meta.update(sidecar_state=sidecar_result(mode, worker.returncode), sidecar_exit=worker.returncode)
+                        meta.update(
+                            sidecar_state=sidecar_result(mode, worker.returncode), sidecar_exit=worker.returncode
+                        )
                         atomic(control / "supervisor.json", meta)
                         print(f"{mode} {meta['sidecar_state']}; tournament continues with four CPUs", flush=True)
-                    time.sleep(.5)
+                    time.sleep(0.5)
             finally:
                 if worker and worker.poll() is None:
                     worker.send_signal(signal.SIGTERM)
@@ -472,20 +525,24 @@ def supervise(config):
                 meta.update(state="stopped" if STOPPING else "failed", tournament_exit=tourney.returncode)
                 atomic(control / "supervisor.json", meta)
             if not STOPPING:
-                raise RuntimeError(f"tournament exited unexpectedly ({tourney.returncode}); tournament is not running; see tournament.log")
+                raise RuntimeError(
+                    f"tournament exited unexpectedly ({tourney.returncode}); tournament is not running; see tournament.log"
+                )
 
 
 def game_clock(args, state):
-    initial = getattr(args, 'initial_time_ms', None)
-    increment = getattr(args, 'increment_ms', None)
+    initial = getattr(args, "initial_time_ms", None)
+    increment = getattr(args, "increment_ms", None)
     if (initial is None) != (increment is None):
-        raise ValueError('--initial-time-ms and --increment-ms must be supplied together')
-    clock = dict(initial_ms=initial, increment_ms=increment) if initial is not None else (state or {}).get('time_control')
+        raise ValueError("--initial-time-ms and --increment-ms must be supplied together")
+    clock = (
+        dict(initial_ms=initial, increment_ms=increment) if initial is not None else (state or {}).get("time_control")
+    )
     if clock:
-        if not 1000 < clock['initial_ms'] <= 86_400_000 or not 0 < clock['increment_ms'] <= 3_600_000:
-            raise ValueError('invalid Fischer clock: initial >1s, <=1 day; increment >0, <=1 hour')
-        if getattr(args, 'time_ms', None) is not None:
-            raise ValueError('cannot combine Fischer clocks with --time-ms')
+        if not 1000 < clock["initial_ms"] <= 86_400_000 or not 0 < clock["increment_ms"] <= 3_600_000:
+            raise ValueError("invalid Fischer clock: initial >1s, <=1 day; increment >0, <=1 hour")
+        if getattr(args, "time_ms", None) is not None:
+            raise ValueError("cannot combine Fischer clocks with --time-ms")
     return clock
 
 
@@ -497,13 +554,13 @@ def prepare(args, run):
     state = read(run / "state.json") if args.action == "resume" else None
     clock = game_clock(args, state)
     previous = read(run / "analysis/config.json") if state and (run / "analysis/config.json").exists() else {}
-    rolling = getattr(args, 'rolling_engines', False) or previous.get('rolling_engines', False)
+    rolling = getattr(args, "rolling_engines", False) or previous.get("rolling_engines", False)
     if rolling and previous:
         validate_source(previous)
-    mode = getattr(args, 'sidecar', None) or previous.get('sidecar', 'analysis')
+    mode = getattr(args, "sidecar", None) or previous.get("sidecar", "analysis")
     training = None
-    if mode != 'training' and getattr(args, 'training_config', None):
-        raise ValueError('--training-config requires --sidecar training')
+    if mode != "training" and getattr(args, "training_config", None):
+        raise ValueError("--training-config requires --sidecar training")
     sources = previous.get("analysis_sources", [])
     carry = getattr(args, "carry_analysis_from", None)
     if carry:
@@ -531,7 +588,7 @@ def prepare(args, run):
     if rolling and previous:
         # Existing catalogue entries bind this helper; rolling teacher requests
         # use the active bundle independently. A new coordinator must not rebind it.
-        binaries[1] = Path(previous['analyzer_bin'])
+        binaries[1] = Path(previous["analyzer_bin"])
     for path in binaries:
         if not os.access(path, os.X_OK):
             raise ValueError(f"missing executable {path}; build --release --bins first")
@@ -545,9 +602,14 @@ def prepare(args, run):
                 raise ValueError(f"tournament already running as PID {proc.name}; stop it first")
         except (FileNotFoundError, PermissionError, ProcessLookupError):
             pass
-    if mode == 'training':
-        training = training_sidecar.prepare(sys.modules[__name__], getattr(args, 'training_config', None), run,
-                                           previous.get('training'), entrants=entrants)
+    if mode == "training":
+        training = training_sidecar.prepare(
+            sys.modules[__name__],
+            getattr(args, "training_config", None),
+            run,
+            previous.get("training"),
+            entrants=entrants,
+        )
     validated = []
     historical = {}
     for ent in entrants:
@@ -560,11 +622,15 @@ def prepare(args, run):
         source = absolute(ent["model"]).resolve()
         data = source.read_bytes()
         json.loads(data)
-        subprocess.run([str(validator), "--validate-model", str(source)],
-                       check=True, capture_output=True, text=True)
-        if rolling and not ent.get('engine'):
-            subprocess.run([str(binaries[0]), 'tournament-game-validate', str(source)],
-                           check=True, capture_output=True, text=True, timeout=120)
+        subprocess.run([str(validator), "--validate-model", str(source)], check=True, capture_output=True, text=True)
+        if rolling and not ent.get("engine"):
+            subprocess.run(
+                [str(binaries[0]), "tournament-game-validate", str(source)],
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=120,
+            )
         validated.append((source, data))
     control = run / "analysis"
     control.mkdir(parents=True, exist_ok=True)
@@ -581,6 +647,7 @@ def prepare(args, run):
         with sqlite3.connect(f"file:{old_run / 'analysis/catalogue.sqlite'}?mode=ro", uri=True) as source_db:
             with sqlite3.connect(destination) as destination_db:
                 source_db.backup(destination_db)
+
     def freeze(binary):
         if binary.resolve().parent == (control / "bin").resolve():
             return binary
@@ -590,11 +657,14 @@ def prepare(args, run):
             target.write_bytes(data)
             target.chmod(0o755)
         return target
+
     frozen = [freeze(binary) for binary in binaries]
     # Keep legacy game analysis bound to its original engine when enabling or
     # resuming rolling updates. New records carry their own exact build.
-    base_helper = previous.get('analyzer_bin', str(frozen[1])) if rolling else str(frozen[1])
-    base_hash = previous.get('analyzer_sha256', digest(frozen[1].read_bytes())) if rolling else digest(frozen[1].read_bytes())
+    base_helper = previous.get("analyzer_bin", str(frozen[1])) if rolling else str(frozen[1])
+    base_hash = (
+        previous.get("analyzer_sha256", digest(frozen[1].read_bytes())) if rolling else digest(frozen[1].read_bytes())
+    )
     historical_map = {}
     for ent in entrants:
         if not ent.get("engine"):
@@ -608,101 +678,155 @@ def prepare(args, run):
         ent["engine"] = str(engine_target)
     manifest = control / "manifest.json"
     atomic(manifest, {"entrants": entrants})
-    depth = getattr(args, 'depth', None)
+    depth = getattr(args, "depth", None)
     if depth is None:
-        if clock and not (state or {}).get('time_control'):
+        if clock and not (state or {}).get("time_control"):
             depth = 64
         else:
-            depth = state['depth'] if state else 8
+            depth = state["depth"] if state else 8
     budget = state.get("max_time_ms") if state else (args.time_ms if args.time_ms is not None else 3000)
     if clock:
-        if any(e.get('engine') for e in entrants):
-            raise ValueError('Fischer clocks do not support historical think-loop engines')
+        if any(e.get("engine") for e in entrants):
+            raise ValueError("Fischer clocks do not support historical think-loop engines")
         engine_updates.require_clock_support(frozen[0])
-    command = [str(frozen[0]), "tournament", "--manifest", str(manifest),
-               "--run-id", run.name, "--outdir", str(run.parent),
-               "--jobs", str(len(cpus)), "--depth", str(depth), "--format",
-               state.get("format", "knockout") if state else "knockout"]
+    command = [
+        str(frozen[0]),
+        "tournament",
+        "--manifest",
+        str(manifest),
+        "--run-id",
+        run.name,
+        "--outdir",
+        str(run.parent),
+        "--jobs",
+        str(len(cpus)),
+        "--depth",
+        str(depth),
+        "--format",
+        state.get("format", "knockout") if state else "knockout",
+    ]
     if getattr(args, "top_two_worker", False) or "--top-two-worker" in previous.get("command", []):
         command.append("--top-two-worker")
     if args.action == "resume":
         command.append("--resume")
     if clock:
-        command += ['--initial-time-ms', str(clock['initial_ms']), '--increment-ms', str(clock['increment_ms'])]
+        command += ["--initial-time-ms", str(clock["initial_ms"]), "--increment-ms", str(clock["increment_ms"])]
     elif budget is not None:
         command += ["--time-ms", str(budget)]
-    teacher_id = getattr(args, 'label_teacher', None) or previous.get('label_teacher_id')
+    teacher_id = getattr(args, "label_teacher", None) or previous.get("label_teacher_id")
     teacher = None
-    if previous.get('label_teacher_id') and teacher_id != previous['label_teacher_id']:
-        raise ValueError('label teacher is immutable within a run; use a new run for a different teacher')
+    if previous.get("label_teacher_id") and teacher_id != previous["label_teacher_id"]:
+        raise ValueError("label teacher is immutable within a run; use a new run for a different teacher")
     if teacher_id:
-        matches = [e for e in entrants if e['id'] == teacher_id and not e.get('engine')]
+        matches = [e for e in entrants if e["id"] == teacher_id and not e.get("engine")]
         if len(matches) != 1:
-            raise ValueError('label teacher must name one non-historical entrant')
-        teacher = dict(name='ab', model=str(absolute(matches[0]['model']).resolve()))
-        if previous.get('label_teacher'):
-            old_key = previous['label_teacher']['model']
-            if (teacher != previous['label_teacher'] or
-                    model_map[teacher['model']] != previous['models'][old_key] or
-                    base_hash != previous['analyzer_sha256']):
-                raise ValueError('label teacher/model/search binding changed; use a new run')
+            raise ValueError("label teacher must name one non-historical entrant")
+        teacher = dict(name="ab", model=str(absolute(matches[0]["model"]).resolve()))
+        if previous.get("label_teacher"):
+            old_key = previous["label_teacher"]["model"]
+            if (
+                teacher != previous["label_teacher"]
+                or model_map[teacher["model"]] != previous["models"][old_key]
+                or base_hash != previous["analyzer_sha256"]
+            ):
+                raise ValueError("label teacher/model/search binding changed; use a new run")
     if rolling:
-        with (control / 'update.lock').open('a+') as lock:
+        with (control / "update.lock").open("a+") as lock:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            if previous.get('rolling_engines'):
+            if previous.get("rolling_engines"):
                 selected = engine_updates.active(sys.modules[__name__], run)
                 if clock:
-                    engine_updates.require_clock_support(selected['engine_bin'])
+                    engine_updates.require_clock_support(selected["engine_bin"])
             else:
-                revision = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=ROOT,
-                                          check=True, capture_output=True, text=True).stdout.strip()
+                revision = subprocess.run(
+                    ["git", "rev-parse", "HEAD"], cwd=ROOT, check=True, capture_output=True, text=True
+                ).stdout.strip()
                 bundle = engine_updates.snapshot(sys.modules[__name__], run, frozen[0], frozen[1], revision)
                 engine_updates.publish(sys.modules[__name__], run, bundle)
         # A resume may have a newer coordinator, but must understand the protocol.
-        probe = subprocess.run([str(frozen[0]), 'tournament-game-protocol'], check=True,
-                               capture_output=True, text=True, timeout=30)
-        if probe.stdout.strip() != '1':
-            raise ValueError('coordinator does not support rolling game processes')
-    return dict(time_control=clock, rolling_engines=rolling, label_teacher=teacher, label_teacher_id=teacher_id,
-                run=str(run), cpus=cpus, sidecar=mode, training=training, models=model_map, command=command, historical_engines=historical_map, analysis_sources=sources,
-                analyzer_bin=base_helper, analyzer_sha256=base_hash)
+        probe = subprocess.run(
+            [str(frozen[0]), "tournament-game-protocol"], check=True, capture_output=True, text=True, timeout=30
+        )
+        if probe.stdout.strip() != "1":
+            raise ValueError("coordinator does not support rolling game processes")
+    return dict(
+        time_control=clock,
+        rolling_engines=rolling,
+        label_teacher=teacher,
+        label_teacher_id=teacher_id,
+        run=str(run),
+        cpus=cpus,
+        sidecar=mode,
+        training=training,
+        models=model_map,
+        command=command,
+        historical_engines=historical_map,
+        analysis_sources=sources,
+        analyzer_bin=base_helper,
+        analyzer_sha256=base_hash,
+    )
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=["start", "resume", "stop", "status", "check-training", "update-engine", "_supervise", "_analyze", "_train"])
+    parser.add_argument(
+        "action",
+        choices=[
+            "start",
+            "resume",
+            "stop",
+            "status",
+            "check-training",
+            "update-engine",
+            "_supervise",
+            "_analyze",
+            "_train",
+        ],
+    )
     parser.add_argument("--run-dir", required=True)
     parser.add_argument("--manifest", default="models/royal-s2-twins-grid/manifest.json")
-    parser.add_argument("--carry-analysis-from", help="continue a previous run catalogue with its original engine bindings")
+    parser.add_argument(
+        "--carry-analysis-from", help="continue a previous run catalogue with its original engine bindings"
+    )
     parser.add_argument("--cpus", help="four or eight CPU IDs; defaults to first four allowed")
-    parser.add_argument('--sidecar', choices=['analysis', 'training', 'none'], help='resume keeps the saved mode unless overridden')
-    parser.add_argument('--training-config', help='configuration generated by training/nnue/continuation.py prepare')
+    parser.add_argument(
+        "--sidecar", choices=["analysis", "training", "none"], help="resume keeps the saved mode unless overridden"
+    )
+    parser.add_argument("--training-config", help="configuration generated by training/nnue/continuation.py prepare")
     parser.add_argument("--label-teacher", help="collect training labels with this frozen entrant (10s/position)")
-    parser.add_argument('--rolling-engines', action='store_true', help='launch each game with an immutable engine bundle; resume preserves this mode')
-    parser.add_argument('--engine', default='target/release/taikyoku_shogi')
-    parser.add_argument('--analyzer', default='target/release/analyze_position')
-    parser.add_argument('--revision', help='revision/build description for update-engine')
-    parser.add_argument('--compatible-speedup', action='store_true', help='attest this update preserves fixed-depth search behavior')
-    parser.add_argument('--rollback-build', help='select a previously published build ID for future work')
-    parser.add_argument("--top-two-worker", action="store_true", help="reserve one game worker for order-neutral top-two pairs")
+    parser.add_argument(
+        "--rolling-engines",
+        action="store_true",
+        help="launch each game with an immutable engine bundle; resume preserves this mode",
+    )
+    parser.add_argument("--engine", default="target/release/taikyoku_shogi")
+    parser.add_argument("--analyzer", default="target/release/analyze_position")
+    parser.add_argument("--revision", help="revision/build description for update-engine")
+    parser.add_argument(
+        "--compatible-speedup", action="store_true", help="attest this update preserves fixed-depth search behavior"
+    )
+    parser.add_argument("--rollback-build", help="select a previously published build ID for future work")
+    parser.add_argument(
+        "--top-two-worker", action="store_true", help="reserve one game worker for order-neutral top-two pairs"
+    )
     parser.add_argument("--depth", type=int)
     parser.add_argument("--time-ms", type=int)
-    parser.add_argument('--initial-time-ms', type=int, help='Fischer initial clock per side; 900000 for 15+5')
-    parser.add_argument('--increment-ms', type=int, help='Fischer increment per completed move; 5000 for 15+5')
+    parser.add_argument("--initial-time-ms", type=int, help="Fischer initial clock per side; 900000 for 15+5")
+    parser.add_argument("--increment-ms", type=int, help="Fischer increment per completed move; 5000 for 15+5")
     args = parser.parse_args()
     run = absolute(args.run_dir).resolve()
     control = run / "analysis"
     signal.signal(signal.SIGTERM, stop_handler)
     signal.signal(signal.SIGINT, stop_handler)
-    if args.action == 'update-engine':
+    if args.action == "update-engine":
         return engine_updates.update(sys.modules[__name__], args, run)
-    if args.action == 'check-training':
+    if args.action == "check-training":
         training_sidecar.prepare(sys.modules[__name__], args.training_config, run, dry_run=True)
-        print('Training prerequisites passed; live processes are unchanged.')
+        print("Training prerequisites passed; live processes are unchanged.")
         return
-    if args.action == '_train':
+    if args.action == "_train":
         # Pass the module itself so signal updates to STOPPING remain visible.
-        return training_sidecar.run(sys.modules[__name__], read(control / 'config.json'))
+        return training_sidecar.run(sys.modules[__name__], read(control / "config.json"))
     if args.action == "_analyze":
         return analyzer(read(control / "config.json"))
     if args.action == "_supervise":
@@ -710,38 +834,64 @@ def main():
     meta = read(control / "supervisor.json") if (control / "supervisor.json").exists() else None
     if args.action == "status":
         counts = {}
-        config = read(control / 'config.json') if (control / 'config.json').exists() else {}
+        config = read(control / "config.json") if (control / "config.json").exists() else {}
         db_path = control / catalogue(config)
         if db_path.exists():
             with sqlite3.connect(f"file:{db_path}?mode=ro", uri=True) as db:
                 counts = dict(db.execute("SELECT status,count(*) FROM moments GROUP BY status"))
                 counts["cached_searches"] = db.execute("SELECT count(*) FROM searches").fetchone()[0]
-        config = read(control / 'config.json') if (control / 'config.json').exists() else {}
-        mode = config.get('sidecar', 'analysis')
+        config = read(control / "config.json") if (control / "config.json").exists() else {}
+        mode = config.get("sidecar", "analysis")
         trainer = None
-        if mode == 'training':
-            progress = Path(config['training']['out']) / 'progress.json'
-            trainer = {'status': read(run / 'training/status.json') if (run / 'training/status.json').exists() else None,
-                       'progress': read(progress) if progress.exists() else None}
-            width = (trainer['progress'] or {}).get('current_width')
-            detail = Path(config['training']['out']) / f'w{width}.status.json'
-            trainer['current'] = read(detail) if width and detail.exists() else None
-        requested = (control / 'analysis.request').exists()
-        pool_status = read(control / 'dual-label-status.json') if (control / 'dual-label-status.json').exists() else None
-        allocation = ('3/1' if requested else '4/0') if alive(meta) else 'stopped'
-        if len(config.get('cpus', [])) == 8 and alive(meta):
-            demand = read(control / 'analysis-demand.json') if (control / 'analysis-demand.json').exists() else {}
-            healthy = (process_identity(demand.get('pid')) is not None
-                       and time.time() - demand.get('updated', 0) < 30)
-            reserved = len(demand.get('assigned', [])) if healthy else 0
-            allocation = dict(tournament=7-reserved, top_two=1, analysis_reserved=reserved,
-                              analysis_active=len((pool_status or {}).get('active_cpus', [])) if healthy else 0)
+        if mode == "training":
+            progress = Path(config["training"]["out"]) / "progress.json"
+            trainer = {
+                "status": read(run / "training/status.json") if (run / "training/status.json").exists() else None,
+                "progress": read(progress) if progress.exists() else None,
+            }
+            width = (trainer["progress"] or {}).get("current_width")
+            detail = Path(config["training"]["out"]) / f"w{width}.status.json"
+            trainer["current"] = read(detail) if width and detail.exists() else None
+        requested = (control / "analysis.request").exists()
+        pool_status = (
+            read(control / "dual-label-status.json") if (control / "dual-label-status.json").exists() else None
+        )
+        allocation = ("3/1" if requested else "4/0") if alive(meta) else "stopped"
+        if len(config.get("cpus", [])) == 8 and alive(meta):
+            demand = read(control / "analysis-demand.json") if (control / "analysis-demand.json").exists() else {}
+            healthy = process_identity(demand.get("pid")) is not None and time.time() - demand.get("updated", 0) < 30
+            reserved = len(demand.get("assigned", [])) if healthy else 0
+            allocation = dict(
+                tournament=7 - reserved,
+                top_two=1,
+                analysis_reserved=reserved,
+                analysis_active=len((pool_status or {}).get("active_cpus", [])) if healthy else 0,
+            )
 
-        print(json.dumps({'time_control': config.get('time_control'), 'supervisor': meta, 'alive': bool(alive(meta)), 'catalogue': counts,
-                          'engine_updates': engine_updates.status(sys.modules[__name__], run) if config.get('rolling_engines') else None,
-                          'sidecar': mode, 'label_teacher': config.get('label_teacher_id'), 'allocation': allocation, 'analysis_pool': pool_status, 'training': trainer,
-                          'analyzer': (read(control / 'analyzer-status.json') if (control / 'analyzer-status.json').exists() else None)
-                                      if mode == 'analysis' else {'state': 'paused'}}, indent=2))
+        print(
+            json.dumps(
+                {
+                    "time_control": config.get("time_control"),
+                    "supervisor": meta,
+                    "alive": bool(alive(meta)),
+                    "catalogue": counts,
+                    "engine_updates": engine_updates.status(sys.modules[__name__], run)
+                    if config.get("rolling_engines")
+                    else None,
+                    "sidecar": mode,
+                    "label_teacher": config.get("label_teacher_id"),
+                    "allocation": allocation,
+                    "analysis_pool": pool_status,
+                    "training": trainer,
+                    "analyzer": (
+                        read(control / "analyzer-status.json") if (control / "analyzer-status.json").exists() else None
+                    )
+                    if mode == "analysis"
+                    else {"state": "paused"},
+                },
+                indent=2,
+            )
+        )
         return
     if args.action == "stop":
         if not alive(meta):
@@ -749,7 +899,7 @@ def main():
         os.kill(meta["pid"], signal.SIGTERM)
         print("Stop requested; waiting for the tournament to checkpoint.")
         while alive(meta):
-            time.sleep(.5)
+            time.sleep(0.5)
         return
     if alive(meta):
         raise ValueError("this run already has a live supervisor")
@@ -761,9 +911,13 @@ def main():
     atomic(control / "config.json", config)
     (control / "supervisor.json").unlink(missing_ok=True)
     with (control / "supervisor.log").open("ab") as log:
-        child = subprocess.Popen([sys.executable, str(Path(__file__).resolve()), "_supervise",
-                                  "--run-dir", str(run)], cwd=ROOT, stdout=log, stderr=log,
-                                 start_new_session=True)
+        child = subprocess.Popen(
+            [sys.executable, str(Path(__file__).resolve()), "_supervise", "--run-dir", str(run)],
+            cwd=ROOT,
+            stdout=log,
+            stderr=log,
+            start_new_session=True,
+        )
     for _ in range(100):
         if child.poll() is not None:
             raise RuntimeError("supervisor failed; tournament did not start successfully; see supervisor.log")
@@ -772,7 +926,7 @@ def main():
             if info["state"] == "running":
                 print(f"Running supervisor={child.pid}; logs/catalogue: {control}")
                 return
-        time.sleep(.1)
+        time.sleep(0.1)
     child.terminate()
     raise RuntimeError("startup readiness timed out; stop requested; see supervisor.log")
 
@@ -781,6 +935,10 @@ if __name__ == "__main__":
     try:
         main()
     except Exception as exc:
-        suffix = "; tournament did not start successfully" if len(sys.argv) > 1 and sys.argv[1] in ("start", "resume") else ""
+        suffix = (
+            "; tournament did not start successfully"
+            if len(sys.argv) > 1 and sys.argv[1] in ("start", "resume")
+            else ""
+        )
         print(f"tourney_analysis: {exc}{suffix}", file=sys.stderr)
         sys.exit(1)

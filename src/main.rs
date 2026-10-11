@@ -1,43 +1,41 @@
 // Modules are now declared in lib.rs
+use std::env;
 use taikyoku_shogi::debug_tool::DebugTool;
 use taikyoku_shogi::eval::{EvalCheckpoint, DEFAULT_MODEL_PATH};
-use taikyoku_shogi::game_state::GameState;
 use taikyoku_shogi::game_history::{GameHistory, GameResult};
+use taikyoku_shogi::game_state::GameState;
 use taikyoku_shogi::piece::Color;
 use taikyoku_shogi::player::player_by_name;
 use taikyoku_shogi::uci;
-use std::env;
 
 /// Convert a number to Japanese/Chinese numerals (1-indexed, no zero)
 fn to_japanese_numeral(n: u8) -> String {
     if n == 0 {
         return "零".to_string();
     }
-    
-    let digits = [
-        "", "一", "二", "三", "四", "五", "六", "七", "八", "九"
-    ];
-    
+
+    let digits = ["", "一", "二", "三", "四", "五", "六", "七", "八", "九"];
+
     let mut result = String::new();
     let n = n as usize;
-    
+
     if n >= 30 {
         let tens = n / 10;
         let ones = n % 10;
         result.push_str(digits[tens]);
-        result.push_str("十");
+        result.push('十');
         if ones > 0 {
             result.push_str(digits[ones]);
         }
     } else if n >= 20 {
-        result.push_str("二");
-        result.push_str("十");
+        result.push('二');
+        result.push('十');
         let ones = n % 10;
         if ones > 0 {
             result.push_str(digits[ones]);
         }
     } else if n >= 10 {
-        result.push_str("十");
+        result.push('十');
         let ones = n % 10;
         if ones > 0 {
             result.push_str(digits[ones]);
@@ -45,7 +43,7 @@ fn to_japanese_numeral(n: u8) -> String {
     } else {
         result.push_str(digits[n]);
     }
-    
+
     result
 }
 
@@ -83,7 +81,7 @@ fn print_usage() {
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    
+
     if args.len() > 1 {
         match args[1].as_str() {
             "tournament-game-protocol" => println!("1"),
@@ -113,23 +111,21 @@ fn main() {
                 }
             }
 
-            "play" => {
-                match parse_play_args(&args) {
-                    Ok((agent, depth, model)) => {
-                        if let Some(d) = depth {
-                            env::set_var("TAIKYOKU_AB_DEPTH", d.to_string());
-                        }
-                        if let Some(m) = model {
-                            env::set_var("TAIKYOKU_AB_MODEL", m);
-                        }
-                        play_game(&agent);
+            "play" => match parse_play_args(&args) {
+                Ok((agent, depth, model)) => {
+                    if let Some(d) = depth {
+                        env::set_var("TAIKYOKU_AB_DEPTH", d.to_string());
                     }
-                    Err(msg) => {
-                        println!("{}", msg);
-                        print_usage();
+                    if let Some(m) = model {
+                        env::set_var("TAIKYOKU_AB_MODEL", m);
                     }
+                    play_game(&agent);
                 }
-            }
+                Err(msg) => {
+                    println!("{}", msg);
+                    print_usage();
+                }
+            },
             "export-seed" => {
                 let path = args
                     .get(2)
@@ -156,10 +152,7 @@ fn main() {
                 debug_tool.run();
             }
             "serve" => {
-                let port: u16 = args
-                    .get(2)
-                    .and_then(|s| s.parse().ok())
-                    .unwrap_or(3000);
+                let port: u16 = args.get(2).and_then(|s| s.parse().ok()).unwrap_or(3000);
                 let addr = std::net::SocketAddr::from(([127, 0, 0, 1], port));
                 let static_dir = std::path::PathBuf::from("web/dist");
                 let rt = tokio::runtime::Runtime::new().expect("tokio runtime");
@@ -265,15 +258,15 @@ fn main() {
                 }
             }
             "royal-al-policy" => {
-                println!(r#"{{"policy":"royal-al-v1","swap_removal":true,"aspiration":500,"checkpoint_L_modes":true}}"#);
-                return;
+                println!(
+                    r#"{{"policy":"royal-al-v1","swap_removal":true,"aspiration":500,"checkpoint_L_modes":true}}"#
+                );
             }
             "royal-al-grid" => {
                 if let Err(e) = taikyoku_shogi::training::royal_al_grid::cli(&args[2..]) {
                     eprintln!("royal-al-grid failed: {e}; tournament did not start");
                     std::process::exit(1);
                 }
-                return;
             }
             "royal-s2-grid" => {
                 if let Err(e) = taikyoku_shogi::training::cli::cmd_royal_s2_grid(&args) {
@@ -348,10 +341,7 @@ fn cmd_position(args: &[String]) -> Result<(), String> {
             while i < args.len() {
                 if args[i] == "--start" {
                     i += 1;
-                    start = args
-                        .get(i)
-                        .ok_or("--start needs a value")?
-                        .clone();
+                    start = args.get(i).ok_or("--start needs a value")?.clone();
                     i += 1;
                     continue;
                 }
@@ -377,11 +367,7 @@ fn cmd_position(args: &[String]) -> Result<(), String> {
             while i < args.len() {
                 if args[i] == "--out" {
                     i += 1;
-                    out = Some(
-                        args.get(i)
-                            .ok_or("--out needs a path")?
-                            .clone(),
-                    );
+                    out = Some(args.get(i).ok_or("--out needs a path")?.clone());
                     i += 1;
                     continue;
                 }
@@ -392,7 +378,10 @@ fn cmd_position(args: &[String]) -> Result<(), String> {
                 pos.save_path(Path::new(&path))?;
                 println!("Wrote {}", path);
             } else {
-                println!("{}", serde_json::to_string_pretty(&pos).map_err(|e| e.to_string())?);
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&pos).map_err(|e| e.to_string())?
+                );
             }
             Ok(())
         }
@@ -410,11 +399,8 @@ fn cmd_game(args: &[String]) -> Result<(), String> {
     if sub != "tsfen-moves" {
         return Err("Usage: game tsfen-moves <game.json>".into());
     }
-    let path = args
-        .get(3)
-        .ok_or("Usage: game tsfen-moves <game.json>")?;
-    let contents = std::fs::read_to_string(path)
-        .map_err(|e| format!("read {}: {}", path, e))?;
+    let path = args.get(3).ok_or("Usage: game tsfen-moves <game.json>")?;
+    let contents = std::fs::read_to_string(path).map_err(|e| format!("read {}: {}", path, e))?;
     let record = load_game_json(&contents)?;
 
     let start_pos = match &record.start {
@@ -469,7 +455,7 @@ fn parse_play_args(args: &[String]) -> Result<(String, Option<u32>, Option<Strin
         i += 1;
     }
     // Validate agent early
-    player_by_name(&agent).map_err(|e| e)?;
+    player_by_name(&agent)?;
     Ok((agent, depth, model))
 }
 
@@ -484,15 +470,15 @@ fn play_game(agent: &str) {
 
     let mut game_state = GameState::new();
     game_state.setup_initial_position();
-    
+
     let mut history = GameHistory::new("games");
     history.start_game();
-    
+
     let mut move_number = 1;
     let max_moves = 20000; // Prevent infinite games
-    
+
     println!("Starting {} self-play game...", player.name());
-    
+
     while move_number <= max_moves {
         // Draw: no capture, promotion, or irreversible progress for 100 turns.
         if game_state.is_draw_by_progress_rule() {
@@ -513,7 +499,7 @@ fn play_game(agent: &str) {
             }
             return;
         }
-        
+
         // Check if game is a draw by insufficient material (only Kings, Crown Princes, Great Generals remain)
         if game_state.is_draw_by_insufficient_material() {
             if let Ok(filename) = history.end_game(GameResult::Draw) {
@@ -522,40 +508,44 @@ fn play_game(agent: &str) {
             }
             return;
         }
-        
+
         // Check if game is over (all royal pieces captured)
         if let Some(winner) = game_state.get_winner() {
             let result = match winner {
                 Color::Black => GameResult::BlackWins,
                 Color::White => GameResult::WhiteWins,
             };
-            
+
             if let Ok(filename) = history.end_game(result) {
                 println!("Game ended after {} moves. {:?} wins (all opponent royal pieces captured). Saved to: {}", 
                     move_number - 1, winner, filename);
             }
             return;
         }
-        
+
         let legal_moves = game_state.generate_legal_moves();
-        
+
         if legal_moves.is_empty() {
             // Game over - no legal moves
             let result = match game_state.get_current_turn() {
                 Color::Black => GameResult::WhiteWins,
                 Color::White => GameResult::BlackWins,
             };
-            
+
             if let Ok(filename) = history.end_game(result) {
-                println!("Game ended after {} moves. Saved to: {}", move_number - 1, filename);
+                println!(
+                    "Game ended after {} moves. Saved to: {}",
+                    move_number - 1,
+                    filename
+                );
             }
             return;
         }
-        
+
         if let Some(mv) = player.choose_move(&game_state) {
             let color = game_state.get_current_turn();
             let promoted = mv.promoted;
-            
+
             // Get piece type before making the move (for shogi-style notation)
             let piece_symbol = if let Some(piece) = game_state.get_board().get_piece(mv.from) {
                 // Use the base type symbol (what the piece was before promotion, or current type if not promoted)
@@ -569,24 +559,24 @@ fn play_game(agent: &str) {
             } else {
                 "?".to_string()
             };
-            
+
             // Check turn before making the move to detect if move succeeded
             let turn_before = game_state.get_current_turn();
-            
+
             // Execute the move
             let _ = game_state.make_move(mv.clone());
             let turn_after = game_state.get_current_turn();
-            
+
             // Move succeeded if turn changed (for both regular and two-step moves)
             if turn_before != turn_after {
                 // Record the move (two-step moves are saved as a single move with intermediate position)
                 history.record_move(&mv, color, move_number, promoted, None);
-                
+
                 let color_str = match color {
                     Color::Black => "B",
                     Color::White => "W",
                 };
-                
+
                 // Check if this is a two-step move for display
                 if let Some(intermediate) = mv.intermediate() {
                     // Display two-step move as two lines with different move numbers
@@ -599,20 +589,36 @@ fn play_game(agent: &str) {
                     let inter_file_flipped = flip_file(intermediate.file);
                     let inter_rank_flipped = flip_rank(intermediate.rank);
                     let inter_rank_jp = to_japanese_numeral(inter_rank_flipped);
-                    
-                    println!("{}. {}: {}{}{}{}{}{}", 
-                        move_number, color_str,
-                        inter_file_flipped, inter_rank_jp, piece_symbol.clone(),
-                        from_file_flipped, from_rank_jp, "");
-                    println!("{}. {}: {}{}{}{}{}{}", 
-                        move_number + 1, color_str,
-                        to_file_flipped, to_rank_jp, piece_symbol,
-                        inter_file_flipped, inter_rank_jp,
-                        if promoted { "成" } else { "" });
-                    
+
+                    println!(
+                        "{}. {}: {}{}{}{}{}",
+                        move_number,
+                        color_str,
+                        inter_file_flipped,
+                        inter_rank_jp,
+                        piece_symbol.clone(),
+                        from_file_flipped,
+                        from_rank_jp
+                    );
+                    println!(
+                        "{}. {}: {}{}{}{}{}{}",
+                        move_number + 1,
+                        color_str,
+                        to_file_flipped,
+                        to_rank_jp,
+                        piece_symbol,
+                        inter_file_flipped,
+                        inter_rank_jp,
+                        if promoted { "成" } else { "" }
+                    );
+
                     // Print board after the second step
-                    println!("\n=== After move {} ===\n{}", move_number + 1, history.format_board(&game_state));
-                    
+                    println!(
+                        "\n=== After move {} ===\n{}",
+                        move_number + 1,
+                        history.format_board(&game_state)
+                    );
+
                     move_number += 2;
                 } else {
                     // Display single move
@@ -622,16 +628,26 @@ fn play_game(agent: &str) {
                     let from_file_flipped = flip_file(mv.from.file);
                     let from_rank_flipped = flip_rank(mv.from.rank);
                     let from_rank_jp = to_japanese_numeral(from_rank_flipped);
-                    
-                    println!("{}. {}: {}{}{}{}{}{}", 
-                        move_number, color_str,
-                        to_file_flipped, to_rank_jp, piece_symbol,
-                        from_file_flipped, from_rank_jp,
-                        if promoted { "成" } else { "" });
-                    
+
+                    println!(
+                        "{}. {}: {}{}{}{}{}{}",
+                        move_number,
+                        color_str,
+                        to_file_flipped,
+                        to_rank_jp,
+                        piece_symbol,
+                        from_file_flipped,
+                        from_rank_jp,
+                        if promoted { "成" } else { "" }
+                    );
+
                     // Print board after the move
-                    println!("\n=== After move {} ===\n{}", move_number, history.format_board(&game_state));
-                    
+                    println!(
+                        "\n=== After move {} ===\n{}",
+                        move_number,
+                        history.format_board(&game_state)
+                    );
+
                     move_number += 1;
                 }
             }
@@ -640,10 +656,13 @@ fn play_game(agent: &str) {
             break;
         }
     }
-    
+
     // Game ended due to move limit
     if let Ok(filename) = history.end_game(GameResult::Draw) {
-        println!("Game ended after {} moves (draw by move limit). Saved to: {}", max_moves, filename);
+        println!(
+            "Game ended after {} moves (draw by move limit). Saved to: {}",
+            max_moves, filename
+        );
     }
 }
 
@@ -679,4 +698,3 @@ fn list_games() {
         }
     }
 }
-

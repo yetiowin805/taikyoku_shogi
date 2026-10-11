@@ -266,12 +266,8 @@ fn parse_square(s: &str) -> Result<Position, String> {
     let (f, r) = s
         .split_once(',')
         .ok_or_else(|| format!("bad square '{}', expected file,rank", s))?;
-    let file: u8 = f
-        .parse()
-        .map_err(|_| format!("bad file in '{}'", s))?;
-    let rank: u8 = r
-        .parse()
-        .map_err(|_| format!("bad rank in '{}'", s))?;
+    let file: u8 = f.parse().map_err(|_| format!("bad file in '{}'", s))?;
+    let rank: u8 = r.parse().map_err(|_| format!("bad rank in '{}'", s))?;
     Position::new(file, rank).ok_or_else(|| format!("square out of range: '{}'", s))
 }
 

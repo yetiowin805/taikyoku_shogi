@@ -10,7 +10,7 @@ impl RandomPlayer {
         if legal_moves.is_empty() {
             return None;
         }
-        
+
         let mut rng = rand::thread_rng();
         let index = rng.gen_range(0..legal_moves.len());
         Some(legal_moves[index].clone())
@@ -26,7 +26,7 @@ mod tests {
     fn test_random_player_returns_move() {
         let mut state = GameState::new();
         state.setup_initial_position();
-        
+
         let mv = RandomPlayer::make_move(&state);
         assert!(mv.is_some());
     }
@@ -38,4 +38,3 @@ mod tests {
         assert!(mv.is_none());
     }
 }
-

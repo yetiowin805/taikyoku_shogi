@@ -42,7 +42,9 @@ impl PieceTypeSet {
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &'static PieceType> + '_ {
-        crate::eval::ALL_PIECE_TYPES.iter().filter(move |p| self.contains(p))
+        crate::eval::ALL_PIECE_TYPES
+            .iter()
+            .filter(move |p| self.contains(p))
     }
 }
 
@@ -77,9 +79,7 @@ pub enum MovementCapability {
     },
     /// Jumping movement: Jump to relative positions (not direction-based)
     /// Offsets are (file_delta, rank_delta) relative to starting position
-    Jumping {
-        offsets: Vec<(i8, i8)>,
-    },
+    Jumping { offsets: Vec<(i8, i8)> },
     /// Two-step movement: First move, then second move from intermediate position
     /// Both moves are full MovementCapability instances
     TwoStep {
@@ -91,17 +91,17 @@ pub enum MovementCapability {
     /// positions have pieces and the next empty_after_jump positions are empty
     /// Example: Wooden Dove can jump 3 spaces normally, and 4-5 spaces if positions 1-2 have pieces and position 3 is empty
     ConditionalDiagonalJump {
-        directions: DirectionSet,  // Diagonal directions only
-        base_jump: u8,  // Base jump distance (e.g., 3)
+        directions: DirectionSet,    // Diagonal directions only
+        base_jump: u8,               // Base jump distance (e.g., 3)
         conditional_jumps: Vec<u8>,  // Conditional jump distances (e.g., [4, 5])
-        required_jump_positions: u8,  // Number of positions that must have pieces (e.g., 2 for positions 1-2)
-        empty_after_jump: u8,  // Number of positions that must be empty after the jump positions (e.g., 1 for position 3)
+        required_jump_positions: u8, // Number of positions that must have pieces (e.g., 2 for positions 1-2)
+        empty_after_jump: u8, // Number of positions that must be empty after the jump positions (e.g., 1 for position 3)
     },
     /// Free Eagle multi-move: Can move up to max_distance_forward_diagonal in forward diagonals,
     /// or up to max_distance_other in other directions, capturing all enemy pieces along the path
     FreeEagleMultiMove {
-        max_distance_forward_diagonal: u8,  // 4 for forward diagonals
-        max_distance_other: u8,  // 3 for orthogonal and backward diagonals
+        max_distance_forward_diagonal: u8, // 4 for forward diagonals
+        max_distance_other: u8,            // 3 for orthogonal and backward diagonals
     },
 }
 
@@ -131,7 +131,7 @@ mod piece_type_set_tests {
             let mut fast = PieceTypeSet::new();
             let mut old = std::collections::HashSet::new();
             for &piece in crate::eval::ALL_PIECE_TYPES {
-                if piece as usize % modulus == 0 {
+                if (piece as usize).is_multiple_of(modulus) {
                     assert_eq!(fast.insert(piece), old.insert(piece));
                     assert_eq!(fast.insert(piece), old.insert(piece));
                 }

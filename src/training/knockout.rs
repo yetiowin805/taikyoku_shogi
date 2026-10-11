@@ -188,7 +188,7 @@ pub(crate) fn pending_slot_claim_index(state: &TourneyState) -> Option<usize> {
         }
         let (tree, round) = slot_tree_and_round(state, slot.id);
         let key = (tree, round, slot.id, idx);
-        if best.map_or(true, |b| key < b) {
+        if best.is_none_or(|b| key < b) {
             best = Some(key);
         }
     }
@@ -221,7 +221,12 @@ pub fn on_knockout_slot_finished(state: &mut TourneyState, _slot_id: usize) {
 
 pub fn spawn_knockout(state: &mut TourneyState) -> bool {
     ensure_ratings(state);
-    let ids: Vec<String> = state.entrants.iter().filter(|e| !state.retired.contains(&e.id)).map(|e| e.id.clone()).collect();
+    let ids: Vec<String> = state
+        .entrants
+        .iter()
+        .filter(|e| !state.retired.contains(&e.id))
+        .map(|e| e.id.clone())
+        .collect();
     if ids.len() < 2 {
         return false;
     }
@@ -599,7 +604,7 @@ fn enqueue_single(
     n_done: usize,
 ) {
     let singles_idx = n_done.saturating_sub(PAIR_GAME_CAP);
-    let (start_seed, start_mode) = if singles_idx % 2 == 0 {
+    let (start_seed, start_mode) = if singles_idx.is_multiple_of(2) {
         let seed = state
             .seed_base
             .wrapping_add((state.knockouts[tree_idx].id as u64).wrapping_mul(1_000_003))
@@ -611,7 +616,7 @@ fn enqueue_single(
         let m = &state.knockouts[tree_idx].matches[match_idx];
         (m.pair_start_seed, m.pair_start_mode)
     };
-    let a_black = singles_idx % 2 == 0;
+    let a_black = singles_idx.is_multiple_of(2);
     let sid = push_slot(
         state,
         a.to_string(),
@@ -835,16 +840,28 @@ fn round_complete(state: &TourneyState, tree_idx: usize, stage: KnockoutStage) -
 }
 
 fn publish_finished_matches(state: &mut TourneyState, tree_idx: usize) {
-    if state.order_neutral_only { ensure_ratings(state); return; }
+    if state.order_neutral_only {
+        ensure_ratings(state);
+        return;
+    }
     let matches = state.knockouts[tree_idx].matches.clone();
     for m in matches {
         if m.winner.is_none() || state.knockouts[tree_idx].rated_match_ids.contains(&m.id) {
             continue;
         }
         let tree = &state.knockouts[tree_idx];
-        let first = format!("PlayIn+{}", stage_label(KnockoutStage::Round { size: tree.bracket_size }));
+        let first = format!(
+            "PlayIn+{}",
+            stage_label(KnockoutStage::Round {
+                size: tree.bracket_size
+            })
+        );
         let already_in_legacy_period = tree.closed_periods.contains(&stage_label(m.stage))
-            || ((m.stage == KnockoutStage::PlayIn || m.stage == (KnockoutStage::Round { size: tree.bracket_size }))
+            || ((m.stage == KnockoutStage::PlayIn
+                || m.stage
+                    == (KnockoutStage::Round {
+                        size: tree.bracket_size,
+                    }))
                 && tree.closed_periods.contains(&first));
         if !already_in_legacy_period {
             // Both players use the same pre-update snapshot. A whole match is
@@ -854,16 +871,26 @@ fn publish_finished_matches(state: &mut TourneyState, tree_idx: usize) {
             let mut a_results = Vec::new();
             let mut b_results = Vec::new();
             for sid in &m.slot_ids {
-                if let Some(slot) = state.slots.iter().find(|s| s.id == *sid && s.status == SlotStatus::Done) {
+                if let Some(slot) = state
+                    .slots
+                    .iter()
+                    .find(|s| s.id == *sid && s.status == SlotStatus::Done)
+                {
                     if let Some(score) = slot.score_a {
-                        let sa = if slot.model_a == m.model_a { score } else { 1.0-score };
+                        let sa = if slot.model_a == m.model_a {
+                            score
+                        } else {
+                            1.0 - score
+                        };
                         a_results.push((rb, sa));
-                        b_results.push((ra, 1.0-sa));
+                        b_results.push((ra, 1.0 - sa));
                     }
                 }
             }
-            for (id, rating) in [(m.model_a.clone(), glicko_update_period(ra, &a_results)),
-                                 (m.model_b.clone(), glicko_update_period(rb, &b_results))] {
+            for (id, rating) in [
+                (m.model_a.clone(), glicko_update_period(ra, &a_results)),
+                (m.model_b.clone(), glicko_update_period(rb, &b_results)),
+            ] {
                 state.elo.insert(id.clone(), rating.r);
                 state.ratings.insert(id, rating);
             }
@@ -873,17 +900,28 @@ fn publish_finished_matches(state: &mut TourneyState, tree_idx: usize) {
 }
 
 fn apply_period(state: &mut TourneyState, tree_idx: usize, stages: &[KnockoutStage]) {
-    if state.order_neutral_only { return; }
+    if state.order_neutral_only {
+        return;
+    }
     // Match participants were updated at completion. Closing the round only
     // ages the uncertainty of entrants who did not participate in this period.
-    let participants: BTreeSet<_> = state.knockouts[tree_idx].matches.iter()
+    let participants: BTreeSet<_> = state.knockouts[tree_idx]
+        .matches
+        .iter()
         .filter(|m| stages.contains(&m.stage))
-        .flat_map(|m| [m.model_a.clone(), m.model_b.clone()]).collect();
+        .flat_map(|m| [m.model_a.clone(), m.model_b.clone()])
+        .collect();
     for e in state.entrants.clone() {
         if !participants.contains(&e.id) {
             let cur = rating_of(state, &e.id);
             let ng = apply_passive_rd_tick(cur);
-            state.ratings.insert(e.id.clone(), GlickoRating { r: ng.r, rd: ng.rd.max(RD_MIN) });
+            state.ratings.insert(
+                e.id.clone(),
+                GlickoRating {
+                    r: ng.r,
+                    rd: ng.rd.max(RD_MIN),
+                },
+            );
             state.elo.insert(e.id, ng.r);
         }
     }
@@ -1365,39 +1403,45 @@ mod tests {
     #[test]
     fn match_updates_before_round_and_survives_serialization_once() {
         let mut st = build_schedule(&cfg_n(4));
-        spawn_knockout(&mut st); enqueue_needed_games(&mut st);
-        let m=st.knockouts[0].matches[0].clone();
-        let before=rating_of(&st,&m.model_a);
-        finish_slot(&mut st,m.slot_ids[0],1.0);
-        assert_eq!(rating_of(&st,&m.model_a).r,before.r);
-        finish_slot(&mut st,m.slot_ids[1],1.0);
-        assert!(rating_of(&st,&m.model_a).r>before.r);
+        spawn_knockout(&mut st);
+        enqueue_needed_games(&mut st);
+        let m = st.knockouts[0].matches[0].clone();
+        let before = rating_of(&st, &m.model_a);
+        finish_slot(&mut st, m.slot_ids[0], 1.0);
+        assert_eq!(rating_of(&st, &m.model_a).r, before.r);
+        finish_slot(&mut st, m.slot_ids[1], 1.0);
+        assert!(rating_of(&st, &m.model_a).r > before.r);
         assert!(st.knockouts[0].closed_periods.is_empty());
-        let ratings=serde_json::to_string(&st.ratings).unwrap();
-        let mut resumed:TourneyState=serde_json::from_str(&serde_json::to_string(&st).unwrap()).unwrap();
+        let ratings = serde_json::to_string(&st.ratings).unwrap();
+        let mut resumed: TourneyState =
+            serde_json::from_str(&serde_json::to_string(&st).unwrap()).unwrap();
         process_all_matches(&mut resumed);
-        assert_eq!(serde_json::to_string(&resumed.ratings).unwrap(),ratings);
+        assert_eq!(serde_json::to_string(&resumed.ratings).unwrap(), ratings);
         // A completed pre-migration period has already counted its matches.
         resumed.knockouts[0].rated_match_ids.clear();
         resumed.knockouts[0].closed_periods.push("R4".into());
         process_all_matches(&mut resumed);
-        assert_eq!(serde_json::to_string(&resumed.ratings).unwrap(),ratings);
+        assert_eq!(serde_json::to_string(&resumed.ratings).unwrap(), ratings);
         assert!(resumed.knockouts[0].rated_match_ids.contains(&m.id));
     }
 
     #[test]
     fn closing_round_does_not_update_completed_players_twice() {
-        let mut st=build_schedule(&cfg_n(4));
-        spawn_knockout(&mut st);enqueue_needed_games(&mut st);
-        let matches=st.knockouts[0].matches.clone();
-        for sid in &matches[0].slot_ids {finish_slot(&mut st,*sid,1.0);}
-        let ra=rating_of(&st,&matches[0].model_a);
-        let rb=rating_of(&st,&matches[0].model_b);
-        for sid in &matches[1].slot_ids {finish_slot(&mut st,*sid,1.0);}
-        assert_eq!(rating_of(&st,&matches[0].model_a).r,ra.r);
-        assert_eq!(rating_of(&st,&matches[0].model_a).rd,ra.rd);
-        assert_eq!(rating_of(&st,&matches[0].model_b).rd,rb.rd);
+        let mut st = build_schedule(&cfg_n(4));
+        spawn_knockout(&mut st);
+        enqueue_needed_games(&mut st);
+        let matches = st.knockouts[0].matches.clone();
+        for sid in &matches[0].slot_ids {
+            finish_slot(&mut st, *sid, 1.0);
+        }
+        let ra = rating_of(&st, &matches[0].model_a);
+        let rb = rating_of(&st, &matches[0].model_b);
+        for sid in &matches[1].slot_ids {
+            finish_slot(&mut st, *sid, 1.0);
+        }
+        assert_eq!(rating_of(&st, &matches[0].model_a).r, ra.r);
+        assert_eq!(rating_of(&st, &matches[0].model_a).rd, ra.rd);
+        assert_eq!(rating_of(&st, &matches[0].model_b).rd, rb.rd);
         assert!(st.knockouts[0].closed_periods.contains(&"R4".into()));
     }
-
 }

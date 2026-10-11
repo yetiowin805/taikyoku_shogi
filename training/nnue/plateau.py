@@ -1,6 +1,7 @@
 """Serializable stopping policy; validation Huber is the monitored metric."""
-from dataclasses import asdict, dataclass
+
 import math
+from dataclasses import asdict, dataclass
 
 
 @dataclass(frozen=True)
@@ -14,10 +15,14 @@ class Policy:
 
     def __post_init__(self):
         integers = (self.min_epochs, self.max_epochs, self.patience, self.lr_reductions)
-        if not (all(type(value) is int for value in integers)
-                and 1 <= self.min_epochs <= self.max_epochs and self.patience >= 1
-                and 0 < self.min_improvement < 1 and 0 < self.lr_factor < 1
-                and self.lr_reductions >= 0):
+        if not (
+            all(type(value) is int for value in integers)
+            and 1 <= self.min_epochs <= self.max_epochs
+            and self.patience >= 1
+            and 0 < self.min_improvement < 1
+            and 0 < self.lr_factor < 1
+            and self.lr_reductions >= 0
+        ):
             raise ValueError("Invalid plateau policy")
 
 

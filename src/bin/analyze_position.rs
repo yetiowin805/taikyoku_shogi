@@ -20,7 +20,9 @@ fn run() -> Result<(), String> {
     }
     let allow_historical = a.len() == 7 && a[6] == "--allow-historical";
     if a.len() != 6 && !allow_historical {
-        return Err("usage: analyze_position GAME PLY MODEL DEPTH TIME_MS [--allow-historical]".into());
+        return Err(
+            "usage: analyze_position GAME PLY MODEL DEPTH TIME_MS [--allow-historical]".into(),
+        );
     }
     let rec: GameRecordV2 =
         serde_json::from_slice(&std::fs::read(&a[1]).map_err(|e| e.to_string())?)
@@ -60,8 +62,7 @@ fn run() -> Result<(), String> {
     // An explicit flag prevents accidental historical analysis with a current CLI.
     if agent.name != "ab" || (agent.engine.is_some() && !allow_historical) {
         return Err(
-            "historical analysis requires its matching helper and --allow-historical"
-                .into(),
+            "historical analysis requires its matching helper and --allow-historical".into(),
         );
     }
     // Validate explicitly: from_options otherwise silently falls back to seed.
@@ -77,7 +78,11 @@ fn run() -> Result<(), String> {
     let player = AlphaBetaPlayer::from_options(&opts);
     let sign = if color == Color::Black { 1 } else { -1 };
     let start = Instant::now();
-    let mut emit = |depth, score, mv: &taikyoku_shogi::game_state::Move, nodes, _lines: &[(taikyoku_shogi::game_state::Move, i32)]| {
+    let mut emit = |depth,
+                    score,
+                    mv: &taikyoku_shogi::game_state::Move,
+                    nodes,
+                    _lines: &[(taikyoku_shogi::game_state::Move, i32)]| {
         println!(
             "{}",
             serde_json::json!({
