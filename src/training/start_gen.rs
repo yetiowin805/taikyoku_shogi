@@ -88,7 +88,7 @@ pub fn is_file_tied(pt: PieceType) -> bool {
     )
 }
 
-#[allow(dead_code)] // used by unit tests
+#[cfg(test)]
 fn count_powerful(state: &GameState, color: Color) -> usize {
     state
         .get_board()

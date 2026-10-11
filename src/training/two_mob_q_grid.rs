@@ -66,29 +66,13 @@ pub fn q_blowup_search_defaults(base: &SearchDefaults) -> SearchDefaults {
     s
 }
 
-fn push_cell(
-    cells: &mut Vec<GridCell>,
-    entrants: &mut Vec<TourneyEntrant>,
-    id: String,
-    model: String,
-    curve: u8,
-    k: f32,
-    apply: u8,
-    q_blowup: bool,
-) {
-    cells.push(GridCell {
-        id: id.clone(),
-        model: model.clone(),
-        two_mover_mob_k: k,
-        two_mover_mob_curve: curve,
-        two_mover_mob_apply: apply,
-        q_blowup,
-    });
+fn push_cell(cells: &mut Vec<GridCell>, entrants: &mut Vec<TourneyEntrant>, cell: GridCell) {
     entrants.push(TourneyEntrant {
-        id,
-        model,
+        id: cell.id.clone(),
+        model: cell.model.clone(),
         engine: None,
     });
+    cells.push(cell);
 }
 
 pub fn run_two_mob_q_grid(cfg: &TwoMobQGridConfig) -> Result<(TourneyManifest, GridFile), String> {
@@ -116,19 +100,18 @@ pub fn run_two_mob_q_grid(cfg: &TwoMobQGridConfig) -> Result<(TourneyManifest, G
             seed_path.display()
         )
     })?;
-    cells.push(GridCell {
-        id: seed_id.into(),
-        model: seed_path.display().to_string(),
-        two_mover_mob_k: 0.0,
-        two_mover_mob_curve: 0,
-        two_mover_mob_apply: 0,
-        q_blowup: false,
-    });
-    entrants.push(TourneyEntrant {
-        id: seed_id.into(),
-        model: seed_path.display().to_string(),
-        engine: None,
-    });
+    push_cell(
+        &mut cells,
+        &mut entrants,
+        GridCell {
+            id: seed_id.into(),
+            model: seed_path.display().to_string(),
+            two_mover_mob_k: 0.0,
+            two_mover_mob_curve: 0,
+            two_mover_mob_apply: 0,
+            q_blowup: false,
+        },
+    );
 
     for &(curve, k, apply) in &FINALISTS {
         let id = cell_id(curve, k, apply);
@@ -141,12 +124,14 @@ pub fn run_two_mob_q_grid(cfg: &TwoMobQGridConfig) -> Result<(TourneyManifest, G
         push_cell(
             &mut cells,
             &mut entrants,
-            id,
-            model_path.display().to_string(),
-            curve,
-            k,
-            apply,
-            false,
+            GridCell {
+                id,
+                model: model_path.display().to_string(),
+                two_mover_mob_k: k,
+                two_mover_mob_curve: curve,
+                two_mover_mob_apply: apply,
+                q_blowup: false,
+            },
         );
 
         let qid = q_cell_id(curve, k, apply);
@@ -160,12 +145,14 @@ pub fn run_two_mob_q_grid(cfg: &TwoMobQGridConfig) -> Result<(TourneyManifest, G
         push_cell(
             &mut cells,
             &mut entrants,
-            qid,
-            q_path.display().to_string(),
-            curve,
-            k,
-            apply,
-            true,
+            GridCell {
+                id: qid,
+                model: q_path.display().to_string(),
+                two_mover_mob_k: k,
+                two_mover_mob_curve: curve,
+                two_mover_mob_apply: apply,
+                q_blowup: true,
+            },
         );
     }
 

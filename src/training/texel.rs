@@ -306,9 +306,8 @@ pub fn fit_texel_on_rows(
             let e = eval_from_diff(&w, &row.piece_diff);
             let p = sigmoid(k as f64 * e as f64) as f32;
             let err = p - row.result;
-            let n = w.len().min(row.piece_diff.len());
-            for i in 0..n {
-                grad[i] += err * k * row.piece_diff[i];
+            for (g, d) in grad.iter_mut().zip(&row.piece_diff) {
+                *g += err * k * d;
             }
         }
         let inv_n = 1.0 / rows.len() as f32;

@@ -366,16 +366,12 @@ impl MovementGenerator {
                 directions,
                 base_jump,
                 conditional_jumps,
-                required_jump_positions,
-                empty_after_jump,
             } => Self::generate_conditional_diagonal_jump(
                 piece,
                 board,
                 *directions,
                 *base_jump,
                 conditional_jumps,
-                *required_jump_positions,
-                *empty_after_jump,
                 captures_only,
             ),
             MovementCapability::FreeEagleMultiMove {
@@ -636,16 +632,13 @@ impl MovementGenerator {
     /// Generate targets for conditional diagonal jump movement
     /// This handles patterns like the Wooden Dove where:
     /// - Can jump base_jump spaces normally (jumping over anything)
-    /// - Can jump conditional_jumps distances if the first required_jump_positions have pieces
-    ///   and the next empty_after_jump positions are empty
+    /// - Can jump conditional_jumps distances if the squares from 3 up to the landing square are empty
     fn generate_conditional_diagonal_jump<B: BoardLike>(
         piece: &Piece,
         board: &B,
         directions: DirectionSet,
         base_jump: u8,
         conditional_jumps: &[u8],
-        _required_jump_positions: u8,
-        _empty_after_jump: u8,
         captures_only: bool,
     ) -> Vec<Position> {
         let mut targets = Vec::new();

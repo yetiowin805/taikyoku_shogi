@@ -20,6 +20,12 @@ impl std::fmt::Debug for PieceTypeSet {
     }
 }
 
+impl Default for PieceTypeSet {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PieceTypeSet {
     pub const fn new() -> Self {
         Self {
@@ -86,16 +92,13 @@ pub enum MovementCapability {
         first: Box<MovementCapability>,
         second: Box<MovementCapability>,
     },
-    /// Conditional diagonal jump: Can jump base_jump spaces normally,
-    /// and can jump conditional_jumps distances if the first required_jump_positions
-    /// positions have pieces and the next empty_after_jump positions are empty
-    /// Example: Wooden Dove can jump 3 spaces normally, and 4-5 spaces if positions 1-2 have pieces and position 3 is empty
+    /// Conditional diagonal jump (Wooden Dove): jump base_jump spaces over anything, or
+    /// conditional_jumps distances when the squares from 3 up to the landing square are empty
+    /// (the generator hardcodes that rule).
     ConditionalDiagonalJump {
-        directions: DirectionSet,    // Diagonal directions only
-        base_jump: u8,               // Base jump distance (e.g., 3)
-        conditional_jumps: Vec<u8>,  // Conditional jump distances (e.g., [4, 5])
-        required_jump_positions: u8, // Number of positions that must have pieces (e.g., 2 for positions 1-2)
-        empty_after_jump: u8, // Number of positions that must be empty after the jump positions (e.g., 1 for position 3)
+        directions: DirectionSet,   // Diagonal directions only
+        base_jump: u8,              // Base jump distance (e.g., 3)
+        conditional_jumps: Vec<u8>, // Conditional jump distances (e.g., [4, 5])
     },
     /// Free Eagle multi-move: Can move up to max_distance_forward_diagonal in forward diagonals,
     /// or up to max_distance_other in other directions, capturing all enemy pieces along the path

@@ -2136,9 +2136,9 @@ mod tests {
             ..TourneyConfig::default()
         });
         let rs = [1900.0, 1880.0, 1860.0, 1500.0, 1490.0, 1480.0];
-        for i in 0..6 {
+        for (i, &r) in rs.iter().enumerate() {
             st.ratings
-                .insert(format!("p{i}"), GlickoRating { r: rs[i], rd: 40.0 });
+                .insert(format!("p{i}"), GlickoRating { r, rd: 40.0 });
         }
         for i in 0..3 {
             give_min_games(
@@ -2259,9 +2259,9 @@ mod tests {
         let rs = [
             2400.0, 2100.0, 1600.0, 1580.0, 1560.0, 1540.0, 1520.0, 1500.0,
         ];
-        for i in 0..8 {
+        for (i, &r) in rs.iter().enumerate() {
             st.ratings
-                .insert(format!("p{i}"), GlickoRating { r: rs[i], rd: 40.0 });
+                .insert(format!("p{i}"), GlickoRating { r, rd: 40.0 });
         }
         for i in 0..4 {
             give_min_games(
@@ -2502,9 +2502,9 @@ mod tests {
         let rs = [
             2400.0, 2200.0, 2150.0, 2100.0, 2050.0, 2000.0, 1950.0, 1900.0, 1700.0, 1600.0,
         ];
-        for i in 0..10 {
+        for (i, &r) in rs.iter().enumerate() {
             st.ratings
-                .insert(format!("p{i}"), GlickoRating { r: rs[i], rd: 40.0 });
+                .insert(format!("p{i}"), GlickoRating { r, rd: 40.0 });
         }
         for i in 0..5 {
             give_min_games(
@@ -2574,9 +2574,9 @@ mod tests {
         let rs = [
             2400.0, 2200.0, 2150.0, 2100.0, 2050.0, 2000.0, 1950.0, 1900.0, 1700.0, 1600.0,
         ];
-        for i in 0..10 {
+        for (i, &r) in rs.iter().enumerate() {
             st.ratings
-                .insert(format!("p{i}"), GlickoRating { r: rs[i], rd: 40.0 });
+                .insert(format!("p{i}"), GlickoRating { r, rd: 40.0 });
         }
         for i in 0..5 {
             give_min_games(

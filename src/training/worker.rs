@@ -53,7 +53,7 @@ impl Default for WorkerConfig {
 #[derive(Debug, Clone)]
 pub struct PlayFailure {
     pub message: String,
-    pub partial: GameRecordV2,
+    pub partial: Box<GameRecordV2>,
 }
 
 impl std::fmt::Display for PlayFailure {
@@ -124,7 +124,6 @@ fn build_record(
 /// Play one game and return a complete record (not yet written to disk).
 ///
 /// On mid-game failure, returns [`PlayFailure`] with a partial record (moves so far).
-#[allow(clippy::result_large_err)] // once per game; boxing the partial record buys nothing
 pub fn play_one_game(config: &WorkerConfig) -> Result<GameRecordV2, PlayFailure> {
     if let Some(control) = config.time_control {
         let valid = control.validate().and_then(|_| {
@@ -135,7 +134,7 @@ pub fn play_one_game(config: &WorkerConfig) -> Result<GameRecordV2, PlayFailure>
         if let Err(message) = valid {
             return Err(PlayFailure {
                 message: message.clone(),
-                partial: build_record(
+                partial: Box::new(build_record(
                     config,
                     GameRecordV2::new_id(config.seed),
                     0,
@@ -143,13 +142,13 @@ pub fn play_one_game(config: &WorkerConfig) -> Result<GameRecordV2, PlayFailure>
                     vec![],
                     None,
                     Some(message),
-                ),
+                )),
             });
         }
     }
     let black = make_player(&config.black).map_err(|message| PlayFailure {
         message,
-        partial: build_record(
+        partial: Box::new(build_record(
             config,
             GameRecordV2::new_id(config.seed),
             0,
@@ -157,11 +156,11 @@ pub fn play_one_game(config: &WorkerConfig) -> Result<GameRecordV2, PlayFailure>
             Vec::new(),
             None,
             Some("failed before any moves".into()),
-        ),
+        )),
     })?;
     let white = make_player(&config.white).map_err(|message| PlayFailure {
         message,
-        partial: build_record(
+        partial: Box::new(build_record(
             config,
             GameRecordV2::new_id(config.seed),
             0,
@@ -169,7 +168,7 @@ pub fn play_one_game(config: &WorkerConfig) -> Result<GameRecordV2, PlayFailure>
             Vec::new(),
             None,
             Some("failed before any moves".into()),
-        ),
+        )),
     })?;
     let mut state = initial_state(&config.start);
     let started = Instant::now();
@@ -203,7 +202,10 @@ pub fn play_one_game(config: &WorkerConfig) -> Result<GameRecordV2, PlayFailure>
                 Some(message.clone()),
             );
             partial.stats.clock = clock;
-            PlayFailure { message, partial }
+            PlayFailure {
+                message,
+                partial: Box::new(partial),
+            }
         };
 
     while move_number <= config.max_moves {

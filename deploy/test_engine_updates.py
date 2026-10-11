@@ -103,8 +103,7 @@ class Updates(unittest.TestCase):
     def test_teacher_request_switches_helper_and_cache_identity(self):
         def helper(score):
             self.engine.write_text(
-                """#!/bin/sh\ncase "$1" in\n tournament-game-protocol) echo 1;;\n --validate-model|tournament-game-validate) exit 0;;\n *) echo '{"completed_depth":1,"score":%d}';;\nesac\n"""  # noqa: UP031 -- shell body is full of braces
-                % score
+                f"""#!/bin/sh\ncase "$1" in\n tournament-game-protocol) echo 1;;\n --validate-model|tournament-game-validate) exit 0;;\n *) echo '{{"completed_depth":1,"score":{score}}}';;\nesac\n"""
             )
 
         helper(10)

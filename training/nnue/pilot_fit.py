@@ -194,7 +194,7 @@ def evaluate(net, samples, data, ids, batch_size, mode, scale, mix):
             totals["outcome_count"] += mask.sum().item()
             # One conversion keeps the same Python summation order while avoiding
             # a separate tensor indexing/scalar extraction for every position.
-            for i, error in zip(group, huber.tolist()):
+            for i, error in zip(group, huber.tolist(), strict=True):
                 key = "analysis" if samples[i]["label_source"] == "analysis" else samples[i]["source"]
                 by_source[key]["count"] += 1
                 by_source[key]["huber"] += error

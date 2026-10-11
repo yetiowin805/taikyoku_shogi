@@ -297,10 +297,8 @@ impl DebugTool {
 
     pub fn apply_human_move(
         &mut self,
-        from_file: u8,
-        from_rank: u8,
-        to_file: u8,
-        to_rank: u8,
+        (from_file, from_rank): (u8, u8),
+        (to_file, to_rank): (u8, u8),
         promote: Option<bool>,
         path_index: Option<usize>,
         via: Option<(u8, u8)>,

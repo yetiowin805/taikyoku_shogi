@@ -74,7 +74,7 @@ class EfficiencyTests(unittest.TestCase):
                     -100, 100
                 ),
             )
-            for a, b in zip(actual, expected):
+            for a, b in zip(actual, expected, strict=True):
                 self.assertTrue(torch.equal(a, b))
 
     def test_objective_and_gradient_match_full_diagnostics(self):
@@ -110,7 +110,7 @@ class EfficiencyTests(unittest.TestCase):
                     new, new_rows = backward_batch(b, self.samples, self.data, ids, microbatch, mode, 2000, mix)
                     self.assertEqual(old, new)
                     self.assertTrue(torch.equal(old_rows, new_rows))
-                    for x, y in zip(a.parameters(), b.parameters()):
+                    for x, y in zip(a.parameters(), b.parameters(), strict=True):
                         gx = x.grad.to_dense() if x.grad.is_sparse else x.grad
                         gy = y.grad.to_dense() if y.grad.is_sparse else y.grad
                         self.assertTrue(torch.equal(gx, gy))
@@ -119,7 +119,7 @@ class EfficiencyTests(unittest.TestCase):
                     torch.optim.Adam(
                         [v for k, v in net.named_parameters() if k != "embedding.weight"], lr=0.0003
                     ).step()
-                for x, y in zip(a.parameters(), b.parameters()):
+                for x, y in zip(a.parameters(), b.parameters(), strict=True):
                     self.assertTrue(torch.equal(x, y))
 
     def test_validation_preserves_source_metrics_and_summation_order(self):

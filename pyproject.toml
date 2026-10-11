@@ -12,5 +12,4 @@ src = ["deploy", "training/nnue", "benchmarks/*"]
 select = ["E", "F", "W", "I", "B", "UP"]
 ignore = [
     "E501",  # line length is the formatter's job; long strings stay as they are
-    "B905",  # zip(strict=) would be churn on existing loops
 ]

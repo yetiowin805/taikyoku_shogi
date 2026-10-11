@@ -223,19 +223,32 @@ fn piece_counts(state: &GameState) -> Vec<i32> {
     c
 }
 
-fn snapshot_point(
-    state: &GameState,
-    ply: usize,
-    weights: &EvalWeights,
-    clip_cap: f32,
+/// How the move into a traced ply is classified.
+#[derive(Default)]
+struct PlyTags {
     quiet: bool,
     capture_into: bool,
     royal_change: bool,
     loud_promotion: bool,
     loud_promotion_to: Option<String>,
+}
+
+fn snapshot_point(
+    state: &GameState,
+    ply: usize,
+    weights: &EvalWeights,
+    clip_cap: f32,
+    tags: PlyTags,
     // When set (from AB game records), use instead of re-evaluating the board.
     recorded_eval: Option<i32>,
 ) -> TracePoint {
+    let PlyTags {
+        quiet,
+        capture_into,
+        royal_change,
+        loud_promotion,
+        loud_promotion_to,
+    } = tags;
     let eval = recorded_eval.map(|e| e as f32).unwrap_or_else(|| {
         crate::eval::evaluate_absolute_black(state.get_board(), weights, ply) as f32
     });
@@ -585,11 +598,10 @@ pub fn trace_game(
         0,
         weights,
         cfg.eval_clip,
-        true,
-        false,
-        false,
-        false,
-        None,
+        PlyTags {
+            quiet: true,
+            ..Default::default()
+        },
         recorded_eval_for_ply(&record.moves, 0),
     ));
 
@@ -623,11 +635,13 @@ pub fn trace_game(
             ply,
             weights,
             cfg.eval_clip,
-            false,
-            cap,
-            royal_change[ply],
-            loud_promotion[ply],
-            loud_promo_to[ply].clone(),
+            PlyTags {
+                quiet: false,
+                capture_into: cap,
+                royal_change: royal_change[ply],
+                loud_promotion: loud_promotion[ply],
+                loud_promotion_to: loud_promo_to[ply].clone(),
+            },
             recorded_eval_for_ply(&record.moves, ply),
         ));
     }
@@ -1132,16 +1146,23 @@ mod tests {
             1,
             &weights,
             50_000.0,
-            true,
-            false,
-            false,
-            false,
-            None,
+            PlyTags {
+                quiet: true,
+                ..Default::default()
+            },
             Some(recorded),
         );
         assert_eq!(pt.eval as i32, recorded);
         let pt_board = snapshot_point(
-            &state, 1, &weights, 50_000.0, true, false, false, false, None, None,
+            &state,
+            1,
+            &weights,
+            50_000.0,
+            PlyTags {
+                quiet: true,
+                ..Default::default()
+            },
+            None,
         );
         assert_ne!(pt_board.eval as i32, recorded);
     }

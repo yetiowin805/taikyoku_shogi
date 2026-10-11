@@ -2269,7 +2269,7 @@ mod tests {
             .abs()
                 < 1e-6
         );
-        assert!(TARIFF_RANGE_CAPTURING * SEED_CAPTURER_SCALE * 2.4 >= TARIFF_RANGE_JUMP * 8.0);
+        const { assert!(TARIFF_RANGE_CAPTURING * SEED_CAPTURER_SCALE * 2.4 >= TARIFF_RANGE_JUMP * 8.0) };
     }
 
     #[test]

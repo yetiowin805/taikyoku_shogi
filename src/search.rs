@@ -1695,6 +1695,7 @@ fn generate_quiescence_captures(
     )
 }
 
+#[allow(clippy::too_many_arguments)] // search recursion state; bundling it is a hot-path refactor
 fn generate_quiescence_captures_with_hang(
     state: &GameState,
     weights: &EvalWeights,
@@ -2232,12 +2233,15 @@ pub fn search(state: &GameState, weights: &EvalWeights, config: &SearchConfig) -
     search_with_progress(state, weights, config, &mut |_, _, _, _, _| {})
 }
 
+/// Called after each completed depth with (depth, score, best move, nodes, scored root moves).
+pub type SearchProgress<'a> = &'a mut dyn FnMut(u32, i32, &Move, u64, &[(Move, i32)]);
+
 /// Report each completed iteration before starting deeper work.
 pub fn search_with_progress(
     state: &GameState,
     weights: &EvalWeights,
     config: &SearchConfig,
-    progress: &mut dyn FnMut(u32, i32, &Move, u64, &[(Move, i32)]),
+    progress: SearchProgress<'_>,
 ) -> SearchResult {
     // Search eval skips deterministic noise (hashes every piece when enabled).
     let mut weights_buf;
@@ -3178,6 +3182,7 @@ fn probe_quiet_parent_leaf_stats(
 
 /// Capture-parent leaf with optional R/S1/S2 flags (`last_ab_capture_enemy` set).
 #[cfg(test)]
+#[allow(clippy::too_many_arguments)] // search recursion state; bundling it is a hot-path refactor
 fn probe_capture_parent_leaf_or_quiesce_rs(
     state: &GameState,
     weights: &EvalWeights,
@@ -3304,6 +3309,7 @@ fn reorder_root_moves(moves: &mut [Move], best: &Move, scored: &[(Move, i32)]) {
 }
 
 /// After the main search, build a capped GUI tree without changing the chosen move.
+#[allow(clippy::too_many_arguments)] // search recursion state; bundling it is a hot-path refactor
 fn build_trace_tree(
     state: &GameState,
     weights: &EvalWeights,
@@ -3604,6 +3610,7 @@ fn prefer_tt_move(moves: &mut [Move], tt_move: Option<MoveKey>) {
     }
 }
 
+#[allow(clippy::too_many_arguments)] // search recursion state; bundling it is a hot-path refactor
 fn search_move_list(
     state: &mut GameState,
     weights: &EvalWeights,
@@ -3938,6 +3945,7 @@ fn leaf_or_quiesce(
 /// this after a corridor wipe so the reply cannot be another file rewrite.
 /// `include_captures`: false = promo-only entry after a quiet AB leaf without
 /// hanging large SimpleTakes; true for loud parents or hang-cap quiet leaves.
+#[allow(clippy::too_many_arguments)] // search recursion state; bundling it is a hot-path refactor
 fn quiesce(
     state: &mut GameState,
     weights: &EvalWeights,
@@ -3963,6 +3971,7 @@ fn quiesce(
     )
 }
 
+#[allow(clippy::too_many_arguments)] // search recursion state; bundling it is a hot-path refactor
 fn quiesce_impl(
     state: &mut GameState,
     weights: &EvalWeights,
@@ -4943,6 +4952,7 @@ fn display_root(
 /// Build the live GUI payload for one completed iterative-deepening pass.
 /// Reply-tree expansion is deferred until the search ends; root candidates and
 /// the best-move arrow are available immediately at every completed depth.
+#[allow(clippy::too_many_arguments)] // one field per GUI info column
 pub fn search_info_from_iteration(
     agent: &str,
     side: &str,
@@ -5816,10 +5826,9 @@ mod tests {
     #[test]
     #[ignore = "manual release performance experiment; run serially"]
     fn opening_depth3_q2_completes_quickly_release() {
-        assert!(
-            !cfg!(debug_assertions),
-            "run performance experiments with --release"
-        );
+        if cfg!(debug_assertions) {
+            panic!("run performance experiments with --release");
+        }
         // Selective search (null/LMR/killers) should make d3 interactive in release.
         let weights = EvalWeights::seed();
         let mut state = GameState::new();
@@ -5976,10 +5985,9 @@ mod tests {
     #[test]
     #[ignore = "manual release performance experiment; run serially"]
     fn midgame_d4_q_ablation_release() {
-        assert!(
-            !cfg!(debug_assertions),
-            "run performance experiments with --release"
-        );
+        if cfg!(debug_assertions) {
+            panic!("run performance experiments with --release");
+        }
         // Separates root-width cost (q0) from quiescence cost (q2/q4).
         let weights = EvalWeights::seed();
         let state = midgame_ish_after_pawn_pushes();
@@ -6025,10 +6033,9 @@ mod tests {
     #[test]
     #[ignore = "manual release performance experiment; run serially"]
     fn opening_depth4_makes_root_progress_in_budget_release() {
-        assert!(
-            !cfg!(debug_assertions),
-            "run performance experiments with --release"
-        );
+        if cfg!(debug_assertions) {
+            panic!("run performance experiments with --release");
+        }
         // With a few seconds, ID should finish d3 and start several d4 root moves.
         let weights = EvalWeights::seed();
         let mut state = GameState::new();

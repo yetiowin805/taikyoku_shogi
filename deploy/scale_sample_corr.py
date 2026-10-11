@@ -31,7 +31,7 @@ def pearson(xs: Sequence[float], ys: Sequence[float]) -> float | None:
     num = 0.0
     dx2 = 0.0
     dy2 = 0.0
-    for x, y in zip(xs, ys):
+    for x, y in zip(xs, ys, strict=True):
         dx = x - mx
         dy = y - my
         num += dx * dy
@@ -159,7 +159,7 @@ def analyze(
         r_s = spearman(xs, y)
         # mean target by multiplier level
         by_lvl: dict[float, list[float]] = defaultdict(list)
-        for x, yi in zip(xs, y):
+        for x, yi in zip(xs, y, strict=True):
             by_lvl[round(x, 3)].append(yi)
         levels = sorted(by_lvl)
         level_means = {lv: mean(by_lvl[lv]) for lv in levels}
@@ -198,17 +198,17 @@ def analyze(
         print("- Controls (seed, all_m10, all_p10) excluded; pass --include-controls to add them.")
 
     # Top / bottom agents quick dump
-    ranked = sorted(zip(ids, y), key=lambda t: t[1], reverse=True)
+    ranked = sorted(zip(ids, y, strict=True), key=lambda t: t[1], reverse=True)
     print()
     print(f"Top 3 by {y_label}:")
     for sid, yi in ranked[:3]:
         s = by_id[sid]
-        changed = [(n, m) for n, m in zip(names, s["multipliers"]) if abs(float(m) - 1.0) > 1e-6]
+        changed = [(n, m) for n, m in zip(names, s["multipliers"], strict=True) if abs(float(m) - 1.0) > 1e-6]
         print(f"  {sid:6s}  {y_label}={yi:.1f}  changed={changed}")
     print(f"Bottom 3 by {y_label}:")
     for sid, yi in ranked[-3:]:
         s = by_id[sid]
-        changed = [(n, m) for n, m in zip(names, s["multipliers"]) if abs(float(m) - 1.0) > 1e-6]
+        changed = [(n, m) for n, m in zip(names, s["multipliers"], strict=True) if abs(float(m) - 1.0) > 1e-6]
         print(f"  {sid:6s}  {y_label}={yi:.1f}  changed={changed}")
 
     return 0

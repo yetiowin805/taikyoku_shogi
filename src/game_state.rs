@@ -331,8 +331,6 @@ impl Move {
 /// Undo token for [`GameState::make_move_for_search`] / [`GameState::unmake_move_for_search`].
 #[derive(Debug, Clone)]
 pub struct SearchUndo {
-    #[allow(dead_code)]
-    from: Position,
     final_to: Position,
     original_mover: Piece,
     removed: Vec<(Position, Piece)>,
@@ -387,6 +385,12 @@ enum ApplyOutcome {
         intermediate: Option<Position>,
         final_to: Position,
     },
+}
+
+impl Default for GameState {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl GameState {
@@ -1659,7 +1663,6 @@ impl GameState {
         let prev_rep_len = self.rep_history.len();
         let prev_eval_inc = self.eval_inc.clone();
         let original_mover = self.board.get_piece(mv.from)?;
-        let from = mv.from;
         let mut removed = Vec::new();
         let final_to = match self.apply_move(mv, false, false, Some(&mut removed)) {
             ApplyOutcome::Failed => return None,
@@ -1705,7 +1708,6 @@ impl GameState {
             None
         };
         Some(SearchUndo {
-            from,
             final_to,
             original_mover,
             removed,
