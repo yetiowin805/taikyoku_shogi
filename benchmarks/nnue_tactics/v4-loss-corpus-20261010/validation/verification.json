@@ -1,0 +1,24 @@
+{
+  "created": "2026-10-10T23:54:04.927468+00:00",
+  "cases": 32,
+  "classification": {
+    "Pattern verified; error unresolved": 20,
+    "Useful control; no error established": 6,
+    "Defense supported; not fully adjudicated": 4,
+    "Previously isolated search failure": 1,
+    "Unresolved; exclude from tactical pass/fail": 1
+  },
+  "search_runs": 108,
+  "searches_completed_requested_depth": 90,
+  "positions_replayed": 34,
+  "lines_replayed": 238,
+  "replay_errors": 0,
+  "holdout_used": false,
+  "source_snapshot": "2026-10-10T16:20:39.956669-07:00",
+  "line_helper_sha256": "d40ac95b5c5f535705915a93612a03f0d129c791f90899b029412d680ff68b9f",
+  "historical_search_binary_sha256": "712ee783acfaf8ef831bffb8784075f65abf4f960284990e5d19452efb9972f1",
+  "browser_review": "Rendered report inspected in Codex browser; all 32 case entries present",
+  "diagnostic_binaries_saved_in": "validation/bin",
+  "line_helper_commit": "aa5a22f",
+  "tooling_pr": "https://github.com/yetiowin805/taikyoku_shogi/pull/155"
+}
