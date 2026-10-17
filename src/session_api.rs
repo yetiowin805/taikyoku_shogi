@@ -61,6 +61,9 @@ pub struct RecordedEvals {
 pub struct EvalPointDto {
     pub ply: usize,
     pub eval: f32,
+    /// Agent that produced a recorded score; absent for a single-model eval trace.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub side: Option<String>,
     /// Present for eval-trace samples (`true` = quiet / non-loud ply).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub quiet: Option<bool>,
@@ -91,6 +94,7 @@ impl EvalSeriesDto {
                     EvalPointDto {
                         ply: i + 1,
                         eval: v,
+                        side: Some(color_name(mv.color)),
                         quiet: None,
                     }
                 })
@@ -126,6 +130,7 @@ impl EvalSeriesDto {
                 .map(|p| EvalPointDto {
                     ply: p.ply,
                     eval: p.eval_clipped,
+                    side: None,
                     quiet: Some(p.quiet),
                 })
                 .collect(),
@@ -544,7 +549,7 @@ mod tests {
         let moves = vec![
             MoveRecord {
                 move_number: 1,
-                color: Color::Black,
+                color: Color::White,
                 from_file: 0,
                 from_rank: 0,
                 to_file: 0,
@@ -559,7 +564,7 @@ mod tests {
             },
             MoveRecord {
                 move_number: 2,
-                color: Color::White,
+                color: Color::Black,
                 from_file: 0,
                 from_rank: 1,
                 to_file: 0,
@@ -578,8 +583,10 @@ mod tests {
         assert_eq!(s.points.len(), 2);
         assert_eq!(s.points[0].ply, 1);
         assert_eq!(s.points[0].eval, 100.0);
+        assert_eq!(s.points[0].side.as_deref(), Some("White"));
         assert_eq!(s.points[1].ply, 2);
         assert_eq!(s.points[1].eval, 20.0);
+        assert_eq!(s.points[1].side.as_deref(), Some("Black"));
     }
 
     #[test]
