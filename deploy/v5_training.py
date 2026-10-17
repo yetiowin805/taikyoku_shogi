@@ -183,9 +183,16 @@ def main():
                 "--epoch-samples",
                 "65536",
                 "--patience",
-                "2",
+                "3",
                 "--lr-reductions",
-                "1",
+                "2",
+                "--embedding-lr",
+                "0.0001",
+                "--dense-lr",
+                "0.00015",
+                "--restore-best-on-reduce",
+                "--early-validation-samples",
+                "32768",
                 "--batch",
                 "8",
                 "--microbatch",
@@ -199,6 +206,8 @@ def main():
                 "--stratum-proportions",
                 proportions,
             ]
+            if c.get("checkpoint_root"):
+                command.extend(["--checkpoint-dir", str(Path(c["checkpoint_root"]) / model.name)])
             if (model / "recipe.json").exists():
                 command.append("--resume")
             job(command, "train-" + suffix)
