@@ -311,7 +311,7 @@ mod tests {
                 let mut slot = template.clone();
                 slot.id = state.slots.len();
                 // Exercise both model orientations, independently of color.
-                if slot.id % 2 == 0 {
+                if slot.id & 1 == 0 {
                     slot.model_a = ranked[opponent].0.clone();
                     slot.model_b = ranked[0].0.clone();
                     slot.score_a = Some(score);
