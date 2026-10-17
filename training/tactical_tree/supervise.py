@@ -128,9 +128,16 @@ def run(path):
         raise ValueError("insufficient storage headroom; experiment did not start")
     own = (out / "supervisor.lock").open("a+")
     fcntl.flock(own, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    jobs = [(c["id"], s) for c in config["cases"] for s in ("local", "pv", "contested", "refutation")]
-    random.Random(config["seed"]).shuffle(jobs)
-    jobs += [(c["id"], "audit") for c in config["cases"]]
+    # Finish comparisons early even if only one game CPU becomes available.
+    rng = random.Random(config["seed"])
+    cases = [c["id"] for c in config["cases"]]
+    rng.shuffle(cases)
+    jobs = []
+    for case in cases:
+        variants = ["local", "pv", "contested", "refutation"]
+        rng.shuffle(variants)
+        jobs.extend((case, strategy) for strategy in variants)
+        jobs.append((case, "audit"))
     leases = {}
     running = {}
     finished = []
@@ -181,7 +188,7 @@ def run(path):
                     if not jobs:
                         continue
                     # Audits see all four strategies, including the last simultaneously running job.
-                    if jobs[0][1] == "audit" and any(j[1] != "audit" for _, j, _ in running.values()):
+                    if jobs[0][1] == "audit" and any(j[0] == jobs[0][0] for _, j, _ in running.values()):
                         continue
                     job = jobs.pop(0)
                     script = "audit.py" if job[1] == "audit" else "run.py"
