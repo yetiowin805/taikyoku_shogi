@@ -108,6 +108,9 @@ def main():
         claimed = True
         dataset = out / "dataset"
         train = code / "training/nnue"
+        reuse_shards = c["reuse_shards"]
+        if isinstance(reuse_shards, str):
+            reuse_shards = [reuse_shards]
         job([c["python"], str(train / "v5_snapshot.py"), str(args.config.resolve())], "snapshot")
         job(
             [
@@ -128,13 +131,18 @@ def main():
                 ".08",
                 "--mate-weight",
                 ".02",
-                "--reuse-shards",
-                c["reuse_shards"],
+                "--precursor-plies",
+                str(c.get("precursor_plies", 23)),
+                *[argument for directory in reuse_shards for argument in ("--reuse-shards", directory)],
                 "--extra-shards",
                 c["extra_shards"],
             ],
             "corpus",
         )
+        counts = a.read(out / "corpus/report.json")["counts"]
+        for key, expected in c.get("expected_counts", {}).items():
+            if counts.get(key, 0) != expected:
+                raise ValueError(f"Corpus count changed unexpectedly: {key}")
         job(
             [
                 c["python"],

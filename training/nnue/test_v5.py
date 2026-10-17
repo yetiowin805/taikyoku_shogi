@@ -88,6 +88,11 @@ class V5Tests(unittest.TestCase):
         selected, _ = classify_positions(game, "g", {}, Counter())
         self.assertEqual(selected[0]["stratum"], "representative")
         self.assertEqual(selected[139]["stratum"], "precursor")
+        self.assertEqual(selected[117]["stratum"], "precursor")  # 23 plies before recognition
+        self.assertEqual(selected[116]["stratum"], "representative")  # 24 plies
+        self.assertEqual(selected[76]["stratum"], "representative")  # 64 plies
+        self.assertNotIn("plies_before_mate", selected[116])
+        self.assertEqual(len(selected), len(game["moves"]))
         self.assertLess(selected[139]["target_probability"], 0.5)
         self.assertEqual(selected[140]["stratum"], "mate")
         self.assertEqual(selected[140]["mate_status"], "search_claim")

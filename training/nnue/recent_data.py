@@ -17,7 +17,7 @@ import numpy as np
 from pilot_data import MOVE_KEYS, digest, hashed, position_key
 from v4_data import SCALE, probability
 
-POLICY = "recent-dense-v1"
+POLICY = "recent-dense-v2"
 SPLITS = ("test", "validation", "train")
 PROPORTIONS = {"representative": 0.75, "precursor": 0.20, "mate": 0.05}
 
@@ -163,7 +163,7 @@ def label_position(move, searches):
     )
 
 
-def classify_positions(game, game_hash, labels, diagnostics):
+def classify_positions(game, game_hash, labels, diagnostics, precursor_plies=23):
     moves = game["moves"]
     selected = {}
     for i, m in enumerate(moves):
@@ -191,7 +191,7 @@ def classify_positions(game, game_hash, labels, diagnostics):
         if i in mate_episode:
             s.update(stratum="mate", selection="mate", episode="mate-" + str(mate_episode[i]))
         else:
-            following = next((ep[0] for ep in episodes if 0 < ep[0] - i <= 128), None)
+            following = next((ep[0] for ep in episodes if 0 < ep[0] - i <= precursor_plies), None)
             if following is not None:
                 s.update(
                     stratum="precursor",
@@ -215,9 +215,9 @@ def analysis_candidates(game, game_hash, selected, episodes):
         if pool:
             reasons[min(pool, key=lambda i: hashed([game_hash, "random", i]))].add("representative")
     for ep in episodes[:4]:
-        for distance in (0, 2, 4, 8, 16, 32, 64, 128):
+        for distance in (0, 2, 4, 8, 16, 23):
             for i in (ep[0] - distance, ep[0] - distance - 1):
-                if i in selected:
+                if i in selected and 0 <= ep[0] - i <= 23:
                     reasons[i].add("mate_window")
     suspect = []
     winner = {"BlackWins": "Black", "WhiteWins": "White"}.get(game.get("result"))
@@ -305,6 +305,7 @@ def build(a):
         policy=POLICY,
         inputs=inputs,
         proportions=a.proportions,
+        precursor_plies=a.precursor_plies,
         scale=SCALE,
         builder_sha256=digest(__file__),
         game_paths_root=str(snapshot),
@@ -344,12 +345,13 @@ def build(a):
                 diagnostics["conflicting_parent_split_game"] += 1
                 continue
             game = json.loads(Path(r["path"]).read_text())
-            selected, episodes = classify_positions(game, h, labels, diagnostics)
+            selected, episodes = classify_positions(game, h, labels, diagnostics, a.precursor_plies)
             if not selected:
                 continue
             shard = out / "shards" / h
-            if a.reuse_shards and (a.reuse_shards / h / "dataset.json").exists():
-                shard = a.reuse_shards / h
+            reusable = next((root / h for root in a.reuse_shards if (root / h / "dataset.json").exists()), None)
+            if reusable is not None:
+                shard = reusable
             elif a.extra_shards and (a.extra_shards / h / "dataset.json").exists():
                 shard = a.extra_shards / h
             elif a.extra_shards and shutil.disk_usage(out).free < 8 * 1024**3:
@@ -544,7 +546,8 @@ def main():
     b = sub.add_parser("build")
     for name in ("snapshot", "out", "parent-samples", "base", "binary"):
         b.add_argument("--" + name, type=Path, required=True)
-    b.add_argument("--reuse-shards", type=Path)
+    b.add_argument("--reuse-shards", type=Path, action="append", default=[])
+    b.add_argument("--precursor-plies", type=int, default=23)
     b.add_argument("--extra-shards", type=Path)
     b.add_argument("--precursor-weight", type=float, default=0.20)
     b.add_argument("--mate-weight", type=float, default=0.05)
@@ -556,6 +559,8 @@ def main():
     else:
         if not 0 < a.precursor_weight < 1 or not 0 < a.mate_weight < 1 or a.precursor_weight + a.mate_weight >= 1:
             p.error("Weights must be positive and sum to less than one")
+        if a.precursor_plies < 1:
+            p.error("Precursor window must be positive")
         a.proportions = dict(
             representative=1 - a.precursor_weight - a.mate_weight, precursor=a.precursor_weight, mate=a.mate_weight
         )

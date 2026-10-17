@@ -20,6 +20,7 @@ class RecoveryTest(unittest.TestCase):
                 code=str(root),
                 repo=str(root),
                 cpus=list(range(8)),
+                reuse_shards=[],
                 code_hashes={},
                 input_hashes={},
                 python="python",
