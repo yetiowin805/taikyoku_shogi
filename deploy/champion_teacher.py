@@ -11,6 +11,8 @@ import teacher_refresh
 
 
 def check(a, run, config):
+    if config.get("teacher_policy") == "conditional-512v4-v1":
+        return config
     policy = config.get("auto_champion")
     if not policy:
         return config

@@ -15,6 +15,7 @@ import time
 from pathlib import Path
 
 import champion_teacher
+import conditional_teachers
 import teacher_refresh
 import tourney_analysis as a
 import winner_teacher
@@ -89,6 +90,8 @@ def teacher_config(config, second):
 
 
 def paired_searches(config, moment, db):
+    if config.get("teacher_policy") == conditional_teachers.POLICY:
+        return conditional_teachers.searches(a, sys.modules[__name__], config, moment, db)
     first_config = teacher_config(config, False)
     if moment.get("winner_teacher"):
         agent = moment["winner_teacher"]
@@ -242,7 +245,10 @@ def run(config):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=["check", "prepare", "run", "status", "replace-teacher", "enable-champion"])
+    parser.add_argument(
+        "action",
+        choices=["check", "prepare", "run", "status", "replace-teacher", "enable-champion", "enable-conditional"],
+    )
     parser.add_argument("--run-dir", type=Path, required=True)
     parser.add_argument("--model", type=Path)
     parser.add_argument("--ratings-bin", type=Path)
@@ -263,6 +269,12 @@ def main():
                 fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
                 result = teacher_refresh.replace(a, run_dir, args.model)
         print(json.dumps(result, indent=2))
+    elif args.action == "enable-conditional":
+        if not args.model:
+            parser.error("enable-conditional requires --model NNUE_W512_v4 checkpoint")
+        with (run_dir / "analysis/dual-label.lock").open("a+") as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            print(json.dumps(conditional_teachers.enable(a, teacher_refresh, run_dir, args.model.resolve()), indent=2))
     elif args.action == "enable-champion":
         if not args.ratings_bin or not os.access(args.ratings_bin, os.X_OK):
             parser.error("enable-champion requires executable --ratings-bin")
