@@ -3,7 +3,8 @@
 import hashlib
 import json
 
-POLICY = "training-labels-v1"
+POLICY = "training-labels-v1"  # Search cache identity remains unchanged.
+MATE_POLICY = "mate-recognition-v1"
 
 
 def hashed(value):
@@ -73,11 +74,96 @@ def candidates(game):
         selected.append(i)
         if len(selected) == 5:
             break
-    # This is explicitly an ending proxy, not a claim to detect royal threats.
-    if game["result"] in ("BlackWins", "WhiteWins"):
-        for distance in (8, 24, 48):
-            target = len(moves) - distance
-            pool = [i for i in valid if i not in picked and abs(i - target) <= 4]
-            if pool:
-                add(min(pool, key=lambda i: abs(i - target)), "decisive_ending", len(pool), 1)
+    # Keep ordinary selections, adding context without duplicate position rows.
+    for i, contexts in mate_windows(game).items():
+        add(i, "mate_recognition" if any(c["offset_plies"] == 0 for c in contexts) else "pre_mate_recognition", 10, 10)
+        picked[i]["mate_recognitions"] = contexts
     return list(picked.values())
+
+
+def mate_windows(game):
+    """First recorded mate claim per player, never a declaration of proven mate."""
+    moves = game["moves"]
+    eligible = {i for i, m in enumerate(moves) if type(m.get("eval")) is int and m.get("color") in ("Black", "White")}
+    picked = {}
+    for side in ("Black", "White"):
+        own = [i for i in sorted(eligible) if moves[i]["color"] == side]
+        first = next((i for i in own if abs(moves[i]["eval"]) >= 900000), None)
+        if first is None:
+            continue
+        score = moves[first]["eval"]
+        sign = 1 if score > 0 else -1
+        later = [i for i in own if i > first]
+        retract = next((i for i in later if sign * moves[i]["eval"] < 900000), None)
+        # Missing evaluations make persistence unknown, not affirmative evidence.
+        missing = any(m.get("color") == side and type(m.get("eval")) is not int for m in moves[first + 1 :])
+        persistence = "retracted" if retract is not None else "unknown" if missing or not later else "persisted"
+        for offset in (-16, -8, -4, -2, 0):
+            i = first + offset
+            if i not in eligible:
+                continue
+            picked.setdefault(i, []).append(
+                dict(
+                    policy=MATE_POLICY,
+                    agent_side=side,
+                    recognition_ply=first + 1,
+                    offset_plies=offset,
+                    claim_score=score,
+                    claim="winning" if (score > 0) == (side == "Black") else "losing",
+                    persistence=persistence,
+                    retraction_ply=None if retract is None else retract + 1,
+                )
+            )
+    return picked
+
+
+def scan_mates(a, db, run, state):
+    """Incremental backfill for all modern games, including the winner sampler."""
+    db.execute("CREATE TABLE IF NOT EXISTS mate_scanned(policy TEXT,path TEXT,PRIMARY KEY(policy,path))")
+    db.execute("CREATE INDEX IF NOT EXISTS moments_game_hash ON moments(json_extract(payload, '$.game_hash'))")
+    for slot in state["slots"]:
+        if slot["status"] != "done" or not slot.get("game_path"):
+            continue
+        path = a.absolute(slot["game_path"])
+        if db.execute("SELECT 1 FROM mate_scanned WHERE policy=? AND path=?", (MATE_POLICY, str(path))).fetchone():
+            continue
+        try:
+            data = path.read_bytes()
+            game = json.loads(data)
+            if game.get("abort_reason") or game.get("result") is None:
+                continue
+            game_hash = a.digest(data)
+            samples = [m for m in candidates(game) if m.get("mate_recognitions")]
+            existing = (
+                {
+                    json.loads(r["payload"])["center_ply"]: r
+                    for r in db.execute(
+                        "SELECT * FROM moments WHERE json_extract(payload,'$.game_hash')=?", (game_hash,)
+                    )
+                }
+                if samples
+                else {}
+            )
+            for sample in samples:
+                old = existing.get(sample["center_ply"])
+                if old:
+                    moment = json.loads(old["payload"])
+                    moment["mate_recognitions"] = sample["mate_recognitions"]
+                    db.execute("UPDATE moments SET payload=? WHERE id=?", (json.dumps(moment), old["id"]))
+                    # Preserve completed labels and state, including dual_paired.
+                    if old["status"] == "completed":
+                        a.atomic(run / "analysis/moments" / (old["id"] + ".json"), moment)
+                else:
+                    key = a.digest(f"{POLICY}:{game_hash}:{sample['center_ply']}".encode())
+                    sample.update(
+                        id=key, game=str(path), game_hash=game_hash, game_id=game["game_id"], slot_id=slot["id"]
+                    )
+                    db.execute(
+                        "INSERT INTO moments VALUES(?,?,'pending',?,NULL)",
+                        (key, sample["magnitude"], json.dumps(sample)),
+                    )
+            db.execute("INSERT INTO mate_scanned VALUES(?,?)", (MATE_POLICY, str(path)))
+            db.commit()
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            db.rollback()
+            print(f"mate scan: retry {path}: {exc}", flush=True)
