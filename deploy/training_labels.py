@@ -2,9 +2,12 @@
 
 import hashlib
 import json
+import math
 
 POLICY = "training-labels-v1"  # Search cache identity remains unchanged.
 MATE_POLICY = "mate-recognition-v1"
+ORDINARY_POLICY = "disagreement-mass-v1"
+PROBABILITY_SCALE = 2822.9057434005167
 
 
 def hashed(value):
@@ -52,12 +55,6 @@ def candidates(game):
                 score_perspective="black-absolute",
             )
 
-    # Twelve equal-progress strata; pick by hash rather than always the middle.
-    for bucket in range(12):
-        pool = valid[len(valid) * bucket // 12 : len(valid) * (bucket + 1) // 12]
-        if pool:
-            i = min(pool, key=lambda i: hashed([group, "representative", i]))
-            add(i, "representative", len(pool), 1)
     swings = []
     for i in valid:
         if i >= 2 and moves[i - 2].get("color") == moves[i]["color"]:
@@ -78,7 +75,77 @@ def candidates(game):
     for i, contexts in mate_windows(game).items():
         add(i, "mate_recognition" if any(c["offset_plies"] == 0 for c in contexts) else "pre_mate_recognition", 10, 10)
         picked[i]["mate_recognitions"] = contexts
+    for i, metadata in ordinary_positions(game, valid, picked, group).items():
+        add(i, "representative", metadata.pop("pool_size"), 12)
+        picked[i].update(metadata)
     return list(picked.values())
+
+
+def disagreement(game, i):
+    """Adjacent-score proxy, black-absolute, on the training probability scale."""
+    moves = game["moves"]
+    if not 0 < i < len(moves) - 1:
+        return None
+    before, current, after = moves[i - 1 : i + 2]
+    if (
+        current.get("color") not in ("Black", "White")
+        or before.get("color") != {"Black": "White", "White": "Black"}[current["color"]]
+        or after.get("color") != before.get("color")
+    ):
+        return None
+    if any(type(m.get("eval")) is not int or abs(m["eval"]) >= 900000 for m in (before, current, after)):
+        return None
+
+    def p(score):
+        return 1 / (1 + math.exp(-max(-700, min(700, score / PROBABILITY_SCALE))))
+
+    return abs(p(current["eval"]) - p((before["eval"] + after["eval"]) / 2))
+
+
+def ordinary_positions(game, valid, fixed, group):
+    """Twelve equal-mass midpoints, repaired to retain hard 10-ply spacing."""
+    excluded = mate_exclusions(game)
+    anchors = list(fixed)
+    pool = sorted(i for i in valid if i not in excluded and all(abs(i - j) >= 10 for j in anchors))
+    scores = {i: disagreement(game, i) for i in pool}
+    weights = {i: 1 if scores[i] is None else 1 + 3 * min(scores[i] / 0.60, 1) for i in pool}
+    ties = {i: hashed([group, ORDINARY_POLICY, i]) for i in pool}
+    centers = {}
+    total = 0.0
+    for i in pool:
+        centers[i] = total + weights[i] / 2
+        total += weights[i]
+    selected = {}
+    for bucket in range(12):
+        eligible = [i for i in pool if all(abs(i - j) >= 10 for j in selected)]
+        if not eligible:
+            break
+        target = total * (bucket + 0.5) / 12
+        # Nearest remaining weighted midpoint repairs spacing conflicts without
+        # rebuilding the distribution and biasing later targets toward early picks.
+        i = min(eligible, key=lambda i: (abs(centers[i] - target), ties[i]))
+        selected[i] = dict(
+            ordinary_policy=ORDINARY_POLICY,
+            ordinary_role="weighted_mass",
+            ordinary_bucket=bucket,
+            disagreement=scores[i],
+            sampling_weight=weights[i],
+            target_mass_fraction=(bucket + 0.5) / 12,
+            selected_mass_fraction=centers[i] / total,
+            pool_size=len(pool),
+        )
+    return selected
+
+
+def mate_exclusions(game):
+    # Reserve 16 plies before every recorded mate claim and 8 after it.
+    # Include later claims too: ordinary sampling must not flood a long mate episode.
+    n = len(game["moves"])
+    excluded = set()
+    for i, move in enumerate(game["moves"]):
+        if type(move.get("eval")) is int and abs(move["eval"]) >= 900000:
+            excluded.update(range(max(0, i - 16), min(n, i + 9)))
+    return excluded
 
 
 def mate_windows(game):

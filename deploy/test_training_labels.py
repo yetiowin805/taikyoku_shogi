@@ -89,6 +89,52 @@ class SamplingTests(unittest.TestCase):
         g["moves"][2]["eval"] = 999998
         self.assertEqual(labels.mate_windows(g)[0][0]["persistence"], "retracted")
 
+    def test_equal_mass_spreads_constant_disagreement(self):
+        from unittest.mock import patch
+
+        g = self.game()
+        with patch.object(labels, "disagreement", return_value=0.3):
+            selected = labels.ordinary_positions(g, list(range(200)), {50, 120}, "test")
+        self.assertEqual(len(selected), 12)
+        anchors = {50, 120}
+        for i, metadata in selected.items():
+            self.assertTrue(all(abs(i - j) >= 10 for j in anchors))
+            anchors.add(i)
+            self.assertEqual(metadata["sampling_weight"], 2.5)
+            self.assertLess(abs(metadata["selected_mass_fraction"] - metadata["target_mass_fraction"]), 0.025)
+
+    def test_broad_phase_is_not_crowded_out_by_slightly_higher_peak(self):
+        from unittest.mock import patch
+
+        g = self.game()
+        g["moves"] = [dict(color="Black" if i % 2 == 0 else "White", eval=0) for i in range(300)]
+        with patch.object(labels, "disagreement", side_effect=lambda _, i: 0.45 if 125 <= i < 175 else 0.4):
+            selected = labels.ordinary_positions(g, list(range(300)), [], "test")
+        self.assertEqual(len(selected), 12)
+        self.assertEqual(sum(125 <= i < 175 for i in selected), 2)
+        self.assertTrue(all(b - a >= 10 for a, b in zip(sorted(selected), sorted(selected)[1:], strict=False)))
+
+    def test_adjacent_score_average_and_probability_scale(self):
+        g = self.game()
+        g["moves"][:3] = [dict(color="Black", eval=0), dict(color="White", eval=1000), dict(color="Black", eval=2000)]
+        self.assertEqual(labels.disagreement(g, 1), 0)
+        g["moves"][0]["eval"] = True
+        self.assertIsNone(labels.disagreement(g, 1))
+
+    def test_mate_exclusion_and_unknown_disagreement(self):
+        g = self.game()
+        g["moves"][80]["eval"] = 999999
+        valid = list(range(200))
+        excluded = labels.mate_exclusions(g)
+        selected = labels.ordinary_positions(g, valid, {20}, "test")
+        self.assertFalse(set(selected) & excluded)
+        self.assertEqual(selected, labels.ordinary_positions(g, valid, {20}, "test"))
+        self.assertIsNone(labels.disagreement(g, 80))
+        g["moves"] = [dict(color="Black", eval=0)]
+        selected = labels.ordinary_positions(g, [0], [], "test")
+        self.assertEqual(selected[0]["ordinary_role"], "weighted_mass")
+        self.assertIsNone(selected[0]["disagreement"])
+
 
 class LabelSearchTests(AnalyzerFixture):
     def test_mate_backfill_reuses_completed_position_and_is_idempotent(self):
