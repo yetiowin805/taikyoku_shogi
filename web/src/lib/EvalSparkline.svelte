@@ -1,4 +1,5 @@
 <script>
+  import { evalLines, nearestEval } from './evalSeries.js';
   /**
    * Interactive black-absolute eval chart. Click / drag to scrub to a ply.
    */
@@ -9,13 +10,14 @@
   } = $props();
 
   const W = 720;
-  const H = 128;
-  const PAD = { l: 40, r: 10, t: 12, b: 20 };
+  const H = 144;
+  const PAD = { l: 62, r: 10, t: 12, b: 20 };
 
   let hoverPly = $state(null);
   let dragging = $state(false);
 
   let points = $derived(series?.points || []);
+  let lines = $derived(evalLines(series));
   let focus = $derived(series?.focus_plies || []);
 
   let bounds = $derived.by(() => {
@@ -39,13 +41,6 @@
     return { minE: minE - pad, maxE: maxE + pad, maxP: Math.max(maxP, 1) };
   });
 
-  let zeroOffsetPct = $derived.by(() => {
-    if (!bounds) return 50;
-    const { minE, maxE } = bounds;
-    const span = maxE - minE || 1;
-    return ((maxE - 0) / span) * 100;
-  });
-
   function xOf(ply) {
     const { maxP } = bounds;
     const iw = W - PAD.l - PAD.r;
@@ -58,24 +53,11 @@
     return PAD.t + ((maxE - ev) / (maxE - minE)) * ih;
   }
 
-  function pathD() {
-    if (!bounds || points.length < 1) return '';
-    return points
+  function pathD(linePoints) {
+    if (!bounds || linePoints.length < 1) return '';
+    return linePoints
       .map((p, i) => `${i === 0 ? 'M' : 'L'}${xOf(p.ply).toFixed(1)},${yOf(p.eval).toFixed(1)}`)
       .join(' ');
-  }
-
-  function areaD() {
-    if (!bounds || points.length < 1) return '';
-    const y0 = yOf(0);
-    const first = points[0];
-    const last = points[points.length - 1];
-    let d = `M${xOf(first.ply).toFixed(1)},${y0.toFixed(1)}`;
-    for (const p of points) {
-      d += `L${xOf(p.ply).toFixed(1)},${yOf(p.eval).toFixed(1)}`;
-    }
-    d += `L${xOf(last.ply).toFixed(1)},${y0.toFixed(1)}Z`;
-    return d;
   }
 
   function plyAtClientX(clientX, el) {
@@ -85,20 +67,6 @@
     const iw = W - PAD.l - PAD.r;
     const t = Math.min(1, Math.max(0, (x - PAD.l) / iw));
     return Math.round(t * bounds.maxP);
-  }
-
-  function nearestEval(ply) {
-    if (!points.length) return null;
-    let best = points[0];
-    let bestD = Math.abs(best.ply - ply);
-    for (const p of points) {
-      const d = Math.abs(p.ply - ply);
-      if (d < bestD) {
-        best = p;
-        bestD = d;
-      }
-    }
-    return best;
   }
 
   function formatAbs(v) {
@@ -117,71 +85,69 @@
   }
 
   let markerPly = $derived(dragging && hoverPly != null ? hoverPly : cursor);
-  let cursorEval = $derived(nearestEval(markerPly));
-  let hoverEval = $derived(hoverPly != null ? nearestEval(hoverPly) : null);
-  let labelEval = $derived(hoverEval || cursorEval);
-  let gradId = $derived(`evalGrad-${series?.game_id || 'x'}`);
+  let selectedPly = $derived(hoverPly ?? markerPly);
+  let readings = $derived(lines.map(line => ({
+    ...line,
+    selected: nearestEval(line.points, selectedPly),
+    marker: nearestEval(line.points, markerPly),
+  })));
 </script>
 
 {#if series && points.length && bounds}
   <div class="eval-spark">
     <div class="eval-meta">
-      <span>
-        Eval ({series.source}) · ply {labelEval?.ply ?? cursor}
-        {#if labelEval != null}
-          ·
-          <strong class:pos={labelEval.eval >= 0} class:neg={labelEval.eval < 0}
-            >{formatAbs(labelEval.eval)}</strong
-          >
-        {/if}
-      </span>
-      <span class="hint">click / drag to scrub · B+ / W+</span>
+      <span>Eval ({series.source}) · ply {selectedPly}</span>
+      <span class="hint">click / drag to scrub · B+ / W+ = side ahead</span>
+    </div>
+    <div class="eval-legend">
+      {#each readings as line (line.label)}
+        <span class="legend-item" style:color={line.color}>
+          <span class="swatch" class:dashed={line.dashed}></span>
+          <strong>{line.label}</strong>
+          <span>{formatAbs(line.selected.eval)} <span class="sample-ply">@ ply {line.selected.ply}</span></span>
+        </span>
+      {/each}
     </div>
     <svg
       viewBox="0 0 {W} {H}"
       role="img"
-      aria-label="Evaluation over the game"
+      aria-label="Evaluation over the game, with separate lines for each evaluating agent. Positive scores favor Black; negative scores favor White."
       onpointerdown={(e) => {
         dragging = true;
         e.currentTarget.setPointerCapture(e.pointerId);
         onPointer(e, false);
       }}
       onpointermove={(e) => {
-        if (dragging) onPointer(e, false);
+        onPointer(e, false);
       }}
       onpointerup={(e) => {
         if (dragging) onPointer(e, true);
         dragging = false;
       }}
+      onpointercancel={() => {
+        dragging = false;
+        hoverPly = null;
+      }}
       onpointerleave={() => {
         if (!dragging) hoverPly = null;
       }}
     >
-      <defs>
-        <linearGradient
-          id={gradId}
-          x1="0"
-          y1={yOf(bounds.maxE)}
-          x2="0"
-          y2={yOf(bounds.minE)}
-          gradientUnits="userSpaceOnUse"
-        >
-          <stop offset="0%" stop-color="#1a6b3c" stop-opacity="0.38" />
-          <stop offset="{zeroOffsetPct}%" stop-color="#1a6b3c" stop-opacity="0.04" />
-          <stop offset="{zeroOffsetPct}%" stop-color="#9b2c2c" stop-opacity="0.04" />
-          <stop offset="100%" stop-color="#9b2c2c" stop-opacity="0.38" />
-        </linearGradient>
-      </defs>
-      <path class="area" d={areaD()} fill={`url(#${gradId})`} />
       <line class="zero" x1={PAD.l} x2={W - PAD.r} y1={yOf(0)} y2={yOf(0)} />
       {#each focus as fp}
         <line class="focus" x1={xOf(fp)} x2={xOf(fp)} y1={PAD.t} y2={H - PAD.b} />
       {/each}
-      <path class="line" d={pathD()} />
+      {#each lines as line (line.label)}
+        <path class="line" d={pathD(line.points)} stroke={line.color} stroke-dasharray={line.dashed ? '6 4' : undefined}>
+          <title>{line.label}</title>
+        </path>
+        {#if line.points.length === 1}
+          <circle class="dot" cx={xOf(line.points[0].ply)} cy={yOf(line.points[0].eval)} r="3" fill={line.color} />
+        {/if}
+      {/each}
       <line class="cursor" x1={xOf(markerPly)} x2={xOf(markerPly)} y1={PAD.t} y2={H - PAD.b} />
-      {#if cursorEval}
-        <circle class="dot" cx={xOf(cursorEval.ply)} cy={yOf(cursorEval.eval)} r="3.5" />
-      {/if}
+      {#each readings as line (line.label)}
+        <circle class="dot" cx={xOf(line.marker.ply)} cy={yOf(line.marker.eval)} r="3.5" fill={line.color} />
+      {/each}
       <text class="axis" x={4} y={yOf(bounds.maxE) + 4}>{formatAbs(bounds.maxE)}</text>
       <text class="axis" x={4} y={yOf(bounds.minE)}>{formatAbs(bounds.minE)}</text>
       <text class="axis" x={PAD.l} y={H - 4}>0</text>
@@ -198,6 +164,7 @@
   .eval-meta {
     display: flex;
     justify-content: space-between;
+    flex-wrap: wrap;
     gap: 0.5rem;
     font-size: 0.8rem;
     margin-bottom: 0.2rem;
@@ -205,12 +172,24 @@
   .eval-meta .hint {
     color: #5a5346;
   }
-  .eval-meta .pos {
-    color: #1a5c3a;
+  .eval-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem 1.2rem;
+    margin-bottom: 0.35rem;
+    font-size: 0.8rem;
   }
-  .eval-meta .neg {
-    color: #8b2e2e;
+  .legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
   }
+  .swatch {
+    width: 1.4rem;
+    border-top: 2px solid currentColor;
+  }
+  .swatch.dashed { border-top-style: dashed; }
+  .sample-ply { color: #5a5346; font-size: 0.7rem; }
   svg {
     display: block;
     width: 100%;
@@ -220,13 +199,11 @@
     cursor: crosshair;
     touch-action: none;
   }
-  .area {
-    stroke: none;
-  }
   .line {
     fill: none;
-    stroke: #2f5d50;
-    stroke-width: 1.6;
+    stroke-width: 2;
+    stroke-linejoin: round;
+    stroke-linecap: round;
   }
   .zero {
     stroke: #b0a890;
@@ -243,7 +220,6 @@
     stroke-width: 1.2;
   }
   .dot {
-    fill: #2f5d50;
     stroke: #faf7ef;
     stroke-width: 1;
   }
