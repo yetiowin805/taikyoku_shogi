@@ -139,32 +139,73 @@ fn select(state: &TourneyState, fit: &super::order_neutral::Fit) -> Option<Vec<(
     Some(champion_pair(state, &all))
 }
 
-// Rank r has inverse weight 2^floor(log2(r-1)). Normalization and the
-// total head-to-head count cancel when comparing actual/target ratios.
-fn champion_pair(state: &TourneyState, ranked: &[(String, f64)]) -> Vec<(String, f64)> {
+// Return opponent indices and completed-game counts in empirical difficulty order.
+// Points are doubled so draws and percentage comparisons remain exact.
+fn opponent_order(state: &TourneyState, ranked: &[(String, f64)]) -> Vec<(usize, u128)> {
     let leader = &ranked[0].0;
-    let mut counts = std::collections::BTreeMap::<&str, u128>::new();
+    let mut records = std::collections::BTreeMap::<&str, (u128, u128)>::new();
     for slot in &state.slots {
-        if slot.status != SlotStatus::Done || slot.score_a.is_none() {
+        if slot.status != SlotStatus::Done {
             continue;
         }
-        let opponent = if &slot.model_a == leader {
-            &slot.model_b
+        let Some(score_a) = slot.score_a else {
+            continue;
+        };
+        let (opponent, score) = if &slot.model_a == leader {
+            (&slot.model_b, 1. - score_a)
         } else if &slot.model_b == leader {
-            &slot.model_a
+            (&slot.model_a, score_a)
         } else {
             continue;
         };
-        *counts.entry(opponent.as_str()).or_default() += 1;
+        let record = records.entry(opponent.as_str()).or_default();
+        record.0 += 1;
+        record.1 += (2. * score) as u128;
     }
-    let opponent = (1..ranked.len())
-        .min_by_key(|&i| {
-            let inverse_weight = 1u128 << i.ilog2();
-            // Rank order breaks equal ratios, including all unplayed opponents.
-            (
-                counts.get(ranked[i].0.as_str()).copied().unwrap_or(0) * inverse_weight,
-                i,
-            )
+    let record = |i: usize| {
+        records
+            .get(ranked[i].0.as_str())
+            .copied()
+            .unwrap_or_default()
+    };
+    let group = |(games, points): (u128, u128)| {
+        if games == 0 {
+            3
+        } else if points == 2 * games {
+            0
+        } else if points == 0 {
+            2
+        } else {
+            1
+        }
+    };
+    let mut opponents: Vec<_> = (1..ranked.len()).collect();
+    opponents.sort_by(|&a, &b| {
+        let (na, pa) = record(a);
+        let (nb, pb) = record(b);
+        let ga = group((na, pa));
+        ga.cmp(&group((nb, pb)))
+            .then_with(|| match ga {
+                0 => nb.cmp(&na),
+                1 => (pb * na).cmp(&(pa * nb)),
+                2 => na.cmp(&nb),
+                _ => std::cmp::Ordering::Equal,
+            })
+            .then_with(|| ranked[b].1.total_cmp(&ranked[a].1))
+            .then_with(|| a.cmp(&b))
+    });
+    opponents.into_iter().map(|i| (i, record(i).0)).collect()
+}
+
+// Opponent position p has inverse weight 2^floor(log2(p)). Normalization and
+// total head-to-head count cancel when comparing actual/target ratios.
+fn champion_pair(state: &TourneyState, ranked: &[(String, f64)]) -> Vec<(String, f64)> {
+    let opponents = opponent_order(state, ranked);
+    let (_, &(opponent, _)) = opponents
+        .iter()
+        .enumerate()
+        .min_by_key(|&(position, &(_, games))| {
+            (games * (1u128 << (position + 1).ilog2()), position)
         })
         .expect("at least two ranked agents");
     vec![ranked[0].clone(), ranked[opponent].clone()]
@@ -229,6 +270,81 @@ mod tests {
         s.score_a = Some(score);
         let (a, b) = (s.model_a.clone(), s.model_b.clone());
         rate_finished_slot(state, id, &a, &b, score);
+    }
+
+    #[test]
+    fn empirical_order_groups_counts_percentages_and_rating_ties() {
+        let mut state = fixture();
+        let template = state.slots[0].clone();
+        state.slots.clear();
+        let ranked: Vec<_> = [
+            "leader",
+            "mixed_low",
+            "perfect_short",
+            "zero_long",
+            "mixed_high",
+            "perfect_long",
+            "zero_short",
+            "draw",
+            "unseen",
+            "perfect_tie",
+            "mixed_tie",
+            "zero_tie",
+        ]
+        .iter()
+        .enumerate()
+        .map(|(i, id)| (id.to_string(), 2000. - i as f64))
+        .collect();
+        for (opponent, scores) in [
+            (1, vec![1., 0., 0., 0.]),
+            (2, vec![1.]),
+            (3, vec![0., 0., 0.]),
+            (4, vec![1., 1., 0.]),
+            (5, vec![1., 1.]),
+            (6, vec![0.]),
+            (7, vec![0.5]),
+            (9, vec![1.]),
+            (10, vec![1., 1., 0., 0., 0., 0., 0., 0.]),
+            (11, vec![0.]),
+        ] {
+            for score in scores {
+                let mut slot = template.clone();
+                slot.id = state.slots.len();
+                // Exercise both model orientations, independently of color.
+                if slot.id % 2 == 0 {
+                    slot.model_a = ranked[opponent].0.clone();
+                    slot.model_b = ranked[0].0.clone();
+                    slot.score_a = Some(score);
+                } else {
+                    slot.model_a = ranked[0].0.clone();
+                    slot.model_b = ranked[opponent].0.clone();
+                    slot.score_a = Some(1. - score);
+                }
+                state.slots.push(slot);
+            }
+        }
+        for status in [SlotStatus::Pending, SlotStatus::Running, SlotStatus::Done] {
+            let mut slot = template.clone();
+            slot.model_a = "unseen".into();
+            slot.model_b = "leader".into();
+            slot.status = status;
+            slot.score_a = if status == SlotStatus::Done {
+                None
+            } else {
+                Some(1.)
+            };
+            state.slots.push(slot);
+        }
+        let order = opponent_order(&state, &ranked);
+        assert_eq!(
+            order.iter().map(|x| x.0).collect::<Vec<_>>(),
+            vec![5, 2, 9, 4, 7, 1, 10, 6, 11, 3, 8]
+        );
+        assert_eq!(champion_pair(&state, &ranked)[1].0, "unseen");
+        // Remove the unseen entrant: the perfect 2/2 opponent is most deficient.
+        let mut covered = ranked.clone();
+        covered.remove(8);
+        assert_eq!(champion_pair(&state, &covered)[1].0, "perfect_long");
     }
 
     #[test]
