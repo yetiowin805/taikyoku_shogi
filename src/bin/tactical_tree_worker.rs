@@ -140,7 +140,7 @@ fn handle(base: &GameState, player: &AlphaBetaPlayer, req: &Request) -> Result<(
         config.collect_trace = false;
         let mut progress = |depth, score, mv: &Move, nodes, lines: &[(Move, i32)]| {
             let mut ranked = lines.to_vec();
-            ranked.sort_by(|a, b| b.1.cmp(&a.1));
+            ranked.sort_by_key(|entry| std::cmp::Reverse(entry.1));
             emit(
                 json!({"version":1,"id":req.id,"event":"iteration","depth":depth,
                 "score_black":score*pov,"best":mv,"nodes":nodes,
