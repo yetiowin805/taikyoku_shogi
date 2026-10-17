@@ -1,6 +1,6 @@
 """Run three isolated 512v5 continuations; lease CPUs without stopping games.
 
-Pauses the analysis service, restores it on exit, never admits or replaces models.
+Pauses analysis and automatically admits the completed models after games drain.
 The systemd unit must also restart analysis in ExecStopPost for hard-kill recovery.
 """
 
@@ -13,6 +13,7 @@ import time
 from pathlib import Path
 
 import tourney_analysis as a
+from training_admission import admit
 from v4_training import Pool
 
 
@@ -211,6 +212,14 @@ def main():
             if (model / "recipe.json").exists():
                 command.append("--resume")
             job(command, "train-" + suffix)
+        # Return training leases before draining game workers for admission.
+        # Existing immutable running trainers can use training_admission --watch.
+        pool.close()
+        claimed = False
+        own.close()
+        own = None
+        status("admitting")
+        admit(c, [out / f"NNUE_W512_v5{s}" for s in "abc"])
         status("completed", models=[str(out / f"NNUE_W512_v5{s}/model.json") for s in "abc"])
     except BaseException as e:
         status("failed", error=str(e))
