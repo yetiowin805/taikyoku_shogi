@@ -5,6 +5,7 @@ import time
 from collections import defaultdict
 
 import artifact_storage
+import conditional_teachers
 
 
 def select_backfill(db, new_sha):
@@ -40,6 +41,7 @@ def select_backfill(db, new_sha):
 
 
 def apply_backfill(db, config):
+    conditional_teachers.requeue(db, config)
     refresh = config.get("teacher_refresh")
     if not refresh:
         return
