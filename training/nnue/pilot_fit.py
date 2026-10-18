@@ -1,7 +1,9 @@
 """Isolated 512 data/loss pilot. Never modifies production checkpoints or trainer defaults."""
 
 import argparse
+import copy
 import gc
+import itertools
 import json
 import math
 import os
@@ -171,10 +173,32 @@ def backward_batch(net, samples, data, ids, microbatch, mode, scale, mix):
     return value, indices
 
 
+def training_snapshot(net, emb, dense, model, samples):
+    """Independent best state; store it inside the atomic resumable checkpoint."""
+    return copy.deepcopy(
+        dict(net=net.state_dict(), emb=emb.state_dict(), dense=dense.state_dict(), model=model, samples=samples)
+    )
+
+
+def reduce_learning_rates(net, emb, dense, factor, best_state=None):
+    # Use current rates, not the rates from an earlier best checkpoint: each
+    # reduction must halve again even when returning to the same best weights.
+    rates = [[group["lr"] * factor for group in opt.param_groups] for opt in (emb, dense)]
+    if best_state is not None:
+        net.load_state_dict(best_state["net"])
+        emb.load_state_dict(copy.deepcopy(best_state["emb"]))
+        dense.load_state_dict(copy.deepcopy(best_state["dense"]))
+    for optimizer, reduced in zip((emb, dense), rates, strict=True):
+        for group, rate in zip(optimizer.param_groups, reduced, strict=True):
+            group["lr"] = rate
+
+
 def evaluate(net, samples, data, ids, batch_size, mode, scale, mix):
     weights = weights_for(samples, ids)
     totals = Counter()
     by_source = {k: Counter() for k in ("historical", "recent", "analysis")}
+    by_stratum = {}
+    by_exposure = {}
     with torch.no_grad():
         for start in range(0, len(ids), batch_size):
             group = ids[start : start + batch_size]
@@ -194,7 +218,15 @@ def evaluate(net, samples, data, ids, batch_size, mode, scale, mix):
             totals["outcome_count"] += mask.sum().item()
             # One conversion keeps the same Python summation order while avoiding
             # a separate tensor indexing/scalar extraction for every position.
-            for i, error in zip(group, huber.tolist(), strict=True):
+            for i, error, squared in zip(group, huber.tolist(), (probability - teacher).square().tolist(), strict=True):
+                stats = by_stratum.setdefault(samples[i].get("stratum", "unspecified"), Counter())
+                stats["count"] += 1
+                stats["teacher_brier"] += squared
+                if "inherited_holdout" in samples[i]:
+                    exposure = "inherited" if samples[i]["inherited_holdout"] else "fresh"
+                    bucket = by_exposure.setdefault(exposure, Counter())
+                    bucket["count"] += 1
+                    bucket["teacher_brier"] += squared
                 key = "analysis" if samples[i]["label_source"] == "analysis" else samples[i]["source"]
                 by_source[key]["count"] += 1
                 by_source[key]["huber"] += error
@@ -210,6 +242,14 @@ def evaluate(net, samples, data, ids, batch_size, mode, scale, mix):
             k: dict(count=v["count"], huber=v["huber"] / v["count"]) for k, v in by_source.items() if v["count"]
         },
     )
+    if any("stratum" in samples[i] for i in ids):
+        result["by_stratum"] = {
+            k: dict(count=v["count"], teacher_brier=v["teacher_brier"] / v["count"]) for k, v in by_stratum.items()
+        }
+    if by_exposure:
+        result["by_exposure"] = {
+            k: dict(count=v["count"], teacher_brier=v["teacher_brier"] / v["count"]) for k, v in by_exposure.items()
+        }
     return result
 
 
@@ -218,13 +258,25 @@ def main():
     p.add_argument("dataset", type=Path)
     p.add_argument("--parent", type=Path, required=True)
     p.add_argument("--out", type=Path, required=True)
+    p.add_argument(
+        "--checkpoint-dir", type=Path, help="Optional separate storage for the larger resumable training state"
+    )
     p.add_argument("--init", choices=["fresh", "parent"], required=True)
     p.add_argument("--loss", choices=["huber", "wdl"], required=True)
     p.add_argument("--mix", type=float, default=0)
-    p.add_argument("--epochs", type=int, default=12)
+    p.add_argument("--epochs", type=int, default=12, help="0 means no epoch cap; stop on validation plateau")
+    p.add_argument(
+        "--remove-budget-cap", action="store_true", help="Explicitly migrate a resumable capped run to uncapped code"
+    )
     p.add_argument("--width", type=int, default=512)
     p.add_argument("--patience", type=int, default=2)
     p.add_argument("--lr-reductions", type=int, default=1)
+    p.add_argument("--embedding-lr", type=float, default=0.0002)
+    p.add_argument("--dense-lr", type=float, default=0.0003)
+    p.add_argument("--restore-best-on-reduce", action="store_true")
+    p.add_argument(
+        "--early-validation-samples", type=int, default=0, help="Extra checkpoint in the first window; no plateau tick"
+    )
     p.add_argument("--batch", type=int, default=8)
     p.add_argument(
         "--microbatch",
@@ -240,6 +292,8 @@ def main():
     )
     p.add_argument("--seed", type=int, default=20260924)
     p.add_argument("--resume", action="store_true")
+    # v5a/b/c experiment varies only training stratum mass.
+    p.add_argument("--stratum-proportions", type=str)
     p.add_argument("--limit", type=int)
     p.add_argument("--threads", type=int, default=1)
     p.add_argument("--cpu-file", type=Path, help="Leased CPUs, atomically published by the supervisor")
@@ -251,7 +305,13 @@ def main():
     a = p.parse_args()
     if not 0 <= a.mix <= 1 or (a.loss == "huber" and a.mix):
         raise ValueError("Invalid mixture")
-    assert a.batch > 0 and a.microbatch > 0
+    assert a.batch > 0 and a.microbatch > 0 and a.epochs >= 0
+    if any(not math.isfinite(rate) or rate <= 0 for rate in (a.embedding_lr, a.dense_lr)):
+        raise ValueError("Learning rates must be finite and positive")
+    if a.early_validation_samples and not (
+        0 < a.early_validation_samples < a.epoch_samples and a.early_validation_samples % a.batch == 0
+    ):
+        raise ValueError("Early validation must be at a batch boundary inside the first window")
     if a.threads < 1:
         raise ValueError("threads must be positive")
     torch.set_num_threads(a.threads)
@@ -265,7 +325,26 @@ def main():
         files.append(("features", "bin"))
     for key, suffix in files:
         assert digest(a.dataset / f"{key}.{suffix}") == identity[key + "_sha256"]
-    samples = [json.loads(x) for x in (a.dataset / "samples.jsonl").read_text().splitlines()]
+    with (a.dataset / "samples.jsonl").open() as source:
+        keys = {
+            "offset",
+            "us",
+            "them",
+            "score",
+            "material",
+            "outcome",
+            "group",
+            "game",
+            "split",
+            "source",
+            "label_source",
+            "selection",
+            "teacher",
+            "sampling_weight",
+            "stratum",
+            "inherited_holdout",
+        }
+        samples = [{k: v for k, v in json.loads(x).items() if k in keys} for x in source]
     if "feature_shards" in identity:
         from v4_data import Features
 
@@ -293,6 +372,7 @@ def main():
         init=a.init,
         loss=a.loss,
         mix=a.mix,
+        stratum_proportions=a.stratum_proportions,
         batch=a.batch,
         seed=a.seed,
         epochs=a.epochs,
@@ -301,6 +381,11 @@ def main():
         width=a.width,
         patience=a.patience,
         lr_reductions=a.lr_reductions,
+        embedding_lr=a.embedding_lr,
+        dense_lr=a.dense_lr,
+        restore_best_on_reduce=a.restore_best_on_reduce,
+        early_validation_samples=a.early_validation_samples,
+        checkpoint_dir=str(a.checkpoint_dir.resolve()) if a.checkpoint_dir else None,
         microbatch=a.microbatch,
         defer_test=a.defer_test,
         code_sha256=digest(__file__),
@@ -308,21 +393,43 @@ def main():
         quantization="active-feature-and-head-aware; sparse floating master weights",
     )
     a.out.mkdir(parents=True, exist_ok=True)
+    checkpoint_dir = a.checkpoint_dir or a.out
+    checkpoint_dir.mkdir(parents=True, exist_ok=True)
+    checkpoint_path = checkpoint_dir / "training.pt"
     if (a.out / "recipe.json").exists():
-        assert a.resume and json.loads((a.out / "recipe.json").read_text()) == recipe
+        previous = json.loads((a.out / "recipe.json").read_text())
+        if a.remove_budget_cap:
+            assert a.resume and a.epochs == 0
+            ignored = {"epochs", "code_sha256"}
+            assert {k: v for k, v in previous.items() if k not in ignored} == {
+                k: v for k, v in recipe.items() if k not in ignored
+            }
+            atomic_json(a.out / "budget-removal.json", dict(previous=previous, current=recipe))
+            atomic_json(a.out / "recipe.json", recipe)
+        else:
+            assert a.resume and previous == recipe
     else:
         atomic_json(a.out / "recipe.json", recipe)
     atomic_json(a.out / "calibration.json", cal)
-    policy = Policy(min_epochs=4, max_epochs=a.epochs, patience=a.patience, lr_reductions=a.lr_reductions)
+    policy = Policy(min_epochs=4, max_epochs=a.epochs or None, patience=a.patience, lr_reductions=a.lr_reductions)
     first, best, metrics = 0, math.inf, []
+    resume_offset, resume_loss, best_state = 0, 0.0, None
     state = None
-    if a.resume and (a.out / "training.pt").exists():
-        state = torch.load(a.out / "training.pt", weights_only=True, mmap=True)
+    if a.resume and checkpoint_path.exists():
+        state = torch.load(str(checkpoint_path), weights_only=True, mmap=True)
         with torch.device("meta"):
             net = PilotNet(schema["features"], a.width)
         net.load_state_dict(state["net"], assign=True)
         first, best, metrics = state["epoch"], state["best"], state["metrics"]
+        resume_offset, resume_loss = state.get("samples_in_epoch", 0), state.get("epoch_loss", 0.0)
+        best_state = state.get("best_state")
+        if a.restore_best_on_reduce:
+            if best_state is None:
+                raise ValueError("Best-state recovery requested but checkpoint has no best state")
+            atomic_json(a.out / "model.json", best_state["model"])
         tracker = Plateau(**state["plateau"])
+        if a.epochs == 0 and tracker.stopped == "max_epochs":
+            tracker.stopped = None
     else:
         net = from_quantized(blob, schema["features"]) if a.init == "parent" else PilotNet(schema["features"], a.width)
         initial = evaluate(net, samples, data, val, a.batch, a.loss, cal["scale"], a.mix)
@@ -337,63 +444,33 @@ def main():
             cp["name"] = a.out.name
             cp["weights"]["nnue"]["file"] = saved.name
             atomic_json(a.out / "model.json", cp)
-    emb = torch.optim.SGD([net.embedding.weight], lr=0.0002)
-    dense = torch.optim.Adam([v for k, v in net.named_parameters() if k != "embedding.weight"], lr=0.0003)
+    emb = torch.optim.SGD([net.embedding.weight], lr=a.embedding_lr)
+    dense = torch.optim.Adam([v for k, v in net.named_parameters() if k != "embedding.weight"], lr=a.dense_lr)
     if state:
         emb.load_state_dict(state["emb"])
         dense.load_state_dict(state["dense"])
         del state
+    elif a.restore_best_on_reduce and a.init == "parent":
+        best_state = training_snapshot(net, emb, dense, cp, 0)
     weights = weights_for(samples, train)
+    if a.stratum_proportions:
+        from v5_weights import mixture_weights
+
+        weights = mixture_weights(samples, weights, [float(x) for x in a.stratum_proportions.split(",")])
     started = time.monotonic()
-    for epoch in range(first, a.epochs):
-        if tracker.stopped:
-            break
-        order = random.Random(a.seed + epoch).choices(
-            train,
-            weights=[weights[i] for i in train],
-            k=min(a.epoch_samples, len(train)) if a.limit else a.epoch_samples,
+
+    def validate_and_save(epoch, used, total, window_size, complete):
+        nonlocal best, best_state
+        processed = epoch * window_size + used
+        atomic_json(
+            a.out / "status.json",
+            dict(state="validating", epoch=epoch + used / window_size, sampled_positions=processed),
         )
-        total = 0
-        for start in range(0, len(order), a.batch):
-            if a.cpu_file and start % (a.batch * 100) == 0:
-                lease = json.loads(a.cpu_file.read_text())
-                cpus = set(lease["cpus"])
-                if not cpus or time.time() - lease["updated"] > 30:
-                    raise RuntimeError("Training CPU lease expired")
-                for task in Path("/proc/self/task").iterdir():
-                    try:
-                        os.sched_setaffinity(int(task.name), cpus)
-                    except ProcessLookupError:
-                        pass
-                torch.set_num_threads(min(a.threads, len(cpus)))
-            ids = order[start : start + a.batch]
-            emb.zero_grad(set_to_none=True)
-            dense.zero_grad(set_to_none=True)
-            value, touched = backward_batch(net, samples, data, ids, a.microbatch, a.loss, cal["scale"], a.mix)
-            total += value
-            emb.step()
-            dense.step()
-            with torch.no_grad():
-                net.embedding.weight[touched] = net.embedding.weight[touched].clamp(-0.5, 0.5)
-                net.bias.clamp_(-2, 2)
-                for layer in [net.h1, net.h2]:
-                    layer.weight.clamp_(-127 / 64, 127 / 64)
-                    layer.bias.clamp_(-8, 8)
-            if start % (a.batch * 100) == 0:
-                atomic_json(
-                    a.out / "status.json",
-                    dict(
-                        state="training",
-                        epoch=epoch + 1,
-                        samples=start + len(ids),
-                        total=len(order),
-                        elapsed_s=time.monotonic() - started,
-                    ),
-                )
         validation = evaluate(net, samples, data, val, a.batch, a.loss, cal["scale"], a.mix)
         record = dict(
-            epoch=epoch + 1,
-            train_objective=total / len(order),
+            epoch=epoch + 1 if complete else epoch + used / window_size,
+            sampled_positions=processed,
+            train_objective=total / used,
             validation=validation,
             elapsed_s=time.monotonic() - started,
         )
@@ -424,39 +501,106 @@ def main():
             cp["name"] = a.out.name
             cp["weights"]["nnue"].update(file=published.name, sha256=sha, width=a.width)
             cp["created_at"] = f"unix:{int(time.time())}"
-            old_blob = None
-            if (a.out / "model.json").exists():
-                old_blob = a.out / json.loads((a.out / "model.json").read_text())["weights"]["nnue"]["file"]
             atomic_json(a.out / "model.json", cp)
-            if old_blob and old_blob != published:
-                old_blob.unlink()
-        decision = tracker.observe(epoch + 1, validation["objective"], policy)
-        if decision == "reduce_lr":
-            for optimizer in [emb, dense]:
-                for group in optimizer.param_groups:
-                    group["lr"] *= policy.lr_factor
+            if a.restore_best_on_reduce:
+                best_state = training_snapshot(net, emb, dense, cp, processed)
+        if complete:
+            decision = tracker.observe(epoch + 1, validation["objective"], policy)
+            if decision == "reduce_lr":
+                reduce_learning_rates(
+                    net, emb, dense, policy.lr_factor, best_state if a.restore_best_on_reduce else None
+                )
+                if best_state is not None:
+                    record["restarted_from_samples"] = best_state["samples"]
+        else:
+            decision = "early_validation"
+            # A better early candidate sets the reference, but does not consume
+            # a full window of plateau patience or permit a reduction.
+            if validation["objective"] < tracker.best * (1 - policy.min_improvement):
+                tracker.best, tracker.bad_epochs = validation["objective"], 0
         record["decision"] = decision
+        record["learning_rates"] = [emb.param_groups[0]["lr"], dense.param_groups[0]["lr"]]
         metrics.append(record)
-        atomic_json(a.out / "metrics.json", metrics)
-        tmp = a.out / "training.tmp"
+        tmp = checkpoint_dir / "training.tmp"
         torch.save(
             dict(
                 net=net.state_dict(),
                 emb=emb.state_dict(),
                 dense=dense.state_dict(),
-                epoch=epoch + 1,
+                epoch=epoch + 1 if complete else epoch,
+                samples_in_epoch=0 if complete else used,
+                epoch_loss=0.0 if complete else total,
                 best=best,
+                best_state=best_state,
                 metrics=metrics,
                 plateau=tracker.__dict__,
             ),
             tmp,
         )
-        tmp.replace(a.out / "training.pt")
+        tmp.replace(checkpoint_path)
+        atomic_json(a.out / "metrics.json", metrics)
+        # Keep the previous exported best until the resumable checkpoint commits.
+        # A crash before that point must still be able to restore its old model.
+        chosen = json.loads((a.out / "model.json").read_text())["weights"]["nnue"]["file"]
+        for obsolete in a.out.glob("nnue-*.bin"):
+            if obsolete.name != chosen:
+                obsolete.unlink()
         print(json.dumps(record), flush=True)
+
+    for epoch in range(first, a.epochs) if a.epochs else itertools.count(first):
+        if tracker.stopped:
+            break
+        order = random.Random(a.seed + epoch).choices(
+            train,
+            weights=[weights[i] for i in train],
+            k=min(a.epoch_samples, len(train)) if a.limit else a.epoch_samples,
+        )
+        offset = resume_offset if epoch == first else 0
+        total = resume_loss if epoch == first else 0.0
+        for start in range(offset, len(order), a.batch):
+            if a.cpu_file and start % (a.batch * 100) == 0:
+                lease = json.loads(a.cpu_file.read_text())
+                cpus = set(lease["cpus"])
+                if not cpus:
+                    raise RuntimeError("Training CPU lease is empty")
+                for task in Path("/proc/self/task").iterdir():
+                    try:
+                        os.sched_setaffinity(int(task.name), cpus)
+                    except ProcessLookupError:
+                        pass
+                torch.set_num_threads(min(a.threads, len(cpus)))
+            ids = order[start : start + a.batch]
+            emb.zero_grad(set_to_none=True)
+            dense.zero_grad(set_to_none=True)
+            value, touched = backward_batch(net, samples, data, ids, a.microbatch, a.loss, cal["scale"], a.mix)
+            total += value
+            emb.step()
+            dense.step()
+            with torch.no_grad():
+                net.embedding.weight[touched] = net.embedding.weight[touched].clamp(-0.5, 0.5)
+                net.bias.clamp_(-2, 2)
+                for layer in [net.h1, net.h2]:
+                    layer.weight.clamp_(-127 / 64, 127 / 64)
+                    layer.bias.clamp_(-8, 8)
+            if start % (a.batch * 100) == 0:
+                atomic_json(
+                    a.out / "status.json",
+                    dict(
+                        state="training",
+                        epoch=epoch + 1,
+                        samples=start + len(ids),
+                        total=len(order),
+                        elapsed_s=time.monotonic() - started,
+                    ),
+                )
+            used = start + len(ids)
+            if epoch == 0 and used == a.early_validation_samples:
+                validate_and_save(epoch, used, total, len(order), False)
+        validate_and_save(epoch, len(order), total, len(order), True)
     if a.defer_test:
         atomic_json(a.out / "status.json", dict(state="trained", reason=tracker.stopped, test=None))
         return
-    del net, emb, dense
+    net = emb = dense = best_state = None
     gc.collect()
     cp = json.loads((a.out / "model.json").read_text())
     best_net = from_quantized(a.out / cp["weights"]["nnue"]["file"], schema["features"])

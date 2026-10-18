@@ -732,3 +732,17 @@ to a separate file, verify it against `sha256` in `backup.json` (or legacy
 database/config and any WAL files before installing the restored database and
 its matching `dual-label-config.json`. This backup concerns labels and teacher
 selection, not tournament game results.
+
+### Incremental completed-model admission
+
+`training_admission.py CONFIG --watch` admits each completed model independently,
+including its held-out evaluation, without waiting for other models or the trainer
+service to exit. Each model has a resumable transaction under
+`OUT/admission/MODEL/`; the aggregate status lists admitted and waiting models.
+
+The running coordinator handles a durable admission request under the same lock
+as game claims and results. It does not need idle CPUs or a restart. Per-model
+requests and receipts survive retry, and an invalid model does not prevent other
+ready models from being attempted. Configure the explicit `admission_models` list
+and run the watcher with failure restarts and no runtime cutoff. See
+[`LIVE_TOURNAMENT_TASKS.md`](LIVE_TOURNAMENT_TASKS.md) for details and legacy upgrades.
