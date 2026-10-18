@@ -44,9 +44,6 @@ def prepare(args):
         cases=cases,
         identities=identities,
         case_seconds=420,
-        audit_seconds=540,
-        rollout_seconds=300,
-        wall_seconds=16200,
         workers=2,
         lease_indices=[4, 5, 6, 7],
         cpus=list(range(8)),
@@ -58,7 +55,7 @@ def prepare(args):
     atomic(args.config, config)
     print(
         json.dumps(
-            dict(config=str(args.config), cases=len(cases), nominal_cpu_hours=len(cases) * (4 * 420 + 540) / 3600)
+            dict(config=str(args.config), cases=len(cases), estimated_cpu_hours=len(cases) * (4 * 420 + 540) / 3600)
         )
     )
 

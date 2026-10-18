@@ -14,7 +14,7 @@ import threading
 import time
 from pathlib import Path
 
-from run import atomic, sha
+from run import atomic, validate_inputs
 
 STOP = False
 
@@ -121,9 +121,7 @@ def run(path):
         raise ValueError("pilot only borrows at most two of workers 4–7")
     if len(config["cpus"]) != 8 or len(set(config["cpus"])) != 8 or not set(config["cpus"]) <= os.sched_getaffinity(0):
         raise ValueError("configured CPUs unavailable")
-    for file, digest in config["identities"].items():
-        if sha(file) != digest:
-            raise ValueError("immutable input changed: " + file)
+    validate_inputs(config)
     if shutil.disk_usage(out).free < config.get("minimum_free_bytes", 4 * 1024**3):
         raise ValueError("insufficient storage headroom; experiment did not start")
     own = (out / "supervisor.lock").open("a+")
@@ -149,7 +147,8 @@ def run(path):
 
     def complete(job):
         p = out / job[0] / job[1] / ("audit.json" if job[1] == "audit" else "summary.json")
-        return p.exists() and json.loads(p.read_text()).get("finished", False)
+        field = "work_complete" if job[1] == "audit" else "finished"
+        return p.exists() and json.loads(p.read_text()).get(field, False)
 
     try:
         while jobs or running:
@@ -163,8 +162,6 @@ def run(path):
                 else:
                     finished.append(job)
             yielding = active_admission(config)
-            if compute_started is not None and time.time() - compute_started >= config.get("wall_seconds", 16200):
-                pause_reason = "pilot_budget"
             if shutil.disk_usage(out).free < config.get("minimum_free_bytes", 4 * 1024**3):
                 pause_reason = "storage_headroom"
             if STOP or yielding or pause_reason:

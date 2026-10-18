@@ -10,7 +10,9 @@ Selection precedes comparative results. Previously reserved slots 672/769/867 ar
 ## Four exploration policies
 
 Every policy first searches the same nine positions around the episode (depth three,
-up to three seconds per position), then spends the remainder of its 420-second budget:
+up to three seconds per position), then explores until the next 420-second comparison
+checkpoint. Checkpoints occur between searches; a search already in progress finishes
+under its own search settings before the next comparison task starts:
 
 - **local:** deepen the recorded sequence round-robin. This is the simple baseline.
 - **pv:** follow the currently preferred continuation, searching each new position independently.
@@ -53,7 +55,8 @@ These motivate the policy families, not a claim that our priority formula is est
 
 ## Common audits, including playing forward
 
-After all four policies finish, spend up to 540 seconds per episode on a common audit:
+After all four policies finish their comparison interval, complete a common audit.
+There is no elapsed-time cutoff on the audit or the overall experiment:
 
 1. Pool proposals at the original anchor and the two most nominated suspected blunders.
    Independently search these roots and the positions after their candidate moves,
@@ -61,7 +64,7 @@ After all four policies finish, spend up to 540 seconds per episode on a common 
    candidate versus played move at identical completed depths, retaining deepest odd
    and even results separately. A gain of at least 1,000 on both parities is a *corroborated
    improvement*, not ground truth. Unchecked proposals remain unchecked, not failures.
-2. Reserve 300 seconds for forward play at the most nominated location, chosen before
+2. Play forward at the most nominated location, chosen before
    the audit scores are seen. Pool the played move, each policy's preferred move, and the
    fresh root choice. Advance all unique candidates round-robin, aiming for depth three
    with up to six seconds per move. Keep the score trajectory and compare after **four
@@ -95,15 +98,19 @@ Build `cargo build --release --bin tactical_tree_worker`. The worker accepts
 `path` contains full serialized `Move` objects. `inspect` returns all legal routes,
 history/draw/repetition information and optional legality of a nominated response.
 `search` emits completed `iteration` events immediately, followed by `complete` or `error`.
-Each request starts with fresh production search state. A worker is supervised and
-terminated if it wedges beyond twice its requested action time plus ten seconds
-(minimum 30 seconds). This is a per-action experiment safeguard, not a training limit.
+Each request starts with fresh production search state. The supervisor detects process
+exit and protocol errors. Neither startup nor a request has an external elapsed-time
+watchdog that kills the worker. Individual timed-search settings control search effort;
+they do not terminate the experiment. Explicit cancellation remains supported.
 
 Completed iterations and tree updates are fsynced immediately. `tree.json`, `events.jsonl`,
 `summary.json`, and `audit/audit.json` retain paths, achieved depths, scores, candidates,
 node counts, timing and errors. Resume verifies game, model manifest/blob, binary and
 Python source hashes. A larger `run.py --seconds` continues an existing tree; previous
 snapshots remain available. To run modified code, use a new output directory/configuration.
+For an orchestration-only upgrade, preserve the original immutable inputs and additionally
+verify `runner_identities` for the new runner. `runner_history` records when it takes over;
+old completed iterations and their provenance remain intact.
 
 The supervisor uses the live coordinator's existing `cpu-N.lock` files. Blocking waiters
 queue behind games, then lend at most two of CPUs 4–7. CPUs 0 and 2 remain the tournament
@@ -112,11 +119,11 @@ and champion workers; this deployment's trainer owns CPUs 1 and 3. The pilot nev
 children are pinned to their leased CPU. The pilot yields for model admission. Disk space
 below 4 GiB pauses work. Store outputs on the root disk, not the training volume.
 
-The planned work is about 7.4 CPU-hours (roughly 3.7 hours on two CPUs plus overhead).
-A 4.5-hour pilot budget starts when the first CPU is acquired; unfinished work is saved
-and leases released. Waiting for games can add wall time, and one available CPU will
-complete less work. This is the requested preliminary experiment budget, not a limit
-on training or future investigations. All checkpoints remain resumable.
+The initial work estimate is roughly eight CPU-hours, depending on audit branching and
+search speed. This is an estimate, never a stop condition. Waiting for games can add wall
+time, and one available CPU takes longer. The supervisor works through every planned
+comparison and complete audit, then returns its CPUs. No overall wall-time budget or
+automatic elapsed-time shutdown exists. All checkpoints remain resumable.
 
 ## Reproduce / deploy
 

@@ -1,11 +1,9 @@
 """Paired, fixed-horizon continuations. Never attach the source game's result to a branch."""
 
-import time
-
 from run import STOP
 
 
-def evaluate(oracle, rows, prefix, deadline, save, seconds=6):
+def evaluate(oracle, rows, prefix, save, seconds=6):
     """Advance candidates round-robin; checkpoint every iteration and every selected move.
 
     Offsets count replies AFTER the nominated move. Both horizon four and horizon
@@ -20,8 +18,7 @@ def evaluate(oracle, rows, prefix, deadline, save, seconds=6):
                 continue  # Already persisted this step on an earlier run.
             records = row["steps"].setdefault(str(offset), dict(records={}))
             if not records.get("done"):
-                remaining = deadline - time.monotonic()
-                if remaining <= 0.1 or STOP.is_set():
+                if STOP.is_set():
                     return
 
                 def receive(event, record=records):
@@ -34,7 +31,7 @@ def evaluate(oracle, rows, prefix, deadline, save, seconds=6):
                         op="search",
                         path=prefix + [row["move"]] + row["continuation"],
                         depth=3,
-                        time_ms=max(1, int(min(seconds, remaining) * 1000)),
+                        time_ms=max(1, int(seconds * 1000)),
                     ),
                     receive,
                 )

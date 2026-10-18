@@ -1,9 +1,10 @@
 import json
 import tempfile
-import time
 import unittest
 from pathlib import Path
+from unittest import mock
 
+import supervise
 from audit import compare
 from rollout import evaluate, summarize
 from supervise import BoundaryLeases, claim
@@ -162,7 +163,7 @@ class RolloutTest(unittest.TestCase):
                 return dict(event="complete", terminal=None)
 
         oracle = Oracle()
-        evaluate(oracle, rows, prefix, time.monotonic() + 10, lambda: None)
+        evaluate(oracle, rows, prefix, lambda: None)
         self.assertEqual(len(oracle.calls), 18)
         self.assertEqual([len(r["path"]) for r in oracle.calls], [i for i in range(2, 11) for _ in range(2)])
         self.assertTrue(all(r["path"][0] == prefix[0] for r in oracle.calls))
@@ -171,7 +172,7 @@ class RolloutTest(unittest.TestCase):
         self.assertEqual(results[1]["horizons"]["8"]["gain"], -200)
         self.assertEqual(results[1]["shallow_steps"], 0)
         # Completed endpoints are reused, not re-played or overwritten.
-        evaluate(oracle, json.loads(json.dumps(rows)), prefix, time.monotonic() + 10, lambda: None)
+        evaluate(oracle, json.loads(json.dumps(rows)), prefix, lambda: None)
         self.assertEqual(len(oracle.calls), 18)
 
     def test_terminal_is_propagated_and_missing_depths_are_not_equal_work(self):
@@ -184,7 +185,7 @@ class RolloutTest(unittest.TestCase):
                 receive(dict(event="iteration", depth=2, score_black=50, best=mv(3)))
                 return dict(event="complete", terminal=None)
 
-        evaluate(Oracle(), rows, [], time.monotonic() + 10, lambda: None)
+        evaluate(Oracle(), rows, [], lambda: None)
         results = summarize(rows, 1)
         self.assertEqual(results[0]["horizons"]["8"]["endpoint"]["terminal"], -1)
         self.assertEqual(results[1]["shallow_steps"], 9)
@@ -202,7 +203,7 @@ class RolloutTest(unittest.TestCase):
                 raise InterruptedError
 
         with self.assertRaises(InterruptedError):
-            evaluate(Oracle(), rows, [], time.monotonic() + 10, lambda: saved.append(json.loads(json.dumps(rows))))
+            evaluate(Oracle(), rows, [], lambda: saved.append(json.loads(json.dumps(rows))))
         self.assertEqual(saved[-1][0]["steps"]["0"]["records"]["2"]["score_black"], 20)
         self.assertEqual(saved[-1][0]["continuation"], [])
 
@@ -212,6 +213,62 @@ class RolloutTest(unittest.TestCase):
         result = compare([a, b], 1)[0]
         self.assertEqual(result["robust_gain"], -200)
         self.assertFalse(result["supported_improvement"])
+
+
+class SupervisorTest(unittest.TestCase):
+    def test_elapsed_time_never_terminates_a_healthy_job(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            config = dict(
+                out=str(root),
+                control=str(root),
+                workers=1,
+                lease_indices=[4],
+                cpus=list(range(8)),
+                identities={},
+                minimum_free_bytes=0,
+                seed=1,
+                wall_seconds=1,
+                cases=[dict(id="case")],
+            )
+            path = root / "config.json"
+            path.write_text(json.dumps(config))
+            lease = (root / "lease").open("w")
+            waiters = mock.Mock()
+            waiters.take.side_effect = [(4, lease)]
+            launched = []
+
+            class Process:
+                pid = 123
+                returncode = 0
+
+                def __init__(self, cmd, **kwargs):
+                    self.polls = 0
+                    strategy = cmd[-1] if "--strategy" in cmd else "audit"
+                    out = root / "case" / strategy
+                    out.mkdir(parents=True, exist_ok=True)
+                    filename = "audit.json" if strategy == "audit" else "summary.json"
+                    (out / filename).write_text(json.dumps(dict(finished=True, work_complete=True)))
+                    launched.append(strategy)
+
+                def poll(self):
+                    self.polls += 1
+                    return None if self.polls == 1 else 0
+
+                def terminate(self):
+                    raise AssertionError("healthy worker must not be terminated because time elapsed")
+
+            with (
+                mock.patch.object(supervise, "BoundaryLeases", return_value=waiters),
+                mock.patch.object(supervise, "active_admission", return_value=False),
+                mock.patch.object(supervise.os, "sched_getaffinity", return_value=set(range(8))),
+                mock.patch.object(supervise.subprocess, "Popen", side_effect=Process),
+                mock.patch.object(supervise.time, "sleep"),
+                mock.patch.object(supervise.time, "time", side_effect=range(0, 100000000, 100000)),
+            ):
+                supervise.run(path)
+            self.assertEqual(len(launched), 5)
+            self.assertEqual(json.loads((root / "status.json").read_text())["state"], "completed")
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-"""Run or resume an isolated, budgeted tactical-tree experiment (no training-data writes)."""
+"""Run or resume a tactical-tree comparison; elapsed-time estimates never kill the process."""
 
 import argparse
 import hashlib
@@ -34,6 +34,22 @@ def sha(path):
         return digest.hexdigest()
 
 
+def validate_inputs(config):
+    # Keep the original experiment identity intact when upgrading orchestration.
+    # The new runner is an additional immutable input, never an override of the old one.
+    for group in ("identities", "runner_identities"):
+        for path, digest in config.get(group, {}).items():
+            if sha(path) != digest:
+                raise ValueError("immutable input changed: " + path)
+
+
+def record_runner(data, config):
+    execution = dict(revision=config.get("runner_revision"), identities=config.get("runner_identities", {}))
+    history = data.setdefault("runner_history", [])
+    if not history or history[-1]["execution"] != execution:
+        history.append(dict(at_spent=data.get("spent", 0), execution=execution))
+
+
 class Oracle:
     def __init__(self, config, case, out, model=None):
         self.events = queue.Queue()
@@ -59,11 +75,15 @@ class Oracle:
 
         self.reader = threading.Thread(target=read, daemon=True)
         self.reader.start()
-        try:
-            self.ready = self.events.get(timeout=120)
-        except queue.Empty:
-            self.close()
-            raise RuntimeError("oracle startup did not produce a ready event") from None
+        while True:
+            if STOP.is_set():
+                self.close()
+                raise InterruptedError("pilot paused during startup")
+            try:
+                self.ready = self.events.get(timeout=0.2)
+                break
+            except queue.Empty:
+                continue
         if self.ready.get("event") != "ready":
             self.close()
             raise RuntimeError(f"oracle startup failed: {self.ready}")
@@ -72,13 +92,9 @@ class Oracle:
         request = dict(version=1, id=str(time.time_ns()), **request)
         self.proc.stdin.write(json.dumps(request) + "\n")
         self.proc.stdin.flush()
-        # Search budgets are intentional experimental actions. A wedged helper must not consume the whole pilot.
-        deadline = time.monotonic() + max(30, request.get("time_ms", 0) / 1000 * 2 + 10)
         while True:
             if STOP.is_set():
                 raise InterruptedError("pilot paused")
-            if time.monotonic() > deadline:
-                raise TimeoutError("helper exceeded its per-action safety margin; completed iterations retained")
             try:
                 event = self.events.get(timeout=0.2)
             except queue.Empty:
@@ -94,12 +110,8 @@ class Oracle:
     def close(self):
         if self.proc.poll() is None:
             os.killpg(self.proc.pid, signal.SIGTERM)
-            try:
-                self.proc.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                os.killpg(self.proc.pid, signal.SIGKILL)
-                self.proc.wait()
-        self.reader.join(timeout=2)
+            self.proc.wait()
+        self.reader.join()
         self.proc.stdin.close()
         self.proc.stdout.close()
         self.log.close()
@@ -120,6 +132,7 @@ def run_case(config, case, strategy, budget_s, out):
         tree.data.update(spent=0, strategy=strategy, case=case, identities=config["identities"], snapshots=[])
     tree.data["finished"] = False
     tree.data["budget_seconds"] = budget_s
+    record_runner(tree.data, config)
     start = time.monotonic()
     prior = tree.data["spent"]
     events = (out / "events.jsonl").open("a", buffering=1)
@@ -159,7 +172,8 @@ def run_case(config, case, strategy, budget_s, out):
         if remaining <= 0.1:
             return
         seconds = 3 if initial else min(30, max(3, n["last_cost"] * 2) * 2 ** min(n["failed_attempts"], 4))
-        call(number, "search", depth=max(1, depth), time_ms=max(1, int(min(seconds, remaining) * 1000)))
+        # The comparison interval decides when to yield between searches, never shortens an active search.
+        call(number, "search", depth=max(1, depth), time_ms=max(1, int(seconds * 1000)))
 
     try:
         for number in tree.spine():
@@ -210,9 +224,7 @@ def main():
     ap.add_argument("--seconds", type=float)
     args = ap.parse_args()
     config = json.loads(args.config.read_text())
-    for path, digest in config["identities"].items():
-        if sha(path) != digest:
-            raise ValueError("immutable input changed: " + path)
+    validate_inputs(config)
     case = next(c for c in config["cases"] if c["id"] == args.case)
     for sig in [signal.SIGINT, signal.SIGTERM]:
         signal.signal(sig, lambda *_: STOP.set())

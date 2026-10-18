@@ -10,7 +10,7 @@ from rollout import evaluate as rollout_evaluate
 from rollout import summarize as rollout_summarize
 from tree import key
 
-from run import STOP, Oracle, atomic, sha
+from run import STOP, Oracle, atomic, record_runner, validate_inputs
 
 
 def compare(rows, turn):
@@ -50,8 +50,10 @@ def run(config, case):
     )
     if data["identities"] != config["identities"] or data["case"] != case:
         raise ValueError("audit resume identity mismatch")
-    if data["finished"]:
+    if data.get("work_complete"):
         return
+    data["finished"] = False
+    record_runner(data, config)
     summaries = []
     for strategy in ("local", "pv", "contested", "refutation"):
         p = out.parent / strategy / "summary.json"
@@ -69,8 +71,6 @@ def run(config, case):
     actual = oracle.ready["actual"]
     started = time.monotonic()
     prior = data["spent"]
-    budget = config["audit_seconds"]
-    direct_budget = budget - config.get("rollout_seconds", 300)
 
     def save():
         data["spent"] = prior + time.monotonic() - started
@@ -91,11 +91,10 @@ def run(config, case):
                 row["records"][str(event["depth"])] = event
                 save()
 
-        remaining = direct_budget - (prior + time.monotonic() - started)
-        if remaining <= 0.1 or STOP.is_set():
+        if STOP.is_set():
             return row
         row["result"] = oracle.call(
-            dict(op="search", path=branch, depth=6, time_ms=max(1, int(min(seconds, remaining) * 1000))), receive
+            dict(op="search", path=branch, depth=6, time_ms=max(1, int(seconds * 1000))), receive
         )
         row["done"] = True
         save()
@@ -118,10 +117,10 @@ def run(config, case):
                 if diagnosis["best"] is not None:
                     proposals[key(diagnosis["best"])] = diagnosis["best"]
             plans.append((ply, played, list(proposals.values())))
-        # Round-robin across locations so the last suspected blunder does not lose all its budget.
+        # Round-robin across locations, persisting useful intermediate coverage throughout the audit.
         for i in range(max(map(lambda p: len(p[2]), plans), default=0)):
             for ply, played, moves in plans:
-                if i < len(moves) and prior + time.monotonic() - started < direct_budget:
+                if i < len(moves):
                     row = query(ply, moves[i], 25)
                     row["played"] = moves[i] == played
                     save()
@@ -141,12 +140,12 @@ def run(config, case):
             oracle,
             data["rollouts"],
             actual[: rollout_ply - case["start_ply"]],
-            started + budget - prior,
             save,
         )
         turn = first_turn * (-1 if (rollout_ply - case["start_ply"]) % 2 else 1)
         data["rollout_results"] = rollout_summarize(data["rollouts"], turn)
         data["finished"] = not STOP.is_set()
+        data["work_complete"] = data["finished"]
         data["limitation"] = (
             "Pooled-candidate search and depth-three rollout estimates, not solved labels; "
             "unsearched alternatives remain possible. Rollout endpoints are after four/eight replies to the candidate; "
@@ -164,9 +163,7 @@ if __name__ == "__main__":
     parser.add_argument("--case", required=True)
     args = parser.parse_args()
     config = json.loads(args.config.read_text())
-    for path, digest in config["identities"].items():
-        if sha(path) != digest:
-            raise ValueError("immutable input changed: " + path)
+    validate_inputs(config)
     case = next(c for c in config["cases"] if c["id"] == args.case)
     for sig in (signal.SIGINT, signal.SIGTERM):
         signal.signal(sig, lambda *_: STOP.set())
