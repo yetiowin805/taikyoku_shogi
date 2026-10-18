@@ -1,62 +1,70 @@
-"""Bounded, resumable replacement of the sidecar's default second teacher."""
+"""Switch future analysis to the strongest teacher without relabelling old positions."""
 
 import json
-import time
-from collections import defaultdict
+import sys
 
 import artifact_storage
 
-
-def select_backfill(db, new_sha):
-    groups = defaultdict(list)
-    for row in db.execute("SELECT payload FROM moments JOIN dual_paired USING(id)"):
-        moment = json.loads(row["payload"])
-        searches = moment.get("searches", [])
-        if any(s.get("model_sha256") == new_sha and s.get("budget_ms") == 30000 for s in searches):
-            continue
-        groups[moment["game_hash"]].append(moment)
-    selected = []
-    for moments in groups.values():
-
-        def priority(m):
-            scores = [s["score"] for s in m.get("searches", []) if type(s.get("score")) is int]
-            disagreement = max(scores) - min(scores) if scores else 0
-            return (m.get("selection") == "winner_pre_mate", disagreement, m.get("magnitude", 0), m["id"])
-
-        picked = []
-        for m in sorted(moments, key=priority, reverse=True):
-            if all(abs(m["center_ply"] - p["center_ply"]) >= 8 for p in picked):
-                picked.append(m)
-            if len(picked) == 4:
-                break
-        ordered = sorted(moments, key=lambda m: (m["center_ply"], m["id"]))
-        for bucket in range(4):
-            pool = ordered[len(ordered) * bucket // 4 : len(ordered) * (bucket + 1) // 4]
-            pool = [m for m in pool if all(abs(m["center_ply"] - p["center_ply"]) >= 4 for p in picked)]
-            if pool:
-                picked.append(pool[len(pool) // 2])
-        selected.extend(m["id"] for m in picked)
-    return sorted(selected)
+MIGRATION = "no-teacher-backfill-v1"
 
 
-def apply_backfill(db, config):
-    refresh = config.get("teacher_refresh")
-    if not refresh:
-        return
-    # The manifest is written first; this transaction is safely replayed if the
-    # process dies between the config update and database commit.
-    with db:
-        for key in refresh["ids"]:
-            row = db.execute("SELECT payload FROM moments WHERE id=?", (key,)).fetchone()
-            if not row:
-                raise ValueError(f"missing backfill position {key}")
+def retire_backfill(a, run, db, config):
+    """Cancel legacy refreshes once, with the collector lock held and no live jobs.
+
+    Old refreshes only selected already completed positions. Keep their labels,
+    including archived teachers from interrupted refreshes, and restore completion.
+    A missing valid saved label remains real work rather than a fabricated result.
+    """
+    db.execute("CREATE TABLE IF NOT EXISTS analysis_migrations(name TEXT PRIMARY KEY,payload TEXT)")
+    saved = db.execute("SELECT payload FROM analysis_migrations WHERE name=?", (MIGRATION,)).fetchone()
+    path = run / "analysis/dual-label-config.json"
+    if saved:
+        report = json.loads(saved["payload"])
+    else:
+        rows = db.execute(
+            "SELECT id,payload FROM moments WHERE json_extract(payload,'$.teacher_refresh') IS NOT NULL "
+            "AND id NOT IN (SELECT id FROM dual_paired)"
+        ).fetchall()
+        # One verified rollback for migration; subsequent teacher switches never
+        # copy the growing database because they no longer change its rows.
+        backup = artifact_storage.teacher_backup(db, path) if rows else None
+        restored = []
+        for row in rows:
             moment = json.loads(row["payload"])
-            if moment.get("teacher_refresh") == refresh["id"]:
-                continue
-            moment["teacher_refresh"] = refresh["id"]
-            db.execute("UPDATE moments SET status='pending',payload=?,error=NULL WHERE id=?", (json.dumps(moment), key))
-            db.execute("DELETE FROM dual_paired WHERE id=?", (key,))
-            db.execute("DELETE FROM dual_failures WHERE id=?", (key,))
+            labels = [*moment.get("searches", []), *moment.get("previous_teacher_searches", [])]
+            if any(
+                moment.get("game_hash")
+                and type(moment.get("center_ply")) is int
+                and type(s.get("score")) is int
+                and s.get("model_sha256")
+                and s.get("ply") == moment.get("center_ply")
+                and s.get("game_hash") == moment.get("game_hash")
+                and (s.get("completed_depth", 0) > 0 or s.get("terminal"))
+                for s in labels
+            ):
+                restored.append((row["id"],))
+            else:
+                print(f"backfill retirement: {row['id']} has no valid saved label; left unchanged", file=sys.stderr)
+        report = dict(cancelled=len(restored), without_saved_label=len(rows) - len(restored))
+        if backup:
+            report["backup"] = str(backup)
+        # Store the audit in the same transaction. If config publication fails,
+        # restart recovers the original counts without modifying these rows again.
+        with db:
+            db.executemany("UPDATE moments SET status='completed',error=NULL WHERE id=?", restored)
+            db.executemany("INSERT INTO dual_paired VALUES(?)", restored)
+            db.executemany("DELETE FROM dual_failures WHERE id=?", restored)
+            db.execute("INSERT INTO analysis_migrations VALUES(?,?)", (MIGRATION, json.dumps(report)))
+        print(f"teacher backfill retired: {json.dumps(report)}", flush=True)
+        if backup:
+            artifact_storage.prune_teacher_backups(backup.parent)
+    if "teacher_refresh" in config or config.get("backfill_retirement") != report:
+        updated = dict(config, backfill_retirement=report)
+        updated.pop("teacher_refresh", None)
+        a.atomic(path, updated)
+        config.clear()
+        config.update(updated)
+    return report
 
 
 def replace(a, run, model, check_only=False, engine=None):
@@ -73,30 +81,20 @@ def replace(a, run, model, check_only=False, engine=None):
     helper = a.analyzer_for_agent(config["old"], {"engine": engine}) if engine else config
     a.subprocess.run([helper["analyzer_bin"], "--validate-model", str(model)], check=True)
     sha = a.digest(data)
-    db = a.connect(run, "training-labels.sqlite")
-    try:
-        if config["new_sha256"] == sha and config.get("new_teacher_agent", {}).get("engine") == engine:
-            if not check_only:
-                apply_backfill(db, config)
-            return dict(teacher=name, changed=False)
-        ids = select_backfill(db, sha)
-        report = dict(teacher=name, sha256=sha, backfill_positions=len(ids), changed=True)
-        if check_only:
-            return report
-        # Caller owns dual-label.lock, so no collector can race this backup.
-        backup = artifact_storage.teacher_backup(db, path)
-        binding = a.snapshot_model(model, data, control)
-        config.update(
-            new_model=str(model),
-            new_sha256=sha,
-            new_binding=binding,
-            new_teacher_id=name,
-            new_teacher_agent=dict(name="ab", model=str(model), **({"engine": engine} if engine else {})),
-            teacher_refresh=dict(id=f"{sha}:{time.time_ns()}", ids=ids),
-        )
-        a.atomic(path, config)
-        apply_backfill(db, config)
-        artifact_storage.prune_teacher_backups(backup.parent)
-        return dict(report, backup=str(backup))
-    finally:
-        db.close()
+    changed = config["new_sha256"] != sha or config.get("new_teacher_agent", {}).get("engine") != engine
+    report = dict(teacher=name, sha256=sha, backfill_positions=0, changed=changed)
+    if check_only or not changed:
+        return report
+    # Caller owns dual-label.lock. Snapshot before publishing; neither completed
+    # positions nor pending work is invalidated by a change of default teacher.
+    binding = a.snapshot_model(model, data, control)
+    config.update(
+        new_model=str(model),
+        new_sha256=sha,
+        new_binding=binding,
+        new_teacher_id=name,
+        new_teacher_agent=dict(name="ab", model=str(model), **({"engine": engine} if engine else {})),
+    )
+    config.pop("teacher_refresh", None)
+    a.atomic(path, config)
+    return report

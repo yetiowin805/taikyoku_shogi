@@ -50,7 +50,7 @@ class ChampionTests(AnalyzerFixture):
             updated = copy.deepcopy(config)
             updated.update(new_sha256="new", new_teacher_id="challenger")
             a.atomic(self.run / "analysis/dual-label-config.json", updated)
-            return dict(changed=True, teacher="challenger", backfill_positions=8)
+            return dict(changed=True, teacher="challenger", backfill_positions=0)
 
         with patch.object(c.teacher_refresh, "replace", side_effect=switch) as replace:
             result = self.execute(config, fit)

@@ -73,7 +73,7 @@ class PoolTests(unittest.TestCase):
                     patch.object(pool.dual, "teacher_config", return_value={}),
                     patch.object(pool.a, "alive", return_value=True),
                     patch.object(pool.champion_teacher, "check", side_effect=lambda a, r, c: c),
-                    patch.object(pool.teacher_refresh, "apply_backfill"),
+                    patch.object(pool.teacher_refresh, "retire_backfill"),
                     patch.object(pool.winner_teacher, "scan"),
                     patch.object(pool.a, "scan"),
                     patch.object(pool.multiprocessing, "get_context", return_value=SimpleNamespace(Process=Job)),

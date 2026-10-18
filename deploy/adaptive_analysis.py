@@ -18,10 +18,7 @@ import tourney_analysis as a
 import winner_teacher
 
 ELIGIBLE = "id NOT IN (SELECT id FROM dual_paired) AND id NOT IN (SELECT id FROM dual_failures)"
-ORDER = (
-    "CASE WHEN json_extract(payload,'$.teacher_refresh') IS NOT NULL THEN 0 ELSE 1 END, "
-    "CASE WHEN json_extract(payload,'$.winner_teacher') IS NOT NULL THEN 0 ELSE 1 END,id"
-)
+ORDER = "CASE WHEN json_extract(payload,'$.winner_teacher') IS NOT NULL THEN 0 ELSE 1 END,id"
 
 
 @contextlib.contextmanager
@@ -83,7 +80,7 @@ def run(config):
             "CREATE TABLE IF NOT EXISTS dual_paired(id TEXT PRIMARY KEY);"
             "CREATE TABLE IF NOT EXISTS dual_failures(id TEXT PRIMARY KEY,error TEXT,updated REAL);"
         )
-        teacher_refresh.apply_backfill(db, config)
+        teacher_refresh.retire_backfill(a, run_dir, db, config)
         with allocation(control) as demand:
             demand.update(assigned=[], pending=pending_count(db), pid=os.getpid(), updated=time.time())
         heartbeat_stop = threading.Event()
@@ -122,8 +119,8 @@ def run(config):
                         db.commit()
                     lease.close()
                     del active[index]
-                # Scan and teacher migration run only with no outstanding jobs:
-                # otherwise a backfill could race a worker committing an old label.
+                # Switch teachers and scan only at job boundaries, so new requests
+                # consistently use the updated configuration.
                 if running and time.time() - last_scan >= 10:
                     try:
                         state = a.read(run_dir / "state.json")
@@ -133,7 +130,6 @@ def run(config):
                     draining = current != fingerprint
                     if draining and not active:
                         config = champion_teacher.check(a, run_dir, a.read(control / "dual-label-config.json"))
-                        teacher_refresh.apply_backfill(db, config)
                         winner_teacher.scan(a, db, run_dir, config)
                         a.scan(
                             db,

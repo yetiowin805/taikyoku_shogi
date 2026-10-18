@@ -153,7 +153,7 @@ def run(config):
             "CREATE TABLE IF NOT EXISTS dual_paired(id TEXT PRIMARY KEY);"
             "CREATE TABLE IF NOT EXISTS dual_failures(id TEXT PRIMARY KEY, error TEXT, updated REAL);"
         )
-        teacher_refresh.apply_backfill(db, config)
+        teacher_refresh.retire_backfill(a, run, db, config)
         try:
             while not a.STOPPING:
                 live = a.read(control / "supervisor.json")
@@ -161,7 +161,6 @@ def run(config):
                     print("tournament stopped; dual labeling stopped", flush=True)
                     break
                 config = champion_teacher.check(a, run, config)
-                teacher_refresh.apply_backfill(db, config)
                 winner_teacher.scan(a, db, run, config)
                 a.scan(
                     db,
@@ -173,7 +172,7 @@ def run(config):
                 )
                 batch = db.execute(
                     "SELECT * FROM moments WHERE id NOT IN (SELECT id FROM dual_paired) "
-                    "AND id NOT IN (SELECT id FROM dual_failures) ORDER BY CASE WHEN json_extract(payload,'$.teacher_refresh') IS NOT NULL THEN 0 ELSE 1 END, CASE WHEN json_extract(payload,'$.winner_teacher') IS NOT NULL THEN 0 ELSE 1 END,id LIMIT 20"
+                    "AND id NOT IN (SELECT id FROM dual_failures) ORDER BY CASE WHEN json_extract(payload,'$.winner_teacher') IS NOT NULL THEN 0 ELSE 1 END,id LIMIT 20"
                 ).fetchall()
                 remaining = db.execute(
                     "SELECT count(*) FROM moments WHERE id NOT IN (SELECT id FROM dual_paired)"
@@ -213,9 +212,7 @@ def run(config):
                         if a.STOPPING:
                             break
                         config = champion_teacher.check(a, run, config)
-                        teacher_refresh.apply_backfill(db, config)
-                        # A promotion can update queued payloads after this batch
-                        # was selected; reload to retain its recovery marker.
+                        # Reload any search results persisted since batch selection.
                         moment = json.loads(
                             db.execute("SELECT payload FROM moments WHERE id=?", (row["id"],)).fetchone()["payload"]
                         )
