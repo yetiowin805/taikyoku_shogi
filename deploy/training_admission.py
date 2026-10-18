@@ -109,7 +109,7 @@ def claim_idle(control, leases, stack, count):
             leases[i] = stack.enter_context(f)
 
 
-def external_leases(control, services, count):
+def service_locks(services):
     """Only exempt flock leases owned by explicitly configured service main PIDs.
 
     Unknown holders (including game workers) must still drain. A stale CPU list
@@ -128,6 +128,11 @@ def external_leases(control, services, count):
         if len(fields) >= 8 and fields[1:4] == ["FLOCK", "ADVISORY", "WRITE"] and int(fields[4]) in pids:
             major, minor, inode = fields[5].split(":")
             held.add((int(major, 16), int(minor, 16), int(inode)))
+    return held
+
+
+def external_leases(control, services, count):
+    held = service_locks(services)
     result = set()
     for index in range(count):
         path = control / f"cpu-{index}.lock"
@@ -136,6 +141,21 @@ def external_leases(control, services, count):
             if (os.major(stat.st_dev), os.minor(stat.st_dev), stat.st_ino) in held:
                 result.add(index)
     return result
+
+
+def guard_analysis_lock(control, stack, services):
+    path = control / "dual-label.lock"
+    own = stack.enter_context(path.open("a+"))
+    try:
+        fcntl.flock(own, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        stat = path.stat()
+        key = (os.major(stat.st_dev), os.minor(stat.st_dev), stat.st_ino)
+        if key not in service_locks(services):
+            raise ValueError("Analysis lock belongs to an unrecognized process")
+        # Trainers hold this lock to keep analysis paused throughout training.
+        return False
+    return True
 
 
 def drain(control, stack, count, services, status):
@@ -254,8 +274,7 @@ def admit(config, models):
         try:
             paused = True
             service("stop", analysis)
-            own = stack.enter_context((control / "dual-label.lock").open("a+"))
-            fcntl.flock(own, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            analysis_locked = guard_analysis_lock(control, stack, config.get("concurrent_services", []))
             # Drain games only, leaving independent training/experiment leases intact.
             drain(control, stack, 8, config.get("concurrent_services", []),
                   lambda state, **fields: status(state, entrants=[e["id"] for e in entries], **fields))
@@ -269,6 +288,8 @@ def admit(config, models):
             state = a.read(run / "state.json")
             if any(s["status"] == "running" for s in state["slots"]):
                 raise ValueError("All CPU leases held but games still running; refusing admission")
+            if not analysis_locked:
+                guard_analysis_lock(control, stack, config.get("concurrent_services", []))
             status("publishing", entrants=[e["id"] for e in entries])
             stop_idle_coordinator(control, coordinator)
             # Re-read the final checkpoint. On recovery, append idempotently to

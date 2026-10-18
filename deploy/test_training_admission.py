@@ -61,6 +61,21 @@ class AdmissionTests(unittest.TestCase):
                 with self.assertRaises(BlockingIOError):
                     fcntl.flock(contender, fcntl.LOCK_EX | fcntl.LOCK_NB)
 
+    def test_training_may_keep_analysis_paused_during_admission(self):
+        with tempfile.TemporaryDirectory() as temp, ExitStack() as stack:
+            control = Path(temp)
+            path = control / "dual-label.lock"
+            trainer = stack.enter_context(path.open("a+"))
+            fcntl.flock(trainer, fcntl.LOCK_EX)
+            import os
+            stat = path.stat()
+            key = (os.major(stat.st_dev), os.minor(stat.st_dev), stat.st_ino)
+            with patch.object(admission, "service_locks", return_value={key}):
+                admission.guard_analysis_lock(control, stack, ["trainer"])
+            with patch.object(admission, "service_locks", return_value=set()):
+                with self.assertRaisesRegex(ValueError, "unrecognized"):
+                    admission.guard_analysis_lock(control, stack, ["trainer"])
+
     def test_idle_restart_rejects_wrong_child_and_pins_valid_process(self):
         fields = ["S", "123"] + ["0"] * 17 + ["456"]
         with tempfile.TemporaryDirectory() as temp:
