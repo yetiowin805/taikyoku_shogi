@@ -5,6 +5,8 @@ import json
 import statistics
 from pathlib import Path
 
+from comparison import STRATEGIES
+
 from run import atomic
 
 
@@ -16,13 +18,24 @@ def report(out):
     for path in sorted(out.glob("*/audit/audit.json")):
         audit = json.loads(path.read_text())
         if "positions" in audit:
+            arms = {s: json.loads((path.parent.parent / s / "summary.json").read_text()) for s in STRATEGIES}
+            resumed = [s for s, summary in arms.items() if summary.get("resumes")]
             for row in audit.get("comparisons", []):
                 matched.append(
                     dict(
                         row,
                         case=audit["case"]["id"],
-                        cohort=audit["case"].get("cohort"),
-                        leader=audit.get("leader", {}).get("id"),
+                        cohort=audit["case"].get("cohort", "unspecified"),
+                        leader=(audit.get("leader") or {}).get("id"),
+                        resumed_arms=resumed,
+                        primary_timing_eligible=not resumed,
+                        compute={
+                            s: dict(
+                                total_cpu_seconds=summary["spent"],
+                                checkpoint_cpu_seconds=summary["snapshots"][str(row["checkpoint"])]["cpu_seconds"],
+                            )
+                            for s, summary in arms.items()
+                        },
                     )
                 )
             continue
@@ -51,11 +64,14 @@ def report(out):
         selected = [
             r for r in matched if (r["cohort"], r["strategy"], r["checkpoint"]) == (cohort, strategy, checkpoint)
         ]
+        resumed_rows = sum(not r["primary_timing_eligible"] for r in selected)
+        selected = [r for r in selected if r["primary_timing_eligible"]]
         record = dict(
             cohort=cohort,
             strategy=strategy,
             checkpoint=checkpoint,
             rows=len(selected),
+            excluded_resumed_rows=resumed_rows,
             missing_recommendations=sum("missing" in r for r in selected),
             changed_moves=sum(not r.get("same_move", True) for r in selected),
             horizons={},
