@@ -22,6 +22,30 @@ def service(action, name):
     subprocess.run(["systemctl", action, name], check=True)
 
 
+def clock_transition(config, initial_ms, increment_ms):
+    """Prepare an explicit clock change; publish only after active games finish."""
+    if initial_ms is None and increment_ms is None:
+        return config
+    if initial_ms is None or increment_ms is None:
+        raise ValueError("initial time and increment must be supplied together")
+    if not 1000 < initial_ms <= 86_400_000 or not 0 < increment_ms <= 3_600_000:
+        raise ValueError("invalid Fischer clock: initial >1s, <=1 day; increment >0, <=1 hour")
+    command = list(config["command"])
+    for flag, value in [("--initial-time-ms", initial_ms), ("--increment-ms", increment_ms)]:
+        if command.count(flag) > 1:
+            raise ValueError("duplicate clock option: " + flag)
+        if flag in command:
+            index = command.index(flag)
+            if index + 1 == len(command) or command[index + 1].startswith("--"):
+                raise ValueError("missing clock value: " + flag)
+            command[index + 1] = str(value)
+        else:
+            command += [flag, str(value)]
+    if "--max-time-ms" in command:
+        raise ValueError("cannot combine Fischer clocks with a fixed move budget")
+    return dict(config, command=command, time_control=dict(initial_ms=initial_ms, increment_ms=increment_ms))
+
+
 def external_leases(control, services, count):
     pids = {
         int(subprocess.check_output(["systemctl", "show", name, "-p", "MainPID", "--value"], text=True).strip() or 0)
@@ -102,6 +126,8 @@ def upgrade(args):
     expected = a.file_digest(binary)
     pointer = (control / "active-engine.json").read_bytes()
     cfg = a.read(control / "config.json")
+    # Validate before touching any service or taking the game-admission gate.
+    clock_transition(cfg, args.initial_time_ms, args.increment_ms)
     if len(cfg["cpus"]) != 8 or cfg.get("sidecar") != "none":
         raise ValueError("Legacy migration requires an eight-CPU external-sidecar scheduler")
     report = control / "scheduler-upgrade.json"
@@ -127,7 +153,7 @@ def upgrade(args):
                 raise ValueError("Scheduler or game-engine pointer changed during drain")
             status("upgrading")
             stop_idle_coordinator(control, args.coordinator)
-            cfg = a.read(control / "config.json")
+            cfg = clock_transition(a.read(control / "config.json"), args.initial_time_ms, args.increment_ms)
             backup = control / f"before-scheduler-upgrade-{time.time_ns()}"
             backup.mkdir()
             for path in [run / "state.json", control / "config.json", control / "manifest.json"]:
@@ -145,6 +171,10 @@ def upgrade(args):
                             "Scheduler did not start; inspect tournament.log; backup: " + str(backup)
                         ) from None
                     time.sleep(1)
+            if args.initial_time_ms is not None:
+                applied = a.read(run / "state.json").get("time_control")
+                if applied != cfg["time_control"]:
+                    raise RuntimeError("Restarted scheduler did not apply the requested clock")
             if (control / "active-engine.json").read_bytes() != pointer:
                 raise RuntimeError("Game engine pointer unexpectedly changed")
             status("ready", backup=str(backup))
@@ -164,6 +194,8 @@ def main():
     parser.add_argument("--coordinator", default="taikyoku-coordinator.service")
     parser.add_argument("--replace-service", action="append", default=[])
     parser.add_argument("--external-service", action="append", default=[])
+    parser.add_argument("--initial-time-ms", type=int, help="Apply after current games finish; 60000 for 1+1")
+    parser.add_argument("--increment-ms", type=int, help="Supply with initial time; 1000 for 1+1")
     upgrade(parser.parse_args())
 
 
