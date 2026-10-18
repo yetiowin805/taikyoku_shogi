@@ -16,6 +16,26 @@ import upgrade_tournament_scheduler as upgrade
 
 
 class TasksTests(unittest.TestCase):
+    def test_clock_transition_preserves_schedule_and_requires_valid_pair(self):
+        config = dict(
+            command=["engine", "tournament", "--resume", "--initial-time-ms", "900000", "--increment-ms", "5000"],
+            cpus=list(range(8)),
+        )
+        changed = upgrade.clock_transition(config, 60000, 1000)
+        self.assertEqual(changed["time_control"], dict(initial_ms=60000, increment_ms=1000))
+        self.assertEqual(
+            changed["command"],
+            ["engine", "tournament", "--resume", "--initial-time-ms", "60000", "--increment-ms", "1000"],
+        )
+        self.assertEqual(config["command"][4], "900000")
+        self.assertEqual(changed["cpus"], config["cpus"])
+        self.assertIs(upgrade.clock_transition(config, None, None), config)
+        for initial, increment in [(None, 1000), (60000, None), (1000, 1000), (60000, 0)]:
+            with self.assertRaises(ValueError):
+                upgrade.clock_transition(config, initial, increment)
+        with self.assertRaisesRegex(ValueError, "fixed move budget"):
+            upgrade.clock_transition(dict(command=["engine", "--max-time-ms", "1000"]), 60000, 1000)
+
     def test_immutable_request_and_verified_receipt(self):
         with tempfile.TemporaryDirectory() as temp:
             run = Path(temp)

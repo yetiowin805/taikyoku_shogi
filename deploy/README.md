@@ -733,6 +733,27 @@ database/config and any WAL files before installing the restored database and
 its matching `dual-label-config.json`. This backup concerns labels and teacher
 selection, not tournament game results.
 
+### Graceful clock transitions
+
+For a clock transition after all current games finish, the scheduler-upgrade
+utility also accepts `--initial-time-ms 60000 --increment-ms 1000` (1 minute
+plus 1 second). It holds the assignment gate, waits without an elapsed-time
+cutoff, backs up state/configuration, then restarts with the new clock and
+verifies that it was applied. Pass the existing coordinator binary to change
+only the clock, and list external CPU holders with `--external-service` as
+usual. Completed records, ratings, pairings and models are preserved; each game
+retains its actual clock in `stats.clock.control`. Ratings consequently include
+both clock regimes unless explicitly filtered in a separate comparison.
+
+Current search uses the increment remaining after move setup as the base of its
+bank-sensitive limits. The next iteration is estimated at three times the last
+iteration; it must fit within `increment + 1% of remaining bank`, counting search
+time already spent. At most one iteration extends beyond the increment budget.
+The hard search deadline is `increment + 10% of remaining bank`, retaining the
+one-second clock reserve and the last completed iteration. At 1+1 with a full
+60-second bank, those limits are approximately 1.6 and 7 seconds. Publish this
+clock-aware game engine before applying the shorter clock.
+
 ### Incremental completed-model admission
 
 `training_admission.py CONFIG --watch` admits each completed model independently,

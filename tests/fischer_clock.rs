@@ -84,7 +84,7 @@ fn fischer_search_one_extension_and_last_completed_iteration() {
 fn clocks_are_independent_recorded_and_round_trip() {
     let clock = FischerControl {
         initial_ms: 60_000,
-        increment_ms: 5000,
+        increment_ms: 1000,
     };
     let cfg = WorkerConfig {
         black: AgentSpec::new("random"),
