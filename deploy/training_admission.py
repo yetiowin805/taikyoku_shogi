@@ -102,8 +102,10 @@ def admit(config, model):
         entry = entries[0]
         binding = bindings[entry["model"]]
         files = {entry["model"]: binding["sha256"]}
-        for artifact in binding.get("artifacts", []):
-            files[artifact["original"]] = artifact["sha256"]
+        # Pin the exact path the engine reads. Binding originals are resolved
+        # paths and may differ when immutable blobs use shared-store symlinks.
+        nnue = a.read(entry["model"])["weights"]["nnue"]
+        files[nnue["file"]] = nnue["sha256"]
         command = dict(kind="admit", entrants=[dict(entrant=entry, files=files)])
         intent = report / "live-intent.json"
         if intent.exists():

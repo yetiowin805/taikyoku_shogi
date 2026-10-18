@@ -36,7 +36,11 @@ class AdmissionTests(unittest.TestCase):
             def acknowledge(run, ident, digest):
                 ids.append(ident)
                 request = a.read(control / "tasks/requests" / f"{ident}.json")
-                entry = request["command"]["entrants"][0]["entrant"]
+                pinned = request["command"]["entrants"][0]
+                entry = pinned["entrant"]
+                descriptor = a.read(entry["model"])["weights"]["nnue"]
+                self.assertTrue(Path(descriptor["file"]).is_symlink())
+                self.assertEqual(pinned["files"][descriptor["file"]], descriptor["sha256"])
                 current = a.read(run / "state.json")
                 if entry not in current["entrants"]:
                     current["entrants"].append(entry)
@@ -53,7 +57,7 @@ class AdmissionTests(unittest.TestCase):
                     admission.engine_updates, "active", return_value=dict(engine_bin="engine", analyzer_bin="analyzer")
                 ),
                 patch.object(admission.subprocess, "run") as validate,
-                patch("artifact_storage.settings", return_value={}),
+                patch("artifact_storage.settings", return_value={"model_store": str(root / "store")}),
             ):
                 with self.assertRaisesRegex(OSError, "receipt lost"):
                     admission.admit(config, model)

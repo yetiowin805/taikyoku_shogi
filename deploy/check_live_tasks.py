@@ -55,8 +55,13 @@ def main():
         worker = root / "worker"
         worker.write_text(WORKER)
         worker.chmod(0o755)
-        model = root / "model.json"
-        model.write_text("{}")
+        model = Path(sys.argv[2]).resolve() if len(sys.argv) > 2 else root / "model.json"
+        if len(sys.argv) <= 2:
+            model.write_text("{}")
+        model_files = {str(model): a.file_digest(model)}
+        nnue = a.read(model).get("weights", {}).get("nnue")
+        if nnue:
+            model_files[nnue["file"]] = nnue["sha256"]
         manifest = root / "manifest.json"
         a.atomic(manifest, dict(entrants=[dict(id=f"old{i}", model=str(model)) for i in range(20)]))
         run = root / "run"
@@ -110,9 +115,7 @@ def main():
                     run,
                     dict(
                         kind="admit",
-                        entrants=[
-                            dict(entrant=dict(id="new", model=str(model)), files={str(model): a.file_digest(model)})
-                        ],
+                        entrants=[dict(entrant=dict(id="new", model=str(model)), files=model_files)],
                     ),
                     "001-admit",
                 )
