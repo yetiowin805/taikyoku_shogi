@@ -76,7 +76,7 @@ def check(a, run, config):
         if not eligible:
             raise ValueError("no active rated teacher candidates")
         # Follow the displayed ranking even while component ratings are provisional.
-        # Retain an active incumbent on exact ties to avoid unnecessary backfill.
+        # Retain an active incumbent on exact ties to avoid unnecessary switches.
         leader = min(eligible, key=lambda name: (-ratings[name], name != current, name))
         lead = ratings[leader] - ratings[current]
         status.update(leader=leader, leader_rating=ratings[leader], current_rating=ratings[current], lead=lead)
@@ -107,7 +107,7 @@ def check(a, run, config):
             log.flush()
             os.fsync(log.fileno())
         print(
-            f"teacher champion: {current} -> {leader}, lead {lead:.1f}, backfill {report.get('backfill_positions', 0)}",
+            f"teacher champion: {current} -> {leader}, lead {lead:.1f}; existing labels retained",
             flush=True,
         )
         return updated

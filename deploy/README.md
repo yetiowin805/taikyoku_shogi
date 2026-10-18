@@ -605,8 +605,8 @@ The supplemental worker first bridges the two smallest disconnected active
 groups (their best active agent each), otherwise tests the worst active member
 of the SCC containing the leader against the best active outsider, otherwise
 plays the top two. Ties use reproducible randomness; committed color-swapped
-pairs survive restart. Champion-teacher promotion only compares agents in the
-same SCC, so an assigned 100-point gap cannot trigger promotion.
+pairs survive restart. Analysis teacher selection follows the ranking as described
+below, including provisional component rankings.
 
 After the recovery ExecStopPost, also run
 `register_training_models.py RUN_DIR`. This registers newly admitted model
@@ -618,7 +618,20 @@ The automatic analysis teacher follows the highest-rated active entrant in the
 order-neutral ranking, including provisional component rankings. There is no
 minimum rating lead; legacy `auto_champion.margin` values are ignored. Exact
 ties retain the current active teacher, otherwise ties use entrant ID. Frozen
-checkpoint validation and bounded, resumable backfill still apply.
+checkpoint validation still applies. Teacher changes apply to new analysis work;
+completed labels remain valid and are never automatically requeued just because
+a different agent leads. Teacher switches do not copy the label database.
+
+At the first collector restart after this change, legacy teacher-refresh jobs with
+valid saved labels are restored to completed status. Current and archived search
+results and their provenance remain unchanged. The migration runs while holding
+`dual-label.lock`, before any workers start, and creates one verified compressed
+rollback backup before modifying queued rows. Its audit is committed with the
+changes in `analysis_migrations` and copied to `backfill_retirement` in
+`dual-label-config.json`; interrupted publication is safe to retry. Refresh jobs
+without a valid saved label remain unchanged and emit a diagnostic. Newly selected
+positions, including previously unlabelled positions from older games, continue
+to be analysed normally. This does not alter position selection or search limits.
 
 ## Disk reserve and durable tournament checkpoints
 
