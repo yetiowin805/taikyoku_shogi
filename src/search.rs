@@ -4377,9 +4377,7 @@ fn quiesce_impl(
         } else {
             c.enemy
         };
-        if !c.is_loud_promo
-            && !c.is_royal_take
-            && !(resolve_major && c.is_dest_recapture)
+        if !(c.is_loud_promo || c.is_royal_take || resolve_major && c.is_dest_recapture)
             && (stand_pat as f32 + gain) <= alpha as f32
         {
             continue;

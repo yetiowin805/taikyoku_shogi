@@ -740,13 +740,9 @@ including its held-out evaluation, without waiting for other models or the train
 service to exit. Each model has a resumable transaction under
 `OUT/admission/MODEL/`; the aggregate status lists admitted and waiting models.
 
-Set `concurrent_services` to the systemd units whose main processes hold training
-or experiment CPU leases. The watcher verifies actual `/proc/locks` ownership;
-stale CPU lists and unknown lock holders never exempt a game from draining.
-It reserves idle game CPUs and lets current games finish, while external work
-continues. At publication it holds the allocation gate, verifies no running slots,
-ends the now-idle tournament child (whose threads may be blocked on that gate),
-and replaces the coordinator with the updated entrant manifest. Training workers
-and their checkpoints are untouched. Analysis resumes only if it was active before
-admission. This Linux deployment requires Python pidfd support. No elapsed-time
-cutoff is applied to draining games.
+The running coordinator handles a durable admission request under the same lock
+as game claims and results. It does not need idle CPUs or a restart. Per-model
+requests and receipts survive retry, and an invalid model does not prevent other
+ready models from being attempted. Configure the explicit `admission_models` list
+and run the watcher with failure restarts and no runtime cutoff. See
+[`LIVE_TOURNAMENT_TASKS.md`](LIVE_TOURNAMENT_TASKS.md) for details and legacy upgrades.

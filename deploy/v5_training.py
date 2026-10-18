@@ -1,6 +1,6 @@
 """Run three isolated 512v5 continuations; lease CPUs without stopping games.
 
-Pauses analysis and automatically admits the completed models after games drain.
+Pauses analysis and admits each completed model through the live scheduler.
 The systemd unit must also restart analysis in ExecStopPost for hard-kill recovery.
 """
 
@@ -55,6 +55,7 @@ def main():
     own = None
     paused = False
     claimed = False
+    admission_failures = []
 
     def status(state, **kwargs):
         a.atomic(out / "status.json", dict(state=state, updated=time.time(), **kwargs))
@@ -99,6 +100,16 @@ def main():
             proc = None
             if result:
                 raise RuntimeError(name + " failed: " + str(result))
+
+    def publish_model(model):
+        try:
+            admit(c, model)
+        except Exception as error:
+            report = out / "admission" / model.name
+            report.mkdir(parents=True, exist_ok=True)
+            a.atomic(report / "status.json", dict(state="failed", error=str(error), updated=time.time()))
+            print(f"Admission failed for {model.name}: {error}; other training continues", flush=True)
+            admission_failures.append(model)
 
     try:
         status("pausing_analysis")
@@ -162,6 +173,7 @@ def main():
         for suffix, proportions in [("a", ".90,.08,.02"), ("b", ".85,.12,.03"), ("c", ".95,.04,.01")]:
             model = out / f"NNUE_W512_v5{suffix}"
             if (model / "status.json").exists() and a.read(model / "status.json").get("state") == "completed":
+                publish_model(model)
                 continue
             command = [
                 c["python"],
@@ -212,14 +224,17 @@ def main():
             if (model / "recipe.json").exists():
                 command.append("--resume")
             job(command, "train-" + suffix)
-        # Return training leases before draining game workers for admission.
-        # Existing immutable running trainers can use training_admission --watch.
+            publish_model(model)
+        # Admission never needs these leases. Release them before retrying any
+        # failed publications, so a scheduler failure does not strand compute.
         pool.close()
         claimed = False
         own.close()
         own = None
-        status("admitting")
-        admit(c, [out / f"NNUE_W512_v5{s}" for s in "abc"])
+        if admission_failures:
+            status("admission_retry", models=[m.name for m in admission_failures])
+            for model in admission_failures:
+                admit(c, model)
         status("completed", models=[str(out / f"NNUE_W512_v5{s}/model.json") for s in "abc"])
     except BaseException as e:
         status("failed", error=str(e))
