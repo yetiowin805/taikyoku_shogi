@@ -111,6 +111,9 @@ fn main() {
                 }
             }
 
+            "tournament-task-protocol" => {
+                println!("{}", taikyoku_shogi::training::runtime_tasks::PROTOCOL)
+            }
             "play" => match parse_play_args(&args) {
                 Ok((agent, depth, model)) => {
                     if let Some(d) = depth {

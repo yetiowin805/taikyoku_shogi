@@ -88,6 +88,12 @@ def check(a, run, config):
             raise ValueError(f"leader {leader} is not a current entrant")
         model = Path(entrant["model"]).resolve()
         binding = config["old"]["models"].get(str(model))
+        # Live admission publishes frozen bindings before adding the entrant.
+        registry = run / "analysis/config.json"
+        if binding is None and registry.exists():
+            binding = a.read(registry).get("models", {}).get(str(model))
+            if binding is not None:
+                a.validate_model_binding(str(model), binding)
         if not binding or binding["sha256"] != a.file_digest(model):
             raise ValueError(f"leader {leader} lacks its unchanged frozen checkpoint")
         if a.read(model).get("name") != leader:
