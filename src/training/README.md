@@ -106,12 +106,17 @@ leader pairs, and CPU 3 remains shared between the analyzer and an idle-analysis
 bracket worker. Before a converged order-neutral fit exists, CPU 2 plays brackets.
 
 At each pair boundary in a strongly connected pool, select the highest-rated
-active entrant and the most underrepresented opponent. Opponent weights are 1
-for rank 2, 1/2 each for ranks 3–4, 1/4 each for ranks 5–8, and so on, normalized
-over active opponents (rank 2 gets 20% in a 32-agent pool). Minimize completed
+active entrant and the most underrepresented opponent. Order opponents by their
+completed score against the leader (draws count half): first 100% scorers, with
+more games first; then mixed scorers, with higher score percentage first; then
+0% scorers, with fewer games first. Higher order-neutral rating breaks ties in
+each group. Unplayed opponents follow these groups in rating order, but their
+zero coverage gives them selection priority over every played opponent.
+Opponent weights are 1 for position 1, 1/2 each for positions 2–3, 1/4 each for
+positions 4–7, and so on, normalized over active opponents. Minimize completed
 head-to-head games divided by target weight; count both bracket and supplemental
-games, with wins, draws, and losses each counting once. Higher rank breaks ties,
-so unseen opponents are visited in rating order. Counts follow identities when
+games, with wins, draws, and losses each counting once. The empirical ordering
+breaks equal coverage ratios. Counts follow identities when
 rankings or the champion change. Pending/running games do not count. Existing
 component-bridging selection remains in force until connectivity is established.
 Play two opening games
