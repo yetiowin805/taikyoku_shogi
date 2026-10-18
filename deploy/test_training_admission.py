@@ -13,22 +13,78 @@ from training_admission import a
 
 
 class AdmissionTests(unittest.TestCase):
-    def test_watcher_waits_for_training_service_cleanup(self):
+    def test_watcher_admits_each_finished_model_without_waiting_for_trainer(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             config = root / "config.json"
             a.atomic(config, dict(out=str(root), admission_models=["NNUE_a", "NNUE_b"]))
+            calls = []
+            def admit(cfg, models):
+                calls.append([p.name for p in models])
+                (root / "admission" / cfg["admission_key"]).mkdir(parents=True, exist_ok=True)
+                a.atomic(root / "admission" / cfg["admission_key"] / "status.json", dict(state="admitted"))
             with (
                 patch("sys.argv", ["training_admission", str(config), "--watch"]),
                 patch.object(admission.signal, "signal"),
-                patch.object(admission, "completed", return_value=True),
-                patch.object(admission.subprocess, "check_output", side_effect=["deactivating\n", "inactive\n"]),
+                patch.object(admission, "completed", side_effect=[True, False, True]),
                 patch.object(admission.time, "sleep") as wait,
-                patch.object(admission, "admit") as admit,
+                patch.object(admission, "admit", side_effect=admit),
             ):
                 admission.main()
-                wait.assert_called_once_with(30)
-                self.assertEqual(admit.call_args.args[1], [root / "NNUE_a", root / "NNUE_b"])
+            self.assertEqual(calls, [["NNUE_a"], ["NNUE_b"]])
+            wait.assert_called_once_with(30)
+            self.assertEqual(a.read(root / "admission/status.json")["admitted"], ["NNUE_a", "NNUE_b"])
+
+    def test_external_leases_require_actual_service_owner(self):
+        with tempfile.TemporaryDirectory() as temp:
+            control = Path(temp)
+            lease = control / "cpu-1.lock"
+            lease.touch()
+            stat = lease.stat()
+            import os
+            key = f"{os.major(stat.st_dev):x}:{os.minor(stat.st_dev):x}:{stat.st_ino}"
+            for pid, expected in [(123, {1}), (999, set())]:
+                with patch.object(admission.subprocess, "check_output", return_value="123\n"), \
+                     patch.object(Path, "read_text", return_value=f"1: FLOCK ADVISORY WRITE {pid} {key} 0 EOF\n"):
+                    self.assertEqual(admission.external_leases(control, ["trainer.service"], 8), expected)
+
+    def test_drain_preserves_external_lease_and_keeps_gate_until_publication(self):
+        with tempfile.TemporaryDirectory() as temp, ExitStack() as stack:
+            control = Path(temp)
+            external = stack.enter_context((control / "cpu-1.lock").open("a+"))
+            fcntl.flock(external, fcntl.LOCK_EX)
+            with patch.object(admission, "external_leases", return_value={1}), \
+                 patch.object(admission.time, "sleep") as sleep:
+                admission.drain(control, stack, 2, ["trainer"], lambda *a, **k: None)
+                sleep.assert_not_called()
+            with (control / "allocation.lock").open("a+") as contender:
+                with self.assertRaises(BlockingIOError):
+                    fcntl.flock(contender, fcntl.LOCK_EX | fcntl.LOCK_NB)
+
+    def test_idle_restart_rejects_wrong_child_and_pins_valid_process(self):
+        fields = ["S", "123"] + ["0"] * 17 + ["456"]
+        with tempfile.TemporaryDirectory() as temp:
+            control = Path(temp)
+            a.atomic(control / "supervisor.json", dict(pid=123, tournament_pid=234))
+            original = Path.read_text
+            def read(path, *args, **kwargs):
+                if str(path) == "/proc/234/stat":
+                    return "234 (engine) " + " ".join(fields)
+                return original(path, *args, **kwargs)
+            with patch.object(a, "alive", return_value=True), \
+                 patch.object(Path, "read_text", read), \
+                 patch.object(admission.os, "pidfd_open", return_value=42, create=True), \
+                 patch.object(admission.os, "close"), \
+                 patch.object(admission.signal, "pidfd_send_signal", create=True) as kill, \
+                 patch.object(admission.subprocess, "run"), \
+                 patch.object(admission, "service"):
+                admission.stop_idle_coordinator(control, "coordinator")
+                kill.assert_called_once_with(42, admission.signal.SIGKILL)
+                kill.reset_mock()
+                fields[1] = "999"
+                with self.assertRaisesRegex(ValueError, "identity changed"):
+                    admission.stop_idle_coordinator(control, "coordinator")
+                kill.assert_not_called()
 
     def test_identity_is_idempotent_and_preserves_history(self):
         old = dict(
@@ -133,10 +189,12 @@ class AdmissionTests(unittest.TestCase):
                         return_value=dict(engine_bin="engine", analyzer_bin="analyzer"),
                     ),
                     patch.object(admission.subprocess, "run") as validate,
+                    patch.object(admission, "stop_idle_coordinator", side_effect=lambda control, name: service("stop", name)),
                     patch.object(a, "alive", return_value=True),
                     patch.object(a, "atomic", side_effect=atomic),
                     patch("artifact_storage.settings", return_value={}),
                 ):
+                    validate.return_value.returncode = 0
                     if fail_after_state:
                         with self.assertRaisesRegex(OSError, "simulated interruption"):
                             admission.admit(config, [model])
@@ -150,7 +208,7 @@ class AdmissionTests(unittest.TestCase):
                         original_atomic(run / "state.json", current)
                     admission.admit(config, [model])
                     self.assertEqual(a.read(out / "admission/status.json")["state"], "admitted")
-                    self.assertEqual(validate.call_args.args[0][1], "--validate-model")
+                    self.assertTrue(any(call.args[0][1] == "--validate-model" for call in validate.call_args_list))
                     before = len(calls)
                     admission.admit(config, [model])
                     self.assertEqual(calls[before:], [("start", "taikyoku-dual-labels.service")])

@@ -109,8 +109,86 @@ def claim_idle(control, leases, stack, count):
             leases[i] = stack.enter_context(f)
 
 
+def external_leases(control, services, count):
+    """Only exempt flock leases owned by explicitly configured service main PIDs.
+
+    Unknown holders (including game workers) must still drain. A stale CPU list
+    is never sufficient evidence that a CPU belongs to an external worker.
+    """
+    pids = set()
+    for name in services:
+        pid = int(subprocess.check_output(
+            ["systemctl", "show", name, "-p", "MainPID", "--value"], text=True
+        ).strip() or 0)
+        if pid > 0:
+            pids.add(pid)
+    held = set()
+    for line in Path("/proc/locks").read_text().splitlines():
+        fields = line.split()
+        if len(fields) >= 8 and fields[1:4] == ["FLOCK", "ADVISORY", "WRITE"] and int(fields[4]) in pids:
+            major, minor, inode = fields[5].split(":")
+            held.add((int(major, 16), int(minor, 16), int(inode)))
+    result = set()
+    for index in range(count):
+        path = control / f"cpu-{index}.lock"
+        if path.exists():
+            stat = path.stat()
+            if (os.major(stat.st_dev), os.minor(stat.st_dev), stat.st_ino) in held:
+                result.add(index)
+    return result
+
+
+def drain(control, stack, count, services, status):
+    leases = {}
+    gate = stack.enter_context((control / "allocation.lock").open("a+"))
+    while True:
+        fcntl.flock(gate, fcntl.LOCK_EX)
+        claim_idle(control, leases, stack, count)
+        external = external_leases(control, services, count)
+        status("draining", reserved_cpus=sorted(leases), external_cpus=sorted(external))
+        if set(leases) | external == set(range(count)):
+            # Retain the gate through publication: even if an external worker
+            # releases its lease now, a game cannot start in the transaction.
+            return
+        fcntl.flock(gate, fcntl.LOCK_UN)
+        # Let external workers heartbeat and train while games finish.
+        time.sleep(2)
+
+
 def service(action, name):
     subprocess.run(["systemctl", action, name], check=True)
+
+
+def stop_idle_coordinator(control, coordinator):
+    """Called only with the allocation gate held and every game lease drained.
+
+    Idle engine threads can be blocked in flock, so their SIGTERM handler cannot
+    join them while the gate is held. End that verified idle child, then stop its
+    supervisor. No game is running; its last state is already persisted.
+    """
+    meta = a.read(control / "supervisor.json")
+    if not a.alive(meta):
+        service("stop", coordinator)
+        return
+    pid = meta["tournament_pid"]
+    try:
+        fields = Path(f"/proc/{pid}/stat").read_text().split(") ", 1)[1].split()
+    except FileNotFoundError:
+        service("stop", coordinator)
+        return
+    if int(fields[1]) != meta["pid"]:
+        raise ValueError("Tournament child identity changed; refusing idle restart")
+    # Pin the process identity across signal delivery (no PID-reuse race).
+    fd = os.pidfd_open(pid)
+    try:
+        current = Path(f"/proc/{pid}/stat").read_text().split(") ", 1)[1].split()
+        if current[19] != fields[19] or int(current[1]) != meta["pid"]:
+            raise ValueError("Tournament child changed during idle restart")
+        subprocess.run(["systemctl", "stop", "--no-block", coordinator], check=True)
+        signal.pidfd_send_signal(fd, signal.SIGKILL)
+        service("stop", coordinator)
+    finally:
+        os.close(fd)
 
 
 def validate_entries(bundle, entries, bindings):
@@ -127,7 +205,9 @@ def validate_entries(bundle, entries, bindings):
 def admit(config, models):
     run, out = Path(config["run"]), Path(config["out"])
     control, report = run / "analysis", out / "admission"
-    report.mkdir(exist_ok=True)
+    if config.get("admission_key"):
+        report /= config["admission_key"]
+    report.mkdir(parents=True, exist_ok=True)
     status_path = report / "status.json"
 
     def status(state, **fields):
@@ -136,6 +216,7 @@ def admit(config, models):
     coordinator = config.get("coordinator_service", "taikyoku-coordinator.service")
     analysis = "taikyoku-dual-labels.service"
     paused = False
+    restore_analysis = False
     with ExitStack() as stack:
         lock = stack.enter_context((control / "training-admission.lock").open("a+"))
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -152,7 +233,8 @@ def admit(config, models):
         if previous.get("state") == "admitted" and merged == state:
             # Also recover a hard kill after the admission commit but before
             # cleanup restored analysis. Starting an active unit is idempotent.
-            service("start", analysis)
+            if previous.get("restore_analysis", False):
+                service("start", analysis)
             return
         bundle = engine_updates.active(a, run)
         validate_entries(bundle, entries, bindings)
@@ -162,23 +244,21 @@ def admit(config, models):
                 raise ValueError("Admission transaction belongs to different models")
         else:
             a.atomic(intent_path, dict(entrants=entries, created=time.time()))
+        intent = a.read(intent_path)
+        if "restore_analysis" not in intent:
+            intent["restore_analysis"] = subprocess.run(
+                ["systemctl", "is-active", "--quiet", analysis]
+            ).returncode == 0
+            a.atomic(intent_path, intent)
+        restore_analysis = intent["restore_analysis"]
         try:
             paused = True
             service("stop", analysis)
             own = stack.enter_context((control / "dual-label.lock").open("a+"))
             fcntl.flock(own, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            # No wall-clock deadline: arbitrarily long legitimate games finish.
-            leases = {}
-            with (control / "allocation.lock").open("a+") as gate:
-                # Block new claims, not existing games. Training has returned
-                # its leases and analysis is paused. Without this gate a game
-                # worker could immediately reclaim its CPU between our polls.
-                fcntl.flock(gate, fcntl.LOCK_EX)
-                while len(leases) < 8:
-                    claim_idle(control, leases, stack, 8)
-                    status("draining", reserved_cpus=sorted(leases), entrants=[e["id"] for e in entries])
-                    if len(leases) < 8:
-                        time.sleep(2)
+            # Drain games only, leaving independent training/experiment leases intact.
+            drain(control, stack, 8, config.get("concurrent_services", []),
+                  lambda state, **fields: status(state, entrants=[e["id"] for e in entries], **fields))
             update = stack.enter_context((control / "update.lock").open("a+"))
             fcntl.flock(update, fcntl.LOCK_EX | fcntl.LOCK_NB)
             storage_guard.require_healthy("/etc/taikyoku/storage.json")
@@ -190,7 +270,7 @@ def admit(config, models):
             if any(s["status"] == "running" for s in state["slots"]):
                 raise ValueError("All CPU leases held but games still running; refusing admission")
             status("publishing", entrants=[e["id"] for e in entries])
-            service("stop", coordinator)
+            stop_idle_coordinator(control, coordinator)
             # Re-read the final checkpoint. On recovery, append idempotently to
             # current state; never restore an old ledger over newer game results.
             state = a.read(run / "state.json")
@@ -224,14 +304,15 @@ def admit(config, models):
                 if result.returncode:
                     raise RuntimeError("Coordinator did not restart after admission; transaction is resumable")
                 time.sleep(1)
-            status("admitted", entrants=[e["id"] for e in entries], backup=str(backup))
+            status("admitted", entrants=[e["id"] for e in entries], backup=str(backup),
+                   restore_analysis=restore_analysis)
         except BaseException as error:
             status("failed", error=str(error))
             raise
         finally:
             # Release the analysis lock and CPU leases before restarting its service.
             stack.close()
-            if paused:
+            if paused and restore_analysis:
                 service("start", analysis)
 
 
@@ -252,23 +333,34 @@ def main():
 
     signal.signal(signal.SIGTERM, stop)
     signal.signal(signal.SIGINT, stop)
-    while args.watch:
-        if completed(models):
-            # The old trainer publishes completion just before releasing leases
-            # and restarting analysis. Wait for its service to finish cleanup too.
-            trainer = config.get("training_service", "taikyoku-v5-training.service")
-            phase = subprocess.check_output(
-                ["systemctl", "show", trainer, "-p", "ActiveState", "--value"], text=True
-            ).strip()
-            if phase in ("inactive", "failed"):
-                break
+    if not args.watch:
+        admit(config, models)
+        return
+    recovered = set()
+    while True:
+        waiting = []
+        admitted = []
+        for model in models:
+            receipt = out / "admission" / model.name / "status.json"
+            if receipt.exists() and a.read(receipt).get("state") == "admitted":
+                # Finish idempotent recovery if the watcher died after commit.
+                if model.name not in recovered:
+                    admit(dict(config, admission_key=model.name), [model])
+                    recovered.add(model.name)
+                admitted.append(model.name)
+            elif completed([model]):
+                admit(dict(config, admission_key=model.name), [model])
+                recovered.add(model.name)
+                admitted.append(model.name)
+            else:
+                waiting.append(model.name)
         report = out / "admission/status.json"
         report.parent.mkdir(exist_ok=True)
-        previous = a.read(report) if report.exists() else {}
-        if previous.get("state") not in ("admitted", "draining", "publishing"):
-            a.atomic(report, dict(state="waiting_for_training", models=names, updated=time.time()))
+        a.atomic(report, dict(state="waiting_for_training" if waiting else "admitted",
+                              admitted=admitted, waiting=waiting, updated=time.time()))
+        if not waiting:
+            return
         time.sleep(30)
-    admit(config, models)
 
 
 if __name__ == "__main__":

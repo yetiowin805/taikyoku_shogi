@@ -732,3 +732,21 @@ to a separate file, verify it against `sha256` in `backup.json` (or legacy
 database/config and any WAL files before installing the restored database and
 its matching `dual-label-config.json`. This backup concerns labels and teacher
 selection, not tournament game results.
+
+### Incremental completed-model admission
+
+`training_admission.py CONFIG --watch` admits each completed model independently,
+including its held-out evaluation, without waiting for other models or the trainer
+service to exit. Each model has a resumable transaction under
+`OUT/admission/MODEL/`; the aggregate status lists admitted and waiting models.
+
+Set `concurrent_services` to the systemd units whose main processes hold training
+or experiment CPU leases. The watcher verifies actual `/proc/locks` ownership;
+stale CPU lists and unknown lock holders never exempt a game from draining.
+It reserves idle game CPUs and lets current games finish, while external work
+continues. At publication it holds the allocation gate, verifies no running slots,
+ends the now-idle tournament child (whose threads may be blocked on that gate),
+and replaces the coordinator with the updated entrant manifest. Training workers
+and their checkpoints are untouched. Analysis resumes only if it was active before
+admission. This Linux deployment requires Python pidfd support. No elapsed-time
+cutoff is applied to draining games.
