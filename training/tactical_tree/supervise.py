@@ -14,6 +14,9 @@ import threading
 import time
 from pathlib import Path
 
+from comparison import STRATEGIES
+from leader import bind_case
+
 from run import atomic, validate_inputs
 
 STOP = False
@@ -112,6 +115,15 @@ def active_admission(config):
     return state not in (None, "waiting_for_training", "admitted", "completed", "failed")
 
 
+def allocation_busy(control):
+    with (control / "allocation.lock").open("a+") as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return True
+    return False
+
+
 def run(path):
     config = json.loads(path.read_text())
     out = Path(config["out"])
@@ -131,8 +143,9 @@ def run(path):
     cases = [c["id"] for c in config["cases"]]
     rng.shuffle(cases)
     jobs = []
+    comparison = config.get("experiment") == "matched-analysis-v1"
     for case in cases:
-        variants = ["local", "pv", "contested", "refutation"]
+        variants = list(STRATEGIES) if comparison else ["local", "pv", "contested", "refutation"]
         rng.shuffle(variants)
         jobs.extend((case, strategy) for strategy in variants)
         jobs.append((case, "audit"))
@@ -161,16 +174,30 @@ def run(path):
                     failures.append(dict(job=job, returncode=process.returncode))
                 else:
                     finished.append(job)
-            yielding = active_admission(config)
+            yielding = active_admission(config) or allocation_busy(control)
             if shutil.disk_usage(out).free < config.get("minimum_free_bytes", 4 * 1024**3):
                 pause_reason = "storage_headroom"
-            if STOP or yielding or pause_reason:
+            if STOP or pause_reason:
                 for p, _, _ in running.values():
                     p.terminate()
                 if not running:
                     break
+            if yielding:
+                # Maintenance gets the CPU after the current finite job finishes; do not kill work.
+                if waiters is not None:
+                    waiters.close()
+                    waiters = None
+                for index in list(leases):
+                    if index not in running:
+                        leases.pop(index).close()
             if not STOP and not yielding and not pause_reason:
                 if len(leases) < config["workers"]:
+                    if waiters is None:
+                        waiters = BoundaryLeases(
+                            control,
+                            [i for i in config["lease_indices"] if i not in leases],
+                            config["workers"] - len(leases),
+                        )
                     acquired = waiters.take()
                     if acquired:
                         index, lease = acquired
@@ -184,18 +211,35 @@ def run(path):
                         finished.append(jobs.pop(0))
                     if not jobs:
                         continue
-                    # Audits see all four strategies, including the last simultaneously running job.
-                    if jobs[0][1] == "audit" and any(j[0] == jobs[0][0] for _, j, _ in running.values()):
+                    # Skip an audit awaiting its final arm instead of idling the other CPU.
+                    eligible = next(
+                        (
+                            i
+                            for i, candidate in enumerate(jobs)
+                            if candidate[1] != "audit" or not any(j[0] == candidate[0] for _, j, _ in running.values())
+                        ),
+                        None,
+                    )
+                    if eligible is None:
                         continue
-                    job = jobs.pop(0)
-                    script = "audit.py" if job[1] == "audit" else "run.py"
+                    job = jobs.pop(eligible)
+                    if complete(job):
+                        finished.append(job)
+                        continue
+                    if comparison:
+                        script = "comparison_audit.py" if job[1] == "audit" else "comparison.py"
+                        case = next(c for c in config["cases"] if c["id"] == job[0])
+                        job_config = bind_case(config, case)
+                    else:
+                        script = "audit.py" if job[1] == "audit" else "run.py"
+                        job_config = path
                     cmd = [
                         "taskset",
                         "-c",
                         str(config["cpus"][index]),
                         sys.executable,
                         str(Path(__file__).with_name(script)),
-                        str(path),
+                        str(job_config),
                         "--case",
                         job[0],
                     ]
@@ -208,7 +252,7 @@ def run(path):
             atomic(
                 out / "status.json",
                 dict(
-                    state="yielding_for_admission"
+                    state="yielding_for_maintenance"
                     if yielding
                     else "stopping"
                     if STOP
@@ -247,7 +291,8 @@ def run(path):
         if failures and not STOP and not yielding and not pause_reason:
             raise RuntimeError(f"{len(failures)} pilot jobs failed; see status and individual logs")
     finally:
-        waiters.close()
+        if waiters is not None:
+            waiters.close()
         for p, _, log in running.values():
             p.terminate()
             p.wait()  # Child performs cooperative cancellation and persists completed iterations.

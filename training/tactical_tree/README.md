@@ -7,6 +7,99 @@ six historical diagnostic/control episodes and six recent episodes, including a
 1,000-plus-ply prefix, NNUE/NNUE and handcrafted/handcrafted games, and mate recognition.
 Selection precedes comparative results. Previously reserved slots 672/769/867 are not used.
 
+## Matched-compute follow-up (October 18)
+
+`prepare.py --comparison --leader-run RUN` enables the new comparison. It follows the
+highest-rated active agent in the published order-neutral standings, with no required
+rating margin. At the first dispatch of each episode, the supervisor freezes that
+leader's manifest and network, the rating snapshot, and the input hashes. All three
+arms and the follow-up checks for that episode use this same model. A later episode
+can use a new leader; restarting a partial episode keeps its original binding. There
+is no designated older NNUE or handcrafted judge. Component ratings remain provisional
+when the graph is disconnected, just as in the displayed standings.
+
+The follow-up uses six existing diagnostic episodes and six additional episodes from
+different games. `select_corpus.py` selects the latter by a seeded hash of saved-score
+candidates: early and middle finite swings, a 1,000-plus-ply history, mate onset, an
+NNUE/NNUE crossing, and a quiet control. It excludes every previous pilot game and
+the reserved slots. Freeze the corpus before running any arm, and report the diagnostic
+and fresh cohorts separately. These twelve cases are a preliminary comparison, not
+a representative estimate of tournament strength.
+
+The three arms are:
+
+- **uniform:** deepen the nine recorded positions round-robin. Recommendations come
+  only from each root's deepest completed search. There is no branch backup or extra
+  coverage step hidden in this baseline.
+- **adaptive:** search the same nine roots, choosing where to deepen using bounded
+  odd/even instability, candidate separation, and previous search count. Recommendations
+  still come directly from root searches.
+- **branches:** use the existing contested-branch policy and partial minimax backup,
+  including its fair legal-edge coverage step.
+
+All start with depth-three searches of the recorded sequence. Checkpoints are at 60,
+180, and 420 **CPU seconds**, counting the driver, model loading/replay, generation,
+and the worker's user/system CPU. Waiting for a CPU or disk is not analysis compute.
+Individual requests use the existing 3–30-second search settings. An active request
+finishes normally when a checkpoint is crossed; its later results cannot be credited
+to an earlier checkpoint. Snapshots retain the last available recommendation and its
+actual CPU time at or before each threshold, alongside the time the crossing was
+observed. Report actual overshoot and unused checkpoint time, too.
+
+Completed iterations are immediately durable. Explicit interruption resumes the tree
+and records a resume count. After a hard process kill, CPU consumed since the last
+checkpoint cannot be recovered precisely: resumed arms must be identified separately
+from uninterrupted primary timing comparisons. There is no overall elapsed-time kill,
+startup watchdog, or deadline that drops unfinished audits. Finishing the finite planned
+comparison returns its CPUs; further experiments can use later checkpoints.
+
+Audit locations are fixed **before** results: two plies before the anchor, the anchor,
+and two plies after it. At every location, pool the played move, all arms' proposals
+at all three checkpoints, and a fresh root-search proposal. Cache identical full routes
+within this frozen episode, then:
+
+1. Search every resulting child toward depth six for up to 25 seconds, with a fresh
+   search workspace. Compare against the uniform arm at matching odd and even depths.
+2. Advance every unique proposal with depth-three searches (up to six seconds each)
+   and inspect endpoints after four and eight replies. Compare endpoint scores only
+   at the deepest completed depth common to the two endpoints. Record shallower steps,
+   the entire continuation, and all completed search iterations.
+
+Missing recommendations or horizons remain missing. Actual terminal outcomes are
+reported separately from numerical/mate-range search scores. Identical proposals
+reuse the same audit, avoiding different continuations for the same choice. Report
+move changes, gains and regressions, parity disagreements, both rollout horizons,
+CPU cost and missing coverage. `report.py` writes individual rows and equal-case
+aggregates; inspect raw trajectories before drawing conclusions from a mean score gain.
+
+This experiment asks whether exploration finds recommendations better supported by
+additional search and forward play than ordinary deepening at the same compute. It
+does **not** establish the true blunder location or an Elo gain. Follow-up work shares
+the strongest model's blind spots; using the same model keeps the comparison focused
+on the search strategy. Useful results would justify a later data/training experiment,
+followed by actual games at the target time control. No hypothetical labels enter
+training and no new network is trained here.
+
+Expect roughly 3–6 hours with two available CPUs for twelve episodes and full audits;
+this is an estimate, never a shutdown timer. The shared supervisor lends at most two
+existing CPU leases, never interrupts a game, and lets its current jobs finish before
+returning leases when admission or coordinator maintenance holds the allocation gate.
+It resumes automatically when that gate reopens. Production engines, models, and
+collector policy are unchanged.
+
+Example (use a separate output directory from the original pilot):
+
+```sh
+python3 training/tactical_tree/select_corpus.py --run "$RUN" \
+  --previous benchmarks/tactical_tree/20261017/corpus.json --out corpus.json
+python3 training/tactical_tree/prepare.py --comparison --leader-run "$RUN" \
+  --corpus corpus.json --game-dir "$RUN" --binary target/release/tactical_tree_worker \
+  --out results --control "$RUN/analysis" --admission-status "$ADMISSION_STATUS" \
+  --build BUILD.json --config config.json
+python3 training/tactical_tree/supervise.py config.json
+python3 training/tactical_tree/report.py results
+```
+
 ## Four exploration policies
 
 Every policy first searches the same nine positions around the episode (depth three,
