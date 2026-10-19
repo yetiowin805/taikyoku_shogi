@@ -144,11 +144,19 @@ def run(path):
     rng.shuffle(cases)
     jobs = []
     comparison = config.get("experiment") == "matched-analysis-v1"
+    parity = config.get("experiment") == "parity-v1"
     for case in cases:
-        variants = list(STRATEGIES) if comparison else ["local", "pv", "contested", "refutation"]
+        variants = (
+            list(config["models"])
+            if parity
+            else list(STRATEGIES)
+            if comparison
+            else ["local", "pv", "contested", "refutation"]
+        )
         rng.shuffle(variants)
         jobs.extend((case, strategy) for strategy in variants)
-        jobs.append((case, "audit"))
+        if not parity:
+            jobs.append((case, "audit"))
     leases = {}
     running = {}
     finished = []
@@ -226,7 +234,10 @@ def run(path):
                     if complete(job):
                         finished.append(job)
                         continue
-                    if comparison:
+                    if parity:
+                        script = "parity.py"
+                        job_config = path
+                    elif comparison:
                         script = "comparison_audit.py" if job[1] == "audit" else "comparison.py"
                         case = next(c for c in config["cases"] if c["id"] == job[0])
                         job_config = bind_case(config, case)
@@ -244,7 +255,7 @@ def run(path):
                         job[0],
                     ]
                     if job[1] != "audit":
-                        cmd += ["--strategy", job[1]]
+                        cmd += ["--model" if parity else "--strategy", job[1]]
                     log = (out / f"{job[0]}-{job[1]}.log").open("ab")
                     env = dict(os.environ, TACTICAL_LEASE_FD=str(lease.fileno()))
                     process = subprocess.Popen(cmd, stdout=log, stderr=log, env=env, pass_fds=[lease.fileno()])
