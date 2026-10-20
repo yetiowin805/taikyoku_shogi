@@ -19,6 +19,7 @@ pub mod pool;
 pub mod pst_grid;
 pub mod q_rs_grid;
 pub mod record;
+pub mod retirement;
 pub mod royal_al_grid;
 pub mod royal_s2_grid;
 pub mod run_status;
