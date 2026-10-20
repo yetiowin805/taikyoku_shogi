@@ -16,6 +16,8 @@ pub struct Fit {
     pub ratings: BTreeMap<String, f64>,
     pub iterations: usize,
     pub max_score_residual: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub retirement: Option<super::retirement::Report>,
 }
 
 pub fn from_state(state: &TourneyState) -> Fit {
@@ -34,6 +36,12 @@ pub fn from_state(state: &TourneyState) -> Fit {
         ));
     }
     let mut result = fit(&names.into_iter().collect::<Vec<_>>(), &games);
+    if state.order_neutral_only {
+        result.retirement = Some(
+            super::retirement::evaluate(state, &result)
+                .expect("order-neutral retirement uncertainty calculation failed"),
+        );
+    }
     let inactive = if state.order_neutral_only {
         inactive_agents(&result)
     } else {
@@ -63,27 +71,11 @@ pub fn from_state(state: &TourneyState) -> Fit {
     result
 }
 
-/// The largest SCC is the established comparison pool. Equal-sized components
-/// use lexicographic membership as a deterministic tie-break. Agents outside it
-/// remain eligible so connectivity repair can gather comparison evidence.
 pub(crate) fn inactive_agents(fit: &Fit) -> BTreeSet<String> {
-    let core = fit
-        .components
-        .iter()
-        .filter(|g| g.len() > 1)
-        .min_by(|a, b| b.len().cmp(&a.len()).then_with(|| a.cmp(b)));
-    let Some(core) = core else {
-        return BTreeSet::new();
-    };
-    let best = core
-        .iter()
-        .filter_map(|id| fit.ratings.get(id))
-        .copied()
-        .fold(f64::NEG_INFINITY, f64::max);
-    core.iter()
-        .filter(|id| fit.ratings.get(*id).is_some_and(|r| best - r > 400.0))
-        .cloned()
-        .collect()
+    fit.retirement
+        .as_ref()
+        .map(|report| report.inactive.clone())
+        .unwrap_or_default()
 }
 
 fn fit(names: &[String], games: &[(String, String, f64)]) -> Fit {
@@ -98,6 +90,7 @@ fn fit(names: &[String], games: &[(String, String, f64)]) -> Fit {
         ratings: BTreeMap::new(),
         iterations: 0,
         max_score_residual: None,
+        retirement: None,
     };
     let index: BTreeMap<_, _> = names.iter().enumerate().map(|(i, s)| (s, i)).collect();
     // Integer half-points make aggregation exactly independent of input order.
@@ -345,7 +338,7 @@ fn separated_fit(mut out: Fit, games: &[(String, String, f64)]) -> Fit {
     out
 }
 
-fn solve(mut a: Vec<Vec<f64>>, mut b: Vec<f64>) -> Option<Vec<f64>> {
+pub(super) fn solve(mut a: Vec<Vec<f64>>, mut b: Vec<f64>) -> Option<Vec<f64>> {
     let n = b.len();
     for k in 0..n {
         let pivot = (k..n).max_by(|&i, &j| a[i][k].abs().total_cmp(&a[j][k].abs()))?;
@@ -372,22 +365,6 @@ fn solve(mut a: Vec<Vec<f64>>, mut b: Vec<f64>) -> Option<Vec<f64>> {
 
 #[cfg(test)]
 mod tests {
-    #[test]
-    fn dynamic_pool_boundary_unconnected_and_reactivation() {
-        let names = ["a", "b", "c", "new"].map(String::from);
-        let games = vec![("a".into(), "b".into(), 0.5), ("b".into(), "c".into(), 0.5)];
-        let mut result = super::fit(&names, &games);
-        result.ratings.insert("a".into(), 1800.);
-        result.ratings.insert("b".into(), 1400.);
-        result.ratings.insert("c".into(), 1399.);
-        result.ratings.insert("new".into(), 0.);
-        assert_eq!(super::inactive_agents(&result), ["c".to_string()].into());
-        result.ratings.insert("c".into(), 1400.);
-        assert!(super::inactive_agents(&result).is_empty());
-        result.components = names.iter().map(|n| vec![n.clone()]).collect();
-        assert!(super::inactive_agents(&result).is_empty());
-    }
-
     #[test]
     fn resume_refreshes_old_retirement_without_dropping_results() {
         use crate::training::tournament::*;
