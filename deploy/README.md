@@ -704,10 +704,6 @@ Unfinished games resume from their original starts. Keep all recovery inputs.
 
 ## Model snapshot sharing and teacher-backup retention
 
-See [`STORAGE_PLAN.md`](STORAGE_PLAN.md) for the 2026-10-23 recovery record,
-archive recovery requirements, and the staged plan for hydration,
-dependency pins, bounded caches, and lower storage growth.
-
 Install `artifact-storage.json.example` as `/etc/taikyoku/artifact-storage.json`
 to enable a shared content-addressed NNUE snapshot store on the attached volume.
 Adjust its mount and store paths for the host. `TAIKYOKU_ARTIFACT_CONFIG` can
@@ -784,3 +780,100 @@ requests and receipts survive retry, and an invalid model does not prevent other
 ready models from being attempted. Configure the explicit `admission_models` list
 and run the watcher with failure restarts and no runtime cutoff. See
 [`LIVE_TOURNAMENT_TASKS.md`](LIVE_TOURNAMENT_TASKS.md) for details and legacy upgrades.
+
+## Verified archive and training cache
+
+Install `archive-storage.json.example` as `/etc/taikyoku/archive-storage.json`,
+with an absolute control directory on the data volume, the existing private
+rclone remote, required mounts, and filesystem reserves. The policy and recovery
+indexes contain host paths and object keys; keep them outside the repository.
+`TAIKYOKU_ARCHIVE_CONFIG` selects another policy for tests or development. Python,
+zstd and a configured rclone client are required. Without a policy, local training
+keeps its existing storage behavior.
+
+`archive_storage.py archive PATH... --category features` creates compressed packs
+(default 128 MiB input), uploads immutable objects, downloads every byte again,
+and verifies both pack and original-content hashes. It publishes and verifies the
+remote recovery index before any local removal. `evict PATH...` or
+`evict --cache-bytes BYTES` removes only verified, unchanged, unpinned `features`
+and `closed-training` files. Game/model backups are never evicted by this tool.
+Partial transfers leave sources intact. New checkpoint generations retain their
+older remote objects and immutable index generations. There is no remote object
+deletion policy; preservation of historical dependencies takes precedence over
+remote garbage collection.
+
+`archive_storage.py restore PATH...` restores original paths and modes after full
+hash/size checks, with atomic publication that refuses a different existing
+file. `recover-index` rebuilds an empty local index from the private remote index;
+restore original mount locations before using it on a replacement host. Keep the
+policy, credentials, and original layout in the private operations inventory.
+`legacy_manifest` can import the earlier completed, verified six-file offload
+without downloading or repackaging its objects. Gzip originals restore as gzip
+originals; decompress explicitly if a legacy recipe requires an uncompressed file.
+
+Current trainers hydrate their complete input set before mmap, hold process-owned
+shared locks for its lifetime, and reserve peak space for missing inputs, archive
+staging, two checkpoint generations and model publication. Concurrent reservations
+share a filesystem budget. PID plus process-start identity reaps dead reservations;
+a slow live process never loses its pins through an age timeout. Set soft free
+space targets to 8 GiB on root and 10 GiB on the volume, retaining hard reserves of
+3 GiB and 5 GiB. Oversized new jobs fail before downloading while existing games
+continue. Pins override cache quotas. Historical games and retired models remain
+local until their consumers also have hydration gates.
+
+For a frozen older training program, hold the same input lease around its command:
+
+```sh
+python3 training/nnue/dataset_storage.py /absolute/dataset -- python3 /absolute/legacy-trainer.py ARGS
+```
+
+Completed trainers archive their resumable checkpoint when
+`archive_completed_checkpoints` is enabled, after releasing peak reservations.
+The pilot checkpoint includes the selected best state as well as the current
+resume state. Failed/interrupted training retains its last committed checkpoint;
+uncommitted progress and incomplete archives remain available for diagnosis.
+Model exports and frozen parents share verified content-addressed blobs, and
+frozen experiment games share an immutable byte-preserving game store configured
+with `game_store` in the artifact-storage policy. No mutable training inode is
+used as an immutable source.
+
+Weighted v5 datasets now use `sample-view.json` and a float64 override file instead
+of rewriting common JSONL metadata. The view binds its immutable source and the
+override bytes by hash. Readers reconstruct original sample order, splits,
+position identities, teacher provenance and exact numerical weights. Legacy
+JSONL remains readable. Freeze `dataset_storage.py`, `archive_storage.py` and
+`artifact_storage.py` along with the trainer; the continuation sidecar does this
+automatically. Keep old frozen recipes and their original hashes unchanged.
+
+`storage_maintenance.py` backs up completed games, immutable models and bindings,
+versioned runtime metadata, and a consistent SQLite snapshot. It archives configured
+feature dependencies and completed checkpoint directories, then trims only the
+unpinned verified cache. It retains the latest consistent label snapshot locally,
+keeps a bounded local runtime snapshot set, and performs an actual game restore
+to scratch on every successful pass. The private status records free space,
+bytes by producer, and growth since the previous pass; the existing storage guard
+includes that report. Install the optional
+`systemd/taikyoku-storage-maintenance.{service,timer}` after a successful manual
+pass, adjusting host paths and `RequiresMountsFor` to the actual data volume.
+The daily timer resumes after downtime and failures are visible in the journal.
+Remote packs and index generations remain recoverable; they are not a substitute
+for retaining the private policy and credentials independently of this VPS.
+
+## Compact label catalogue storage
+
+Moments now reference exact search results in `searches`, including prior teacher
+history. Source moves are retained once per game hash and ply. The `label_storage`
+reader reconstructs the previous payload for collectors, snapshots and dataset
+builders; JSON sampling and winner-teacher metadata stays directly queryable.
+Scores, PVs, budgets, depths, engine/model hashes and search identities are retained.
+
+Before migrating an existing catalogue, stop its collectors and deploy all updated
+readers. Run `python3 deploy/label_storage.py /absolute/analysis/training-labels.sqlite`.
+The command takes `dual-label.lock`, makes and checks a consistent
+`.before-normalization` rollback database, verifies every reconstructed moment,
+commits the migration transaction, and compacts the database. Retries recognize a
+completed migration; an existing unfinished rollback needs inspection. Keep the
+rollback until an off-site verified backup and live read checks have passed.
+For rollback, stop collectors, preserve the current database and WAL, restore the
+rollback database and matching older reader scripts, then verify SQLite integrity.
+The live game engine and tournament state do not change during this migration.

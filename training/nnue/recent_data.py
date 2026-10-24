@@ -23,10 +23,9 @@ PROPORTIONS = {"representative": 0.75, "precursor": 0.20, "mate": 0.05}
 
 
 def rows(path):
-    with Path(path).open() as f:
-        for line in f:
-            if line.strip():
-                yield json.loads(line)
+    from dataset_storage import rows as sample_rows
+
+    yield from sample_rows(path)
 
 
 def write_json(path, value):

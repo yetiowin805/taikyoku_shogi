@@ -15,6 +15,7 @@ from pathlib import Path
 import numpy as np
 import torch
 
+import dataset_storage
 from difficulty_weights import multiplier
 from pilot_fit import PilotNet, weights_for
 from plateau import Plateau, Policy
@@ -210,11 +211,30 @@ class V5Tests(unittest.TestCase):
                 "--cpu-file",
                 str(root / "cpus.json"),
             ]
+            from unittest.mock import patch
+
+            policy = root / "archive-policy.json"
+            policy.write_text(
+                json.dumps(
+                    dict(root=str(root / "archive"), remote=str(root / "remote"), local_remote=True, min_free_bytes=0)
+                )
+            )
+            environment = patch.dict(os.environ, TAIKYOKU_ARCHIVE_CONFIG=str(policy))
+            environment.start()
+            self.addCleanup(environment.stop)
+            archive = dataset_storage.archive_storage.configured()
+            archive.archive([root / "features.bin", root / "samples.jsonl"], "features")
+            archive.evict([root / "features.bin", root / "samples.jsonl"])
+            self.assertFalse((root / "features.bin").exists())
             subprocess.run(command, check=True, capture_output=True, timeout=60)
-            before = (root / "prepared/samples.jsonl").read_bytes()
+            self.assertTrue((root / "features.bin").exists())
+            before = list(dataset_storage.rows(root / "prepared/samples.jsonl"))
+            view_before = (root / "prepared/sample-view.json").read_bytes()
+            self.assertFalse((root / "prepared/samples.jsonl").exists())
             subprocess.run(command, check=True, capture_output=True, timeout=60)
-            self.assertEqual((root / "prepared/samples.jsonl").read_bytes(), before)
-            prepared = [json.loads(x) for x in before.splitlines()]
+            self.assertEqual((root / "prepared/sample-view.json").read_bytes(), view_before)
+            prepared = list(dataset_storage.rows(root / "prepared/samples.jsonl"))
+            self.assertEqual(prepared, before)
             self.assertEqual(prepared[20:], samples[20:])
             initial = []
             for suffix, proportions in [("a", ".90,.08,.02"), ("b", ".85,.12,.03"), ("c", ".95,.04,.01")]:

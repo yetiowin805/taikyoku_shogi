@@ -2,6 +2,7 @@ import json
 from unittest.mock import patch
 
 import dual_label_sidecar as dual
+import label_storage
 import teacher_refresh as refresh
 from test_tourney_analysis import AnalyzerFixture
 
@@ -138,7 +139,7 @@ class TeacherRefreshTests(AnalyzerFixture):
         with patch.object(dual.a, "search_position", side_effect=InterruptedError):
             with self.assertRaises(InterruptedError):
                 dual.paired_searches(config, moment, self.db)
-        saved = json.loads(self.db.execute("SELECT payload FROM moments").fetchone()[0])
+        saved = label_storage.decode(self.db, self.db.execute("SELECT payload FROM moments").fetchone()[0])
         self.assertEqual(saved["previous_teacher_searches"], [previous])
         new = dict(model_sha256="seeds", budget_ms=30000, key="c")
         with patch.object(dual.a, "search_position", return_value=new) as search:

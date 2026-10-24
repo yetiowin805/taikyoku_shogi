@@ -8,7 +8,6 @@ import json
 import math
 import os
 import random
-import shutil
 import time
 from collections import Counter
 from pathlib import Path
@@ -16,6 +15,7 @@ from pathlib import Path
 import numpy as np
 import torch
 
+import dataset_storage
 from pilot_data import digest
 from plateau import Plateau, Policy
 from quantized import Quantized
@@ -303,6 +303,16 @@ def main():
         help="Evaluate the exported model in a separate process to bound peak memory",
     )
     a = p.parse_args()
+    checkpoint = Path(a.checkpoint_dir or a.out) / "training.pt"
+    extra = [checkpoint] if a.resume and (checkpoint.exists() or Path(str(checkpoint) + ".cold.json").exists()) else []
+    with dataset_storage.prepare(a.dataset, a.out, a.width, a.checkpoint_dir, extra):
+        result = fit(a)
+    if (a.out / "status.json").exists() and json.loads((a.out / "status.json").read_text()).get("state") == "completed":
+        dataset_storage.archive_checkpoint(checkpoint)
+    return result
+
+
+def fit(a):
     if not 0 <= a.mix <= 1 or (a.loss == "huber" and a.mix):
         raise ValueError("Invalid mixture")
     assert a.batch > 0 and a.microbatch > 0 and a.epochs >= 0
@@ -325,26 +335,25 @@ def main():
         files.append(("features", "bin"))
     for key, suffix in files:
         assert digest(a.dataset / f"{key}.{suffix}") == identity[key + "_sha256"]
-    with (a.dataset / "samples.jsonl").open() as source:
-        keys = {
-            "offset",
-            "us",
-            "them",
-            "score",
-            "material",
-            "outcome",
-            "group",
-            "game",
-            "split",
-            "source",
-            "label_source",
-            "selection",
-            "teacher",
-            "sampling_weight",
-            "stratum",
-            "inherited_holdout",
-        }
-        samples = [{k: v for k, v in json.loads(x).items() if k in keys} for x in source]
+    keys = {
+        "offset",
+        "us",
+        "them",
+        "score",
+        "material",
+        "outcome",
+        "group",
+        "game",
+        "split",
+        "source",
+        "label_source",
+        "selection",
+        "teacher",
+        "sampling_weight",
+        "stratum",
+        "inherited_holdout",
+    }
+    samples = [{k: v for k, v in x.items() if k in keys} for x in dataset_storage.rows(a.dataset / "samples.jsonl")]
     if "feature_shards" in identity:
         from v4_data import Features
 
@@ -439,7 +448,7 @@ def main():
         if a.init == "parent":
             best = initial["objective"]
             saved = a.out / f"nnue-{desc['sha256']}.bin"
-            shutil.copyfile(blob, saved)
+            dataset_storage.share(blob, saved, desc["sha256"])
             cp = json.loads(a.parent.read_text())
             cp["name"] = a.out.name
             cp["weights"]["nnue"]["file"] = saved.name
@@ -497,6 +506,7 @@ def main():
             record["quantization"] = dict(mean=float(np.mean(errors)), max=float(max(errors)))
             published = a.out / f"nnue-{sha}.bin"
             candidate.replace(published)
+            dataset_storage.share(published, sha=sha)
             cp = json.loads(a.parent.read_text())
             cp["name"] = a.out.name
             cp["weights"]["nnue"].update(file=published.name, sha256=sha, width=a.width)

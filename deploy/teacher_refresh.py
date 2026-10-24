@@ -4,6 +4,7 @@ import json
 import sys
 
 import artifact_storage
+import label_storage
 
 MIGRATION = "no-teacher-backfill-v1"
 
@@ -30,7 +31,7 @@ def retire_backfill(a, run, db, config):
         backup = artifact_storage.teacher_backup(db, path) if rows else None
         restored = []
         for row in rows:
-            moment = json.loads(row["payload"])
+            moment = label_storage.decode(db, row["payload"])
             labels = [*moment.get("searches", []), *moment.get("previous_teacher_searches", [])]
             if any(
                 moment.get("game_hash")

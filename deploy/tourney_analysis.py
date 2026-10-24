@@ -15,6 +15,8 @@ import sys
 import time
 from pathlib import Path
 
+import label_storage
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import engine_updates
 import storage_guard
@@ -116,7 +118,7 @@ def scan(db, run, labels=False, label_candidates=None):
                 moment.update(id=key, game=str(path), game_hash=game_hash, game_id=game["game_id"], slot_id=slot["id"])
                 db.execute(
                     "INSERT OR IGNORE INTO moments VALUES(?,?,'pending',?,NULL)",
-                    (key, moment["magnitude"], json.dumps(moment)),
+                    (key, moment["magnitude"], label_storage.encode(db, moment)),
                 )
             db.execute("INSERT INTO files VALUES(?,?)", (str(path), game_hash))
             db.commit()
@@ -277,7 +279,7 @@ def search_position(config, moment, ply, db):
     key = digest(json.dumps(identity, sort_keys=True).encode())
     cached = db.execute("SELECT payload FROM searches WHERE key=?", (key,)).fetchone()
     if cached:
-        return json.loads(cached["payload"])
+        return label_storage.decode_search(db, cached["payload"])
     run = Path(config["run"])
     log_path = run / "analysis/search.stderr.log"
     start = time.monotonic()
@@ -346,7 +348,7 @@ def search_position(config, moment, ply, db):
         hard_timeout=hard_timeout,
         wall_ms=int((time.monotonic() - start) * 1000),
     )
-    db.execute("INSERT OR REPLACE INTO searches VALUES(?,?)", (key, json.dumps(best)))
+    db.execute("INSERT OR REPLACE INTO searches VALUES(?,?)", (key, label_storage.encode_search(db, best)))
     db.commit()
     # The committed row supersedes the interrupt checkpoint.
     (run / "analysis" / (key + ".progress.json")).unlink(missing_ok=True)
@@ -394,7 +396,7 @@ def analyzer(config):
                 for row in batch:
                     if STOPPING:
                         break
-                    moment = json.loads(row["payload"])
+                    moment = label_storage.decode(db, row["payload"])
                     atomic(
                         control / "analyzer-status.json",
                         {"state": "analyzing", "moment": row["id"], "backlog": backlog, "updated": time.time()},
@@ -406,7 +408,7 @@ def analyzer(config):
                         moment["status"] = "completed"
                         db.execute(
                             "UPDATE moments SET status='completed',payload=?,error=NULL WHERE id=?",
-                            (json.dumps(moment), row["id"]),
+                            (label_storage.encode(db, moment), row["id"]),
                         )
                         print(f"completed {row['id']} swing={row['magnitude']}", flush=True)
                     except InterruptedError:

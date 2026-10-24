@@ -182,3 +182,32 @@ def prune_teacher_backups(root, keep=3):
     for path in sorted(candidates, key=lambda p: int(p.name))[:-keep]:
         shutil.rmtree(path)
     sync_directory(root)
+
+
+def frozen_game(source, target, sha):
+    """Preserve original game bytes; never alias an actively written source."""
+    source, target = Path(source), Path(target)
+    config = settings()
+    store = config.get("game_store")
+    if not store:
+        copy_verified(source, target, sha)
+        return
+    store = Path(store)
+    store.mkdir(parents=True, exist_ok=True)
+    canonical = store / (sha + ".json")
+    with (store / ".lock").open("a+") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        if canonical.exists():
+            if digest(canonical) != sha:
+                raise ValueError("Frozen game changed")
+        else:
+            copy_verified(source, canonical, sha)
+        if target.exists() and digest(target) != sha:
+            raise ValueError("Frozen game target changed")
+        temporary = target.with_name(target.name + f".{os.getpid()}.link")
+        try:
+            temporary.symlink_to(canonical)
+            temporary.replace(target)
+            sync_directory(target.parent)
+        finally:
+            temporary.unlink(missing_ok=True)

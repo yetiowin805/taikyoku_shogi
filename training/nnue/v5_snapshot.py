@@ -10,6 +10,8 @@ from collections import Counter
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "deploy"))
+import dataset_storage
+import label_storage
 from conditional_teachers import select
 
 
@@ -42,7 +44,7 @@ def snapshot(config):
         h = digest(data)
         dest = out / "games" / path.name
         dest.parent.mkdir(exist_ok=True)
-        dest.write_bytes(data)
+        dataset_storage.share_game(path, dest, h)
         games[h] = {k: game[k] for k in ("result", "black", "white")}
         games[h]["moves"] = [{k: m[k] for k in ("color", "eval") if k in m} for m in game["moves"]]
         manifest["games"].append(
@@ -55,7 +57,7 @@ def snapshot(config):
     with sqlite3.connect(uri, uri=True) as db, (out / "labels.jsonl.tmp").open("w") as f:
         db.execute("BEGIN")
         for (payload,) in db.execute("SELECT payload FROM moments WHERE status='completed' ORDER BY id"):
-            moment = json.loads(payload)
+            moment = label_storage.decode(db, payload)
             game = games.get(moment["game_hash"])
             if game is None:
                 continue

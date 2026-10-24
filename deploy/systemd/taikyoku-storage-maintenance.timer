@@ -1,0 +1,11 @@
+[Unit]
+Description=Back up completed results and enforce the feature cache budget
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+RandomizedDelaySec=15m
+Unit=taikyoku-storage-maintenance.service
+
+[Install]
+WantedBy=timers.target

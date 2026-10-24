@@ -10,6 +10,8 @@ from pathlib import Path
 
 import numpy as np
 
+import dataset_storage
+import label_storage
 from pilot_data import MOVE_KEYS, digest, hashed, position_key, stratified
 
 SCALE = 2822.9057434005167
@@ -49,6 +51,7 @@ class Features:
     """Virtual concatenation, so the immutable 1.7GB parent file need not be copied."""
 
     def __init__(self, root):
+        self.storage_lease = dataset_storage.prepare(root)
         identity = json.loads((Path(root) / "dataset.json").read_text())
         self.shards = []
         start = 0
@@ -100,7 +103,7 @@ def build(args):
     for name, ext in [("samples", "jsonl"), ("features", "bin"), ("schema", "json")]:
         if digest(old / f"{name}.{ext}") != identity[name + "_sha256"]:
             raise ValueError("Parent dataset changed")
-    samples = [json.loads(x) for x in (old / "samples.jsonl").read_text().splitlines()]
+    samples = list(dataset_storage.rows(old / "samples.jsonl"))
     data = np.memmap(old / "features.bin", mode="r", dtype="<u4")
     old_keys = {s["canonical_position_hash"]: s for s in samples}
     old_locations = {(s["game_sha256"], s["ply"]): s for s in samples}
@@ -123,7 +126,7 @@ def build(args):
     for dbpath in args.catalogue:
         db = sqlite3.connect("file:" + str(dbpath.resolve()) + "?mode=ro", uri=True)
         for (payload,) in db.execute("select payload from moments where status=?", ("completed",)):
-            m = json.loads(payload)
+            m = label_storage.decode(db, payload)
             for search in m.get("searches", []):
                 key = (m["game_hash"], search["ply"] - 1)
                 labels[key].append(search)
