@@ -1,4 +1,5 @@
 {
+  "repo": "/absolute/repository",
   "root": "/absolute/data/archive-control",
   "remote": "configured-private-remote:bucket/archive-prefix",
   "rclone": "rclone",

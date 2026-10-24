@@ -20,6 +20,7 @@ import storage_guard
 
 def maintain(archive):
     config = archive.config.get("maintenance", {})
+    repo = Path(archive.config.get("repo", Path.cwd()))
     root = archive.root / "catalogue-snapshots"
     root.mkdir(exist_ok=True)
     # Old snapshots have a verified remote copy, but retain the newest one on
@@ -72,7 +73,7 @@ def maintain(archive):
         for entrant in state["entrants"]:
             descriptor = Path(entrant["model"])
             if not descriptor.is_absolute():
-                raise ValueError("Production backup requires absolute model bindings")
+                descriptor = repo / descriptor
             models.append(descriptor)
             binding = json.loads(descriptor.read_text()).get("weights", {}).get("nnue")
             if binding:

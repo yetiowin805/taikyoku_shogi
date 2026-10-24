@@ -78,6 +78,19 @@ def decode(db, payload):
     return result
 
 
+def batches(db, table, key):
+    last = None
+    while True:
+        where = "" if last is None else f"WHERE {key}>?"
+        rows = db.execute(
+            f"SELECT {key},payload FROM {table} {where} ORDER BY {key} LIMIT 128", () if last is None else (last,)
+        ).fetchall()
+        if not rows:
+            return
+        yield from rows
+        last = rows[-1][0]
+
+
 def migrate(path):
     """Caller must hold dual-label.lock with collectors stopped; retain rollback."""
     path = Path(path)
@@ -96,11 +109,11 @@ def migrate(path):
                 raise ValueError("Invalid label rollback backup")
         try:
             db.execute("BEGIN IMMEDIATE")
-            for key, payload in db.execute("SELECT key,payload FROM searches").fetchall():
+            for key, payload in batches(db, "searches", "key"):
                 db.execute(
                     "UPDATE searches SET payload=? WHERE key=?", (encode_search(db, decode_search(db, payload)), key)
                 )
-            for key, payload in db.execute("SELECT id,payload FROM moments").fetchall():
+            for key, payload in batches(db, "moments", "id"):
                 original = decode(db, payload)
                 packed = encode(db, original)
                 if decode(db, packed) != original:
