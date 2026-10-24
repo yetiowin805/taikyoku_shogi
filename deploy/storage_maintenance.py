@@ -18,6 +18,26 @@ import archive_storage
 import storage_guard
 
 
+def binding_files(value, repo):
+    """Include frozen forward bindings published before entrant admission."""
+    found = []
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if key == "models" and isinstance(item, dict):
+                found.extend(Path(p) if Path(p).is_absolute() else repo / p for p in item)
+            if key in ("original", "snapshot", "model", "new_model", "analyzer_bin", "engine_bin") and isinstance(
+                item, str
+            ):
+                path = Path(item) if Path(item).is_absolute() else repo / item
+                if path.is_file():
+                    found.append(path)
+            found.extend(binding_files(item, repo))
+    elif isinstance(value, list):
+        for item in value:
+            found.extend(binding_files(item, repo))
+    return found
+
+
 def maintain(archive):
     config = archive.config.get("maintenance", {})
     repo = Path(archive.config.get("repo", Path.cwd()))
@@ -55,7 +75,8 @@ def maintain(archive):
     snapshots.mkdir(exist_ok=True)
     for name in config.get("runs", []):
         run = Path(name)
-        state = json.loads((run / "state.json").read_text())
+        state_data = (run / "state.json").read_bytes()
+        state = json.loads(state_data)
         for source in [
             run / "state.json",
             run / "analysis/config.json",
@@ -63,8 +84,9 @@ def maintain(archive):
             run / "analysis/dual-label-config.json",
         ]:
             if source.exists():
-                data = source.read_bytes()
-                json.loads(data)
+                data = state_data if source == run / "state.json" else source.read_bytes()
+                parsed = json.loads(data)
+                models.extend(binding_files(parsed, repo))
                 import hashlib
 
                 dest = snapshots / (hashlib.sha256(data).hexdigest() + ".json")
@@ -78,7 +100,11 @@ def maintain(archive):
             binding = json.loads(descriptor.read_text()).get("weights", {}).get("nnue")
             if binding:
                 models.append(descriptor.parent / binding["file"])
-        games.extend(g["game_path"] for g in state["slots"] if g["status"] == "done" and g.get("game_path"))
+        games.extend(
+            str(Path(g["game_path"]) if Path(g["game_path"]).is_absolute() else repo / g["game_path"])
+            for g in state["slots"]
+            if g["status"] == "done" and g.get("game_path")
+        )
     archive.archive(games, "games")
     archive.archive(metadata, "other")
     generations = sorted(snapshots.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
@@ -133,7 +159,19 @@ def maintain(archive):
     status["growth_since_previous_bytes"] = {
         row["category"]: row["bytes"] - before.get(row["category"], 0) for row in status["categories"]
     }
+    with archive.locked() as db:
+        archive.publish_index(db)
+        index = archive.root / "index.json"
+        status["index_sha256"] = archive_storage.digest(index)
+        status["index_remote"] = archive.remote + "/indexes/" + status["index_sha256"] + ".json"
     archive_storage.atomic(prior, status)
+    archive.copy(prior, archive.remote + "/maintenance/" + archive_storage.digest(prior) + ".json", immutable=True)
+    archive.copy(prior, archive.remote + "/maintenance-complete.json")
+    readback = archive.root / ".maintenance-readback.json"
+    archive.download(archive.remote + "/maintenance-complete.json", readback, prior.stat().st_size)
+    if archive_storage.digest(readback) != archive_storage.digest(prior):
+        raise ValueError("Completed-backup marker verification failed")
+    readback.unlink()
     return status
 
 

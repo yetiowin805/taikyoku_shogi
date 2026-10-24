@@ -60,9 +60,9 @@ def process_identity(pid):
         return None
 
 
-def configured():
+def configured(import_legacy=True):
     path = Path(os.environ.get("TAIKYOKU_ARCHIVE_CONFIG", "/etc/taikyoku/archive-storage.json"))
-    return Archive(json.loads(path.read_text())) if path.exists() else None
+    return Archive(json.loads(path.read_text()), import_legacy=import_legacy) if path.exists() else None
 
 
 class Lease:
@@ -92,7 +92,7 @@ class Lease:
 
 
 class Archive:
-    def __init__(self, config):
+    def __init__(self, config, import_legacy=True):
         self.config = config
         self.root = Path(config["root"])
         if not self.root.is_absolute():
@@ -114,7 +114,7 @@ class Archive:
                     token TEXT, pid INTEGER, identity TEXT, device INTEGER, bytes INTEGER);
             """)
             legacy = config.get("legacy_manifest")
-            if legacy:
+            if legacy and import_legacy:
                 manifest = json.loads(Path(legacy).read_text())
                 if manifest.get("state") != "completed":
                     raise ValueError("Legacy offload did not complete")
@@ -527,7 +527,15 @@ class Archive:
             if db.execute("SELECT count(*) FROM files").fetchone()[0]:
                 raise ValueError("Refusing to replace a populated archive index")
             target = self.root / "recovered-index.json"
-            self.copy(self.remote + "/index.json", target)
+            if self.config.get("maintenance"):
+                marker = self.root / "recovered-complete.json"
+                self.copy(self.remote + "/maintenance-complete.json", marker)
+                complete = json.loads(marker.read_text())
+                self.copy(complete["index_remote"], target)
+                if digest(target) != complete["index_sha256"]:
+                    raise ValueError("Completed backup index changed")
+            else:
+                self.copy(self.remote + "/index.json", target)
             data = json.loads(target.read_text())
             if data["version"] != 1:
                 raise ValueError("Unknown archive index version")
@@ -577,7 +585,7 @@ def main():
     )
     parser.add_argument("--cache-bytes", type=int)
     args = parser.parse_args()
-    archive = configured()
+    archive = configured(import_legacy=args.action != "recover-index")
     if archive is None:
         raise ValueError("An explicit archive-storage policy is required")
     if args.action == "archive":

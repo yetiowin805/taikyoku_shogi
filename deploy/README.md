@@ -805,7 +805,9 @@ remote garbage collection.
 `archive_storage.py restore PATH...` restores original paths and modes after full
 hash/size checks, with atomic publication that refuses a different existing
 file. `recover-index` rebuilds an empty local index from the private remote index;
-restore original mount locations before using it on a replacement host. Keep the
+maintenance policies select the last fully completed, hash-bound backup marker.
+The recovery command skips legacy auto-import so an absent old index cannot block
+disaster recovery. Restore original mount locations on a replacement host. Keep the
 policy, credentials, and original layout in the private operations inventory.
 `legacy_manifest` can import the earlier completed, verified six-file offload
 without downloading or repackaging its objects. Gzip originals restore as gzip
