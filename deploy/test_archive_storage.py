@@ -163,3 +163,32 @@ class ArchiveTests(unittest.TestCase):
         self.archive.hydrate(self.source)
         self.assertEqual(self.source.read_bytes(), b"next completed checkpoint")
         self.assertEqual(len(list((self.root / "remote/objects").iterdir())), 2)
+
+    def test_identical_alias_reuses_verified_pack_and_preserves_its_mode(self):
+        self.archive.archive([self.source], "features")
+        alias = self.root / "same-bytes.bin"
+        alias.write_bytes(self.bytes)
+        alias.chmod(0o400)
+        self.assertEqual(self.archive.archive([alias], "features"), 1)
+        self.assertEqual(len(list((self.root / "remote/objects").iterdir())), 1)
+        self.archive.evict([alias])
+        self.archive.hydrate(alias)
+        self.assertEqual(alias.read_bytes(), self.bytes)
+        self.assertEqual(alias.stat().st_mode & 0o777, 0o400)
+
+    def test_new_aliases_in_one_call_store_the_payload_once(self):
+        import io
+        import subprocess
+        import tarfile
+
+        alias = self.root / "same-batch.bin"
+        alias.write_bytes(self.bytes)
+        self.archive.archive([self.source, alias], "features")
+        objects = list((self.root / "remote/objects").iterdir())
+        self.assertEqual(len(objects), 1)
+        data = subprocess.check_output(["zstd", "-q", "-d", "-c", str(objects[0])])
+        with tarfile.open(fileobj=io.BytesIO(data)) as pack:
+            self.assertEqual(len(pack.getmembers()), 1)
+        self.archive.evict([self.source, alias])
+        self.archive.hydrate(alias)
+        self.assertEqual(alias.read_bytes(), self.bytes)

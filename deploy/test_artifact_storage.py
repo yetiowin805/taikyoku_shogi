@@ -56,6 +56,31 @@ class ArtifactStorageTests(unittest.TestCase):
                 storage.snapshot_blob(target, bad, sha)
             self.assertEqual(bad.read_bytes(), b"wrong")
 
+    def test_canonical_model_publication_never_replaces_it_with_a_self_link(self):
+        store = self.root / "store"
+        store.mkdir()
+        original = self.root / "original.bin"
+        original.write_bytes(b"network")
+        sha = storage.digest(original)
+        with patch.object(storage, "settings", return_value=dict(model_store=str(store))):
+            storage.snapshot_blob(original, self.root / "export.bin", sha)
+            canonical = store / (sha + ".nnue")
+            storage.snapshot_blob(canonical, canonical, sha)
+            self.assertFalse(canonical.is_symlink())
+            self.assertEqual(canonical.read_bytes(), b"network")
+
+    def test_canonical_frozen_game_remains_a_regular_file_on_retry(self):
+        original = self.root / "game.json"
+        original.write_text("{}")
+        sha = storage.digest(original)
+        store = self.root / "games"
+        with patch.object(storage, "settings", return_value=dict(game_store=str(store))):
+            storage.frozen_game(original, self.root / "snapshot.json", sha)
+            canonical = store / (sha + ".json")
+            storage.frozen_game(canonical, canonical, sha)
+            self.assertFalse(canonical.is_symlink())
+            self.assertEqual(canonical.read_text(), "{}")
+
     def test_compression_round_trip_and_disk_failure_preserve_original(self):
         path = self.root / "labels.sqlite"
         self.database(path)
