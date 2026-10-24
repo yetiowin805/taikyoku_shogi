@@ -86,6 +86,7 @@ def prepare(root, out=None, width=None, checkpoint_dir=None, extra_inputs=()):
     archive = archive_storage.configured()
     if archive is None:
         return contextlib.nullcontext()
+    archive.register_dataset(root)
     requirements = {}
     if out is not None and width is not None:
         schema = json.loads((Path(root) / "schema.json").read_text())

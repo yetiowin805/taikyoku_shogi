@@ -391,6 +391,10 @@ def build(a):
                 raise ValueError("Feature schema differs between shards")
             schema = current_schema
             feature_path = shard / "features.bin"
+            from dataset_storage import archive_storage
+
+            archive = archive_storage.configured()
+            feature_lease = archive.pin([feature_path]) if archive else None
             count = feature_path.stat().st_size // 4
             data = np.memmap(feature_path, mode="r", dtype="<u4") if count else np.array([], dtype="<u4")
             retained = set()
@@ -446,6 +450,8 @@ def build(a):
             if count:
                 shards.append(dict(path=str(feature_path), sha256=identity["features_sha256"]))
             offset += count
+            if feature_lease:
+                feature_lease.close()
             print(json.dumps(dict(games=n + 1, total_games=len(records), **stats)), flush=True)
     if any(not stats["split:" + sp] for sp in SPLITS):
         raise ValueError("Corpus lacks a train/validation/test split")

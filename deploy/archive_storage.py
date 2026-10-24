@@ -60,9 +60,9 @@ def process_identity(pid):
         return None
 
 
-def configured():
+def configured(import_legacy=True):
     path = Path(os.environ.get("TAIKYOKU_ARCHIVE_CONFIG", "/etc/taikyoku/archive-storage.json"))
-    return Archive(json.loads(path.read_text())) if path.exists() else None
+    return Archive(json.loads(path.read_text()), import_legacy=import_legacy) if path.exists() else None
 
 
 class Lease:
@@ -92,7 +92,7 @@ class Lease:
 
 
 class Archive:
-    def __init__(self, config):
+    def __init__(self, config, import_legacy=True):
         self.config = config
         self.root = Path(config["root"])
         if not self.root.is_absolute():
@@ -110,11 +110,12 @@ class Archive:
                     path TEXT PRIMARY KEY, sha256 TEXT, bytes INTEGER, mode INTEGER,
                     pack TEXT, member TEXT, last_used REAL, evicted INTEGER, category TEXT);
                 CREATE TABLE IF NOT EXISTS packs(hash TEXT PRIMARY KEY, bytes INTEGER, raw_bytes INTEGER, remote TEXT, encoding TEXT);
+                CREATE TABLE IF NOT EXISTS datasets(path TEXT PRIMARY KEY, sha256 TEXT);
                 CREATE TABLE IF NOT EXISTS reservations(
                     token TEXT, pid INTEGER, identity TEXT, device INTEGER, bytes INTEGER);
             """)
             legacy = config.get("legacy_manifest")
-            if legacy:
+            if legacy and import_legacy:
                 manifest = json.loads(Path(legacy).read_text())
                 if manifest.get("state") != "completed":
                     raise ValueError("Legacy offload did not complete")
@@ -166,6 +167,15 @@ class Archive:
             raise
         else:
             shutil.rmtree(work)
+
+    def register_dataset(self, root):
+        root = Path(root).resolve()
+        sha = digest(root / "dataset.json")
+        with self.locked() as db:
+            saved = db.execute("SELECT sha256 FROM datasets WHERE path=?", (str(root),)).fetchone()
+            if saved and saved[0] != sha:
+                raise ValueError("Registered dataset identity changed")
+            db.execute("INSERT OR IGNORE INTO datasets VALUES(?,?)", (str(root), sha))
 
     def file_lock(self, path, exclusive=False, nonblocking=False):
         key = hashlib.sha256(str(Path(path).resolve()).encode()).hexdigest()
@@ -384,6 +394,7 @@ class Archive:
         data = dict(
             version=1,
             updated=time.time(),
+            datasets=[dict(r) for r in db.execute("SELECT * FROM datasets ORDER BY path")],
             files=[dict(r) for r in db.execute("SELECT * FROM files ORDER BY path")],
             packs=[dict(r) for r in db.execute("SELECT * FROM packs ORDER BY hash")],
         )
@@ -527,10 +538,20 @@ class Archive:
             if db.execute("SELECT count(*) FROM files").fetchone()[0]:
                 raise ValueError("Refusing to replace a populated archive index")
             target = self.root / "recovered-index.json"
-            self.copy(self.remote + "/index.json", target)
+            if self.config.get("maintenance"):
+                marker = self.root / "recovered-complete.json"
+                self.copy(self.remote + "/maintenance-complete.json", marker)
+                complete = json.loads(marker.read_text())
+                self.copy(complete["index_remote"], target)
+                if digest(target) != complete["index_sha256"]:
+                    raise ValueError("Completed backup index changed")
+            else:
+                self.copy(self.remote + "/index.json", target)
             data = json.loads(target.read_text())
             if data["version"] != 1:
                 raise ValueError("Unknown archive index version")
+            for row in data.get("datasets", []):
+                db.execute("INSERT INTO datasets VALUES(?,?)", (row["path"], row["sha256"]))
             for row in data["packs"]:
                 db.execute(
                     "INSERT INTO packs VALUES(?,?,?,?,?)",
@@ -577,7 +598,7 @@ def main():
     )
     parser.add_argument("--cache-bytes", type=int)
     args = parser.parse_args()
-    archive = configured()
+    archive = configured(import_legacy=args.action != "recover-index")
     if archive is None:
         raise ValueError("An explicit archive-storage policy is required")
     if args.action == "archive":
