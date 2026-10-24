@@ -50,10 +50,17 @@ def maintain(archive):
         with tempfile.TemporaryDirectory(prefix=".snapshot-", dir=root) as directory:
             target = Path(directory) / "labels.sqlite"
             with contextlib.closing(sqlite3.connect(source.as_uri() + "?mode=ro", uri=True)) as db:
-                with contextlib.closing(sqlite3.connect(target)) as out:
-                    db.backup(out)
-                    if out.execute("PRAGMA quick_check").fetchall() != [("ok",)]:
-                        raise ValueError("Invalid consistent catalogue snapshot")
+                db.execute("BEGIN")
+                source_bytes = (
+                    db.execute("PRAGMA page_count").fetchone()[0] * db.execute("PRAGMA page_size").fetchone()[0]
+                )
+                # Snapshot plus raw/compressed/readback staging. Reserve before
+                # SQLite creates the copy, not only when packing it afterward.
+                with archive.pin([], {root: 4 * source_bytes + 16 * 1024**2}):
+                    with contextlib.closing(sqlite3.connect(target)) as out:
+                        db.backup(out)
+                        if out.execute("PRAGMA quick_check").fetchall() != [("ok",)]:
+                            raise ValueError("Invalid consistent catalogue snapshot")
             h = archive_storage.digest(target)
             published = root / (h + ".sqlite")
             target.replace(published)
@@ -119,19 +126,47 @@ def maintain(archive):
     for name in config.get("model_roots", []):
         models.extend(p for p in Path(name).rglob("*") if p.suffix in (".nnue", ".bin", ".json") and p.is_file())
     archive.archive(models, "models")
-    features = []
+    features = {}
+    required = []
     with archive.locked() as db:
         registered = [r[0] for r in db.execute("SELECT path FROM datasets")]
     for name in sorted(set(config.get("datasets", [])) | set(registered)):
         identity = json.loads((Path(name) / "dataset.json").read_text())
-        features.extend(s["path"] for s in identity.get("feature_shards", []))
+        entries = identity.get("feature_shards", [])
+        if "features_sha256" in identity:
+            entries = [*entries, dict(path=str(Path(name) / "features.bin"), sha256=identity["features_sha256"])]
+        for entry in entries:
+            previous = features.get(entry["path"])
+            expected = entry.get("sha256")
+            if previous and expected and previous != expected:
+                raise ValueError("Conflicting shared feature identities")
+            features[entry["path"]] = expected
         archive.archive([Path(name) / "dataset.json", Path(name) / "schema.json"], "other")
         metadata = [p for p in [Path(name) / "samples.jsonl", Path(name) / "sample-overrides.bin"] if p.exists()]
         archive.archive(metadata, "closed-training")
         view = Path(name) / "sample-view.json"
         if view.exists():
             archive.archive([view], "other")
+            spec = json.loads(view.read_text())
+            overrides = Path(name) / spec["overrides"]
+            if overrides.exists():
+                archive.archive([overrides], "closed-training")
+            source = Path(spec["source"])
+            source_view = source.parent / "sample-view.json"
+            required.append((source_view if source_view.exists() else source, spec["source_sha256"]))
+            required.append((overrides, spec["overrides_sha256"]))
+        for tag, path in [
+            ("schema_sha256", Path(name) / "schema.json"),
+            ("samples_sha256", view if view.exists() else Path(name) / "samples.jsonl"),
+        ]:
+            if tag in identity:
+                required.append((path, identity[tag]))
     archive.archive(features, "features")
+    for path, expected in required:
+        archive.require(path, expected)
+    for path, expected in features.items():
+        if expected:
+            archive.require(path, expected)
     archive.evict(cache_bytes=archive.config.get("feature_cache_bytes", 8 * archive_storage.GIB))
     for name in config.get("closed_training", []):
         run = Path(name)

@@ -820,7 +820,14 @@ share a filesystem budget. PID plus process-start identity reaps dead reservatio
 a slow live process never loses its pins through an age timeout. Set soft free
 space targets to 8 GiB on root and 10 GiB on the volume, retaining hard reserves of
 3 GiB and 5 GiB. Oversized new jobs fail before downloading while existing games
-continue. Pins override cache quotas. Historical games and retired models remain
+continue. Supervisors and the legacy wrapper also stop optional writers at the soft target
+during preparation, preserving completed checkpoints and the lower game reserves.
+SQLite backup space is reserved before its snapshot copy is allocated.
+Declared schema, sample-view, and feature hashes must match verified archive
+entries before cache cleanup or a completed-backup marker is published.
+Pre-existing compressed indexes must be restored and registered once; an unknown
+missing dependency fails maintenance instead of silently skipping its backup.
+Pins override cache quotas. Historical games and retired models remain
 local until their consumers also have hydration gates.
 
 For a frozen older training program, hold the same input lease around its command:
