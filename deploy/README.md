@@ -850,7 +850,9 @@ automatically. Keep old frozen recipes and their original hashes unchanged.
 `storage_maintenance.py` backs up completed games, immutable models and bindings,
 versioned runtime metadata, and a consistent SQLite snapshot. It archives configured
 feature dependencies and completed checkpoint directories, then trims only the
-unpinned verified cache. It retains the latest consistent label snapshot locally,
+unpinned verified cache. Dataset preparation registers new immutable manifests,
+so future training outputs join maintenance without editing a static path list.
+Sample metadata and override files share the same pin and archive lifecycle. It retains the latest consistent label snapshot locally,
 keeps a bounded local runtime snapshot set, and performs an actual game restore
 to scratch on every successful pass. The private status records free space,
 bytes by producer, and growth since the previous pass; the existing storage guard

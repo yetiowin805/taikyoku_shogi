@@ -44,6 +44,8 @@ class MaintenanceTests(unittest.TestCase):
                     maintenance=dict(runs=[str(run)], datasets=[str(dataset)], catalogues=[str(labels)]),
                 )
             )
+            archive.register_dataset(dataset)
+            archive.config["maintenance"]["datasets"] = []
             storage_maintenance.maintain(archive)
             self.assertFalse(feature.exists())
             self.assertTrue(game.exists())

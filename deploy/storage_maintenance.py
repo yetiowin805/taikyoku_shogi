@@ -120,10 +120,17 @@ def maintain(archive):
         models.extend(p for p in Path(name).rglob("*") if p.suffix in (".nnue", ".bin", ".json") and p.is_file())
     archive.archive(models, "models")
     features = []
-    for name in config.get("datasets", []):
+    with archive.locked() as db:
+        registered = [r[0] for r in db.execute("SELECT path FROM datasets")]
+    for name in sorted(set(config.get("datasets", [])) | set(registered)):
         identity = json.loads((Path(name) / "dataset.json").read_text())
         features.extend(s["path"] for s in identity.get("feature_shards", []))
         archive.archive([Path(name) / "dataset.json", Path(name) / "schema.json"], "other")
+        metadata = [p for p in [Path(name) / "samples.jsonl", Path(name) / "sample-overrides.bin"] if p.exists()]
+        archive.archive(metadata, "closed-training")
+        view = Path(name) / "sample-view.json"
+        if view.exists():
+            archive.archive([view], "other")
     archive.archive(features, "features")
     archive.evict(cache_bytes=archive.config.get("feature_cache_bytes", 8 * archive_storage.GIB))
     for name in config.get("closed_training", []):

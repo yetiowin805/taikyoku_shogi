@@ -110,6 +110,7 @@ class Archive:
                     path TEXT PRIMARY KEY, sha256 TEXT, bytes INTEGER, mode INTEGER,
                     pack TEXT, member TEXT, last_used REAL, evicted INTEGER, category TEXT);
                 CREATE TABLE IF NOT EXISTS packs(hash TEXT PRIMARY KEY, bytes INTEGER, raw_bytes INTEGER, remote TEXT, encoding TEXT);
+                CREATE TABLE IF NOT EXISTS datasets(path TEXT PRIMARY KEY, sha256 TEXT);
                 CREATE TABLE IF NOT EXISTS reservations(
                     token TEXT, pid INTEGER, identity TEXT, device INTEGER, bytes INTEGER);
             """)
@@ -166,6 +167,15 @@ class Archive:
             raise
         else:
             shutil.rmtree(work)
+
+    def register_dataset(self, root):
+        root = Path(root).resolve()
+        sha = digest(root / "dataset.json")
+        with self.locked() as db:
+            saved = db.execute("SELECT sha256 FROM datasets WHERE path=?", (str(root),)).fetchone()
+            if saved and saved[0] != sha:
+                raise ValueError("Registered dataset identity changed")
+            db.execute("INSERT OR IGNORE INTO datasets VALUES(?,?)", (str(root), sha))
 
     def file_lock(self, path, exclusive=False, nonblocking=False):
         key = hashlib.sha256(str(Path(path).resolve()).encode()).hexdigest()
@@ -384,6 +394,7 @@ class Archive:
         data = dict(
             version=1,
             updated=time.time(),
+            datasets=[dict(r) for r in db.execute("SELECT * FROM datasets ORDER BY path")],
             files=[dict(r) for r in db.execute("SELECT * FROM files ORDER BY path")],
             packs=[dict(r) for r in db.execute("SELECT * FROM packs ORDER BY hash")],
         )
@@ -539,6 +550,8 @@ class Archive:
             data = json.loads(target.read_text())
             if data["version"] != 1:
                 raise ValueError("Unknown archive index version")
+            for row in data.get("datasets", []):
+                db.execute("INSERT INTO datasets VALUES(?,?)", (row["path"], row["sha256"]))
             for row in data["packs"]:
                 db.execute(
                     "INSERT INTO packs VALUES(?,?,?,?,?)",
