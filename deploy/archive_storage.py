@@ -413,6 +413,9 @@ class Archive:
     def archive(self, paths, category="other"):
         """Archive immutable/closed inputs only. This method never evicts them."""
         pending = []
+        pending_hashes = set()
+        aliases = []
+        aliased = 0
         with self.locked() as db:
             for path in sorted({str(Path(p).resolve()) for p in paths}):
                 p = Path(path)
@@ -431,6 +434,31 @@ class Archive:
                     # A completed continuation can publish a new generation at
                     # its stable resume path. Preserve the old remote object and
                     # index generation; replace residency only after readback.
+                shared = db.execute(
+                    "SELECT pack,member FROM files WHERE sha256=? AND bytes=? LIMIT 1", (h, p.stat().st_size)
+                ).fetchone()
+                if shared:
+                    stat = p.stat()
+                    db.execute(
+                        "INSERT OR REPLACE INTO files VALUES(?,?,?,?,?,?,?,?,?)",
+                        (
+                            path,
+                            h,
+                            stat.st_size,
+                            stat.st_mode & 0o777,
+                            shared["pack"],
+                            shared["member"],
+                            time.time(),
+                            0,
+                            category,
+                        ),
+                    )
+                    aliased += 1
+                    continue
+                if h in pending_hashes:
+                    aliases.append((p, h, p.stat()))
+                    continue
+                pending_hashes.add(h)
                 pending.append((p, h, p.stat()))
             batch = []
             total = 0
@@ -442,8 +470,26 @@ class Archive:
                 total += item[2].st_size
             if batch:
                 self._pack(db, batch, category)
+            for p, h, before in aliases:
+                if digest(p) != h:
+                    raise ValueError("Alias changed during archive")
+                shared = db.execute("SELECT pack,member FROM files WHERE sha256=? LIMIT 1", (h,)).fetchone()
+                db.execute(
+                    "INSERT OR REPLACE INTO files VALUES(?,?,?,?,?,?,?,?,?)",
+                    (
+                        str(p),
+                        h,
+                        before.st_size,
+                        before.st_mode & 0o777,
+                        shared["pack"],
+                        shared["member"],
+                        time.time(),
+                        0,
+                        category,
+                    ),
+                )
             self.publish_index(db)
-        return len(pending)
+        return len(pending) + aliased + len(aliases)
 
     def _pack(self, db, batch, category):
         self.reserve_bytes(self.root, 3 * (sum(s.st_size for _, _, s in batch) + 10240 + len(batch) * 4096), db)

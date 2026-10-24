@@ -87,7 +87,7 @@ def snapshot_blob(source, target, sha):
             sync_directory(store)
         else:
             copy_verified(source, canonical, sha)
-        if target.is_symlink() and target.resolve() == canonical:
+        if target.resolve() == canonical.resolve():
             return
         # Publish the reference without any gap in the old snapshot path.
         temporary = target.with_name(f".{target.name}.{os.getpid()}.{time.time_ns()}.link")
@@ -204,6 +204,8 @@ def frozen_game(source, target, sha):
             copy_verified(source, canonical, sha)
         if target.exists() and digest(target) != sha:
             raise ValueError("Frozen game target changed")
+        if target.resolve() == canonical.resolve():
+            return
         temporary = target.with_name(target.name + f".{os.getpid()}.link")
         try:
             temporary.symlink_to(canonical)
