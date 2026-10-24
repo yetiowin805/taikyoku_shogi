@@ -8,6 +8,7 @@ from pathlib import Path
 
 import numpy as np
 
+import dataset_storage
 from pilot_data import digest, hashed
 from quantized import Quantized
 
@@ -25,7 +26,7 @@ def game_path(sample):
 
 
 def freeze(root):
-    samples = [json.loads(x) for x in (root / "dataset/samples.jsonl").read_text().splitlines()]
+    samples = list(dataset_storage.rows(root / "dataset/samples.jsonl"))
     test = [s for s in samples if s["split"] == "test"]
     # Late, approximately balanced, nonterminal teacher-labelled roots permit a bounded
     # screen. This is deliberately not an opening tournament or an Elo measurement.

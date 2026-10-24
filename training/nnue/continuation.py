@@ -13,12 +13,26 @@ import time
 from dataclasses import asdict
 from pathlib import Path
 
+import dataset_storage
 from plateau import Policy
 
 HERE = Path(__file__).resolve().parent
 WIDTHS = [512, 768, 1024, 1536, 2048]
-CODE = ["continuation.py", "train.py", "plateau.py", "quantized.py"]
+CODE = [
+    "continuation.py",
+    "train.py",
+    "plateau.py",
+    "quantized.py",
+    "dataset_storage.py",
+    "archive_storage.py",
+    "artifact_storage.py",
+]
 STOPPING = False
+
+
+def code_path(name):
+    local = HERE / name
+    return local if local.exists() else HERE.parent.parent / "deploy" / name
 
 
 def digest(path):
@@ -71,7 +85,7 @@ def load_config(path):
             raise ValueError("Training output must be separate from " + key)
     if Path(c["base"]).is_relative_to(c["out"]):
         raise ValueError("Training output contains its material baseline")
-    hashes = {name: digest(HERE / name) for name in CODE}
+    hashes = {name: digest(code_path(name)) for name in CODE}
     if c.get("code_hashes", hashes) != hashes:
         raise ValueError("Training code changed; use the pinned code or a new output directory")
     c["code_hashes"] = hashes
@@ -85,6 +99,11 @@ def load_config(path):
 
 
 def check_inputs(c):
+    with dataset_storage.prepare(c["dataset"]):
+        return validate_inputs(c)
+
+
+def validate_inputs(c):
     """Preflight before launching any tournament; map tensors without copying them."""
     import numpy as np
     import torch
@@ -102,7 +121,7 @@ def check_inputs(c):
         raise ValueError("Material baseline must not contain a network")
     dataset_id = identity(meta)
     schema = read(dataset / "schema.json")
-    samples = [json.loads(s) for s in (dataset / "samples.jsonl").read_text().splitlines()]
+    samples = list(dataset_storage.rows(dataset / "samples.jsonl"))
     counts = {s: sum(x["split"] == s for x in samples) for s in ("train", "validation")}
     if counts["train"] < 16 or counts["validation"] < 8:
         raise ValueError("Insufficient training/validation data")
@@ -153,6 +172,11 @@ def stop_handler(*_):
 
 
 def run(c):
+    with dataset_storage.prepare(c["dataset"]):
+        return train_continuations(c)
+
+
+def train_continuations(c):
     out = Path(c["out"])
     out.mkdir(parents=True, exist_ok=True)
     with (out / ".lock").open("a+") as lock:

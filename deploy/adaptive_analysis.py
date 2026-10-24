@@ -2,7 +2,6 @@
 
 import contextlib
 import fcntl
-import json
 import multiprocessing
 import os
 import signal
@@ -13,6 +12,7 @@ from pathlib import Path
 
 import champion_teacher
 import dual_label_sidecar as dual
+import label_storage
 import teacher_refresh
 import tourney_analysis as a
 import winner_teacher
@@ -46,9 +46,10 @@ def position_job(config, cpu, row_id, parent_pid):
     db.execute("PRAGMA journal_size_limit=67108864")
     try:
         row = db.execute("SELECT payload FROM moments WHERE id=?", (row_id,)).fetchone()
-        moment = dual.paired_searches(config, json.loads(row["payload"]), db)
+        moment = dual.paired_searches(config, label_storage.decode(db, row["payload"]), db)
         db.execute(
-            "UPDATE moments SET status=?,payload=?,error=NULL WHERE id=?", ("completed", json.dumps(moment), row_id)
+            "UPDATE moments SET status=?,payload=?,error=NULL WHERE id=?",
+            ("completed", label_storage.encode(db, moment), row_id),
         )
         db.execute("INSERT OR REPLACE INTO dual_paired VALUES(?)", (row_id,))
         db.commit()

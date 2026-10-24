@@ -13,6 +13,9 @@ import tarfile
 import time
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "deploy"))
+import label_storage
+
 
 def main():
     p = argparse.ArgumentParser()
@@ -47,7 +50,7 @@ def main():
             if db.exists():
                 with sqlite3.connect(f"file:{db}?mode=ro", uri=True) as conn:
                     labels = [
-                        json.loads(x[0])
+                        label_storage.decode(conn, x[0])
                         for x in conn.execute("SELECT payload FROM moments WHERE status='completed' ORDER BY id")
                     ]
                 dest = f"labels/{name}.jsonl"

@@ -1,0 +1,20 @@
+{
+  "root": "/absolute/data/archive-control",
+  "remote": "configured-private-remote:bucket/archive-prefix",
+  "rclone": "rclone",
+  "required_mounts": ["/absolute/data"],
+  "filesystems": [
+    {"path": "/", "min_free_bytes": 3221225472, "soft_free_bytes": 8589934592},
+    {"path": "/absolute/data", "min_free_bytes": 5368709120, "soft_free_bytes": 10737418240}
+  ],
+  "pack_bytes": 134217728,
+  "archive_completed_checkpoints": true,
+  "feature_cache_bytes": 8589934592,
+  "maintenance": {
+    "datasets": ["/absolute/completed/dataset"],
+    "runs": ["/absolute/tournament/run"],
+    "model_roots": ["/absolute/shared-model-store"],
+    "closed_training": [],
+    "catalogues": ["/absolute/tournament/run/analysis/training-labels.sqlite"]
+  }
+}

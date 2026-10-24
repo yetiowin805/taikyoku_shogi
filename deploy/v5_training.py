@@ -28,6 +28,17 @@ def main():
     p.add_argument("config", type=Path)
     args = p.parse_args()
     c = a.read(args.config)
+    import sys
+
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "training/nnue"))
+    import dataset_storage
+
+    source = Path(c.get("dataset", Path(c.get("parent_samples", "")).parent))
+    with dataset_storage.prepare(source):
+        return run_training(args, c)
+
+
+def run_training(args, c):
     out = Path(c["out"])
     run = Path(c["run"])
     code = Path(c["code"])

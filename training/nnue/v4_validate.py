@@ -9,6 +9,7 @@ from pathlib import Path
 import numpy as np
 import torch
 
+import dataset_storage
 from pilot_data import digest
 from pilot_fit import evaluate, from_quantized
 from quantized import Quantized
@@ -20,9 +21,14 @@ def main():
     for k in ("dataset", "parent", "candidate", "binary", "out"):
         p.add_argument("--" + k, type=Path, required=True)
     a = p.parse_args()
+    with dataset_storage.prepare(a.dataset):
+        return consume(a)
+
+
+def consume(a):
     torch.set_num_threads(1)
     torch.set_num_interop_threads(1)
-    samples = [json.loads(x) for x in (a.dataset / "samples.jsonl").read_text().splitlines()]
+    samples = list(dataset_storage.rows(a.dataset / "samples.jsonl"))
     schema = json.loads((a.dataset / "schema.json").read_text())
     data = Features(a.dataset)
     report = {}

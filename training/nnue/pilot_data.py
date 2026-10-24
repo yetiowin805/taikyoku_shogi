@@ -10,6 +10,8 @@ from pathlib import Path
 
 import numpy as np
 
+import dataset_storage
+
 MOVE_KEYS = ("color", "from_file", "from_rank", "to_file", "to_rank", "promoted", "data")
 
 
@@ -18,11 +20,13 @@ def hashed(x):
 
 
 def digest(path):
-    h = hashlib.sha256()
-    with Path(path).open("rb") as f:
-        for chunk in iter(lambda: f.read(1 << 20), b""):
-            h.update(chunk)
-    return h.hexdigest()
+    from archive_storage import digest as file_digest
+    from dataset_storage import hydrate, sample_digest
+
+    path = Path(path)
+    if path.name == "samples.jsonl":
+        return sample_digest(path)
+    return file_digest(hydrate(path))
 
 
 def position_key(data, s):
@@ -174,7 +178,7 @@ def main():
         [a.binary, "export", str(old / "base.json"), str(root / "jobs.jsonl"), str(root / "dataset")], check=True
     )
     ds = root / "dataset"
-    samples = [json.loads(x) for x in (ds / "samples.jsonl").read_text().splitlines()]
+    samples = list(dataset_storage.rows(ds / "samples.jsonl"))
     data = np.memmap(ds / "features.bin", mode="r", dtype="<u4")
     prior_samples = [json.loads(x) for x in (old / "dataset-v1/samples.jsonl").read_text().splitlines()]
     prior_data = np.memmap(old / "dataset-v1/features.bin", mode="r", dtype="<u4")

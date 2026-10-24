@@ -9,6 +9,7 @@ from pathlib import Path
 
 import torch
 
+import dataset_storage
 from difficulty_weights import multiplier
 from pilot_data import digest
 from train import atomic_json, batch
@@ -31,12 +32,17 @@ def mixture_weights(samples, weights, proportions):
 
 
 def main():
-    from pilot_fit import from_quantized
-
     p = argparse.ArgumentParser()
     for name in ("source", "parent", "out", "cpu-file"):
         p.add_argument("--" + name, type=Path, required=True)
     a = p.parse_args()
+    with dataset_storage.prepare(a.source):
+        return prepare(a)
+
+
+def prepare(a):
+    from pilot_fit import from_quantized
+
     a.out.mkdir(parents=True, exist_ok=True)
     identity = json.loads((a.source / "dataset.json").read_text())
     schema = json.loads((a.source / "schema.json").read_text())
@@ -65,8 +71,7 @@ def main():
         raise ValueError("Source samples changed")
     samples = []
     cells = []
-    for line in (a.source / "samples.jsonl").open():
-        s = json.loads(line)
+    for s in dataset_storage.rows(a.source / "samples.jsonl"):
         if s["split"] != "train":
             continue
         samples.append(
@@ -121,19 +126,35 @@ def main():
     for i, s in enumerate(samples):
         totals[cells[i]][0] += s["sampling_weight"]
         totals[cells[i]][1] += s["sampling_weight"] * scores[i]["multiplier"]
+    import struct
+
     train_index = 0
-    with (a.out / "samples.jsonl.tmp").open("w") as f:
-        for line in (a.source / "samples.jsonl").open():
-            s = json.loads(line)
+    count = 0
+    overrides = a.out / "sample-overrides.bin"
+    temporary = overrides.with_suffix(".tmp")
+    with temporary.open("wb") as f:
+        for s in dataset_storage.rows(a.source / "samples.jsonl"):
+            weight, error, boost = s.get("sampling_weight", 1.0), 0.0, 1.0
             if s["split"] == "train":
                 r = scores[train_index]
                 original, boosted = totals[cells[train_index]]
-                s["sampling_weight"] *= r["multiplier"] * original / boosted
-                s.update(parent_probability_error=r["error"], difficulty_multiplier=r["multiplier"])
-                line = json.dumps(s, separators=(",", ":")) + "\n"
+                weight *= r["multiplier"] * original / boosted
+                error, boost = r["error"], r["multiplier"]
                 train_index += 1
-            f.write(line)
-    (a.out / "samples.jsonl.tmp").replace(a.out / "samples.jsonl")
+            f.write(struct.pack("<ddd", weight, error, boost))
+            count += 1
+    temporary.replace(overrides)
+    atomic_json(
+        a.out / "sample-view.json",
+        dict(
+            version=1,
+            source=str((a.source / "samples.jsonl").resolve()),
+            source_sha256=digest(a.source / "samples.jsonl"),
+            overrides=overrides.name,
+            overrides_sha256=digest(overrides),
+            samples=count,
+        ),
+    )
     (a.out / "schema.json").write_bytes((a.source / "schema.json").read_bytes())
     identity.update(policy="v5-common-smooth-v1", weighting=binding, samples_sha256=digest(a.out / "samples.jsonl"))
     atomic_json(a.out / "dataset.json", identity)

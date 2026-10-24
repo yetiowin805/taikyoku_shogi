@@ -36,6 +36,16 @@ def problems(config):
     return errors
 
 
+def archive_health():
+    """Include the last measured producer growth without scanning the hot tree."""
+    policy = Path(os.environ.get("TAIKYOKU_ARCHIVE_CONFIG", "/etc/taikyoku/archive-storage.json"))
+    if not policy.exists():
+        return None
+    config = json.loads(policy.read_text())
+    report = Path(config["root"]) / "maintenance-status.json"
+    return json.loads(report.read_text()) if report.exists() else {"state": "not_yet_run"}
+
+
 def require_healthy(path):
     """An installed policy also applies to ad-hoc and admission supervisors."""
     path = Path(path)
@@ -55,7 +65,9 @@ def main():
     # /run is tmpfs, so the failure remains visible even if a data disk is full.
     status = Path(config.get("status", "/run/taikyoku-storage-status.json"))
     temporary = status.with_name(f".{status.name}.{os.getpid()}.tmp")
-    temporary.write_text(json.dumps(dict(ok=not errors, errors=errors, updated=time.time())) + "\n")
+    temporary.write_text(
+        json.dumps(dict(ok=not errors, errors=errors, updated=time.time(), archive=archive_health())) + "\n"
+    )
     temporary.replace(status)
     if errors:
         print("STORAGE GUARD: " + "; ".join(errors), file=sys.stderr, flush=True)

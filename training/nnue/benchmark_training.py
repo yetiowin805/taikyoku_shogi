@@ -20,10 +20,17 @@ import tempfile
 import time
 from pathlib import Path
 
+import dataset_storage
+
 REPO = Path(__file__).resolve().parents[2]
 
 
 def worker(a):
+    with dataset_storage.prepare(a.dataset):
+        return consume(a)
+
+
+def consume(a):
     os.sched_setaffinity(0, {a.cpu})
     sys.path.insert(0, str(a.module_dir))
     import numpy as np
@@ -34,7 +41,7 @@ def worker(a):
     torch.set_num_threads(1)
     torch.set_num_interop_threads(1)
     torch.manual_seed(a.seed)
-    samples = [json.loads(s) for s in (a.dataset / "samples.jsonl").read_text().splitlines()]
+    samples = list(dataset_storage.rows(a.dataset / "samples.jsonl"))
     data = np.memmap(a.dataset / "features.bin", mode="r", dtype="<u4")
     schema = json.loads((a.dataset / "schema.json").read_text())
     train = [i for i, s in enumerate(samples) if s["split"] == "train"]

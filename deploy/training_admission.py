@@ -27,6 +27,9 @@ def freeze_models(models, control):
         name = directory.name
         if checkpoint.get("name") != name or not checkpoint.get("weights", {}).get("nnue"):
             raise ValueError("Completed NNUE model identity missing: " + str(source))
+        descriptor = checkpoint["weights"]["nnue"]
+        export = source.parent / descriptor["file"]
+        artifact_storage.snapshot_blob(export, export, descriptor["sha256"])
         # Copy into the immutable model store, then use a stable admission path
         # independent of the training output's retention or future continuations.
         snapshot = a.snapshot_model(source, source.read_bytes(), control)

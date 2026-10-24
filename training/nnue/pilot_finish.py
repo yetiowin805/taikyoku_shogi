@@ -11,6 +11,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
+import dataset_storage
 from pilot_compare import matches, verify
 
 
@@ -59,7 +60,7 @@ def main():
     torch.set_num_threads(1)
     torch.set_num_interop_threads(1)
     os.sched_setaffinity(0, {cpus[0]})
-    samples = [json.loads(x) for x in (a.root / "dataset/samples.jsonl").read_text().splitlines()]
+    samples = list(dataset_storage.rows(a.root / "dataset/samples.jsonl"))
     schema = json.loads((a.root / "dataset/schema.json").read_text())
     data = np.memmap(a.root / "dataset/features.bin", mode="r", dtype="<u4")
     test = [i for i, s in enumerate(samples) if s["split"] == "test"]
