@@ -1,0 +1,162 @@
+V4/V4.5 tactical review shortlist — GUI plies, positions BEFORE the listed move.
+Scores are own perspective; all entries except the prior slot817 isolation remain unadjudicated.
+
+s0639-p0142 | NNUE_W512_v4 vs BASE_C2S2_A80_Lflight
+  Lead-in 134; decision 138; recognition 142; continuation through 154
+  Score +3302 -> +1940; depth 4 -> 3; same-depth drop 274
+  Inspect plies 138–150: a Flying General clears friendly pieces while opposing promotions and captures develop. No immediate loss of a single major explains the full drop.
+
+s0639-p0068 | NNUE_W512_v4 vs BASE_C2S2_A80_Lflight
+  Lead-in 62; decision 66; recognition 68; continuation through 80
+  Score +4312 -> +1986; depth 4 -> 5; same-depth drop None
+  White’s Tengu continues capturing material around plies 64–78. The score drops without a comparable near-term net material loss; do not call this a solved tactic.
+
+s0673-p0172 | NNUE_W512_v4.5 vs SEEDS2
+  Lead-in 162; decision 166; recognition 172; continuation through 184
+  Score +6465 -> +1330; depth 4 -> 3; same-depth drop 794
+  A Flying General takes White’s Bishop General at 171; a Fierce Ox takes its Tengu at 175. Review 166, 168, 170 and 174 separately; these may be different defensive decisions.
+
+s0673-p0034 | NNUE_W512_v4.5 vs SEEDS2
+  Lead-in 24; decision 28; recognition 34; continuation through 46
+  Score -117 -> -3831; depth 4 -> 5; same-depth drop None
+  Black’s sweeping generals remove Tengus at 27 and 33, followed by White’s recapture of a Great General at 34. Start before 28; evaluate the whole exchange rather than one captured piece.
+
+s0723-p0064 | NNUE_W512_v4.5 vs BASE_C2S2_A160_Lflight
+  Lead-in 58; decision 62; recognition 64; continuation through 76
+  Score +536 -> -2914; depth 4 -> 3; same-depth drop None
+  Black’s Great General sweeps rank/file corridors at 63 and 67. The same decision position appears in 756, 810 and 828: one family, not four independent wins for an adjustment.
+
+s0723-p0020 | NNUE_W512_v4.5 vs BASE_C2S2_A160_Lflight
+  Lead-in 10; decision 14; recognition 20; continuation through 32
+  Score +1375 -> -1828; depth 4 -> 3; same-depth drop None
+  White loses a Tengu at 17 and a Vice General at 21. The earlier Capricorn exchange at 10–11 is part of the lead-in; inspect 14 and 16 for preventive choices.
+
+s0756-p0400 | NNUE_W512_v4.5 vs BASE_C2S2_A160_Ldefense
+  Lead-in 390; decision 394; recognition 400; continuation through 412
+  Score +1488 -> -60; depth 4 -> 4; same-depth drop 350
+  White promotes its Flying General to Flying Crocodile at 396; Black’s Longbow Soldier captures it at 397. Decision 396 and the earlier setup at 394 are concrete test positions.
+
+s0756-p0344 | NNUE_W512_v4.5 vs BASE_C2S2_A160_Ldefense
+  Lead-in 334; decision 338; recognition 344; continuation through 356
+  Score +1822 -> -832; depth 4 -> 3; same-depth drop 219
+  The immediate context has little net material damage, but a Great General is captured at 351. Inspect the lead-up before concluding the earlier score drop was spurious.
+
+s0806-p0292 | NNUE_W512_v4.5 vs NNUE_W2048_v2
+  Lead-in 284; decision 288; recognition 292; continuation through 304
+  Score -2170 -> -6307; depth 4 -> 3; same-depth drop 640
+  Black’s Flying Crocodile removes White’s Free King and Peacock at 291. Analyze White’s decision at 290 and the earlier position at 288; this is the v2-opponent case.
+
+s0806-p0076 | NNUE_W512_v4.5 vs NNUE_W2048_v2
+  Lead-in 70; decision 74; recognition 76; continuation through 88
+  Score +338 -> -2751; depth 4 -> 3; same-depth drop 1992
+  A White Great General is captured by a Yasha at 79. Inspect White’s decisions before that exchange; the recognition score alone does not establish a better defense.
+
+s0810-p0734 | NNUE_W512_v4.5 vs BASE_C2S2_A80_Lflight
+  Lead-in 728; decision 732; recognition 734; continuation through 746
+  Score +3554 -> +449; depth 4 -> 3; same-depth drop None
+  A Right Mountain Eagle captures White’s Flying Crocodile at 739. Review 732–738: the observed material loss is several turns after the initial evaluation drop.
+
+s0810-p0188 | NNUE_W512_v4.5 vs BASE_C2S2_A80_Lflight
+  Lead-in 180; decision 184; recognition 188; continuation through 200
+  Score +750 -> -1345; depth 3 -> 3; same-depth drop 1229
+  White loses a Bishop General to Side General at 187, then a Tengu to Primordial Dragon at 189. Review 184 and 186 as well as the recognition point 188.
+
+s0817-p0043 | NNUE_W512_v4 vs BASE_C2S2_A160_Ldefense
+  Lead-in 33; decision 37; recognition 43; continuation through 55
+  Score +3079 -> -2151; depth 4 -> 3; same-depth drop None
+  Prior isolated trace reproduced the pawn at 43 and predicted Great Master takes Capricorn at 44. The retreat 35,22-34,21-35,20 was reduced two plies and rejected at -2998; a two-ply tactical probe scored +998. The live engine was not modified.
+
+s0817-p0053 | NNUE_W512_v4 vs BASE_C2S2_A160_Ldefense
+  Lead-in 43; decision 47; recognition 53; continuation through 65
+  Score -2078 -> -5776; depth 4 -> 3; same-depth drop 750
+  Black loses a Free King at 54 after the earlier Capricorn/Fierce Dragon losses at 44/46. Useful continuation case, but correlated with s0817-p0043.
+
+s0825-p0091 | NNUE_W512_v4.5 vs BASE_C2S2_A160_Lflight
+  Lead-in 85; decision 89; recognition 91; continuation through 103
+  Score +3103 -> -1191; depth 4 -> 3; same-depth drop None
+  Score falls from +3103 to -1191; no single captured major in the immediate window explains it. Compare completed depths and the promotion line before labeling a blunder.
+
+s0825-p0143 | NNUE_W512_v4.5 vs BASE_C2S2_A160_Lflight
+  Lead-in 137; decision 141; recognition 143; continuation through 155
+  Score -1886 -> -5696; depth 4 -> 3; same-depth drop None
+  A Running Ox captures Black’s Flying General at 150. The score drops earlier, at 143; inspect intervening own decisions rather than assuming 141 was the only avoidable mistake.
+
+s0826-p0140 | NNUE_W512_v4.5 vs BASE_C2S2_A160_Lflight
+  Lead-in 130; decision 134; recognition 140; continuation through 152
+  Score +764 -> -2027; depth 4 -> 3; same-depth drop 978
+  White loses a Free King at 137, Bishop General at 139, Tengu at 143 and Flying General at 145. Review 134 and 136 first, then assess which threats were already unavoidable.
+
+s0826-p0072 | NNUE_W512_v4.5 vs BASE_C2S2_A160_Lflight
+  Lead-in 62; decision 66; recognition 72; continuation through 84
+  Score +1900 -> -320; depth 4 -> 3; same-depth drop 70
+  A later Great General corridor removes a Peacock at 83. The earlier drop at 72 may be anticipation or evaluation instability; inspect the whole setup through 84.
+
+s0828-p0588 | NNUE_W512_v4.5 vs BASE_C2S2_A80_Lmate
+  Lead-in 578; decision 582; recognition 588; continuation through 600
+  Score -2583 -> -7045; depth 2 -> 3; same-depth drop 4501
+  A Great General takes White’s Tengu at 583, Bishop General at 585 and Flying General at 587. White was already negatively evaluated; retain as a hard defensive case, not a clean equal-position puzzle.
+
+s0828-p0460 | NNUE_W512_v4.5 vs BASE_C2S2_A80_Lmate
+  Lead-in 452; decision 456; recognition 460; continuation through 472
+  Score +1252 -> -439; depth 2 -> 3; same-depth drop 726
+  The visible sequence is a promoted runner taking smaller pieces, then being captured by a Tengu at 461. No immediate major-piece loss; useful to expose overaggressive score-based selection.
+
+s0864-p0488 | NNUE_W512_v4 vs BASE_C2S2_A160_Ldefense
+  Lead-in 478; decision 482; recognition 488; continuation through 500
+  Score +2273 -> -785; depth 3 -> 3; same-depth drop 3058
+  White’s King captures a Lion Hawk at 484, then Black’s Tengu takes White’s Tengu at 485. Check whether the royal reply was forced before assigning blame to 484; inspect 482 too.
+
+s0864-p0662 | NNUE_W512_v4 vs BASE_C2S2_A160_Ldefense
+  Lead-in 656; decision 660; recognition 662; continuation through 674
+  Score -1305 -> -4274; depth 4 -> 3; same-depth drop 2532
+  A Shitennou captures White’s Tengu at 663. Review the Tengu move at 658 and White’s intervening choices at 660/662 to find the preventive decision.
+
+s0869-p0325 | NNUE_W384_v4.5 vs BASE_C2S2_A80_L0
+  Lead-in 315; decision 319; recognition 325; continuation through 337
+  Score +3682 -> -17; depth 4 -> 3; same-depth drop 157
+  Black loses a Shitennou at 330 and promoted Running Ox at 332. The initial drop precedes those captures; the Shitennou is below the broad 648-unit major-loss filter.
+
+s0869-p0027 | NNUE_W384_v4.5 vs BASE_C2S2_A80_L0
+  Lead-in 17; decision 21; recognition 27; continuation through 39
+  Score +6759 -> +2578; depth 4 -> 5; same-depth drop 1155
+  Black’s Fierce Dragon is captured at 26; a Tengu is swept off at 30 before Black recaptures the Great General at 31. Another Tengu is lost at 38. Review 21–25 and account for compensation.
+
+s0806-p0092 | NNUE_W512_v4.5 vs NNUE_W2048_v2
+  Lead-in 82; decision 86; recognition 92; continuation through 104
+  Score +2240 -> -3105; depth 4 -> 3; same-depth drop 1407
+  A same-depth comparison still drops 1407 units, despite little net material loss in the displayed window. Inspect 86–92 and avoid assuming a capture is the only cause.
+
+s0825-p0111 | NNUE_W512_v4.5 vs BASE_C2S2_A160_Lflight
+  Lead-in 105; decision 109; recognition 111; continuation through 123
+  Score -1344 -> -5280; depth 4 -> 3; same-depth drop 2061
+  Before recognition at 111, a Great General takes a Vice General at 106 and Tengu at 108; a Go-Between captures a Bishop General at 110. Move backward to 105–109 for prevention.
+
+s0869-p0043 | NNUE_W384_v4.5 vs BASE_C2S2_A80_L0
+  Lead-in 37; decision 41; recognition 43; continuation through 55
+  Score +3720 -> +439; depth 4 -> 3; same-depth drop 1832
+  The decline remains when compared with the previous depth-3 score. The Hook Mover is captured by a Lion Hawk at 50; inspect 41–49, rather than only 43.
+
+s0806-p0140 | NNUE_W512_v4.5 vs NNUE_W2048_v2
+  Lead-in 130; decision 134; recognition 140; continuation through 152
+  Score -2050 -> -5352; depth 4 -> 3; same-depth drop 1266
+  A Horned Hawk takes a Fierce Dragon at 137, with Hook Mover and Free King/Peacock losses later at 149/151. The same-depth score declines too. Review 134 and 136 first.
+
+s0825-p0029 | NNUE_W512_v4.5 vs BASE_C2S2_A160_Lflight
+  Lead-in 19; decision 23; recognition 29; continuation through 41
+  Score +2210 -> -169; depth 4 -> 4; same-depth drop 1000
+  Both endpoints completed depth 4. Between and after them, Black loses a Great General at 26, Tengus at 28/30, then Free King/Peacock at 32. Assess recapture compensation and move backward before 25.
+
+s0756-p0332 | NNUE_W512_v4.5 vs BASE_C2S2_A160_Ldefense
+  Lead-in 326; decision 330; recognition 332; continuation through 344
+  Score +2311 -> +289; depth 4 -> 4; same-depth drop 2022
+  Depth 4 at both endpoints; -2022 score change with little immediate material loss. Useful test of the evaluator/search horizon, not a verified sacrifice puzzle.
+
+s0826-p0430 | NNUE_W512_v4.5 vs BASE_C2S2_A160_Lflight
+  Lead-in 424; decision 428; recognition 430; continuation through 442
+  Score -911 -> -2906; depth 3 -> 3; same-depth drop 1995
+  Depth 3 at both endpoints; -1995 score change with only modest nearby material loss. Search the opponent setup and compare PVs before assigning a tactical label.
+
+s0756-p0202 | NNUE_W512_v4.5 vs BASE_C2S2_A160_Ldefense
+  Lead-in 196; decision 200; recognition 202; continuation through 214
+  Score +2288 -> +943; depth 4 -> 4; same-depth drop 1345
+  Depth 4 at both endpoints. Later Bishop General/Shitennou losses at 209/211 coexist with a positive net material change in the context. Keep compensation in the analysis.
