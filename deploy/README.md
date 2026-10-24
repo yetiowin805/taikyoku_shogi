@@ -704,6 +704,10 @@ Unfinished games resume from their original starts. Keep all recovery inputs.
 
 ## Model snapshot sharing and teacher-backup retention
 
+See [`STORAGE_PLAN.md`](STORAGE_PLAN.md) for the 2026-10-23 recovery record,
+archive recovery requirements, and the staged plan for hydration,
+dependency pins, bounded caches, and lower storage growth.
+
 Install `artifact-storage.json.example` as `/etc/taikyoku/artifact-storage.json`
 to enable a shared content-addressed NNUE snapshot store on the attached volume.
 Adjust its mount and store paths for the host. `TAIKYOKU_ARTIFACT_CONFIG` can
