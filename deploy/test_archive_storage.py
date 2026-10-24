@@ -192,3 +192,19 @@ class ArchiveTests(unittest.TestCase):
         self.archive.evict([self.source, alias])
         self.archive.hydrate(alias)
         self.assertEqual(alias.read_bytes(), self.bytes)
+
+    def test_optional_writer_stops_at_soft_target_above_hard_reserve(self):
+        self.archive.config["filesystems"] = [dict(path=str(self.root), min_free_bytes=100, soft_free_bytes=500)]
+        with self.archive.pin([self.source]) as lease:
+            with patch("archive_storage.shutil.disk_usage", return_value=type("Usage", (), {"free": 499})()):
+                with self.assertRaisesRegex(RuntimeError, "soft target"):
+                    lease.check_headroom()
+        self.assertTrue(self.source.exists())
+
+    def test_declared_dataset_hash_must_match_a_verified_recovery_entry(self):
+        with self.assertRaisesRegex(ValueError, "dataset dependency"):
+            self.archive.require(self.source, storage.digest(self.source))
+        self.archive.archive([self.source], "features")
+        self.archive.require(self.source, storage.digest(self.source))
+        with self.assertRaisesRegex(ValueError, "dataset dependency"):
+            self.archive.require(self.source, "0" * 64)

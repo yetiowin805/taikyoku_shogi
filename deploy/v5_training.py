@@ -34,11 +34,11 @@ def main():
     import dataset_storage
 
     source = Path(c.get("dataset", Path(c.get("parent_samples", "")).parent))
-    with dataset_storage.prepare(source):
-        return run_training(args, c)
+    with dataset_storage.prepare(source) as storage_lease:
+        return run_training(args, c, storage_lease)
 
 
-def run_training(args, c):
+def run_training(args, c, storage_lease=None):
     out = Path(c["out"])
     run = Path(c["run"])
     code = Path(c["code"])
@@ -73,6 +73,8 @@ def run_training(args, c):
 
     def job(command, name):
         nonlocal proc
+        if storage_lease:
+            storage_lease.check_headroom()
         verify()
         while not pool.leases:
             pool.tick()
@@ -98,6 +100,8 @@ def run_training(args, c):
             )
             started = time.monotonic()
             while proc.poll() is None:
+                if storage_lease:
+                    storage_lease.check_headroom()
                 pool.tick()
                 status(
                     "running",

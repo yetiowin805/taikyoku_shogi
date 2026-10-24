@@ -78,6 +78,16 @@ class Lease:
             lock.close()
         self.locks.clear()
 
+    def check_headroom(self):
+        """Stop optional writers at soft targets, before the hard game guard."""
+        for mount in self.archive.config.get("required_mounts", []):
+            if not os.path.ismount(mount):
+                raise RuntimeError("Training stopped: required storage mount disappeared")
+        for rule in self.archive.config.get("filesystems", []):
+            target = rule.get("soft_free_bytes", rule["min_free_bytes"])
+            if shutil.disk_usage(rule["path"]).free < target:
+                raise RuntimeError("Training stopped at storage soft target: " + rule["path"])
+
     def __enter__(self):
         return self
 
@@ -167,6 +177,14 @@ class Archive:
             raise
         else:
             shutil.rmtree(work)
+
+    def require(self, path, expected_sha256):
+        """A dataset's declared dependency must have a verified recovery entry."""
+        path = str(Path(path).resolve())
+        with self.locked() as db:
+            row = db.execute("SELECT sha256 FROM files WHERE path=?", (path,)).fetchone()
+            if row is None or row[0] != expected_sha256:
+                raise ValueError("Missing or mismatched archived dataset dependency: " + path)
 
     def register_dataset(self, root):
         root = Path(root).resolve()

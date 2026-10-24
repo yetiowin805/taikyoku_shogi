@@ -86,7 +86,10 @@ def prepare(root, out=None, width=None, checkpoint_dir=None, extra_inputs=()):
     archive = archive_storage.configured()
     if archive is None:
         return contextlib.nullcontext()
-    archive.register_dataset(root)
+    paths = inputs(root)
+    for path in paths:
+        if path.name == "schema.json":
+            archive.register_dataset(path.parent)
     requirements = {}
     if out is not None and width is not None:
         schema = json.loads((Path(root) / "schema.json").read_text())
@@ -96,7 +99,7 @@ def prepare(root, out=None, width=None, checkpoint_dir=None, extra_inputs=()):
         table = schema["features"] * width
         requirements[Path(checkpoint_dir or out)] = table * 16 + 16 * 1024**2
         requirements[Path(out)] = requirements.get(Path(out), 0) + table * 4 + 16 * 1024**2
-    return archive.pin([*inputs(root), *extra_inputs], requirements, mutable_paths=extra_inputs)
+    return archive.pin([*paths, *extra_inputs], requirements, mutable_paths=extra_inputs)
 
 
 def share(source, target=None, sha=None):
@@ -118,6 +121,7 @@ def share_game(source, target, sha):
 if __name__ == "__main__":
     import argparse
     import subprocess
+    import time
 
     parser = argparse.ArgumentParser(description="Hydrate and pin inputs while running a legacy training command")
     parser.add_argument("dataset", type=Path)
@@ -126,5 +130,19 @@ if __name__ == "__main__":
     command = args.command[1:] if args.command[:1] == ["--"] else args.command
     if not command:
         parser.error("A training command is required after --")
-    with prepare(args.dataset):
-        subprocess.run(command, check=True)
+    with prepare(args.dataset) as lease:
+        child = subprocess.Popen(command, start_new_session=True)
+        try:
+            while child.poll() is None:
+                if lease:
+                    lease.check_headroom()
+                time.sleep(1)
+            if child.returncode:
+                raise subprocess.CalledProcessError(child.returncode, command)
+        finally:
+            if child.poll() is None:
+                import os
+                import signal
+
+                os.killpg(child.pid, signal.SIGTERM)
+                child.wait()
