@@ -37,7 +37,7 @@ fn run() -> Result<(), String> {
             s.setup_initial_position();
             s
         }
-        GameStart::Position { position } => position.to_state(),
+        GameStart::Position { position } => position.to_state()?,
     };
     for mv in &rec.moves[..ply - 1] {
         if state.get_current_turn() != mv.color {

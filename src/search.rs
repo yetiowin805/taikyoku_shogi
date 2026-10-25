@@ -3,7 +3,7 @@
 //! Pipeline, PathAware q, and what each prune can miss: `src/README.md`.
 
 use crate::eval::{
-    bind_search_weights, evaluate_with_ply, is_big_piece, is_range_two_mover, material_piece_value,
+    evaluate_with_ply, is_big_piece, is_range_two_mover, material_piece_value,
     promotes_into_big_piece, seed_loud_capture_floor, EvalWeights,
 };
 use crate::game_state::{GameState, LegalMoveGen, Move};
@@ -131,8 +131,8 @@ fn capturing_wipe_group_key(state: &GameState, mv: &Move) -> Option<u64> {
     if board.get_piece(mv.to).is_some() {
         return None;
     }
-    let file_diff = mv.to.file as i8 - mv.from.file as i8;
-    let rank_diff = mv.to.rank as i8 - mv.from.rank as i8;
+    let file_diff = mv.to.file() as i8 - mv.from.file() as i8;
+    let rank_diff = mv.to.rank() as i8 - mv.from.rank() as i8;
     if file_diff == 0 && rank_diff == 0 {
         return None;
     }
@@ -682,10 +682,10 @@ fn tt_from_config(size_pow2: usize, config: &SearchConfig) -> TranspositionTable
 
 fn move_tt_key(mv: &Move) -> MoveKey {
     (
-        mv.from.file,
-        mv.from.rank,
-        mv.to.file,
-        mv.to.rank,
+        mv.from.file(),
+        mv.from.rank(),
+        mv.to.file(),
+        mv.to.rank(),
         mv.promoted,
     )
 }
@@ -1196,10 +1196,10 @@ fn piece_might_loud_promote(piece: &Piece) -> bool {
     let reach = max_rank_delta_toward_promo(piece);
     match piece.color {
         Color::Black => {
-            piece.position.rank >= 25 || 25u8.saturating_sub(piece.position.rank) <= reach
+            piece.position.rank() >= 25 || 25u8.saturating_sub(piece.position.rank()) <= reach
         }
         Color::White => {
-            piece.position.rank <= 10 || piece.position.rank.saturating_sub(10) <= reach
+            piece.position.rank() <= 10 || piece.position.rank().saturating_sub(10) <= reach
         }
     }
 }
@@ -1330,9 +1330,7 @@ fn gate_memo_new_search() {
 
 /// Memoize a position-only boolean leaf gate for the current search.
 fn gate_memo(state: &GameState, kind: u64, f: impl FnOnce() -> bool) -> bool {
-    let key = state.hash()
-        ^ state.get_board().attack_variant_key()
-        ^ kind.wrapping_mul(0xD6E8_FEB8_6659_FD93);
+    let key = state.hash() ^ kind.wrapping_mul(0xD6E8_FEB8_6659_FD93);
     let slot = (key >> (64 - GATE_MEMO_BITS)) as usize;
     let cached = GATE_MEMO.with(|m| {
         let m = m.borrow();
@@ -1365,7 +1363,6 @@ thread_local! {
 /// `board.is_position_attacked_by_color(sq, color)`, memoized per position.
 fn attacked_memo(state: &GameState, sq: Position, color: Color) -> bool {
     let key = state.hash()
-        ^ state.get_board().attack_variant_key()
         ^ (sq.to_index() as u64 + 1).wrapping_mul(0x9E37_79B9_7F4A_7C15)
         ^ (color as u64 + 1).wrapping_mul(0xC2B2_AE3D_27D4_EB4F);
     let slot = (key >> (64 - ATTACK_MEMO_BITS)) as usize;
@@ -1857,8 +1854,8 @@ fn peacock_might_directly_capture(
             if !crate::attack_utils::is_unpromoted_peacock(&piece) {
                 continue;
             }
-            let df = (i16::from(victim.file) - i16::from(pos.file)).abs();
-            let dr = (i16::from(victim.rank) - i16::from(pos.rank)).abs();
+            let df = (i16::from(victim.file()) - i16::from(pos.file())).abs();
+            let dr = (i16::from(victim.rank()) - i16::from(pos.rank())).abs();
             if df == dr && df != 0 {
                 return true;
             }
@@ -2151,11 +2148,10 @@ thread_local! {
 /// legs when both are Simple/Range/Jumping. FreeEagle / conditional-jump fall
 /// back to per-piece CapturesOnly + filter (parity-gated via [`crate::parity`]).
 pub(crate) fn generate_captures_hitting_square(state: &GameState, victim: Position) -> Vec<Move> {
-    // Draw progress is immaterial to generated captures. The movement-variant
-    // salt distinguishes promoted Whales with different original piece types.
-    let key = state.repetition_key()
-        ^ state.get_board().attack_variant_key()
-        ^ (victim.to_index() as u64 + 1).wrapping_mul(0x9E37_79B9_7F4A_7C15);
+    // Draw progress is immaterial to generated captures. The canonical piece
+    // hash already includes promotion origins that affect movement.
+    let key =
+        state.repetition_key() ^ (victim.to_index() as u64 + 1).wrapping_mul(0x9E37_79B9_7F4A_7C15);
     let slot = (key >> (64 - CAPTURE_MEMO_BITS)) as usize;
     if let Some(mut moves) = CAPTURE_MEMO.with(|memo| {
         memo.borrow()[slot]
@@ -2263,7 +2259,6 @@ pub fn search_with_progress(
     } else {
         weights
     };
-    let _wbind = bind_search_weights(weights);
     gate_memo_new_search();
 
     let clock_started = Instant::now();
@@ -2541,7 +2536,7 @@ pub fn search_with_progress(
                     experiments::QuietThreats::default()
                 };
                 let quiet_entry = (!is_capture).then(|| QuietEntry::new(mv));
-                let Some(undo) = pos.make_move_for_search(mv.clone()) else {
+                let Some(undo) = pos.make_move_for_search_with_weights(mv.clone(), weights) else {
                     continue;
                 };
                 ctx.experiments.quiet_entry = quiet_entry;
@@ -2866,7 +2861,6 @@ pub fn probe_quiescence(
     mode: QPruneMode,
     max_time_ms: Option<u64>,
 ) -> SearchResult {
-    let _wbind = bind_search_weights(weights);
     let root_ply = state.get_move_history().len();
     // Bind one root accumulator and reuse it for both the reported static
     // score and the search. Evaluating the immutable input first would build
@@ -3023,7 +3017,6 @@ fn with_quiesce_test_context<R>(
     prev_to: Option<Position>,
     run: impl FnOnce(&mut GameState, &mut SearchContext) -> R,
 ) -> R {
-    let _wbind = bind_search_weights(weights);
     let root_ply = state.get_move_history().len();
     let now = Instant::now();
     let mut ctx = SearchContext {
@@ -3128,7 +3121,6 @@ fn probe_quiet_parent_leaf_stats(
     qdepth: u32,
     hang: QHangOpts,
 ) -> (i32, u64, u64) {
-    let _wbind = bind_search_weights(weights);
     let root_ply = state.get_move_history().len();
     let now = Instant::now();
     let mut ctx = SearchContext {
@@ -3232,7 +3224,6 @@ fn probe_capture_parent_leaf_or_quiesce_rs(
     q_recapture_only: bool,
     q_own_large_only: bool,
 ) -> (i32, u64) {
-    let _wbind = bind_search_weights(weights);
     let root_ply = state.get_move_history().len();
     let now = Instant::now();
     let mut ctx = SearchContext {
@@ -3381,7 +3372,8 @@ fn build_trace_tree(
     if depth > 1 {
         if let Some(best_node) = children.iter_mut().find(|c| c.best) {
             let mut child = state.clone();
-            if let Some(undo) = child.make_move_for_search(best_move.clone()) {
+            if let Some(undo) = child.make_move_for_search_with_weights(best_move.clone(), weights)
+            {
                 ctx.last_ab_capture_enemy = move_loudness(
                     state,
                     weights,
@@ -3735,7 +3727,7 @@ fn search_move_list(
             experiments::QuietThreats::default()
         };
         let quiet_entry = (!is_capture).then(|| QuietEntry::new(mv));
-        let Some(undo) = state.make_move_for_search(mv.clone()) else {
+        let Some(undo) = state.make_move_for_search_with_weights(mv.clone(), weights) else {
             continue;
         };
         ctx.experiments.quiet_entry = quiet_entry;
@@ -4500,7 +4492,7 @@ fn quiesce_impl(
             continue;
         }
 
-        let Some(undo) = state.make_move_for_search(mv) else {
+        let Some(undo) = state.make_move_for_search_with_weights(mv, weights) else {
             continue;
         };
 
@@ -4684,7 +4676,7 @@ fn alphabeta_record(
         let capture_enemy = move_loudness(state, weights, &mv, is_capture);
         let is_wipe = quiesce_move_looks_path_or_multileg(state, &mv);
         let mover_large = mover_is_large(state, &mv);
-        let Some(undo) = state.make_move_for_search(mv.clone()) else {
+        let Some(undo) = state.make_move_for_search_with_weights(mv.clone(), weights) else {
             continue;
         };
         ctx.last_ab_capture_enemy = capture_enemy;
@@ -4983,21 +4975,23 @@ fn move_label_parts(piece: Option<&Piece>, from: Position, to: Position, promote
     format!(
         "{} {},{}→{},{}{}",
         sym,
-        36 - from.file,
-        36 - from.rank,
-        36 - to.file,
-        36 - to.rank,
+        36 - from.file(),
+        36 - from.rank(),
+        36 - to.file(),
+        36 - to.rank(),
         promo
     )
 }
 
 fn move_coordinates(mv: &Move) -> MoveCoordinates {
-    let via = mv.intermediate().map(|pos| (36 - pos.file, 36 - pos.rank));
+    let via = mv
+        .intermediate()
+        .map(|pos| (36 - pos.file(), 36 - pos.rank()));
     MoveCoordinates {
-        from_file: 36 - mv.from.file,
-        from_rank: 36 - mv.from.rank,
-        to_file: 36 - mv.to.file,
-        to_rank: 36 - mv.to.rank,
+        from_file: 36 - mv.from.file(),
+        from_rank: 36 - mv.from.rank(),
+        to_file: 36 - mv.to.file(),
+        to_rank: 36 - mv.to.rank(),
         promoted: mv.promoted,
         via_file: via.map(|v| v.0),
         via_rank: via.map(|v| v.1),
@@ -5127,10 +5121,10 @@ pub fn search_info_from_result(
             result.best_move.as_ref().map(|mv| {
                 format!(
                     "{},{}→{},{}",
-                    36 - mv.from.file,
-                    36 - mv.from.rank,
-                    36 - mv.to.file,
-                    36 - mv.to.rank
+                    36 - mv.from.file(),
+                    36 - mv.from.rank(),
+                    36 - mv.to.file(),
+                    36 - mv.to.rank()
                 )
             })
         });
@@ -5144,10 +5138,10 @@ pub fn search_info_from_result(
             .map(|(i, (mv, score))| RootMoveInfo {
                 label: format!(
                     "{},{}→{},{}",
-                    36 - mv.from.file,
-                    36 - mv.from.rank,
-                    36 - mv.to.file,
-                    36 - mv.to.rank
+                    36 - mv.from.file(),
+                    36 - mv.from.rank(),
+                    36 - mv.to.file(),
+                    36 - mv.to.rank()
                 ),
                 score: *score,
                 best: i == 0,
@@ -5244,11 +5238,21 @@ mod tests {
         };
         let mut chariot = make(PieceType::ReverseChariot);
         let rabbit = make(PieceType::SilverRabbit);
-        assert_eq!(chariot.hash(), rabbit.hash(), "legacy TT omits origin");
+        assert_ne!(chariot.hash(), rabbit.hash());
         assert_ne!(
-            chariot.get_board().attack_variant_key(),
-            rabbit.get_board().attack_variant_key()
+            crate::zobrist::repetition_key(&chariot),
+            crate::zobrist::repetition_key(&rabbit)
         );
+        let mut table = TranspositionTable::new(1024);
+        table.store(TtEntry {
+            key: position_hash(&chariot),
+            depth: 3,
+            score: 123,
+            bound: TtBound::Exact,
+            best: None,
+        });
+        assert!(table.probe(position_hash(&chariot)).is_some());
+        assert!(table.probe(position_hash(&rabbit)).is_none());
         gate_memo_new_search();
         assert!(gate_memo(&chariot, 1, || true));
         assert!(!gate_memo(&rabbit, 1, || false));
@@ -5268,16 +5272,15 @@ mod tests {
             }
         }
         assert!(different);
-        let before = chariot.get_board().attack_variant_key();
-        assert_eq!(chariot.clone().get_board().attack_variant_key(), before);
-        let piece = chariot.get_board_mut().remove_piece(square).unwrap();
-        assert_eq!(chariot.get_board().attack_variant_key(), 0);
-        chariot.get_board_mut().place_piece(piece);
-        assert_eq!(chariot.get_board().attack_variant_key(), before);
-        chariot
-            .get_board_mut()
-            .place_piece(rabbit.get_board().get_piece(square).unwrap());
-        assert_eq!(chariot.get_board().attack_variant_key(), 0);
+        let before = chariot.hash();
+        assert_eq!(chariot.clone().hash(), before);
+        let piece = chariot.get_board().get_piece(square).unwrap();
+        chariot.remove_piece(square);
+        assert_eq!(chariot.hash(), crate::zobrist::compute(&chariot));
+        chariot.place_piece(piece);
+        assert_eq!(chariot.hash(), before);
+        chariot.place_piece(rabbit.get_board().get_piece(square).unwrap());
+        assert_eq!(chariot.hash(), rabbit.hash());
     }
 
     #[test]
@@ -5485,8 +5488,8 @@ mod tests {
                         if to == from {
                             continue;
                         }
-                        let df = to.file as i8 - from.file as i8;
-                        let dr = to.rank as i8 - from.rank as i8;
+                        let df = to.file() as i8 - from.file() as i8;
+                        let dr = to.rank() as i8 - from.rank() as i8;
                         let ray = df == 0 || dr == 0 || df.abs() == dr.abs();
                         let blocker = from.offset(df.signum(), dr.signum()).unwrap();
                         for blocker_color in [None, Some(color), Some(color.opposite())] {
@@ -8316,7 +8319,6 @@ mod tests {
         let (mut initial, mut weights, _) = last_royal_check_hanging_dragon();
         weights.nnue_runtime = Some(crate::nnue::tests::net(32, "royal-probe"));
         initial.ensure_eval_inc(&weights);
-        let _binding = crate::eval::bind_search_weights(&weights);
         let mut moves = initial.generate_legal_moves();
         // Also exercise the failed-make path, which must restore the accumulator.
         moves.push(Move::new(
@@ -8331,7 +8333,9 @@ mod tests {
                 [Color::Black, Color::White].map(|c| fast.nnue.as_ref().unwrap().residual(c));
             let expected = if capture_takes_last_enemy_royal(&reference, &mv) {
                 true
-            } else if let Some(undo) = reference.make_move_for_search(mv.clone()) {
+            } else if let Some(undo) =
+                reference.make_move_for_search_with_weights(mv.clone(), &weights)
+            {
                 let resolved = color_last_royal_resolved(&reference, us);
                 reference.unmake_move_for_search(undo);
                 resolved

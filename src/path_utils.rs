@@ -7,8 +7,8 @@ use crate::position::Position;
 pub fn get_path_positions(from: Position, to: Position) -> Vec<Position> {
     let mut positions = Vec::new();
 
-    let file_diff = to.file as i8 - from.file as i8;
-    let rank_diff = to.rank as i8 - from.rank as i8;
+    let file_diff = to.file() as i8 - from.file() as i8;
+    let rank_diff = to.rank() as i8 - from.rank() as i8;
 
     // Normalize direction
     let file_step = if file_diff == 0 {
@@ -27,15 +27,15 @@ pub fn get_path_positions(from: Position, to: Position) -> Vec<Position> {
     };
 
     // Get all positions along the path (including destination)
-    let mut current_file = from.file as i8 + file_step;
-    let mut current_rank = from.rank as i8 + rank_step;
+    let mut current_file = from.file() as i8 + file_step;
+    let mut current_rank = from.rank() as i8 + rank_step;
 
     loop {
         // Check if we've reached or passed the destination
-        if file_step != 0 && (current_file - to.file as i8) * file_step > 0 {
+        if file_step != 0 && (current_file - to.file() as i8) * file_step > 0 {
             break;
         }
-        if rank_step != 0 && (current_rank - to.rank as i8) * rank_step > 0 {
+        if rank_step != 0 && (current_rank - to.rank() as i8) * rank_step > 0 {
             break;
         }
         if file_step == 0 && rank_step == 0 {
@@ -65,8 +65,8 @@ pub fn is_path_clear_for_boardlike<B: crate::move_simulation::BoardLike>(
     from: Position,
     to: Position,
 ) -> bool {
-    let file_diff = to.file as i8 - from.file as i8;
-    let rank_diff = to.rank as i8 - from.rank as i8;
+    let file_diff = to.file() as i8 - from.file() as i8;
+    let rank_diff = to.rank() as i8 - from.rank() as i8;
 
     // Normalize direction
     let file_step = if file_diff == 0 {
@@ -85,10 +85,10 @@ pub fn is_path_clear_for_boardlike<B: crate::move_simulation::BoardLike>(
     };
 
     // Check each square along the path (excluding the destination)
-    let mut current_file = from.file as i8 + file_step;
-    let mut current_rank = from.rank as i8 + rank_step;
+    let mut current_file = from.file() as i8 + file_step;
+    let mut current_rank = from.rank() as i8 + rank_step;
 
-    while current_file != to.file as i8 || current_rank != to.rank as i8 {
+    while current_file != to.file() as i8 || current_rank != to.rank() as i8 {
         if let Some(pos) = Position::new(current_file as u8, current_rank as u8) {
             if !board.is_empty(pos) {
                 // Path is blocked
@@ -112,8 +112,8 @@ pub fn is_diagonal_path_clear_for_boardlike<B: crate::move_simulation::BoardLike
     from: Position,
     to: Position,
 ) -> bool {
-    let file_diff = to.file as i8 - from.file as i8;
-    let rank_diff = to.rank as i8 - from.rank as i8;
+    let file_diff = to.file() as i8 - from.file() as i8;
+    let rank_diff = to.rank() as i8 - from.rank() as i8;
 
     // Must be diagonal
     if file_diff.abs() != rank_diff.abs() {
@@ -137,10 +137,10 @@ pub fn is_diagonal_path_clear_for_boardlike<B: crate::move_simulation::BoardLike
     };
 
     // Check each square along the path (excluding the destination)
-    let mut current_file = from.file as i8 + file_step;
-    let mut current_rank = from.rank as i8 + rank_step;
+    let mut current_file = from.file() as i8 + file_step;
+    let mut current_rank = from.rank() as i8 + rank_step;
 
-    while current_file != to.file as i8 || current_rank != to.rank as i8 {
+    while current_file != to.file() as i8 || current_rank != to.rank() as i8 {
         if let Some(pos) = Position::new(current_file as u8, current_rank as u8) {
             if !board.is_empty(pos) {
                 // Path is blocked
@@ -164,8 +164,8 @@ pub fn is_orthogonal_path_clear_for_boardlike<B: crate::move_simulation::BoardLi
     from: Position,
     to: Position,
 ) -> bool {
-    let file_diff = to.file as i8 - from.file as i8;
-    let rank_diff = to.rank as i8 - from.rank as i8;
+    let file_diff = to.file() as i8 - from.file() as i8;
+    let rank_diff = to.rank() as i8 - from.rank() as i8;
 
     // Must be orthogonal (either file_diff == 0 or rank_diff == 0, but not both)
     if file_diff != 0 && rank_diff != 0 {
@@ -192,10 +192,10 @@ pub fn is_orthogonal_path_clear_for_boardlike<B: crate::move_simulation::BoardLi
     };
 
     // Check each square along the path (excluding the destination)
-    let mut current_file = from.file as i8 + file_step;
-    let mut current_rank = from.rank as i8 + rank_step;
+    let mut current_file = from.file() as i8 + file_step;
+    let mut current_rank = from.rank() as i8 + rank_step;
 
-    while current_file != to.file as i8 || current_rank != to.rank as i8 {
+    while current_file != to.file() as i8 || current_rank != to.rank() as i8 {
         if let Some(pos) = Position::new(current_file as u8, current_rank as u8) {
             if !board.is_empty(pos) {
                 // Path is blocked
@@ -339,15 +339,15 @@ mod tests {
 
 /// Lazy equivalent of get_path_positions, including its off-ray stopping rules.
 pub fn path_positions(from: Position, to: Position) -> impl Iterator<Item = Position> {
-    let df = (to.file as i8 - from.file as i8).signum();
-    let dr = (to.rank as i8 - from.rank as i8).signum();
-    let mut file = from.file as i8 + df;
-    let mut rank = from.rank as i8 + dr;
+    let df = (to.file() as i8 - from.file() as i8).signum();
+    let dr = (to.rank() as i8 - from.rank() as i8).signum();
+    let mut file = from.file() as i8 + df;
+    let mut rank = from.rank() as i8 + dr;
     let mut done = df == 0 && dr == 0;
     std::iter::from_fn(move || {
         if done
-            || (df != 0 && (file - to.file as i8) * df > 0)
-            || (dr != 0 && (rank - to.rank as i8) * dr > 0)
+            || (df != 0 && (file - to.file() as i8) * df > 0)
+            || (dr != 0 && (rank - to.rank() as i8) * dr > 0)
         {
             return None;
         }

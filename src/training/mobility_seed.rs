@@ -77,7 +77,7 @@ fn random_empty_square(state: &GameState, rng: &mut StdRng) -> Option<Position> 
     }
 }
 
-fn sample_base_position(cfg: &MobilitySeedConfig, rng: &mut StdRng) -> GameState {
+fn sample_base_position(cfg: &MobilitySeedConfig, rng: &mut StdRng) -> Result<GameState, String> {
     if !cfg.starts.is_empty() {
         let idx = rng.gen_range(0..cfg.starts.len());
         return cfg.starts[idx].to_state();
@@ -103,7 +103,7 @@ fn sample_base_position(cfg: &MobilitySeedConfig, rng: &mut StdRng) -> GameState
         }
         state.remove_piece(p.position);
     }
-    state
+    Ok(state)
 }
 
 fn measure_mobility(
@@ -172,7 +172,7 @@ pub fn run_mobility_seed(
         let mut atk_sum = 0.0f64;
         let mut n = 0usize;
         for _ in 0..cfg.samples_per_piece {
-            let base = sample_base_position(cfg, &mut rng);
+            let base = sample_base_position(cfg, &mut rng)?;
             let Some(pos) = random_empty_square(&base, &mut rng) else {
                 continue;
             };

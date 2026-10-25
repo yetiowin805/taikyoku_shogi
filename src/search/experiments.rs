@@ -63,8 +63,8 @@ impl QuietEntry {
             .into_iter()
             .flatten()
             .any(|p| {
-                let dx = p.file.abs_diff(target.file);
-                let dy = p.rank.abs_diff(target.rank);
+                let dx = p.file().abs_diff(target.file());
+                let dy = p.rank().abs_diff(target.rank());
                 dx == 0 || dy == 0 || dx == dy || (dx <= 2 && dy <= 2)
             })
     }

@@ -1520,6 +1520,17 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
         eprintln!("tournament: stop requested (will abort in-flight games)");
     });
 
+    // The detached launcher acknowledges success only after configuration,
+    // durable state, the compute gate and runtime services have initialized.
+    if let Some(path) = std::env::var_os("TAIKYOKU_TOURNAMENT_READY_FILE") {
+        fs::write(&path, format!("ready {}\n", std::process::id())).map_err(|e| {
+            format!(
+                "publish tournament readiness {}: {e}",
+                Path::new(&path).display()
+            )
+        })?;
+    }
+
     loop {
         std::thread::scope(|scope| {
             for worker_index in 0..jobs {

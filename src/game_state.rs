@@ -1316,9 +1316,9 @@ impl GameState {
             Color::Black => rank >= 25,
             Color::White => rank <= 10,
         };
-        let starts_in_zone = in_zone(piece.position.rank);
+        let starts_in_zone = in_zone(piece.position.rank());
         for target in piece.get_potential_targets(&self.board) {
-            if starts_in_zone || in_zone(target.rank) {
+            if starts_in_zone || in_zone(target.rank()) {
                 moves.push(Move::new_with_promotion(piece.position, target, true));
             }
         }
@@ -1349,7 +1349,7 @@ impl GameState {
         } else {
             let must_promote = piece
                 .piece_type
-                .must_promote_on_rank(target.rank, piece.color);
+                .must_promote_on_rank(target.rank(), piece.color);
             if must_promote {
                 moves.push(Move::new_with_promotion(piece.position, target, true));
             } else {
@@ -1381,7 +1381,7 @@ impl GameState {
         } else {
             let must_promote = piece
                 .piece_type
-                .must_promote_on_rank(target.rank, piece.color);
+                .must_promote_on_rank(target.rank(), piece.color);
             if must_promote {
                 self.push_two_step_variant(
                     moves,
@@ -1427,7 +1427,7 @@ impl GameState {
             mark(true, seen);
             if !piece
                 .piece_type
-                .must_promote_on_rank(target.rank, piece.color)
+                .must_promote_on_rank(target.rank(), piece.color)
             {
                 mark(false, seen);
             }
@@ -1623,11 +1623,11 @@ impl GameState {
         match piece.color {
             Color::Black => {
                 // Can promote if starts OR ends in promotion zone (rank >= 25)
-                from.rank >= 25 || to.rank >= 25
+                from.rank() >= 25 || to.rank() >= 25
             }
             Color::White => {
                 // Can promote if starts OR ends in promotion zone (rank <= 10)
-                from.rank <= 10 || to.rank <= 10
+                from.rank() <= 10 || to.rank() <= 10
             }
         }
     }
@@ -1654,7 +1654,27 @@ impl GameState {
     /// promotions, and turn flip match `make_move`.
     ///
     /// Returns a [`SearchUndo`] token for [`unmake_move_for_search`].
+    /// Invalidates material/PST evaluation for the child position; use
+    /// [`Self::make_move_for_search_with_weights`] to maintain it incrementally.
     pub fn make_move_for_search(&mut self, mv: Move) -> Option<SearchUndo> {
+        self.make_move_for_search_impl(mv, None)
+    }
+
+    /// Like [`Self::make_move_for_search`], maintaining incremental evaluation
+    /// with weights borrowed only for this move. No ambient binding is retained.
+    pub fn make_move_for_search_with_weights(
+        &mut self,
+        mv: Move,
+        weights: &crate::eval::EvalWeights,
+    ) -> Option<SearchUndo> {
+        self.make_move_for_search_impl(mv, Some(weights))
+    }
+
+    fn make_move_for_search_impl(
+        &mut self,
+        mv: Move,
+        weights: Option<&crate::eval::EvalWeights>,
+    ) -> Option<SearchUndo> {
         #[cfg(feature = "search-profile")]
         let _make = crate::profile_timers::make_scope();
         let prev_hash = self.hash;
@@ -1686,16 +1706,17 @@ impl GameState {
         self.hash = h;
         self.push_repetition_key();
 
-        if let Some(inc) = self.eval_inc.as_mut() {
+        if let (Some(inc), Some(weights)) = (self.eval_inc.as_mut(), weights) {
             let final_piece = self.board.get_piece(final_to);
-            if !crate::eval::apply_search_make_eval_inc(
+            crate::eval::apply_search_make_eval_inc(
                 inc,
+                weights,
                 &original_mover,
                 &removed,
                 final_piece.as_ref(),
-            ) {
-                self.eval_inc = None;
-            }
+            );
+        } else {
+            self.eval_inc = None;
         }
 
         let nnue_snapshot = if let Some(acc) = self.nnue.as_mut() {
@@ -2525,11 +2546,12 @@ mod tests {
         // Pawns can only move forward (same file)
         for mv in moves {
             assert_eq!(
-                mv.from.file, mv.to.file,
+                mv.from.file(),
+                mv.to.file(),
                 "Pawn must move forward (same file)"
             );
             // Pawn should move forward (increasing rank for Black)
-            assert!(mv.to.rank > mv.from.rank, "Pawn must move forward");
+            assert!(mv.to.rank() > mv.from.rank(), "Pawn must move forward");
         }
     }
 
@@ -2672,7 +2694,7 @@ mod tests {
 
         let moves = state.generate_legal_moves();
         // Should have a move to rank 25 that is promoted
-        let promotion_move = moves.iter().find(|m| m.to.rank == 25);
+        let promotion_move = moves.iter().find(|m| m.to.rank() == 25);
         assert!(promotion_move.is_some());
         assert!(promotion_move.unwrap().promoted);
 
@@ -2693,7 +2715,7 @@ mod tests {
 
         let moves2 = state2.generate_legal_moves();
         // Should have a move to rank 10 that is promoted
-        let promotion_move2 = moves2.iter().find(|m| m.to.rank == 10);
+        let promotion_move2 = moves2.iter().find(|m| m.to.rank() == 10);
         assert!(promotion_move2.is_some());
         assert!(promotion_move2.unwrap().promoted);
     }

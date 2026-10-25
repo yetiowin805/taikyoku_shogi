@@ -1,9 +1,13 @@
 import importlib.util
 import json
+import os
 import sys
 import tempfile
+import threading
+import time
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 spec = importlib.util.spec_from_file_location("analysis", Path(__file__).with_name("tourney_analysis.py"))
 a = importlib.util.module_from_spec(spec)
@@ -37,6 +41,109 @@ class AnalyzerFixture(unittest.TestCase):
 
 
 class AnalyzerTests(AnalyzerFixture):
+    def stream_fixture(self, source):
+        game = self.game()
+        model = self.run / "stream-model.json"
+        model.write_text("{}")
+        for side in ["black", "white"]:
+            game[side]["model"] = str(model)
+        game_path = self.run / "stream-game.json"
+        a.atomic(game_path, game)
+        engine = self.run / "stream-helper"
+        engine.write_text(
+            "#!/usr/bin/env python3\nimport json\nimport os\nimport sys\nimport time\nfrom pathlib import Path\n"
+            "Path(sys.argv[0] + '.pid').write_text(str(os.getpid()))\n" + source
+        )
+        engine.chmod(0o755)
+        config = dict(
+            run=str(self.run),
+            label_teacher=None,
+            models={str(model): {"sha256": a.digest(model.read_bytes()), "snapshot": str(model)}},
+            analyzer_bin=str(engine),
+            analyzer_sha256="stream-fixture",
+        )
+        return config, {"game": str(game_path), "game_hash": a.digest(game_path.read_bytes())}
+
+    def assert_helper_reaped(self):
+        pid = int((self.run / "stream-helper.pid").read_text())
+        with self.assertRaises(ProcessLookupError):
+            os.kill(pid, 0)
+
+    def test_partial_line_cannot_bypass_the_hard_deadline(self):
+        config, moment = self.stream_fixture("sys.stdout.write('{')\nsys.stdout.flush()\ntime.sleep(3)\n")
+        started = time.monotonic()
+        with patch.object(a, "SEARCH_HARD_SECONDS", 0.4), self.assertRaisesRegex(ValueError, "no completed iteration"):
+            a.search_position(config, moment, 2, self.db)
+        self.assertLess(time.monotonic() - started, 2)
+        self.assert_helper_reaped()
+        self.assertEqual(self.db.execute("SELECT count(*) FROM searches").fetchone()[0], 0)
+
+    def test_completed_iteration_survives_a_stalled_partial_next_record(self):
+        config, moment = self.stream_fixture(
+            "print(json.dumps(dict(completed_depth=2,score=37,best_move='x')), flush=True)\n"
+            "sys.stdout.write('{')\nsys.stdout.flush()\ntime.sleep(3)\n"
+        )
+        with patch.object(a, "SEARCH_HARD_SECONDS", 0.4):
+            result = a.search_position(config, moment, 2, self.db)
+        self.assertTrue(result["hard_timeout"])
+        self.assertEqual(result["completed_depth"], 2)
+        self.assertEqual(len(result["iterations"]), 1)
+        self.assert_helper_reaped()
+
+    def test_multiple_records_in_one_write_are_all_consumed(self):
+        config, moment = self.stream_fixture(
+            "rows=[dict(completed_depth=d,score=d,best_move='x') for d in [1,2,3]]\n"
+            "sys.stdout.write('\\n'.join(map(json.dumps, rows)) + '\\n')\nsys.stdout.flush()\ntime.sleep(3)\n"
+        )
+        with patch.object(a, "SEARCH_HARD_SECONDS", 0.4):
+            result = a.search_position(config, moment, 2, self.db)
+        self.assertEqual(result["completed_depth"], 3)
+        self.assertEqual([r["completed_depth"] for r in result["iterations"]], [1, 2, 3])
+        self.assert_helper_reaped()
+
+    def test_stdout_eof_does_not_disable_the_process_deadline(self):
+        config, moment = self.stream_fixture(
+            "print(json.dumps(dict(completed_depth=2,score=37,best_move='x')), flush=True)\n"
+            "os.close(sys.stdout.fileno())\ntime.sleep(3)\n"
+        )
+        started = time.monotonic()
+        with patch.object(a, "SEARCH_HARD_SECONDS", 0.4):
+            result = a.search_position(config, moment, 2, self.db)
+        self.assertLess(time.monotonic() - started, 2)
+        self.assertTrue(result["hard_timeout"])
+        self.assert_helper_reaped()
+
+    def test_fragmented_utf8_record_without_final_newline_is_accepted(self):
+        config, moment = self.stream_fixture(
+            "raw=json.dumps(dict(completed_depth=2,score=37,best_move='王'),ensure_ascii=False).encode()\n"
+            "cut=raw.index('王'.encode())+1\n"
+            "sys.stdout.buffer.write(raw[:cut])\nsys.stdout.flush()\ntime.sleep(.01)\n"
+            "sys.stdout.buffer.write(raw[cut:])\nsys.stdout.flush()\n"
+        )
+        result = a.search_position(config, moment, 2, self.db)
+        self.assertEqual(result["best_move"], "王")
+        self.assert_helper_reaped()
+
+    def test_oversized_partial_record_fails_and_reaps_helper(self):
+        config, moment = self.stream_fixture("sys.stdout.write('x' * 4097)\nsys.stdout.flush()\ntime.sleep(3)\n")
+        with patch.object(a, "MAX_ANALYZER_LINE_BYTES", 4096), self.assertRaisesRegex(ValueError, "size limit"):
+            a.search_position(config, moment, 2, self.db)
+        self.assert_helper_reaped()
+
+    def test_partial_line_does_not_block_cooperative_stop(self):
+        config, moment = self.stream_fixture("sys.stdout.write('{')\nsys.stdout.flush()\ntime.sleep(3)\n")
+        timer = threading.Timer(0.1, lambda: setattr(a, "STOPPING", True))
+        started = time.monotonic()
+        timer.start()
+        try:
+            with self.assertRaises(InterruptedError):
+                a.search_position(config, moment, 2, self.db)
+            self.assertLess(time.monotonic() - started, 2)
+        finally:
+            timer.cancel()
+            timer.join()
+            a.STOPPING = False
+
     def test_threshold_sign_same_player_and_boundaries(self):
         results = list(a.candidates(self.game()))
         self.assertEqual([r["change"] for r in results], [1000, -1001, -1500, 1700])

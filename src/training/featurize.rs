@@ -8,11 +8,13 @@ use crate::eval::{EvalWeights, ALL_PIECE_TYPES};
 use crate::game_history::{GameHistory, GameResult};
 use crate::game_state::{GameState, Move};
 use crate::piece::Color;
-use crate::training::paths::{self, ensure_data_dirs};
+use crate::training::paths;
 use crate::training::record::{GameRecordV2, GameStart};
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::Path;
+use std::io::Write;
+use std::path::{Component, Path, PathBuf};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 pub const FEATURE_FORMAT_VERSION: u32 = 1;
 
@@ -81,12 +83,12 @@ fn result_to_label(result: &Option<GameResult>) -> f32 {
     }
 }
 
-fn initial_state(start: &GameStart) -> GameState {
+fn initial_state(start: &GameStart) -> Result<GameState, String> {
     match start {
         GameStart::Opening => {
             let mut state = GameState::new();
             state.setup_initial_position();
-            state
+            Ok(state)
         }
         GameStart::Position { position } => position.to_state(),
     }
@@ -305,7 +307,7 @@ pub fn featurize_game(
 ) -> Result<Vec<LabeledPosition>, String> {
     let label = result_to_label(&record.result);
     let n = record.moves.len();
-    let mut state = initial_state(&record.start);
+    let mut state = initial_state(&record.start)?;
     let mut was_capture_into = vec![false; n + 1];
     let mut counts = Vec::with_capacity(n + 1);
     let mut snapshots: Vec<(Color, Vec<f32>, f32)> = Vec::with_capacity(n + 1);
@@ -358,37 +360,154 @@ pub fn featurize_game(
     Ok(out)
 }
 
-pub fn featurize_dir(cfg: &FeaturizeConfig) -> Result<usize, String> {
-    ensure_data_dirs()?;
-    fs::create_dir_all(&cfg.out_dir)
-        .map_err(|e| format!("Failed to create {}: {}", cfg.out_dir, e))?;
-    for path in paths::list_json_files(Path::new(&cfg.out_dir))? {
-        let _ = fs::remove_file(&path);
-    }
+/// Owned scratch directory; failed extraction never publishes partial rows.
+struct FeatureStage(PathBuf);
 
+impl Drop for FeatureStage {
+    fn drop(&mut self) {
+        let _ = fs::remove_dir_all(&self.0);
+    }
+}
+
+fn publish_features(staging: &Path, output: &Path) -> Result<(), String> {
+    let previous = staging.with_extension("previous");
+    let had_previous = output.exists();
+    if had_previous {
+        fs::rename(output, &previous)
+            .map_err(|e| format!("retain previous features {}: {e}", output.display()))?;
+    }
+    if let Err(error) = fs::rename(staging, output) {
+        if had_previous {
+            fs::rename(&previous, output).map_err(|restore| format!(
+                "publish features failed: {error}; restoring previous output failed: {restore}; recover it from {}",
+                previous.display()
+            ))?;
+        }
+        return Err(format!("publish features {}: {error}", output.display()));
+    }
+    if had_previous {
+        fs::remove_dir_all(&previous).map_err(|e| {
+            format!(
+                "features published, but previous generation {} could not be removed: {e}",
+                previous.display()
+            )
+        })?;
+    }
+    Ok(())
+}
+
+fn resolve_output_directory(path: &Path) -> Result<PathBuf, String> {
+    let mut resolved = PathBuf::new();
+    let absolute = std::path::absolute(path).map_err(|e| format!("resolve output: {e}"))?;
+    for component in absolute.components() {
+        match component {
+            Component::CurDir => {}
+            Component::ParentDir => {
+                resolved.pop();
+            }
+            other => {
+                resolved.push(other.as_os_str());
+                match fs::symlink_metadata(&resolved) {
+                    Ok(_) => {
+                        resolved = fs::canonicalize(&resolved)
+                            .map_err(|e| format!("resolve output {}: {e}", resolved.display()))?
+                    }
+                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+                    Err(e) => return Err(format!("resolve output {}: {e}", resolved.display())),
+                }
+            }
+        }
+    }
+    Ok(resolved)
+}
+
+pub fn featurize_dir(cfg: &FeaturizeConfig) -> Result<usize, String> {
+    // Resolve input first: missing input must not become a successful empty run.
+    let games = fs::canonicalize(&cfg.games_dir)
+        .map_err(|e| format!("resolve games directory {}: {e}", cfg.games_dir))?;
+    if !games.is_dir() {
+        return Err(format!(
+            "games input is not a directory: {}",
+            games.display()
+        ));
+    }
+    let output = resolve_output_directory(Path::new(&cfg.out_dir))?;
+    if games.starts_with(&output) || output.starts_with(&games) {
+        return Err(
+            "games and feature output directories must not alias or contain each other".into(),
+        );
+    }
+    if output.exists() && !output.is_dir() {
+        return Err(format!(
+            "feature output is not a directory: {}",
+            output.display()
+        ));
+    }
+    let parent = output.parent().ok_or("output directory has no parent")?;
+    fs::create_dir_all(parent).map_err(|e| format!("create output parent: {e}"))?;
+    let nonce = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|e| e.to_string())?
+        .as_nanos();
+    let staging =
+        FeatureStage(parent.join(format!(".features-{}-{nonce}.staging", std::process::id())));
+    fs::create_dir(&staging.0).map_err(|e| format!("create feature staging directory: {e}"))?;
+    if output.exists() {
+        // Preserve non-feature marker/configuration files (including .gitkeep).
+        // Refuse nested directories/symlinks instead of discarding unknown data.
+        for entry in fs::read_dir(&output).map_err(|e| format!("read output: {e}"))? {
+            let entry = entry.map_err(|e| e.to_string())?;
+            if !entry.file_type().map_err(|e| e.to_string())?.is_file() {
+                return Err(format!(
+                    "refusing to replace non-file output entry {}",
+                    entry.path().display()
+                ));
+            }
+            if entry.path().extension().and_then(|e| e.to_str()) != Some("json") {
+                fs::copy(entry.path(), staging.0.join(entry.file_name()))
+                    .map_err(|e| format!("preserve output file: {e}"))?;
+            }
+        }
+    }
     let weights = EvalWeights::seed();
     let mut total = 0usize;
     let mut skipped = 0usize;
-    for path in paths::list_json_files(Path::new(&cfg.games_dir))? {
-        let record = match GameRecordV2::load_path(&path) {
-            Ok(r) => r,
-            Err(e) => {
-                eprintln!("skip {}: {}", path.display(), e);
-                skipped += 1;
-                continue;
-            }
-        };
+    for path in paths::list_json_files(&games)? {
+        let contents =
+            fs::read_to_string(&path).map_err(|e| format!("read game {}: {e}", path.display()))?;
+        let value: serde_json::Value = serde_json::from_str(&contents)
+            .map_err(|e| format!("parse game {}: {e}", path.display()))?;
+        if value.get("moves").is_none() && value.get("format_version").is_none() {
+            skipped += 1;
+            continue;
+        }
+        let record = super::record::load_game_json(&contents)
+            .map_err(|e| format!("load game {}: {e}", path.display()))?;
+        let mut components = Path::new(&record.game_id).components();
+        if !matches!(components.next(), Some(Component::Normal(_)))
+            || components.next().is_some()
+            || record.game_id.contains('\\')
+        {
+            return Err(format!(
+                "game ID is not a safe feature filename: {:?}",
+                record.game_id
+            ));
+        }
         let rows = featurize_game(&record, cfg, &weights)?;
         for (j, row) in rows.iter().enumerate() {
-            let out_path =
-                Path::new(&cfg.out_dir).join(format!("{}-{:04}.json", record.game_id, j));
-            let json =
-                serde_json::to_string(row).map_err(|e| format!("serialize feature: {}", e))?;
-            fs::write(&out_path, json)
-                .map_err(|e| format!("write {}: {}", out_path.display(), e))?;
+            let out_path = staging.0.join(format!("{}-{:04}.json", record.game_id, j));
+            let json = serde_json::to_vec(row).map_err(|e| format!("serialize feature: {e}"))?;
+            let mut file = fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&out_path)
+                .map_err(|e| format!("create feature {}: {e}", out_path.display()))?;
+            file.write_all(&json)
+                .map_err(|e| format!("write feature {}: {e}", out_path.display()))?;
             total += 1;
         }
     }
+    publish_features(&staging.0, &output)?;
     if skipped > 0 {
         eprintln!("featurize skipped {skipped} non-game JSON files");
     }
@@ -410,6 +529,130 @@ pub fn load_labeled_dir(dir: &Path) -> Result<Vec<LabeledPosition>, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn directory_fixture() -> (crate::test_support::TempDir, FeaturizeConfig) {
+        let root = crate::test_support::TempDir::new();
+        let games = root.path().join("games");
+        let out = root.path().join("out");
+        fs::create_dir(&games).unwrap();
+        fs::create_dir(&out).unwrap();
+        fs::write(out.join("old.json"), "previous features").unwrap();
+        let cfg = FeaturizeConfig {
+            games_dir: games.to_string_lossy().into_owned(),
+            out_dir: out.to_string_lossy().into_owned(),
+            ..FeaturizeConfig::default()
+        };
+        (root, cfg)
+    }
+
+    #[test]
+    fn aliased_and_overlapping_directories_preserve_source_games() {
+        let (root, mut cfg) = directory_fixture();
+        let game = Path::new(&cfg.games_dir).join("source.json");
+        fs::write(&game, "original game bytes").unwrap();
+        for output in [
+            PathBuf::from(&cfg.games_dir),
+            root.path(),
+            game.parent().unwrap().join("features"),
+        ] {
+            cfg.out_dir = output.to_string_lossy().into_owned();
+            assert!(featurize_dir(&cfg).is_err());
+            assert_eq!(fs::read_to_string(&game).unwrap(), "original game bytes");
+        }
+        #[cfg(unix)]
+        {
+            let alias = root.path().join("alias");
+            std::os::unix::fs::symlink(&cfg.games_dir, &alias).unwrap();
+            cfg.out_dir = alias.to_string_lossy().into_owned();
+            assert!(featurize_dir(&cfg).is_err());
+            assert_eq!(fs::read_to_string(game).unwrap(), "original game bytes");
+        }
+    }
+
+    #[test]
+    fn input_and_replay_failures_preserve_the_previous_dataset() {
+        let (_root, cfg) = directory_fixture();
+        let input = Path::new(&cfg.games_dir).join("bad.json");
+        for contents in [
+            "{broken",
+            r#"{"timestamp":1,"result":"Draw","moves":[{"move_number":1,"color":"Black","from_file":0,"from_rank":20,"to_file":0,"to_rank":21,"promoted":false,"data":"Standard"}]}"#,
+        ] {
+            fs::write(&input, contents).unwrap();
+            assert!(featurize_dir(&cfg).is_err());
+            assert_eq!(
+                fs::read_to_string(Path::new(&cfg.out_dir).join("old.json")).unwrap(),
+                "previous features"
+            );
+            assert_eq!(fs::read_to_string(&input).unwrap(), contents);
+        }
+        fs::remove_dir_all(&cfg.games_dir).unwrap();
+        assert!(featurize_dir(&cfg).is_err());
+        assert!(Path::new(&cfg.out_dir).join("old.json").exists());
+    }
+
+    #[test]
+    fn successful_generation_replaces_rows_and_preserves_markers() {
+        let (_root, cfg) = directory_fixture();
+        fs::write(
+            Path::new(&cfg.games_dir).join("game.json"),
+            r#"{"timestamp":1,"result":"Draw","moves":[]}"#,
+        )
+        .unwrap();
+        fs::write(Path::new(&cfg.out_dir).join(".gitkeep"), "marker").unwrap();
+        assert_eq!(featurize_dir(&cfg).unwrap(), 1);
+        assert!(!Path::new(&cfg.out_dir).join("old.json").exists());
+        assert!(Path::new(&cfg.out_dir).join("legacy-1-0000.json").exists());
+        assert_eq!(
+            fs::read_to_string(Path::new(&cfg.out_dir).join(".gitkeep")).unwrap(),
+            "marker"
+        );
+    }
+
+    #[test]
+    fn failed_publication_restores_the_previous_directory() {
+        let (root, cfg) = directory_fixture();
+        assert!(publish_features(
+            &root.path().join("missing.staging"),
+            Path::new(&cfg.out_dir)
+        )
+        .is_err());
+        assert_eq!(
+            fs::read_to_string(Path::new(&cfg.out_dir).join("old.json")).unwrap(),
+            "previous features"
+        );
+    }
+
+    #[test]
+    fn duplicate_game_ids_do_not_publish_an_incomplete_generation() {
+        let (_root, cfg) = directory_fixture();
+        for name in ["one", "two"] {
+            fs::write(
+                Path::new(&cfg.games_dir).join(format!("{name}.json")),
+                r#"{"timestamp":1,"result":"Draw","moves":[]}"#,
+            )
+            .unwrap();
+        }
+        assert!(featurize_dir(&cfg).is_err());
+        assert!(Path::new(&cfg.out_dir).join("old.json").exists());
+    }
+
+    #[test]
+    fn game_ids_cannot_write_outside_the_staged_generation() {
+        let (root, cfg) = directory_fixture();
+        let record = serde_json::json!({
+            "format_version": 2, "game_id": "../escaped", "seed": 1,
+            "black": {"name": "ab"}, "white": {"name": "ab"},
+            "start": {"kind": "opening"}, "moves": [], "result": "Draw"
+        });
+        fs::write(
+            Path::new(&cfg.games_dir).join("game.json"),
+            record.to_string(),
+        )
+        .unwrap();
+        assert!(featurize_dir(&cfg).is_err());
+        assert!(!root.path().join("escaped-0000.json").exists());
+        assert!(Path::new(&cfg.out_dir).join("old.json").exists());
+    }
 
     #[test]
     fn evenly_subsample_respects_target_and_endpoints() {

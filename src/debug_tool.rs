@@ -185,7 +185,7 @@ impl DebugTool {
                 self.branch.clear();
             }
             GameStart::Position { position } => {
-                let state = position.to_state();
+                let state = position.to_state()?;
                 self.setup = Some(SetupSnapshot {
                     board: state.clone_board(),
                     turn: state.get_current_turn(),
@@ -252,17 +252,17 @@ impl DebugTool {
     }
 
     fn format_move(mv: &Move) -> String {
-        let from_f = Self::internal_to_shogi_file(mv.from.file);
-        let from_r = Self::internal_to_shogi_rank(mv.from.rank);
-        let to_f = Self::internal_to_shogi_file(mv.to.file);
-        let to_r = Self::internal_to_shogi_rank(mv.to.rank);
+        let from_f = Self::internal_to_shogi_file(mv.from.file());
+        let from_r = Self::internal_to_shogi_rank(mv.from.rank());
+        let to_f = Self::internal_to_shogi_file(mv.to.file());
+        let to_r = Self::internal_to_shogi_rank(mv.to.rank());
         let promo = if mv.promoted { " promote" } else { "" };
         let extra = match &mv.data {
             crate::game_state::MoveData::TwoStep { intermediate } => {
                 format!(
                     " via {},{}",
-                    Self::internal_to_shogi_file(intermediate.file),
-                    Self::internal_to_shogi_rank(intermediate.rank)
+                    Self::internal_to_shogi_file(intermediate.file()),
+                    Self::internal_to_shogi_rank(intermediate.rank())
                 )
             }
             crate::game_state::MoveData::FreeEagle { path } => {
@@ -723,8 +723,8 @@ impl DebugTool {
                 };
                 let mut output = String::new();
                 for piece in pieces {
-                    let f = Self::internal_to_shogi_file(piece.position.file);
-                    let r = Self::internal_to_shogi_rank(piece.position.rank);
+                    let f = Self::internal_to_shogi_file(piece.position.file());
+                    let r = Self::internal_to_shogi_rank(piece.position.rank());
                     output.push_str(&format!(
                         "{:?} {:?} at {},{}{}\n",
                         piece.color,
@@ -833,8 +833,8 @@ impl DebugTool {
                     output.push_str("  (none)");
                 } else {
                     for a in attackers {
-                        let af = Self::internal_to_shogi_file(a.position.file);
-                        let ar = Self::internal_to_shogi_rank(a.position.rank);
+                        let af = Self::internal_to_shogi_file(a.position.file());
+                        let ar = Self::internal_to_shogi_rank(a.position.rank());
                         output.push_str(&format!(
                             "  {:?} {:?} at {},{}\n",
                             a.color, a.piece_type, af, ar

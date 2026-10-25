@@ -52,9 +52,9 @@ pub fn run_uci_loop() {
                         continue;
                     }
                     let fen = parts[2..fen_end].join(" ");
-                    match tsfen_decode(&fen) {
+                    match tsfen_decode(&fen).and_then(|pos| pos.to_state()) {
                         Ok(pos) => {
-                            game_state = pos.to_state();
+                            game_state = pos;
                         }
                         Err(e) => {
                             eprintln!("info string TSFEN error: {}", e);

@@ -37,8 +37,8 @@ pub fn is_lion_hawk(piece: &Piece) -> bool {
 /// Returns true if the Cannon Soldier is on the same file as the target and within 7 spaces forward
 pub fn is_cannon_soldier_in_forward_path(cannon_soldier: &Piece, target: Position) -> bool {
     // Must be on same file (orthogonal forward)
-    let file_diff = target.file as i8 - cannon_soldier.position.file as i8;
-    let rank_diff = target.rank as i8 - cannon_soldier.position.rank as i8;
+    let file_diff = target.file() as i8 - cannon_soldier.position.file() as i8;
+    let rank_diff = target.rank() as i8 - cannon_soldier.position.rank() as i8;
 
     if file_diff != 0 {
         return false; // Not on same file
@@ -56,8 +56,8 @@ pub fn is_cannon_soldier_in_forward_path(cannon_soldier: &Piece, target: Positio
 
 /// Check if two positions are within a 9x9 square (5 squares in each direction)
 pub fn is_within_9x9_square(piece_pos: Position, target_pos: Position) -> bool {
-    let file_diff = (piece_pos.file as i8 - target_pos.file as i8).abs();
-    let rank_diff = (piece_pos.rank as i8 - target_pos.rank as i8).abs();
+    let file_diff = (piece_pos.file() as i8 - target_pos.file() as i8).abs();
+    let rank_diff = (piece_pos.rank() as i8 - target_pos.rank() as i8).abs();
     file_diff <= 5 && rank_diff <= 5
 }
 
@@ -65,8 +65,8 @@ pub fn is_within_9x9_square(piece_pos: Position, target_pos: Position) -> bool {
 /// Returns Some(Direction) if positions are aligned in one of the 8 directions
 /// Returns None if not aligned
 pub fn get_direction_toward(from: Position, to: Position) -> Option<Direction> {
-    let file_diff = to.file as i8 - from.file as i8;
-    let rank_diff = to.rank as i8 - from.rank as i8;
+    let file_diff = to.file() as i8 - from.file() as i8;
+    let rank_diff = to.rank() as i8 - from.rank() as i8;
 
     // Same position
     if file_diff == 0 && rank_diff == 0 {
@@ -360,7 +360,7 @@ pub(crate) fn candidate_square_masks() -> &'static [[u64; 21]] {
         let mut table = Vec::with_capacity(36 * 36);
         for rank in 0..36 {
             for file in 0..36 {
-                let victim = Position { file, rank };
+                let victim = Position::new(file, rank).expect("board coordinates");
                 let mut mask = [0u64; 21];
                 for df in -r..=r {
                     for dr in -r..=r {
@@ -374,16 +374,14 @@ pub(crate) fn candidate_square_masks() -> &'static [[u64; 21]] {
                     let (df, dr) = dir.to_offset();
                     let mut k = i16::from(r) + 1;
                     loop {
-                        let next_file = i16::from(victim.file) + i16::from(df) * k;
-                        let next_rank = i16::from(victim.rank) + i16::from(dr) * k;
+                        let next_file = i16::from(victim.file()) + i16::from(df) * k;
+                        let next_rank = i16::from(victim.rank()) + i16::from(dr) * k;
                         if !(0..36).contains(&next_file) || !(0..36).contains(&next_rank) {
                             break;
                         }
-                        let square = Position {
-                            file: next_file as u8,
-                            rank: next_rank as u8,
-                        }
-                        .to_index();
+                        let square = Position::new(next_file as u8, next_rank as u8)
+                            .expect("checked ray coordinates")
+                            .to_index();
                         mask[square / 64] |= 1u64 << (square % 64);
                         k += 1;
                     }
@@ -418,8 +416,8 @@ pub fn should_check_piece_for_target_position(
     // Check Lion Hawk: can reach via diagonal range + 1 space any direction
     // Optimized: check if coordinate changes differ by at most 1
     if is_lion_hawk(piece) {
-        let file_diff = (target_position.file as i8 - piece.position.file as i8).abs();
-        let rank_diff = (target_position.rank as i8 - piece.position.rank as i8).abs();
+        let file_diff = (target_position.file() as i8 - piece.position.file() as i8).abs();
+        let rank_diff = (target_position.rank() as i8 - piece.position.rank() as i8).abs();
         // For diagonal range + 1 space: |file_diff| and |rank_diff| differ by at most 1
         if (file_diff as i16 - rank_diff as i16).abs() <= 1 {
             return true;
@@ -436,8 +434,8 @@ pub fn should_check_piece_for_target_position(
         return true;
     }
 
-    let file_diff = (target_position.file as i8 - piece.position.file as i8).unsigned_abs();
-    let rank_diff = (target_position.rank as i8 - piece.position.rank as i8).unsigned_abs();
+    let file_diff = (target_position.file() as i8 - piece.position.file() as i8).unsigned_abs();
+    let rank_diff = (target_position.rank() as i8 - piece.position.rank() as i8).unsigned_abs();
     if file_diff == 0 && rank_diff == 0 {
         return false;
     }

@@ -1,0 +1,18 @@
+{
+  "main_parent": "8b229ed8a4130d10d1a799dc7e16215dab771ee5",
+  "previous_pr_head": "7886637",
+  "rust_passed": 477,
+  "rust_ignored": 4,
+  "deploy_python_passed": 120,
+  "fmt": "passed",
+  "clippy": "all-targets/all-features warnings denied: passed",
+  "ruff": "format/check passed",
+  "history_freeze": "rustc 1.92.0 (ded5c06cf 2025-12-08)\nrev=8b229ed8a4130d10d1a799dc7e16215dab771ee5\nengine_sha256=4d4c8fa83a14b30423094bddc03c36cb4527420f110147c93b55af84ec3d985a\nanalyzer_sha256=8a3afdda991acba5c73acbfea3e8fff4aea246eb2fd75458ccb7244a97e983b1\n",
+  "source_sha256": {
+    "src/search.rs": "3480ee592513f28686dfc18c50e30b951a050a837b1316f7e56f94c3a9644488",
+    "src/search/experiments.rs": "69b5c4da7f2dc6b92a4365f9ca9088e7a943d4115504794953383697d5b93747",
+    "src/eval.rs": "9cceb3d59a6effa511c8250df408bc20a1576e934e060052cdcf04da98533093",
+    "models/history/manifest.json": "2e7e7c60ecfc6376ef80964352647016bdec1723943e6bdd678882377e6d471b"
+  },
+  "live_build_changed": false
+}

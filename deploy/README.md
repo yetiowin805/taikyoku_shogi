@@ -134,6 +134,14 @@ Incomplete exits (stop file / aborted slots) now fail the tournament binary with
 
 3×3×3 material grid (Hook H ∈ {90,100,110}% × Capricorn C ∈ {80,100,120}% × other two-movers O ∈ {80,100,110}%; capturers stay at seed; center `H100C100O100` = seed). Continuous Swiss uses an elite pool (`r + RD + RD_leader >` current max `r`, always including the top 2 by `r`), prioritizes agents below 4 counted games before elite gating, inflates sit-out RD every 10 finished games, keeps at least 2 rating-window opponents (expand by alternating higher/lower from the closer side), and after 4 games prefers not to rematch someone who already has more than half of an agent's games. Once every agent has 4 games, 10% of pairings are the current leader vs a random opponent who fails the UCI elite bar. Prefer `--detach` (or the systemd unit) so SSH logout cannot kill the job.
 
+All Swiss wrappers complete grid/manifest/resume/lock checks before detaching.
+They publish a PID and print `Running` only after the engine acknowledges startup;
+the acknowledgement has a 60-second deadline, configurable with
+`TOURNEY_START_TIMEOUT_SECONDS`. Use a freshly built engine with these wrappers:
+an older binary without startup acknowledgement fails rather than appearing to
+launch successfully. Failed prerequisites print their step on stderr and exit
+nonzero. No PID or success message is published for a failed start.
+
 **One-shot as root** (pulls `main`, builds with the `taikyoku` user’s cargo PATH, regenerates grid, starts 1s/move Swiss):
 
 ```bash
