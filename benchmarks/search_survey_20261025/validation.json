@@ -1,0 +1,119 @@
+{
+  "date": "2026-10-25",
+  "scope": "documentation and source survey; no production code changes",
+  "toolchain": {
+    "rustc": "1.92.0",
+    "cargo": "1.92.0",
+    "ruff": "0.16.8",
+    "python": "3.13"
+  },
+  "checks": [
+    {
+      "command": "cargo fmt",
+      "exit_code": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "summary": []
+    },
+    {
+      "command": "cargo clippy --offline --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "log_sha256": "eb015851fb9dd529f2b1d0ae1a8653485ca8edfc8cb4afeb32140d6c68ca3c61",
+      "summary": [
+        "    Checking axum v0.8.9",
+        "    Checking sha2 v0.10.9",
+        "    Checking ctrlc v3.5.2",
+        "    Checking rand v0.8.5",
+        "    Checking taikyoku_shogi v0.1.0 (/home/frank/.codex/worktrees/search-survey/taikyoku_shogi)",
+        "    Finished `dev` profile [unoptimized + debuginfo] target(s) in 23.87s"
+      ]
+    },
+    {
+      "command": "cargo test --offline",
+      "exit_code": 0,
+      "log_sha256": "0a453f293701b26e8ed5e1060b851c4f5b83c011e548c55c5dd459985b63e4a7",
+      "summary": [
+        "test result: ok. 440 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 3.40s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.38s",
+        "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.80s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+      ]
+    },
+    {
+      "command": "ruff format .",
+      "exit_code": 0,
+      "log_sha256": "df0ad66fe2a59a469496ba0276a91152c210127e00b650a975a9ca6631a76510",
+      "summary": [
+        "149 files left unchanged"
+      ]
+    },
+    {
+      "command": "ruff check --fix .",
+      "exit_code": 0,
+      "log_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "summary": [
+        "All checks passed!"
+      ]
+    },
+    {
+      "command": "python3 -m unittest discover -s deploy -p 'test_*.py'",
+      "exit_code": 0,
+      "log_sha256": "f387ee454fdc2272670f7311e2ec163861478dbc539e343d034e2d1b2e9e20c5",
+      "summary": [
+        "ResourceWarning: Enable tracemalloc to get the object allocation traceback",
+        "........................",
+        "----------------------------------------------------------------------",
+        "Ran 95 tests in 15.305s",
+        "",
+        "OK"
+      ]
+    }
+  ],
+  "rust_totals": {
+    "passed": 451,
+    "library_passed": 440,
+    "ignored": 4,
+    "failed": 0
+  },
+  "deploy_tests": {
+    "passed": 95,
+    "failed": 0,
+    "note": "Suite emitted sqlite ResourceWarnings; it completed successfully."
+  },
+  "document_checks": {
+    "reference_definitions_complete": true,
+    "local_source_hashes_match": true,
+    "external_source_hashes_match": true,
+    "citation_line_ranges_checked": true,
+    "option_counts": {
+      "quiescence": 14,
+      "normal_search": 20,
+      "execution": 12
+    }
+  },
+  "arithmetic_examples": {
+    "eliminate_sort_speedup": 1.0024057738572574,
+    "halve_qgen_speedup": 1.0482729702814613,
+    "5pct_speedup_plies_at_b3": 0.044410721300580255,
+    "10pct_speedup_plies_at_b3": 0.08675506435475354
+  },
+  "canvas": {
+    "typescript": "passed, using actual cursor/canvas public SDK declarations",
+    "sdk_dependency_declarations": "skipLibCheck enabled; canvas source checked with strict:true",
+    "open_result": "queued; no visual runtime verification claimed"
+  },
+  "limits": [
+    "Local Rust 1.92 differs from CI-pinned Rust 1.97; this is not a claim that remote CI has passed.",
+    "No new engine timings, game matches or strength estimates.",
+    "Full temporary validation logs were summarized here; prior benchmark evidence remains in its original commit."
+  ]
+}
