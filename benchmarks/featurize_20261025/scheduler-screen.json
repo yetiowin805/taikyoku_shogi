@@ -1,0 +1,36 @@
+{
+  "revision": "c73a7d5ecdd1f179213c1f5664b39a92178ae26b",
+  "method": "Exploratory synthetic 40-agent order-neutral tournament. Two repeats per size, local /tmp filesystem. Full save includes durable state and derived reports; one standalone fit measured separately. No production utilization claim.",
+  "rows": [
+    {
+      "label": "baseline",
+      "bytes": 337035,
+      "fit_ms": 2.3590834999999997,
+      "iterations": 5,
+      "mode": "scheduler",
+      "save_ms": 14.2990935,
+      "signature": "23b46262e22623bdb764b930230c723cd6efdea8c90f6c295230d374540de976",
+      "slots": 1000
+    },
+    {
+      "label": "baseline",
+      "bytes": 3190150,
+      "fit_ms": 10.9802675,
+      "iterations": 5,
+      "mode": "scheduler",
+      "save_ms": 39.115488,
+      "signature": "bd93d395b1d9a2f3440edd8d0f3ac10fb7c37fa797b5f796a129c28da323fd0c",
+      "slots": 10000
+    },
+    {
+      "label": "baseline",
+      "bytes": 32080191,
+      "fit_ms": 103.6525605,
+      "iterations": 6,
+      "mode": "scheduler",
+      "save_ms": 324.188535,
+      "signature": "de282e5a2dc255f41b696776bb9ff991fb846cb46dc7d14fc364fdbf0fd2a7fa",
+      "slots": 100000
+    }
+  ]
+}

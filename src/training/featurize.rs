@@ -96,28 +96,36 @@ fn initial_state(start: &GameStart) -> Result<GameState, String> {
 
 fn piece_diff_features(state: &GameState) -> Vec<f32> {
     let board = state.get_board();
-    let mut counts = vec![0.0f32; ALL_PIECE_TYPES.len()];
-    for (i, &pt) in ALL_PIECE_TYPES.iter().enumerate() {
-        let mut diff = 0i32;
-        for p in board.get_pieces_by_color(Color::Black) {
-            if p.piece_type == pt {
-                diff += 1;
+    // Enum discriminants index the scratch histogram, while ALL_PIECE_TYPES
+    // defines the exported feature order (the two orders differ).
+    const COUNTER_SLOTS: usize = {
+        let mut slots = 0;
+        let mut i = 0;
+        while i < ALL_PIECE_TYPES.len() {
+            let needed = ALL_PIECE_TYPES[i] as usize + 1;
+            if needed > slots {
+                slots = needed;
             }
+            i += 1;
         }
-        for p in board.get_pieces_by_color(Color::White) {
-            if p.piece_type == pt {
-                diff -= 1;
-            }
+        slots
+    };
+    let mut by_type = [0i32; COUNTER_SLOTS];
+    for (color, delta) in [(Color::Black, 1), (Color::White, -1)] {
+        for piece in board.pieces_by_color(color) {
+            by_type[piece.piece_type as usize] += delta;
         }
-        counts[i] = diff as f32;
     }
-    counts
+    ALL_PIECE_TYPES
+        .iter()
+        .map(|&kind| by_type[kind as usize] as f32)
+        .collect()
 }
 
 fn army_counts(state: &GameState) -> (i32, i32) {
     (
-        state.get_board().get_pieces_by_color(Color::Black).len() as i32,
-        state.get_board().get_pieces_by_color(Color::White).len() as i32,
+        state.get_board().pieces_by_color(Color::Black).len() as i32,
+        state.get_board().pieces_by_color(Color::White).len() as i32,
     )
 }
 
@@ -527,6 +535,70 @@ pub fn load_labeled_dir(dir: &Path) -> Result<Vec<LabeledPosition>, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn reference_piece_diff(state: &GameState) -> Vec<f32> {
+        ALL_PIECE_TYPES
+            .iter()
+            .map(|&kind| {
+                let count = |color| {
+                    state
+                        .get_board()
+                        .pieces_by_color(color)
+                        .iter()
+                        .filter(|piece| piece.piece_type == kind)
+                        .count() as i32
+                };
+                (count(Color::Black) - count(Color::White)) as f32
+            })
+            .collect()
+    }
+
+    #[test]
+    fn histogram_preserves_feature_order_for_every_piece_type() {
+        use crate::piece::Piece;
+        use crate::position::Position;
+
+        let mut state = GameState::new();
+        for (index, &kind) in ALL_PIECE_TYPES.iter().enumerate() {
+            let color = if index % 3 == 0 {
+                Color::White
+            } else {
+                Color::Black
+            };
+            state.place_piece(Piece::new(
+                kind,
+                color,
+                Position::new((index % 36) as u8, (index / 36) as u8).unwrap(),
+            ));
+        }
+        assert_eq!(piece_diff_features(&state), reference_piece_diff(&state));
+        let black = ALL_PIECE_TYPES.len() - ALL_PIECE_TYPES.len().div_ceil(3);
+        assert_eq!(
+            army_counts(&state),
+            (black as i32, (ALL_PIECE_TYPES.len() - black) as i32)
+        );
+    }
+
+    #[test]
+    fn histogram_counts_current_types_after_promotion_and_capture() {
+        use crate::piece::{Piece, PieceType};
+        use crate::position::Position;
+
+        let mut state = GameState::new();
+        let mut promoted = Piece::new(PieceType::Pawn, Color::Black, Position::new(4, 4).unwrap());
+        promoted.promote();
+        let victim = Piece::new(
+            PieceType::GoldGeneral,
+            Color::White,
+            Position::new(5, 5).unwrap(),
+        );
+        state.place_piece(promoted);
+        state.place_piece(victim);
+        assert_eq!(piece_diff_features(&state), reference_piece_diff(&state));
+        state.remove_piece(victim.position);
+        assert_eq!(piece_diff_features(&state), reference_piece_diff(&state));
+        assert_eq!(army_counts(&state), (1, 0));
+    }
 
     fn directory_fixture() -> (crate::test_support::TempDir, FeaturizeConfig) {
         let root = crate::test_support::TempDir::new();
