@@ -365,14 +365,13 @@ pub(crate) mod tests {
         let mut s = state();
         let mut w = EvalWeights::seed();
         w.nnue_runtime = Some(first_net.clone());
-        let _bind = eval::bind_search_weights(&w);
         s.ensure_eval_inc(&w);
         let old = s.nnue.clone().unwrap();
         let u = s
-            .make_move_for_search(Move::new(
-                Position::new(5, 5).unwrap(),
-                Position::new(5, 8).unwrap(),
-            ))
+            .make_move_for_search_with_weights(
+                Move::new(Position::new(5, 5).unwrap(), Position::new(5, 8).unwrap()),
+                &w,
+            )
             .unwrap();
         assert!(s.nnue.as_ref().unwrap().matches_rebuild(s.get_board()));
         let clone = s.clone();
