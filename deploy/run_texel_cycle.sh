@@ -32,11 +32,24 @@ fi
 chmod +x "$NOTIFY" 2>/dev/null || true
 mkdir -p data/run
 
-N_GAMES="$(ls -1 "$GAMES_DIR"/*.json 2>/dev/null | wc -l | tr -d ' ')"
+json_file_count() {
+  python3 - "$1" <<'PY'
+import sys
+from pathlib import Path
+
+print(len(list(Path(sys.argv[1]).glob("*.json"))))
+PY
+}
+
+N_GAMES="$(json_file_count "$GAMES_DIR")"
 # Rough mean move count from a sample of game JSONs (fast).
-MEAN_MOVES="$(python3 - <<PY
-import json, glob, statistics
-paths = sorted(glob.glob("$GAMES_DIR/*.json"))
+MEAN_MOVES="$(python3 - "$GAMES_DIR" <<'PY'
+import json
+import statistics
+import sys
+from pathlib import Path
+
+paths = sorted(Path(sys.argv[1]).glob("*.json"))
 if not paths:
     print("n/a")
 else:
@@ -44,7 +57,8 @@ else:
     lens = []
     for p in sample:
         try:
-            g = json.load(open(p))
+            with p.open() as source:
+                g = json.load(source)
             lens.append(len(g.get("moves") or []))
         except Exception:
             pass
@@ -57,18 +71,35 @@ LOG="$(mktemp)"
 trap 'rm -f "$LOG"' EXIT
 
 set +e
-{
+(
   echo "=== featurize ($N_GAMES games) ==="
-  "$BIN" featurize --games-dir "$GAMES_DIR" --out "$FEATURES"
+  "$BIN" featurize --games-dir "$GAMES_DIR" --out "$FEATURES" || {
+    rc=$?
+    echo "featurize failed (rc=$rc); texel-fit did not start" >&2
+    exit "$rc"
+  }
   echo "=== texel-fit → $OUT_MODEL ==="
-  "$BIN" texel-fit --features "$FEATURES" --out "$OUT_MODEL" --iters "$ITERS"
-} 2>&1 | tee "$LOG"
-RC=${PIPESTATUS[0]}
+  "$BIN" texel-fit --features "$FEATURES" --out "$OUT_MODEL" --iters "$ITERS" || {
+    rc=$?
+    echo "texel-fit failed (rc=$rc)" >&2
+    exit "$rc"
+  }
+) 2>&1 | tee "$LOG"
+STATUSES=("${PIPESTATUS[@]}")
+RC=${STATUSES[0]}
+if [[ "$RC" -eq 0 && "${STATUSES[1]}" -ne 0 ]]; then
+  RC=${STATUSES[1]}
+  echo "training log failed (rc=$RC)" >&2
+fi
 set -e
+if [[ "$RC" -ne 0 ]]; then
+  echo "Texel pipeline failed (rc=$RC):" >&2
+  tail -n 20 "$LOG" >&2
+fi
 
 END="$(date +%s)"
 ELAPSED=$((END - START))
-N_FEAT="$(ls -1 "$FEATURES"/*.json 2>/dev/null | wc -l | tr -d ' ')"
+N_FEAT="$(json_file_count "$FEATURES")"
 AVG_POS="n/a"
 if [[ "$N_GAMES" =~ ^[0-9]+$ && "$N_GAMES" -gt 0 && "$N_FEAT" =~ ^[0-9]+$ ]]; then
   AVG_POS="$(python3 -c "print(round($N_FEAT / $N_GAMES, 1))")"
@@ -102,5 +133,11 @@ Log:
 $(tail -n 80 "$LOG")"
 fi
 
-"$NOTIFY" "$SUBJECT" "$BODY"
+if "$NOTIFY" "$SUBJECT" "$BODY"; then
+  :
+else
+  NOTIFY_RC=$?
+  echo "training notification failed (rc=$NOTIFY_RC); training exit=$RC" >&2
+  if [[ "$RC" -eq 0 ]]; then RC=$NOTIFY_RC; fi
+fi
 exit "$RC"
