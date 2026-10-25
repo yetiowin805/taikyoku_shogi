@@ -187,8 +187,8 @@ impl DebugTool {
         for color in [Color::Black, Color::White] {
             for piece in board.get_pieces_by_color(color) {
                 pieces.push(PieceDto {
-                    file: Self::to_shogi_file(piece.position.file),
-                    rank: Self::to_shogi_rank(piece.position.rank),
+                    file: Self::to_shogi_file(piece.position.file()),
+                    rank: Self::to_shogi_rank(piece.position.rank()),
                     color: color_name(piece.color),
                     piece_type: format!("{:?}", piece.piece_type),
                     symbol: piece.base_symbol().to_string(),
@@ -282,15 +282,18 @@ impl DebugTool {
             .into_iter()
             .enumerate()
             .map(|(index, mv)| {
-                let via = mv
-                    .intermediate()
-                    .map(|pos| (Self::to_shogi_file(pos.file), Self::to_shogi_rank(pos.rank)));
+                let via = mv.intermediate().map(|pos| {
+                    (
+                        Self::to_shogi_file(pos.file()),
+                        Self::to_shogi_rank(pos.rank()),
+                    )
+                });
                 MoveDto {
                     index,
-                    from_file: Self::to_shogi_file(mv.from.file),
-                    from_rank: Self::to_shogi_rank(mv.from.rank),
-                    to_file: Self::to_shogi_file(mv.to.file),
-                    to_rank: Self::to_shogi_rank(mv.to.rank),
+                    from_file: Self::to_shogi_file(mv.from.file()),
+                    from_rank: Self::to_shogi_rank(mv.from.rank()),
+                    to_file: Self::to_shogi_file(mv.to.file()),
+                    to_rank: Self::to_shogi_rank(mv.to.rank()),
                     promoted: mv.promoted,
                     label: Self::format_move_public(&mv),
                     via_file: via.map(|v| v.0),

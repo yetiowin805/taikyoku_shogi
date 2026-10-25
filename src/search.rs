@@ -128,8 +128,8 @@ fn capturing_wipe_group_key(state: &GameState, mv: &Move) -> Option<u64> {
     if board.get_piece(mv.to).is_some() {
         return None;
     }
-    let file_diff = mv.to.file as i8 - mv.from.file as i8;
-    let rank_diff = mv.to.rank as i8 - mv.from.rank as i8;
+    let file_diff = mv.to.file() as i8 - mv.from.file() as i8;
+    let rank_diff = mv.to.rank() as i8 - mv.from.rank() as i8;
     if file_diff == 0 && rank_diff == 0 {
         return None;
     }
@@ -675,10 +675,10 @@ fn tt_from_config(size_pow2: usize, config: &SearchConfig) -> TranspositionTable
 
 fn move_tt_key(mv: &Move) -> MoveKey {
     (
-        mv.from.file,
-        mv.from.rank,
-        mv.to.file,
-        mv.to.rank,
+        mv.from.file(),
+        mv.from.rank(),
+        mv.to.file(),
+        mv.to.rank(),
         mv.promoted,
     )
 }
@@ -1185,10 +1185,10 @@ fn piece_might_loud_promote(piece: &Piece) -> bool {
     let reach = max_rank_delta_toward_promo(piece);
     match piece.color {
         Color::Black => {
-            piece.position.rank >= 25 || 25u8.saturating_sub(piece.position.rank) <= reach
+            piece.position.rank() >= 25 || 25u8.saturating_sub(piece.position.rank()) <= reach
         }
         Color::White => {
-            piece.position.rank <= 10 || piece.position.rank.saturating_sub(10) <= reach
+            piece.position.rank() <= 10 || piece.position.rank().saturating_sub(10) <= reach
         }
     }
 }
@@ -1843,8 +1843,8 @@ fn peacock_might_directly_capture(
             if !crate::attack_utils::is_unpromoted_peacock(&piece) {
                 continue;
             }
-            let df = (i16::from(victim.file) - i16::from(pos.file)).abs();
-            let dr = (i16::from(victim.rank) - i16::from(pos.rank)).abs();
+            let df = (i16::from(victim.file()) - i16::from(pos.file())).abs();
+            let dr = (i16::from(victim.rank()) - i16::from(pos.rank())).abs();
             if df == dr && df != 0 {
                 return true;
             }
@@ -4888,21 +4888,23 @@ fn move_label_parts(piece: Option<&Piece>, from: Position, to: Position, promote
     format!(
         "{} {},{}→{},{}{}",
         sym,
-        36 - from.file,
-        36 - from.rank,
-        36 - to.file,
-        36 - to.rank,
+        36 - from.file(),
+        36 - from.rank(),
+        36 - to.file(),
+        36 - to.rank(),
         promo
     )
 }
 
 fn move_coordinates(mv: &Move) -> MoveCoordinates {
-    let via = mv.intermediate().map(|pos| (36 - pos.file, 36 - pos.rank));
+    let via = mv
+        .intermediate()
+        .map(|pos| (36 - pos.file(), 36 - pos.rank()));
     MoveCoordinates {
-        from_file: 36 - mv.from.file,
-        from_rank: 36 - mv.from.rank,
-        to_file: 36 - mv.to.file,
-        to_rank: 36 - mv.to.rank,
+        from_file: 36 - mv.from.file(),
+        from_rank: 36 - mv.from.rank(),
+        to_file: 36 - mv.to.file(),
+        to_rank: 36 - mv.to.rank(),
         promoted: mv.promoted,
         via_file: via.map(|v| v.0),
         via_rank: via.map(|v| v.1),
@@ -5032,10 +5034,10 @@ pub fn search_info_from_result(
             result.best_move.as_ref().map(|mv| {
                 format!(
                     "{},{}→{},{}",
-                    36 - mv.from.file,
-                    36 - mv.from.rank,
-                    36 - mv.to.file,
-                    36 - mv.to.rank
+                    36 - mv.from.file(),
+                    36 - mv.from.rank(),
+                    36 - mv.to.file(),
+                    36 - mv.to.rank()
                 )
             })
         });
@@ -5049,10 +5051,10 @@ pub fn search_info_from_result(
             .map(|(i, (mv, score))| RootMoveInfo {
                 label: format!(
                     "{},{}→{},{}",
-                    36 - mv.from.file,
-                    36 - mv.from.rank,
-                    36 - mv.to.file,
-                    36 - mv.to.rank
+                    36 - mv.from.file(),
+                    36 - mv.from.rank(),
+                    36 - mv.to.file(),
+                    36 - mv.to.rank()
                 ),
                 score: *score,
                 best: i == 0,
@@ -5399,8 +5401,8 @@ mod tests {
                         if to == from {
                             continue;
                         }
-                        let df = to.file as i8 - from.file as i8;
-                        let dr = to.rank as i8 - from.rank as i8;
+                        let df = to.file() as i8 - from.file() as i8;
+                        let dr = to.rank() as i8 - from.rank() as i8;
                         let ray = df == 0 || dr == 0 || df.abs() == dr.abs();
                         let blocker = from.offset(df.signum(), dr.signum()).unwrap();
                         for blocker_color in [None, Some(color), Some(color.opposite())] {

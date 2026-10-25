@@ -209,8 +209,8 @@ impl MovementGenerator {
                     return false;
                 }
                 let (file_delta, rank_delta) = dir.to_offset();
-                let file_diff = target.file as i8 - piece.position.file as i8;
-                let rank_diff = target.rank as i8 - piece.position.rank as i8;
+                let file_diff = target.file() as i8 - piece.position.file() as i8;
+                let rank_diff = target.rank() as i8 - piece.position.rank() as i8;
                 let dist = file_diff.abs().max(rank_diff.abs()) as u8;
                 if dist == 0 || dist > *max_distance {
                     return false;
@@ -316,8 +316,8 @@ impl MovementGenerator {
                 }
             }
             MovementCapability::Jumping { offsets } => {
-                let df = target.file as i8 - piece.position.file as i8;
-                let dr = target.rank as i8 - piece.position.rank as i8;
+                let df = target.file() as i8 - piece.position.file() as i8;
+                let dr = target.rank() as i8 - piece.position.rank() as i8;
                 let dr = if piece.color == Color::White { -dr } else { dr };
                 offsets.contains(&(df, dr))
                     && !board

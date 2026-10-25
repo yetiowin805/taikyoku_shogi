@@ -81,12 +81,12 @@ fn result_to_label(result: &Option<GameResult>) -> f32 {
     }
 }
 
-fn initial_state(start: &GameStart) -> GameState {
+fn initial_state(start: &GameStart) -> Result<GameState, String> {
     match start {
         GameStart::Opening => {
             let mut state = GameState::new();
             state.setup_initial_position();
-            state
+            Ok(state)
         }
         GameStart::Position { position } => position.to_state(),
     }
@@ -305,7 +305,7 @@ pub fn featurize_game(
 ) -> Result<Vec<LabeledPosition>, String> {
     let label = result_to_label(&record.result);
     let n = record.moves.len();
-    let mut state = initial_state(&record.start);
+    let mut state = initial_state(&record.start)?;
     let mut was_capture_into = vec![false; n + 1];
     let mut counts = Vec::with_capacity(n + 1);
     let mut snapshots: Vec<(Color, Vec<f32>, f32)> = Vec::with_capacity(n + 1);

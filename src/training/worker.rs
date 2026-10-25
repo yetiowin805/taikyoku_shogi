@@ -81,12 +81,12 @@ fn make_player(spec: &AgentSpec) -> Result<Box<dyn Player>, String> {
     player_by_name_with_options(&spec.name, &agent_options(spec))
 }
 
-fn initial_state(start: &GameStart) -> GameState {
+fn initial_state(start: &GameStart) -> Result<GameState, String> {
     match start {
         GameStart::Opening => {
             let mut state = GameState::new();
             state.setup_initial_position();
-            state
+            Ok(state)
         }
         GameStart::Position { position } => position.to_state(),
     }
@@ -170,7 +170,18 @@ pub fn play_one_game(config: &WorkerConfig) -> Result<GameRecordV2, PlayFailure>
             Some("failed before any moves".into()),
         )),
     })?;
-    let mut state = initial_state(&config.start);
+    let mut state = initial_state(&config.start).map_err(|message| PlayFailure {
+        message: message.clone(),
+        partial: Box::new(build_record(
+            config,
+            GameRecordV2::new_id(config.seed),
+            0,
+            Instant::now(),
+            vec![],
+            None,
+            Some(message),
+        )),
+    })?;
     let started = Instant::now();
     let game_id = GameRecordV2::new_id(config.seed);
     let timestamp = std::time::SystemTime::now()
@@ -327,7 +338,12 @@ pub fn play_one_game(config: &WorkerConfig) -> Result<GameRecordV2, PlayFailure>
         if config.verbose {
             println!(
                 "{}. {:?}: {}{}-{}{}",
-                move_number, color, mv.from.file, mv.from.rank, mv.to.file, mv.to.rank
+                move_number,
+                color,
+                mv.from.file(),
+                mv.from.rank(),
+                mv.to.file(),
+                mv.to.rank()
             );
         }
 
@@ -346,7 +362,7 @@ pub fn play_one_game(config: &WorkerConfig) -> Result<GameRecordV2, PlayFailure>
 
 /// Replay recorded moves onto a fresh start position (for featurization).
 pub fn replay_to_end(record: &GameRecordV2) -> Result<GameState, String> {
-    let mut state = initial_state(&record.start);
+    let mut state = initial_state(&record.start)?;
     for mr in &record.moves {
         let mv = crate::game_history::GameHistory::record_to_move(mr)?;
         let turn_before = state.get_current_turn();
@@ -363,7 +379,7 @@ pub fn replay_to_end(record: &GameRecordV2) -> Result<GameState, String> {
 
 /// Snapshot after applying the first `ply` recorded moves (0 = start).
 pub fn replay_to_ply(record: &GameRecordV2, ply: usize) -> Result<GameState, String> {
-    let mut state = initial_state(&record.start);
+    let mut state = initial_state(&record.start)?;
     for mr in record.moves.iter().take(ply) {
         let mv = crate::game_history::GameHistory::record_to_move(mr)?;
         let turn_before = state.get_current_turn();

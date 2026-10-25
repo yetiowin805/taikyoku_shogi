@@ -92,6 +92,7 @@ fn load_start(path: &str) -> GameState {
     BoardPosition::load_path(Path::new(path))
         .unwrap_or_else(|e| panic!("load {path}: {e}"))
         .to_state()
+        .expect("valid start position")
 }
 
 fn replay_game(path: &str, ply: usize) -> GameState {
@@ -193,8 +194,8 @@ fn path_victims(state: &GameState, mv: &Move) -> Vec<String> {
             let p = state.get_board().get_piece(pos)?;
             Some(format!(
                 "{},{} {:?} {:?}{}",
-                pos.file,
-                pos.rank,
+                pos.file(),
+                pos.rank(),
                 p.color,
                 p.piece_type,
                 if p.color == us { " (own)" } else { "" }
@@ -219,12 +220,16 @@ fn explain_miss(weights: &EvalWeights) {
     let keep = state
         .generate_legal_moves()
         .into_iter()
-        .find(|m| m.from.file == 29 && m.from.rank == 22 && m.to.file == 29 && m.to.rank == 0)
+        .find(|m| {
+            m.from.file() == 29 && m.from.rank() == 22 && m.to.file() == 29 && m.to.rank() == 0
+        })
         .expect("29,22-29,0");
     let miss = state
         .generate_legal_moves()
         .into_iter()
-        .find(|m| m.from.file == 35 && m.from.rank == 13 && m.to.file == 22 && m.to.rank == 0)
+        .find(|m| {
+            m.from.file() == 35 && m.from.rank() == 13 && m.to.file() == 22 && m.to.rank() == 0
+        })
         .expect("35,13-22,0");
 
     for (name, mv) in [("keep 29,22-29,0", &keep), ("alt  35,13-22,0", &miss)] {

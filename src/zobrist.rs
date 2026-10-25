@@ -22,7 +22,7 @@ fn splitmix64(mut x: u64) -> u64 {
 /// Zobrist key for a piece on its current square.
 #[inline]
 pub fn piece_key(piece: &Piece) -> u64 {
-    let sq = (piece.position.file as u64) | ((piece.position.rank as u64) << 8);
+    let sq = (piece.position.file() as u64) | ((piece.position.rank() as u64) << 8);
     let id = (piece.piece_type as u64)
         | ((piece.color as u64) << 16)
         | ((piece.is_promoted as u64) << 17)

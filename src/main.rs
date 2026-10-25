@@ -583,14 +583,14 @@ fn play_game(agent: &str) {
                 // Check if this is a two-step move for display
                 if let Some(intermediate) = mv.intermediate() {
                     // Display two-step move as two lines with different move numbers
-                    let to_file_flipped = flip_file(mv.to.file);
-                    let to_rank_flipped = flip_rank(mv.to.rank);
+                    let to_file_flipped = flip_file(mv.to.file());
+                    let to_rank_flipped = flip_rank(mv.to.rank());
                     let to_rank_jp = to_japanese_numeral(to_rank_flipped);
-                    let from_file_flipped = flip_file(mv.from.file);
-                    let from_rank_flipped = flip_rank(mv.from.rank);
+                    let from_file_flipped = flip_file(mv.from.file());
+                    let from_rank_flipped = flip_rank(mv.from.rank());
                     let from_rank_jp = to_japanese_numeral(from_rank_flipped);
-                    let inter_file_flipped = flip_file(intermediate.file);
-                    let inter_rank_flipped = flip_rank(intermediate.rank);
+                    let inter_file_flipped = flip_file(intermediate.file());
+                    let inter_rank_flipped = flip_rank(intermediate.rank());
                     let inter_rank_jp = to_japanese_numeral(inter_rank_flipped);
 
                     println!(
@@ -625,11 +625,11 @@ fn play_game(agent: &str) {
                     move_number += 2;
                 } else {
                     // Display single move
-                    let to_file_flipped = flip_file(mv.to.file);
-                    let to_rank_flipped = flip_rank(mv.to.rank);
+                    let to_file_flipped = flip_file(mv.to.file());
+                    let to_rank_flipped = flip_rank(mv.to.rank());
                     let to_rank_jp = to_japanese_numeral(to_rank_flipped);
-                    let from_file_flipped = flip_file(mv.from.file);
-                    let from_rank_flipped = flip_rank(mv.from.rank);
+                    let from_file_flipped = flip_file(mv.from.file());
+                    let from_rank_flipped = flip_rank(mv.from.rank());
                     let from_rank_jp = to_japanese_numeral(from_rank_flipped);
 
                     println!(
