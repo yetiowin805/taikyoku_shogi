@@ -1,0 +1,34 @@
+{
+  "source_revision": "dcb54bd31db8e5b1693ac9e39e4fab76e0421106",
+  "source_base": "63de99c429402588de6132e4cefec3a972203fdd",
+  "clock_source": "c82824ed3c55fa29c53479ba5db4734df7ac4284:src/training/clock.rs",
+  "main_pr_revision": "afc028d5b17140cb0094090d6e5334fc9c4736d0",
+  "rustc": "rustc 1.92.0 (ded5c06cf 2025-12-08)",
+  "build_command": "RUSTFLAGS='-C target-cpu=znver4' CARGO_TARGET_DIR=/tmp/search-entrants-vps-target CARGO_BUILD_JOBS=4 cargo build --locked --target x86_64-unknown-linux-gnu --release --bin taikyoku_shogi --bin analyze_position",
+  "files": {
+    "taikyoku_shogi": {
+      "bytes": 5898024,
+      "sha256": "7289bec73cc0ddce6a232ccccc2bfbc92014a579794df91f024c0fed0b995532"
+    },
+    "analyze_position": {
+      "bytes": 1735936,
+      "sha256": "b22e49027ff00d8f5930e9ca6c0c8c946b4e6ae20cae2c28ea4f5d7ac245a48b"
+    },
+    "search-entrants-live-source.tar.gz": {
+      "bytes": 3307249,
+      "sha256": "2d2ba80903776ef9c28d2ed6a0880d20cd5314d773ad535ee86d090ec96a63f8"
+    }
+  },
+  "main_validation": {
+    "rust_passed": 459,
+    "rust_ignored": 4,
+    "python_passed": 97,
+    "clippy": "all-targets/all-features warnings denied",
+    "ruff": "format/check passed"
+  },
+  "live_validation": {
+    "rust_passed": 435,
+    "rust_ignored": 4,
+    "notes": "427 library + 3 Fischer clock + 5 rolling process tests; legacy rolling parity test updated with main timing exclusion after first failure on elapsed_us alone. Source retains cargo fmt output."
+  }
+}

@@ -15,9 +15,9 @@ Source baseline for the implementation: `3a2044085acb4c4c7828b1812b8052fe917b7b0
 - `NNUE_W512_v3_HL`: H + L, without any additional pruning.
 - `NNUE_W512_v3_ST`: S + T, without Q's deeper scout horizon.
 
-The explicit checkpoint field is `search_defaults.experiment`. Missing means `baseline`; unknown names fail Rust checkpoint validation. Experiments are shared code paths, not copied search implementations. Remove losing policies after adjudication.
-
 - `NNUE_W512_v3_QFIX`: added at the user’s follow-up request. On the pinned live baseline, enable recursive last-royal q evasions before stand pat/TT/q exhaustion, include landing, exact q budget, entry budget and eligibility flags in q TT keys, prevent zero-budget TT reuse and aborted final stores, and restore evasion-parent policy. Other eight arms retain the live legacy q behavior. On current main these fixes already apply, so `q_fix` is an explicit marker with the same q behavior as main’s baseline. Never infer live behavior from the checkpoint name without its recorded engine build.
+
+The explicit checkpoint field is `search_defaults.experiment`. Missing means `baseline`; unknown names fail Rust checkpoint validation. Experiments are shared code paths, not copied search implementations. Remove losing policies after adjudication.
 
 ## Live admission
 
@@ -27,6 +27,16 @@ The active game engine must advertise every requested policy through `tournament
 
 ## Validation and evidence
 
-Local `cargo fmt`, all-target/all-feature Clippy with warnings denied, and the full Rust suite passed (459 passed, four ignored). Ruff format/check passed; 97 deployment tests passed. Tests cover checkpoint-policy propagation, unknown-policy rejection, bounded histories, tactical quiet rescue and non-rescue, new royal threats, verified capture entry, scout q budgets, sacrifice PV/non-PV eligibility, null PV guards, and legal root moves for all policies. Existing training admission retry tests remain in place. No Elo or timing improvement is inferred from these tests.
+Local `cargo fmt`, all-target/all-feature Clippy with warnings denied, and the full Rust suite passed (459 passed, four ignored). Ruff format/check passed; 98 deployment tests passed. Tests cover checkpoint-policy propagation, unknown-policy rejection, bounded histories, tactical quiet rescue and non-rescue, new royal threats, verified capture entry, scout q budgets, sacrifice PV/non-PV eligibility, null PV guards, and legal root moves for all policies. Existing training admission retry tests remain in place. No Elo or timing improvement is inferred from these tests.
 
 Mechanism backing: [Stockfish history ordering](https://github.com/official-stockfish/Stockfish/blob/dbe600b7438662e9ade60b31fa0625259dcd0077/src/movepick.cpp), [Stockfish search](https://github.com/official-stockfish/Stockfish/blob/dbe600b7438662e9ade60b31fa0625259dcd0077/src/search.cpp), and the [full local search survey](https://github.com/yetiowin805/taikyoku_shogi/pull/177). These sources motivate experiments; their tuning constants and strength claims are not transferred to this game.
+
+## Deployment checks
+
+The VPS candidate preserves the deployed `63de99c` engine plus the `c82824e` Fischer-clock patch. Its exact source is commit `dcb54bd31db8e5b1693ac9e39e4fab76e0421106` on local branch `codex/nnue-search-live`, archived on the VPS beside the binaries. [Build provenance](build-provenance.json) records compiler, build command and SHA-256 hashes. The legacy source retains formatter output. Its 435 Rust tests passed across the library, clock and rolling-process suites; the first run exposed an existing test that compared wall-clock microseconds across processes, so the already-existing main test correction was applied. Both the [initial output](validation/live-rust-initial.log) and [corrected rolling-suite output](validation/live-rolling-corrected.log) are retained.
+
+[Raw VPS preflight results](preflight.json) show exact equality of completed depth, score, move and cumulative nodes at every iteration through depth three, at plies 1, 80, 200 and 500 of recorded game `slot4601-NNUE_W512_v3-vs-NNUE_W384_v3-a-white.json`. Final node counts were 34,456; 65,374; 274,500; and 53,860. All nine actual NNUE descriptors then completed depth-two searches at ply 80 and passed both executables' model validation. This is a bounded compatibility and execution check, not a strength or speed estimate, and does not prove equivalence on every position. No preliminary match tournament was run.
+
+The first rolling update failed before publication because a pre-existing admitted model had a symlink-spelled binding while the updater resolved only the entrant path. The updater now resolves both sides and validates every matching content pin. A regression test also verifies that changing the model still blocks publication. The installed VPS updater received only the policy capability guard and this alias fix, with exact-content checks and backups; its other content was preserved.
+
+Main implementation validation is retained in [Rust output](validation/main-rust.log), [Clippy output](validation/clippy.log), and [deployment test output](validation/deploy-python.log). PR CI passed Rust, Python and NNUE-Python on implementation commit `afc028d`; the later alias fix has its own local 98-test deployment run.

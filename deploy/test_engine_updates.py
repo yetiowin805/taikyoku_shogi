@@ -69,6 +69,20 @@ class Updates(unittest.TestCase):
             u.update(a, self.args, self.run)
         self.assertEqual(u.active(a, self.run), self.bundle)
 
+    def test_update_resolves_symlink_bindings_without_skipping_hash_validation(self):
+        alias = self.run / "alias.json"
+        alias.symlink_to(self.model)
+        binding = self.config["models"].pop(str(self.model))
+        self.config["models"][str(alias)] = binding
+        a.atomic(self.control / "config.json", self.config)
+        u.update(a, self.args, self.run)
+        selected = u.active(a, self.run)
+        self.assertEqual(selected["revision"], "new")
+        self.model.write_text('{"changed":true}')
+        with self.assertRaisesRegex(ValueError, "model changed"):
+            u.update(a, self.args, self.run)
+        self.assertEqual(u.active(a, self.run), selected)
+
     def test_invalid_protocol_corruption_and_unenabled_run_fail_closed(self):
         self.engine.write_text("#!/bin/sh\necho incompatible\n")
         with self.assertRaisesRegex(ValueError, "protocol|support"):

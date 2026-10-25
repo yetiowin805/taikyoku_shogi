@@ -111,7 +111,15 @@ def update(api, args, run):
             if agent.get("engine"):
                 continue
             model = str(api.absolute(agent["model"]).resolve())
-            api.validate_model_binding(model, config["models"][model])
+            # Admissions can use the run symlink while its manifest is resolved.
+            # Validate every alias binding; conflicting/stale pins must still fail.
+            bindings = [
+                binding for path, binding in config["models"].items() if api.absolute(path).resolve() == Path(model)
+            ]
+            if not bindings:
+                raise ValueError("model has no pinned binding: " + model)
+            for binding in bindings:
+                api.validate_model_binding(model, binding)
             require_search_support(
                 bundle["engine_bin"], [api.read(model).get("search_defaults", {}).get("experiment", "baseline")]
             )
