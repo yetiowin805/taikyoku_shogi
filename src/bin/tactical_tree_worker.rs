@@ -177,7 +177,7 @@ fn run() -> Result<(), String> {
             s.setup_initial_position();
             s
         }
-        GameStart::Position { position } => position.to_state(),
+        GameStart::Position { position } => position.to_state()?,
     };
     for record in &game.moves[..ply - 1] {
         if record.color != base.get_current_turn() {

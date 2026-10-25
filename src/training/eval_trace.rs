@@ -152,12 +152,12 @@ pub struct SummaryRow {
     pub trace_path: String,
 }
 
-fn initial_state(start: &GameStart) -> GameState {
+fn initial_state(start: &GameStart) -> Result<GameState, String> {
     match start {
         GameStart::Opening => {
             let mut state = GameState::new();
             state.setup_initial_position();
-            state
+            Ok(state)
         }
         GameStart::Position { position } => position.to_state(),
     }
@@ -589,7 +589,7 @@ pub fn trace_game(
     let mut counts_by_ply = vec![Vec::new(); n_plies];
     let mut points_by_ply: Vec<Option<TracePoint>> = vec![None; n_plies];
 
-    let mut state = initial_state(&record.start);
+    let mut state = initial_state(&record.start)?;
     let mut prev_br = count_royals(&state, Color::Black);
     let mut prev_wr = count_royals(&state, Color::White);
     counts_by_ply[0] = piece_counts(&state);
@@ -727,7 +727,10 @@ fn stm_score_to_black_abs(score: i32, turn: Color) -> f32 {
 fn move_label(mv: &crate::game_state::Move) -> String {
     format!(
         "{}{}{}{}",
-        mv.from.file, mv.from.rank, mv.to.file, mv.to.rank
+        mv.from.file(),
+        mv.from.rank(),
+        mv.to.file(),
+        mv.to.rank()
     )
 }
 

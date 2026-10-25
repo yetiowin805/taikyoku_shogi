@@ -45,8 +45,8 @@ pub fn run_think_loop() {
                     state.setup_initial_position();
                 } else if parts.len() >= 3 && parts[1] == "fen" {
                     let fen = parts[2..].join(" ");
-                    match tsfen_decode(&fen) {
-                        Ok(pos) => state = pos.to_state(),
+                    match tsfen_decode(&fen).and_then(|pos| pos.to_state()) {
+                        Ok(pos) => state = pos,
                         Err(e) => {
                             eprintln!("info string TSFEN error: {e}");
                         }

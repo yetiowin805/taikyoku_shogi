@@ -186,11 +186,11 @@ fn probes_are_color_symmetric_and_modes_restore() {
     put(&mut s, Pawn, Color::Black, 1, 1);
     let mut flip = BoardPosition::from_state(&s);
     for p in &mut flip.pieces {
-        p.position = Position::new(35 - p.position.file, 35 - p.position.rank).unwrap();
+        p.position = Position::new(35 - p.position.file(), 35 - p.position.rank()).unwrap();
         p.color = p.color.opposite();
     }
     flip.turn = flip.turn.opposite();
-    let other = flip.to_state();
+    let other = flip.to_state().unwrap();
     {
         let _m = set_modes(true, true);
         assert_eq!(

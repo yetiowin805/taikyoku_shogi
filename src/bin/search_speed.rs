@@ -79,10 +79,10 @@ fn run(name: &str, state: &GameState, weights: &EvalWeights, depth: u32, time_ms
     let best = r.best_move.as_ref().map(|m| {
         format!(
             "{},{}→{},{}",
-            m.from.file + 1,
-            m.from.rank + 1,
-            m.to.file + 1,
-            m.to.rank + 1
+            m.from.file() + 1,
+            m.from.rank() + 1,
+            m.to.file() + 1,
+            m.to.rank() + 1
         )
     });
     println!(

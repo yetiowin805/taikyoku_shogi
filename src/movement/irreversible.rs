@@ -46,8 +46,8 @@ pub fn move_is_directionally_irreversible(piece: &Piece, from: Position, to: Pos
     }
     let dir = get_direction_toward(from, to).map(|d| d.opposite());
     let opposite = (
-        from.file as i8 - to.file as i8,
-        from.rank as i8 - to.rank as i8,
+        from.file() as i8 - to.file() as i8,
+        from.rank() as i8 - to.rank() as i8,
     );
     !MovementConfig::for_piece(piece)
         .capabilities
@@ -127,8 +127,8 @@ mod tests {
                             !direction_set_contains(dirs, dir.opposite())
                         } else {
                             !jumps.contains(&(
-                                from.file as i8 - to.file as i8,
-                                from.rank as i8 - to.rank as i8,
+                                from.file() as i8 - to.file() as i8,
+                                from.rank() as i8 - to.rank() as i8,
                             ))
                         };
                         assert_eq!(

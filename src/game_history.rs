@@ -105,16 +105,16 @@ impl GameHistory {
                     // Use intermediate parameter if provided (for backwards compatibility)
                     if let Some(inter) = intermediate {
                         MoveRecordData::TwoStep {
-                            intermediate_file: inter.file,
-                            intermediate_rank: inter.rank,
+                            intermediate_file: inter.file(),
+                            intermediate_rank: inter.rank(),
                         }
                     } else {
                         MoveRecordData::Standard
                     }
                 }
                 MoveData::TwoStep { intermediate } => MoveRecordData::TwoStep {
-                    intermediate_file: intermediate.file,
-                    intermediate_rank: intermediate.rank,
+                    intermediate_file: intermediate.file(),
+                    intermediate_rank: intermediate.rank(),
                 },
                 MoveData::FreeEagle { path } => MoveRecordData::FreeEagle { path: path.clone() },
             };
@@ -122,10 +122,10 @@ impl GameHistory {
             game.moves.push(MoveRecord {
                 move_number,
                 color,
-                from_file: mv.from.file,
-                from_rank: mv.from.rank,
-                to_file: mv.to.file,
-                to_rank: mv.to.rank,
+                from_file: mv.from.file(),
+                from_rank: mv.from.rank(),
+                to_file: mv.to.file(),
+                to_rank: mv.to.rank(),
                 promoted,
                 data,
                 eval: None,
@@ -181,8 +181,8 @@ impl GameHistory {
         let data = match &mv.data {
             MoveData::Standard => MoveRecordData::Standard,
             MoveData::TwoStep { intermediate } => MoveRecordData::TwoStep {
-                intermediate_file: intermediate.file,
-                intermediate_rank: intermediate.rank,
+                intermediate_file: intermediate.file(),
+                intermediate_rank: intermediate.rank(),
             },
             MoveData::FreeEagle { path } => MoveRecordData::FreeEagle { path: path.clone() },
         };
@@ -190,10 +190,10 @@ impl GameHistory {
         MoveRecord {
             move_number,
             color,
-            from_file: mv.from.file,
-            from_rank: mv.from.rank,
-            to_file: mv.to.file,
-            to_rank: mv.to.rank,
+            from_file: mv.from.file(),
+            from_rank: mv.from.rank(),
+            to_file: mv.to.file(),
+            to_rank: mv.to.rank(),
             promoted: mv.promoted,
             data,
             eval: None,
@@ -557,8 +557,8 @@ impl GameHistory {
             }
 
             // Calculate direction for this step
-            let file_delta = path[i].file as i16 - path[i - 1].file as i16;
-            let rank_delta = path[i].rank as i16 - path[i - 1].rank as i16;
+            let file_delta = path[i].file() as i16 - path[i - 1].file() as i16;
+            let rank_delta = path[i].rank() as i16 - path[i - 1].rank() as i16;
 
             // Normalize direction to sign only
             let direction = (
@@ -673,8 +673,8 @@ impl GameHistory {
                         };
 
                         // Format first step: from -> intermediate
-                        let inter_file_flipped = self.flip_file(intermediate.file);
-                        let inter_rank_flipped = self.flip_rank(intermediate.rank);
+                        let inter_file_flipped = self.flip_file(intermediate.file());
+                        let inter_rank_flipped = self.flip_rank(intermediate.rank());
                         let from_file_flipped = self.flip_file(mv.from_file);
                         let from_rank_flipped = self.flip_rank(mv.from_rank);
                         let inter_rank_jp = self.to_japanese_numeral(inter_rank_flipped);
@@ -783,10 +783,10 @@ impl GameHistory {
                                     if positions_to_display.contains(&step_to) {
                                         let step_from = if i > 0 { path[i - 1] } else { from };
 
-                                        let to_file_flipped = self.flip_file(step_to.file);
-                                        let to_rank_flipped = self.flip_rank(step_to.rank);
-                                        let from_file_flipped = self.flip_file(step_from.file);
-                                        let from_rank_flipped = self.flip_rank(step_from.rank);
+                                        let to_file_flipped = self.flip_file(step_to.file());
+                                        let to_rank_flipped = self.flip_rank(step_to.rank());
+                                        let from_file_flipped = self.flip_file(step_from.file());
+                                        let from_rank_flipped = self.flip_rank(step_from.rank());
                                         let to_rank_jp = self.to_japanese_numeral(to_rank_flipped);
                                         let from_rank_jp =
                                             self.to_japanese_numeral(from_rank_flipped);

@@ -511,8 +511,8 @@ fn two_mover_mob_apply(piece: &Piece, weights: &EvalWeights) -> f32 {
     match weights.two_mover_mob_apply {
         1 => {
             let progress = match piece.color {
-                Color::Black => piece.position.rank as usize,
-                Color::White => (35 - piece.position.rank) as usize,
+                Color::Black => piece.position.rank() as usize,
+                Color::White => (35 - piece.position.rank()) as usize,
             };
             weights
                 .rank_factor_fast
@@ -522,7 +522,7 @@ fn two_mover_mob_apply(piece: &Piece, weights: &EvalWeights) -> f32 {
         }
         2 => weights
             .file_factor
-            .get(piece.position.file as usize)
+            .get(piece.position.file() as usize)
             .copied()
             .unwrap_or(1.0),
         _ => 1.0,
@@ -568,8 +568,8 @@ fn first_leg_range_dirs(piece: &Piece) -> u8 {
 
 /// Orthogonal or diagonal unit direction from `from` to `to`, if any.
 fn ortho_diag_dir(from: Position, to: Position) -> Option<Direction> {
-    let df = to.file as i16 - from.file as i16;
-    let dr = to.rank as i16 - from.rank as i16;
+    let df = to.file() as i16 - from.file() as i16;
+    let dr = to.rank() as i16 - from.rank() as i16;
     if df == 0 && dr == 0 {
         return None;
     }
@@ -870,8 +870,8 @@ pub fn tropism_class_scale(pt: PieceType) -> f32 {
 }
 
 fn chebyshev_distance(a: Position, b: Position) -> u8 {
-    let df = (a.file as i16 - b.file as i16).unsigned_abs() as u8;
-    let dr = (a.rank as i16 - b.rank as i16).unsigned_abs() as u8;
+    let df = (a.file() as i16 - b.file() as i16).unsigned_abs() as u8;
+    let dr = (a.rank() as i16 - b.rank() as i16).unsigned_abs() as u8;
     df.max(dr)
 }
 
@@ -1471,8 +1471,8 @@ pub fn positional_piece_value(piece: &Piece, weights: &EvalWeights) -> f32 {
     let mut score = material_piece_value(piece, weights);
     if !piece.piece_type.is_royal() && !skips_rank_pst(piece.piece_type) {
         let progress = match piece.color {
-            Color::Black => piece.position.rank as usize,
-            Color::White => (35 - piece.position.rank) as usize,
+            Color::Black => piece.position.rank() as usize,
+            Color::White => (35 - piece.position.rank()) as usize,
         };
         let table = if is_fast_piece(piece.piece_type) {
             &weights.rank_factor_fast
@@ -1482,7 +1482,7 @@ pub fn positional_piece_value(piece: &Piece, weights: &EvalWeights) -> f32 {
         score *= table.get(progress).copied().unwrap_or(1.0);
     }
     if uses_file_pst(piece.piece_type) {
-        let file = piece.position.file as usize;
+        let file = piece.position.file() as usize;
         score *= weights.file_factor.get(file).copied().unwrap_or(1.0);
     }
     score
@@ -1971,12 +1971,14 @@ fn initial_non_royal_home_ranks() -> &'static [[u8; 2]] {
                 let slot = &mut ranks[p.piece_type as usize][p.color as usize];
                 if *slot != 36 {
                     debug_assert_eq!(
-                        *slot, p.position.rank,
+                        *slot,
+                        p.position.rank(),
                         "piece type {:?} starts on multiple ranks for {:?}",
-                        p.piece_type, p.color
+                        p.piece_type,
+                        p.color
                     );
                 }
-                *slot = p.position.rank;
+                *slot = p.position.rank();
             }
         }
         ranks
@@ -1985,8 +1987,8 @@ fn initial_non_royal_home_ranks() -> &'static [[u8; 2]] {
 
 fn on_home_rank_or_behind(piece: &Piece, home_rank: u8) -> bool {
     match piece.color {
-        Color::Black => piece.position.rank <= home_rank,
-        Color::White => piece.position.rank >= home_rank,
+        Color::Black => piece.position.rank() <= home_rank,
+        Color::White => piece.position.rank() >= home_rank,
     }
 }
 
@@ -2033,8 +2035,8 @@ fn advance_positional(pieces: &[Piece], color: Color, weights: &EvalWeights) -> 
             continue;
         }
         let progress = match color {
-            Color::Black => p.position.rank as i32,
-            Color::White => 35 - p.position.rank as i32,
+            Color::Black => p.position.rank() as i32,
+            Color::White => 35 - p.position.rank() as i32,
         };
         s += weights.advance * progress / 12;
     }
@@ -2056,8 +2058,8 @@ fn noise_component(board: &Board, weights: &EvalWeights, ply: usize) -> i32 {
         for p in board.pieces_by_color(color) {
             p.piece_type.hash(&mut hasher);
             p.color.hash(&mut hasher);
-            p.position.file.hash(&mut hasher);
-            p.position.rank.hash(&mut hasher);
+            p.position.file().hash(&mut hasher);
+            p.position.rank().hash(&mut hasher);
             p.is_promoted.hash(&mut hasher);
         }
     }
