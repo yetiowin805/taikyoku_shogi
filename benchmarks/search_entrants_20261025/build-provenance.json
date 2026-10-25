@@ -30,5 +30,10 @@
     "rust_passed": 435,
     "rust_ignored": 4,
     "notes": "427 library + 3 Fischer clock + 5 rolling process tests; legacy rolling parity test updated with main timing exclusion after first failure on elapsed_us alone. Source retains cargo fmt output."
+  },
+  "admission_tools_revision": "bc5bf13",
+  "admission_tools_validation": {
+    "deployment_tests_passed": 98,
+    "ruff": "format/check passed"
   }
 }

@@ -40,3 +40,9 @@ The VPS candidate preserves the deployed `63de99c` engine plus the `c82824e` Fis
 The first rolling update failed before publication because a pre-existing admitted model had a symlink-spelled binding while the updater resolved only the entrant path. The updater now resolves both sides and validates every matching content pin. A regression test also verifies that changing the model still blocks publication. The installed VPS updater received only the policy capability guard and this alias fix, with exact-content checks and backups; its other content was preserved.
 
 Main implementation validation is retained in [Rust output](validation/main-rust.log), [Clippy output](validation/clippy.log), and [deployment test output](validation/deploy-python.log). PR CI passed Rust, Python and NNUE-Python on implementation commit `afc028d`; the later alias fix has its own local 98-test deployment run.
+
+## Admission outcome
+
+All nine entrants were admitted and verified eligible in the existing live tournament. [The deployment receipt](deployment.json) records task `01792962264414409978-admit-search-variants`, status `applied`, and the exact selected engine/analyzer hashes. The new engine build ID is `431ea433c145642f48346ca74e69c435320fbe1fc8e3e20ac6182308b58a6aaf`. Existing games kept their pinned old executable; no coordinator restart or scheduling-rule change was needed. The baseline checkpoint hash was checked unchanged before and after admission.
+
+[Installed updater provenance](updater-install.json) records the backed-up original and final hashes. The source archive is on the VPS at `/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/search-entrants-20261025/build/search-entrants-live-source.tar.gz`. Final frozen descriptor identities, shared NNUE storage and coordinator continuity are recorded in [roster verification](roster-verification.json). Strength conclusions must wait for normal tournament results.
