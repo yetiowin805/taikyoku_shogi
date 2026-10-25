@@ -21,4 +21,9 @@ Write "None identified" only after checking the diff. -->
 ## Validation
 
 <!-- List checks actually run, results, relevant regression coverage, and any gaps.
-Do not claim unmeasured performance gains or unsupported guarantees. -->
+For measured comparisons, use a Markdown table when it helps reviewers compare
+baseline/candidate values. Include revisions, workloads, units, sample counts,
+changes, variability/uncertainty when supported, correctness/parity results, and
+the environment/method. Label estimates and aggregates; batch means are not
+individual-request p95/p99. State relevant scope limits. Omit inapplicable tables.
+Do not invent statistics or claim unmeasured gains or unsupported guarantees. -->

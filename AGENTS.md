@@ -37,6 +37,16 @@ Keep all sections, even for small or documentation-only PRs, with detail
 proportional to the change. Describe the final diff for a reviewer who has not
 seen the chat, and refresh the description when the implementation or scope changes.
 
+For measured comparisons, use Markdown tables when they make the results easier
+to assess. Include baseline/candidate revisions, workload sizes, metric units,
+sample counts/repetitions, and before/after values with absolute or relative
+changes. Report variability or uncertainty when the samples support it, along
+with correctness/parity results and the benchmark environment/method. Distinguish
+measured statistics from source-derived estimates, and subsystem measurements
+from whole-workflow performance. Label aggregates precisely: batch means do not
+provide individual-request p95/p99 latency. Include relevant limits; do not invent
+statistics or add empty tables when a quantitative comparison is not applicable.
+
 ## Historical eval / search snapshots
 
 When merging a **major eval or search behavior change** (new term, eligibility, tropism/PST formula, ID/qsearch/ordering that changes move choice under the same time/depth — not a clear bugfix), add a `kind: logic` entry to [`models/history/manifest.json`](models/history/manifest.json) pointing at the **parent of the merge**, then run `./deploy/freeze_history.sh`. Weight-only bakes go in `kind: weights` (git rev of `models/ab-seed.json`).
