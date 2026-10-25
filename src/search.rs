@@ -996,7 +996,51 @@ pub fn royal_probe_evasions(state: &mut GameState) -> Option<Vec<Move>> {
     last_royal_evasions(state)
 }
 
+/// Membership in the existing path iterator, excluding the origin. For an
+/// off-ray destination that iterator stops when either varying axis passes it;
+/// preserve that behavior rather than requiring a valid straight move here.
+fn square_on_capture_path(from: Position, to: Position, square: Position) -> bool {
+    let file = i16::from(square.file()) - i16::from(from.file());
+    let rank = i16::from(square.rank()) - i16::from(from.rank());
+    let step = file.abs().max(rank.abs());
+    if step == 0 {
+        return false;
+    }
+    let df = i16::from(to.file()) - i16::from(from.file());
+    let dr = i16::from(to.rank()) - i16::from(from.rank());
+    file == df.signum() * step
+        && rank == dr.signum() * step
+        && (df == 0 || step <= df.abs())
+        && (dr == 0 || step <= dr.abs())
+}
+
 fn captured_enemy_royal_count(state: &GameState, mv: &Move) -> usize {
+    let board = state.get_board();
+    let Some(mover) = board.get_piece(mv.from) else {
+        return 0;
+    };
+    let royals = board.royal_squares(mover.color.opposite());
+    if royals.is_empty() {
+        return 0;
+    }
+    let free_eagle_path = mv.free_eagle_path();
+    let capturing_range = free_eagle_path.is_none() && piece_has_capturing_range(&mover);
+    royals
+        .iter()
+        .filter(|&&square| {
+            square == mv.to
+                || mv.intermediate() == Some(square)
+                || free_eagle_path.map_or_else(
+                    || capturing_range && square_on_capture_path(mv.from, mv.to, square),
+                    |path| path.contains(&square),
+                )
+        })
+        .take(4)
+        .count()
+}
+
+#[cfg(test)]
+fn captured_enemy_royal_count_full_walk(state: &GameState, mv: &Move) -> usize {
     let board = state.get_board();
     let Some(mover) = board.get_piece(mv.from) else {
         return 0;
@@ -1257,7 +1301,9 @@ fn move_order_score(
     let Some(mover) = board.get_piece(mv.from) else {
         return i32::MIN / 4;
     };
-    if capture_takes_last_enemy_royal(state, mv) {
+    let captured_royals = captured_enemy_royal_count(state, mv);
+    let enemy_royals = board.royal_count(mover.color.opposite()) as usize;
+    if enemy_royals > 0 && captured_royals >= enemy_royals {
         return LAST_ROYAL_ORDER;
     }
     let mover_value = material_piece_value(&mover, weights);
@@ -1267,27 +1313,26 @@ fn move_order_score(
     }
 
     let mut gain = enemy - own;
-    let hanging =
-        if !capture_takes_enemy_royal(state, mv) && net_below_hang_frac(enemy, own, mover_value) {
-            match kind {
-                CaptureKind::SimpleTake => {
-                    landing_attacked_cached(state, mv.to, opponent, attack_cache)
-                }
-                CaptureKind::PathClear | CaptureKind::MultiLeg => {
-                    // Same confirm-on-prune as [`capture_hangs_high_value_piece`].
-                    if !postfire_pathclear_hang
-                        && !landing_attacked_cached(state, mv.to, opponent, attack_cache)
-                    {
-                        false
-                    } else {
-                        let vb = crate::move_simulation::simulate_move(board, mv, &mover);
-                        vb.is_position_attacked_by_color(mv.to, opponent)
-                    }
+    let hanging = if captured_royals == 0 && net_below_hang_frac(enemy, own, mover_value) {
+        match kind {
+            CaptureKind::SimpleTake => {
+                landing_attacked_cached(state, mv.to, opponent, attack_cache)
+            }
+            CaptureKind::PathClear | CaptureKind::MultiLeg => {
+                // Same confirm-on-prune as [`capture_hangs_high_value_piece`].
+                if !postfire_pathclear_hang
+                    && !landing_attacked_cached(state, mv.to, opponent, attack_cache)
+                {
+                    false
+                } else {
+                    let vb = crate::move_simulation::simulate_move(board, mv, &mover);
+                    vb.is_position_attacked_by_color(mv.to, opponent)
                 }
             }
-        } else {
-            false
-        };
+        }
+    } else {
+        false
+    };
     if hanging {
         gain -= mover_value;
     }
@@ -1617,16 +1662,11 @@ fn stm_has_royal_capture(state: &GameState) -> bool {
     let us = state.get_current_turn();
     let them = state.get_current_turn().opposite();
     let board = state.get_board();
-    for enemy in board.iter_pieces_by_color(them) {
-        if !enemy.piece_type.is_royal() {
+    for &square in board.royal_squares(them) {
+        if !attacked_memo(state, square, us) && !peacock_might_directly_capture(board, us, square) {
             continue;
         }
-        if !attacked_memo(state, enemy.position, us)
-            && !peacock_might_directly_capture(board, us, enemy.position)
-        {
-            continue;
-        }
-        for mv in generate_captures_hitting_square(state, enemy.position) {
+        for mv in generate_captures_hitting_square(state, square) {
             if capture_takes_enemy_royal(state, &mv) {
                 return true;
             }
@@ -5184,6 +5224,90 @@ mod tests {
     use crate::eval::{EvalWeights, ALL_PIECE_TYPES};
     use crate::piece::{Color, Piece, PieceType};
     use crate::position::Position;
+
+    #[test]
+    fn capture_path_membership_preserves_iterator_off_ray_rules() {
+        for from in [
+            (0, 0),
+            (35, 35),
+            (0, 35),
+            (35, 0),
+            (17, 17),
+            (0, 17),
+            (35, 17),
+            (17, 0),
+            (17, 35),
+        ] {
+            let from = Position::new(from.0, from.1).unwrap();
+            for destination in 0..1296 {
+                let to = Position::from_index(destination).unwrap();
+                let mut expected = [false; 1296];
+                for square in path_utils::path_positions(from, to) {
+                    expected[square.to_index()] = true;
+                }
+                for (index, &expected) in expected.iter().enumerate() {
+                    let square = Position::from_index(index).unwrap();
+                    assert_eq!(
+                        square_on_capture_path(from, to, square),
+                        expected,
+                        "from={from:?} to={to:?} square={square:?}",
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn sparse_royal_capture_count_matches_full_walk_for_all_piece_forms_and_routes() {
+        let from = Position::new(2, 2).unwrap();
+        let to = Position::new(25, 25).unwrap();
+        let first = Position::new(6, 6).unwrap();
+        let last = Position::new(18, 18).unwrap();
+        let routes = [
+            Move::new(from, to),
+            Move::new(from, Position::new(25, 19).unwrap()),
+            Move::new(from, first),
+            Move::new_two_step(from, first, last),
+            Move::new_two_step(from, first, from),
+            Move::new_free_eagle(from, last, vec![from, first, first, to, last]),
+            Move::new_free_eagle(from, to, vec![from, first, first, last, from]),
+        ];
+        for &kind in ALL_PIECE_TYPES {
+            for color in [Color::Black, Color::White] {
+                for variant in 0..3 {
+                    let mut mover = Piece::new(kind, color, from);
+                    match variant {
+                        1 => mover.is_promoted = true,
+                        2 => mover.promote(),
+                        _ => {}
+                    }
+                    for royal_count in [0, 1, 2, 6] {
+                        let mut state = GameState::new();
+                        state.place_piece(mover);
+                        for n in 0..royal_count {
+                            let square = Position::new(6 + 3 * n, 6 + 3 * n).unwrap();
+                            state.place_piece(Piece::new(
+                                if n % 2 == 0 {
+                                    PieceType::King
+                                } else {
+                                    PieceType::CrownPrince
+                                },
+                                color.opposite(),
+                                square,
+                            ));
+                        }
+                        for mv in &routes {
+                            assert_eq!(
+                                captured_enemy_royal_count(&state, mv),
+                                captured_enemy_royal_count_full_walk(&state, mv),
+                                "mover={mover:?} royals={royal_count} move={mv:?}",
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     #[test]
     fn capture_memo_preserves_routes_and_current_piece_list_order() {
