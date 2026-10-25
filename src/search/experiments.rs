@@ -320,6 +320,27 @@ mod tests {
     }
 
     #[test]
+    fn qfix_resolves_recursive_check_before_zero_budget_stand_pat() {
+        let mut state = GameState::new();
+        put(&mut state, PieceType::King, Color::Black, 0, 0);
+        put(&mut state, PieceType::King, Color::White, 35, 35);
+        put(&mut state, PieceType::Pawn, Color::White, 34, 35);
+        put(&mut state, PieceType::Lance, Color::White, 35, 34);
+        put(&mut state, PieceType::Bishop, Color::White, 34, 34);
+        put(&mut state, PieceType::GoldGeneral, Color::White, 10, 10);
+        put(&mut state, PieceType::Knight, Color::Black, 34, 33);
+        state.set_current_turn(Color::White);
+        let weights = EvalWeights::seed();
+        assert!(last_royal_evasions(&mut state).unwrap().is_empty());
+        with_quiesce_test_context(&state, &weights, 0, None, |pos, ctx| {
+            ctx.experiments.policy = SearchExperiment::QFix;
+            let score = quiesce(pos, &weights, 0, -900_000, 900_000, None, true, true, ctx);
+            assert_eq!(score, -weights.mate_score);
+            assert_eq!(pos.hash(), state.hash());
+        });
+    }
+
+    #[test]
     fn guarded_null_searches_real_moves_on_pv_instead_of_passing() {
         let state = kings();
         let weights = EvalWeights::seed();

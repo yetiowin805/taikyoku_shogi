@@ -136,7 +136,7 @@ def admit_checkpoints(run, models, report):
     a.atomic(report / "status.json", dict(state="admitted", task_id=task_id, receipt=receipt, updated=time.time()))
 
 
-def prepare_search_variants(config):
+def prepare_search_variants(config, *, bundle=None):
     """Clone one registered NNUE checkpoint, changing only name and search policy."""
     run, out = Path(config["run"]), Path(config["out"])
     state = a.read(run / "state.json")
@@ -154,7 +154,8 @@ def prepare_search_variants(config):
     variants = config["search_variants"]
     if not variants or len(set(variants.values())) != len(variants):
         raise ValueError("Require distinct search policies")
-    engine_updates.require_search_support(engine_updates.active(a, run)["engine_bin"], variants.values())
+    bundle = engine_updates.verify(a, bundle) if bundle is not None else engine_updates.active(a, run)
+    engine_updates.require_search_support(bundle["engine_bin"], variants.values())
     models = []
     for name, policy in variants.items():
         if Path(name).name != name or name in (".", "..", base["id"]) or policy == "baseline":

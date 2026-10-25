@@ -10,6 +10,7 @@
     "NNUE_W512_v3_T": "threat_q",
     "NNUE_W512_v3_Q": "scout_q",
     "NNUE_W512_v3_HL": "history_tactical_lmr",
-    "NNUE_W512_v3_ST": "sacrifice_threat_q"
+    "NNUE_W512_v3_ST": "sacrifice_threat_q",
+    "NNUE_W512_v3_QFIX": "q_fix"
   }
 }

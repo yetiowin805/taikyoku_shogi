@@ -1,6 +1,6 @@
 # W512 v3 search entrants — 25 October 2026
 
-The user requested immediate admission of all eight proposed search variants through the existing tournament scheduler, without a preliminary strength-screening tournament. No strength gain is claimed. All arms use the exact network and material weights of registered `NNUE_W512_v3`; the base checkpoint is not rewritten.
+The user requested immediate admission of all eight proposed search variants, then a ninth QFIX arm through the existing tournament scheduler, without a preliminary strength-screening tournament. No strength gain is claimed. All arms use the exact network and material weights of registered `NNUE_W512_v3`; the base checkpoint is not rewritten.
 
 Source baseline for the implementation: `3a2044085acb4c4c7828b1812b8052fe917b7b04`. Deployment provenance and admission receipts are recorded separately after publication. The current tournament executable predates main's recursive-q correctness fixes, so deployment must preserve that executable's baseline search semantics rather than silently changing all established entrants.
 
@@ -17,14 +17,16 @@ Source baseline for the implementation: `3a2044085acb4c4c7828b1812b8052fe917b7b0
 
 The explicit checkpoint field is `search_defaults.experiment`. Missing means `baseline`; unknown names fail Rust checkpoint validation. Experiments are shared code paths, not copied search implementations. Remove losing policies after adjudication.
 
+- `NNUE_W512_v3_QFIX`: added at the user’s follow-up request. On the pinned live baseline, enable recursive last-royal q evasions before stand pat/TT/q exhaustion, include landing, exact q budget, entry budget and eligibility flags in q TT keys, prevent zero-budget TT reuse and aborted final stores, and restore evasion-parent policy. Other eight arms retain the live legacy q behavior. On current main these fixes already apply, so `q_fix` is an explicit marker with the same q behavior as main’s baseline. Never infer live behavior from the checkpoint name without its recorded engine build.
+
 ## Live admission
 
-Use the existing `deploy/training_admission.py` with `--search-variants admission.json`. This mode derives descriptors from the registered base, verifies the shared NNUE hash, preserves all other weights/settings, and submits all arms in one content-pinned coordinator request. It does not fabricate a completed training status. Existing brackets and running games continue unchanged. Normal scheduling, teacher selection and reversible retirement apply.
+Use the existing `deploy/training_admission.py` with `--search-variants admission.json`. This mode derives descriptors from the registered base, verifies the shared NNUE hash, preserves all other weights/settings, and submits all nine arms in one content-pinned coordinator request. It does not fabricate a completed training status. Existing brackets and running games continue unchanged. Normal scheduling, teacher selection and reversible retirement apply.
 
 The active game engine must advertise every requested policy through `tournament-search-experiments`; an older engine that ignores unknown checkpoint fields is rejected before admission. Both the engine and analyzer validate all frozen descriptors. Retries retain the same durable task ID and verify the coordinator receipt against live entrants. Updated engine tooling also refuses rollback to a binary that cannot run an admitted policy.
 
 ## Validation and evidence
 
-Local `cargo fmt`, all-target/all-feature Clippy with warnings denied, and the full Rust suite passed (458 passed, four ignored). Ruff format/check passed; 97 deployment tests passed. Tests cover checkpoint-policy propagation, unknown-policy rejection, bounded histories, tactical quiet rescue and non-rescue, new royal threats, verified capture entry, scout q budgets, sacrifice PV/non-PV eligibility, null PV guards, and legal root moves for all policies. Existing training admission retry tests remain in place. No Elo or timing improvement is inferred from these tests.
+Local `cargo fmt`, all-target/all-feature Clippy with warnings denied, and the full Rust suite passed (459 passed, four ignored). Ruff format/check passed; 97 deployment tests passed. Tests cover checkpoint-policy propagation, unknown-policy rejection, bounded histories, tactical quiet rescue and non-rescue, new royal threats, verified capture entry, scout q budgets, sacrifice PV/non-PV eligibility, null PV guards, and legal root moves for all policies. Existing training admission retry tests remain in place. No Elo or timing improvement is inferred from these tests.
 
 Mechanism backing: [Stockfish history ordering](https://github.com/official-stockfish/Stockfish/blob/dbe600b7438662e9ade60b31fa0625259dcd0077/src/movepick.cpp), [Stockfish search](https://github.com/official-stockfish/Stockfish/blob/dbe600b7438662e9ade60b31fa0625259dcd0077/src/search.cpp), and the [full local search survey](https://github.com/yetiowin805/taikyoku_shogi/pull/177). These sources motivate experiments; their tuning constants and strength claims are not transferred to this game.

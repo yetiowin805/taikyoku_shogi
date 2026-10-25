@@ -104,6 +104,10 @@ class AdmissionTests(unittest.TestCase):
                 models = admission.prepare_search_variants(config)
                 self.assertEqual(len(models), 2)
                 self.assertEqual(models, admission.prepare_search_variants(config))
+                candidate = dict(engine_bin="candidate")
+                with patch.object(admission.engine_updates, "verify", return_value=candidate) as verify:
+                    self.assertEqual(models, admission.prepare_search_variants(config, bundle=candidate))
+                    verify.assert_called_once_with(a, candidate)
                 for directory in models:
                     actual = a.read(directory / "model.json")
                     self.assertEqual(actual["weights"]["piece"], model["weights"]["piece"])

@@ -1117,11 +1117,13 @@ pub enum SearchExperiment {
     ScoutQ,
     HistoryTacticalLmr,
     SacrificeThreatQ,
+    /// Recursive-q check evasions and context-complete q cache (legacy tourney comparison).
+    QFix,
 }
 
 impl SearchExperiment {
     /// Supported checkpoint policies, also exposed by the engine admission probe.
-    pub const ALL: [Self; 9] = [
+    pub const ALL: [Self; 10] = [
         Self::Baseline,
         Self::History,
         Self::TacticalLmr,
@@ -1131,6 +1133,7 @@ impl SearchExperiment {
         Self::ScoutQ,
         Self::HistoryTacticalLmr,
         Self::SacrificeThreatQ,
+        Self::QFix,
     ];
 }
 
