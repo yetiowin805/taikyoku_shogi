@@ -135,17 +135,59 @@ impl GameRecordV2 {
 
 /// Load either v2 or legacy v1 game JSON.
 pub fn load_game_json(contents: &str) -> Result<GameRecordV2, String> {
-    let value: serde_json::Value =
-        serde_json::from_str(contents).map_err(|e| format!("Failed to parse game JSON: {e}"))?;
-    if value.get("format_version").is_some() {
-        // A present version field commits the document to the versioned
-        // schema. Never reinterpret a malformed start/agent/stats as legacy.
-        return serde_json::from_value(value)
-            .map_err(|e| format!("Failed to parse versioned game JSON: {e}"));
+    if let Some(record) = load_game_json_if_game(contents)? {
+        return Ok(record);
     }
-    let legacy: GameRecord = serde_json::from_value(value)
+    // Preserve the public legacy decoder's diagnostics and sequence support.
+    // Directory featurization instead skips JSON without game-identifying keys.
+    serde_json::from_str(contents)
+        .map(legacy_to_v2)
+        .map_err(|e| format!("Failed to parse legacy game JSON: {e}"))
+}
+
+#[derive(Deserialize)]
+struct GameFields {
+    #[serde(default, deserialize_with = "field_is_present")]
+    format_version: bool,
+    #[serde(default, deserialize_with = "field_is_present")]
+    moves: bool,
+}
+
+fn field_is_present<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<bool, D::Error> {
+    // Presence, including a null value, selects the versioned schema. Ignore
+    // payloads without materializing their strings, objects, or move arrays.
+    serde::de::IgnoredAny::deserialize(deserializer)?;
+    Ok(true)
+}
+
+/// Like `load_game_json`, but skip valid JSON without game-identifying fields.
+/// Featurization uses this so ordinary v2 games are deserialized only once.
+pub(crate) fn load_game_json_if_game(contents: &str) -> Result<Option<GameRecordV2>, String> {
+    if !contents.trim_start().starts_with('{') {
+        serde_json::from_str::<serde::de::IgnoredAny>(contents)
+            .map_err(|e| format!("Failed to parse game JSON: {e}"))?;
+        return Ok(None);
+    }
+    // Ordinary v2 records need no intermediate JSON tree. Keep the error until
+    // the fallback inspects version presence: malformed v2 must never be
+    // reinterpreted as a legacy game, even if the legacy fields are valid.
+    let versioned_error = match serde_json::from_str(contents) {
+        Ok(record) => return Ok(Some(record)),
+        Err(error) => error,
+    };
+    let fields: GameFields =
+        serde_json::from_str(contents).map_err(|e| format!("Failed to parse game JSON: {e}"))?;
+    if fields.format_version {
+        return Err(format!(
+            "Failed to parse versioned game JSON: {versioned_error}"
+        ));
+    }
+    if !fields.moves {
+        return Ok(None);
+    }
+    let legacy: GameRecord = serde_json::from_str(contents)
         .map_err(|e| format!("Failed to parse legacy game JSON: {e}"))?;
-    Ok(legacy_to_v2(legacy))
+    Ok(Some(legacy_to_v2(legacy)))
 }
 
 pub fn legacy_to_v2(legacy: GameRecord) -> GameRecordV2 {
@@ -204,6 +246,50 @@ mod tests {
             "moves": [], "result": "Draw", "timestamp": 1,
             "stats": {"move_count": 0}
         })
+    }
+
+    #[test]
+    fn game_detection_preserves_metadata_and_legacy_behavior() {
+        for metadata in [r#"{"slots":[]}"#, "[]", "null", "42"] {
+            assert!(load_game_json_if_game(metadata).unwrap().is_none());
+            assert!(load_game_json(metadata).is_err());
+        }
+        assert!(load_game_json_if_game("{broken").is_err());
+        assert!(load_game_json_if_game(r#"{"moves":"bad"}"#).is_err());
+        assert!(
+            load_game_json(r#"{"timestamp":1,"moves":[],"moves":[],"result":"Draw"}"#).is_err()
+        );
+        let legacy = r#"{"timestamp":123,"moves":[],"result":"Draw"}"#;
+        let detected = load_game_json_if_game(legacy).unwrap().unwrap();
+        assert_eq!(detected.game_id, "legacy-123");
+        assert_eq!(
+            detected.timestamp,
+            load_game_json(legacy).unwrap().timestamp
+        );
+
+        // A sequence is accepted by the existing legacy deserializer, but is
+        // metadata to the directory featurizer because it has no named fields.
+        assert!(load_game_json_if_game(r#"[123,[],"Draw"]"#)
+            .unwrap()
+            .is_none());
+        assert_eq!(load_game_json(r#"[123,[],"Draw"]"#).unwrap().timestamp, 123);
+    }
+
+    #[test]
+    fn fast_game_detection_preserves_versioned_metadata_and_errors() {
+        let valid = versioned_fixture().to_string();
+        let detected = load_game_json_if_game(&valid).unwrap().unwrap();
+        assert_eq!(detected.game_id, "versioned");
+        assert_eq!(detected.seed, 42);
+        assert!(matches!(detected.start, GameStart::Position { .. }));
+        for version in [serde_json::Value::Null, serde_json::json!(3)] {
+            let mut value = versioned_fixture();
+            value["format_version"] = version;
+            assert!(load_game_json_if_game(&value.to_string()).is_err());
+        }
+        let duplicate = valid.replacen('{', r#"{"format_version":2,"#, 1);
+        assert!(load_game_json(&duplicate).is_err());
+        assert!(load_game_json_if_game(&duplicate).is_err());
     }
 
     #[test]

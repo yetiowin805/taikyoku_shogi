@@ -475,14 +475,12 @@ pub fn featurize_dir(cfg: &FeaturizeConfig) -> Result<usize, String> {
     for path in paths::list_json_files(&games)? {
         let contents =
             fs::read_to_string(&path).map_err(|e| format!("read game {}: {e}", path.display()))?;
-        let value: serde_json::Value = serde_json::from_str(&contents)
-            .map_err(|e| format!("parse game {}: {e}", path.display()))?;
-        if value.get("moves").is_none() && value.get("format_version").is_none() {
+        let Some(record) = super::record::load_game_json_if_game(&contents)
+            .map_err(|e| format!("load game {}: {e}", path.display()))?
+        else {
             skipped += 1;
             continue;
-        }
-        let record = super::record::load_game_json(&contents)
-            .map_err(|e| format!("load game {}: {e}", path.display()))?;
+        };
         let mut components = Path::new(&record.game_id).components();
         if !matches!(components.next(), Some(Component::Normal(_)))
             || components.next().is_some()
