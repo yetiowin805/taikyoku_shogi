@@ -1,0 +1,15 @@
+{
+  "run": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925",
+  "out": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/search-entrants-20261025",
+  "base_entrant": "NNUE_W512_v3",
+  "search_variants": {
+    "NNUE_W512_v3_H": "history",
+    "NNUE_W512_v3_L": "tactical_lmr",
+    "NNUE_W512_v3_N": "guarded_null",
+    "NNUE_W512_v3_S": "sacrifice",
+    "NNUE_W512_v3_T": "threat_q",
+    "NNUE_W512_v3_Q": "scout_q",
+    "NNUE_W512_v3_HL": "history_tactical_lmr",
+    "NNUE_W512_v3_ST": "sacrifice_threat_q"
+  }
+}

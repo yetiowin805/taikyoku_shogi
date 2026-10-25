@@ -76,6 +76,54 @@ class AdmissionTests(unittest.TestCase):
                 self.assertEqual(a.read(control / "config.json")["command"], ["unchanged-engine"])
                 self.assertEqual(a.read(out / "admission/NNUE_test/status.json")["state"], "admitted")
 
+    def test_search_variants_preserve_network_and_weights_without_fake_training(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            run, out = root / "run", root / "out"
+            run.mkdir()
+            source = root / "model.json"
+            blob = root / "network.bin"
+            blob.write_bytes(b"one shared network")
+            model = dict(
+                name="base",
+                search_defaults=dict(depth=2, quiescence_depth=2),
+                weights=dict(piece={"Pawn": 1}, nnue=dict(file=blob.name, sha256=a.file_digest(blob))),
+            )
+            a.atomic(source, model)
+            a.atomic(run / "state.json", dict(entrants=[dict(id="base", model=str(source))]))
+            config = dict(
+                run=str(run),
+                out=str(out),
+                base_entrant="base",
+                search_variants={"base_H": "history", "base_Q": "scout_q"},
+            )
+            with (
+                patch.object(admission.engine_updates, "active", return_value=dict(engine_bin="engine")),
+                patch.object(admission.engine_updates, "require_search_support"),
+            ):
+                models = admission.prepare_search_variants(config)
+                self.assertEqual(len(models), 2)
+                self.assertEqual(models, admission.prepare_search_variants(config))
+                for directory in models:
+                    actual = a.read(directory / "model.json")
+                    self.assertEqual(actual["weights"]["piece"], model["weights"]["piece"])
+                    self.assertEqual(Path(actual["weights"]["nnue"]["file"]), blob)
+                    self.assertEqual(actual["weights"]["nnue"]["sha256"], model["weights"]["nnue"]["sha256"])
+                    self.assertFalse((directory / "status.json").exists())
+                config["search_variants"]["base_H"] = "guarded_null"
+                with self.assertRaisesRegex(ValueError, "definition changed"):
+                    admission.prepare_search_variants(config)
+
+    def test_search_support_cannot_silently_fall_back_to_old_engine(self):
+        with patch.object(admission.engine_updates.subprocess, "run") as probe:
+            probe.return_value.stdout = '["baseline","history"]'
+            admission.engine_updates.require_search_support("engine", ["baseline", "history"])
+            with self.assertRaisesRegex(ValueError, "does not support"):
+                admission.engine_updates.require_search_support("engine", ["scout_q"])
+            probe.return_value.stdout = "usage: old engine"
+            with self.assertRaises(ValueError):
+                admission.engine_updates.require_search_support("old", ["history"])
+
     def test_external_lease_exemption_requires_actual_service_owner(self):
         with tempfile.TemporaryDirectory() as temp:
             control = Path(temp)
