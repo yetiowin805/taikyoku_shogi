@@ -1,0 +1,51 @@
+{
+  "implementation_revision": "fe792ca4d8ad0ff1884771093d1592dfc1862d44",
+  "checks": [
+    {
+      "command": "cargo fmt --check",
+      "result": "passed"
+    },
+    {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "result": "passed"
+    },
+    {
+      "command": "cargo test",
+      "result": "472 library tests passed, 4 ignored; 13 integration tests passed; other binary/doc targets passed"
+    },
+    {
+      "command": "ruff format and ruff check --fix on 131 tracked Python files",
+      "result": "all unchanged; passed"
+    },
+    {
+      "command": "python3 -m unittest discover -s deploy -p 'test_*.py'",
+      "result": "120 passed"
+    },
+    {
+      "command": "python3 -m unittest discover -s benchmarks/randomized_search -p 'test_*.py'",
+      "result": "3 passed"
+    },
+    {
+      "command": "python3 -m unittest discover -s training/tactical_tree -p 'test_*.py'",
+      "result": "22 passed"
+    }
+  ],
+  "ci_at_implementation_revision": {
+    "rust": "passed",
+    "python": "passed",
+    "nnue-python": "passed",
+    "url": "https://github.com/yetiowin805/taikyoku_shogi/actions/runs/40245996224"
+  },
+  "fixed_depth": {
+    "ab_pairs": 360,
+    "aa_pairs": 90,
+    "ab_warmup_pairs": 45,
+    "aa_warmup_pairs": 45,
+    "exact_signatures": true,
+    "all_nnue_enabled": true,
+    "all_completed_without_abort": true,
+    "total_nodes_per_ab_arm": 32568600,
+    "q_nodes_per_ab_arm": 24431680,
+    "nodes_definition": "nodes includes quiescence nodes; q_nodes is a subset, not an additional count"
+  }
+}

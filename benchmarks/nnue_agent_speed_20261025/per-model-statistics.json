@@ -1,0 +1,56 @@
+[
+  {
+    "model": 0,
+    "agent": "NNUE_W512_v4.5",
+    "cases": 15,
+    "pairs": 120,
+    "baseline_cpu_geomean_ms": 182.84584772353867,
+    "candidate_cpu_geomean_ms": 174.445273393109,
+    "ratio": 0.9540565211897442,
+    "cpu_ratio_ci95": [
+      0.9487666577775111,
+      0.95908960438744
+    ],
+    "bootstrap_seed": 20261025,
+    "raw_cpu_totals_s": {
+      "baseline": 57.967669,
+      "candidate": 55.069767
+    }
+  },
+  {
+    "model": 1,
+    "agent": "NNUE_W384_v4.5",
+    "cases": 15,
+    "pairs": 120,
+    "baseline_cpu_geomean_ms": 184.7904321140765,
+    "candidate_cpu_geomean_ms": 176.09339298124496,
+    "ratio": 0.9529356632086741,
+    "cpu_ratio_ci95": [
+      0.9378593128563246,
+      0.9676910104429588
+    ],
+    "bootstrap_seed": 20261026,
+    "raw_cpu_totals_s": {
+      "baseline": 88.157961,
+      "candidate": 83.854448
+    }
+  },
+  {
+    "model": 2,
+    "agent": "NNUE_W512_v5c_stored_best",
+    "cases": 15,
+    "pairs": 120,
+    "baseline_cpu_geomean_ms": 177.62323902399024,
+    "candidate_cpu_geomean_ms": 169.4958596151001,
+    "ratio": 0.954243715779823,
+    "cpu_ratio_ci95": [
+      0.9468620747986877,
+      0.9629189776960985
+    ],
+    "bootstrap_seed": 20261027,
+    "raw_cpu_totals_s": {
+      "baseline": 43.020931,
+      "candidate": 40.757315000000006
+    }
+  }
+]
