@@ -86,6 +86,10 @@ fn main() {
         match args[1].as_str() {
             "tournament-game-protocol" => println!("1"),
             "tournament-game-clock-protocol" => println!("1"),
+            "tournament-search-experiments" => println!(
+                "{}",
+                serde_json::to_string(&taikyoku_shogi::eval::SearchExperiment::ALL).unwrap()
+            ),
             "tournament-game-validate" => {
                 let result = args
                     .get(2)

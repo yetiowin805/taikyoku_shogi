@@ -1,0 +1,599 @@
+{
+  "previous": {
+    "protocol": 1,
+    "revision": "63de99c429402588de6132e4cefec3a972203fdd+clock-c82824e(PR168)",
+    "engine_bin": "/mnt/HC_Volume_107032879/taikyoku/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/engine-4288a6dbfd4495ce9afc47a7b3dc1c755c44f2668d850ab0299563e3c5ccedb1",
+    "engine_sha256": "4288a6dbfd4495ce9afc47a7b3dc1c755c44f2668d850ab0299563e3c5ccedb1",
+    "analyzer_bin": "/mnt/HC_Volume_107032879/taikyoku/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/analyzer-fd289790a11dc25c806bcd17adc850a15b12cf950398cea27e4d4f98c47f6ddf",
+    "analyzer_sha256": "fd289790a11dc25c806bcd17adc850a15b12cf950398cea27e4d4f98c47f6ddf"
+  },
+  "candidate": {
+    "protocol": 1,
+    "revision": "dcb54bd31db8e5b1693ac9e39e4fab76e0421106 (live 63de99c + clock-c82824e; nine opt-in W512 v3 search arms)",
+    "engine_bin": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/engine-7289bec73cc0ddce6a232ccccc2bfbc92014a579794df91f024c0fed0b995532",
+    "engine_sha256": "7289bec73cc0ddce6a232ccccc2bfbc92014a579794df91f024c0fed0b995532",
+    "analyzer_bin": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/analyzer-b22e49027ff00d8f5930e9ca6c0c8c946b4e6ae20cae2c28ea4f5d7ac245a48b",
+    "analyzer_sha256": "b22e49027ff00d8f5930e9ca6c0c8c946b4e6ae20cae2c28ea4f5d7ac245a48b"
+  },
+  "base": {
+    "id": "NNUE_W512_v3",
+    "model": "/opt/nnue-generation3-20260925/results/NNUE_W512_v3/model.json"
+  },
+  "base_sha256": "977b4177d85b73e85b6c4c2b72f1c8d299221058b839993bf705728d567c1475",
+  "game": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/slot4601-NNUE_W512_v3-vs-NNUE_W384_v3-a-white.json",
+  "game_sha256": "7cb7829a790a358c2f8b7770f0446bf96847e0e84c9112c1ed1759e7804bb619",
+  "compatibility": [
+    {
+      "ply": 1,
+      "old": {
+        "command": [
+          "/mnt/HC_Volume_107032879/taikyoku/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/analyzer-fd289790a11dc25c806bcd17adc850a15b12cf950398cea27e4d4f98c47f6ddf",
+          "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/slot4601-NNUE_W512_v3-vs-NNUE_W384_v3-a-white.json",
+          "1",
+          "/opt/nnue-generation3-20260925/results/NNUE_W512_v3/model.json",
+          "3",
+          "30000"
+        ],
+        "wall_seconds": 0.8514313697814941,
+        "rows": [
+          {
+            "best_move": "20,3-6,17",
+            "completed_depth": 1,
+            "elapsed_ms": 40,
+            "nodes": 3372,
+            "score": 855
+          },
+          {
+            "best_move": "20,3-6,17",
+            "completed_depth": 2,
+            "elapsed_ms": 71,
+            "nodes": 7342,
+            "score": 651
+          },
+          {
+            "best_move": "20,3-6,17",
+            "completed_depth": 3,
+            "elapsed_ms": 381,
+            "nodes": 34456,
+            "score": 615
+          }
+        ]
+      },
+      "new": {
+        "command": [
+          "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/analyzer-b22e49027ff00d8f5930e9ca6c0c8c946b4e6ae20cae2c28ea4f5d7ac245a48b",
+          "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/slot4601-NNUE_W512_v3-vs-NNUE_W384_v3-a-white.json",
+          "1",
+          "/opt/nnue-generation3-20260925/results/NNUE_W512_v3/model.json",
+          "3",
+          "30000"
+        ],
+        "wall_seconds": 0.8599636554718018,
+        "rows": [
+          {
+            "best_move": "20,3-6,17",
+            "completed_depth": 1,
+            "elapsed_ms": 43,
+            "nodes": 3372,
+            "score": 855
+          },
+          {
+            "best_move": "20,3-6,17",
+            "completed_depth": 2,
+            "elapsed_ms": 69,
+            "nodes": 7342,
+            "score": 651
+          },
+          {
+            "best_move": "20,3-6,17",
+            "completed_depth": 3,
+            "elapsed_ms": 358,
+            "nodes": 34456,
+            "score": 615
+          }
+        ]
+      },
+      "exact_match": true
+    },
+    {
+      "ply": 80,
+      "old": {
+        "command": [
+          "/mnt/HC_Volume_107032879/taikyoku/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/analyzer-fd289790a11dc25c806bcd17adc850a15b12cf950398cea27e4d4f98c47f6ddf",
+          "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/slot4601-NNUE_W512_v3-vs-NNUE_W384_v3-a-white.json",
+          "80",
+          "/opt/nnue-generation3-20260925/results/NNUE_W512_v3/model.json",
+          "3",
+          "30000"
+        ],
+        "wall_seconds": 1.1587250232696533,
+        "rows": [
+          {
+            "best_move": "30,24-17,24",
+            "completed_depth": 1,
+            "elapsed_ms": 51,
+            "nodes": 2834,
+            "score": 2739
+          },
+          {
+            "best_move": "30,24-17,24",
+            "completed_depth": 2,
+            "elapsed_ms": 161,
+            "nodes": 12633,
+            "score": 2465
+          },
+          {
+            "best_move": "30,24-17,24",
+            "completed_depth": 3,
+            "elapsed_ms": 673,
+            "nodes": 65374,
+            "score": 2566
+          }
+        ]
+      },
+      "new": {
+        "command": [
+          "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/analyzer-b22e49027ff00d8f5930e9ca6c0c8c946b4e6ae20cae2c28ea4f5d7ac245a48b",
+          "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/slot4601-NNUE_W512_v3-vs-NNUE_W384_v3-a-white.json",
+          "80",
+          "/opt/nnue-generation3-20260925/results/NNUE_W512_v3/model.json",
+          "3",
+          "30000"
+        ],
+        "wall_seconds": 1.1551451683044434,
+        "rows": [
+          {
+            "best_move": "30,24-17,24",
+            "completed_depth": 1,
+            "elapsed_ms": 48,
+            "nodes": 2834,
+            "score": 2739
+          },
+          {
+            "best_move": "30,24-17,24",
+            "completed_depth": 2,
+            "elapsed_ms": 149,
+            "nodes": 12633,
+            "score": 2465
+          },
+          {
+            "best_move": "30,24-17,24",
+            "completed_depth": 3,
+            "elapsed_ms": 639,
+            "nodes": 65374,
+            "score": 2566
+          }
+        ]
+      },
+      "exact_match": true
+    },
+    {
+      "ply": 200,
+      "old": {
+        "command": [
+          "/mnt/HC_Volume_107032879/taikyoku/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/analyzer-fd289790a11dc25c806bcd17adc850a15b12cf950398cea27e4d4f98c47f6ddf",
+          "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/slot4601-NNUE_W512_v3-vs-NNUE_W384_v3-a-white.json",
+          "200",
+          "/opt/nnue-generation3-20260925/results/NNUE_W512_v3/model.json",
+          "3",
+          "30000"
+        ],
+        "wall_seconds": 2.993535041809082,
+        "rows": [
+          {
+            "best_move": "31,26-15,10+",
+            "completed_depth": 1,
+            "elapsed_ms": 47,
+            "nodes": 3717,
+            "score": 2671
+          },
+          {
+            "best_move": "31,26-18,13",
+            "completed_depth": 2,
+            "elapsed_ms": 132,
+            "nodes": 16443,
+            "score": 2649
+          },
+          {
+            "best_move": "24,21-28,21",
+            "completed_depth": 3,
+            "elapsed_ms": 2521,
+            "nodes": 274500,
+            "score": 2808
+          }
+        ]
+      },
+      "new": {
+        "command": [
+          "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/analyzer-b22e49027ff00d8f5930e9ca6c0c8c946b4e6ae20cae2c28ea4f5d7ac245a48b",
+          "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/slot4601-NNUE_W512_v3-vs-NNUE_W384_v3-a-white.json",
+          "200",
+          "/opt/nnue-generation3-20260925/results/NNUE_W512_v3/model.json",
+          "3",
+          "30000"
+        ],
+        "wall_seconds": 3.0569911003112793,
+        "rows": [
+          {
+            "best_move": "31,26-15,10+",
+            "completed_depth": 1,
+            "elapsed_ms": 48,
+            "nodes": 3717,
+            "score": 2671
+          },
+          {
+            "best_move": "31,26-18,13",
+            "completed_depth": 2,
+            "elapsed_ms": 129,
+            "nodes": 16443,
+            "score": 2649
+          },
+          {
+            "best_move": "24,21-28,21",
+            "completed_depth": 3,
+            "elapsed_ms": 2529,
+            "nodes": 274500,
+            "score": 2808
+          }
+        ]
+      },
+      "exact_match": true
+    },
+    {
+      "ply": 500,
+      "old": {
+        "command": [
+          "/mnt/HC_Volume_107032879/taikyoku/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/analyzer-fd289790a11dc25c806bcd17adc850a15b12cf950398cea27e4d4f98c47f6ddf",
+          "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/slot4601-NNUE_W512_v3-vs-NNUE_W384_v3-a-white.json",
+          "500",
+          "/opt/nnue-generation3-20260925/results/NNUE_W512_v3/model.json",
+          "3",
+          "30000"
+        ],
+        "wall_seconds": 0.8807163238525391,
+        "rows": [
+          {
+            "best_move": "12,30-13,30",
+            "completed_depth": 1,
+            "elapsed_ms": 35,
+            "nodes": 2430,
+            "score": 5593
+          },
+          {
+            "best_move": "16,34-17,33",
+            "completed_depth": 2,
+            "elapsed_ms": 124,
+            "nodes": 16301,
+            "score": 5090
+          },
+          {
+            "best_move": "15,32-15,11",
+            "completed_depth": 3,
+            "elapsed_ms": 416,
+            "nodes": 53860,
+            "score": 5526
+          }
+        ]
+      },
+      "new": {
+        "command": [
+          "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/analyzer-b22e49027ff00d8f5930e9ca6c0c8c946b4e6ae20cae2c28ea4f5d7ac245a48b",
+          "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/slot4601-NNUE_W512_v3-vs-NNUE_W384_v3-a-white.json",
+          "500",
+          "/opt/nnue-generation3-20260925/results/NNUE_W512_v3/model.json",
+          "3",
+          "30000"
+        ],
+        "wall_seconds": 0.9712464809417725,
+        "rows": [
+          {
+            "best_move": "12,30-13,30",
+            "completed_depth": 1,
+            "elapsed_ms": 38,
+            "nodes": 2430,
+            "score": 5593
+          },
+          {
+            "best_move": "16,34-17,33",
+            "completed_depth": 2,
+            "elapsed_ms": 130,
+            "nodes": 16301,
+            "score": 5090
+          },
+          {
+            "best_move": "15,32-15,11",
+            "completed_depth": 3,
+            "elapsed_ms": 441,
+            "nodes": 53860,
+            "score": 5526
+          }
+        ]
+      },
+      "exact_match": true
+    }
+  ],
+  "variants": [
+    {
+      "entrant": "NNUE_W512_v3_H",
+      "policy": "history",
+      "check": {
+        "command": [
+          "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/analyzer-b22e49027ff00d8f5930e9ca6c0c8c946b4e6ae20cae2c28ea4f5d7ac245a48b",
+          "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/slot4601-NNUE_W512_v3-vs-NNUE_W384_v3-a-white.json",
+          "80",
+          "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/search-entrants-20261025/NNUE_W512_v3_H/model.json",
+          "2",
+          "30000"
+        ],
+        "wall_seconds": 0.6494021415710449,
+        "rows": [
+          {
+            "best_move": "30,24-17,24",
+            "completed_depth": 1,
+            "elapsed_ms": 48,
+            "nodes": 2834,
+            "score": 2739
+          },
+          {
+            "best_move": "30,24-17,24",
+            "completed_depth": 2,
+            "elapsed_ms": 148,
+            "nodes": 12633,
+            "score": 2465
+          }
+        ]
+      }
+    },
+    {
+      "entrant": "NNUE_W512_v3_L",
+      "policy": "tactical_lmr",
+      "check": {
+        "command": [
+          "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/analyzer-b22e49027ff00d8f5930e9ca6c0c8c946b4e6ae20cae2c28ea4f5d7ac245a48b",
+          "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/slot4601-NNUE_W512_v3-vs-NNUE_W384_v3-a-white.json",
+          "80",
+          "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/search-entrants-20261025/NNUE_W512_v3_L/model.json",
+          "2",
+          "30000"
+        ],
+        "wall_seconds": 0.8085041046142578,
+        "rows": [
+          {
+            "best_move": "30,24-17,24",
+            "completed_depth": 1,
+            "elapsed_ms": 51,
+            "nodes": 2834,
+            "score": 2739
+          },
+          {
+            "best_move": "30,24-17,24",
+            "completed_depth": 2,
+            "elapsed_ms": 279,
+            "nodes": 21918,
+            "score": 2465
+          }
+        ]
+      }
+    },
+    {
+      "entrant": "NNUE_W512_v3_N",
+      "policy": "guarded_null",
+      "check": {
+        "command": [
+          "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/analyzer-b22e49027ff00d8f5930e9ca6c0c8c946b4e6ae20cae2c28ea4f5d7ac245a48b",
+          "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/slot4601-NNUE_W512_v3-vs-NNUE_W384_v3-a-white.json",
+          "80",
+          "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/search-entrants-20261025/NNUE_W512_v3_N/model.json",
+          "2",
+          "30000"
+        ],
+        "wall_seconds": 0.680513858795166,
+        "rows": [
+          {
+            "best_move": "30,24-17,24",
+            "completed_depth": 1,
+            "elapsed_ms": 48,
+            "nodes": 2834,
+            "score": 2739
+          },
+          {
+            "best_move": "30,24-17,24",
+            "completed_depth": 2,
+            "elapsed_ms": 147,
+            "nodes": 12633,
+            "score": 2465
+          }
+        ]
+      }
+    },
+    {
+      "entrant": "NNUE_W512_v3_S",
+      "policy": "sacrifice",
+      "check": {
+        "command": [
+          "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/analyzer-b22e49027ff00d8f5930e9ca6c0c8c946b4e6ae20cae2c28ea4f5d7ac245a48b",
+          "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/slot4601-NNUE_W512_v3-vs-NNUE_W384_v3-a-white.json",
+          "80",
+          "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/search-entrants-20261025/NNUE_W512_v3_S/model.json",
+          "2",
+          "30000"
+        ],
+        "wall_seconds": 0.6345162391662598,
+        "rows": [
+          {
+            "best_move": "30,24-17,24",
+            "completed_depth": 1,
+            "elapsed_ms": 51,
+            "nodes": 3176,
+            "score": 2739
+          },
+          {
+            "best_move": "30,24-17,24",
+            "completed_depth": 2,
+            "elapsed_ms": 143,
+            "nodes": 10304,
+            "score": 2465
+          }
+        ]
+      }
+    },
+    {
+      "entrant": "NNUE_W512_v3_T",
+      "policy": "threat_q",
+      "check": {
+        "command": [
+          "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/analyzer-b22e49027ff00d8f5930e9ca6c0c8c946b4e6ae20cae2c28ea4f5d7ac245a48b",
+          "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/slot4601-NNUE_W512_v3-vs-NNUE_W384_v3-a-white.json",
+          "80",
+          "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/search-entrants-20261025/NNUE_W512_v3_T/model.json",
+          "2",
+          "30000"
+        ],
+        "wall_seconds": 0.6542332172393799,
+        "rows": [
+          {
+            "best_move": "30,24-17,24",
+            "completed_depth": 1,
+            "elapsed_ms": 48,
+            "nodes": 2834,
+            "score": 2739
+          },
+          {
+            "best_move": "30,24-17,24",
+            "completed_depth": 2,
+            "elapsed_ms": 140,
+            "nodes": 12633,
+            "score": 2465
+          }
+        ]
+      }
+    },
+    {
+      "entrant": "NNUE_W512_v3_Q",
+      "policy": "scout_q",
+      "check": {
+        "command": [
+          "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/analyzer-b22e49027ff00d8f5930e9ca6c0c8c946b4e6ae20cae2c28ea4f5d7ac245a48b",
+          "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/slot4601-NNUE_W512_v3-vs-NNUE_W384_v3-a-white.json",
+          "80",
+          "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/search-entrants-20261025/NNUE_W512_v3_Q/model.json",
+          "2",
+          "30000"
+        ],
+        "wall_seconds": 1.2277748584747314,
+        "rows": [
+          {
+            "best_move": "7,24-18,13",
+            "completed_depth": 1,
+            "elapsed_ms": 111,
+            "nodes": 22797,
+            "score": 2636
+          },
+          {
+            "best_move": "7,24-18,13",
+            "completed_depth": 2,
+            "elapsed_ms": 731,
+            "nodes": 157376,
+            "score": 2636
+          }
+        ]
+      }
+    },
+    {
+      "entrant": "NNUE_W512_v3_HL",
+      "policy": "history_tactical_lmr",
+      "check": {
+        "command": [
+          "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/analyzer-b22e49027ff00d8f5930e9ca6c0c8c946b4e6ae20cae2c28ea4f5d7ac245a48b",
+          "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/slot4601-NNUE_W512_v3-vs-NNUE_W384_v3-a-white.json",
+          "80",
+          "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/search-entrants-20261025/NNUE_W512_v3_HL/model.json",
+          "2",
+          "30000"
+        ],
+        "wall_seconds": 0.7725703716278076,
+        "rows": [
+          {
+            "best_move": "30,24-17,24",
+            "completed_depth": 1,
+            "elapsed_ms": 45,
+            "nodes": 2834,
+            "score": 2739
+          },
+          {
+            "best_move": "30,24-17,24",
+            "completed_depth": 2,
+            "elapsed_ms": 270,
+            "nodes": 21918,
+            "score": 2465
+          }
+        ]
+      }
+    },
+    {
+      "entrant": "NNUE_W512_v3_ST",
+      "policy": "sacrifice_threat_q",
+      "check": {
+        "command": [
+          "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/analyzer-b22e49027ff00d8f5930e9ca6c0c8c946b4e6ae20cae2c28ea4f5d7ac245a48b",
+          "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/slot4601-NNUE_W512_v3-vs-NNUE_W384_v3-a-white.json",
+          "80",
+          "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/search-entrants-20261025/NNUE_W512_v3_ST/model.json",
+          "2",
+          "30000"
+        ],
+        "wall_seconds": 0.6374363899230957,
+        "rows": [
+          {
+            "best_move": "30,24-17,24",
+            "completed_depth": 1,
+            "elapsed_ms": 53,
+            "nodes": 3176,
+            "score": 2739
+          },
+          {
+            "best_move": "30,24-17,24",
+            "completed_depth": 2,
+            "elapsed_ms": 147,
+            "nodes": 10304,
+            "score": 2465
+          }
+        ]
+      }
+    },
+    {
+      "entrant": "NNUE_W512_v3_QFIX",
+      "policy": "q_fix",
+      "check": {
+        "command": [
+          "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/analyzer-b22e49027ff00d8f5930e9ca6c0c8c946b4e6ae20cae2c28ea4f5d7ac245a48b",
+          "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/slot4601-NNUE_W512_v3-vs-NNUE_W384_v3-a-white.json",
+          "80",
+          "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/search-entrants-20261025/NNUE_W512_v3_QFIX/model.json",
+          "2",
+          "30000"
+        ],
+        "wall_seconds": 0.6696054935455322,
+        "rows": [
+          {
+            "best_move": "30,24-17,24",
+            "completed_depth": 1,
+            "elapsed_ms": 50,
+            "nodes": 2838,
+            "score": 2739
+          },
+          {
+            "best_move": "30,24-17,24",
+            "completed_depth": 2,
+            "elapsed_ms": 149,
+            "nodes": 12488,
+            "score": 2239
+          }
+        ]
+      }
+    }
+  ],
+  "started": 1792961989.2200322,
+  "passed": true,
+  "finished": 1792962007.8881972
+}

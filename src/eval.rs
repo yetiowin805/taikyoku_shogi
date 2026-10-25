@@ -1101,6 +1101,41 @@ pub enum LastRoyalMode {
     MateProbe,
 }
 
+/// October 2026 W512-v3 search tournament. Remove losing arms after adjudication.
+/// Named policies keep the six component experiments and two combinations explicit.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SearchExperiment {
+    #[default]
+    Baseline,
+    History,
+    TacticalLmr,
+    GuardedNull,
+    Sacrifice,
+    ThreatQ,
+    ScoutQ,
+    HistoryTacticalLmr,
+    SacrificeThreatQ,
+    /// Recursive-q check evasions and context-complete q cache (legacy tourney comparison).
+    QFix,
+}
+
+impl SearchExperiment {
+    /// Supported checkpoint policies, also exposed by the engine admission probe.
+    pub const ALL: [Self; 10] = [
+        Self::Baseline,
+        Self::History,
+        Self::TacticalLmr,
+        Self::GuardedNull,
+        Self::Sacrifice,
+        Self::ThreatQ,
+        Self::ScoutQ,
+        Self::HistoryTacticalLmr,
+        Self::SacrificeThreatQ,
+        Self::QFix,
+    ];
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchDefaults {
     pub depth: u32,
@@ -1136,6 +1171,9 @@ pub struct SearchDefaults {
     /// Missing → false.
     #[serde(default)]
     pub q_own_large_only: bool,
+    /// October 2026 W512-v3 search experiment; absent means unchanged production.
+    #[serde(default)]
+    pub experiment: SearchExperiment,
 }
 
 fn default_quiescence_depth() -> u32 {
@@ -1160,6 +1198,7 @@ impl Default for SearchDefaults {
             q_open_any_capture: false,
             q_recapture_only: false,
             q_own_large_only: true,
+            experiment: SearchExperiment::Baseline,
         }
     }
 }

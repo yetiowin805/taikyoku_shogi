@@ -1,0 +1,15 @@
+   Compiling taikyoku_shogi v0.1.0 (/home/frank/taikyoku_shogi/.worktrees/search-entrants-live)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.04s
+     Running tests/rolling_game_process.rs (/tmp/search-entrants-live-test-target/debug/deps/rolling_game_process-08e0aaba0edba753)
+
+running 5 tests
+test stop_kills_child_and_crash_cannot_reuse_stale_result ... ok
+test coordinator_resume_keeps_completed_games_and_ratings ... ok
+test update_and_rollback_only_affect_next_game_and_preserve_frozen_agents ... ok
+ab diag: root=87 scored=87 fh=1% near20=100% spread(max-med)=4 qnodes=0 quniq=0 qTThit=0%/0/0 sib=0/0 abort=false
+ab diag: root=6 scored=6 fh=20% near20=100% spread(max-med)=1 qnodes=0 quniq=0 qTThit=0%/0/0 sib=0/0 abort=false
+test real_game_child_matches_in_process_and_records_build ... ok
+test fischer_rejects_old_binary_and_preserves_real_worker_clocks ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.44s
+

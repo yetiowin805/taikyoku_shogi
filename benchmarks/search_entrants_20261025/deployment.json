@@ -1,0 +1,107 @@
+{
+  "active": {
+    "protocol": 1,
+    "revision": "dcb54bd31db8e5b1693ac9e39e4fab76e0421106 (live 63de99c + clock-c82824e; nine opt-in W512 v3 search arms)",
+    "engine_bin": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/engine-7289bec73cc0ddce6a232ccccc2bfbc92014a579794df91f024c0fed0b995532",
+    "engine_sha256": "7289bec73cc0ddce6a232ccccc2bfbc92014a579794df91f024c0fed0b995532",
+    "analyzer_bin": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/analyzer-b22e49027ff00d8f5930e9ca6c0c8c946b4e6ae20cae2c28ea4f5d7ac245a48b",
+    "analyzer_sha256": "b22e49027ff00d8f5930e9ca6c0c8c946b4e6ae20cae2c28ea4f5d7ac245a48b"
+  },
+  "entrants": [
+    {
+      "id": "NNUE_W512_v3_H",
+      "model": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/admitted-models/NNUE_W512_v3_H/model.json"
+    },
+    {
+      "id": "NNUE_W512_v3_L",
+      "model": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/admitted-models/NNUE_W512_v3_L/model.json"
+    },
+    {
+      "id": "NNUE_W512_v3_N",
+      "model": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/admitted-models/NNUE_W512_v3_N/model.json"
+    },
+    {
+      "id": "NNUE_W512_v3_S",
+      "model": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/admitted-models/NNUE_W512_v3_S/model.json"
+    },
+    {
+      "id": "NNUE_W512_v3_T",
+      "model": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/admitted-models/NNUE_W512_v3_T/model.json"
+    },
+    {
+      "id": "NNUE_W512_v3_Q",
+      "model": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/admitted-models/NNUE_W512_v3_Q/model.json"
+    },
+    {
+      "id": "NNUE_W512_v3_HL",
+      "model": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/admitted-models/NNUE_W512_v3_HL/model.json"
+    },
+    {
+      "id": "NNUE_W512_v3_ST",
+      "model": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/admitted-models/NNUE_W512_v3_ST/model.json"
+    },
+    {
+      "id": "NNUE_W512_v3_QFIX",
+      "model": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/admitted-models/NNUE_W512_v3_QFIX/model.json"
+    }
+  ],
+  "retired": [
+    "AVG_P120_SEED_C2R",
+    "BASE_C2S2_A0_L0",
+    "BASE_C2S2_A0_Ldefense",
+    "BASE_C2S2_A160_Ldefense",
+    "BASE_C2S2_A160_Lflight",
+    "BASE_C2S2_A160_Lmate",
+    "BASE_C2S2_A40_L0",
+    "BASE_C2S2_A40_Ldefense",
+    "BASE_C2S2_A40_Lmate",
+    "BASE_C2S2_A80_L0",
+    "BASE_C2S2_A80_Ldefense",
+    "BASE_C2S2_A80_Lflight",
+    "BASE_C2S2_A80_Lmate",
+    "BASE_C2S2_AB80_Ldefense",
+    "BASE_C2S2_AB80_Lflight",
+    "BASE_C2S2_AB80_Lmate",
+    "C2K100A1D50R",
+    "C2K50A1",
+    "NNUE_W1024_v2",
+    "NNUE_W1536_v2",
+    "NNUE_W1536_v4.5",
+    "NNUE_W2048_v2",
+    "NNUE_W384_v5a",
+    "NNUE_W512_v2",
+    "NNUE_W512_v5c",
+    "NNUE_W768_v2",
+    "SEEDS2",
+    "T150_P120_T12_C2R"
+  ],
+  "admission": {
+    "state": "admitted",
+    "task_id": "01792962264414409978-admit-search-variants",
+    "receipt": {
+      "sha256": "018a213ab630907b36a756368171724ab380e992d8a4e143dbe442121d236286",
+      "status": "applied",
+      "error": null
+    },
+    "updated": 1792962267.9620194
+  },
+  "previous_engine": {
+    "protocol": 1,
+    "revision": "63de99c429402588de6132e4cefec3a972203fdd+clock-c82824e(PR168)",
+    "engine_bin": "/mnt/HC_Volume_107032879/taikyoku/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/engine-4288a6dbfd4495ce9afc47a7b3dc1c755c44f2668d850ab0299563e3c5ccedb1",
+    "engine_sha256": "4288a6dbfd4495ce9afc47a7b3dc1c755c44f2668d850ab0299563e3c5ccedb1",
+    "analyzer_bin": "/mnt/HC_Volume_107032879/taikyoku/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/analyzer-fd289790a11dc25c806bcd17adc850a15b12cf950398cea27e4d4f98c47f6ddf",
+    "analyzer_sha256": "fd289790a11dc25c806bcd17adc850a15b12cf950398cea27e4d4f98c47f6ddf"
+  },
+  "verified": 1792962268.0015612,
+  "running_slots": [
+    4585,
+    4586,
+    4588,
+    4589,
+    4603,
+    4604,
+    4606,
+    4607
+  ]
+}
