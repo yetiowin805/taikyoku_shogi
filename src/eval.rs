@@ -9,7 +9,6 @@ use crate::movement::{BlockingMode, MovementCapability, MovementConfig, Movement
 use crate::piece::{Color, Piece, PieceType};
 use crate::position::Position;
 use serde::{Deserialize, Serialize};
-use std::cell::Cell;
 use std::collections::HashMap;
 use std::fs;
 use std::hash::{Hash, Hasher};
@@ -1631,42 +1630,6 @@ fn chrono_like_now() -> String {
     format!("unix:{secs}")
 }
 
-thread_local! {
-    static SEARCH_WEIGHTS: Cell<*const EvalWeights> = const { Cell::new(std::ptr::null()) };
-}
-
-/// Restores the previous search-weight bind when dropped.
-pub struct SearchWeightsBind {
-    prev: *const EvalWeights,
-}
-
-impl Drop for SearchWeightsBind {
-    fn drop(&mut self) {
-        SEARCH_WEIGHTS.with(|c| c.set(self.prev));
-    }
-}
-
-/// Bind `weights` for search make/unmake incremental eval (TLS).
-pub fn bind_search_weights(weights: &EvalWeights) -> SearchWeightsBind {
-    SEARCH_WEIGHTS.with(|c| {
-        let prev = c.get();
-        c.set(weights as *const EvalWeights);
-        SearchWeightsBind { prev }
-    })
-}
-
-fn current_search_weights<'a>() -> Option<&'a EvalWeights> {
-    SEARCH_WEIGHTS.with(|c| {
-        let p = c.get();
-        if p.is_null() {
-            None
-        } else {
-            // Bound by [`bind_search_weights`]; only used inside that scope.
-            Some(unsafe { &*p })
-        }
-    })
-}
-
 fn color_idx(color: Color) -> usize {
     match color {
         Color::Black => 0,
@@ -1732,16 +1695,14 @@ impl EvalInc {
     }
 }
 
-/// Apply make-move deltas using the TLS search weights. Returns false if unbound.
+/// Apply make-move deltas using the explicitly borrowed search weights.
 pub(crate) fn apply_search_make_eval_inc(
     inc: &mut EvalInc,
+    weights: &EvalWeights,
     original_mover: &Piece,
     removed: &[(crate::position::Position, Piece)],
     final_piece: Option<&Piece>,
-) -> bool {
-    let Some(weights) = current_search_weights() else {
-        return false;
-    };
+) {
     inc.sub(original_mover, weights);
     for (_pos, piece) in removed {
         inc.sub(piece, weights);
@@ -1749,7 +1710,6 @@ pub(crate) fn apply_search_make_eval_inc(
     if let Some(piece) = final_piece {
         inc.add(piece, weights);
     }
-    true
 }
 
 /// Evaluate `state` from the side-to-move's perspective (positive = good for STM).
@@ -3156,6 +3116,30 @@ mod tests {
     }
 
     #[test]
+    fn search_move_does_not_retain_borrowed_weights() {
+        let mut state = GameState::new();
+        state.setup_initial_position();
+        let mv = state.generate_legal_moves()[0].clone();
+        let undo = {
+            let weights = EvalWeights::seed();
+            state.ensure_eval_inc(&weights);
+            let undo = state
+                .make_move_for_search_with_weights(mv.clone(), &weights)
+                .expect("legal move");
+            assert_inc_matches_full(&state, &weights, 1);
+            undo
+        };
+        // The evaluator is gone. Undo and a subsequent unweighted move must
+        // neither access it nor leave a stale child accumulator behind.
+        state.unmake_move_for_search(undo);
+        let before = state.eval_inc().cloned();
+        let undo = state.make_move_for_search(mv).expect("legal move");
+        assert!(state.eval_inc().is_none());
+        state.unmake_move_for_search(undo);
+        assert_eq!(state.eval_inc(), before.as_ref());
+    }
+
+    #[test]
     fn incremental_eval_matches_full_opening_and_pawn_pushes() {
         let weights = EvalWeights::seed();
         let mut state = GameState::new();
@@ -3163,7 +3147,6 @@ mod tests {
         state.ensure_eval_inc(&weights);
         assert_inc_matches_full(&state, &weights, 0);
 
-        let _bind = bind_search_weights(&weights);
         for file in [4u8, 8, 12, 16, 20, 24, 28] {
             for &(from_rank, to_rank, color) in
                 &[(10u8, 11u8, Color::Black), (25u8, 24u8, Color::White)]
@@ -3178,14 +3161,19 @@ mod tests {
                 if state.get_board().get_piece(to).is_some() {
                     continue;
                 }
-                let Some(undo) = state.make_move_for_search(crate::game_state::Move::new(from, to))
-                else {
+                let Some(undo) = state.make_move_for_search_with_weights(
+                    crate::game_state::Move::new(from, to),
+                    &weights,
+                ) else {
                     continue;
                 };
                 assert_inc_matches_full(&state, &weights, 1);
                 state.unmake_move_for_search(undo);
                 assert_inc_matches_full(&state, &weights, 0);
-                let _ = state.make_move_for_search(crate::game_state::Move::new(from, to));
+                let _ = state.make_move_for_search_with_weights(
+                    crate::game_state::Move::new(from, to),
+                    &weights,
+                );
             }
         }
         state.set_current_turn(Color::Black);
@@ -3203,11 +3191,10 @@ mod tests {
         state.ensure_eval_inc(&weights);
         assert_inc_matches_full(&state, &weights, 0);
 
-        let _bind = bind_search_weights(&weights);
         let from = Position::new(4, 10).unwrap();
         let to = Position::new(4, 11).unwrap();
         let undo = state
-            .make_move_for_search(crate::game_state::Move::new(from, to))
+            .make_move_for_search_with_weights(crate::game_state::Move::new(from, to), &weights)
             .expect("pawn push");
         assert_inc_matches_full(&state, &weights, 1);
         state.unmake_move_for_search(undo);

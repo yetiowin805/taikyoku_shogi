@@ -3,7 +3,7 @@
 //! Pipeline, PathAware q, and what each prune can miss: `src/README.md`.
 
 use crate::eval::{
-    bind_search_weights, evaluate_with_ply, is_big_piece, is_range_two_mover, material_piece_value,
+    evaluate_with_ply, is_big_piece, is_range_two_mover, material_piece_value,
     promotes_into_big_piece, seed_loud_capture_floor, EvalWeights,
 };
 use crate::game_state::{GameState, LegalMoveGen, Move};
@@ -2252,7 +2252,6 @@ pub fn search_with_progress(
     } else {
         weights
     };
-    let _wbind = bind_search_weights(weights);
     gate_memo_new_search();
 
     let clock_started = Instant::now();
@@ -2519,7 +2518,7 @@ pub fn search_with_progress(
                     None
                 };
 
-                let Some(undo) = pos.make_move_for_search(mv.clone()) else {
+                let Some(undo) = pos.make_move_for_search_with_weights(mv.clone(), weights) else {
                     continue;
                 };
                 ctx.last_ab_capture_enemy = move_loudness(state, weights, mv, is_capture);
@@ -2832,7 +2831,6 @@ pub fn probe_quiescence(
     mode: QPruneMode,
     max_time_ms: Option<u64>,
 ) -> SearchResult {
-    let _wbind = bind_search_weights(weights);
     let root_ply = state.get_move_history().len();
     // Bind one root accumulator and reuse it for both the reported static
     // score and the search. Evaluating the immutable input first would build
@@ -2988,7 +2986,6 @@ fn with_quiesce_test_context<R>(
     prev_to: Option<Position>,
     run: impl FnOnce(&mut GameState, &mut SearchContext) -> R,
 ) -> R {
-    let _wbind = bind_search_weights(weights);
     let root_ply = state.get_move_history().len();
     let now = Instant::now();
     let mut ctx = SearchContext {
@@ -3092,7 +3089,6 @@ fn probe_quiet_parent_leaf_stats(
     qdepth: u32,
     hang: QHangOpts,
 ) -> (i32, u64, u64) {
-    let _wbind = bind_search_weights(weights);
     let root_ply = state.get_move_history().len();
     let now = Instant::now();
     let mut ctx = SearchContext {
@@ -3195,7 +3191,6 @@ fn probe_capture_parent_leaf_or_quiesce_rs(
     q_recapture_only: bool,
     q_own_large_only: bool,
 ) -> (i32, u64) {
-    let _wbind = bind_search_weights(weights);
     let root_ply = state.get_move_history().len();
     let now = Instant::now();
     let mut ctx = SearchContext {
@@ -3343,7 +3338,8 @@ fn build_trace_tree(
     if depth > 1 {
         if let Some(best_node) = children.iter_mut().find(|c| c.best) {
             let mut child = state.clone();
-            if let Some(undo) = child.make_move_for_search(best_move.clone()) {
+            if let Some(undo) = child.make_move_for_search_with_weights(best_move.clone(), weights)
+            {
                 ctx.last_ab_capture_enemy = move_loudness(
                     state,
                     weights,
@@ -3671,7 +3667,7 @@ fn search_move_list(
 
         let capture_enemy = move_loudness(state, weights, mv, is_capture);
         let mover_large = mover_is_large(state, mv);
-        let Some(undo) = state.make_move_for_search(mv.clone()) else {
+        let Some(undo) = state.make_move_for_search_with_weights(mv.clone(), weights) else {
             continue;
         };
         ctx.last_ab_capture_enemy = capture_enemy;
@@ -4415,7 +4411,7 @@ fn quiesce_impl(
             continue;
         }
 
-        let Some(undo) = state.make_move_for_search(mv) else {
+        let Some(undo) = state.make_move_for_search_with_weights(mv, weights) else {
             continue;
         };
 
@@ -4599,7 +4595,7 @@ fn alphabeta_record(
         let capture_enemy = move_loudness(state, weights, &mv, is_capture);
         let is_wipe = quiesce_move_looks_path_or_multileg(state, &mv);
         let mover_large = mover_is_large(state, &mv);
-        let Some(undo) = state.make_move_for_search(mv.clone()) else {
+        let Some(undo) = state.make_move_for_search_with_weights(mv.clone(), weights) else {
             continue;
         };
         ctx.last_ab_capture_enemy = capture_enemy;
@@ -8229,7 +8225,6 @@ mod tests {
         let (mut initial, mut weights, _) = last_royal_check_hanging_dragon();
         weights.nnue_runtime = Some(crate::nnue::tests::net(32, "royal-probe"));
         initial.ensure_eval_inc(&weights);
-        let _binding = crate::eval::bind_search_weights(&weights);
         let mut moves = initial.generate_legal_moves();
         // Also exercise the failed-make path, which must restore the accumulator.
         moves.push(Move::new(
@@ -8244,7 +8239,9 @@ mod tests {
                 [Color::Black, Color::White].map(|c| fast.nnue.as_ref().unwrap().residual(c));
             let expected = if capture_takes_last_enemy_royal(&reference, &mv) {
                 true
-            } else if let Some(undo) = reference.make_move_for_search(mv.clone()) {
+            } else if let Some(undo) =
+                reference.make_move_for_search_with_weights(mv.clone(), &weights)
+            {
                 let resolved = color_last_royal_resolved(&reference, us);
                 reference.unmake_move_for_search(undo);
                 resolved

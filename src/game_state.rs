@@ -1654,7 +1654,27 @@ impl GameState {
     /// promotions, and turn flip match `make_move`.
     ///
     /// Returns a [`SearchUndo`] token for [`unmake_move_for_search`].
+    /// Invalidates material/PST evaluation for the child position; use
+    /// [`Self::make_move_for_search_with_weights`] to maintain it incrementally.
     pub fn make_move_for_search(&mut self, mv: Move) -> Option<SearchUndo> {
+        self.make_move_for_search_impl(mv, None)
+    }
+
+    /// Like [`Self::make_move_for_search`], maintaining incremental evaluation
+    /// with weights borrowed only for this move. No ambient binding is retained.
+    pub fn make_move_for_search_with_weights(
+        &mut self,
+        mv: Move,
+        weights: &crate::eval::EvalWeights,
+    ) -> Option<SearchUndo> {
+        self.make_move_for_search_impl(mv, Some(weights))
+    }
+
+    fn make_move_for_search_impl(
+        &mut self,
+        mv: Move,
+        weights: Option<&crate::eval::EvalWeights>,
+    ) -> Option<SearchUndo> {
         #[cfg(feature = "search-profile")]
         let _make = crate::profile_timers::make_scope();
         let prev_hash = self.hash;
@@ -1686,16 +1706,17 @@ impl GameState {
         self.hash = h;
         self.push_repetition_key();
 
-        if let Some(inc) = self.eval_inc.as_mut() {
+        if let (Some(inc), Some(weights)) = (self.eval_inc.as_mut(), weights) {
             let final_piece = self.board.get_piece(final_to);
-            if !crate::eval::apply_search_make_eval_inc(
+            crate::eval::apply_search_make_eval_inc(
                 inc,
+                weights,
                 &original_mover,
                 &removed,
                 final_piece.as_ref(),
-            ) {
-                self.eval_inc = None;
-            }
+            );
+        } else {
+            self.eval_inc = None;
         }
 
         let nnue_snapshot = if let Some(acc) = self.nnue.as_mut() {
