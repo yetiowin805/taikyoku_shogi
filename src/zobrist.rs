@@ -26,7 +26,11 @@ pub fn piece_key(piece: &Piece) -> u64 {
     let id = (piece.piece_type as u64)
         | ((piece.color as u64) << 16)
         | ((piece.is_promoted as u64) << 17)
-        | (sq << 18);
+        | (sq << 18)
+        // Promotion origin can change movement even when the current type and
+        // promoted flag match (ReverseChariot and SilverRabbit become Whales).
+        // Zero denotes no origin; all packed fields occupy disjoint bits.
+        | (piece.base_piece_type.map_or(0, |base| base as u64 + 1) << 40);
     splitmix64(id ^ PIECE_SEED)
 }
 
@@ -92,6 +96,37 @@ mod tests {
         state.unmake_move_for_search(undo);
         assert_eq!(state.hash(), before);
         assert_eq!(state.hash(), compute(&state));
+    }
+
+    #[test]
+    fn promoted_whale_moves_preserve_canonical_hash_and_repetition() {
+        for base in [PieceType::ReverseChariot, PieceType::SilverRabbit] {
+            for color in [Color::Black, Color::White] {
+                let mut state = GameState::new();
+                let from = Position::new(12, 12).unwrap();
+                let mut whale = Piece::new(base, color, from);
+                whale.promote();
+                state.place_piece(whale);
+                state.set_current_turn(color);
+                state.reset_rep_history();
+                let before = state.hash();
+                let before_rep = state.repetition_key();
+                let to = Position::new(12, if color == Color::Black { 10 } else { 14 }).unwrap();
+                let mv = state
+                    .generate_legal_moves()
+                    .into_iter()
+                    .find(|mv| mv.from == from && mv.to == to)
+                    .expect("backward Whale move");
+                let undo = state.make_move_for_search(mv).unwrap();
+                assert_eq!(state.hash(), compute(&state));
+                assert_ne!(state.hash(), before);
+                state.unmake_move_for_search(undo);
+                assert_eq!(state.hash(), before);
+                assert_eq!(state.hash(), compute(&state));
+                assert_eq!(state.repetition_key(), before_rep);
+                assert_eq!(state.repetition_count(), 1);
+            }
+        }
     }
 
     #[test]
