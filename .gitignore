@@ -59,6 +59,8 @@ testgame.txt
 !**/README.md
 !deploy/README.md
 !AGENTS.md
+!CLAUDE.md
+!.github/pull_request_template.md
 !IDEAS_TO_TRY.md
 !FUTURE_NOTES.md
 
