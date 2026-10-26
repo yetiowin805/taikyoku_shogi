@@ -2953,6 +2953,88 @@ mod tests {
     }
 
     #[test]
+    fn royal_promotion_make_unmake_preserves_indices_and_clones() {
+        fn check_royals(board: &Board, color: Color, expected: &[Position]) {
+            let mut actual = board.royal_squares(color).to_vec();
+            actual.sort_unstable();
+            let mut expected = expected.to_vec();
+            expected.sort_unstable();
+            assert_eq!(actual, expected);
+            assert_eq!(board.royal_count(color) as usize, expected.len());
+            assert_eq!(
+                board.single_royal(color),
+                (expected.len() == 1).then(|| expected[0]),
+            );
+        }
+
+        for color in [Color::Black, Color::White] {
+            for kind in [PieceType::DrunkenElephant, PieceType::CrownPrince] {
+                for spare_royal in [false, true] {
+                    let (from_rank, to_rank) = match color {
+                        Color::Black => (24, 25),
+                        Color::White => (11, 10),
+                    };
+                    let from = Position::new(12, from_rank).unwrap();
+                    let to = Position::new(12, to_rank).unwrap();
+                    let spare = Position::new(4, 4).unwrap();
+                    let enemy = Position::new(35, 35).unwrap();
+                    let mover = Piece::new(kind, color, from);
+                    let mut state = GameState::new();
+                    state.place_piece(mover);
+                    if spare_royal {
+                        state.place_piece(Piece::new(PieceType::King, color, spare));
+                    }
+                    state.place_piece(Piece::new(PieceType::King, color.opposite(), enemy));
+                    state.set_current_turn(color);
+                    state.reset_rep_history();
+                    let before_hash = state.hash();
+                    let before_history = state.rep_history.clone();
+                    let mut before = Vec::new();
+                    if kind.is_royal() {
+                        before.push(from);
+                    }
+                    if spare_royal {
+                        before.push(spare);
+                    }
+                    check_royals(&state.board, color, &before);
+                    let original = state.clone();
+                    let mv = Move::new_with_promotion(from, to, true);
+                    assert!(state.generate_legal_moves().contains(&mv));
+                    let undo = state.make_move_for_search(mv).expect("legal promotion");
+                    let promoted = state.board.get_piece(to).unwrap();
+                    assert_eq!(promoted.piece_type, kind.promotes_to().unwrap());
+                    assert!(promoted.is_promoted);
+                    assert_eq!(promoted.base_piece_type, Some(kind));
+                    let mut after = vec![to];
+                    if spare_royal {
+                        after.push(spare);
+                    }
+                    check_royals(&state.board, color, &after);
+                    check_royals(&state.board, color.opposite(), &[enemy]);
+                    check_royals(&original.board, color, &before);
+
+                    let mut copied_child = state.clone();
+                    copied_child.unmake_move_for_search(undo.clone());
+                    check_royals(&copied_child.board, color, &before);
+                    assert_eq!(copied_child.board.get_piece(from), Some(mover));
+                    assert_eq!(copied_child.hash(), before_hash);
+                    assert_eq!(copied_child.rep_history, before_history);
+                    check_royals(&state.board, color, &after);
+
+                    state.unmake_move_for_search(undo);
+                    check_royals(&state.board, color, &before);
+                    check_royals(&state.board, color.opposite(), &[enemy]);
+                    assert_eq!(state.board.get_piece(from), Some(mover));
+                    assert!(state.board.is_empty(to));
+                    assert_eq!(state.get_current_turn(), color);
+                    assert_eq!(state.hash(), before_hash);
+                    assert_eq!(state.rep_history, before_history);
+                }
+            }
+        }
+    }
+
+    #[test]
     fn make_unmake_restores_rep_history() {
         let mut state = GameState::new();
         state.setup_initial_position();

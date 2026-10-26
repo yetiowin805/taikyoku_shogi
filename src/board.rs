@@ -11,6 +11,7 @@ pub struct Board {
     occupied: [[u64; 21]; 2], // occupied squares by color
     global_attackers: [[u64; 21]; 2], // movers that need unaligned attack probes
     royal_count: [u16; 2],   // kings and crown princes by color
+    royal_squares: [Vec<Position>; 2], // sparse index for royal-only queries
     single_royal: [Option<Position>; 2], // royal square when count is exactly one
     squares: Vec<Option<Piece>>, // 36 * 36 = 1296 squares
     black_pieces: Vec<Piece>, // Fast iteration over black pieces
@@ -30,6 +31,7 @@ impl Board {
             occupied: [[0; 21]; 2],
             global_attackers: [[0; 21]; 2],
             royal_count: [0; 2],
+            royal_squares: [Vec::new(), Vec::new()],
             single_royal: [None; 2],
             squares: vec![None; 1296],
             black_pieces: Vec::new(),
@@ -62,6 +64,10 @@ impl Board {
         self.royal_count[(color == Color::White) as usize]
     }
 
+    pub(crate) fn royal_squares(&self, color: Color) -> &[Position] {
+        &self.royal_squares[(color == Color::White) as usize]
+    }
+
     pub(crate) fn single_royal(&self, color: Color) -> Option<Position> {
         self.single_royal[(color == Color::White) as usize]
     }
@@ -89,6 +95,7 @@ impl Board {
         if piece.piece_type.is_royal() {
             let color = (piece.color == Color::White) as usize;
             self.royal_count[color] += 1;
+            self.royal_squares[color].push(piece.position);
             self.single_royal[color] = if self.royal_count[color] == 1 {
                 Some(piece.position)
             } else {
@@ -120,10 +127,14 @@ impl Board {
         if piece.piece_type.is_royal() {
             let color = (piece.color == Color::White) as usize;
             self.royal_count[color] -= 1;
+            let royals = &mut self.royal_squares[color];
+            let royal = royals
+                .iter()
+                .position(|&position| position == piece.position)
+                .expect("royal square index follows board contents");
+            royals.swap_remove(royal);
             self.single_royal[color] = if self.royal_count[color] == 1 {
-                list.iter()
-                    .find(|p| p.piece_type.is_royal())
-                    .map(|p| p.position)
+                royals.first().copied()
             } else {
                 None
             };
@@ -192,10 +203,16 @@ impl Board {
         };
         piece.position = to;
         list[index] = piece;
-        if piece.piece_type.is_royal()
-            && self.royal_count[(piece.color == Color::White) as usize] == 1
-        {
-            self.single_royal[(piece.color == Color::White) as usize] = Some(to);
+        if piece.piece_type.is_royal() {
+            let color = (piece.color == Color::White) as usize;
+            let royal = self.royal_squares[color]
+                .iter_mut()
+                .find(|position| **position == from)
+                .expect("royal square index follows board contents");
+            *royal = to;
+            if self.royal_count[color] == 1 {
+                self.single_royal[color] = Some(to);
+            }
         }
         self.squares[from.to_index()] = None;
         self.squares[to.to_index()] = Some(piece);
@@ -268,6 +285,7 @@ impl Clone for Board {
             occupied: self.occupied,
             global_attackers: self.global_attackers,
             royal_count: self.royal_count,
+            royal_squares: self.royal_squares.clone(),
             single_royal: self.single_royal,
             squares: self.squares.clone(),
             black_pieces: self.black_pieces.clone(),
@@ -1188,6 +1206,11 @@ mod dense_list_tests {
                 .iter()
                 .filter(|p| p.piece_type.is_royal())
                 .collect();
+            let mut indexed = b.royal_squares(color).to_vec();
+            indexed.sort_unstable();
+            let mut expected: Vec<_> = royals.iter().map(|piece| piece.position).collect();
+            expected.sort_unstable();
+            assert_eq!(indexed, expected);
             assert_eq!(
                 b.single_royal(color),
                 if royals.len() == 1 {
@@ -1286,6 +1309,52 @@ mod dense_list_tests {
         }
         check(&b);
     }
+    #[test]
+    fn royal_indices_survive_friendly_replacement_and_independent_clones() {
+        for color in [Color::Black, Color::White] {
+            let from = Position::new(8, 8).unwrap();
+            let to = Position::new(9, 9).unwrap();
+            let king = Piece::new(PieceType::King, color, from);
+            let prince = Piece::new(PieceType::CrownPrince, color, to);
+            let mut board = Board::new();
+            board.place_piece(king);
+            board.place_piece(prince);
+            check(&board);
+            assert_eq!(board.royal_count(color), 2);
+            assert_eq!(board.single_royal(color), None);
+            let before = board.clone();
+
+            // Board's low-level API permits this replacement, although normal
+            // GameState move validation rejects landing on a friendly piece.
+            assert_eq!(board.move_piece(from, to), Some(prince));
+            check(&board);
+            assert_eq!(board.royal_squares(color), &[to]);
+            assert_eq!(board.royal_count(color), 1);
+            assert_eq!(board.single_royal(color), Some(to));
+            assert_eq!(board.get_piece(to).unwrap().piece_type, PieceType::King);
+            check(&before);
+            assert_eq!(before.royal_count(color), 2);
+            assert_eq!(before.get_piece(from), Some(king));
+            assert_eq!(before.get_piece(to), Some(prince));
+
+            // Replacing the remaining royal with the opposite color updates
+            // both indices; mutating its clone must not alter the original.
+            board.place_piece(Piece::new(PieceType::CrownPrince, color.opposite(), to));
+            check(&board);
+            assert!(board.royal_squares(color).is_empty());
+            assert_eq!(board.royal_count(color), 0);
+            assert_eq!(board.single_royal(color), None);
+            assert_eq!(board.royal_squares(color.opposite()), &[to]);
+            assert_eq!(board.single_royal(color.opposite()), Some(to));
+            let mut copied = board.clone();
+            copied.remove_piece(to);
+            check(&copied);
+            check(&board);
+            assert_eq!(copied.royal_count(color.opposite()), 0);
+            assert_eq!(board.royal_squares(color.opposite()), &[to]);
+        }
+    }
+
     #[test]
     fn same_square_move_keeps_index_consistent() {
         let mut b = Board::new();
