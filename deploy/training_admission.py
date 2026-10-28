@@ -137,32 +137,59 @@ def admit_checkpoints(run, models, report):
 
 
 def prepare_search_variants(config, *, bundle=None):
-    """Clone one registered NNUE checkpoint, changing only name and search policy."""
+    """Derive immutable search arms from registered baselines, sharing NNUE files.
+
+    A string policy uses base_entrant; an object explicitly selects another
+    base_entrant and experiment. Distinct (base, policy) pairs allow one search
+    package to be tested on several networks in a single coordinator transaction.
+    """
     run, out = Path(config["run"]), Path(config["out"])
     state = a.read(run / "state.json")
-    base = next(e for e in state["entrants"] if e["id"] == config["base_entrant"])
-    if base.get("engine"):
-        raise ValueError("Search variants require a current-engine NNUE baseline")
-    source = Path(base["model"])
-    checkpoint = a.read(source)
-    if checkpoint.get("search_defaults", {}).get("experiment", "baseline") != "baseline":
-        raise ValueError("Search baseline must use the unchanged policy")
-    descriptor = checkpoint["weights"]["nnue"]
-    network = (source.parent / descriptor["file"]).resolve()
-    if a.file_digest(network) != descriptor["sha256"]:
-        raise ValueError("Baseline NNUE hash mismatch")
     variants = config["search_variants"]
-    if not variants or len(set(variants.values())) != len(variants):
+    if not isinstance(variants, dict) or not variants:
         raise ValueError("Require distinct search policies")
-    bundle = engine_updates.verify(a, bundle) if bundle is not None else engine_updates.active(a, run)
-    engine_updates.require_search_support(bundle["engine_bin"], variants.values())
-    models = []
-    for name, policy in variants.items():
-        if Path(name).name != name or name in (".", "..", base["id"]) or policy == "baseline":
+    resolved = []
+    seen = set()
+    for name, spec in variants.items():
+        if isinstance(spec, str):
+            base_id, policy = config["base_entrant"], spec
+        elif isinstance(spec, dict) and set(spec) == {"base_entrant", "experiment"}:
+            base_id, policy = spec["base_entrant"], spec["experiment"]
+        else:
+            raise ValueError("Invalid search variant specification")
+        if not isinstance(base_id, str) or not isinstance(policy, str) or not policy or policy == "baseline":
             raise ValueError("Invalid search entrant identity or policy")
+        if Path(name).name != name or name in (".", "..", base_id):
+            raise ValueError("Invalid search entrant identity or policy")
+        if (base_id, policy) in seen:
+            raise ValueError("Require distinct search policies per baseline")
+        seen.add((base_id, policy))
+        resolved.append((name, base_id, policy))
+    bundle = engine_updates.verify(a, bundle) if bundle is not None else engine_updates.active(a, run)
+    engine_updates.require_search_support(bundle["engine_bin"], [policy for _, _, policy in resolved])
+    bases = {}
+    # Validate every source before writing any candidate descriptor.
+    for _, base_id, _ in resolved:
+        if base_id in bases:
+            continue
+        base = next(e for e in state["entrants"] if e["id"] == base_id)
+        if base.get("engine"):
+            raise ValueError("Search variants require a current-engine NNUE baseline")
+        source = Path(base["model"])
+        checkpoint = a.read(source)
+        if checkpoint.get("search_defaults", {}).get("experiment", "baseline") != "baseline":
+            raise ValueError("Search baseline must use the unchanged policy")
+        descriptor = checkpoint["weights"]["nnue"]
+        network = (source.parent / descriptor["file"]).resolve()
+        if a.file_digest(network) != descriptor["sha256"]:
+            raise ValueError("Baseline NNUE hash mismatch")
+        bases[base_id] = (base, source, checkpoint, network)
+    models = []
+    for name, base_id, policy in resolved:
+        _, _, checkpoint, network = bases[base_id]
         model = copy.deepcopy(checkpoint)
         model["name"] = name
-        model["search_defaults"]["experiment"] = policy
+        model.setdefault("search_defaults", {})["experiment"] = policy
         model["weights"]["nnue"]["file"] = str(network)
         directory = out / name
         directory.mkdir(parents=True, exist_ok=True)
@@ -175,7 +202,11 @@ def prepare_search_variants(config, *, bundle=None):
     a.atomic(
         out / "search-provenance.json",
         dict(
-            base_entrant=base, base_sha256=a.file_digest(source), network_sha256=descriptor["sha256"], variants=variants
+            bases={
+                ident: dict(entrant=base, sha256=a.file_digest(source), network_sha256=cp["weights"]["nnue"]["sha256"])
+                for ident, (base, source, cp, _) in bases.items()
+            },
+            variants=variants,
         ),
     )
     return models

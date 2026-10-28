@@ -118,6 +118,61 @@ class AdmissionTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "definition changed"):
                     admission.prepare_search_variants(config)
 
+    def test_search_package_can_transfer_across_distinct_registered_networks(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            run = root / "run"
+            run.mkdir()
+            entrants = []
+            originals = {}
+            for name in ["base512", "base384"]:
+                directory = root / name
+                directory.mkdir()
+                blob = directory / "network.bin"
+                blob.write_bytes(name.encode())
+                model = dict(
+                    name=name,
+                    search_defaults=dict(depth=2),
+                    weights=dict(piece={"Pawn": len(name)}, nnue=dict(file=blob.name, sha256=a.file_digest(blob))),
+                )
+                source = directory / "model.json"
+                a.atomic(source, model)
+                originals[name] = source.read_bytes()
+                entrants.append(dict(id=name, model=str(source)))
+            a.atomic(run / "state.json", dict(entrants=entrants))
+            config = dict(
+                run=str(run),
+                out=str(root / "out"),
+                base_entrant="base512",
+                search_variants={
+                    "new512": "history_tactical_lmr_q_fix",
+                    "new384": dict(base_entrant="base384", experiment="history_tactical_lmr_q_fix"),
+                },
+            )
+            with (
+                patch.object(admission.engine_updates, "active", return_value=dict(engine_bin="engine")),
+                patch.object(admission.engine_updates, "require_search_support"),
+            ):
+                models = admission.prepare_search_variants(config)
+                self.assertEqual(len(models), 2)
+                self.assertEqual(models, admission.prepare_search_variants(config))
+                for directory, original in zip(models, entrants, strict=True):
+                    new = a.read(directory / "model.json")
+                    old = a.read(original["model"])
+                    self.assertEqual(new["weights"]["piece"], old["weights"]["piece"])
+                    self.assertEqual(new["weights"]["nnue"]["sha256"], old["weights"]["nnue"]["sha256"])
+                    self.assertEqual(Path(original["model"]).read_bytes(), originals[original["id"]])
+                config["search_variants"]["duplicate512"] = dict(
+                    base_entrant="base512", experiment="history_tactical_lmr_q_fix"
+                )
+                with self.assertRaisesRegex(ValueError, "distinct search policies per baseline"):
+                    admission.prepare_search_variants(config)
+                config["search_variants"]["duplicate512"] = dict(
+                    base_entrant="base384", experiment="history_tactical_lmr_q_fix", typo=True
+                )
+                with self.assertRaisesRegex(ValueError, "Invalid search variant specification"):
+                    admission.prepare_search_variants(config)
+
     def test_search_support_cannot_silently_fall_back_to_old_engine(self):
         with patch.object(admission.engine_updates.subprocess, "run") as probe:
             probe.return_value.stdout = '["baseline","history"]'

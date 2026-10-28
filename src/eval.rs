@@ -1102,7 +1102,7 @@ pub enum LastRoyalMode {
 }
 
 /// October 2026 W512-v3 search tournament. Remove losing arms after adjudication.
-/// Named policies keep the six component experiments and two combinations explicit.
+/// Named policies keep first-wave controls and second-wave combinations explicit.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SearchExperiment {
@@ -1118,11 +1118,20 @@ pub enum SearchExperiment {
     SacrificeThreatQ,
     /// Recursive-q check evasions and context-complete q cache (legacy tourney comparison).
     QFix,
+    /// Second-wave HLF foundation; F is implicit on current main.
+    HistoryTacticalLmrQFix,
+    HistoryTacticalLmrQFixNull,
+    HistoryTacticalLmrQFixContinuation,
+    HistoryTacticalLmrQFixHistoryReduction,
+    HistoryTacticalLmrQFixRecapture,
+    HistoryTacticalLmrQFixSacrifice,
+    HistoryTacticalLmrQFixNullVerify,
+    QFixNull,
 }
 
 impl SearchExperiment {
     /// Supported checkpoint policies, also exposed by the engine admission probe.
-    pub const ALL: [Self; 10] = [
+    pub const ALL: [Self; 18] = [
         Self::Baseline,
         Self::History,
         Self::TacticalLmr,
@@ -1133,6 +1142,14 @@ impl SearchExperiment {
         Self::HistoryTacticalLmr,
         Self::SacrificeThreatQ,
         Self::QFix,
+        Self::HistoryTacticalLmrQFix,
+        Self::HistoryTacticalLmrQFixNull,
+        Self::HistoryTacticalLmrQFixContinuation,
+        Self::HistoryTacticalLmrQFixHistoryReduction,
+        Self::HistoryTacticalLmrQFixRecapture,
+        Self::HistoryTacticalLmrQFixSacrifice,
+        Self::HistoryTacticalLmrQFixNullVerify,
+        Self::QFixNull,
     ];
 }
 
