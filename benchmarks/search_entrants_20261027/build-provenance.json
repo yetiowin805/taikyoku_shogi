@@ -1,0 +1,30 @@
+{
+  "source_revision": "99979a5fdf8dbb56238123da0f48dae210a06ec8",
+  "source_base": "dcb54bd31db8e5b1693ac9e39e4fab76e0421106",
+  "main_base": "ee9356e2035aed4ad128e8612ad3aef058ecf93c",
+  "rustc": "rustc 1.92.0 (ded5c06cf 2025-12-08)",
+  "command": "CARGO_BUILD_JOBS=4 RUSTFLAGS='-C target-cpu=znver4' cargo build --locked --target x86_64-unknown-linux-gnu --release --bin taikyoku_shogi --bin analyze_position",
+  "files": {
+    "taikyoku_shogi": {
+      "bytes": 5910704,
+      "sha256": "1601e5cd4ec6825c37ad556bd330454a33989332f73b7f7d059075a6d34cd5f1"
+    },
+    "analyze_position": {
+      "bytes": 1748464,
+      "sha256": "a339964746f4970c381fa03cc5107f53ba2e0302194e4789de4d17c55f026f70"
+    },
+    "search-generation2-live-source.tar.gz": {
+      "bytes": 3310846,
+      "sha256": "26701acd89f5d0b9308878f9f505eae1c17ae3ae8a2ea2e8041cec4c6c108c0f"
+    }
+  },
+  "validation": {
+    "main_rust_passed": 491,
+    "main_ignored": 4,
+    "live_rust_passed": 441,
+    "live_ignored": 4,
+    "deploy_python_passed": 121,
+    "clippy": "all targets/all features; warnings denied; passed",
+    "ruff": "format/check passed"
+  }
+}
