@@ -10,6 +10,18 @@ from pathlib import Path
 import teacher_refresh
 
 
+def frozen_binding(models, model):
+    """Match checkpoint aliases without weakening the frozen binding checks."""
+    binding = None
+    for original, candidate in models.items():
+        if Path(original).resolve() != model:
+            continue
+        if binding is not None and binding != candidate:
+            raise ValueError(f"conflicting frozen checkpoint aliases: {model}")
+        binding = candidate
+    return binding
+
+
 def check(a, run, config):
     policy = config.get("auto_champion")
     if not policy:
@@ -87,11 +99,11 @@ def check(a, run, config):
         if not entrant:
             raise ValueError(f"leader {leader} is not a current entrant")
         model = Path(entrant["model"]).resolve()
-        binding = config["old"]["models"].get(str(model))
+        binding = frozen_binding(config["old"]["models"], model)
         # Live admission publishes frozen bindings before adding the entrant.
         registry = run / "analysis/config.json"
         if binding is None and registry.exists():
-            binding = a.read(registry).get("models", {}).get(str(model))
+            binding = frozen_binding(a.read(registry).get("models", {}), model)
             if binding is not None:
                 a.validate_model_binding(str(model), binding)
         if not binding or binding["sha256"] != a.file_digest(model):

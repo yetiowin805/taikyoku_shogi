@@ -110,3 +110,62 @@ class ChampionTests(AnalyzerFixture):
             self.execute(config, fit)
             validate.assert_called_once()
             replace.assert_called_once()
+
+    def test_symlinked_checkpoint_in_saved_or_live_registry(self):
+        for live_registry in (False, True):
+            with self.subTest(live_registry=live_registry):
+                config, fit = self.fixture(100)
+                model = self.run / "challenger.json"
+                directory = self.run / "run-alias"
+                if not directory.exists():
+                    directory.symlink_to(self.run, target_is_directory=True)
+                alias = directory / model.name
+                binding = config["old"]["models"].pop(str(model))
+                if live_registry:
+                    a.atomic(self.run / "analysis/config.json", dict(models={str(alias): binding}))
+                else:
+                    config["old"]["models"][str(alias)] = binding
+                state = a.read(self.run / "state.json")
+                state["entrants"][1]["model"] = str(alias)
+                a.atomic(self.run / "state.json", state)
+                (self.run / "analysis/champion-status.json").unlink(missing_ok=True)
+                with (
+                    patch.object(a, "validate_model_binding") as validate,
+                    patch.object(c.teacher_refresh, "replace", return_value={}) as replace,
+                ):
+                    self.execute(config, fit)
+                    replace.assert_called_once_with(a, self.run, model.resolve(), engine=None)
+                    if live_registry:
+                        validate.assert_called_once_with(str(model.resolve()), binding)
+                    else:
+                        validate.assert_not_called()
+
+    def test_symlinked_live_checkpoint_still_requires_valid_frozen_binding(self):
+        config, fit = self.fixture(100)
+        model = self.run / "challenger.json"
+        alias = self.run / "checkpoint-alias.json"
+        alias.symlink_to(model)
+        binding = config["old"]["models"].pop(str(model))
+        a.atomic(self.run / "analysis/config.json", dict(models={str(alias): binding}))
+        with (
+            patch.object(a, "validate_model_binding", side_effect=ValueError("snapshot changed")),
+            patch.object(c.teacher_refresh, "replace") as replace,
+        ):
+            self.execute(config, fit)
+            replace.assert_not_called()
+        status = a.read(self.run / "analysis/champion-status.json")
+        self.assertEqual(status["state"], "error")
+        self.assertEqual(status["error"], "snapshot changed")
+
+    def test_conflicting_checkpoint_aliases_keep_current_teacher(self):
+        config, fit = self.fixture(100)
+        model = self.run / "challenger.json"
+        alias = self.run / "checkpoint-alias.json"
+        alias.symlink_to(model)
+        config["old"]["models"][str(alias)] = dict(sha256="different-checkpoint")
+        with patch.object(c.teacher_refresh, "replace") as replace:
+            self.execute(config, fit)
+            replace.assert_not_called()
+        status = a.read(self.run / "analysis/champion-status.json")
+        self.assertEqual(status["state"], "error")
+        self.assertIn("conflicting frozen checkpoint aliases", status["error"])
