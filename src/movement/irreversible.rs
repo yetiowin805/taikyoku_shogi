@@ -1,147 +1,154 @@
-//! Directional irreversibility for the progress-draw counter.
+//! Permanent directional progress for the progress-draw counter.
 //!
-//! A quiet step along direction D (or jump Δ) is irreversible when the piece
-//! cannot move in the opposite direction / offset under its movement config.
+//! Missing an immediate reverse move does not imply progress: a Free Tiger,
+//! gold, or silver can return by another route. Only count an increase in a
+//! linear coordinate that none of the piece's movement capabilities can decrease.
 
-use crate::attack_utils::get_direction_toward;
-use crate::movement::direction::{direction_set_contains, Direction};
+use std::sync::OnceLock;
+
+use crate::movement::direction::direction_iter;
 use crate::movement::generator::MovementGenerator;
 use crate::movement::types::MovementCapability;
 use crate::movement::MovementConfig;
-use crate::piece::{Color, Piece};
+use crate::piece::{Color, Piece, PieceType};
 use crate::position::Position;
 
-/// Query only the needed reverse reach, without building a union or jump list.
-/// Jump offsets intentionally keep the original config's orientation, matching
-/// the progress-draw rule; compass directions are color-adjusted as before.
-fn has_reverse_reach(
-    cap: &MovementCapability,
-    color: Color,
-    dir: Option<Direction>,
-    offset: (i8, i8),
-) -> bool {
+// Rank, file, and the two diagonals suffice for every current movement config.
+// Extra movement shapes may conservatively miss progress, but cannot invent it.
+const COORDINATES: [(i16, i16); 8] = [
+    (0, 1),
+    (1, 1),
+    (1, 0),
+    (1, -1),
+    (0, -1),
+    (-1, -1),
+    (-1, 0),
+    (-1, 1),
+];
+
+fn nondecreasing_coordinates(cap: &MovementCapability, color: Color) -> u8 {
+    let for_offset = |x: i16, y: i16| {
+        COORDINATES
+            .iter()
+            .enumerate()
+            .fold(0, |mask, (i, &(a, b))| {
+                mask | (u8::from(a * x + b * y >= 0) << i)
+            })
+    };
     match cap {
         MovementCapability::Simple { directions, .. }
         | MovementCapability::Range { directions, .. }
-        | MovementCapability::ConditionalDiagonalJump { directions, .. } => dir.is_some_and(|d| {
-            direction_set_contains(
-                MovementGenerator::adjust_directions_for_color(*directions, color),
-                d,
-            )
+        | MovementCapability::ConditionalDiagonalJump { directions, .. } => direction_iter(
+            MovementGenerator::adjust_directions_for_color(*directions, color),
+        )
+        .fold(u8::MAX, |mask, direction| {
+            let (x, y) = direction.to_offset();
+            mask & for_offset(i16::from(x), i16::from(y))
         }),
-        MovementCapability::Jumping { offsets } => dir.is_none() && offsets.contains(&offset),
+        MovementCapability::Jumping { offsets } => offsets.iter().fold(u8::MAX, |mask, &(x, y)| {
+            // Match generate_jumping: White reflects rank, not the file offset.
+            let y = if color == Color::White {
+                -i16::from(y)
+            } else {
+                i16::from(y)
+            };
+            mask & for_offset(i16::from(x), y)
+        }),
         MovementCapability::TwoStep { first, second } => {
-            has_reverse_reach(first, color, dir, offset)
-                || has_reverse_reach(second, color, dir, offset)
+            // An envelope of BOTH legs is deliberately conservative: any legal
+            // path is nondecreasing, so a reset on either leg cannot be undone.
+            nondecreasing_coordinates(first, color) & nondecreasing_coordinates(second, color)
         }
-        MovementCapability::FreeEagleMultiMove { .. } => dir.is_some(),
+        MovementCapability::FreeEagleMultiMove { .. } => 0,
     }
 }
 
-/// True when moving `from → to` cannot be undone by a move of this piece in the
-/// opposite direction/offset (ignoring board occupancy).
-pub fn move_is_directionally_irreversible(piece: &Piece, from: Position, to: Position) -> bool {
-    if from == to {
-        return false;
-    }
-    let dir = get_direction_toward(from, to).map(|d| d.opposite());
-    let opposite = (
-        from.file() as i8 - to.file() as i8,
-        from.rank() as i8 - to.rank() as i8,
-    );
-    !MovementConfig::for_piece(piece)
+fn compute_coordinates(piece: &Piece) -> u8 {
+    MovementConfig::for_piece(piece)
         .capabilities
         .iter()
-        .any(|cap| has_reverse_reach(cap, piece.color, dir, opposite))
+        .fold(u8::MAX, |mask, cap| {
+            mask & nondecreasing_coordinates(cap, piece.color)
+        })
 }
 
-/// True if any leg of a multi-step path is directionally irreversible.
-pub fn path_has_irreversible_leg(piece: &Piece, path: &[Position]) -> bool {
-    for i in 1..path.len() {
-        if move_is_directionally_irreversible(piece, path[i - 1], path[i]) {
-            return true;
-        }
+fn progress_coordinates(piece: &Piece) -> u8 {
+    // MovementConfig::for_piece currently has two state-dependent exceptions:
+    // promoted RainDragon and Whale originating from ReverseChariot. The audit
+    // test visits every promotion chain and checks cached vs uncached results.
+    const PIECE_TYPES: usize = PieceType::SwordGeneral as usize + 1;
+    static CACHE: [OnceLock<u8>; PIECE_TYPES * 4] = [const { OnceLock::new() }; PIECE_TYPES * 4];
+    let special = (piece.piece_type == PieceType::RainDragon && piece.is_promoted)
+        || (piece.piece_type == PieceType::Whale
+            && piece.base_piece_type == Some(PieceType::ReverseChariot));
+    let index = piece.piece_type as usize * 4
+        + usize::from(piece.color == Color::White) * 2
+        + usize::from(special);
+    *CACHE[index].get_or_init(|| compute_coordinates(piece))
+}
+
+/// True only if this displacement increases a coordinate the piece can never
+/// decrease without changing its movement type. Ignores occupancy: a temporary
+/// blocker must not turn otherwise reversible maneuvering into progress.
+/// Captures and actual promotions reset the counter separately in GameState.
+pub fn move_is_directionally_irreversible(piece: &Piece, from: Position, to: Position) -> bool {
+    let mask = progress_coordinates(piece);
+    if mask == 0 {
+        return false;
     }
-    false
+    let dx = i16::from(to.file()) - i16::from(from.file());
+    let dy = i16::from(to.rank()) - i16::from(from.rank());
+    COORDINATES
+        .iter()
+        .enumerate()
+        .any(|(i, &(a, b))| mask & (1 << i) != 0 && a * dx + b * dy > 0)
+}
+
+/// True if any leg advances a coordinate that every possible leg preserves or
+/// increases. A closed quiet path therefore never resets the progress clock.
+pub fn path_has_irreversible_leg(piece: &Piece, path: &[Position]) -> bool {
+    path.windows(2)
+        .any(|leg| move_is_directionally_irreversible(piece, leg[0], leg[1]))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::game_state::{GameState, Move};
-    use crate::piece::PieceType;
-
-    use crate::movement::direction::{DirectionSet, DIRECTION_SET_ALL};
-
-    /// Collect color-adjusted direction bits and jump offsets the piece can use.
-    fn collect_reach(
-        capabilities: &[MovementCapability],
-        color: Color,
-        dirs: &mut DirectionSet,
-        jumps: &mut Vec<(i8, i8)>,
-    ) {
-        for cap in capabilities {
-            match cap {
-                MovementCapability::Simple { directions, .. }
-                | MovementCapability::Range { directions, .. }
-                | MovementCapability::ConditionalDiagonalJump { directions, .. } => {
-                    *dirs |= MovementGenerator::adjust_directions_for_color(*directions, color);
-                }
-                MovementCapability::Jumping { offsets } => {
-                    jumps.extend(offsets.iter().copied());
-                }
-                MovementCapability::TwoStep { first, second } => {
-                    collect_reach(std::slice::from_ref(first.as_ref()), color, dirs, jumps);
-                    collect_reach(std::slice::from_ref(second.as_ref()), color, dirs, jumps);
-                }
-                MovementCapability::FreeEagleMultiMove { .. } => {
-                    // FE can step in every compass direction (limits differ by ray).
-                    *dirs |= DIRECTION_SET_ALL;
-                }
-            }
-        }
-    }
 
     #[test]
-    fn reverse_reach_matches_original_union_for_all_piece_configs() {
+    fn cached_coordinates_cover_every_promotion_origin_and_color() {
         let from = Position::new(17, 17).unwrap();
+        let mut seen = std::collections::HashSet::new();
         for &kind in crate::eval::ALL_PIECE_TYPES {
             for color in [Color::Black, Color::White] {
-                for promotion in [None, Some(kind), Some(PieceType::ReverseChariot)] {
-                    let mut piece = Piece::new(kind, color, from);
-                    piece.is_promoted = promotion.is_some();
-                    piece.base_piece_type = promotion;
-                    let mut dirs = 0;
-                    let mut jumps = Vec::new();
-                    collect_reach(
-                        &MovementConfig::for_piece(&piece).capabilities,
-                        color,
-                        &mut dirs,
-                        &mut jumps,
-                    );
-                    for index in 0..1296 {
-                        let to = Position::new((index % 36) as u8, (index / 36) as u8).unwrap();
-                        let expected = if from == to {
-                            false
-                        } else if let Some(dir) = get_direction_toward(from, to) {
-                            !direction_set_contains(dirs, dir.opposite())
-                        } else {
-                            !jumps.contains(&(
-                                from.file() as i8 - to.file() as i8,
-                                from.rank() as i8 - to.rank() as i8,
-                            ))
-                        };
-                        assert_eq!(
-                            move_is_directionally_irreversible(&piece, from, to),
-                            expected,
-                            "{piece:?} -> {to:?}"
-                        );
+                let mut piece = Piece::new(kind, color, from);
+                loop {
+                    if !seen.insert((
+                        piece.piece_type,
+                        piece.color,
+                        piece.is_promoted,
+                        piece.base_piece_type,
+                    )) {
+                        break;
                     }
+                    assert_eq!(
+                        progress_coordinates(&piece),
+                        compute_coordinates(&piece),
+                        "{piece:?}"
+                    );
+                    if piece.piece_type.promotes_to().is_none() {
+                        break;
+                    }
+                    piece.promote();
                 }
             }
         }
+        println!(
+            "Audited {} piece forms including both colors and every promotion origin",
+            seen.len()
+        );
     }
-
     #[test]
     fn pawn_forward_is_irreversible() {
         let from = Position::new(10, 10).unwrap();

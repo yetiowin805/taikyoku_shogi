@@ -2102,8 +2102,8 @@ impl GameState {
     }
 
     /// Draw when [`PROGRESS_DRAW_LIMIT`] consecutive turns had no
-    /// irreversible progress (capture, promotion, or a one-way directional /
-    /// jump move).
+    /// irreversible progress (capture, promotion, or permanent directional
+    /// advancement that the piece cannot undo by any quiet route).
     pub fn is_draw_by_progress_rule(&self) -> bool {
         self.turns_without_capture_or_promotion >= PROGRESS_DRAW_LIMIT
     }
