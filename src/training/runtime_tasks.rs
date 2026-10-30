@@ -73,6 +73,7 @@ fn apply(state: &mut TourneyState, request: Request) -> Result<(), String> {
             }
             for item in entrants {
                 let entrant = item.entrant;
+                super::generations::label(&entrant)?;
                 if entrant.id.is_empty()
                     || entrant.engine.is_some()
                     || state.retired.contains(&entrant.id)
@@ -99,7 +100,10 @@ fn apply(state: &mut TourneyState, request: Request) -> Result<(), String> {
                     }
                 }
                 if let Some(old) = state.entrants.iter().find(|e| e.id == entrant.id) {
-                    if old.model != entrant.model || old.engine != entrant.engine {
+                    if old.model != entrant.model
+                        || old.engine != entrant.engine
+                        || super::generations::label(old)? != super::generations::label(&entrant)?
+                    {
                         return Err(format!("entrant identity already bound: {}", entrant.id));
                     }
                 } else {
@@ -301,6 +305,7 @@ mod tests {
                         id: format!("old{i}"),
                         model: format!("/old{i}"),
                         engine: None,
+                        generation: None,
                     })
                     .collect(),
                 ..Default::default()
@@ -382,6 +387,39 @@ mod tests {
     }
 
     #[test]
+    fn admitted_generation_is_persisted_and_cannot_be_rebound() {
+        let mut f = Fixture::new("generations");
+        let mut entrant = f.entrant("new");
+        entrant["entrant"]["generation"] = json!("search_wave_3");
+        f.command("001", json!({"kind":"admit","entrants":[entrant.clone()]}));
+        process(&f.cfg, &mut f.state).unwrap();
+        assert_eq!(
+            f.state.entrants.last().unwrap().generation.as_deref(),
+            Some("search_wave_3")
+        );
+        let persisted: TourneyState =
+            serde_json::from_slice(&fs::read(f.run.join("state.json")).unwrap()).unwrap();
+        assert_eq!(
+            persisted.entrants.last().unwrap().generation.as_deref(),
+            Some("search_wave_3")
+        );
+        entrant["entrant"]["generation"] = json!("search_wave_4");
+        f.command("002", json!({"kind":"admit","entrants":[entrant]}));
+        process(&f.cfg, &mut f.state).unwrap();
+        assert_eq!(f.state.runtime_control.receipts["002"].status, "rejected");
+        assert_eq!(
+            f.state.entrants.last().unwrap().generation.as_deref(),
+            Some("search_wave_3")
+        );
+        let mut bad = f.entrant("bad");
+        bad["entrant"]["generation"] = json!(" ");
+        f.command("003", json!({"kind":"admit","entrants":[bad]}));
+        process(&f.cfg, &mut f.state).unwrap();
+        assert_eq!(f.state.runtime_control.receipts["003"].status, "rejected");
+        assert_eq!(f.state.entrants.len(), 4);
+    }
+
+    #[test]
     fn concurrent_workers_cannot_reclaim_after_pause_receipt_and_admission_needs_no_idle_cpu() {
         let mut f = Fixture::new("concurrent");
         f.cfg.jobs = 8;
@@ -390,6 +428,7 @@ mod tests {
                 id: format!("old{i}"),
                 model: format!("/old{i}"),
                 engine: None,
+                generation: None,
             })
             .collect();
         f.state = build_schedule(&f.cfg);

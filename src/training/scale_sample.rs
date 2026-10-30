@@ -253,12 +253,14 @@ pub fn run_scale_sample(cfg: &ScaleSampleConfig) -> Result<(TourneyManifest, Sam
         id: "seed".into(),
         model: seed_out.display().to_string(),
         engine: None,
+        generation: None,
     }];
     for s in &samples {
         entrants.push(TourneyEntrant {
             id: s.id.clone(),
             model: s.model.clone(),
             engine: None,
+            generation: None,
         });
     }
     let manifest = TourneyManifest { entrants };

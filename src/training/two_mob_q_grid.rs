@@ -71,6 +71,7 @@ fn push_cell(cells: &mut Vec<GridCell>, entrants: &mut Vec<TourneyEntrant>, cell
         id: cell.id.clone(),
         model: cell.model.clone(),
         engine: None,
+        generation: None,
     });
     cells.push(cell);
 }

@@ -18,6 +18,12 @@ pub struct Candidate {
 }
 
 #[derive(Debug, Serialize)]
+pub struct Generation {
+    pub members: Vec<String>,
+    pub representative: String,
+}
+
+#[derive(Debug, Serialize)]
 pub struct Report {
     pub policy: &'static str,
     pub z: f64,
@@ -25,7 +31,57 @@ pub struct Report {
     pub minimum_covered_opponents: usize,
     pub core: Vec<String>,
     pub candidates: BTreeMap<String, Candidate>,
+    pub generations: BTreeMap<String, Generation>,
+    /// Ordinary retirement candidates kept eligible by their generation.
+    pub retained_by_generation: BTreeSet<String>,
+    /// Unknown IDs need explicit entrant metadata to receive cohort protection.
+    pub unclassified: BTreeSet<String>,
     pub inactive: BTreeSet<String>,
+}
+
+impl Report {
+    fn protect_generations(&mut self) {
+        for generation in self.generations.values() {
+            if self.inactive.remove(&generation.representative) {
+                self.retained_by_generation
+                    .insert(generation.representative.clone());
+            }
+        }
+    }
+}
+
+fn generations(
+    state: &TourneyState,
+    fit: &Fit,
+) -> Result<(BTreeMap<String, Generation>, BTreeSet<String>), String> {
+    let mut groups = BTreeMap::<String, Generation>::new();
+    let mut unclassified = BTreeSet::new();
+    // Use all registered entrants, including previously retired ones. Historical
+    // slot-only identities are evidence, but cannot be scheduled representatives.
+    for entrant in &state.entrants {
+        let Some(label) = super::generations::label(entrant)? else {
+            unclassified.insert(entrant.id.clone());
+            continue;
+        };
+        let rating = fit
+            .ratings
+            .get(&entrant.id)
+            .filter(|r| r.is_finite())
+            .ok_or_else(|| format!("missing/nonfinite generation rating: {}", entrant.id))?;
+        let group = groups.entry(label.into()).or_insert_with(|| Generation {
+            members: Vec::new(),
+            representative: entrant.id.clone(),
+        });
+        let best = fit.ratings[&group.representative];
+        if *rating > best || (*rating == best && entrant.id < group.representative) {
+            group.representative.clone_from(&entrant.id);
+        }
+        group.members.push(entrant.id.clone());
+    }
+    for group in groups.values_mut() {
+        group.members.sort();
+    }
+    Ok((groups, unclassified))
 }
 
 fn covariance(count: &[Vec<f64>], ratings: &[f64]) -> Result<Vec<Vec<f64>>, String> {
@@ -99,17 +155,22 @@ pub(super) fn evaluate(state: &TourneyState, fit: &Fit) -> Result<Report, String
         .min_by(|a, b| b.len().cmp(&a.len()).then_with(|| a.cmp(b)))
         .cloned()
         .unwrap_or_default();
+    let (generations, unclassified) = generations(state, fit)?;
     let mut report = Report {
-        policy: "rank8-three50-z1.96-g20o6-v1",
+        policy: "rank8-three50-z1.96-g20o6-generations-v2",
         z: Z,
         minimum_games: 20,
         minimum_covered_opponents: 6,
         core,
         candidates: BTreeMap::new(),
+        generations,
+        retained_by_generation: BTreeSet::new(),
+        unclassified,
         inactive: BTreeSet::new(),
     };
     let n = report.core.len();
     if n < 9 {
+        report.protect_generations();
         return Ok(report);
     }
     let ratings = report
@@ -202,6 +263,7 @@ pub(super) fn evaluate(state: &TourneyState, fit: &Fit) -> Result<Report, String
         }
         report.candidates.insert(report.core[i].clone(), candidate);
     }
+    report.protect_generations();
     Ok(report)
 }
 
@@ -220,6 +282,7 @@ mod tests {
                     id: format!("agent{i:02}"),
                     model: "unused.json".into(),
                     engine: None,
+                    generation: None,
                 })
                 .collect(),
             ..Default::default()
@@ -292,6 +355,101 @@ mod tests {
             serde_json::to_value(before).unwrap(),
             serde_json::to_value(after).unwrap()
         );
+    }
+
+    #[test]
+    fn generation_leader_is_restored_after_pruning_and_changes_with_results() {
+        let mut state = fixture();
+        // Both cohort members are convincingly weaker than the other eight.
+        for slot in &mut state.slots {
+            if slot.model_b == "agent08" {
+                slot.score_a = Some(f64::from(slot.id % 20 < 18));
+            }
+        }
+        let baseline = super::super::order_neutral::from_state(&state);
+        assert_eq!(
+            baseline.retirement.as_ref().unwrap().inactive,
+            BTreeSet::from(["agent08".into(), "agent09".into()])
+        );
+        for entrant in &mut state.entrants[8..10] {
+            entrant.generation = Some("historical".into());
+        }
+        state.retired = BTreeSet::from(["agent08".into(), "agent09".into()]);
+        let slots = serde_json::to_value(&state.slots).unwrap();
+        ensure_ratings(&mut state);
+        assert_eq!(state.retired, BTreeSet::from(["agent09".into()]));
+        assert_eq!(serde_json::to_value(&state.slots).unwrap(), slots);
+        let fit = super::super::order_neutral::from_state(&state);
+        let report = fit.retirement.as_ref().unwrap();
+        assert_eq!(report.generations["historical"].representative, "agent08");
+        assert_eq!(
+            report.retained_by_generation,
+            BTreeSet::from(["agent08".into()])
+        );
+        // Protection changes the eligible center, never the fitted differences.
+        for id in fit.ratings.keys() {
+            if id == "agent10" {
+                continue; // Disconnected newcomers have an independent center.
+            }
+            assert!(
+                ((fit.ratings[id] - fit.ratings["agent00"])
+                    - (baseline.ratings[id] - baseline.ratings["agent00"]))
+                    .abs()
+                    < 1e-9
+            );
+        }
+        // Exchange the two agents' evidence. The previously retired winner
+        // returns and the previous representative can now retire.
+        for slot in &mut state.slots {
+            for id in [&mut slot.model_a, &mut slot.model_b] {
+                match id.as_str() {
+                    "agent08" => *id = "agent09".into(),
+                    "agent09" => *id = "agent08".into(),
+                    _ => {}
+                }
+            }
+        }
+        ensure_ratings(&mut state);
+        assert_eq!(state.retired, BTreeSet::from(["agent08".into()]));
+        let before = super::super::order_neutral::from_state(&state)
+            .retirement
+            .unwrap();
+        assert_eq!(before.generations["historical"].representative, "agent09");
+        state.entrants.reverse();
+        state.slots.reverse();
+        let after = super::super::order_neutral::from_state(&state)
+            .retirement
+            .unwrap();
+        assert_eq!(
+            serde_json::to_value(before).unwrap(),
+            serde_json::to_value(after).unwrap()
+        );
+    }
+
+    #[test]
+    fn generation_report_in_small_disconnected_field_has_stable_ties() {
+        let mut state = fixture();
+        state.slots.clear();
+        for entrant in &mut state.entrants[..2] {
+            entrant.generation = Some("new_generation".into());
+        }
+        state.retired = state.entrants.iter().map(|e| e.id.clone()).collect();
+        state.entrants.reverse();
+        ensure_ratings(&mut state);
+        assert!(state.retired.is_empty());
+        let report = super::super::order_neutral::from_state(&state)
+            .retirement
+            .unwrap();
+        assert!(report.core.is_empty());
+        assert_eq!(
+            report.generations["new_generation"].representative,
+            "agent00"
+        );
+        assert_eq!(
+            report.generations["new_generation"].members,
+            ["agent00", "agent01"]
+        );
+        assert_eq!(report.unclassified.len(), 9);
     }
 
     #[test]

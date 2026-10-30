@@ -234,6 +234,31 @@ translate displayed ratings without changing relative strengths. No old retireme
 is grandfathered past the new evidence requirements. `tournament_ratings STATE`
 includes the policy ID, coverage and rival counts, and inactive set for inspection.
 
+After that ordinary retirement calculation, retain the highest-rated registered
+entrant from **each generation**, including a previously retired leader. The
+seven original generations are handcrafted, v2, v3, v4 together with v4.5, v5,
+first-wave search experiments, and second-wave search experiments. Search cohorts
+override the underlying network version: H/L/N/S/T/Q/HL/ST/QFIX are first wave;
+HLF/HLFN/HLF_CH/HLF_HR/HLF_QR/HLFS/HLFN_V/FN and the two W384 HLF transfers are
+second wave. Width does not create a generation. Other eligible agents remain
+active normally; this is a minimum of one representative, not a quota of one.
+
+Legacy roster IDs infer these cohorts in `generations.rs`. An optional entrant
+`"generation": "search_wave_3"` field overrides inference and supports future
+cohorts; labels must be nonempty with no surrounding whitespace. Admission cannot
+rebind an existing identity to a different effective generation. Unknown IDs
+without metadata still follow ordinary retirement and appear in the report's
+`unclassified` list. Label future entrants explicitly rather than assuming a new
+version or experiment suffix will be recognized. Old manifests and state files
+need no rewrite. The report's `generations` includes sorted membership and the
+representative; `retained_by_generation` identifies ordinary retirement candidates
+rescued by the rule. Leaders are recomputed on every fit, with lexicographically
+smaller IDs winning exact ties. Selection uses the fit before eligibility-based
+centering to avoid circular retirement decisions. Ratings across disconnected
+groups remain provisional and are not directly comparable; once connected, cohort
+ranking is invariant to the active-pool centering shift. All historical games
+still enter the same equal-weight fit.
+
 Existing brackets and committed supplemental pairs finish with their original
 entrants. Eligibility controls new brackets and new supplemental pairs. New
 models must still be registered in the run's entrants and manifest; merely

@@ -143,6 +143,7 @@ pub fn run_file_pst_grid(cfg: &FilePstGridConfig) -> Result<(TourneyManifest, Gr
                     id,
                     model,
                     engine: None,
+                    generation: None,
                 });
             }
         }

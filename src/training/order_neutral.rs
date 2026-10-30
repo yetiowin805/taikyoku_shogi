@@ -376,6 +376,7 @@ mod tests {
                     id: n.to_string(),
                     model: format!("{n}.json"),
                     engine: None,
+                    generation: None,
                 })
                 .collect(),
             ..Default::default()

@@ -7,6 +7,7 @@ mod durable;
 pub mod eval_trace;
 pub mod featurize;
 pub mod file_pst_grid;
+pub mod generations;
 pub mod hang_q_ab_grid;
 pub mod history;
 pub mod knockout;
