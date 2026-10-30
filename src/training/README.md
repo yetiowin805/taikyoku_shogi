@@ -236,17 +236,20 @@ includes the policy ID, coverage and rival counts, and inactive set for inspecti
 
 After that ordinary retirement calculation, retain the highest-rated registered
 entrant from **each generation**, including a previously retired leader. The
-seven original generations are handcrafted, v2, v3, v4 together with v4.5, v5,
-first-wave search experiments, and second-wave search experiments. Search cohorts
-override the underlying network version: H/L/N/S/T/Q/HL/ST/QFIX are first wave;
+four generations are handcrafted, combined v2/v3, combined v4/v4.5/v5, and
+combined first- and second-wave search experiments. Search cohorts override the
+underlying network version, and both waves share one cohort:
+H/L/N/S/T/Q/HL/ST/QFIX are first wave;
 HLF/HLFN/HLF_CH/HLF_HR/HLF_QR/HLFS/HLFN_V/FN and the two W384 HLF transfers are
 second wave. Width does not create a generation. Other eligible agents remain
 active normally; this is a minimum of one representative, not a quota of one.
 
 Legacy roster IDs infer these cohorts in `generations.rs`. An optional entrant
-`"generation": "search_wave_3"` field overrides inference and supports future
-cohorts; labels must be nonempty with no surrounding whitespace. Admission cannot
-rebind an existing identity to a different effective generation. Unknown IDs
+`"generation": "next_training_method"` field overrides inference and supports future
+cohorts; labels must be nonempty with no surrounding whitespace. Explicit labels
+from the former seven-group scheme (`v2`, `v3`, `v4_v4.5`, `v5`,
+`search_wave_1`, `search_wave_2`) normalize to their combined cohort as well.
+Admission cannot rebind an existing identity to a different effective generation. Unknown IDs
 without metadata still follow ordinary retirement and appear in the report's
 `unclassified` list. Label future entrants explicitly rather than assuming a new
 version or experiment suffix will be recognized. Old manifests and state files

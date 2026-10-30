@@ -157,7 +157,7 @@ pub(super) fn evaluate(state: &TourneyState, fit: &Fit) -> Result<Report, String
         .unwrap_or_default();
     let (generations, unclassified) = generations(state, fit)?;
     let mut report = Report {
-        policy: "rank8-three50-z1.96-g20o6-generations-v2",
+        policy: "rank8-three50-z1.96-g20o6-generations-v3",
         z: Z,
         minimum_games: 20,
         minimum_covered_opponents: 6,
@@ -424,6 +424,28 @@ mod tests {
             serde_json::to_value(before).unwrap(),
             serde_json::to_value(after).unwrap()
         );
+    }
+
+    #[test]
+    fn former_generation_labels_merge_before_representative_selection() {
+        for (weak, strong, combined) in [
+            ("v2", "v3", "v2_v3"),
+            ("v4_v4.5", "v5", "v4_v5"),
+            ("search_wave_1", "search_wave_2", "search"),
+        ] {
+            let mut state = fixture();
+            state.entrants[9].generation = Some(weak.into());
+            state.entrants[0].generation = Some(strong.into());
+            ensure_ratings(&mut state);
+            assert!(state.retired.contains("agent09"));
+            let report = super::super::order_neutral::from_state(&state)
+                .retirement
+                .unwrap();
+            assert_eq!(report.generations.len(), 1);
+            assert_eq!(report.generations[combined].representative, "agent00");
+            assert_eq!(report.generations[combined].members, ["agent00", "agent09"]);
+            assert!(report.retained_by_generation.is_empty());
+        }
     }
 
     #[test]
