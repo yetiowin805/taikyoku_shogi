@@ -491,7 +491,7 @@ pub fn first_leg_landing_count(piece: &Piece, board: &Board) -> u32 {
     for cap in &cfg.capabilities {
         if let MovementCapability::TwoStep { first, second } = cap {
             if is_range_capability(first) && is_range_capability(second) {
-                return MovementGenerator::capability_landings(piece, board, first).len() as u32;
+                return MovementGenerator::capability_landing_count(piece, board, first) as u32;
             }
         }
     }

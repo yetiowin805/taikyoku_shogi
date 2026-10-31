@@ -19,4 +19,18 @@ All experimental policies remain explicitly named in checkpoint metadata and eng
 
 [admission.json](admission.json) records all ten immutable identities and their bases. The shared admission preparer now accepts either a string policy using the default base or an explicit `{base_entrant, experiment}` object. Duplicate (base, policy) pairs fail; the same package can transfer to different networks in one atomic coordinator request. Existing single-base configs remain accepted. Every source NNUE hash is checked before writing candidate descriptors; frozen descriptors and networks are pinned by the existing transaction.
 
-Validation and publication receipts are added after the exact builds complete. Unit tests are correctness/eligibility checks, not evidence of playing strength. Cost labels in the preceding proposal remain hypotheses until measured; the tournament provides the actual strength experiment.
+Main validation passed 491 Rust tests (four ignored), all-target/all-feature Clippy with warnings denied, Ruff format/check and 121 deployment Python tests. The pinned live backport passed 441 Rust tests (four ignored). Regression cases cover continuation route/context identity and bounded memory, repeated evidence for HR, selective one-use recapture continuation, separate verification TT identity, rejection of a false static null cutoff losing a trapped Hook, and legal root moves for all 18 policies.
+
+[Preflight evidence](preflight.json) compares the previous live build `dcb54bd` to candidate `99979a5`. All 15 paired cases matched every completed iteration's full encoded move, score, depth and cumulative nodes: 512v3 at plies 1/80/200/500, all nine existing search variants at ply 80, and both 384 transfer baselines at ply 80 of recorded game slot4601. Every new actual NNUE descriptor passed both executable validators and completed depth two at ply 80. These are bounded compatibility/execution checks, not proof of equivalence on all positions or playing strength.
+
+The single-position QR check exposed a potentially substantial cost. HLF and HLF_QR were each run once at depth two on that ply-80 position, sequentially at nice 5 during the running eight-worker VPS tournament, with cold model loading and replay included in process accounting:
+
+| Metric (one process per arm) | HLF | HLF_QR | Change |
+|---|---:|---:|---:|
+| Search nodes through depth two | 22,717 | 182,363 | +159,646 (8.03× total) |
+| Whole-process user CPU seconds | 0.47 | 0.93 | +0.46 (+98%) |
+| Process high-water RSS, KiB | 291,144 | 302,736 | +11,592 |
+
+There are no repetition-based uncertainty estimates. The CPU and RSS figures include setup and changing cache occupancy, and were not collected under isolated load; they are gross health checks, not steady-state per-move performance estimates. Other policies' values are retained in the raw evidence. QR remains the intentionally speculative, clock-bounded arm; the normal tournament will decide whether its selective extra work pays. No model weights, clocks or scheduling rules are altered in response to this spot check.
+
+Publication and admission receipts are recorded separately. Tests and preflight establish correctness/compatibility within their scopes; the tournament provides the actual strength experiment.

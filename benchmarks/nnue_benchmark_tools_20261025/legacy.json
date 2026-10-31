@@ -1,0 +1,873 @@
+{
+  "version": 2,
+  "status": "exact",
+  "baseline_revision": "6b3397c0409a48bd1fa2c82deb4888b4a26c39f6",
+  "candidate_revision": "760d53175265912fcbde79b3413054c32523201e",
+  "candidate_source_dirty": false,
+  "candidate_source_sha256": {
+    "benchmark_training.py": "c85e066e30124778e48216dbe07999b82e6dad2d726adf91151d521eba6f7bcf",
+    "benchmark_workload.py": "692b314c24763ce5c569c96fbb313ac0590d8c7e3bfd7e0264b7431d13f24eb8",
+    "collect.py": "528d8c3300f5391756fab1b8e7b485e7d885f85e38c501da5e10076f764aa47b",
+    "continuation.py": "e1f5bc9049312eafaf6c9797d618cdec723b6b9bf6030bb4a69a99221550716c",
+    "dataset_storage.py": "a22ee52a29bf92bc0813d5b894436714288be3c2bfc2b456add64ebbb428ad6e",
+    "difficulty_weights.py": "b82a4557541ae6ee056411f83ebf3ceaf8beac307a23865f2aecfeb228a9ddf8",
+    "generation.py": "a036ca573342aaa89ab9f30d04135e2b77a67af4c8d535231fdfbd84d2accfa3",
+    "generation_score.py": "51d207b8d0b5934ff00b5e203d92061b713806578da3a071c0f4f91ccae2e1b9",
+    "pilot_compare.py": "d4db115a2753d119081ab647a00d05c8ca388606f3c31c4feee453d15a847f15",
+    "pilot_data.py": "30951dc0416e8cdbc9aa3a8bd4301af162583c77838526fdb45149c8a2c73252",
+    "pilot_finish.py": "c23c8e1f0dab7380310eacedd46a671ad5a14282dc480c4ffedbcaefbdcdad3f",
+    "pilot_fit.py": "c4030be5953c2b0784054dc68f88d27f380881b65439f0a3663939259f5efc91",
+    "pilot_snapshot.py": "c20075a300205d99ab8c2a3038b87af5b057adbf0f3a2ac4ca016afe7d9c09c1",
+    "pilot_vps.py": "dffcd110b5f3c60db565802a8906696ab67bccbfa135af676060385c72a3a3fe",
+    "plateau.py": "49d694ebdeba3003f5bb0efe5ff9964af70ca14d37339fe3dceb6786f1a2f03f",
+    "prepare.py": "068401da149e293262e8e1c676309ebd51c13eadb2048b17cafc72304cb7e9b2",
+    "quantized.py": "cb09ebe0178c246b438ea82199380bbce6e0153d798129199b40abef9282c757",
+    "recent_data.py": "83dff999dd1d031646ed24c6ca42233eaf338edbb38a71dedf2f21fd48f4f4f2",
+    "stage.py": "4ca3fb95aec881f7a9f7e9f3a0f133c26c53e24db23e6fe0f49cefa445b26b4f",
+    "test_benchmark_training.py": "d700886d03c10e46d5567882ad91486b0df72eeee70c4491313a14ac410b2cf3",
+    "test_continuation.py": "60c577259601a81f7af4b6fa0a1e07e1cf7423a47db8a6bd286985d72e52f8ce",
+    "test_finetune.py": "e6516fb93b0a401a5a10b806615151006e4ee5978d971fbc0f085548f9031e0d",
+    "test_generation.py": "9ab1f1517f1bfe8ebfea9dfa046f80e77e7412263f6fd93e8b2f8900b8aaa771",
+    "test_pilot.py": "0d418d071a4f3804f3e350a8aed47ba3d2694dbd4ae64630eb3059877bae6bc7",
+    "test_pilot_vps.py": "c92739869116287aacf51c5dd3d78151f1953590bbe577915618988557e0e7b8",
+    "test_training.py": "a43a681f7d368849981759ed99004535f48c1b76710c84665ea342a75b8b60b5",
+    "test_training_efficiency.py": "f8b138eed8966eadffacf340c64bedf6ebf37cea4443aed8f002d841a94e2bf5",
+    "test_v4_data.py": "4c9ea64f4acbe37760c2aa0c405b7d982029273b384a4ccf37d67328a934e9aa",
+    "test_v5.py": "08c6120f3f065fc27e18dbdc721cda8722c1ff4efddb1ec7c0189a1ea53f981c",
+    "train.py": "de8cd8739a93d06f0b5dbaeb8fd22cc1c2f21581ae2737ab41e5ce5bb26c9923",
+    "train_all.py": "cdad142cbb7fe6243a465ac1539471a30a4b25d34049237ce1b428ae9f4ac29e",
+    "v4_data.py": "947ffad6b747ae6994424a0cbff712bf3aff419c2ff0475129474334b73088b6",
+    "v4_validate.py": "2419f63481cbd2fd705f8b477443ba78b8af9adf4f7a223f4c8399dc5c0a6785",
+    "v5_snapshot.py": "a06a21b028073ac5b84ce442d07deb25ab523c46733936c22b904232701e66f7",
+    "v5_weights.py": "49abe011bea6ee84a0976b426783bc7414f9322a00fcebb0be1555cadd82d374",
+    "validate.py": "abd3cd899bc50d00b3a3c73d630710d769ca2ef9c68b9aad478c9e99b9fe2e4d"
+  },
+  "dataset": {
+    "baseline_sha256": "e9a62604bd32e53e62ac9c25c2c49b3402ed6b00d61af60305a1953c5062c7c2",
+    "features_sha256": "59a79201a9d101f7912b41978cc123382d95e149e2ac99fa07f7bffa2dffc65d",
+    "samples": 71389,
+    "samples_sha256": "e91d08fbff717094b9dcb6f69026a4b8a4b0f811ef1984bd130e63f4409d5ba2",
+    "schema_sha256": "31d42af3b4e4595687d6f097d6ef9d2ddfb22294421618e26793db05345b17ac",
+    "version": 1,
+    "snapshot_sha256": "3c02580a671bb7a75a3b89b2e1aee25ed111abf809acde600e3538447e43ceee",
+    "policy": "512-pilot-v1"
+  },
+  "dataset_manifest_sha256": "17bd699548313c25c44db16f2db5c3d92b8ec266af62d60925906332861b3e0f",
+  "seed": 20261025,
+  "steps": 2,
+  "batch": 8,
+  "microbatch": 1,
+  "candidate_microbatch": 1,
+  "validation_samples": 8,
+  "cpu": 2,
+  "cpu_model": "12th Gen Intel(R) Core(TM) i7-1255U",
+  "torch_threads": 1,
+  "artifact_temporary_root": "/tmp",
+  "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+  "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+  "artifacts": false,
+  "allow_numerical_differences": false,
+  "timing_scope": "One warmup update; timed fixed update count, validation, and optional private export/checkpoint. Setup and output hashing are outside workload_s; process_s includes them. Not a full epoch or production resume benchmark.",
+  "profile_scope": "Separate cProfile processes; cumulative callable times may overlap and must not be summed. Profiled runs never enter normal timing summaries.",
+  "raw": [
+    {
+      "width": 32,
+      "pair": 0,
+      "results": {
+        "baseline": {
+          "train_s": 0.04459741900063818,
+          "validation_s": 0.0038667650005663745,
+          "workload_s": 0.04847062100088806,
+          "setup_s": 3.5435925709989533,
+          "peak_rss_kib": 567672,
+          "weights_sha256": "8cf8cfa3dfc9a742ab2d28067e345fd7c9a06783b998f704a037e09569485752",
+          "losses": [
+            50.65993574261665,
+            2.955495362286456
+          ],
+          "metrics": {
+            "objective": 0.030529161915183067,
+            "huber": 0.9248785972595215,
+            "mae": 1284.3010425567627,
+            "teacher_brier": 0.0007972573512233794,
+            "outcome_brier": 0.16762375831604004,
+            "count": 8,
+            "outcome_count": 8,
+            "by_source": {
+              "historical": {
+                "count": 1,
+                "huber": 1.7046430110931396
+              },
+              "recent": {
+                "count": 6,
+                "huber": 0.9478003253940793
+              },
+              "analysis": {
+                "count": 1,
+                "huber": 0.007583904545754194
+              }
+            }
+          },
+          "validation_scores": [
+            10.20838451385498,
+            10.498587608337402,
+            8.716979026794434,
+            9.737442970275879,
+            10.730391502380371,
+            10.438652038574219,
+            8.238762855529785,
+            9.057804107666016
+          ],
+          "sample_ids_sha256": "41f2f2c5807edf0a37bfdd1fb9b0f4f026203a2c3193697389af03fe3b289073",
+          "dataset_manifest_sha256": "17bd699548313c25c44db16f2db5c3d92b8ec266af62d60925906332861b3e0f",
+          "train_samples": 16,
+          "validation_samples": 8,
+          "batch": 8,
+          "microbatch": 1,
+          "profiled": false,
+          "profile": {},
+          "torch": "2.14.0+cpu",
+          "numpy": "2.5.2",
+          "cpu": 2,
+          "loaded_sources": {
+            "__main__": {
+              "path": "/home/frank/taikyoku_shogi/training/nnue/benchmark_training.py",
+              "sha256": "c85e066e30124778e48216dbe07999b82e6dad2d726adf91151d521eba6f7bcf"
+            },
+            "archive_storage": {
+              "path": "/home/frank/taikyoku_shogi/deploy/archive_storage.py",
+              "sha256": "e49c558a0d481ec56524eb6ce2be709bf5c55e6c4027bd1ea8f8d666e7e0ac4d"
+            },
+            "artifact_storage": {
+              "path": "/home/frank/taikyoku_shogi/deploy/artifact_storage.py",
+              "sha256": "2ca92b2e603e5dcfcf58a3e47abe722d23c776e1834ed8bdcce631ec953b514a"
+            },
+            "dataset_storage": {
+              "path": "/home/frank/taikyoku_shogi/training/nnue/dataset_storage.py",
+              "sha256": "a22ee52a29bf92bc0813d5b894436714288be3c2bfc2b456add64ebbb428ad6e"
+            },
+            "benchmark_workload": {
+              "path": "/home/frank/taikyoku_shogi/training/nnue/benchmark_workload.py",
+              "sha256": "692b314c24763ce5c569c96fbb313ac0590d8c7e3bfd7e0264b7431d13f24eb8"
+            },
+            "__mp_main__": {
+              "path": "/home/frank/taikyoku_shogi/training/nnue/benchmark_training.py",
+              "sha256": "c85e066e30124778e48216dbe07999b82e6dad2d726adf91151d521eba6f7bcf"
+            },
+            "pilot_data": {
+              "path": "/tmp/nnue-cpu-benchmark-ok0emghe/training/nnue/pilot_data.py",
+              "sha256": "96685875d170c3675899c9b6e5bafc4e9d0486b8ca14e9578a64ad4712bc323b"
+            },
+            "plateau": {
+              "path": "/tmp/nnue-cpu-benchmark-ok0emghe/training/nnue/plateau.py",
+              "sha256": "15d709f2167c4877e5dd31d7eb468152fe2f1c3ddf544a436efb42cf29e5b1d2"
+            },
+            "quantized": {
+              "path": "/tmp/nnue-cpu-benchmark-ok0emghe/training/nnue/quantized.py",
+              "sha256": "1a797b8ed834c78728a4fb51fe1abf98727e93a463033c3374cff8b0297ed81a"
+            },
+            "train": {
+              "path": "/tmp/nnue-cpu-benchmark-ok0emghe/training/nnue/train.py",
+              "sha256": "fad62e6e8925ea8d3fa34d550a84cf4c2e3fd6e933e0982f4fe2837a6c03cf43"
+            },
+            "pilot_fit": {
+              "path": "/tmp/nnue-cpu-benchmark-ok0emghe/training/nnue/pilot_fit.py",
+              "sha256": "f4ba6632362da728660bc1862bb4d483354dbbaebe652a343d61dba9c64b772a"
+            }
+          },
+          "process_s": 4.504015132999484
+        },
+        "candidate": {
+          "train_s": 0.03753037600108655,
+          "validation_s": 0.0030537919992639218,
+          "workload_s": 0.04058875199916656,
+          "setup_s": 3.2097205039990513,
+          "peak_rss_kib": 566188,
+          "weights_sha256": "8cf8cfa3dfc9a742ab2d28067e345fd7c9a06783b998f704a037e09569485752",
+          "losses": [
+            50.65993574261665,
+            2.955495362286456
+          ],
+          "metrics": {
+            "objective": 0.030529161915183067,
+            "huber": 0.9248785972595215,
+            "mae": 1284.3010425567627,
+            "teacher_brier": 0.0007972573512233794,
+            "outcome_brier": 0.16762375831604004,
+            "count": 8,
+            "outcome_count": 8,
+            "by_source": {
+              "historical": {
+                "count": 1,
+                "huber": 1.7046430110931396
+              },
+              "recent": {
+                "count": 6,
+                "huber": 0.9478003253940793
+              },
+              "analysis": {
+                "count": 1,
+                "huber": 0.007583904545754194
+              }
+            }
+          },
+          "validation_scores": [
+            10.20838451385498,
+            10.498587608337402,
+            8.716979026794434,
+            9.737442970275879,
+            10.730391502380371,
+            10.438652038574219,
+            8.238762855529785,
+            9.057804107666016
+          ],
+          "sample_ids_sha256": "41f2f2c5807edf0a37bfdd1fb9b0f4f026203a2c3193697389af03fe3b289073",
+          "dataset_manifest_sha256": "17bd699548313c25c44db16f2db5c3d92b8ec266af62d60925906332861b3e0f",
+          "train_samples": 16,
+          "validation_samples": 8,
+          "batch": 8,
+          "microbatch": 1,
+          "profiled": false,
+          "profile": {},
+          "torch": "2.14.0+cpu",
+          "numpy": "2.5.2",
+          "cpu": 2,
+          "loaded_sources": {
+            "__main__": {
+              "path": "/home/frank/taikyoku_shogi/training/nnue/benchmark_training.py",
+              "sha256": "c85e066e30124778e48216dbe07999b82e6dad2d726adf91151d521eba6f7bcf"
+            },
+            "archive_storage": {
+              "path": "/home/frank/taikyoku_shogi/deploy/archive_storage.py",
+              "sha256": "e49c558a0d481ec56524eb6ce2be709bf5c55e6c4027bd1ea8f8d666e7e0ac4d"
+            },
+            "artifact_storage": {
+              "path": "/home/frank/taikyoku_shogi/deploy/artifact_storage.py",
+              "sha256": "2ca92b2e603e5dcfcf58a3e47abe722d23c776e1834ed8bdcce631ec953b514a"
+            },
+            "dataset_storage": {
+              "path": "/home/frank/taikyoku_shogi/training/nnue/dataset_storage.py",
+              "sha256": "a22ee52a29bf92bc0813d5b894436714288be3c2bfc2b456add64ebbb428ad6e"
+            },
+            "benchmark_workload": {
+              "path": "/home/frank/taikyoku_shogi/training/nnue/benchmark_workload.py",
+              "sha256": "692b314c24763ce5c569c96fbb313ac0590d8c7e3bfd7e0264b7431d13f24eb8"
+            },
+            "__mp_main__": {
+              "path": "/home/frank/taikyoku_shogi/training/nnue/benchmark_training.py",
+              "sha256": "c85e066e30124778e48216dbe07999b82e6dad2d726adf91151d521eba6f7bcf"
+            },
+            "pilot_data": {
+              "path": "/home/frank/taikyoku_shogi/training/nnue/pilot_data.py",
+              "sha256": "30951dc0416e8cdbc9aa3a8bd4301af162583c77838526fdb45149c8a2c73252"
+            },
+            "plateau": {
+              "path": "/home/frank/taikyoku_shogi/training/nnue/plateau.py",
+              "sha256": "49d694ebdeba3003f5bb0efe5ff9964af70ca14d37339fe3dceb6786f1a2f03f"
+            },
+            "quantized": {
+              "path": "/home/frank/taikyoku_shogi/training/nnue/quantized.py",
+              "sha256": "cb09ebe0178c246b438ea82199380bbce6e0153d798129199b40abef9282c757"
+            },
+            "train": {
+              "path": "/home/frank/taikyoku_shogi/training/nnue/train.py",
+              "sha256": "de8cd8739a93d06f0b5dbaeb8fd22cc1c2f21581ae2737ab41e5ce5bb26c9923"
+            },
+            "pilot_fit": {
+              "path": "/home/frank/taikyoku_shogi/training/nnue/pilot_fit.py",
+              "sha256": "c4030be5953c2b0784054dc68f88d27f380881b65439f0a3663939259f5efc91"
+            }
+          },
+          "process_s": 4.060683817999234
+        }
+      },
+      "comparison": {
+        "losses": {
+          "exact": true,
+          "compared_values": 2,
+          "max_abs_error": 0.0,
+          "mean_abs_error": 0.0,
+          "changed_structure_or_values": []
+        },
+        "metrics": {
+          "exact": true,
+          "compared_values": 13,
+          "max_abs_error": 0,
+          "mean_abs_error": 0.0,
+          "changed_structure_or_values": []
+        },
+        "validation_scores": {
+          "exact": true,
+          "compared_values": 8,
+          "max_abs_error": 0.0,
+          "mean_abs_error": 0.0,
+          "changed_structure_or_values": []
+        },
+        "weights_exact": true,
+        "workload_exact": true,
+        "exact": true
+      }
+    }
+  ],
+  "profiles": [
+    {
+      "width": 32,
+      "variant": "baseline",
+      "result": {
+        "train_s": 0.052654452998467605,
+        "validation_s": 0.005449939000754966,
+        "workload_s": 0.05899419899833447,
+        "setup_s": 3.228498116999617,
+        "peak_rss_kib": 565216,
+        "weights_sha256": "8cf8cfa3dfc9a742ab2d28067e345fd7c9a06783b998f704a037e09569485752",
+        "losses": [
+          50.65993574261665,
+          2.955495362286456
+        ],
+        "metrics": {
+          "objective": 0.030529161915183067,
+          "huber": 0.9248785972595215,
+          "mae": 1284.3010425567627,
+          "teacher_brier": 0.0007972573512233794,
+          "outcome_brier": 0.16762375831604004,
+          "count": 8,
+          "outcome_count": 8,
+          "by_source": {
+            "historical": {
+              "count": 1,
+              "huber": 1.7046430110931396
+            },
+            "recent": {
+              "count": 6,
+              "huber": 0.9478003253940793
+            },
+            "analysis": {
+              "count": 1,
+              "huber": 0.007583904545754194
+            }
+          }
+        },
+        "validation_scores": [
+          10.20838451385498,
+          10.498587608337402,
+          8.716979026794434,
+          9.737442970275879,
+          10.730391502380371,
+          10.438652038574219,
+          8.238762855529785,
+          9.057804107666016
+        ],
+        "sample_ids_sha256": "41f2f2c5807edf0a37bfdd1fb9b0f4f026203a2c3193697389af03fe3b289073",
+        "dataset_manifest_sha256": "17bd699548313c25c44db16f2db5c3d92b8ec266af62d60925906332861b3e0f",
+        "train_samples": 16,
+        "validation_samples": 8,
+        "batch": 8,
+        "microbatch": 1,
+        "profiled": true,
+        "profile": {
+          "training": {
+            "callables": {
+              "feature_packing": {
+                "calls": 16,
+                "cumulative_s": 0.001605969,
+                "self_s": 0.0006450290000000001
+              },
+              "forward": {
+                "calls": 16,
+                "cumulative_s": 0.015675458,
+                "self_s": 0.002894817
+              },
+              "objective": {
+                "calls": 16,
+                "cumulative_s": 0.001855941,
+                "self_s": 0.00064132
+              },
+              "backward": {
+                "calls": 16,
+                "cumulative_s": 0.014400290000000001,
+                "self_s": 5.5217000000000003e-05
+              },
+              "coalesce": {
+                "calls": 16,
+                "cumulative_s": 0.008231311,
+                "self_s": 0.008231311
+              },
+              "zero_grad": {
+                "calls": 4,
+                "cumulative_s": 0.00038325200000000005,
+                "self_s": 0.00011662800000000001
+              },
+              "sparse_step": {
+                "calls": 2,
+                "cumulative_s": 0.001365405,
+                "self_s": 1.7668e-05
+              },
+              "dense_step": {
+                "calls": 2,
+                "cumulative_s": 0.000718055,
+                "self_s": 2.3249e-05
+              },
+              "clamp": {
+                "calls": 2,
+                "cumulative_s": 0.00257609,
+                "self_s": 0.002012898
+              }
+            },
+            "unavailable": [],
+            "interpretation": "Instrumented cumulative callable wall times can overlap; do not sum or compare with unprofiled timings."
+          },
+          "validation": {
+            "callables": {
+              "feature_packing": {
+                "calls": 1,
+                "cumulative_s": 0.00029307300000000003,
+                "self_s": 0.00011908800000000001
+              },
+              "forward": {
+                "calls": 1,
+                "cumulative_s": 0.004492191,
+                "self_s": 0.000692821
+              },
+              "evaluate": {
+                "calls": 1,
+                "cumulative_s": 0.00542795,
+                "self_s": 0.00019358800000000002
+              }
+            },
+            "unavailable": [],
+            "interpretation": "Instrumented cumulative callable wall times can overlap; do not sum or compare with unprofiled timings."
+          }
+        },
+        "torch": "2.14.0+cpu",
+        "numpy": "2.5.2",
+        "cpu": 2,
+        "loaded_sources": {
+          "__main__": {
+            "path": "/home/frank/taikyoku_shogi/training/nnue/benchmark_training.py",
+            "sha256": "c85e066e30124778e48216dbe07999b82e6dad2d726adf91151d521eba6f7bcf"
+          },
+          "archive_storage": {
+            "path": "/home/frank/taikyoku_shogi/deploy/archive_storage.py",
+            "sha256": "e49c558a0d481ec56524eb6ce2be709bf5c55e6c4027bd1ea8f8d666e7e0ac4d"
+          },
+          "artifact_storage": {
+            "path": "/home/frank/taikyoku_shogi/deploy/artifact_storage.py",
+            "sha256": "2ca92b2e603e5dcfcf58a3e47abe722d23c776e1834ed8bdcce631ec953b514a"
+          },
+          "dataset_storage": {
+            "path": "/home/frank/taikyoku_shogi/training/nnue/dataset_storage.py",
+            "sha256": "a22ee52a29bf92bc0813d5b894436714288be3c2bfc2b456add64ebbb428ad6e"
+          },
+          "benchmark_workload": {
+            "path": "/home/frank/taikyoku_shogi/training/nnue/benchmark_workload.py",
+            "sha256": "692b314c24763ce5c569c96fbb313ac0590d8c7e3bfd7e0264b7431d13f24eb8"
+          },
+          "__mp_main__": {
+            "path": "/home/frank/taikyoku_shogi/training/nnue/benchmark_training.py",
+            "sha256": "c85e066e30124778e48216dbe07999b82e6dad2d726adf91151d521eba6f7bcf"
+          },
+          "pilot_data": {
+            "path": "/tmp/nnue-cpu-benchmark-ok0emghe/training/nnue/pilot_data.py",
+            "sha256": "96685875d170c3675899c9b6e5bafc4e9d0486b8ca14e9578a64ad4712bc323b"
+          },
+          "plateau": {
+            "path": "/tmp/nnue-cpu-benchmark-ok0emghe/training/nnue/plateau.py",
+            "sha256": "15d709f2167c4877e5dd31d7eb468152fe2f1c3ddf544a436efb42cf29e5b1d2"
+          },
+          "quantized": {
+            "path": "/tmp/nnue-cpu-benchmark-ok0emghe/training/nnue/quantized.py",
+            "sha256": "1a797b8ed834c78728a4fb51fe1abf98727e93a463033c3374cff8b0297ed81a"
+          },
+          "train": {
+            "path": "/tmp/nnue-cpu-benchmark-ok0emghe/training/nnue/train.py",
+            "sha256": "fad62e6e8925ea8d3fa34d550a84cf4c2e3fd6e933e0982f4fe2837a6c03cf43"
+          },
+          "pilot_fit": {
+            "path": "/tmp/nnue-cpu-benchmark-ok0emghe/training/nnue/pilot_fit.py",
+            "sha256": "f4ba6632362da728660bc1862bb4d483354dbbaebe652a343d61dba9c64b772a"
+          }
+        },
+        "process_s": 4.21454869399895
+      },
+      "parity": {
+        "losses": {
+          "exact": true,
+          "compared_values": 2,
+          "max_abs_error": 0.0,
+          "mean_abs_error": 0.0,
+          "changed_structure_or_values": []
+        },
+        "metrics": {
+          "exact": true,
+          "compared_values": 13,
+          "max_abs_error": 0,
+          "mean_abs_error": 0.0,
+          "changed_structure_or_values": []
+        },
+        "validation_scores": {
+          "exact": true,
+          "compared_values": 8,
+          "max_abs_error": 0.0,
+          "mean_abs_error": 0.0,
+          "changed_structure_or_values": []
+        },
+        "weights_exact": true,
+        "workload_exact": true,
+        "exact": true
+      }
+    },
+    {
+      "width": 32,
+      "variant": "candidate",
+      "result": {
+        "train_s": 0.03890054399926157,
+        "validation_s": 0.0032643890008330345,
+        "workload_s": 0.04289268199863727,
+        "setup_s": 3.2683401249996678,
+        "peak_rss_kib": 567272,
+        "weights_sha256": "8cf8cfa3dfc9a742ab2d28067e345fd7c9a06783b998f704a037e09569485752",
+        "losses": [
+          50.65993574261665,
+          2.955495362286456
+        ],
+        "metrics": {
+          "objective": 0.030529161915183067,
+          "huber": 0.9248785972595215,
+          "mae": 1284.3010425567627,
+          "teacher_brier": 0.0007972573512233794,
+          "outcome_brier": 0.16762375831604004,
+          "count": 8,
+          "outcome_count": 8,
+          "by_source": {
+            "historical": {
+              "count": 1,
+              "huber": 1.7046430110931396
+            },
+            "recent": {
+              "count": 6,
+              "huber": 0.9478003253940793
+            },
+            "analysis": {
+              "count": 1,
+              "huber": 0.007583904545754194
+            }
+          }
+        },
+        "validation_scores": [
+          10.20838451385498,
+          10.498587608337402,
+          8.716979026794434,
+          9.737442970275879,
+          10.730391502380371,
+          10.438652038574219,
+          8.238762855529785,
+          9.057804107666016
+        ],
+        "sample_ids_sha256": "41f2f2c5807edf0a37bfdd1fb9b0f4f026203a2c3193697389af03fe3b289073",
+        "dataset_manifest_sha256": "17bd699548313c25c44db16f2db5c3d92b8ec266af62d60925906332861b3e0f",
+        "train_samples": 16,
+        "validation_samples": 8,
+        "batch": 8,
+        "microbatch": 1,
+        "profiled": true,
+        "profile": {
+          "training": {
+            "callables": {
+              "feature_packing": {
+                "calls": 16,
+                "cumulative_s": 0.0011672750000000002,
+                "self_s": 0.000524501
+              },
+              "forward": {
+                "calls": 16,
+                "cumulative_s": 0.012929675000000002,
+                "self_s": 0.002229126
+              },
+              "objective": {
+                "calls": 16,
+                "cumulative_s": 0.0011070140000000001,
+                "self_s": 0.000153782
+              },
+              "backward": {
+                "calls": 16,
+                "cumulative_s": 0.012185085,
+                "self_s": 4.6949e-05
+              },
+              "coalesce": {
+                "calls": 16,
+                "cumulative_s": 0.007265588000000001,
+                "self_s": 0.007265588000000001
+              },
+              "zero_grad": {
+                "calls": 4,
+                "cumulative_s": 0.000303909,
+                "self_s": 0.000180867
+              },
+              "sparse_step": {
+                "calls": 2,
+                "cumulative_s": 0.0007546100000000001,
+                "self_s": 1.2182000000000001e-05
+              },
+              "dense_step": {
+                "calls": 2,
+                "cumulative_s": 0.000542803,
+                "self_s": 1.8578e-05
+              },
+              "clamp": {
+                "calls": 2,
+                "cumulative_s": 0.001089878,
+                "self_s": 0.0008897660000000001
+              }
+            },
+            "unavailable": [],
+            "interpretation": "Instrumented cumulative callable wall times can overlap; do not sum or compare with unprofiled timings."
+          },
+          "validation": {
+            "callables": {
+              "feature_packing": {
+                "calls": 1,
+                "cumulative_s": 0.000185071,
+                "self_s": 0.000105457
+              },
+              "forward": {
+                "calls": 1,
+                "cumulative_s": 0.0026092890000000003,
+                "self_s": 0.00024484100000000004
+              },
+              "evaluate": {
+                "calls": 1,
+                "cumulative_s": 0.003246042,
+                "self_s": 0.00013629200000000002
+              }
+            },
+            "unavailable": [],
+            "interpretation": "Instrumented cumulative callable wall times can overlap; do not sum or compare with unprofiled timings."
+          }
+        },
+        "torch": "2.14.0+cpu",
+        "numpy": "2.5.2",
+        "cpu": 2,
+        "loaded_sources": {
+          "__main__": {
+            "path": "/home/frank/taikyoku_shogi/training/nnue/benchmark_training.py",
+            "sha256": "c85e066e30124778e48216dbe07999b82e6dad2d726adf91151d521eba6f7bcf"
+          },
+          "archive_storage": {
+            "path": "/home/frank/taikyoku_shogi/deploy/archive_storage.py",
+            "sha256": "e49c558a0d481ec56524eb6ce2be709bf5c55e6c4027bd1ea8f8d666e7e0ac4d"
+          },
+          "artifact_storage": {
+            "path": "/home/frank/taikyoku_shogi/deploy/artifact_storage.py",
+            "sha256": "2ca92b2e603e5dcfcf58a3e47abe722d23c776e1834ed8bdcce631ec953b514a"
+          },
+          "dataset_storage": {
+            "path": "/home/frank/taikyoku_shogi/training/nnue/dataset_storage.py",
+            "sha256": "a22ee52a29bf92bc0813d5b894436714288be3c2bfc2b456add64ebbb428ad6e"
+          },
+          "benchmark_workload": {
+            "path": "/home/frank/taikyoku_shogi/training/nnue/benchmark_workload.py",
+            "sha256": "692b314c24763ce5c569c96fbb313ac0590d8c7e3bfd7e0264b7431d13f24eb8"
+          },
+          "__mp_main__": {
+            "path": "/home/frank/taikyoku_shogi/training/nnue/benchmark_training.py",
+            "sha256": "c85e066e30124778e48216dbe07999b82e6dad2d726adf91151d521eba6f7bcf"
+          },
+          "pilot_data": {
+            "path": "/home/frank/taikyoku_shogi/training/nnue/pilot_data.py",
+            "sha256": "30951dc0416e8cdbc9aa3a8bd4301af162583c77838526fdb45149c8a2c73252"
+          },
+          "plateau": {
+            "path": "/home/frank/taikyoku_shogi/training/nnue/plateau.py",
+            "sha256": "49d694ebdeba3003f5bb0efe5ff9964af70ca14d37339fe3dceb6786f1a2f03f"
+          },
+          "quantized": {
+            "path": "/home/frank/taikyoku_shogi/training/nnue/quantized.py",
+            "sha256": "cb09ebe0178c246b438ea82199380bbce6e0153d798129199b40abef9282c757"
+          },
+          "train": {
+            "path": "/home/frank/taikyoku_shogi/training/nnue/train.py",
+            "sha256": "de8cd8739a93d06f0b5dbaeb8fd22cc1c2f21581ae2737ab41e5ce5bb26c9923"
+          },
+          "pilot_fit": {
+            "path": "/home/frank/taikyoku_shogi/training/nnue/pilot_fit.py",
+            "sha256": "c4030be5953c2b0784054dc68f88d27f380881b65439f0a3663939259f5efc91"
+          }
+        },
+        "process_s": 4.1308717360006995
+      },
+      "parity": {
+        "losses": {
+          "exact": true,
+          "compared_values": 2,
+          "max_abs_error": 0.0,
+          "mean_abs_error": 0.0,
+          "changed_structure_or_values": []
+        },
+        "metrics": {
+          "exact": true,
+          "compared_values": 13,
+          "max_abs_error": 0,
+          "mean_abs_error": 0.0,
+          "changed_structure_or_values": []
+        },
+        "validation_scores": {
+          "exact": true,
+          "compared_values": 8,
+          "max_abs_error": 0.0,
+          "mean_abs_error": 0.0,
+          "changed_structure_or_values": []
+        },
+        "weights_exact": true,
+        "workload_exact": true,
+        "exact": true
+      }
+    }
+  ],
+  "summary": {
+    "32": {
+      "pairs": 1,
+      "exact_pairs": 1,
+      "metrics": {
+        "train_s": {
+          "baseline": {
+            "n": 1,
+            "min": 0.04459741900063818,
+            "median": 0.04459741900063818,
+            "max": 0.04459741900063818,
+            "mean": 0.04459741900063818,
+            "sample_sd": null
+          },
+          "candidate": {
+            "n": 1,
+            "min": 0.03753037600108655,
+            "median": 0.03753037600108655,
+            "max": 0.03753037600108655,
+            "mean": 0.03753037600108655,
+            "sample_sd": null
+          },
+          "paired_ratio": {
+            "n": 1,
+            "min": 0.8415369508390048,
+            "median": 0.8415369508390048,
+            "max": 0.8415369508390048,
+            "mean": 0.8415369508390048,
+            "sample_sd": null
+          }
+        },
+        "validation_s": {
+          "baseline": {
+            "n": 1,
+            "min": 0.0038667650005663745,
+            "median": 0.0038667650005663745,
+            "max": 0.0038667650005663745,
+            "mean": 0.0038667650005663745,
+            "sample_sd": null
+          },
+          "candidate": {
+            "n": 1,
+            "min": 0.0030537919992639218,
+            "median": 0.0030537919992639218,
+            "max": 0.0030537919992639218,
+            "mean": 0.0030537919992639218,
+            "sample_sd": null
+          },
+          "paired_ratio": {
+            "n": 1,
+            "min": 0.7897537085436083,
+            "median": 0.7897537085436083,
+            "max": 0.7897537085436083,
+            "mean": 0.7897537085436083,
+            "sample_sd": null
+          }
+        },
+        "workload_s": {
+          "baseline": {
+            "n": 1,
+            "min": 0.04847062100088806,
+            "median": 0.04847062100088806,
+            "max": 0.04847062100088806,
+            "mean": 0.04847062100088806,
+            "sample_sd": null
+          },
+          "candidate": {
+            "n": 1,
+            "min": 0.04058875199916656,
+            "median": 0.04058875199916656,
+            "max": 0.04058875199916656,
+            "mean": 0.04058875199916656,
+            "sample_sd": null
+          },
+          "paired_ratio": {
+            "n": 1,
+            "min": 0.837388734887942,
+            "median": 0.837388734887942,
+            "max": 0.837388734887942,
+            "mean": 0.837388734887942,
+            "sample_sd": null
+          }
+        },
+        "process_s": {
+          "baseline": {
+            "n": 1,
+            "min": 4.504015132999484,
+            "median": 4.504015132999484,
+            "max": 4.504015132999484,
+            "mean": 4.504015132999484,
+            "sample_sd": null
+          },
+          "candidate": {
+            "n": 1,
+            "min": 4.060683817999234,
+            "median": 4.060683817999234,
+            "max": 4.060683817999234,
+            "mean": 4.060683817999234,
+            "sample_sd": null
+          },
+          "paired_ratio": {
+            "n": 1,
+            "min": 0.9015697545614128,
+            "median": 0.9015697545614128,
+            "max": 0.9015697545614128,
+            "mean": 0.9015697545614128,
+            "sample_sd": null
+          }
+        },
+        "peak_rss_kib": {
+          "baseline": {
+            "n": 1,
+            "min": 567672,
+            "median": 567672,
+            "max": 567672,
+            "mean": 567672,
+            "sample_sd": null
+          },
+          "candidate": {
+            "n": 1,
+            "min": 566188,
+            "median": 566188,
+            "max": 566188,
+            "mean": 566188,
+            "sample_sd": null
+          },
+          "paired_ratio": {
+            "n": 1,
+            "min": 0.9973858143434942,
+            "median": 0.9973858143434942,
+            "max": 0.9973858143434942,
+            "mean": 0.9973858143434942,
+            "sample_sd": null
+          }
+        }
+      }
+    }
+  },
+  "median_candidate_over_baseline": {
+    "32": {
+      "train_s": 0.8415369508390048,
+      "validation_s": 0.7897537085436083,
+      "workload_s": 0.837388734887942,
+      "process_s": 0.9015697545614128,
+      "peak_rss_kib": 0.9973858143434942
+    }
+  }
+}

@@ -1,0 +1,579 @@
+TACTICAL MOTIF REPORT — 32 CASES
+Source snapshot: 2026-10-10T16:20:39.956669-07:00
+
+All 32 shortlisted cases are reviewed individually. A verified motif means the move/capture geometry or forcing royal condition was checked through the engine rules. It does not prove that the earlier mistake was avoidable, or that quiescence caused it.
+The report distinguishes the previously isolated Capricorn failure, defenses supported by controlled depth-4 comparisons, other verified patterns with unresolved defenses, useful compensation/forcing-move controls, and an unresolved score-drop case.
+New checks: 108 historical-engine searches (depth 4 unrestricted, depth 4 restricted to the played move, and depth 3 with two quiescence plies on all leaves, plus targeted follow-ups). Search uses the original agent’s NNUE model; it is not an independent tactical oracle. Incomplete iterations are explicitly marked. Scores are own-perspective internal units, not calibrated centipawns.
+Counterfactual threat maps temporarily give the opponent the turn; they identify available capture geometry, not a legal pass or a forced line. Actual proposed moves and PVs were then replayed with the engine’s last-royal evasion handling. Capture lists retain up to twelve routes removing at least 300 seed material units or a royal; they are not exhaustive lists of all small captures.
+GUI plies are 1-based, and a position is BEFORE that move. Route coordinates are the engine’s 0-based file,rank pairs. Seed material is used only to describe exchanges; it is different from NNUE scores and does not establish overall positional value.
+The three reserved games were not searched. Cases within one game or shared opening/threat family remain correlated; do not count them as independent tournament-strength measurements.
+
+CLASSIFICATION
+Pattern verified; error unresolved: 20
+Useful control; no error established: 6
+Defense supported; not fully adjudicated: 4
+Previously isolated search failure: 1
+Unresolved; exclude from tactical pass/fail: 1
+
+RECOMMENDED INVESTIGATIONS
+Quiet defenses and capturing the attacker: Start with 817/43, 673/174, 756/396 and 869/25. These have concrete threats and same-depth support for a defense. Check defensive move reductions and the depth allowed to non-PV quiescence before assuming capture generation is missing.
+Compound capture of all royals: 864/484 has an exact Lion Hawk route taking both remaining White royals. Test emergency detection for all-royal captures even when two royals remain; a “last royal only” check flag does not describe this danger.
+Full exchange and path accounting: Keep the profitable/equal sacrifices as controls. Include all enemy and friendly path victims, recaptures, and the second threat elsewhere on the board. Do not teach the search to reject every defended landing.
+Promotion and quiet threat preparation: Free King becoming Great General repeatedly creates new sweep access. Shitennou’s quiet approach and ordinary quiet escapes require main-search coverage; simply adding capture plies is not guaranteed to help.
+Forcing intermediate moves: 756/332 is a checking intermediate capture that postpones threats against two majors. Preserve check/evasion treatment; a superficially safer quiet move can concede the forcing tempo.
+
+================================================================================
+01. Slot 639 — Peacock promotion and collateral self-removal
+s0639-p0142
+NNUE_W512_v4 (White) vs BASE_C2S2_A80_Lflight
+Verdict: Pattern verified; error unresolved; priority: Medium
+Original score-drop plies 138–142; search checkpoints: 142
+Motif family: Mixed: classical mechanism and variant geometry
+Motif: Promotion threat; sweeping friendly-piece removal
+Verified evidence: Black’s Peacock takes the Crossbow Soldier at 141, then Water Dragon and Kirin at 143 while promoting to Tengu. White’s intervening Flying General move at 142 removes six friendly pieces along its route.
+Interpretation: This is not a single hanging-major-piece episode. The concrete patterns are an enemy promotion breakthrough and the cost of clearing a corridor with a sweeping piece. The original depth-4 to depth-3 drop exaggerates how confidently we can locate the mistake.
+Potential search improvement: Check promotion continuations and account for friendly path victims. A quiet escape or preventive move may need main-search coverage; extending only captures need not find it.
+Recommended benchmark use: Review 140–144, especially whether 140 or 142 permits the promotion. Do not require avoidance of the Flying General move until alternatives are shown to improve the position.
+Search evidence:
+Ply 142 | Unrestricted baseline | completed depth 3/4 | score 1940 | 5,33-13,33 | INCOMPLETE
+Ply 142 | Forced played move | completed depth 4/4 | score 2372 | 5,33-13,33 | complete
+Ply 142 | Two q plies at every leaf | completed depth 2/3 | score 2852 | 24,18-16,10+ | INCOMPLETE
+
+================================================================================
+02. Slot 639 — Correct capture neutralizes a promoted attacker
+s0639-p0068
+NNUE_W512_v4 (White) vs BASE_C2S2_A80_Lflight
+Verdict: Useful control; no error established; priority: Control
+Original score-drop plies 66–68; search checkpoints: 68
+Motif family: Classical defensive capture
+Motif: Defensive capture against multiple threats
+Verified evidence: At 67 Black promotes Flying Eagle to Great Eagle on 18,30. From there it has capture routes against White’s Tengu, Peacock and Free King. White’s Kirin captures that Great Eagle at 68, removing the attacker.
+Interpretation: The apparent collapse is a poor blunder label: the critical observed move is a sensible defensive capture and the subsequent Tengu remains active. The depth-4 and broad-quiescence searches retain the capture.
+Potential search improvement: Keep this as a compensation/defense control. A change should not be rewarded merely for producing a larger score or changing the move.
+Recommended benchmark use: Candidate success is recognizing the defensive capture at 68; do not classify the score drop itself as a tactical miss.
+Search evidence:
+Ply 68 | Unrestricted baseline | completed depth 4/4 | score 4361 | 20,30-18,30 | complete
+Ply 68 | Forced played move | completed depth 4/4 | score 4374 | 20,30-18,30 | complete
+Ply 68 | Two q plies at every leaf | completed depth 3/3 | score 2009 | 20,30-18,30 | complete
+
+================================================================================
+03. Slot 673 — A genuine double attack, followed by a later hanging Tengu
+s0673-p0172
+NNUE_W512_v4.5 (White) vs SEEDS2
+Verdict: Defense supported; not fully adjudicated; priority: High
+Original score-drop plies 166–172; search checkpoints: 170, 174
+Motif family: Mixed: double attack and variant geometry
+Motif: Line-based double attack; later ignored direct threat
+Verified evidence: At 169 the Flying General reaches 30,18 and can take either Tengu at 35,18 or Bishop General at 16,18. White moves the Tengu at 170 and loses the Bishop General at 171. Later, Fierce Ox moves to 21,10 at 173, and takes the relocated Tengu on 18,13 at 175 after White plays a Woodland Demon promotion at 174.
+Interpretation: Saving the Tengu at 170 can be a rational response to the double attack; blaming that move for the Bishop General loss would be misleading. The cleaner suspected omission is the separate Tengu threat at 174. These need two subpositions rather than one undifferentiated “lost two majors” label. Follow-up at 174 finds Spear Soldier 22,10–21,10, capturing the attacking Fierce Ox. The rules replay confirms that it removes the Tengu threat; forced depth-4 searches give +5064 for this defense versus +2707 for the played promotion.
+Potential search improvement: Test multiple simultaneous threats, threatened-major quiet escapes, and whether a small attacking piece is overlooked. Distinguish quiescence eligibility from reductions on the escape move.
+Recommended benchmark use: Keep 170 as a double-attack/choice-of-victim case. At 174, test capture of the attacker with Spear Soldier, allowing other sound defenses; replay the opponent’s best continuation before freezing a pass/fail label.
+Search evidence:
+Ply 170 | Unrestricted baseline | completed depth 4/4 | score 5142 | 35,18-29,24-18,13 | complete
+Ply 170 | Forced played move | completed depth 4/4 | score 5142 | 35,18-29,24-18,13 | complete
+Ply 170 | Two q plies at every leaf | completed depth 3/3 | score 2474 | 17,31-17,1+ | complete
+Ply 174 | Unrestricted baseline | completed depth 4/4 | score 5064 | 22,10-21,10 | complete
+Ply 174 | Forced played move | completed depth 4/4 | score 2707 | 17,31-17,1+ | complete
+Ply 174 | Two q plies at every leaf | completed depth 3/3 | score 1089 | 17,31-17,1+ | complete
+Ply 174 | Forced candidate defense | completed depth 4/4 | score 5064 | 22,10-21,10 | complete
+
+================================================================================
+04. Slot 673 — Two threats during a sweeping exchange
+s0673-p0034
+NNUE_W512_v4.5 (White) vs SEEDS2
+Verdict: Pattern verified; error unresolved; priority: High
+Original score-drop plies 28–34; search checkpoints: 32
+Motif family: Mixed: competing threats and sweeping exchanges
+Motif: Competing threats; multi-piece sweep and recapture
+Verified evidence: At 32 Black’s Great General can sweep the Tengu file, while Roaring Dog can take the Vice General. The observed Great General sweep occurs at 33, White recaptures it at 34, and Roaring Dog takes the Vice General at 35. Earlier a Fierce Dragon swept another Tengu at 27.
+Interpretation: This is real tactical complexity, but the Great General recapture materially offsets the first loss. The origin of the damage may precede 32, when the two threats become simultaneous.
+Potential search improvement: Follow capture/recapture sequences through their end and recognize concurrent threats on different squares. Destination-only recapture rules may miss the second branch.
+Recommended benchmark use: Compare defenses at 28–32 and evaluate both the Tengu exchange and the Vice General threat. Do not score “Tengu survives” in isolation.
+Search evidence:
+Ply 32 | Unrestricted baseline | completed depth 4/4 | score -1077 | 17,27-22,22 | complete
+Ply 32 | Forced played move | completed depth 4/4 | score -1077 | 17,27-22,22 | complete
+Ply 32 | Two q plies at every leaf | completed depth 2/3 | score -688 | 30,35-29,35 | INCOMPLETE
+
+================================================================================
+05. Slot 723 — Great General penetrates the back rank
+s0723-p0064
+NNUE_W512_v4.5 (White) vs BASE_C2S2_A160_Lflight
+Verdict: Pattern verified; error unresolved; priority: High
+Original score-drop plies 62–64; search checkpoints: 62
+Motif family: Taikyoku-specific sweeping geometry
+Motif: Sequential corridor sweeps; many small victims
+Verified evidence: The Great General removes eleven White pieces on its file at 63, then ten more across the back rank at 67, followed by another sweep at 75. At 62 a separate Dragon Horse route also threatens White’s Free King. White’s actual Lion move to 14,32 at 62 interposes on the Dragon Horse diagonal and removes that Free King capture route.
+Interpretation: The tactical damage is distributed across many smaller victims. It is not a classical single-piece fork or skewer: this variant’s sweeping movement removes intervening pieces directly. The position is shared with other games and should count as one opening family. The Lion move is therefore a genuine defensive block against one threat, rather than an unrelated quiet move. The sweeping threat is a separate problem.
+Potential search improvement: Test aggregate path captures, continuation after the first sweep, and threat handling when no single landing victim is large. Verify the actual quiescence filters before assigning a cause.
+Recommended benchmark use: Start at 60–62 and follow through at least 67. Judge total exchange damage and prevention of continued access, rather than one large captured piece.
+Search evidence:
+Ply 62 | Unrestricted baseline | completed depth 4/4 | score 536 | 12,32-13,33-14,32 | complete
+Ply 62 | Forced played move | completed depth 4/4 | score 581 | 12,32-13,33-14,32 | complete
+Ply 62 | Two q plies at every leaf | completed depth 3/3 | score -2392 | 18,26-34,10 | complete
+
+================================================================================
+06. Slot 723 — Tengu sweep followed by a Vice General chase
+s0723-p0020
+NNUE_W512_v4.5 (White) vs BASE_C2S2_A160_Lflight
+Verdict: Pattern verified; error unresolved; priority: High
+Original score-drop plies 14–20; search checkpoints: 16
+Motif family: Mixed: direct threat and sweeping exchange
+Motif: Direct sweeping threat; pursuit of an exposed major
+Verified evidence: Before White’s move 16, the Fierce Dragon already has a route to sweep the Tengu at 29,35. White moves Vice General elsewhere; the sweep follows at 17. The Vice General then reaches 3,18, where Lion Dog takes it at 21. White gets a Fierce Dragon back at 22.
+Interpretation: Two concrete losses are present, but there is recapture compensation and an earlier difficult position. The depth-4 search still chooses the played move at 16, so deeper agreement does not validate the defense.
+Potential search improvement: Prioritize direct major threats and assess compensation across multiple moves. A quiet defensive move may be heavily reduced even when capture generation is correct.
+Recommended benchmark use: Analyze 14/16 separately from 18/20. Require a verified alternative that improves the full exchange, not just avoids the first capture.
+Search evidence:
+Ply 16 | Unrestricted baseline | completed depth 4/4 | score 1056 | 17,32-2,17 | complete
+Ply 16 | Forced played move | completed depth 4/4 | score 1056 | 17,32-2,17 | complete
+Ply 16 | Two q plies at every leaf | completed depth 3/3 | score -532 | 13,35-12,34 | complete
+
+================================================================================
+07. Slot 756 — Flying General promotes onto a defended square
+s0756-p0400
+NNUE_W512_v4.5 (White) vs BASE_C2S2_A160_Ldefense
+Verdict: Defense supported; not fully adjudicated; priority: High
+Original score-drop plies 394–400; search checkpoints: 396
+Motif family: Classical unsafe promotion
+Motif: Unsafe promotion; major captured by a small piece
+Verified evidence: At 396 White moves Flying General from 30,31 to 30,10 and promotes. Black’s Longbow Soldier on 30,9 captures the resulting Flying Crocodile at 397. The move also removes friendly pieces along its path. The original square is already exposed to a Great General sweep.
+Interpretation: The concrete tactical issue is a bad destination during an escape/promotion choice, rather than a hidden distant recapture. Depth 4 finds the retreat 30,31–30,35 and scores it above the forced played move at the same depth.
+Potential search improvement: Test destination safety after quiet/promotion moves, even when the capturer is small. Check whether promotion ordering or reductions prevent a quiet safe retreat from being searched sufficiently.
+Recommended benchmark use: Use 396, with 394 as lead-in. Compare the retreat against the promotion through Black’s best reply; do not assume the promotion bonus is compensation.
+Search evidence:
+Ply 396 | Unrestricted baseline | completed depth 4/4 | score 1428 | 30,31-30,35 | complete
+Ply 396 | Forced played move | completed depth 4/4 | score 400 | 30,31-30,10+ | complete
+Ply 396 | Two q plies at every leaf | completed depth 3/3 | score 400 | 30,31-30,10+ | complete
+Ply 396 | Forced candidate defense | completed depth 4/4 | score 1428 | 30,31-30,35 | complete
+
+================================================================================
+08. Slot 756 — Great General offered for a more valuable Tengu
+s0756-p0344
+NNUE_W512_v4.5 (White) vs BASE_C2S2_A160_Ldefense
+Verdict: Useful control; no error established; priority: Control
+Original score-drop plies 338–344; search checkpoints: 350
+Motif family: Classical compensated sacrifice
+Motif: Compensated sacrifice and recapture
+Verified evidence: White moves Great General to 15,26 at 350. Black’s Tengu captures it at 351, then White’s Blind Bear recaptures the Tengu at 352. On the seed material scale, the 2,160-point General is exchanged for a 2,495-point Tengu.
+Interpretation: The prominent “lost Great General” event is not evidence of a blunder: the immediate exchange favors White by about 335 material units. The deeper search retains the played move. The earlier score drop at 344 may concern other play.
+Potential search improvement: Use as a control against overzealous hang pruning. Search must see the small recapturer and the value of the full exchange.
+Recommended benchmark use: At 350, recognize the capture–recapture compensation. Keep 338–344 as a separate unresolved evaluation episode; do not label the trade a loss automatically.
+Search evidence:
+Ply 350 | Unrestricted baseline | completed depth 4/4 | score 282 | 15,25-15,26 | complete
+Ply 350 | Forced played move | completed depth 4/4 | score 282 | 15,25-15,26 | complete
+Ply 350 | Two q plies at every leaf | completed depth 3/3 | score -772 | 24,31-26,29 | complete
+
+================================================================================
+09. Slot 806 — One sweep takes Free King and Peacock
+s0806-p0292
+NNUE_W512_v4.5 (White) vs NNUE_W2048_v2
+Verdict: Pattern verified; error unresolved; priority: High
+Original score-drop plies 288–292; search checkpoints: 290
+Motif family: Taikyoku-specific multi-victim sweep
+Motif: Multiple victims on one sweeping route
+Verified evidence: Black’s Flying Crocodile reaches 22,24 at 289. Its next route to 22,35 removes White’s Free King, Peacock and six other pieces at 291. White continues a Lion Hawk raid at 290. Recapturing the Crocodile at 294 returns only part of the lost material.
+Interpretation: The sweep and its large net damage are verified. This is a variant-specific line tactic, not a conventional skewer requiring the front piece to move. The depth-4 reference repeats the played move, so a successful defense remains unproven.
+Potential search improvement: Test aggregate swept victims, major threats away from the last move, and the limits of treating a short recapture as a settled exchange.
+Recommended benchmark use: Start at 288/290; investigate moving a victim, taking the attacker, or interrupting the route under the variant’s rules. Do not assume an ordinary chess-style block stops a sweeping piece.
+Search evidence:
+Ply 290 | Unrestricted baseline | completed depth 4/4 | score -2838 | 21,10-23,8-24,9 | complete
+Ply 290 | Forced played move | completed depth 4/4 | score -2838 | 21,10-23,8-24,9 | complete
+Ply 290 | Two q plies at every leaf | completed depth 3/3 | score -5709 | 21,10-23,8-24,7 | complete
+
+================================================================================
+10. Slot 806 — Profitable back-rank raid before recapture
+s0806-p0076
+NNUE_W512_v4.5 (White) vs NNUE_W2048_v2
+Verdict: Useful control; no error established; priority: Control
+Original score-drop plies 74–76; search checkpoints: 78
+Motif family: Mixed: sacrifice and sweeping geometry
+Motif: Compensated sweeping sacrifice
+Verified evidence: At 78 White’s Great General sweeps across Black’s back rank, taking a Free King, Tengu and eleven other pieces. A Yasha captures the General at 79. The two-move exchange gains White roughly 2,457 seed material units before subsequent play.
+Interpretation: This directly contradicts the initial “Great General lost” interpretation. Both unrestricted and forced depth-4 searches support the raid. The tactical motif is real, but the observed move is an example of accepting a profitable recapture.
+Potential search improvement: Keep as a positive compensation control. Broad quiescence or hang pruning must not reject a sweeping sacrifice solely because the landing square is defended.
+Recommended benchmark use: At 78, score the total path gain minus the General’s loss. The pre-76 evaluation decline is a separate question.
+Search evidence:
+Ply 78 | Unrestricted baseline | completed depth 4/4 | score 1051 | 34,0-21,0 | complete
+Ply 78 | Forced played move | completed depth 4/4 | score 1051 | 34,0-21,0 | complete
+Ply 78 | Two q plies at every leaf | completed depth 2/3 | score 1316 | 34,0-21,0 | INCOMPLETE
+
+================================================================================
+11. Slot 810 — Flying Crocodile left on an attacked file
+s0810-p0734
+NNUE_W512_v4.5 (White) vs BASE_C2S2_A80_Lflight
+Verdict: Pattern verified; error unresolved; priority: High
+Original score-drop plies 732–734; search checkpoints: 738
+Motif family: Classical hanging-piece defense
+Motif: Hanging major; ignored long-range attack
+Verified evidence: The Crocodile moves to 35,17 at 734. Before 738, Right Mountain Eagle on 35,9 has a direct capture route to it. White instead moves Right General; the capture follows at 739. The broad-quiescence search selects a Crocodile retreat along rank 17.
+Interpretation: The ignored threat and a legal escape are verified. However, controlled depth-4 searches score the retreat +373 versus +454 for the played move. Removing the immediate capture is not sufficient evidence that the retreat improves the whole position. Retain for diagnosis, not as a solved defense.
+Potential search improvement: Test quiet retreats of threatened majors and long-range landing attacks. Separate discovery of the defense from the accuracy of its evaluation.
+Recommended benchmark use: Use 738 and earlier 734/736. Verify the proposed retreat against best replies before accepting it as a ground-truth solution.
+Search evidence:
+Ply 738 | Unrestricted baseline | completed depth 4/4 | score 454 | 15,35-16,34 | complete
+Ply 738 | Forced played move | completed depth 4/4 | score 454 | 15,35-16,34 | complete
+Ply 738 | Two q plies at every leaf | completed depth 3/3 | score 307 | 35,17-3,17 | complete
+Ply 738 | Forced candidate defense | completed depth 4/4 | score 373 | 35,17-3,17 | complete
+
+================================================================================
+12. Slot 810 — Bishop General walks into capture while Tengu is threatened
+s0810-p0188
+NNUE_W512_v4.5 (White) vs BASE_C2S2_A80_Lflight
+Verdict: Pattern verified; error unresolved; priority: High
+Original score-drop plies 184–188; search checkpoints: 186
+Motif family: Classical competing threats and unsafe landing
+Motif: Unsafe landing plus a simultaneous distant threat
+Verified evidence: White’s Bishop General moves to 16,19 at 186 and is taken by Side General at 187. At the starting position, Black’s Primordial Dragon already has a capture route from 6,21 to White’s Tengu on 6,35, which it uses at 189. White recaptures that Dragon at 190.
+Interpretation: This combines an immediate unsafe destination with an independent Tengu threat. Merely rescuing the Bishop General may leave the more valuable loss unchanged. The requested depth-4 unrestricted search did not finish.
+Potential search improvement: Test threatened-major responses across multiple squares, small-piece captures of large movers, and broad coverage of defensive candidates.
+Recommended benchmark use: Inspect 184/186/188 separately. Require a defense evaluated against both Side General and Primordial Dragon threats.
+Search evidence:
+Ply 186 | Unrestricted baseline | completed depth 3/4 | score -116 | 14,17-16,19 | INCOMPLETE
+Ply 186 | Forced played move | completed depth 4/4 | score 509 | 14,17-16,19 | complete
+Ply 186 | Two q plies at every leaf | completed depth 2/3 | score 1273 | 14,17-31,0 | INCOMPLETE
+
+================================================================================
+13. Slot 817 — Capricorn defense rejected by selective search
+s0817-p0043
+NNUE_W512_v4 (Black) vs BASE_C2S2_A160_Ldefense
+Verdict: Previously isolated search failure; priority: High
+Original score-drop plies 37–43; search checkpoints: 43
+Motif family: Classical hanging-piece defense
+Motif: Hanging major; missed quiet defense
+Verified evidence: Black’s Capricorn reaches 35,22 at 41; White’s Great Master approaches to 33,24 at 42. Black plays a pawn at 43 and loses Capricorn at 44. Prior tracing showed the capture was seen, while a quiet Capricorn retreat was reduced and rejected. Depth 4 and full-depth quiescence find Capricorn alternatives.
+Interpretation: This is the strongest existing failure case. The mechanism is selective treatment of the defensive line, not absence of the capture from move generation. The new fixed-depth comparison again favors the retreat over the forced pawn move.
+Potential search improvement: Investigate the interaction of root late-move reductions, short non-PV quiescence, and quiet escapes of threatened majors.
+Recommended benchmark use: Keep 43 as the established diagnostic regression. Accept multiple sound Capricorn defenses after reply checking; do not require one arbitrary route.
+Search evidence:
+Ply 43 | Unrestricted baseline | completed depth 4/4 | score 1983 | 35,22-34,21-35,20 | complete
+Ply 43 | Forced played move | completed depth 4/4 | score -1092 | 20,10-20,11 | complete
+Ply 43 | Two q plies at every leaf | completed depth 3/3 | score 1167 | 35,22-26,13-16,23 | complete
+Ply 43 | Forced candidate defense | completed depth 4/4 | score 1983 | 35,22-34,21-35,20 | complete
+
+================================================================================
+14. Slot 817 — Open file exploited after the Capricorn loss
+s0817-p0053
+NNUE_W512_v4 (Black) vs BASE_C2S2_A160_Ldefense
+Verdict: Pattern verified; error unresolved; priority: Medium
+Original score-drop plies 47–53; search checkpoints: 53
+Motif family: Taikyoku-specific sweeping capture chain
+Motif: Sweeping file invasion and follow-up recaptures
+Verified evidence: At 54 White’s Flying General sweeps to 22,0, promotes, and removes Black’s Free King plus other pieces. Black’s Rear Standard recaptures at 55, but White’s Hook Mover takes that recapturer at 56 and continues the raid. A separate Hook Mover threat to Great General is already available at 53.
+Interpretation: The tactic is real, but Black is already badly evaluated following the earlier Capricorn episode. This is correlated with 817/43 and should not count as a separate independent success for an adjustment.
+Potential search improvement: Test capture chains beyond one recapture and simultaneous threats. Moving the recognition point backward may be more useful than extending an already lost position.
+Recommended benchmark use: Analyze 49–53 and the sequence through 58. Label as damage limitation unless a materially better earlier defense is verified.
+Search evidence:
+Ply 53 | Unrestricted baseline | completed depth 3/4 | score -5776 | 32,17-26,11 | INCOMPLETE
+Ply 53 | Forced played move | completed depth 4/4 | score -5409 | 32,17-26,11 | complete
+Ply 53 | Two q plies at every leaf | completed depth 3/3 | score -5776 | 32,17-26,11 | complete
+
+================================================================================
+15. Slot 825 — Promotion creates a new sweeping attacker
+s0825-p0091
+NNUE_W512_v4.5 (Black) vs BASE_C2S2_A160_Lflight
+Verdict: Pattern verified; error unresolved; priority: Medium
+Original score-drop plies 89–91; search checkpoints: 91
+Motif family: Mixed: promotion breakthrough and sweeping geometry
+Motif: Promotion breakthrough; delayed corridor attack
+Verified evidence: The local promotion exchange at 91–92 is not the main large loss. White’s Free King promotes to Great General at 94, then sweeps file 26 at 100 and the back rank at 102. A Fire Demon also promotes at 96.
+Interpretation: The verified motif is the change in movement power after promotion and its delayed consequences. The score drop from depth 4 to 3 is substantial, and the depth-4 unrestricted search did not finish here.
+Potential search improvement: Test loud-promotion eligibility, continuations after promotion, and quiet setup moves that create access to the promotion zone.
+Recommended benchmark use: Move the investigative focus to 93/95 as well as 91. Do not require avoiding the locally compensated exchange at 91 without evidence.
+Search evidence:
+Ply 91 | Unrestricted baseline | completed depth 3/4 | score -1191 | 26,9-26,25+ | INCOMPLETE
+Ply 91 | Forced played move | completed depth 4/4 | score 3100 | 26,9-26,25+ | complete
+Ply 91 | Two q plies at every leaf | completed depth 3/3 | score -1191 | 26,9-26,25+ | complete
+
+================================================================================
+16. Slot 825 — Promoted runner threatens a General during royal pressure
+s0825-p0143
+NNUE_W512_v4.5 (Black) vs BASE_C2S2_A160_Lflight
+Verdict: Pattern verified; error unresolved; priority: High
+Original score-drop plies 141–143; search checkpoints: 149
+Motif family: Mixed: promotion attack and two-royal pressure
+Motif: Promotion-enabled attack; competing royal/material threats
+Verified evidence: White’s Ox Soldier promotes to Running Ox at 146 and captures Black’s Flying General at 150. Before 149, Black’s Crown Prince is attacked, although the King is safe and both royals remain. The Crown Prince is captured at 152 after several King moves.
+Interpretation: This is not a clean isolated hanging-piece puzzle. The player is balancing royal pressure and material threats; ordinary single-king “in check” intuition does not map directly to the two-royal rules.
+Potential search improvement: Test promotion-created attacks, preservation of the remaining royal, and handling of a threatened major while another royal is attacked.
+Recommended benchmark use: Use 147/149, with 141–146 as lead-in. A useful defense must address survival and material together, not only save the Flying General.
+Search evidence:
+Ply 149 | Unrestricted baseline | completed depth 4/4 | score -3679 | 17,0-16,1 | complete
+Ply 149 | Forced played move | completed depth 4/4 | score -3679 | 17,0-16,1 | complete
+Ply 149 | Two q plies at every leaf | completed depth 3/3 | score -5357 | 25,3-26,4 | complete
+
+================================================================================
+17. Slot 826 — Competing captures followed by unsafe General landings
+s0826-p0140
+NNUE_W512_v4.5 (White) vs BASE_C2S2_A160_Lflight
+Verdict: Pattern verified; error unresolved; priority: High
+Original score-drop plies 134–140; search checkpoints: 136, 138
+Motif family: Mixed: mutual threats and sweeping exchanges
+Motif: Mutual threats; unsafe destination; sweeping follow-up
+Verified evidence: At 136 White’s Flying General captures Black’s Bishop General on a long sweep. Black replies by taking White’s Free King with Phoenix Master at 137. White then puts Bishop General on 25,12 at 138, where Lion Dog takes it at 139. Tengu and Flying General losses follow at 143/145.
+Interpretation: This is a chain of distinct tactical decisions, not one four-piece fork. White gets compensation at 136, but the subsequent Bishop General landing is an especially concrete suspect. Later losses cannot all be attributed to the original score-drop decision.
+Potential search improvement: Test independent threats during captures, landing safety, and continuation beyond an apparently favorable initial sweep.
+Recommended benchmark use: Use 136 and 138 as separate subpositions; extend through the Tengu recapture at 144 before assigning an exchange verdict.
+Search evidence:
+Ply 136 | Unrestricted baseline | completed depth 3/4 | score 116 | 31,17-31,1+ | INCOMPLETE
+Ply 136 | Forced played move | completed depth 4/4 | score 295 | 31,17-31,1 | complete
+Ply 136 | Two q plies at every leaf | completed depth 3/3 | score 116 | 31,17-31,1+ | complete
+Ply 138 | Unrestricted baseline | completed depth 3/4 | score -1049 | 4,33-25,12 | INCOMPLETE
+Ply 138 | Forced played move | completed depth 4/4 | score -927 | 4,33-25,12 | complete
+Ply 138 | Two q plies at every leaf | completed depth 3/3 | score -496 | 27,32-26,31 | complete
+
+================================================================================
+18. Slot 826 — Promotion opens a sweeping route to Peacock
+s0826-p0072
+NNUE_W512_v4.5 (White) vs BASE_C2S2_A160_Lflight
+Verdict: Pattern verified; error unresolved; priority: High
+Original score-drop plies 66–72; search checkpoints: 82
+Motif family: Taikyoku-specific promotion and sweep
+Motif: Promotion breakthrough; collateral self-removal; diagonal sweep
+Verified evidence: Black’s Free King promotes at 77, then as Great General sweeps file 9 at 81 and a diagonal through White’s Peacock at 83. White’s Flying General move at 82 removes thirteen friendly pieces. At 82 Black also has a back-rank sweep threatening a Tengu.
+Interpretation: The original decline at 72 precedes the decisive motifs by several turns. There are multiple potential routes, so treating Peacock preservation alone as success would be too narrow.
+Potential search improvement: Test promotion-created sweeps, total victim value along paths, and competing routes. Friendly self-clearing costs also deserve explicit inspection.
+Recommended benchmark use: Use 76/78 for prevention and 80/82 for damage limitation. Verify total material and surviving major threats after any proposed defense.
+Search evidence:
+Ply 82 | Unrestricted baseline | completed depth 3/4 | score -631 | 30,33-13,33 | INCOMPLETE
+Ply 82 | Forced played move | completed depth 4/4 | score -381 | 30,33-13,33 | complete
+Ply 82 | Two q plies at every leaf | completed depth 2/3 | score 221 | 10,31-9,30 | INCOMPLETE
+
+================================================================================
+19. Slot 828 — Great General captures successive majors while a runner raids
+s0828-p0588
+NNUE_W512_v4.5 (White) vs BASE_C2S2_A80_Lmate
+Verdict: Pattern verified; error unresolved; priority: High
+Original score-drop plies 582–588; search checkpoints: 582
+Motif family: Taikyoku-specific sequential sweeps
+Motif: Sequential sweep; ignored repeated major threats
+Verified evidence: Black’s Great General takes Tengu at 583, Bishop General at 585, and Flying General at 587. White spends 582/584/586 promoting and moving a Golden Chariot/Playful Parrot to capture much smaller pieces. The initial Tengu sweep is already available before 582.
+Interpretation: This is a clear tactical pattern with very poor observed material compensation. Nevertheless White was already negatively evaluated; a complete rescue has not been established.
+Potential search improvement: Test danger prioritization over promotion bonuses and small captures, plus quiet escapes before the next sweeping move.
+Recommended benchmark use: Use 582, 584 and 586 as a linked sequence. Record separate preventable losses rather than assuming one move can save all three pieces.
+Search evidence:
+Ply 582 | Unrestricted baseline | completed depth 2/4 | score -2583 | 1,34-1,10+ | INCOMPLETE
+Ply 582 | Forced played move | completed depth 4/4 | score -3672 | 1,34-1,10+ | complete
+Ply 582 | Two q plies at every leaf | completed depth 2/3 | score -2583 | 1,34-1,10+ | INCOMPLETE
+
+================================================================================
+20. Slot 828 — Small recapture distracts from a promotion-created General
+s0828-p0460
+NNUE_W512_v4.5 (White) vs BASE_C2S2_A80_Lmate
+Verdict: Pattern verified; error unresolved; priority: Medium
+Original score-drop plies 456–460; search checkpoints: 460
+Motif family: Mixed: promotion and sweeping access
+Motif: Promotion threat and sweeping access
+Verified evidence: The Treacherous Fox is captured by Tengu at 461, but it had just taken a Chariot Soldier at 458; that local exchange is nearly balanced on seed values. More significantly, Black’s Free King promotes to Great General at 459, and at 460 it has a diagonal sweeping route through White’s Flying General.
+Interpretation: The Fox loss is not a convincing explanation of the score drop. The newly created General threat is the stronger tactical lead, even though the opponent chooses other moves in the recorded continuation.
+Potential search improvement: Test promotion threats that exist even when the actual opponent does not immediately exploit them. Observed play alone is not exhaustive evidence.
+Recommended benchmark use: Inspect 458/460 for prevention of the General’s access. Treat the Fox capture as a compensation control, not the main failure target.
+Search evidence:
+Ply 460 | Unrestricted baseline | completed depth 3/4 | score -439 | 1,9-1,12 | INCOMPLETE
+Ply 460 | Forced played move | completed depth 4/4 | score 289 | 1,9-1,12 | complete
+Ply 460 | Two q plies at every leaf | completed depth 3/3 | score -439 | 1,9-1,12 | complete
+
+================================================================================
+21. Slot 864 — A Lion Hawk can capture both royals in one move
+s0864-p0488
+NNUE_W512_v4 (White) vs BASE_C2S2_A160_Ldefense
+Verdict: Pattern verified; error unresolved; priority: High
+Original score-drop plies 482–488; search checkpoints: 484
+Motif family: Taikyoku-specific capture of both royals
+Motif: Immediate double-royal capture threat plus a hanging Tengu
+Verified evidence: Lion Hawk captures Gold General and lands on 19,35 at 483. Before 484 both White King and Crown Prince are attacked; a separate Black Tengu route takes White’s Tengu on 22,22. White’s King captures the Lion Hawk at 484; the Tengu capture follows at 485. The exact available Lion Hawk route 19,35–18,35–17,35 captures both White royals in a single compound move. Capturing the Lion Hawk removes this immediate royal-loss threat.
+Interpretation: This is a verified, distinctive Taikyoku tactic: a two-leg move can remove both remaining royals at once. The King capture is a defense against that threat. The last-royal check helper returns false because two royals remain, so a single-royal-only emergency test is insufficient to describe this position. Whether an earlier or combined defense also saves the Tengu is unresolved.
+Potential search improvement: Prioritize a tactical probe for moves that can capture all remaining royals in one compound move, even when there is more than one royal. Test royal survival before rewarding material preservation.
+Recommended benchmark use: Inspect 480/482 for earlier prevention and 484 for possible combined defenses. Saving Tengu while permitting immediate royal defeat must fail the test.
+Search evidence:
+Ply 484 | Unrestricted baseline | completed depth 4/4 | score 1276 | 18,35-19,35 | complete
+Ply 484 | Forced played move | completed depth 4/4 | score 1276 | 18,35-19,35 | complete
+Ply 484 | Two q plies at every leaf | completed depth 3/3 | score -408 | 20,35-19,35 | complete
+
+================================================================================
+22. Slot 864 — Quiet Shitennou approach creates a long-range capture
+s0864-p0662
+NNUE_W512_v4 (White) vs BASE_C2S2_A160_Ldefense
+Verdict: Pattern verified; error unresolved; priority: High
+Original score-drop plies 660–662; search checkpoints: 662
+Motif family: Mixed: quiet threat preparation and two-royal pressure
+Motif: Quiet threat preparation; hanging major
+Verified evidence: White’s Tengu arrives at 32,15 at 658. Black’s Shitennou moves from 0,17 to 0,16 and then 0,15 at 659/661. After White’s unrelated Gold General move at 662, Shitennou captures Tengu across rank 15 at 663. The threat scan also shows attacks on White’s King and Crown Prince from Shitennou and Black’s Tengu; both royals are under attack.
+Interpretation: The key preparation consists of quiet moves. Capture-only extensions may see the final capture yet fail to anticipate how the threat is created two turns earlier. This is complicated by simultaneous royal exposure, so a Tengu retreat alone is not an adjudicated solution.
+Potential search improvement: Test quiet checking of major-piece threats in the main search and sufficiently searched escapes once the attack is present.
+Recommended benchmark use: Use 658/660 for anticipation and 662 for response. Verify royal survival as well as Tengu safety; the simple “save the Tengu” condition is inadequate.
+Search evidence:
+Ply 662 | Unrestricted baseline | completed depth 4/4 | score -3867 | 17,34-18,34 | complete
+Ply 662 | Forced played move | completed depth 4/4 | score -3893 | 17,34-18,34 | complete
+Ply 662 | Two q plies at every leaf | completed depth 3/3 | score -4274 | 17,34-18,34 | complete
+
+================================================================================
+23. Slot 869 — Promotion lands beside a small recapturer
+s0869-p0325
+NNUE_W384_v4.5 (Black) vs BASE_C2S2_A80_L0
+Verdict: Defense supported; not fully adjudicated; priority: High
+Original score-drop plies 319–325; search checkpoints: 329
+Motif family: Classical unsafe promotion
+Motif: Unsafe promotion; second hanging promoted piece
+Verified evidence: At 329 Black’s Chariot Soldier moves to 15,29 and promotes to Shitennou. White’s Little Turtle on 16,29 takes it at 330. Black’s previously promoted Running Ox on 26,25 is taken by Horse Soldier at 332.
+Interpretation: The Shitennou is only 400 on the seed material scale, so a 648-unit “major” filter misses this substantial promotion loss. The original score decline at 325 predates the clearest blunder candidate. At 329, depth 4 instead selects Spear Soldier 21,9–22,9. Controlled searches prefer it by 1103 internal units. This avoids making the unsafe promotion, but the enemy Shitennou also threatens Black’s King, so the broader defense still needs deeper adjudication.
+Potential search improvement: Test promotion landing safety and thresholds based on post-promotion value, including tactically important pieces below the broad major cutoff.
+Recommended benchmark use: Use 329 for the Shitennou and 331 for the Running Ox. A correct classification must account for the value after promotion.
+Search evidence:
+Ply 329 | Unrestricted baseline | completed depth 4/4 | score 3288 | 21,9-22,9 | complete
+Ply 329 | Forced played move | completed depth 4/4 | score 2185 | 35,9-15,29+ | complete
+Ply 329 | Two q plies at every leaf | completed depth 3/3 | score -290 | 35,9-15,29+ | complete
+Ply 329 | Forced candidate defense | completed depth 4/4 | score 3288 | 21,9-22,9 | complete
+
+================================================================================
+24. Slot 869 — Fierce Dragon left attacked, followed by sweeping trades
+s0869-p0027
+NNUE_W384_v4.5 (Black) vs BASE_C2S2_A80_L0
+Verdict: Defense supported; not fully adjudicated; priority: High
+Original score-drop plies 21–27; search checkpoints: 25
+Motif family: Mixed: hanging piece and sweeping exchanges
+Motif: Hanging major; later compensated sweeps
+Verified evidence: Before 25 White’s Great Standard has a direct diagonal capture of Black’s Fierce Dragon on 28,16. Black moves Great Stag; the capture occurs at 26. Separate sweeping exchanges remove Tengus at 30 and 38, with Black recapturing the attackers at 31 and 39.
+Interpretation: The Fierce Dragon at 25 is the cleaner immediate-threat case. The later Tengu losses must include recapture compensation and should not be lumped into one event. A completed depth-4 search finds a Fierce Dragon sidestep and prefers it over the played move at the same depth.
+Potential search improvement: Test major-piece safety against ordinary long-range attackers and exchange accounting for the later sweeping sequences.
+Recommended benchmark use: Start at 23/25 for the direct threat; treat the exchanges around 29 and 37 as distinct subpositions.
+Search evidence:
+Ply 25 | Unrestricted baseline | completed depth 4/4 | score 6458 | 28,16-29,16 | complete
+Ply 25 | Forced played move | completed depth 4/4 | score 5867 | 14,3-15,3 | complete
+Ply 25 | Two q plies at every leaf | completed depth 2/3 | score 5933 | 21,18-0,18-0,16 | INCOMPLETE
+Ply 25 | Forced candidate defense | completed depth 4/4 | score 6458 | 28,16-29,16 | complete
+
+================================================================================
+25. Slot 806 — A latent file sweep exists despite little observed loss
+s0806-p0092
+NNUE_W512_v4.5 (White) vs NNUE_W2048_v2
+Verdict: Pattern verified; error unresolved; priority: High
+Original score-drop plies 86–92; search checkpoints: 92
+Motif family: Taikyoku-specific latent file sweep
+Motif: Latent multi-victim sweep; observed play misses the threat
+Verified evidence: At 92 Black’s Flying General on 13,2 already has a route to 13,35 that removes White’s Free King, Peacock and other pieces. Black instead continues its Hook Mover activity in the recorded game. The same file sweep is eventually used at 151.
+Interpretation: This is stronger evidence than the original “no immediate material loss” description. The position contains a concrete large threat even though the opponent delays it. It shares a tactical family with the later slot-806 episodes.
+Potential search improvement: Test threats away from the last capture and aggregate path victims. Benchmark scoring must consider best available replies, not require the opponent to repeat the historical move.
+Recommended benchmark use: Use 90/92 and compare defenses to the immediate file sweep. The actual quiet continuation is not proof that the position is safe.
+Search evidence:
+Ply 92 | Unrestricted baseline | completed depth 3/4 | score -3105 | 30,16-16,16 | INCOMPLETE
+Ply 92 | Forced played move | completed depth 4/4 | score -2454 | 30,16-16,16 | complete
+Ply 92 | Two q plies at every leaf | completed depth 3/3 | score -3190 | 5,33-8,33 | complete
+
+================================================================================
+26. Slot 825 — Recapture of one attacker leaves another General en prise
+s0825-p0111
+NNUE_W512_v4.5 (Black) vs BASE_C2S2_A160_Lflight
+Verdict: Pattern verified; error unresolved; priority: High
+Original score-drop plies 109–111; search checkpoints: 109
+Motif family: Classical competing threats / overload candidate
+Motif: Competing threats; recapture versus saving another piece
+Verified evidence: At 108 White’s Great General sweeps Black’s Tengu. Black recaptures that General at 109, then a Go-Between takes Black’s Bishop General at 110. The attacking General also had additional sweeping captures available if left alive.
+Interpretation: The recapture at 109 has a substantial purpose; choosing to save Bishop General instead could leave the stronger General alive. This resembles an overloaded defensive task, but a forced overload has not been proven.
+Potential search improvement: Test competing captures and the opportunity cost of a recapture. A greedy “save the threatened piece” policy is not sufficient.
+Recommended benchmark use: Inspect 105/107 for earlier prevention. At 109, compare the full consequences of recapturing versus saving Bishop General before labeling either choice wrong.
+Search evidence:
+Ply 109 | Unrestricted baseline | completed depth 4/4 | score -1344 | 5,0-6,0 | complete
+Ply 109 | Forced played move | completed depth 4/4 | score -1344 | 5,0-6,0 | complete
+Ply 109 | Two q plies at every leaf | completed depth 3/3 | score -4633 | 16,25-16,35 | complete
+
+================================================================================
+27. Slot 869 — Hook Mover exchange is materially balanced
+s0869-p0043
+NNUE_W384_v4.5 (Black) vs BASE_C2S2_A80_L0
+Verdict: Useful control; no error established; priority: Control
+Original score-drop plies 41–43; search checkpoints: 49
+Motif family: Classical equal exchange
+Motif: Equal exchange; attacker removal
+Verified evidence: At 48 White’s Capricorn promotes to Hook Mover on 24,11. Black’s Hook Mover captures it at 49, and White’s Lion Hawk recaptures Black’s Hook Mover at 50. Both Hook Movers have the same 6,237 seed value. Before 49 the enemy Hook Mover also attacks Black’s Hook Mover.
+Interpretation: The visually dramatic loss is an equal exchange, not an uncompensated hanging piece. Later White’s own Flying General even removes a friendly Peacock at 52, illustrating why simple “major disappeared” labels are unsafe.
+Potential search improvement: Keep as an exchange-accounting control. Do not reject the initial capture solely because the moving Hook Mover can be recaptured.
+Recommended benchmark use: Use 49 to ensure the full equal exchange is seen. The original depth-3 decline at 43 remains a separate unresolved issue.
+Search evidence:
+Ply 49 | Unrestricted baseline | completed depth 4/4 | score 1553 | 10,18-24,18-24,11 | complete
+Ply 49 | Forced played move | completed depth 4/4 | score 1553 | 10,18-24,18-24,11 | complete
+Ply 49 | Two q plies at every leaf | completed depth 3/3 | score -248 | 10,18-24,18-24,11 | complete
+
+================================================================================
+28. Slot 806 — Unsafe Fierce Dragon landing amid a latent sweep
+s0806-p0140
+NNUE_W512_v4.5 (White) vs NNUE_W2048_v2
+Verdict: Pattern verified; error unresolved; priority: High
+Original score-drop plies 134–140; search checkpoints: 136
+Motif family: Mixed: unsafe landing and sweeping threats
+Motif: Unsafe landing; equal Hook Mover exchange; later multi-victim sweep
+Verified evidence: White moves Fierce Dragon to 29,18 at 136; Black’s Horned Hawk on 11,18 captures it at 137. A later Hook Mover loss at 149 is immediately offset by White taking the opposing Hook Mover at 150. Black then uses the long file sweep at 151 to take Free King and Peacock; that sweep was already available at 136.
+Interpretation: The Fierce Dragon landing is a concrete suspect. The Hook Mover exchange is not an independent loss, and the file sweep is part of the same latent-threat family seen at 92.
+Potential search improvement: Test landing safety and multiple threats, while preserving compensation accounting. Do not count the equal Hook Mover trade as another failed tactic.
+Recommended benchmark use: Use 134/136 for prevention, inspect 148/150 for the choice between a recapture and responding to the file sweep, and group with slot 806/92.
+Search evidence:
+Ply 136 | Unrestricted baseline | completed depth 3/4 | score -4086 | 32,15-29,18 | INCOMPLETE
+Ply 136 | Forced played move | completed depth 4/4 | score -3231 | 32,15-29,18 | complete
+Ply 136 | Two q plies at every leaf | completed depth 3/3 | score -4086 | 32,15-29,18 | complete
+
+================================================================================
+29. Slot 825 — A profitable opening capture does not settle competing threats
+s0825-p0029
+NNUE_W512_v4.5 (Black) vs BASE_C2S2_A160_Lflight
+Verdict: Pattern verified; error unresolved; priority: High
+Original score-drop plies 23–29; search checkpoints: 25
+Motif family: Mixed: mutual sweeping sacrifices
+Motif: Mutual sweeping threats; promotion and counterplay
+Verified evidence: Black’s Great General takes a Tengu plus other pieces at 25, then is recaptured at 26; that exchange alone is favorable on seed material. White’s Fierce Dragon already threatens Black’s Tengu and takes it at 28. Black’s Peacock captures a Peacock and promotes at 29, then is captured at 30. A further file sweep at 32 takes Free King and Peacock.
+Interpretation: This is a complex series of mutual threats. The first General sacrifice should not be penalized in isolation; the unresolved question is whether the wider sequence or an earlier choice allowed disproportionate counterplay.
+Potential search improvement: Test exchange sequences across separate board regions and the opponent’s strongest countercapture, not only recapture on the last destination.
+Recommended benchmark use: Use 23/25/27/29 as separate decisions. Require evaluation of the whole sequence through 35, including both sides’ sacrifices and promotions.
+Search evidence:
+Ply 25 | Unrestricted baseline | completed depth 4/4 | score 1495 | 29,11-29,35 | complete
+Ply 25 | Forced played move | completed depth 4/4 | score 1495 | 29,11-29,35 | complete
+Ply 25 | Two q plies at every leaf | completed depth 3/3 | score 993 | 29,11-29,35 | complete
+
+================================================================================
+30. Slot 756 — Checking intermediate move postpones two major threats
+s0756-p0332
+NNUE_W512_v4.5 (White) vs BASE_C2S2_A160_Ldefense
+Verdict: Useful control; no error established; priority: Control
+Original score-drop plies 330–332; search checkpoints: 332
+Motif family: Classical zwischenzug / intermediate check
+Motif: Zwischenzug / intermediate check; competing threats
+Verified evidence: Before 332 Black has a Great General sweep to White’s Tengu and a Tengu route to White’s Great General. White’s Phoenix Master capture on 23,5 gives check to Black’s sole remaining Crown Prince on 19,1. The engine’s royal-evasion generator requires Black to respond; the previously listed major-capture routes are unavailable during that response. Black recaptures the Phoenix Master at 333.
+Interpretation: This is a verified classical checking intermediate move. It buys a tempo against threats elsewhere, at a small material cost. The deeper search retains it. Merely preferring a move that appears to guard a major could be worse if it gives up the forcing tempo.
+Potential search improvement: Preserve check/evasion handling when pruning quiescence. Evaluate forcing intermediate moves before assuming a threatened major must retreat immediately.
+Recommended benchmark use: Use 332 as a positive control for an intermediate check. Follow 333–336 to assess the later defense; do not label the Phoenix Master capture a blunder from its local material loss.
+Search evidence:
+Ply 332 | Unrestricted baseline | completed depth 4/4 | score 289 | 11,17-23,5 | complete
+Ply 332 | Forced played move | completed depth 4/4 | score 289 | 11,17-23,5 | complete
+Ply 332 | Two q plies at every leaf | completed depth 3/3 | score 183 | 32,33-35,33 | complete
+
+================================================================================
+31. Slot 826 — Royal exposure is real; the score-drop cause is unresolved
+s0826-p0430
+NNUE_W512_v4.5 (White) vs BASE_C2S2_A160_Lflight
+Verdict: Unresolved; exclude from tactical pass/fail; priority: Control
+Original score-drop plies 428–430; search checkpoints: 430
+Motif family: Unresolved cause of score drop
+Motif: Threatened spare royal; unresolved evaluation decline
+Verified evidence: The depth-3 score falls between 428 and 430. No enemy non-royal capture above the 300-unit inspection threshold is found at 430, but a Tengu route 10,28–16,34–17,35 can take White’s Silver General and Crown Prince. White’s King remains safe. The observed continuation initially contains quiet moves and favorable White captures; Black’s Free King promotes at 441.
+Interpretation: The position does contain royal exposure, but the checks do not establish that it caused the score drop or that the played move makes it worse. Both the played move and the depth-4 alternative leave the Crown Prince capture available. This is not yet a solved tactical test.
+Potential search improvement: Retain for studying spare-royal valuation and search/evaluation stability. Do not infer tactical improvement from a changed move or higher self-score.
+Recommended benchmark use: Exclude from tactical success-rate calculations until a concrete forcing line and a better alternative are demonstrated.
+Search evidence:
+Ply 430 | Unrestricted baseline | completed depth 4/4 | score -229 | 3,33-5,33 | complete
+Ply 430 | Forced played move | completed depth 4/4 | score -453 | 32,30-32,29 | complete
+Ply 430 | Two q plies at every leaf | completed depth 3/3 | score -2906 | 32,30-32,29 | complete
+
+================================================================================
+32. Slot 756 — Bishop General sacrifice wins a Tengu
+s0756-p0202
+NNUE_W512_v4.5 (White) vs BASE_C2S2_A160_Ldefense
+Verdict: Useful control; no error established; priority: Control
+Original score-drop plies 200–202; search checkpoints: 208
+Motif family: Mixed: profitable sacrifice and sweeping geometry
+Motif: Profitable sweep and recapture; separate promotion threat
+Verified evidence: White’s Bishop General sweeps to 6,0 at 208 and captures a Tengu plus other pieces, while also removing some friendly pieces. It is recaptured at 209. White still gains roughly 1,452 seed material units over the two moves. The Shitennou loss at 211 is a separate promotion-landing issue.
+Interpretation: The Bishop General disappearance is a false blunder label. The earlier enemy Free King promotion at 201 and the unsafe Chariot Soldier promotion at 206 deserve separate analysis; they cannot be inferred from the favorable Bishop General trade.
+Potential search improvement: Keep the 208 exchange as a compensation control; separately test unsafe promotion landings and threats from newly promoted sweepers.
+Recommended benchmark use: At 208 accept profitable sacrificial captures when justified. Investigate 200/202 and 206 as separate tactical subpositions rather than rejecting the General sacrifice.
+Search evidence:
+Ply 208 | Unrestricted baseline | completed depth 4/4 | score 1073 | 35,29-6,0 | complete
+Ply 208 | Forced played move | completed depth 4/4 | score 1073 | 35,29-6,0 | complete
+Ply 208 | Two q plies at every leaf | completed depth 3/3 | score 352 | 35,29-6,0 | complete

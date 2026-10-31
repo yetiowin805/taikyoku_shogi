@@ -92,6 +92,9 @@ pub struct TourneyEntrant {
     /// Pinned historical binary; `None` = in-process current `ab`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub engine: Option<String>,
+    /// Retirement cohort; legacy tournament IDs infer their original generation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub generation: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1859,6 +1862,7 @@ mod tests {
                 id: format!("p{i}"),
                 model: format!("p{i}.json"),
                 engine: None,
+                generation: None,
             })
             .collect()
     }
@@ -2408,6 +2412,7 @@ mod tests {
             id: "LOGIC_H105".into(),
             model: "models/history/models/LOGIC_H105.json".into(),
             engine: Some("models/history/bin/LOGIC_H105".into()),
+            generation: None,
         };
         let text = serde_json::to_string(&e).unwrap();
         let back: TourneyEntrant = serde_json::from_str(&text).unwrap();

@@ -68,6 +68,77 @@ is retained. Network files are content-addressed; publishing a newer descriptor
 does not overwrite the previous model's weights. Use a new output directory when changing the data, seed, baseline,
 learning rates or architecture. Do not train into a directory used by a live run.
 
+## Benchmark CPU training changes
+
+Use the existing isolated CPU benchmark before changing a long-running training
+recipe. It calls the selected revision's actual trainer, with fresh deterministic
+weights and optimizers, fixed weighted sample draws, and one untimed warmup update.
+The default effective batch is eight and microbatch is one. It never updates a
+training output directory, model descriptor or tournament. For an unchanged-source
+control, compare against `HEAD`:
+
+```sh
+data/nnue-venv/bin/python training/nnue/benchmark_training.py \
+  data/nnue-pilot-20260924/dataset --baseline-rev HEAD \
+  --widths 512 --pairs 3 --steps 16 --validation-samples 256 \
+  --profile --artifacts --out data/derived/nnue-benchmark-control.json
+```
+
+Choose an available `--cpu` explicitly when comparing machines; otherwise the
+first allowed CPU is used. Each worker uses one PyTorch thread and has a
+configurable `--timeout` (300 seconds by default). `--baseline-rev` accepts a full
+commit or ref available locally; fetch the revision first in a shallow checkout.
+Use a **new result filename** for each run. Dataset components are hash-checked
+outside the workload timer; sharded features and bound sample views are supported.
+Both arms use the current benchmark/storage harness; loaded helper paths and
+hashes identify which code came from the selected revision and which was shared.
+
+The JSON report includes revisions, dirty-source status, source hashes for loaded
+trainer/storage helpers, input identities, sampled-ID hashes, package versions,
+raw paired observations and distribution summaries (n, min/median/max, mean and
+sample standard deviation where defined). Percentage comparisons should use the
+paired ratios, not the quotient of separate medians. Batch timings do not measure
+individual-update p95/p99. These small local samples do not establish performance
+on another dataset, hardware or training recipe.
+
+`--profile` adds separate processes after the normal pairs for each width, then
+requires their numerical outputs to match the corresponding unprofiled run. Its
+`cProfile` report names packing, forward, objective, backward, coalescing,
+optimizer and clamp callables, with call counts and self/cumulative wall times.
+Missing callable matches are reported as unavailable, not zero. Cumulative spans
+can overlap; do not add them or mix profiled times into the ordinary paired
+summary. This profiles CPU Python/native call boundaries, not CUDA kernels.
+
+The normal report distinguishes timed updates (`train_s`), subsequent validation
+(`validation_s`), their bounded workload window (`workload_s`), setup and the whole
+child process (`process_s`). The process includes hashing and post-run diagnostics.
+`--artifacts` also times the real quantized exporter and a private model/optimizer
+checkpoint, records their byte counts, and removes both when finished. Export
+includes its normal fsync; the benchmark checkpoint uses save-and-rename without
+an added fsync, like the current trainer. This checkpoint omits production best
+state, plateau/recipe metadata and admission checks; it is **not resumable training
+output**. This command is a fixed-work benchmark, not a full-epoch or resumed-model
+benchmark. Final candidates still need a representative complete training run.
+
+For example, screen physical packing while retaining effective batch eight:
+
+```sh
+data/nnue-venv/bin/python training/nnue/benchmark_training.py \
+  data/nnue-pilot-20260924/dataset --baseline-rev HEAD \
+  --widths 512 --pairs 3 --steps 16 --validation-samples 256 \
+  --microbatch 1 --candidate-microbatch 8 --allow-numerical-differences \
+  --out data/derived/nnue-microbatch-screen.json
+```
+
+By default, any changed weight hash, update losses, validation metrics or residual
+scores fails **after saving the first mismatch and its error statistics**. Without
+`--allow-numerical-differences`, this is the acceptance gate for exact changes.
+The opt-in flag permits an exploratory report with status
+`numerical_differences_allowed`; it does not approve the change or prove training
+quality. Different sampled IDs or dataset identities always fail, even with this
+flag. Worker failures/timeouts leave a failed report and Ctrl-C records an
+interrupted report; an existing output file is never overwritten.
+
 ## Quantization and sanity gates
 
 Input weights use int16 /4096; accumulators use int32 because this board has many
@@ -251,3 +322,21 @@ replays/searches against the exported quantized evaluator. Admission requires
 an actually changed checkpoint, valid hashes/legal search, and exported
 validation objective within 1% of the parent. Test metrics are reported, not
 used for checkpoint selection. This is a sanity gate, not evidence of an Elo gain.
+
+### Smooth parent-error weighting
+
+For a sharded corpus with cached `parent_probability_error` on training rows,
+create a separate dataset with continuous, bounded difficulty weights:
+
+```sh
+python3 training/nnue/difficulty_weights.py --source /path/to/dataset --out /path/to/new-dataset
+```
+
+The multiplier is `1 + t*t*(3 - 2*t)`, with `t = min(error / .35, 1)`.
+It replaces any recorded `difficulty_multiplier` and preserves total weight in
+each training stratum/group/game/episode cell. Validation/test rows, targets,
+material values and feature shards remain unchanged. No inference is needed;
+the output directory must not exist. The trainer can consume the resulting
+`dataset.json` normally. See `benchmarks/training_weights/README.md` for the
+cached-error audit and limits of its evidence. Frozen production preparations
+are not changed automatically by this utility.

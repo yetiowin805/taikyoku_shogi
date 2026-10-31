@@ -123,8 +123,8 @@ pub fn direction_set_is_empty(set: DirectionSet) -> bool {
 }
 
 /// Allocation-free direction walk with the same order as the Vec API.
-pub fn direction_iter(set: DirectionSet) -> impl Iterator<Item = Direction> {
-    [
+pub fn direction_iter(mut set: DirectionSet) -> impl Iterator<Item = Direction> {
+    const DIRECTIONS: [Direction; 8] = [
         Direction::N,
         Direction::NE,
         Direction::E,
@@ -133,9 +133,15 @@ pub fn direction_iter(set: DirectionSet) -> impl Iterator<Item = Direction> {
         Direction::SW,
         Direction::W,
         Direction::NW,
-    ]
-    .into_iter()
-    .filter(move |d| direction_set_contains(set, *d))
+    ];
+    std::iter::from_fn(move || {
+        if set == 0 {
+            return None;
+        }
+        let index = set.trailing_zeros() as usize;
+        set &= set - 1;
+        Some(DIRECTIONS[index])
+    })
 }
 
 #[cfg(test)]
@@ -173,6 +179,17 @@ mod tests {
         let all = DIRECTION_SET_ALL;
         for dir in Direction::all() {
             assert!(direction_set_contains(all, dir));
+        }
+    }
+
+    #[test]
+    fn bit_iteration_preserves_direction_order_for_every_mask() {
+        for set in 0..=u8::MAX {
+            assert_eq!(
+                direction_iter(set).collect::<Vec<_>>(),
+                direction_set_to_directions(set),
+                "mask {set}"
+            );
         }
     }
 }

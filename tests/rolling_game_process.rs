@@ -242,11 +242,13 @@ fn coordinator_resume_keeps_completed_games_and_ratings() {
                 id: "a".into(),
                 model: "dummy-a".into(),
                 engine: None,
+                generation: None,
             },
             TourneyEntrant {
                 id: "b".into(),
                 model: "dummy-b".into(),
                 engine: None,
+                generation: None,
             },
         ],
         ..Default::default()

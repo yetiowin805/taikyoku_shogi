@@ -1,0 +1,46 @@
+[
+  {
+    "name": "fused-fit",
+    "patches": [
+      "iterator-storage.patch",
+      "iterator-state.patch",
+      "nnue-fused-fit.patch"
+    ]
+  },
+  {
+    "name": "output-lut",
+    "patches": [
+      "nnue-output-lut.patch"
+    ]
+  },
+  {
+    "name": "batched-reduction",
+    "patches": [
+      "nnue-batched-reduction.patch"
+    ]
+  },
+  {
+    "name": "search-root-order",
+    "patches": [
+      "search-root-order.patch"
+    ]
+  },
+  {
+    "name": "search-qretain",
+    "patches": [
+      "search-qretain.patch"
+    ]
+  },
+  {
+    "name": "search-cached-captures",
+    "patches": [
+      "search-cached-captures.patch"
+    ]
+  },
+  {
+    "name": "search-ttmask",
+    "patches": [
+      "search-ttmask.patch"
+    ]
+  }
+]

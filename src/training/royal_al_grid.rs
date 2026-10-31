@@ -116,6 +116,7 @@ pub fn generate(out: &Path) -> Result<TourneyManifest, String> {
             id: cp.name,
             model: model.display().to_string(),
             engine,
+            generation: None,
         });
     }
     let description = GridDescription {

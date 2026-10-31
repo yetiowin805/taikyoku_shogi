@@ -13,7 +13,7 @@ use taikyoku_shogi::{
     movement::{BlockingMode, MovementCapability, MovementConfig},
     notation::move_encode,
     piece::{Color, Piece},
-    search::{move_captures_enemy, search_with_progress},
+    search::{move_captures_enemy, probe_quiescence, search_with_progress},
     training::record::{GameRecordV2, GameStart},
 };
 
@@ -28,6 +28,11 @@ struct Request {
     depth: u32,
     #[serde(default)]
     time_ms: u64,
+    /// Parity survey: finish a finite requested depth without a time cutoff.
+    #[serde(default)]
+    fixed_depth: bool,
+    /// Parity survey diagnostic; absent preserves the checkpoint's q policy.
+    quiescence_depth: Option<u32>,
     reply: Option<Move>,
     /// Optional checkpoint for this request only; permits paired trial policies.
     model: Option<String>,
@@ -345,7 +350,39 @@ fn handle(
     }
     let state = position(base, &req.path)?;
     let pov = sign(&state);
-    if req.op == "inspect" {
+    if req.op == "evaluate" {
+        let mut flipped = state.clone();
+        flipped.set_current_turn(state.get_current_turn().opposite());
+        emit(
+            json!({"version":1,"id":req.id,"event":"complete","op":"evaluate",
+            "turn":pov,"static_black":evaluate(&state,player.weights())*pov,
+            "flipped_static_black":evaluate(&flipped,player.weights())*(-pov),
+            "material_black":taikyoku_shogi::nnue::material(state.get_board(),player.weights()),
+            "history_len":state.get_move_history().len(),
+            "position_hash":format!("{:016x}",state.repetition_key()),
+            "elapsed_ms":started.elapsed().as_millis()}),
+        );
+    } else if req.op == "quiescence_probe" {
+        // Standalone probe, not the context-dependent AB leaf gate. In particular,
+        // probe_quiescence starts with no previous landing and q_own_large_only=false.
+        let result = probe_quiescence(
+            &state,
+            player.weights(),
+            req.depth,
+            player.config().q_prune_mode,
+            if req.time_ms == 0 {
+                None
+            } else {
+                Some(req.time_ms)
+            },
+        );
+        emit(
+            json!({"version":1,"id":req.id,"event":"complete","op":"quiescence_probe",
+            "score_black":result.score*pov,"static_black":result.static_eval*pov,
+            "q_nodes":result.q_nodes,"aborted":result.aborted,
+            "elapsed_ms":started.elapsed().as_millis()}),
+        );
+    } else if req.op == "inspect" {
         let moves = legal(&state);
         let outcome = terminal(&state, moves.is_empty());
         let mut reply = Value::Null;
@@ -374,8 +411,8 @@ fn handle(
         }
         emit(info);
     } else if req.op == "search" {
-        if req.depth == 0 || req.time_ms == 0 {
-            return Err("positive depth/time_ms required".into());
+        if req.depth == 0 || (!req.fixed_depth && req.time_ms == 0) {
+            return Err("positive depth and either time_ms or fixed_depth required".into());
         }
         let moves = legal(&state);
         if let Some(outcome) = terminal(&state, moves.is_empty()) {
@@ -387,7 +424,14 @@ fn handle(
         }
         let mut config = player.config().clone();
         config.depth = req.depth;
-        config.max_time_ms = Some(req.time_ms);
+        config.max_time_ms = if req.fixed_depth {
+            None
+        } else {
+            Some(req.time_ms)
+        };
+        if let Some(qdepth) = req.quiescence_depth {
+            config.quiescence_depth = qdepth;
+        }
         config.fischer_soft_ms = None;
         config.collect_trace = false;
         let mut progress = |depth, score, mv: &Move, nodes, lines: &[(Move, i32)]| {

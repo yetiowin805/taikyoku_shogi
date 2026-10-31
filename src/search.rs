@@ -254,7 +254,9 @@ pub struct SearchConfig {
     pub quiescence_depth: u32,
     /// Quiescence capture prune policy.
     pub q_prune_mode: QPruneMode,
-    /// TT cluster width. `1` is the production single-slot table.
+    /// TT cluster width (clamped to 1..=8). `1` is the production default.
+    /// Other widths can reduce table capacity: the set count rounds down to
+    /// a power of two so every allocated set is reachable by the key mask.
     pub tt_clusters: u8,
     /// Legacy compatibility flag; selective q TT keys now always include `prev_to`.
     pub q_hash_prev_to: bool,
@@ -567,6 +569,7 @@ struct TranspositionTable {
     touched: Vec<usize>,
     entries: Vec<Option<TtEntry>>,
     clusters: usize,
+    set_mask: usize,
 }
 
 impl TranspositionTable {
@@ -577,17 +580,21 @@ impl TranspositionTable {
     fn with_clusters(size_pow2: usize, clusters: usize) -> Self {
         let clusters = clusters.clamp(1, 8);
         let n = size_pow2.next_power_of_two().max(1024);
-        let n = (n / clusters) * clusters;
+        // Mask indexing needs a power-of-two number of sets, independently of
+        // the cluster width. Keep the entry budget and round sets down; widths
+        // 1/2/4/8 retain their previous capacity and key-to-slot mapping.
+        let n_sets = 1usize << (n / clusters).ilog2();
+        let n = n_sets * clusters;
         Self {
             entries: take_tt_storage(n),
             touched: Vec::new(),
             clusters,
+            set_mask: n_sets - 1,
         }
     }
 
     fn set_base(&self, key: u64) -> usize {
-        let n_sets = self.entries.len() / self.clusters;
-        (key as usize & (n_sets - 1)) * self.clusters
+        (key as usize & self.set_mask) * self.clusters
     }
 
     fn probe(&self, key: u64) -> Option<&TtEntry> {
@@ -2408,6 +2415,7 @@ pub fn search_with_progress(
 
     let mut pos = nnue_root.take().unwrap_or_else(|| state.clone());
     pos.ensure_eval_inc(weights);
+    pos.prepare_search_repetition();
     let mut in_lr_check = stm_last_royal_in_check(&pos);
     let mut moves = pos.generate_legal_moves();
     if in_lr_check {
@@ -3065,6 +3073,7 @@ pub fn probe_quiescence(
     let score = if qdepth == 0 {
         static_eval
     } else {
+        pos.prepare_search_repetition();
         ctx.quiesce_entry_depth = qdepth;
         quiesce(
             &mut pos,
@@ -9303,6 +9312,56 @@ impl Drop for TranspositionTable {
 #[cfg(test)]
 mod reusable_tt_tests {
     use super::*;
+
+    #[test]
+    fn every_allocated_cluster_is_addressable() {
+        for requested in [1usize, 1024, 1025, 4096] {
+            let budget = requested.next_power_of_two().max(1024);
+            for clusters in 1..=8 {
+                let table = TranspositionTable::with_clusters(requested, clusters);
+                let n_sets = table.entries.len() / clusters;
+                assert!(n_sets.is_power_of_two());
+                assert!(table.entries.len() <= budget);
+                assert!(n_sets * 2 > budget / clusters);
+                let mut visited = vec![false; n_sets];
+                for key in 0..2 * n_sets {
+                    let base = table.set_base(key as u64);
+                    assert_eq!(base, (key % n_sets) * clusters);
+                    assert!(base + clusters <= table.entries.len());
+                    visited[base / clusters] = true;
+                    if clusters.is_power_of_two() {
+                        assert_eq!(table.entries.len(), budget);
+                        assert_eq!(base, (key & (budget / clusters - 1)) * clusters);
+                    }
+                }
+                assert!(visited.into_iter().all(|reached| reached));
+            }
+        }
+    }
+
+    #[test]
+    fn all_cluster_slots_store_distinct_full_keys() {
+        for clusters in 1..=8 {
+            let mut table = TranspositionTable::with_clusters(1024, clusters);
+            let n_sets = table.entries.len() / clusters;
+            for key in 0..table.entries.len() {
+                table.store(TtEntry {
+                    key: key as u64,
+                    depth: 1,
+                    score: key as i32,
+                    bound: TtBound::Exact,
+                    best: None,
+                });
+            }
+            for key in 0..table.entries.len() {
+                let entry = table
+                    .probe(key as u64)
+                    .expect("every slot remains populated");
+                assert_eq!(entry.score, key as i32);
+                assert_eq!(table.set_base(key as u64), (key % n_sets) * clusters);
+            }
+        }
+    }
 
     #[test]
     fn cancelled_analysis_stops_before_starting_a_depth() {
