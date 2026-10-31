@@ -1172,11 +1172,12 @@ pub enum SearchTrial {
     QRefillHistory,
     PvsPromote,
     GrowthAware,
+    PostCaptureSafety,
 }
 
 impl SearchTrial {
     /// Engine admission probes reject checkpoints requiring an unsupported trial.
-    pub const ALL: [Self; 13] = [
+    pub const ALL: [Self; 14] = [
         Self::None,
         Self::ContextRetry,
         Self::QRefill,
@@ -1190,6 +1191,7 @@ impl SearchTrial {
         Self::QRefillHistory,
         Self::PvsPromote,
         Self::GrowthAware,
+        Self::PostCaptureSafety,
     ];
 }
 

@@ -122,6 +122,16 @@
       "base_entrant": "NNUE_W512_v3",
       "experiment": "history_tactical_lmr_q_fix_sacrifice",
       "trial": "growth_aware"
+    },
+    "NNUE_W512_v3_HLF_G3PT": {
+      "base_entrant": "NNUE_W512_v3",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "post_capture_safety"
+    },
+    "NNUE_W512_v3_HLFS_G3PT": {
+      "base_entrant": "NNUE_W512_v3",
+      "experiment": "history_tactical_lmr_q_fix_sacrifice",
+      "trial": "post_capture_safety"
     }
   }
 }

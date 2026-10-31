@@ -698,6 +698,65 @@ mod tests {
     }
 
     #[test]
+    fn post_capture_safety_rejects_real_defended_takes_and_restores_board() {
+        let (state, weights) = refill_position();
+        let run = |trial, prev_to| {
+            with_quiesce_test_context(&state, &weights, 1, prev_to, |pos, ctx| {
+                ctx.experiments.policy = SearchExperiment::HistoryTacticalLmrQFix;
+                ctx.experiments.trial = trial;
+                let stand = evaluate_with_ply(pos, &weights, 0);
+                let score = quiesce(
+                    pos, &weights, 1, -900_000, 900_000, prev_to, true, true, ctx,
+                );
+                assert_eq!(pos.hash(), state.hash());
+                assert_eq!(
+                    pos.get_board()
+                        .get_piece(position(5, 8))
+                        .unwrap()
+                        .piece_type,
+                    PieceType::Bishop
+                );
+                (score, stand, ctx.q_caps_searched)
+            })
+        };
+        let old = run(SearchTrial::None, None);
+        let safety = run(SearchTrial::PostCaptureSafety, None);
+        assert_eq!(old.2, 2);
+        assert!(old.0 > old.1);
+        assert_eq!(
+            safety.2, 0,
+            "ordinary top-two defended takes must be rejected after make"
+        );
+        assert_eq!(safety.0, safety.1);
+        let mandatory = run(SearchTrial::PostCaptureSafety, Some(position(5, 8)));
+        assert!(
+            mandatory.2 > 0,
+            "mandatory major recapture must remain exempt even when defended"
+        );
+    }
+
+    #[test]
+    fn post_capture_safety_never_prunes_a_defended_royal_take() {
+        let mut state = GameState::new();
+        put(&mut state, PieceType::King, Color::Black, 1, 1);
+        put(&mut state, PieceType::King, Color::White, 5, 8);
+        put(&mut state, PieceType::Rook, Color::Black, 5, 5);
+        put(&mut state, PieceType::Rook, Color::White, 5, 10);
+        let mut weights = EvalWeights::seed();
+        weights.noise_scale = 0.0;
+        weights.piece.insert(PieceType::Rook, 2000.0);
+        weights.rebuild_piece_value_table();
+        with_quiesce_test_context(&state, &weights, 1, None, |pos, ctx| {
+            ctx.experiments.policy = SearchExperiment::HistoryTacticalLmrQFix;
+            ctx.experiments.trial = SearchTrial::PostCaptureSafety;
+            let score = quiesce(pos, &weights, 1, -900_000, 900_000, None, true, true, ctx);
+            assert!(score >= MATE_SCORE_BAND);
+            assert_eq!(ctx.q_caps_searched, 1);
+            assert_eq!(pos.hash(), state.hash());
+        });
+    }
+
+    #[test]
     fn shallow_futility_saves_nodes_but_never_hides_a_royal_capture() {
         let mut state = kings();
         put(&mut state, PieceType::Rook, Color::Black, 10, 10);

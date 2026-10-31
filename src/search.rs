@@ -4798,6 +4798,22 @@ fn quiesce_impl(
             continue;
         }
 
+        // Third-wave PT: ordinary defended destinations are not detected by
+        // the pre-make attack query while occupied by the defender's own victim.
+        // Verify the actual landing after capture. Mandatory captures remain exempt.
+        if ctx.experiments.trial == SearchTrial::PostCaptureSafety
+            && path_aware
+            && !quota_exempt
+            && matches!(kind, CaptureKind::SimpleTake)
+            && net_below_hang_frac(enemy, own, mover_value)
+            && state
+                .get_board()
+                .is_position_attacked_by_color(landing, opponent)
+        {
+            state.unmake_move_for_search(undo);
+            continue;
+        }
+
         let next_prev_to = if ctx.q_prune_mode.uses_recapture_only() || path_aware {
             Some(landing)
         } else {
