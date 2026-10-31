@@ -1,0 +1,8 @@
+[
+  {
+    "name": "direction-index",
+    "patches": [
+      "direction-index.patch"
+    ]
+  }
+]

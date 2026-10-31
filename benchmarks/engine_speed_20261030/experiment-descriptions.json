@@ -1,0 +1,112 @@
+[
+  {
+    "name": "material-only",
+    "scope": "All7 models;3repeats; no useful aggregate gain established",
+    "title": "NNUE material-only bookkeeping + small cleanups"
+  },
+  {
+    "name": "iterator",
+    "scope": "Removes one temporary allocation per neural make",
+    "title": "NNUE updates from borrowed iterators"
+  },
+  {
+    "name": "repetition",
+    "scope": "Counts full game history; exact full-key lookup after absence filter",
+    "title": "Immutable repetition-history prefix index"
+  },
+  {
+    "name": "second-head",
+    "scope": "Replaces generic i32 SIMD dots with byte SIMD; architecture unchanged",
+    "title": "Byte-dot second neural layer"
+  },
+  {
+    "name": "search-combined",
+    "scope": "Root score map, q stable retain, cached capture scores, TT mask",
+    "title": "Four search cost changes together"
+  },
+  {
+    "name": "attack-filter",
+    "scope": "Single metadata lookup and reused geometry",
+    "title": "Consolidated attack-filter metadata"
+  },
+  {
+    "name": "range-count",
+    "scope": "Handcrafted mobility; same Range visitor",
+    "title": "Allocation-free range landing counts"
+  },
+  {
+    "name": "direct-append",
+    "scope": "Avoids per-capability temporary vectors",
+    "title": "Direct target append + range counts"
+  },
+  {
+    "name": "board-direct",
+    "scope": "Avoids square-to-army-slot indirection",
+    "title": "Borrow occupied square directly"
+  },
+  {
+    "name": "direction-bits",
+    "scope": "Same direction order for every8-bit mask",
+    "title": "Walk only set direction bits"
+  },
+  {
+    "name": "fixed-rows",
+    "scope": "Two/three changed rows fused; generic sweeps preserved",
+    "title": "Iterator updates + specialized common row shapes"
+  },
+  {
+    "name": "head-shift",
+    "scope": "Preserves quantization for every accepted i32 input",
+    "title": "Exact shifts after nonnegative clamp"
+  },
+  {
+    "name": "landing-cache",
+    "scope": "128B vs1296B local payload; collisions cause misses",
+    "title": "Smaller tagged landing-attack cache"
+  },
+  {
+    "name": "virtual-attack",
+    "scope": "API/hypothetical-occupancy path; no army clones",
+    "title": "Borrowed VirtualBoard attack scan"
+  },
+  {
+    "name": "fused-fit",
+    "scope": "Exact wide fallback; invalidates overwritten collision keys",
+    "title": "Iterator updates + fused row fit/write"
+  },
+  {
+    "name": "output-lut",
+    "scope": "512B table replaces32 float divisions per residual",
+    "title": "Exact output activation lookup"
+  },
+  {
+    "name": "batched-reduction",
+    "scope": "Same4-row blocks; no weight permutation",
+    "title": "Four VNNI output reductions together"
+  },
+  {
+    "name": "search-root-order",
+    "scope": "Preserves first matching endpoint/promotion score",
+    "title": "Indexed stable root ordering"
+  },
+  {
+    "name": "search-qretain",
+    "scope": "Removes second Vec; larger retained capacity may cost memory",
+    "title": "Stable quiescence candidate retention"
+  },
+  {
+    "name": "search-cached-captures",
+    "scope": "One expensive route score per move; extra key array",
+    "title": "Cached capture-ordering scores"
+  },
+  {
+    "name": "search-ttmask",
+    "scope": "No dynamic division on probe/store",
+    "title": "Precomputed transposition set mask"
+  },
+  {
+    "name": "direction-index",
+    "scope": "Preserves near/global/uncertain origins; adds board masks and mutator maintenance",
+    "title": "Maintained distant range-direction index"
+  }
+]

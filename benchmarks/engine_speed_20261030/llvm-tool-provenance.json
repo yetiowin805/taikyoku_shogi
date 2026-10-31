@@ -1,0 +1,8 @@
+{
+  "url": "https://static.rust-lang.org/dist/2025-12-11/llvm-tools-1.92.0-x86_64-unknown-linux-gnu.tar.xz",
+  "archive_sha256": "0e7ecc3cd9e0d1ab690954e2a623f7e5e9c55aca7d9853c712d6d84cc490f1dd",
+  "source": "Installed rustup channel manifest for rustc1.92.0, x86_64-unknown-linux-gnu llvm-tools-preview",
+  "tool": "/tmp/engine-speed-llvm-tools/llvm-tools-1.92.0-x86_64-unknown-linux-gnu/llvm-tools-preview/lib/rustlib/x86_64-unknown-linux-gnu/bin/llvm-profdata",
+  "tool_sha256": "46627f3237428b069cf860cac6a276204f8a77f633f95fd2aa413012a981b081",
+  "version": "LLVM (http://llvm.org/):\n  LLVM version 21.1.3-rust-1.92.0-stable\n  Optimized build.\n"
+}

@@ -1,0 +1,46 @@
+[
+  {
+    "fixture": "opening",
+    "delta": "quiet",
+    "trials": 7,
+    "queries_per_arm_trial": 4096,
+    "ratio_geomean": 1.184236799479601,
+    "trial_ratio_min": 1.1416449785980833,
+    "trial_ratio_max": 1.2295654026842084,
+    "legacy_mean_microseconds_per_query": 3.2343438546316965,
+    "streamed_mean_microseconds_per_query": 3.830837855747768
+  },
+  {
+    "fixture": "opening",
+    "delta": "sweep12",
+    "trials": 7,
+    "queries_per_arm_trial": 4096,
+    "ratio_geomean": 0.8604887667512069,
+    "trial_ratio_min": 0.8136817125137245,
+    "trial_ratio_max": 0.8938151155781016,
+    "legacy_mean_microseconds_per_query": 4.267936558314732,
+    "streamed_mean_microseconds_per_query": 3.6730885881696427
+  },
+  {
+    "fixture": "sparse",
+    "delta": "quiet",
+    "trials": 7,
+    "queries_per_arm_trial": 4096,
+    "ratio_geomean": 1.1190896733416245,
+    "trial_ratio_min": 1.0655300758679118,
+    "trial_ratio_max": 1.1716509648464746,
+    "legacy_mean_microseconds_per_query": 0.6265461077008928,
+    "streamed_mean_microseconds_per_query": 0.7011959751674107
+  },
+  {
+    "fixture": "sparse",
+    "delta": "sweep12",
+    "trials": 7,
+    "queries_per_arm_trial": 4096,
+    "ratio_geomean": 0.7649956557018214,
+    "trial_ratio_min": 0.6819802993319495,
+    "trial_ratio_max": 0.8590043783190398,
+    "legacy_mean_microseconds_per_query": 0.9733075474330357,
+    "streamed_mean_microseconds_per_query": 0.7445012904575893
+  }
+]
