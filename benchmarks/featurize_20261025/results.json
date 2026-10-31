@@ -1,0 +1,805 @@
+{
+  "baseline_revision": "c73a7d5ecdd1f179213c1f5664b39a92178ae26b",
+  "candidate_revision": "40593764a6d0d7ecb9f96c174c0e56b69f385652",
+  "method": "Six alternating-order pairs per complete game across all 12 inputs, shuffled case order per repeat. Each process warms and fingerprints every output row before timing one full featurize_game call. Input loading, output serialization, and disk writes are outside timing. Baseline and PR base have identical Rust source.",
+  "compiler": "rustc 1.92.0 (ded5c06cf 2025-12-08)",
+  "cpu_affinity": [
+    2
+  ],
+  "environment": {
+    "system": "Linux",
+    "machine": "x86_64",
+    "cpu_model": "12th Gen Intel(R) Core(TM) i7-1255U"
+  },
+  "uncertainty": "Percentile bootstrap of paired log time ratios, 10,000 resamples. Case intervals describe these six local pairs only; they are not guarantees for other workloads, hardware, or system load. Loader observations are batch means across 100 parses, not individual-request latencies.",
+  "cases": {
+    "opening": {
+      "pairs": 6,
+      "repeats_per_process": 1,
+      "moves": 671,
+      "rows": 136,
+      "baseline_ms": {
+        "n": 6,
+        "minimum": 77.451296,
+        "p25": 81.53291300000001,
+        "median": 82.8661025,
+        "p75": 85.17526175,
+        "maximum": 91.23439499999999,
+        "mean": 83.57523233333333,
+        "sample_sd": 4.658106170439553
+      },
+      "candidate_ms": {
+        "n": 6,
+        "minimum": 9.825229,
+        "p25": 10.6555225,
+        "median": 10.788968,
+        "p75": 11.076144000000001,
+        "maximum": 11.456757999999999,
+        "mean": 10.7738055,
+        "sample_sd": 0.5542433530043457
+      },
+      "paired_time_ratio": {
+        "geometric_mean": 0.12893089458013632,
+        "median": 0.12880262490177424,
+        "time_reduction_percent": 87.10691054198637,
+        "speedup": 7.756092930685867,
+        "bootstrap_95_percentile_interval": [
+          0.12694932641769827,
+          0.13094961322465581
+        ],
+        "bootstrap_resamples": 10000
+      },
+      "baseline_peak_rss_mib": {
+        "n": 6,
+        "minimum": 4.875,
+        "p25": 5.0,
+        "median": 5.0,
+        "p75": 5.09375,
+        "maximum": 5.125,
+        "mean": 5.020833333333333,
+        "sample_sd": 0.09409658158863513
+      },
+      "candidate_peak_rss_mib": {
+        "n": 6,
+        "minimum": 5.0,
+        "p25": 5.03125,
+        "median": 5.125,
+        "p75": 5.125,
+        "maximum": 5.125,
+        "mean": 5.083333333333333,
+        "sample_sd": 0.06454972243679029
+      }
+    },
+    "middlegame": {
+      "pairs": 6,
+      "repeats_per_process": 1,
+      "moves": 400,
+      "rows": 96,
+      "baseline_ms": {
+        "n": 6,
+        "minimum": 57.927795999999994,
+        "p25": 58.18356225,
+        "median": 58.694179000000005,
+        "p75": 59.257241,
+        "maximum": 60.286759,
+        "mean": 58.843533,
+        "sample_sd": 0.8903892261163115
+      },
+      "candidate_ms": {
+        "n": 6,
+        "minimum": 7.280685,
+        "p25": 7.3408215,
+        "median": 7.3981955,
+        "p75": 7.546837,
+        "maximum": 7.804294,
+        "mean": 7.466575166666667,
+        "sample_sd": 0.19618409048586644
+      },
+      "paired_time_ratio": {
+        "geometric_mean": 0.12686466325569476,
+        "median": 0.12576539161457623,
+        "time_reduction_percent": 87.31353367443052,
+        "speedup": 7.882415594202994,
+        "bootstrap_95_percentile_interval": [
+          0.1254137113826806,
+          0.12906143174056867
+        ],
+        "bootstrap_resamples": 10000
+      },
+      "baseline_peak_rss_mib": {
+        "n": 6,
+        "minimum": 4.125,
+        "p25": 4.15625,
+        "median": 4.25,
+        "p75": 4.25,
+        "maximum": 4.25,
+        "mean": 4.208333333333333,
+        "sample_sd": 0.06454972243679029
+      },
+      "candidate_peak_rss_mib": {
+        "n": 6,
+        "minimum": 4.125,
+        "p25": 4.25,
+        "median": 4.25,
+        "p75": 4.25,
+        "maximum": 4.25,
+        "mean": 4.229166666666667,
+        "sample_sd": 0.05103103630798288
+      }
+    },
+    "tactical": {
+      "pairs": 6,
+      "repeats_per_process": 1,
+      "moves": 434,
+      "rows": 92,
+      "baseline_ms": {
+        "n": 6,
+        "minimum": 62.85813699999999,
+        "p25": 65.58326975,
+        "median": 66.1511715,
+        "p75": 66.4085155,
+        "maximum": 66.487664,
+        "mean": 65.58940166666666,
+        "sample_sd": 1.395585997746564
+      },
+      "candidate_ms": {
+        "n": 6,
+        "minimum": 8.498912,
+        "p25": 8.9424815,
+        "median": 9.097152999999999,
+        "p75": 9.31787475,
+        "maximum": 9.461120999999999,
+        "mean": 9.072785333333332,
+        "sample_sd": 0.3491539365498639
+      },
+      "paired_time_ratio": {
+        "geometric_mean": 0.13826706510456677,
+        "median": 0.14010001245923923,
+        "time_reduction_percent": 86.17329348954333,
+        "speedup": 7.232380315903382,
+        "bootstrap_95_percentile_interval": [
+          0.133123041062075,
+          0.1428630901352699
+        ],
+        "bootstrap_resamples": 10000
+      },
+      "baseline_peak_rss_mib": {
+        "n": 6,
+        "minimum": 5.75,
+        "p25": 5.75,
+        "median": 5.8125,
+        "p75": 5.875,
+        "maximum": 5.875,
+        "mean": 5.8125,
+        "sample_sd": 0.06846531968814576
+      },
+      "candidate_peak_rss_mib": {
+        "n": 6,
+        "minimum": 5.75,
+        "p25": 5.875,
+        "median": 5.875,
+        "p75": 5.875,
+        "maximum": 5.875,
+        "mean": 5.854166666666667,
+        "sample_sd": 0.05103103630798288
+      }
+    },
+    "long-history": {
+      "pairs": 6,
+      "repeats_per_process": 1,
+      "moves": 4419,
+      "rows": 150,
+      "baseline_ms": {
+        "n": 6,
+        "minimum": 509.61224000000004,
+        "p25": 521.2302025,
+        "median": 526.4935164999999,
+        "p75": 531.21646975,
+        "maximum": 540.042013,
+        "mean": 525.817973,
+        "sample_sd": 10.487902312348925
+      },
+      "candidate_ms": {
+        "n": 6,
+        "minimum": 62.308049,
+        "p25": 63.311029000000005,
+        "median": 64.56045800000001,
+        "p75": 68.78409825,
+        "maximum": 90.839066,
+        "mean": 69.22576033333334,
+        "sample_sd": 10.932365171278898
+      },
+      "paired_time_ratio": {
+        "geometric_mean": 0.13047510143268132,
+        "median": 0.12471212392293163,
+        "time_reduction_percent": 86.95248985673187,
+        "speedup": 7.664297548110744,
+        "bootstrap_95_percentile_interval": [
+          0.12040864147433511,
+          0.14745933891024945
+        ],
+        "bootstrap_resamples": 10000
+      },
+      "baseline_peak_rss_mib": {
+        "n": 6,
+        "minimum": 16.625,
+        "p25": 16.625,
+        "median": 16.625,
+        "p75": 16.625,
+        "maximum": 16.625,
+        "mean": 16.625,
+        "sample_sd": 0.0
+      },
+      "candidate_peak_rss_mib": {
+        "n": 6,
+        "minimum": 16.625,
+        "p25": 16.625,
+        "median": 16.625,
+        "p75": 16.625,
+        "maximum": 16.625,
+        "mean": 16.625,
+        "sample_sd": 0.0
+      }
+    },
+    "early-development": {
+      "pairs": 6,
+      "repeats_per_process": 1,
+      "moves": 547,
+      "rows": 107,
+      "baseline_ms": {
+        "n": 6,
+        "minimum": 72.925958,
+        "p25": 77.0172335,
+        "median": 79.4775615,
+        "p75": 83.094055,
+        "maximum": 85.33258500000001,
+        "mean": 79.6183905,
+        "sample_sd": 4.6445203300787385
+      },
+      "candidate_ms": {
+        "n": 6,
+        "minimum": 9.623723,
+        "p25": 10.2981885,
+        "median": 10.5286955,
+        "p75": 11.371170999999999,
+        "maximum": 11.904169,
+        "mean": 10.743105333333332,
+        "sample_sd": 0.8689286876154257
+      },
+      "paired_time_ratio": {
+        "geometric_mean": 0.13476031224795593,
+        "median": 0.13550985696691534,
+        "time_reduction_percent": 86.52396877520441,
+        "speedup": 7.42058239045946,
+        "bootstrap_95_percentile_interval": [
+          0.13085905908055995,
+          0.13851948103280234
+        ],
+        "bootstrap_resamples": 10000
+      },
+      "baseline_peak_rss_mib": {
+        "n": 6,
+        "minimum": 5.25,
+        "p25": 5.25,
+        "median": 5.3125,
+        "p75": 5.375,
+        "maximum": 5.375,
+        "mean": 5.3125,
+        "sample_sd": 0.06846531968814576
+      },
+      "candidate_peak_rss_mib": {
+        "n": 6,
+        "minimum": 5.25,
+        "p25": 5.375,
+        "median": 5.375,
+        "p75": 5.375,
+        "maximum": 5.375,
+        "mean": 5.354166666666667,
+        "sample_sd": 0.05103103630798288
+      }
+    },
+    "midgame-independent": {
+      "pairs": 6,
+      "repeats_per_process": 1,
+      "moves": 341,
+      "rows": 76,
+      "baseline_ms": {
+        "n": 6,
+        "minimum": 52.951478,
+        "p25": 53.6246865,
+        "median": 54.855633999999995,
+        "p75": 55.265041999999994,
+        "maximum": 57.693592,
+        "mean": 54.82870333333334,
+        "sample_sd": 1.7120012273223015
+      },
+      "candidate_ms": {
+        "n": 6,
+        "minimum": 7.362405,
+        "p25": 7.44657125,
+        "median": 7.6945865,
+        "p75": 7.78529975,
+        "maximum": 8.51173,
+        "mean": 7.7404575,
+        "sample_sd": 0.41936907587982697
+      },
+      "paired_time_ratio": {
+        "geometric_mean": 0.1410649334186354,
+        "median": 0.14182943033574907,
+        "time_reduction_percent": 85.89350665813646,
+        "speedup": 7.088933980724474,
+        "bootstrap_95_percentile_interval": [
+          0.1373342685974188,
+          0.14447111756044181
+        ],
+        "bootstrap_resamples": 10000
+      },
+      "baseline_peak_rss_mib": {
+        "n": 6,
+        "minimum": 5.0,
+        "p25": 5.03125,
+        "median": 5.125,
+        "p75": 5.125,
+        "maximum": 5.125,
+        "mean": 5.083333333333333,
+        "sample_sd": 0.06454972243679029
+      },
+      "candidate_peak_rss_mib": {
+        "n": 6,
+        "minimum": 5.0,
+        "p25": 5.0,
+        "median": 5.0625,
+        "p75": 5.125,
+        "maximum": 5.125,
+        "mean": 5.0625,
+        "sample_sd": 0.06846531968814576
+      }
+    },
+    "late-independent": {
+      "pairs": 6,
+      "repeats_per_process": 1,
+      "moves": 800,
+      "rows": 105,
+      "baseline_ms": {
+        "n": 6,
+        "minimum": 130.43699999999998,
+        "p25": 133.0892915,
+        "median": 133.48880000000003,
+        "p75": 134.7217475,
+        "maximum": 138.515766,
+        "mean": 134.003203,
+        "sample_sd": 2.6745501824051905
+      },
+      "candidate_ms": {
+        "n": 6,
+        "minimum": 16.849234000000003,
+        "p25": 17.133744,
+        "median": 17.778916000000002,
+        "p75": 18.708446000000002,
+        "maximum": 28.445523,
+        "mean": 19.4649275,
+        "sample_sd": 4.464173615039171
+      },
+      "paired_time_ratio": {
+        "geometric_mean": 0.14266069353354943,
+        "median": 0.13305872121467227,
+        "time_reduction_percent": 85.73393064664505,
+        "speedup": 7.00963927225568,
+        "bootstrap_95_percentile_interval": [
+          0.129665395688067,
+          0.16572735175776143
+        ],
+        "bootstrap_resamples": 10000
+      },
+      "baseline_peak_rss_mib": {
+        "n": 6,
+        "minimum": 4.625,
+        "p25": 4.625,
+        "median": 4.6875,
+        "p75": 4.75,
+        "maximum": 4.75,
+        "mean": 4.6875,
+        "sample_sd": 0.06846531968814576
+      },
+      "candidate_peak_rss_mib": {
+        "n": 6,
+        "minimum": 4.625,
+        "p25": 4.65625,
+        "median": 4.75,
+        "p75": 4.75,
+        "maximum": 4.75,
+        "mean": 4.708333333333333,
+        "sample_sd": 0.06454972243679029
+      }
+    },
+    "late-royal": {
+      "pairs": 6,
+      "repeats_per_process": 1,
+      "moves": 1124,
+      "rows": 118,
+      "baseline_ms": {
+        "n": 6,
+        "minimum": 119.645855,
+        "p25": 120.41623824999999,
+        "median": 120.8775575,
+        "p75": 123.71815724999999,
+        "maximum": 131.174886,
+        "mean": 122.91722416666667,
+        "sample_sd": 4.395085500787319
+      },
+      "candidate_ms": {
+        "n": 6,
+        "minimum": 15.986395,
+        "p25": 16.166751999999995,
+        "median": 16.443329499999997,
+        "p75": 17.34060175,
+        "maximum": 17.905531999999997,
+        "mean": 16.74880633333333,
+        "sample_sd": 0.8039577454077217
+      },
+      "paired_time_ratio": {
+        "geometric_mean": 0.13620257894598073,
+        "median": 0.1348210365977044,
+        "time_reduction_percent": 86.37974210540193,
+        "speedup": 7.342004885213002,
+        "bootstrap_95_percentile_interval": [
+          0.13352170660382792,
+          0.13950866755627658
+        ],
+        "bootstrap_resamples": 10000
+      },
+      "baseline_peak_rss_mib": {
+        "n": 6,
+        "minimum": 7.75,
+        "p25": 7.75,
+        "median": 7.75,
+        "p75": 7.75,
+        "maximum": 7.875,
+        "mean": 7.770833333333333,
+        "sample_sd": 0.05103103630798288
+      },
+      "candidate_peak_rss_mib": {
+        "n": 6,
+        "minimum": 7.75,
+        "p25": 7.78125,
+        "median": 7.875,
+        "p75": 7.875,
+        "maximum": 7.875,
+        "mean": 7.833333333333333,
+        "sample_sd": 0.06454972243679029
+      }
+    },
+    "champs-midgame": {
+      "pairs": 6,
+      "repeats_per_process": 1,
+      "moves": 167,
+      "rows": 40,
+      "baseline_ms": {
+        "n": 6,
+        "minimum": 30.403125,
+        "p25": 30.864202,
+        "median": 31.757006999999994,
+        "p75": 32.616515,
+        "maximum": 32.786502,
+        "mean": 31.695543166666667,
+        "sample_sd": 1.0349353539232122
+      },
+      "candidate_ms": {
+        "n": 6,
+        "minimum": 4.148350000000001,
+        "p25": 4.396038,
+        "median": 4.616547499999999,
+        "p75": 4.8535569999999995,
+        "maximum": 6.203590999999999,
+        "mean": 4.8066885,
+        "sample_sd": 0.7353308833364062
+      },
+      "paired_time_ratio": {
+        "geometric_mean": 0.15038191891351904,
+        "median": 0.1453973449975156,
+        "time_reduction_percent": 84.9618081086481,
+        "speedup": 6.649735601359599,
+        "bootstrap_95_percentile_interval": [
+          0.14031658156226037,
+          0.16593902038932554
+        ],
+        "bootstrap_resamples": 10000
+      },
+      "baseline_peak_rss_mib": {
+        "n": 6,
+        "minimum": 4.625,
+        "p25": 4.65625,
+        "median": 4.75,
+        "p75": 4.75,
+        "maximum": 4.75,
+        "mean": 4.708333333333333,
+        "sample_sd": 0.06454972243679029
+      },
+      "candidate_peak_rss_mib": {
+        "n": 6,
+        "minimum": 4.75,
+        "p25": 4.75,
+        "median": 4.75,
+        "p75": 4.84375,
+        "maximum": 4.875,
+        "mean": 4.791666666666667,
+        "sample_sd": 0.06454972243679029
+      }
+    },
+    "twins-midgame-a": {
+      "pairs": 6,
+      "repeats_per_process": 1,
+      "moves": 264,
+      "rows": 55,
+      "baseline_ms": {
+        "n": 6,
+        "minimum": 42.354282,
+        "p25": 42.7941035,
+        "median": 43.1030325,
+        "p75": 43.4603635,
+        "maximum": 45.825157,
+        "mean": 43.442684166666666,
+        "sample_sd": 1.2389006049386553
+      },
+      "candidate_ms": {
+        "n": 6,
+        "minimum": 5.879217,
+        "p25": 5.94273675,
+        "median": 6.051029,
+        "p75": 6.092844250000001,
+        "maximum": 6.222189999999999,
+        "mean": 6.036147833333333,
+        "sample_sd": 0.12641880451486104
+      },
+      "paired_time_ratio": {
+        "geometric_mean": 0.13896575810479472,
+        "median": 0.14002530928324508,
+        "time_reduction_percent": 86.10342418952052,
+        "speedup": 7.1960173041037585,
+        "bootstrap_95_percentile_interval": [
+          0.13441911506784832,
+          0.14298002127569437
+        ],
+        "bootstrap_resamples": 10000
+      },
+      "baseline_peak_rss_mib": {
+        "n": 6,
+        "minimum": 4.875,
+        "p25": 4.875,
+        "median": 4.875,
+        "p75": 4.875,
+        "maximum": 5.0,
+        "mean": 4.895833333333333,
+        "sample_sd": 0.05103103630798288
+      },
+      "candidate_peak_rss_mib": {
+        "n": 6,
+        "minimum": 4.875,
+        "p25": 5.0,
+        "median": 5.0,
+        "p75": 5.0,
+        "maximum": 5.0,
+        "mean": 4.979166666666667,
+        "sample_sd": 0.05103103630798288
+      }
+    },
+    "twins-midgame-b": {
+      "pairs": 6,
+      "repeats_per_process": 1,
+      "moves": 574,
+      "rows": 132,
+      "baseline_ms": {
+        "n": 6,
+        "minimum": 74.86836299999999,
+        "p25": 80.21543399999999,
+        "median": 80.777546,
+        "p75": 81.5338375,
+        "maximum": 82.057801,
+        "mean": 80.04920899999999,
+        "sample_sd": 2.6385541985828564
+      },
+      "candidate_ms": {
+        "n": 6,
+        "minimum": 9.83314,
+        "p25": 10.408946499999999,
+        "median": 10.490641,
+        "p75": 10.86955075,
+        "maximum": 11.668069,
+        "mean": 10.643343333333334,
+        "sample_sd": 0.6210123817337833
+      },
+      "paired_time_ratio": {
+        "geometric_mean": 0.13283631355849004,
+        "median": 0.1312971849731097,
+        "time_reduction_percent": 86.716368644151,
+        "speedup": 7.528061967480626,
+        "bootstrap_95_percentile_interval": [
+          0.12936836416233694,
+          0.137376372290144
+        ],
+        "bootstrap_resamples": 10000
+      },
+      "baseline_peak_rss_mib": {
+        "n": 6,
+        "minimum": 5.375,
+        "p25": 5.375,
+        "median": 5.375,
+        "p75": 5.375,
+        "maximum": 5.5,
+        "mean": 5.395833333333333,
+        "sample_sd": 0.05103103630798288
+      },
+      "candidate_peak_rss_mib": {
+        "n": 6,
+        "minimum": 5.375,
+        "p25": 5.5,
+        "median": 5.5,
+        "p75": 5.5,
+        "maximum": 5.5,
+        "mean": 5.479166666666667,
+        "sample_sd": 0.05103103630798288
+      }
+    },
+    "late-endgame": {
+      "pairs": 6,
+      "repeats_per_process": 1,
+      "moves": 1190,
+      "rows": 150,
+      "baseline_ms": {
+        "n": 6,
+        "minimum": 129.537893,
+        "p25": 131.27884625000002,
+        "median": 133.48540000000003,
+        "p75": 134.35620225,
+        "maximum": 136.340822,
+        "mean": 133.00655216666667,
+        "sample_sd": 2.513736245406145
+      },
+      "candidate_ms": {
+        "n": 6,
+        "minimum": 16.96895,
+        "p25": 17.12988325,
+        "median": 17.386018999999997,
+        "p75": 17.502940499999998,
+        "maximum": 17.514950000000002,
+        "mean": 17.3070595,
+        "sample_sd": 0.23793496582784965
+      },
+      "paired_time_ratio": {
+        "geometric_mean": 0.130130980344915,
+        "median": 0.12954445980755452,
+        "time_reduction_percent": 86.9869019655085,
+        "speedup": 7.684565176943094,
+        "bootstrap_95_percentile_interval": [
+          0.12849696525376614,
+          0.1319777724572752
+        ],
+        "bootstrap_resamples": 10000
+      },
+      "baseline_peak_rss_mib": {
+        "n": 6,
+        "minimum": 6.5,
+        "p25": 6.53125,
+        "median": 6.625,
+        "p75": 6.625,
+        "maximum": 6.625,
+        "mean": 6.583333333333333,
+        "sample_sd": 0.06454972243679029
+      },
+      "candidate_peak_rss_mib": {
+        "n": 6,
+        "minimum": 6.5,
+        "p25": 6.53125,
+        "median": 6.625,
+        "p75": 6.625,
+        "maximum": 6.625,
+        "mean": 6.583333333333333,
+        "sample_sd": 0.06454972243679029
+      }
+    }
+  },
+  "aggregate": {
+    "games": 12,
+    "moves": 10931,
+    "rows": 1257,
+    "pairs": 72,
+    "equal_case_time_ratio": 0.13581090536746837,
+    "speedup": 7.363178953076446,
+    "time_reduction_percent": 86.41890946325317,
+    "case_cluster_bootstrap_95_percentile_interval": [
+      0.13247188987953532,
+      0.13957346669943577
+    ],
+    "interval_units": "Bootstrap resamples whole game cases, retaining all six pairs per case; describes this selected corpus.",
+    "baseline_batch_ms": {
+      "n": 6,
+      "minimum": 1375.337598,
+      "p25": 1397.565943,
+      "median": 1419.673394,
+      "p75": 1433.23917525,
+      "maximum": 1437.683616,
+      "mean": 1413.3876495,
+      "sample_sd": 25.25281046023738
+    },
+    "candidate_batch_ms": {
+      "n": 6,
+      "minimum": 178.76349199999999,
+      "p25": 183.15897525,
+      "median": 189.812614,
+      "p75": 192.49709074999998,
+      "maximum": 207.455041,
+      "mean": 190.02946216666666,
+      "sample_sd": 10.193679544569948
+    },
+    "full_row_signature_matches": 72
+  },
+  "binaries": {
+    "baseline": "79f3fe1a67e593c0774613e43837a3979b360d95d256400a2d835340a1252104",
+    "features": "d53bacbfa9aba48d1aff937b95ed195cc58f26b13a82f6ff2cb5687bd402ac3b"
+  },
+  "inputs": [
+    {
+      "name": "opening",
+      "game": "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/position-00.json",
+      "sha256": "315684a55724ccb297bc7205f719abf7701a99b9dddbd12bad26a23953a5670d"
+    },
+    {
+      "name": "middlegame",
+      "game": "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/position-01.json",
+      "sha256": "5aca746fc7cdaf325a04d61847c470636cf391a79a755bfe06cb7f41ae7eba9a"
+    },
+    {
+      "name": "tactical",
+      "game": "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/position-02.json",
+      "sha256": "48db53e7f60f96e79cf58d35a624698f970d125b3e981ee450db9c6edffd5cd2"
+    },
+    {
+      "name": "long-history",
+      "game": "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/position-03.json",
+      "sha256": "97f5b99c5a0ec6e53508b014940fd6aad9cf4fb97f062a264b282f8770d97846"
+    },
+    {
+      "name": "early-development",
+      "game": "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/position-04.json",
+      "sha256": "5a3f40d64295571d454d5c856635b5f49d1301361336cda2529ea24f43c0dde1"
+    },
+    {
+      "name": "midgame-independent",
+      "game": "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/position-05.json",
+      "sha256": "468d7bc1c6618013e30ac33182c252dbc69a5344f93739927a5f7b08d8c426a1"
+    },
+    {
+      "name": "late-independent",
+      "game": "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/position-06.json",
+      "sha256": "ce881048d9fdf4e56811972641d5b83c3f47c4413c63347901cee9df932bbe82"
+    },
+    {
+      "name": "late-royal",
+      "game": "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/position-07.json",
+      "sha256": "b8b71afea7529335b921b32e1c7b1a409ccc18b2a33747df6ea437b73abd08c0"
+    },
+    {
+      "name": "champs-midgame",
+      "game": "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/position-08.json",
+      "sha256": "64b9a20a4dffb15292c8067ca77bc86c2c73e2f6be32013ac2a8421a65766be9"
+    },
+    {
+      "name": "twins-midgame-a",
+      "game": "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/position-09.json",
+      "sha256": "7ba0f8d23be24c200dce91decf5c0863655e1541cefe38af3e90715ff685f73c"
+    },
+    {
+      "name": "twins-midgame-b",
+      "game": "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/position-10.json",
+      "sha256": "38eb51646e505a62d13ee219a5e57c6d0f551c470831f65cba63a627af8c12a9"
+    },
+    {
+      "name": "late-endgame",
+      "game": "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/position-11.json",
+      "sha256": "100938bf9b66480300e8b307b24fd83a60722603fe194ebd80804b9c6e64133f"
+    }
+  ],
+  "probe_source_sha256": "df87e392bc6e0be4c781f8115570969c2563d5ddf1eaa1f8e2081540e00fef8a",
+  "pr_base_revision": "87762c0",
+  "pairs_file": "pairs.jsonl"
+}

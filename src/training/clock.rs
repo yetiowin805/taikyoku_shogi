@@ -45,10 +45,12 @@ impl MoveBudget {
         self.hard_ms.saturating_add(1000)
     }
     pub fn admission_ms(self) -> u64 {
-        (5000u64.saturating_add(self.bank_ms() / 100)).min(self.hard_ms)
+        // The sustainable budget is the increment minus move setup already spent.
+        // Scale the former five-second base with the clock, including 1+1 games.
+        (self.soft_ms.saturating_add(self.bank_ms() / 100)).min(self.hard_ms)
     }
     pub fn search_hard_ms(self) -> u64 {
-        (5000u64.saturating_add(self.bank_ms() / 10)).min(self.hard_ms)
+        (self.soft_ms.saturating_add(self.bank_ms() / 10)).min(self.hard_ms)
     }
 }
 
@@ -145,5 +147,34 @@ mod tests {
         assert_eq!(c.finish_move(900000, 7000), Some(898000));
         assert_eq!(c.finish_move(1000, 1000), None);
         assert_eq!(c.finish_move(1000, 1001), None);
+    }
+
+    #[test]
+    fn one_second_increment_scales_extension_and_accounts_for_setup() {
+        let clock = FischerControl {
+            initial_ms: 60_000,
+            increment_ms: 1000,
+        };
+        for (remaining, admission, hard) in [
+            (60_000, 1600, 7000),
+            (30_000, 1300, 4000),
+            (10_000, 1100, 2000),
+            (2000, 1000, 1000),
+            (1500, 500, 500),
+            (800, 0, 0),
+        ] {
+            let budget = clock.budget(remaining);
+            assert_eq!(budget.admission_ms(), admission);
+            assert_eq!(budget.search_hard_ms(), hard);
+        }
+        let mut policy = IterationBudget::default();
+        let budget = clock.budget(60_000);
+        assert!(policy.start_next(ms(400), ms(400), budget));
+        assert!(!policy.start_next(ms(10), ms(410), budget));
+        assert!(!IterationBudget::default().start_next(ms(400), ms(401), budget));
+        let mut after_setup = clock.budget(59_900);
+        after_setup.soft_ms -= 100;
+        assert_eq!(after_setup.admission_ms(), 1499);
+        assert_eq!(after_setup.search_hard_ms(), 6890);
     }
 }

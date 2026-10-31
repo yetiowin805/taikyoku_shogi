@@ -57,7 +57,10 @@ def prepare(coordinator, config_path, run, previous=None, dry_run=False, entrant
     target = control / ("code-" + code_id)
     target.mkdir(exist_ok=True)
     for filename, sha in hashes.items():
-        data = (script.parent / filename).read_bytes()
+        original = script.parent / filename
+        if not original.exists():
+            original = a.ROOT / "deploy" / filename
+        data = original.read_bytes()
         if a.digest(data) != sha:
             raise ValueError("Training code changed during preflight")
         dest = target / filename

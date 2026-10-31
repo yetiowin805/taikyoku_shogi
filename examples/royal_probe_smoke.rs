@@ -35,7 +35,7 @@ fn load(c: &Case) -> Result<(GameState, EvalCheckpoint), String> {
             s.setup_initial_position();
             s
         }
-        GameStart::Position { position } => position.to_state(),
+        GameStart::Position { position } => position.to_state()?,
     };
     if c.ply > rec.moves.len() {
         return Err("prefix out of range".into());

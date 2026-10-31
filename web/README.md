@@ -30,6 +30,12 @@ In **Play**, the **Alpha-beta** panel sets depth / model / time for `ab`. **Runs
 
 The game list includes `games/` and `data/raw/games/`. Loading a v2 training game applies its embedded start position (not always the opening).
 
+Loaded games with recorded scores show separate evaluation lines for the Black
+agent (solid blue) and White agent (dashed amber). Colors identify the evaluating
+agent; B+ / W+ still identify which side is ahead. Hover to compare the nearest
+score from each agent, or click / drag to scrub the game. Offline eval traces
+use a single neutral line because they come from one model.
+
 Coordinates in the UI are shogi-style (file 1 = rightmost, rank 1 = top). Engine JSON / TSFEN stay 0-based — see [`src/README.md`](../src/README.md).
 
 ### Playing with NNUE

@@ -1,0 +1,21 @@
+{
+  "selected_utc": "2026-10-31T05:39:09.491313+00:00",
+  "comparison": "selected PGO vs original native; direct net measurement, not multiplied ratios",
+  "models": "all7",
+  "positions": [
+    1,
+    4,
+    5,
+    8,
+    9,
+    10,
+    12,
+    13,
+    14
+  ],
+  "repeats": 2,
+  "cpu": 2,
+  "case_file": "confirm-cases.json",
+  "source_frozen": "480393c630d4fac476ec0df53d9e19bb4c78c9cc",
+  "note": "Chosen before PGO build/results. Same fixed source/weights/cases; no selection or tuning."
+}

@@ -148,6 +148,17 @@ def main():
         recover(args.config)
         return
     c = a.read(args.config)
+    import sys
+
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "training/nnue"))
+    import dataset_storage
+
+    source = Path(c.get("dataset", Path(c.get("parent_samples", "")).parent))
+    with dataset_storage.prepare(source) as storage_lease:
+        return run_training(args, c, storage_lease)
+
+
+def run_training(args, c, storage_lease=None):
     repo = Path(c["repo"])
     run = Path(c["run"])
     out = Path(c["out"])
@@ -185,6 +196,8 @@ def main():
 
     def run_job(command, phase):
         nonlocal proc
+        if storage_lease:
+            storage_lease.check_headroom()
         for path, sha in c["code_hashes"].items():
             if a.file_digest(path) != sha:
                 raise ValueError("Pinned code changed: " + path)
@@ -213,6 +226,8 @@ def main():
             )
             started = time.monotonic()
             while proc.poll() is None:
+                if storage_lease:
+                    storage_lease.check_headroom()
                 pool.tick()
                 status(phase, pid=proc.pid, elapsed_s=time.monotonic() - started)
                 if time.monotonic() - started > c.get("stage_limit_hours", 6) * 3600:

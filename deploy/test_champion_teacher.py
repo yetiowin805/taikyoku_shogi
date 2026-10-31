@@ -50,7 +50,7 @@ class ChampionTests(AnalyzerFixture):
             updated = copy.deepcopy(config)
             updated.update(new_sha256="new", new_teacher_id="challenger")
             a.atomic(self.run / "analysis/dual-label-config.json", updated)
-            return dict(changed=True, teacher="challenger", backfill_positions=8)
+            return dict(changed=True, teacher="challenger", backfill_positions=0)
 
         with patch.object(c.teacher_refresh, "replace", side_effect=switch) as replace:
             result = self.execute(config, fit)
@@ -97,3 +97,16 @@ class ChampionTests(AnalyzerFixture):
         with patch.object(c.teacher_refresh, "replace", side_effect=interrupted):
             result = self.execute(config, fit)
         self.assertEqual(result["new_teacher_id"], "challenger")
+
+    def test_live_admission_registry_validates_new_teacher_without_restart(self):
+        config, fit = self.fixture(100)
+        bindings = config["old"]["models"]
+        config["old"]["models"] = {}
+        a.atomic(self.run / "analysis/config.json", dict(models=bindings))
+        with (
+            patch.object(a, "validate_model_binding") as validate,
+            patch.object(c.teacher_refresh, "replace", return_value={}) as replace,
+        ):
+            self.execute(config, fit)
+            validate.assert_called_once()
+            replace.assert_called_once()

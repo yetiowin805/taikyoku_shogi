@@ -19,6 +19,7 @@ import numpy as np
 import torch
 from torch import nn
 
+import dataset_storage
 from plateau import Plateau, Policy
 from quantized import Quantized
 
@@ -67,6 +68,8 @@ WIDTHS = [512, 768, 1024, 1536, 2048]
 
 
 def digest(path):
+    if Path(path).name == "samples.jsonl":
+        return dataset_storage.sample_digest(path)
     h = hashlib.sha256()
     with path.open("rb") as f:
         for chunk in iter(lambda: f.read(1 << 20), b""):
@@ -193,6 +196,19 @@ def main():
     p.add_argument("--lr-reductions", type=int, default=2)
     p.add_argument("--prune-exports", action="store_true")
     a = p.parse_args()
+    checkpoint = a.resume_from or a.out / f"w{a.width}.training.pt"
+    extra = (
+        [checkpoint]
+        if (a.resume or a.resume_from) and (checkpoint.exists() or Path(str(checkpoint) + ".cold.json").exists())
+        else []
+    )
+    with dataset_storage.prepare(a.dataset, a.out, a.width, extra_inputs=extra):
+        result = fit(a)
+    dataset_storage.archive_checkpoint(a.out / f"w{a.width}.training.pt")
+    return result
+
+
+def fit(a):
     if not re.fullmatch(r"[A-Za-z0-9_-]+", a.generation):
         raise ValueError("Invalid generation")
     if a.resume and a.resume_from:
@@ -212,7 +228,7 @@ def main():
     np.random.seed(a.seed)
     random.seed(a.seed)
     schema = json.loads((a.dataset / "schema.json").read_text())
-    samples = [json.loads(s) for s in (a.dataset / "samples.jsonl").read_text().splitlines()]
+    samples = list(dataset_storage.rows(a.dataset / "samples.jsonl"))
     data = np.memmap(a.dataset / "features.bin", mode="r", dtype="<u4")
     train = [i for i, s in enumerate(samples) if s["split"] == "train"]
     val = [i for i, s in enumerate(samples) if s["split"] == "validation"]
@@ -376,6 +392,7 @@ def main():
             # descriptor has passed every export check and is atomically published.
             published = a.out / f"nnue-{sha}.bin"
             blob.replace(published)
+            dataset_storage.share(published, sha=sha)
             blob = published
             cp = json.loads(a.base.read_text())
             cp["format_version"] = 2

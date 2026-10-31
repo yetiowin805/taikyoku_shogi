@@ -18,6 +18,18 @@ def require_clock_support(binary):
         raise ValueError("engine does not support Fischer clocks; publish a clock-capable bundle first")
 
 
+def require_search_support(binary, policies):
+    required = set(policies) - {"baseline"}
+    if not required:
+        return
+    result = subprocess.run(
+        [str(binary), "tournament-search-experiments"], check=True, capture_output=True, text=True, timeout=30
+    )
+    supported = json.loads(result.stdout)
+    if not isinstance(supported, list) or not required.issubset(supported):
+        raise ValueError("engine does not support requested search experiments")
+
+
 def verify(api, bundle):
     if bundle.get("protocol") != PROTOCOL:
         raise ValueError("unsupported game worker protocol")
@@ -99,7 +111,18 @@ def update(api, args, run):
             if agent.get("engine"):
                 continue
             model = str(api.absolute(agent["model"]).resolve())
-            api.validate_model_binding(model, config["models"][model])
+            # Admissions can use the run symlink while its manifest is resolved.
+            # Validate every alias binding; conflicting/stale pins must still fail.
+            bindings = [
+                binding for path, binding in config["models"].items() if api.absolute(path).resolve() == Path(model)
+            ]
+            if not bindings:
+                raise ValueError("model has no pinned binding: " + model)
+            for binding in bindings:
+                api.validate_model_binding(model, binding)
+            require_search_support(
+                bundle["engine_bin"], [api.read(model).get("search_defaults", {}).get("experiment", "baseline")]
+            )
             subprocess.run(
                 [bundle["engine_bin"], "tournament-game-validate", model],
                 check=True,

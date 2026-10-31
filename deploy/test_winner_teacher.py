@@ -2,6 +2,7 @@ import json
 from unittest.mock import patch
 
 import dual_label_sidecar as dual
+import label_storage
 import winner_teacher as w
 from test_tourney_analysis import AnalyzerFixture, a
 
@@ -86,7 +87,9 @@ class WinnerTeacherTests(AnalyzerFixture):
         count = self.db.execute("SELECT count(*) FROM moments").fetchone()[0]
         w.scan(a, self.db, self.run, config)
         self.assertEqual(count, self.db.execute("SELECT count(*) FROM moments").fetchone()[0])
-        updated = json.loads(self.db.execute("SELECT payload FROM moments WHERE id='existing'").fetchone()[0])
+        updated = label_storage.decode(
+            self.db, self.db.execute("SELECT payload FROM moments WHERE id='existing'").fetchone()[0]
+        )
         self.assertEqual(updated["searches"], moment["searches"])
         self.assertIn("winner_teacher", updated)
         self.assertFalse(self.db.execute("SELECT 1 FROM dual_paired WHERE id='existing'").fetchone())

@@ -14,6 +14,8 @@ trap '' HUP
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
+source "$ROOT/deploy/tournament_launch.sh"
+
 BIN="${BIN:-$ROOT/target/release/taikyoku_shogi}"
 NOTIFY="${NOTIFY:-$ROOT/deploy/notify.sh}"
 JOBS="${JOBS:-$(nproc 2>/dev/null || echo 2)}"
@@ -53,34 +55,15 @@ done
 chmod +x deploy/*.sh 2>/dev/null || true
 mkdir -p data/run "$OUTDIR"
 
-if [[ "$DETACH" == "1" ]]; then
-  args=()
-  [[ "$RESUME" == "1" ]] && args+=(--resume)
-  [[ "$SKIP_GEN" == "1" ]] && args+=(--skip-gen)
-  [[ -n "$RUN_ID" ]] && args+=(--run-id "$RUN_ID")
-  args+=(--jobs "$JOBS" --depth "$DEPTH" --manifest "$MANIFEST" --outdir "$OUTDIR"
-    --seed "$SEED_MODEL" --grid-out "$GRID_OUT" --bin "$BIN")
-  [[ -n "$TIME_MS" ]] && args+=(--time-ms "$TIME_MS")
-  log="${FILE_PST_SWISS_LOG:-data/run/file-pst-swiss.log}"
-  echo "Detaching file-PST Swiss → $log (pid file $PID_FILE)"
-  nohup "$0" "${args[@]}" >>"$log" 2>&1 &
-  echo $! >"$PID_FILE"
-  disown $! 2>/dev/null || true
-  sleep 1
-  if ! kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
-    echo "Detach failed — see $log" >&2
-    exit 1
-  fi
-  echo "Running pid=$(cat "$PID_FILE"). Check: pgrep -af tournament && tail -f $log"
-  exit 0
-fi
-
+if [[ "${TAIKYOKU_LAUNCH_CHILD:-0}" != 1 ]]; then
+TAIKYOKU_LAUNCH_STEP="binary"
 if [[ ! -x "$BIN" ]]; then
   echo "Missing binary: $BIN (cargo build --release)" >&2
   exit 1
 fi
 
 # Single-flight: refuse overlapping tournament binaries.
+TAIKYOKU_LAUNCH_STEP="existing tournament check"
 if pgrep -f 'taikyoku_shogi.*tournament' >/dev/null 2>&1; then
   echo "A tournament process is already running:" >&2
   pgrep -af 'taikyoku_shogi.*tournament' >&2 || true
@@ -88,14 +71,12 @@ if pgrep -f 'taikyoku_shogi.*tournament' >/dev/null 2>&1; then
   exit 3
 fi
 
+TAIKYOKU_LAUNCH_STEP="lock"
 exec 9>"$LOCK_FILE"
 if ! flock -n 9; then
   echo "Another file-pst-swiss wrapper holds $LOCK_FILE" >&2
   exit 3
 fi
-echo $$ >"$PID_FILE"
-cleanup_pid() { rm -f "$PID_FILE"; }
-trap cleanup_pid EXIT
 
 if systemctl is-active --quiet taikyoku-worker 2>/dev/null; then
   echo "Stopping taikyoku-worker (SIGKILL)…"
@@ -103,16 +84,19 @@ if systemctl is-active --quiet taikyoku-worker 2>/dev/null; then
   sudo systemctl stop taikyoku-worker 2>/dev/null || true
 fi
 
+TAIKYOKU_LAUNCH_STEP="grid generation"
 if [[ "$SKIP_GEN" != "1" && "$RESUME" != "1" ]]; then
   "$BIN" file-pst-grid --seed "$SEED_MODEL" --out "$GRID_OUT"
   MANIFEST="$GRID_OUT/manifest.json"
 fi
 
+TAIKYOKU_LAUNCH_STEP="manifest"
 if [[ ! -f "$MANIFEST" ]]; then
   echo "Missing manifest: $MANIFEST" >&2
   exit 1
 fi
 
+TAIKYOKU_LAUNCH_STEP="resume"
 if [[ -z "$RUN_ID" ]]; then
   if [[ "$RESUME" == "1" ]]; then
     echo "--resume requires --run-id" >&2
@@ -126,6 +110,8 @@ if [[ "$RESUME" == "1" && ! -f "$OUTDIR/$RUN_ID/state.json" ]]; then
   exit 2
 fi
 
+fi
+
 ARGS=(tournament --manifest "$MANIFEST" --run-id "$RUN_ID" --outdir "$OUTDIR"
   --depth "$DEPTH" --jobs "$JOBS" --format knockout --seed-base 1)
 if [[ -n "$TIME_MS" ]]; then
@@ -135,12 +121,28 @@ if [[ "$RESUME" == "1" ]]; then
   ARGS+=(--resume)
 fi
 
+tourney_prepare_start
+if [[ "$DETACH" == "1" ]]; then
+  args=()
+  [[ "$RESUME" == "1" ]] && args+=(--resume)
+  [[ "$SKIP_GEN" == "1" ]] && args+=(--skip-gen)
+  [[ -n "$RUN_ID" ]] && args+=(--run-id "$RUN_ID")
+  args+=(--jobs "$JOBS" --depth "$DEPTH" --manifest "$MANIFEST" --outdir "$OUTDIR"
+    --seed "$SEED_MODEL" --grid-out "$GRID_OUT" --bin "$BIN")
+  [[ -n "$TIME_MS" ]] && args+=(--time-ms "$TIME_MS")
+  log="${FILE_PST_SWISS_LOG:-data/run/file-pst-swiss.log}"
+  tourney_detach "$log" "$0" "${args[@]}"
+  exit 0
+fi
+
+TAIKYOKU_LAUNCH_STEP="tournament"
+
 echo "Starting continuous knockout run_id=$RUN_ID jobs=$JOBS depth=$DEPTH${TIME_MS:+ time_ms=$TIME_MS}"
 echo "Stop: touch data/run/TOURNEY_STOP   or Ctrl-C"
 echo "Detach-safe launch: $0 --detach --resume --run-id $RUN_ID --skip-gen"
 
 set +e
-"$BIN" "${ARGS[@]}"
+tourney_run "$BIN" "${ARGS[@]}"
 RC=$?
 set -e
 

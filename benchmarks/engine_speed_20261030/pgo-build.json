@@ -1,0 +1,39 @@
+{
+  "revision": "480393c630d4fac476ec0df53d9e19bb4c78c9cc",
+  "compiler": "rustc 1.92.0 (ded5c06cf 2025-12-08)\nbinary: rustc\ncommit-hash: ded5c06cf21d2b93bffd5d884aa6e96934ee4234\ncommit-date: 2025-12-08\nhost: x86_64-unknown-linux-gnu\nrelease: 1.92.0\nLLVM version: 21.1.3\n",
+  "command": [
+    "./deploy/build_pgo.sh",
+    "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/pgo-training-corpus.json",
+    "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/pgo",
+    "/tmp/engine-speed-llvm-tools/llvm-tools-1.92.0-x86_64-unknown-linux-gnu/llvm-tools-preview/lib/rustlib/x86_64-unknown-linux-gnu/bin/llvm-profdata",
+    "--positions",
+    "0",
+    "1",
+    "2",
+    "--models",
+    "0",
+    "1",
+    "4",
+    "5",
+    "6",
+    "--repeats",
+    "10",
+    "--depth",
+    "2",
+    "--cpu",
+    "2"
+  ],
+  "elapsed_seconds": 218.61725997924805,
+  "source_revision": "480393c630d4fac476ec0df53d9e19bb4c78c9cc",
+  "tracked_diff_bytes": 0,
+  "binary_sha256": {
+    "analyze_position": "4b7f3add6ae83dc68e5096cd5f94dccc5a72443e9eb4a386e7498a3ac2c14726",
+    "benchmark": "469ced876f52af3f2bd397332dfb477d4b6c317e38efe03000ebf9889b1f84cb",
+    "instrumented": "27614f791158e37b7e41fe9ed55b814d199373e772fd58b3168489f93123d167",
+    "taikyoku_shogi": "b88c39f365f12d3f6a7e0e6129df194d57953ca74c94fb411e82d1de1e0a6bca"
+  },
+  "merged_profdata_sha256": "34ef60417bc6ce7bc482d0a0b7a01adc3e37ec42e379b9616b5e2840ac0cdcec",
+  "profile_corpus_sha256": "6a1858faa0af59364bd06787eda05a0abe5eaac733660429f818cff5a411eab5",
+  "instrumented_searches": 150,
+  "profile_note": "Three original screen roots only, five model families; reserved games physically absent from profile corpus; instrumented times not performance measurements; build did not deploy/start tournaments."
+}

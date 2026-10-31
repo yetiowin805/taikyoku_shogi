@@ -350,20 +350,20 @@ fn main() {
                             println!(
                                 "  {}. ({}, {}) -> ({}, {}) [Free Eagle path: {:?}]",
                                 i + 1,
-                                mv.from.file,
-                                mv.from.rank,
-                                mv.to.file,
-                                mv.to.rank,
+                                mv.from.file(),
+                                mv.from.rank(),
+                                mv.to.file(),
+                                mv.to.rank(),
                                 path
                             );
                         } else {
                             println!(
                                 "  {}. ({}, {}) -> ({}, {})",
                                 i + 1,
-                                mv.from.file,
-                                mv.from.rank,
-                                mv.to.file,
-                                mv.to.rank
+                                mv.from.file(),
+                                mv.from.rank(),
+                                mv.to.file(),
+                                mv.to.rank()
                             );
                         }
                     }

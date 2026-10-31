@@ -2,6 +2,7 @@ import json
 from unittest.mock import patch
 
 import dual_label_sidecar as dual
+import label_storage
 from test_tourney_analysis import AnalyzerFixture
 
 
@@ -25,7 +26,7 @@ class DualLabelTests(AnalyzerFixture):
         self.assertEqual(search.call_count, 1)
         self.assertEqual(search.call_args.args[0]["label_teacher"]["model"], "new-model")
         self.assertEqual(search.call_args.args[0]["label_budget_ms"], 30000)
-        saved = json.loads(self.db.execute("SELECT payload FROM moments").fetchone()[0])
+        saved = label_storage.decode(self.db, self.db.execute("SELECT payload FROM moments").fetchone()[0])
         self.assertEqual(saved["searches"], [first])
 
     def test_missing_old_label_is_saved_before_second_search(self):
@@ -48,7 +49,7 @@ class DualLabelTests(AnalyzerFixture):
         with patch.object(dual.a, "search_position", side_effect=search):
             with self.assertRaisesRegex(RuntimeError, "interrupted"):
                 dual.paired_searches(config, moment, self.db)
-        saved = json.loads(self.db.execute("SELECT payload FROM moments").fetchone()[0])
+        saved = label_storage.decode(self.db, self.db.execute("SELECT payload FROM moments").fetchone()[0])
         self.assertEqual([s["model_sha256"] for s in saved["searches"]], ["old"])
 
     def test_old_ten_second_result_is_researched(self):

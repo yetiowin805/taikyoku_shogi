@@ -156,6 +156,18 @@
       "git": "ae0ec94e479a829761980d16e2ee77b7a93c7c4a",
       "kind": "logic",
       "summary": "Before clock-scaled 3x depth admission and 5s + 10% whole-move deadlines."
+    },
+    {
+      "id": "LOGIC_PRE_INCREMENT_CLOCK",
+      "git": "bbe6240b16e62c116f81ccdec334ca9744304dbf",
+      "kind": "logic",
+      "summary": "Before replacing the fixed five-second Fischer allowance with the remaining increment for shorter controls such as 1+1."
+    },
+    {
+      "id": "LOGIC_PRE_SEARCH_EXPERIMENTS",
+      "git": "8b229ed8a4130d10d1a799dc7e16215dab771ee5",
+      "kind": "logic",
+      "summary": "Before opt-in W512-v3 search experiments (PR184); baseline with recursive-q fixes and explicit search-weight borrows."
     }
   ]
 }

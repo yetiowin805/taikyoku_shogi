@@ -117,6 +117,8 @@ pub struct TourneySlot {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TourneyState {
+    #[serde(default)]
+    pub runtime_control: super::runtime_tasks::ControlState,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub time_control: Option<super::clock::FischerControl>,
     pub run_id: String,
@@ -355,6 +357,7 @@ pub(crate) fn build_schedule(cfg: &TourneyConfig) -> TourneyState {
         elo.insert(e.id.clone(), DEFAULT_RATING);
     }
     let mut state = TourneyState {
+        runtime_control: Default::default(),
         time_control: cfg.time_control,
         run_id: cfg.run_id.clone(),
         depth: cfg.depth,
@@ -1301,6 +1304,22 @@ pub fn standings_summary(state: &TourneyState) -> String {
     lines.join("\n")
 }
 
+pub(crate) fn claim_for_worker(
+    state: &mut TourneyState,
+    cfg: &TourneyConfig,
+    worker: usize,
+    top_two: bool,
+) -> Option<usize> {
+    if state.runtime_control.assignments_paused {
+        return None;
+    }
+    if top_two && worker == 2 {
+        super::top_two::claim(state).or_else(|| claim_or_schedule_slot(state, cfg))
+    } else {
+        claim_or_schedule_slot(state, cfg)
+    }
+}
+
 fn agent_for(state: &TourneyState, id: &str, depth: u32) -> Result<AgentSpec, String> {
     let e = state
         .entrants
@@ -1483,6 +1502,15 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
     // A broken rolling build drains other games rather than aborting them or
     // repeatedly claiming slots with a known-bad executable.
     let admission_failed = Arc::new(AtomicBool::new(false));
+    let _tasks = if cfg!(target_os = "linux") {
+        Some(super::runtime_tasks::TaskService::start(
+            cfg.clone(),
+            Arc::clone(&state_mu),
+            Arc::clone(&admission_failed),
+        )?)
+    } else {
+        None
+    };
     let cfg_stop = cfg.stop.clone();
     let games_dir = dir.clone();
 
@@ -1491,6 +1519,17 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
         stop_for_handler.store(true, Ordering::Relaxed);
         eprintln!("tournament: stop requested (will abort in-flight games)");
     });
+
+    // The detached launcher acknowledges success only after configuration,
+    // durable state, the compute gate and runtime services have initialized.
+    if let Some(path) = std::env::var_os("TAIKYOKU_TOURNAMENT_READY_FILE") {
+        fs::write(&path, format!("ready {}\n", std::process::id())).map_err(|e| {
+            format!(
+                "publish tournament readiness {}: {e}",
+                Path::new(&path).display()
+            )
+        })?;
+    }
 
     loop {
         std::thread::scope(|scope| {
@@ -1536,12 +1575,13 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
                             }
                         }
                         let mut st = state_mu.lock().unwrap();
-                        let claim = if top_two_enabled && worker_index == 2 {
-                            super::top_two::claim(&mut st)
-                                .or_else(|| claim_or_schedule_slot(&mut st, cfg))
-                        } else {
-                            claim_or_schedule_slot(&mut st, cfg)
-                        };
+                        if st.runtime_control.assignments_paused {
+                            drop(st);
+                            shared_lease.take();
+                            std::thread::sleep(std::time::Duration::from_millis(100));
+                            continue;
+                        }
+                        let claim = claim_for_worker(&mut st, cfg, worker_index, top_two_enabled);
                         match claim {
                             Some(id) => {
                                 if let Err(e) = save_state(cfg, &st) {
@@ -1759,6 +1799,7 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
         break;
     }
 
+    drop(_tasks);
     let mut state = state_mu.lock().unwrap().clone();
     for slot in &mut state.slots {
         if slot.status == SlotStatus::Running {
@@ -2444,6 +2485,7 @@ mod tests {
     #[test]
     fn migrate_legacy_elo_into_ratings() {
         let mut st = TourneyState {
+            runtime_control: Default::default(),
             run_id: "x".into(),
             depth: 2,
             max_time_ms: None,
