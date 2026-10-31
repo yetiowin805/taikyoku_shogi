@@ -90,6 +90,10 @@ fn main() {
                 "{}",
                 serde_json::to_string(&taikyoku_shogi::eval::SearchExperiment::ALL).unwrap()
             ),
+            "tournament-search-trials" => println!(
+                "{}",
+                serde_json::to_string(&taikyoku_shogi::eval::SearchTrial::ALL).unwrap()
+            ),
             "tournament-game-validate" => {
                 let result = args
                     .get(2)

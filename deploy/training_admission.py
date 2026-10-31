@@ -19,7 +19,7 @@ import tourney_analysis as a
 from register_training_models import merge_bindings
 
 
-def freeze_models(models, control):
+def freeze_models(models, control, *, search_variants=False):
     entries, bindings = [], {}
     (control / "models").mkdir(exist_ok=True)
     for directory in models:
@@ -42,7 +42,13 @@ def freeze_models(models, control):
         if not target.exists():
             a.atomic(target, frozen)
         bindings[str(target)] = a.snapshot_model(target, target.read_bytes(), control)
-        entries.append(dict(id=name, model=str(target)))
+        entry = dict(id=name, model=str(target))
+        # Generation-three names are deliberately outside the legacy roster's
+        # ID inference. Pin their retirement cohort with the admission identity.
+        # Ordinary training and legacy trial=None admissions keep their metadata.
+        if search_variants and checkpoint.get("search_defaults", {}).get("trial", "none") != "none":
+            entry["generation"] = "search"
+        entries.append(entry)
     return entries, bindings
 
 
@@ -74,8 +80,10 @@ def check_storage(models, control, run):
 
 
 def validate_entries(bundle, entries, bindings):
-    policies = [a.read(e["model"]).get("search_defaults", {}).get("experiment", "baseline") for e in entries]
-    engine_updates.require_search_support(bundle["engine_bin"], policies)
+    defaults = [a.read(e["model"]).get("search_defaults", {}) for e in entries]
+    policies = [settings.get("experiment", "baseline") for settings in defaults]
+    trials = [settings.get("trial", "none") for settings in defaults]
+    engine_updates.require_search_support(bundle["engine_bin"], policies, trials)
     for entry in entries:
         path = entry["model"]
         a.validate_model_binding(path, bindings[path])
@@ -95,7 +103,7 @@ def admit(config, model):
     admit_checkpoints(run, [model], report)
 
 
-def admit_checkpoints(run, models, report):
+def admit_checkpoints(run, models, report, *, search_variants=False):
     """Shared content-pinned transaction for trained models or explicit search arms."""
     control = run / "analysis"
     report.mkdir(parents=True, exist_ok=True)
@@ -103,7 +111,7 @@ def admit_checkpoints(run, models, report):
     with (control / "update.lock").open("a+") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
         check_storage(models, control, run)
-        entries, bindings = freeze_models(models, control)
+        entries, bindings = freeze_models(models, control, search_variants=search_variants)
         bundle = engine_updates.active(a, run)
         validate_entries(bundle, entries, bindings)
         cfg = a.read(control / "config.json")
@@ -131,7 +139,12 @@ def admit_checkpoints(run, models, report):
     state = a.read(run / "state.json")
     for entry in entries:
         actual = next((e for e in state["entrants"] if e["id"] == entry["id"]), None)
-        if actual is None or actual.get("model") != entry["model"] or actual.get("engine") != entry.get("engine"):
+        if (
+            actual is None
+            or actual.get("model") != entry["model"]
+            or actual.get("engine") != entry.get("engine")
+            or ("generation" in entry and actual.get("generation") != entry["generation"])
+        ):
             raise RuntimeError("Applied receipt is not reflected in the tournament entrant state")
     a.atomic(report / "status.json", dict(state="admitted", task_id=task_id, receipt=receipt, updated=time.time()))
 
@@ -140,7 +153,8 @@ def prepare_search_variants(config, *, bundle=None):
     """Derive immutable search arms from registered baselines, sharing NNUE files.
 
     A string policy uses base_entrant; an object explicitly selects another
-    base_entrant and experiment. Distinct (base, policy) pairs allow one search
+    base_entrant, experiment and an optional October 2026 generation-three trial.
+    Distinct (base, policy, trial) tuples allow one search
     package to be tested on several networks in a single coordinator transaction.
     """
     run, out = Path(config["run"]), Path(config["out"])
@@ -152,24 +166,34 @@ def prepare_search_variants(config, *, bundle=None):
     seen = set()
     for name, spec in variants.items():
         if isinstance(spec, str):
-            base_id, policy = config["base_entrant"], spec
-        elif isinstance(spec, dict) and set(spec) == {"base_entrant", "experiment"}:
+            base_id, policy, trial = config["base_entrant"], spec, "none"
+        elif isinstance(spec, dict) and set(spec) in (
+            {"base_entrant", "experiment"},
+            {"base_entrant", "experiment", "trial"},
+        ):
             base_id, policy = spec["base_entrant"], spec["experiment"]
+            trial = spec.get("trial", "none")
         else:
             raise ValueError("Invalid search variant specification")
         if not isinstance(base_id, str) or not isinstance(policy, str) or not policy or policy == "baseline":
             raise ValueError("Invalid search entrant identity or policy")
+        if not isinstance(trial, str) or not trial:
+            raise ValueError("Invalid search trial")
         if Path(name).name != name or name in (".", "..", base_id):
             raise ValueError("Invalid search entrant identity or policy")
-        if (base_id, policy) in seen:
+        if (base_id, policy, trial) in seen:
             raise ValueError("Require distinct search policies per baseline")
-        seen.add((base_id, policy))
-        resolved.append((name, base_id, policy))
+        seen.add((base_id, policy, trial))
+        resolved.append((name, base_id, policy, trial))
     bundle = engine_updates.verify(a, bundle) if bundle is not None else engine_updates.active(a, run)
-    engine_updates.require_search_support(bundle["engine_bin"], [policy for _, _, policy in resolved])
+    engine_updates.require_search_support(
+        bundle["engine_bin"],
+        [policy for _, _, policy, _ in resolved],
+        [trial for _, _, _, trial in resolved],
+    )
     bases = {}
     # Validate every source before writing any candidate descriptor.
-    for _, base_id, _ in resolved:
+    for _, base_id, _, _ in resolved:
         if base_id in bases:
             continue
         base = next(e for e in state["entrants"] if e["id"] == base_id)
@@ -179,17 +203,21 @@ def prepare_search_variants(config, *, bundle=None):
         checkpoint = a.read(source)
         if checkpoint.get("search_defaults", {}).get("experiment", "baseline") != "baseline":
             raise ValueError("Search baseline must use the unchanged policy")
+        if checkpoint.get("search_defaults", {}).get("trial", "none") != "none":
+            raise ValueError("Search baseline must use the unchanged trial")
         descriptor = checkpoint["weights"]["nnue"]
         network = (source.parent / descriptor["file"]).resolve()
         if a.file_digest(network) != descriptor["sha256"]:
             raise ValueError("Baseline NNUE hash mismatch")
         bases[base_id] = (base, source, checkpoint, network)
     models = []
-    for name, base_id, policy in resolved:
+    for name, base_id, policy, trial in resolved:
         _, _, checkpoint, network = bases[base_id]
         model = copy.deepcopy(checkpoint)
         model["name"] = name
         model.setdefault("search_defaults", {})["experiment"] = policy
+        if trial != "none":
+            model["search_defaults"]["trial"] = trial
         model["weights"]["nnue"]["file"] = str(network)
         directory = out / name
         directory.mkdir(parents=True, exist_ok=True)
@@ -229,7 +257,7 @@ def main():
             parser.error("--watch is only for training admissions")
         tournament_tasks.ready(Path(config["run"]))
         models = prepare_search_variants(config)
-        admit_checkpoints(Path(config["run"]), models, out / "admission" / "search-variants")
+        admit_checkpoints(Path(config["run"]), models, out / "admission" / "search-variants", search_variants=True)
         return
     names = config["admission_models"]
     if not names or len(set(names)) != len(names) or any(Path(n).name != n or n in (".", "..") for n in names):

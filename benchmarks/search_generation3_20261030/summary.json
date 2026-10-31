@@ -1,0 +1,888 @@
+{
+  "created_utc": "2026-10-31T02:51:21.975610+00:00",
+  "status": "admitted_to_live_tournament",
+  "source_base_revision": "b11c5e61c3497041d16569b5553d48038cf1fbd4",
+  "scores": "Native Black-absolute integer root values; no centipawn or win-probability calibration",
+  "root_ply": "zero-based moves already played; worker input and recorded move ply are root+1",
+  "sampling": "Recent/diverse convenience sample, not random; game lengths and repeated positions affect move-weighted aggregates",
+  "corpus": {
+    "corpus_games": 36,
+    "corrected_build_games": 28,
+    "corpus_plies": 51541,
+    "fixed_build_target_nonmate_plies": 12022,
+    "abs_raw_search_gap_quantiles": {
+      "0.5": 232,
+      "0.75": 645,
+      "0.9": 1029,
+      "0.95": 1358,
+      "0.99": 2386
+    },
+    "early_depth_counts_root_ply_lt100": {
+      "4": 626,
+      "3": 633,
+      "2": 83,
+      "5": 55,
+      "6": 3
+    },
+    "moves_with_incomplete_next_iteration": 3381,
+    "corpus_sha256": "203dc03b7c2dd9af7865c353b76cb3e6c3addb7ceacb1c5675f9aafc37e682a0",
+    "fixed_game_engine_sha256": "6ce1ee2601c237f94b44cf5e3d28d3393cf3888d6d0f95ebff6459307dec0029"
+  },
+  "incomplete_iteration_cost": {
+    "all": {
+      "n_target_nonmate_moves": 12022,
+      "moves_with_incomplete_iteration": 3381,
+      "incomplete_fraction_moves": 0.28123440359341206,
+      "recorded_iteration_us": 31670058679,
+      "incomplete_iteration_us": 11358357971,
+      "incomplete_fraction_total_iteration_time": 0.35864657170754083,
+      "incomplete_fraction_per_aborted_move_median": 0.8866185626761242,
+      "incomplete_fraction_per_aborted_move_p90": 0.9733710409638923
+    },
+    "early_root_lt100": {
+      "n_target_nonmate_moves": 1400,
+      "moves_with_incomplete_iteration": 68,
+      "incomplete_fraction_moves": 0.04857142857142857,
+      "recorded_iteration_us": 7460117575,
+      "incomplete_iteration_us": 1268396344,
+      "incomplete_fraction_total_iteration_time": 0.17002363987540772,
+      "incomplete_fraction_per_aborted_move_median": 0.9764731424232471,
+      "incomplete_fraction_per_aborted_move_p90": 0.9922023559284125
+    },
+    "middle_root100to399": {
+      "n_target_nonmate_moves": 3907,
+      "moves_with_incomplete_iteration": 1048,
+      "incomplete_fraction_moves": 0.2682364985922703,
+      "recorded_iteration_us": 10861369103,
+      "incomplete_iteration_us": 4199193717,
+      "incomplete_fraction_total_iteration_time": 0.38661734788482127,
+      "incomplete_fraction_per_aborted_move_median": 0.9211385989723622,
+      "incomplete_fraction_per_aborted_move_p90": 0.981942057979807
+    },
+    "late_root400plus": {
+      "n_target_nonmate_moves": 6715,
+      "moves_with_incomplete_iteration": 2265,
+      "incomplete_fraction_moves": 0.33730454206999255,
+      "recorded_iteration_us": 13348572001,
+      "incomplete_iteration_us": 5890767910,
+      "incomplete_fraction_total_iteration_time": 0.44130322775789776,
+      "incomplete_fraction_per_aborted_move_median": 0.8717933118371155,
+      "incomplete_fraction_per_aborted_move_p90": 0.9552757166463567
+    }
+  },
+  "opening_metrics": {
+    "first20_target_turns": 280,
+    "turns_with_own_piece_removal": 82,
+    "own_removal_movers": {
+      "GreatGeneral": 27,
+      "FierceDragon": 34,
+      "ViceGeneral": 17,
+      "BishopGeneral": 2,
+      "FlyingGeneral": 2
+    },
+    "own_removal_counts": {
+      "7": 56,
+      "6": 19,
+      "1": 2,
+      "5": 3,
+      "9": 2
+    },
+    "same_player_abs_eval_swing_first20_quantiles": {
+      "0.5": 602,
+      "0.9": 2338,
+      "0.99": 3748
+    }
+  },
+  "large_gap_classification": {
+    "definition": "Only corrected-build HLF/HLFS root turns, ordinary nonmate scores, absolute raw/search gap>=2000. Literal recapture means preceding move removed our piece, actual chosen move removes enemy on preceding move destination. This identifies observed chosen move only, not all tactical causes.",
+    "n": 197,
+    "literal_recaptures": 33,
+    "takes_last_mover": 42,
+    "search_draw": 4,
+    "chosen_enemy_capture": 108
+  },
+  "prepared_agents": {
+    "count": 26,
+    "identities": [
+      "NNUE_W512_v3_HLF_G3CF",
+      "NNUE_W512_v3_HLF_G3RF",
+      "NNUE_W512_v3_HLF_G3QH",
+      "NNUE_W512_v3_HLF_G3PVS",
+      "NNUE_W512_v3_HLF_G3PV",
+      "NNUE_W512_v3_HLF_G3SC",
+      "NNUE_W512_v3_HLF_G3FP",
+      "NNUE_W512_v3_HLF_G3PR",
+      "NNUE_W512_v3_HLF_G3ATK",
+      "NNUE_W512_v3_HLF_G3RFQH",
+      "NNUE_W512_v3_HLF_G3PVSPV",
+      "NNUE_W512_v3_HLF_G3GA",
+      "NNUE_W512_v3_HLFS_G3CF",
+      "NNUE_W512_v3_HLFS_G3RF",
+      "NNUE_W512_v3_HLFS_G3QH",
+      "NNUE_W512_v3_HLFS_G3PVS",
+      "NNUE_W512_v3_HLFS_G3PV",
+      "NNUE_W512_v3_HLFS_G3SC",
+      "NNUE_W512_v3_HLFS_G3FP",
+      "NNUE_W512_v3_HLFS_G3PR",
+      "NNUE_W512_v3_HLFS_G3ATK",
+      "NNUE_W512_v3_HLFS_G3RFQH",
+      "NNUE_W512_v3_HLFS_G3PVSPV",
+      "NNUE_W512_v3_HLFS_G3GA",
+      "NNUE_W512_v3_HLF_G3PT",
+      "NNUE_W512_v3_HLFS_G3PT"
+    ],
+    "control": "ContextRetry on same foundation; every active trial includes context restoration",
+    "config": "admission.json is the prepared input; deployment.json and the coordinator receipt establish applied admission",
+    "trial_count": 13,
+    "trial_manifest": {
+      "NNUE_W512_v3_HLF_G3CF": {
+        "base_entrant": "NNUE_W512_v3",
+        "experiment": "history_tactical_lmr_q_fix",
+        "trial": "context_retry"
+      },
+      "NNUE_W512_v3_HLF_G3RF": {
+        "base_entrant": "NNUE_W512_v3",
+        "experiment": "history_tactical_lmr_q_fix",
+        "trial": "q_refill"
+      },
+      "NNUE_W512_v3_HLF_G3QH": {
+        "base_entrant": "NNUE_W512_v3",
+        "experiment": "history_tactical_lmr_q_fix",
+        "trial": "q_history"
+      },
+      "NNUE_W512_v3_HLF_G3PVS": {
+        "base_entrant": "NNUE_W512_v3",
+        "experiment": "history_tactical_lmr_q_fix",
+        "trial": "internal_pvs"
+      },
+      "NNUE_W512_v3_HLF_G3PV": {
+        "base_entrant": "NNUE_W512_v3",
+        "experiment": "history_tactical_lmr_q_fix",
+        "trial": "promote_pv"
+      },
+      "NNUE_W512_v3_HLF_G3SC": {
+        "base_entrant": "NNUE_W512_v3",
+        "experiment": "history_tactical_lmr_q_fix",
+        "trial": "searched_lmr"
+      },
+      "NNUE_W512_v3_HLF_G3FP": {
+        "base_entrant": "NNUE_W512_v3",
+        "experiment": "history_tactical_lmr_q_fix",
+        "trial": "shallow_futility"
+      },
+      "NNUE_W512_v3_HLF_G3PR": {
+        "base_entrant": "NNUE_W512_v3",
+        "experiment": "history_tactical_lmr_q_fix",
+        "trial": "partial_root"
+      },
+      "NNUE_W512_v3_HLF_G3ATK": {
+        "base_entrant": "NNUE_W512_v3",
+        "experiment": "history_tactical_lmr_q_fix",
+        "trial": "major_threat_lmr"
+      },
+      "NNUE_W512_v3_HLF_G3RFQH": {
+        "base_entrant": "NNUE_W512_v3",
+        "experiment": "history_tactical_lmr_q_fix",
+        "trial": "q_refill_history"
+      },
+      "NNUE_W512_v3_HLF_G3PVSPV": {
+        "base_entrant": "NNUE_W512_v3",
+        "experiment": "history_tactical_lmr_q_fix",
+        "trial": "pvs_promote"
+      },
+      "NNUE_W512_v3_HLF_G3GA": {
+        "base_entrant": "NNUE_W512_v3",
+        "experiment": "history_tactical_lmr_q_fix",
+        "trial": "growth_aware"
+      },
+      "NNUE_W512_v3_HLFS_G3CF": {
+        "base_entrant": "NNUE_W512_v3",
+        "experiment": "history_tactical_lmr_q_fix_sacrifice",
+        "trial": "context_retry"
+      },
+      "NNUE_W512_v3_HLFS_G3RF": {
+        "base_entrant": "NNUE_W512_v3",
+        "experiment": "history_tactical_lmr_q_fix_sacrifice",
+        "trial": "q_refill"
+      },
+      "NNUE_W512_v3_HLFS_G3QH": {
+        "base_entrant": "NNUE_W512_v3",
+        "experiment": "history_tactical_lmr_q_fix_sacrifice",
+        "trial": "q_history"
+      },
+      "NNUE_W512_v3_HLFS_G3PVS": {
+        "base_entrant": "NNUE_W512_v3",
+        "experiment": "history_tactical_lmr_q_fix_sacrifice",
+        "trial": "internal_pvs"
+      },
+      "NNUE_W512_v3_HLFS_G3PV": {
+        "base_entrant": "NNUE_W512_v3",
+        "experiment": "history_tactical_lmr_q_fix_sacrifice",
+        "trial": "promote_pv"
+      },
+      "NNUE_W512_v3_HLFS_G3SC": {
+        "base_entrant": "NNUE_W512_v3",
+        "experiment": "history_tactical_lmr_q_fix_sacrifice",
+        "trial": "searched_lmr"
+      },
+      "NNUE_W512_v3_HLFS_G3FP": {
+        "base_entrant": "NNUE_W512_v3",
+        "experiment": "history_tactical_lmr_q_fix_sacrifice",
+        "trial": "shallow_futility"
+      },
+      "NNUE_W512_v3_HLFS_G3PR": {
+        "base_entrant": "NNUE_W512_v3",
+        "experiment": "history_tactical_lmr_q_fix_sacrifice",
+        "trial": "partial_root"
+      },
+      "NNUE_W512_v3_HLFS_G3ATK": {
+        "base_entrant": "NNUE_W512_v3",
+        "experiment": "history_tactical_lmr_q_fix_sacrifice",
+        "trial": "major_threat_lmr"
+      },
+      "NNUE_W512_v3_HLFS_G3RFQH": {
+        "base_entrant": "NNUE_W512_v3",
+        "experiment": "history_tactical_lmr_q_fix_sacrifice",
+        "trial": "q_refill_history"
+      },
+      "NNUE_W512_v3_HLFS_G3PVSPV": {
+        "base_entrant": "NNUE_W512_v3",
+        "experiment": "history_tactical_lmr_q_fix_sacrifice",
+        "trial": "pvs_promote"
+      },
+      "NNUE_W512_v3_HLFS_G3GA": {
+        "base_entrant": "NNUE_W512_v3",
+        "experiment": "history_tactical_lmr_q_fix_sacrifice",
+        "trial": "growth_aware"
+      },
+      "NNUE_W512_v3_HLF_G3PT": {
+        "base_entrant": "NNUE_W512_v3",
+        "experiment": "history_tactical_lmr_q_fix",
+        "trial": "post_capture_safety"
+      },
+      "NNUE_W512_v3_HLFS_G3PT": {
+        "base_entrant": "NNUE_W512_v3",
+        "experiment": "history_tactical_lmr_q_fix_sacrifice",
+        "trial": "post_capture_safety"
+      }
+    }
+  },
+  "screen": {
+    "requests": 234,
+    "cases": 9,
+    "arms": [
+      {
+        "trial": "RF",
+        "n": 18,
+        "median_cumulative_nodes_ratio_at_highest_shared_completed_depth": 1.0,
+        "minimum_ratio": 1.0,
+        "maximum_ratio": 1.0,
+        "different_move_or_score": 0
+      },
+      {
+        "trial": "QH",
+        "n": 18,
+        "median_cumulative_nodes_ratio_at_highest_shared_completed_depth": 1.0,
+        "minimum_ratio": 0.9834852967815954,
+        "maximum_ratio": 1.008378613795678,
+        "different_move_or_score": 0
+      },
+      {
+        "trial": "PVS",
+        "n": 18,
+        "median_cumulative_nodes_ratio_at_highest_shared_completed_depth": 0.9979627105081832,
+        "minimum_ratio": 0.7850368221379156,
+        "maximum_ratio": 1.0731879954699888,
+        "different_move_or_score": 0
+      },
+      {
+        "trial": "PV",
+        "n": 18,
+        "median_cumulative_nodes_ratio_at_highest_shared_completed_depth": 1.0976477707786145,
+        "minimum_ratio": 0.985200169071916,
+        "maximum_ratio": 2.485021645021645,
+        "different_move_or_score": 2
+      },
+      {
+        "trial": "SC",
+        "n": 18,
+        "median_cumulative_nodes_ratio_at_highest_shared_completed_depth": 1.0,
+        "minimum_ratio": 1.0,
+        "maximum_ratio": 1.0,
+        "different_move_or_score": 0
+      },
+      {
+        "trial": "FP",
+        "n": 18,
+        "median_cumulative_nodes_ratio_at_highest_shared_completed_depth": 0.9996635077552579,
+        "minimum_ratio": 0.3648748340136724,
+        "maximum_ratio": 1.0276867559832428,
+        "different_move_or_score": 2
+      },
+      {
+        "trial": "PR",
+        "n": 18,
+        "median_cumulative_nodes_ratio_at_highest_shared_completed_depth": 1.0,
+        "minimum_ratio": 1.0,
+        "maximum_ratio": 1.0,
+        "different_move_or_score": 0
+      },
+      {
+        "trial": "ATK",
+        "n": 18,
+        "median_cumulative_nodes_ratio_at_highest_shared_completed_depth": 1.0334472102698946,
+        "minimum_ratio": 0.7397423806510918,
+        "maximum_ratio": 2.7246130511850595,
+        "different_move_or_score": 10
+      },
+      {
+        "trial": "RFQH",
+        "n": 18,
+        "median_cumulative_nodes_ratio_at_highest_shared_completed_depth": 1.0,
+        "minimum_ratio": 0.9834852967815954,
+        "maximum_ratio": 1.008378613795678,
+        "different_move_or_score": 0
+      },
+      {
+        "trial": "PVSPV",
+        "n": 18,
+        "median_cumulative_nodes_ratio_at_highest_shared_completed_depth": 1.0672979464982908,
+        "minimum_ratio": 0.7871196905452652,
+        "maximum_ratio": 2.485238095238095,
+        "different_move_or_score": 2
+      },
+      {
+        "trial": "GA",
+        "n": 18,
+        "median_cumulative_nodes_ratio_at_highest_shared_completed_depth": 1.0,
+        "minimum_ratio": 1.0,
+        "maximum_ratio": 1.0,
+        "different_move_or_score": 0
+      }
+    ],
+    "per_request_ms": 750,
+    "repetitions_per_case_arm": 1,
+    "binary_sha256": "91f46c8e071b12ba9fbb221428d507026cca8e05cbf9598bcd2aef1793a46a6a",
+    "method": "One capped search per case/arm. Highest shared completed depth per comparison, cumulative nodes through depth, comparator ContextRetry on same parent. Ratios describe this convenience corpus only; depths vary by comparison; no playing-strength or isolated-time claim. GA has no Fischer soft budget here and tests common context only. PR screen predates stricter exact-bound classification and requires final rerun.",
+    "pr_final_status": {
+      "requests": 36,
+      "candidate_requests": 18,
+      "parent_requests": 18,
+      "partial_adoptions": 0,
+      "same_final_move_score_vs_initial": 14,
+      "other_final_differences": 4,
+      "interpretation": "Four other final differences coincide with completed-depth/timing changes; no isolated algorithm-effect or speed claim. No selected partial result exercised.",
+      "manifest": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/partial-final/screen/manifest.json",
+      "results": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/partial-final/screen/results.json"
+    },
+    "initial_derived_agents": 24,
+    "initial_trial_count": 12,
+    "includes_post_capture_safety": false,
+    "post_take_screen": {
+      "status": "complete_bounded",
+      "trial": "post_capture_safety",
+      "label": "PT",
+      "parents": [
+        "HLF",
+        "HLFS"
+      ],
+      "scope": "Separate screen; not part of initial234requests or its18-comparison feature rows.",
+      "requests": 24,
+      "cases": 4,
+      "arms": 6,
+      "per_request_ms": 750,
+      "repetitions_per_case_arm": 1,
+      "comparisons": 8,
+      "shared_completed_depth_range": [
+        2,
+        4
+      ],
+      "median_cumulative_node_ratio": 1.0,
+      "minimum_ratio": 1.0,
+      "maximum_ratio": 1.0,
+      "different_move_or_score": 0,
+      "final_qcap_count_differences": 2,
+      "interpretation": "No observed effect at shared completed iterations. Finalqcap counts include incompletework and are not a matched-depth gain. Contractfixtures demonstrate active filterbranch, not thisscreen. No speed/strength claim.",
+      "binary_sha256": "15c7c107727fdff67f3d4fc3e8b89cab44c4f79787a2c0f6f32fb19aae538d76",
+      "matched_depth_summary": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/post-take-screen/screen/matched-depth-summary.json"
+    }
+  },
+  "validation": {
+    "rust": {
+      "checked_utc": "2026-10-31T02:58:16.387855+00:00",
+      "worktree": "/home/frank/taikyoku_shogi/.worktrees/search-generation3",
+      "base_revision": "62dd2a588ad3d3db9ff41e469a8b4184c8133fb0",
+      "dirty_source_hashes": {
+        "src/search.rs": "b0632e0ad80647c86cf725de0068600e0f8d40b5eb19bd74ac59dceaa428974a",
+        "src/search/experiments.rs": "7ed7d225d4d27ed43eccbbe4ae193a45e83b571ac48dbbb3eddcfd2462b24355",
+        "src/eval.rs": "ac799aa46448b164c2f360f51d98e44b539c42eb50f02b5b3c8035095b488bb7",
+        "src/alphabeta_player.rs": "beced42074dd4f7d5216a3372caf61c7bd8c194bb2f6d5428a2708803f01781f",
+        "src/main.rs": "4dd16929ed44f8d3b930b025a27a2eb65e58161272793b0acfd4c741a3489d65",
+        "src/player.rs": "9d6c3208a2d8c3c937b99bad6076ed92763b3ccbc53395781d25d88de53d6058",
+        "src/game_history.rs": "477fff8e2c89f56bafbb533dc8e7995e810adf3430254e6f3ba96d4c5127cb94",
+        "src/training/clock.rs": "fb0cf4970183b9a638d38d9b79095fdd75949e85a04ea9d6bcbf2e3d923823b5",
+        "src/training/game_process.rs": "9e499afe86b09e5cb91f32144ade41ceb6d2100f8a5cc9bf56b21f925a414230",
+        "src/training/worker.rs": "36dbf0af378dd64daacc3ce145a96db47e962de3f574e735ad6dfb200bfc8311",
+        "src/session_api.rs": "48075e2a58d21ca624e41397d9c6b8f15e0191dab37120543bd83741d97af570",
+        "src/training/eval_trace.rs": "0b24e832533742570c323ba6fd105f2f067b457f52c342a75716f4556dccdb5f",
+        "src/bin/tactical_tree_worker.rs": "4e1e7bad8a200041f903b5713534ed665268807fe44979c29d8d74c90c9ebfdd"
+      },
+      "cargo_fmt": "passed",
+      "cargo_clippy_all_targets_all_features_deny_warnings": "passed",
+      "cargo_test": "passed",
+      "test_passed_total": 511,
+      "test_failed_total": 0,
+      "test_ignored_total": 4,
+      "cargo_target_dir": "/tmp/taikyoku-search3-baseline/target",
+      "cargo_build_jobs": 2,
+      "notes": "Repeated full validation after adding PT PostCaptureSafety. All passed; four existing ignored library tests remain ignored. Final release binaries built after this validation.",
+      "release_binaries": {
+        "tactical_tree_worker": "15c7c107727fdff67f3d4fc3e8b89cab44c4f79787a2c0f6f32fb19aae538d76",
+        "analyze_position": "51dc79eb3676e1a34d96147cbd35c1e9351d50be3e000e53c865fbfdd3af8354",
+        "taikyoku_shogi": "7ad0a981924cc97b0a369f1b35ae022561ee0a9f4a4fd4cf634d4277e0e2addb"
+      }
+    },
+    "none_parity": {
+      "method": "Fixed-depth2, 15s fail-safe, exact full-route move/score/cumulative-node comparison at every completed iteration. Main baseline b11c5e6 and final main candidate, not livelegacy parity.",
+      "cases": 6,
+      "baseline_sha256": "6504035d4cad501c56e4c639645a0ad0cf41aad7ca9219fc449787678d943318",
+      "candidate_sha256": "14ae833c3cd97616f5e6a41af57a86ff00f2618709e7fef9e7e45f34bf209e55",
+      "exact_all_iterations": true,
+      "scope": "Recorded pre-PT candidate check. It is not a new claim that parity was rerun after PT."
+    },
+    "descriptors": {
+      "state": "prepared_and_validated_not_admitted",
+      "checked_utc": "2026-10-31T03:01:30.119453+00:00",
+      "models": 26,
+      "bundle": {
+        "protocol": 1,
+        "revision": "62dd2a5 + post_capture_safety diff",
+        "engine_bin": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/binaries/post-pt-taikyoku_shogi",
+        "engine_sha256": "7ad0a981924cc97b0a369f1b35ae022561ee0a9f4a4fd4cf634d4277e0e2addb",
+        "analyzer_bin": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/binaries/post-pt-analyze_position",
+        "analyzer_sha256": "51dc79eb3676e1a34d96147cbd35c1e9351d50be3e000e53c865fbfdd3af8354"
+      },
+      "identities": [
+        "NNUE_W512_v3_HLF_G3CF",
+        "NNUE_W512_v3_HLF_G3RF",
+        "NNUE_W512_v3_HLF_G3QH",
+        "NNUE_W512_v3_HLF_G3PVS",
+        "NNUE_W512_v3_HLF_G3PV",
+        "NNUE_W512_v3_HLF_G3SC",
+        "NNUE_W512_v3_HLF_G3FP",
+        "NNUE_W512_v3_HLF_G3PR",
+        "NNUE_W512_v3_HLF_G3ATK",
+        "NNUE_W512_v3_HLF_G3RFQH",
+        "NNUE_W512_v3_HLF_G3PVSPV",
+        "NNUE_W512_v3_HLF_G3GA",
+        "NNUE_W512_v3_HLF_G3PT",
+        "NNUE_W512_v3_HLFS_G3CF",
+        "NNUE_W512_v3_HLFS_G3RF",
+        "NNUE_W512_v3_HLFS_G3QH",
+        "NNUE_W512_v3_HLFS_G3PVS",
+        "NNUE_W512_v3_HLFS_G3PV",
+        "NNUE_W512_v3_HLFS_G3SC",
+        "NNUE_W512_v3_HLFS_G3FP",
+        "NNUE_W512_v3_HLFS_G3PR",
+        "NNUE_W512_v3_HLFS_G3ATK",
+        "NNUE_W512_v3_HLFS_G3RFQH",
+        "NNUE_W512_v3_HLFS_G3PVSPV",
+        "NNUE_W512_v3_HLFS_G3GA",
+        "NNUE_W512_v3_HLFS_G3PT"
+      ]
+    },
+    "descriptor_scope": "All26identitiesvalidatedagainstbothpostPTengineandanalyzer;preparednotadmitted.",
+    "descriptors_historical_initial24": {
+      "state": "prepared_and_validated_not_admitted",
+      "models": 24,
+      "bundle": {
+        "protocol": 1,
+        "revision": "third-wave candidate working tree",
+        "engine_bin": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/binaries/final-taikyoku_shogi",
+        "engine_sha256": "87aa27c3b826680d4ca31a4306c0014a1bb81e7fb9e3af49e5b1d823ac7a0615",
+        "analyzer_bin": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/binaries/final-analyze_position",
+        "analyzer_sha256": "8aad5345efd1044387b6c3326a065a250e3966b421a10b1125e1a54ca47fb3cb"
+      },
+      "identities": [
+        "NNUE_W512_v3_HLF_G3CF",
+        "NNUE_W512_v3_HLF_G3RF",
+        "NNUE_W512_v3_HLF_G3QH",
+        "NNUE_W512_v3_HLF_G3PVS",
+        "NNUE_W512_v3_HLF_G3PV",
+        "NNUE_W512_v3_HLF_G3SC",
+        "NNUE_W512_v3_HLF_G3FP",
+        "NNUE_W512_v3_HLF_G3PR",
+        "NNUE_W512_v3_HLF_G3ATK",
+        "NNUE_W512_v3_HLF_G3RFQH",
+        "NNUE_W512_v3_HLF_G3PVSPV",
+        "NNUE_W512_v3_HLF_G3GA",
+        "NNUE_W512_v3_HLFS_G3CF",
+        "NNUE_W512_v3_HLFS_G3RF",
+        "NNUE_W512_v3_HLFS_G3QH",
+        "NNUE_W512_v3_HLFS_G3PVS",
+        "NNUE_W512_v3_HLFS_G3PV",
+        "NNUE_W512_v3_HLFS_G3SC",
+        "NNUE_W512_v3_HLFS_G3FP",
+        "NNUE_W512_v3_HLFS_G3PR",
+        "NNUE_W512_v3_HLFS_G3ATK",
+        "NNUE_W512_v3_HLFS_G3RFQH",
+        "NNUE_W512_v3_HLFS_G3PVSPV",
+        "NNUE_W512_v3_HLFS_G3GA"
+      ]
+    },
+    "production_source_hashes_match_rust_receipt": true,
+    "python": {
+      "recorded_utc": "2026-10-31T03:02:35.055685+00:00",
+      "validation_stage": "before commit62dd2a5; no Python source changes since",
+      "commands": [
+        "ruff format .",
+        "ruff check --fix .",
+        "python3 -m unittest discover -s deploy -p 'test_*.py'"
+      ],
+      "ruff_files": 159,
+      "ruff_result": "passed",
+      "deploy_unittests": 123,
+      "deploy_result": "passed",
+      "notes": "Completed by root before initial candidate commit. This receipt records the completed result; raw terminal log was not retained. Tests printed incidental existing ResourceWarnings without failing.",
+      "source_sha256": {
+        "deploy/engine_updates.py": "9287e0dfb009213d9d6154b5eae2bc266e23591b99ec0c5e3c7198bd6366beea",
+        "deploy/training_admission.py": "a131925486e78c020257f858d843492f71f2ca27336054e13b23c01034f192f6",
+        "deploy/test_training_admission.py": "810be910f717defba0f8cd26195f00f83f1524bc75f5f8c978fd4608c85bb093"
+      }
+    },
+    "lint_followup": {
+      "checked_utc": "2026-10-31T03:06:54.418046+00:00",
+      "kind": "lint-only follow-up",
+      "file": "/home/frank/taikyoku_shogi/.worktrees/search-generation3/src/search.rs",
+      "before_sha256": "b0632e0ad80647c86cf725de0068600e0f8d40b5eb19bd74ac59dceaa428974a",
+      "after_sha256_before_fmt": "ae605a77ee59af4fe35a621bb0432a0afbdbb9e08496c836066adaa1eef95eed",
+      "change": "Replace descending sort_by comparison with stable sort_by_key(Reverse(score)); same ordering and stable ties.",
+      "original_validation_receipt_unchanged": "validation/rust-validation.json",
+      "original_release_binaries_unchanged": true,
+      "after_sha256": "ae605a77ee59af4fe35a621bb0432a0afbdbb9e08496c836066adaa1eef95eed",
+      "rustc": "rustc 1.92.0 (ded5c06cf 2025-12-08)",
+      "cargo_fmt": "passed",
+      "cargo_clippy_all_targets_all_features_deny_warnings": "passed",
+      "focused_partial_root_test": "passed: 1 test",
+      "release_rebuild": false
+    },
+    "ci": {
+      "checked_utc": "2026-10-31T03:11:03.076104+00:00",
+      "method": "Observed gh pr checks197 after f4d9071; status output saved as structured receipt (run-detail fetch subsequently timed out).",
+      "head_commit": "f4d9071",
+      "run_url": "https://github.com/yetiowin805/taikyoku_shogi/actions/runs/41162964565",
+      "jobs": {
+        "rust": "pass",
+        "python": "pass",
+        "nnue-python": "pass"
+      }
+    },
+    "actual_browser": {
+      "checked_utc": "2026-10-31T03:20:05.627395+00:00",
+      "browser": "Existing Codex in-app tab at localhost8766/search-investigation.html",
+      "failure": "React error137: input received children:[] from generic JSX helper, blanking the page.",
+      "fix": "Omit the children property when no children were supplied.",
+      "actual_browser_verification": {
+        "findings_rendered": true,
+        "candidates_rendered": 26,
+        "candidate_rows_including_header": 27,
+        "text_filter_and_foundation_filter": true,
+        "episodes_and_svg_rendered": true,
+        "backing_links_rendered": 27,
+        "new_errors_after_reload": 0
+      },
+      "screenshots_taken": false,
+      "notes": "Initial stubbed JSX view checks missed React DOM void-element validation; actual browser verification replaced that limited delivery claim."
+    }
+  },
+  "source_artifacts": [
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/mining/manifest.json",
+      "sha256": "04c369a236378565d69667920d697fceec840852b373e7da6bf013536f63dbf3"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/mining/summary.json",
+      "sha256": "e9e33ae25884a26edc22fc00f2d1b12ca85e717428a0bf8a8a3aa6e6ff0fd814"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/mining/candidates.json",
+      "sha256": "97aa18a900667f7b5f6b5a3d284345c65a7c1fcef1fbc07b3cdc176847c4fbaa"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/mining/incomplete-iteration-cost.json",
+      "sha256": "7a8e5b1765cf096c527b6b74032a8208747b7fcd63bca3c042eb0ba27f4f4e9f"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/mining/opening-metrics.json",
+      "sha256": "606b172eaa298afe53aba111f3859864d62ebcec8d69b1922df2525580d2b07f"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/mining/large-gap-classification.json",
+      "sha256": "c78b89a8fd70013748cfc4c51df7c4a7477a8d29e3d463a7f9c73fda85f5edbe"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/tactical-probes/manifest.json",
+      "sha256": "42cdab54b69fd062887cb8a5fb2f4804163b4f2ca93f6fc267ad93798d135690"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/tactical-probes/summary.json",
+      "sha256": "846c9d504358816bb65d7e0604d8237984d34c76f0f1ebbba583ab541b7992e6"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/royal-probes/manifest.json",
+      "sha256": "7d6d7d1bc6b0ad2cec62b1290692a8abf091e8fd92f7522891c7a2af940f1088"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/royal-probes/case-summary.json",
+      "sha256": "42a6c3f00ec0807917b616b73a298e1d00daf9447588324b36c0dd8eefd87140"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/royal-probes/royal-flight-validity.json",
+      "sha256": "83e9833ca9b4104f9f986b6cef0bc1cefab93bff3ba6d8ad9ef300d04971bfad"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/royal-probes/legacy-royal-mode-manifest.json",
+      "sha256": "295eb3f5242c8ca4c1bbd3809568be1cbb8879accd3f5c6fd6fb54764c0b23ea"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/screen/manifest.json",
+      "sha256": "0f3408c9f01e5228745a96b3d9fc691533b2a5d9f237c2ba14403ba8613f48c4"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/screen/matched-depth-summary.json",
+      "sha256": "43ed4833ac0bc91aacbc377d7b623b8efc3bca636c89f95204888f1ac7e6c007"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/validation/rust-validation.json",
+      "sha256": "0f07aca71ba3b138f42867306afa93389cfe7866440bfed6f1025be83aee9358"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/validation/none-parity.json",
+      "sha256": "f8af8a42c3b4530e27614826e56f9541b7343c94b52e936458dccb012ecda8bf"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/validation/models.json",
+      "sha256": "2affe7325c98d2050944f7f84b27bd430ab2c6e3f71caaff3bfd438d0d72c988"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/admission.json",
+      "sha256": "535d5cf35c8ee2f23f5b0adadec183824683d7fb11248694552191e7d80f2c25"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/binaries/final-build.json",
+      "sha256": "c53460ae7fae6be0939b4eca033b986a673db68c4eeb3807d756288a687b8ce1"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/partial-final/screen/manifest.json",
+      "sha256": "ed3bae3ca5a971f70103a8da12af32887edd0dbf4824178c3288c395958431e3"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/partial-final/screen/results.json",
+      "sha256": "cfb2fb59160399c4901cd0414bce51a642e8286d9eeb0a07973215f482f3714f"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/post-take-screen/screen/manifest.json",
+      "sha256": "52c96fe36e4c204a117e1406bc2abee1141f106dfb1c8ad3396a9799489d3354"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/post-take-screen/screen/results.json",
+      "sha256": "9a64d3ed9abd03aa67f313714320ab8dd443d84df3ef73c256c4e5e984bb4a94"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/post-take-screen/screen/matched-depth-summary.json",
+      "sha256": "29b951396ddc7e8eb99306a597dbcca3025b1ffb11d164210d1c6ee6fa1051ca"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/binaries/post-pt-build.json",
+      "sha256": "cea9a9cd262744a40e19713d85f3baaf21f4756eeba4faa12a81f41de2085165"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/validation/models-post-pt.json",
+      "sha256": "a062fda1fe5d87d68c6b6fca492476c7a878cca2afd067e5e20d84085af2cfd5"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/validation/python-validation.json",
+      "sha256": "241b6eb34035a4cfa391356b79b43a049121921ac6fcf989e3f336cdb7d95bfa"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/validation/lint-followup.json",
+      "sha256": "9a12e05a89ef7589d00f43f6c549df9f58917b1a12ba01270259bfe8b5f9bc2b"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/validation/ci-f4d9071.json",
+      "sha256": "be78905381bef2d97f3998b453f724c820e77dac1c22f030c612aa49ed9a15db"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/live-preparation/vps-receipts/verification.json",
+      "sha256": "8321826a1b8be73e9ed4bad7c7f3248ae73ce1816cba5bb8c8586e32be0bb9e5"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/live-preparation/vps-receipts/parity-results.json",
+      "sha256": "85ced133ee0d6b3bb1c27acc59c2c3659588526e68cd4990b15fab345ebb75ac"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/live-preparation/deployment-receipt-index.json",
+      "sha256": "993b73cb22213ea0b16196243c5b42c7700c0e6d946099b75314fa07e781968a"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/live-preparation/deployment-receipts/generation-admission-verification.json",
+      "sha256": "9a37738644b077f98ecbeb6fa60a06c1bbb6ebb4dbede06ce2a0c7e75d0ad366"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/live-preparation/deployment-receipts/publication-receipt.json",
+      "sha256": "3216df536870dd1a23ebb588182edf59654fefa79c295419495bb7144e84c052"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/validation/ui-browser.json",
+      "sha256": "a3c9d38f99faea5a72a08873a0b2bd289cd0f6a51ffa36b8561c90396db51856"
+    }
+  ],
+  "updated_utc": "2026-10-31T03:03:05.245072+00:00",
+  "post_capture_safety": {
+    "trial": "post_capture_safety",
+    "label": "PT",
+    "status": "implemented_opt_in",
+    "source": "src/search.rs:4804",
+    "scope": "Only PathAware qsearch SimpleTake candidates below existing net/hang fraction; after make, query actual landing; unmake and skip if attacked. Existing None, AB SimpleTake checks, and prior variants remain unchanged.",
+    "exemptions": [
+      "royal captures",
+      "loud promotions",
+      "required major destination recaptures"
+    ],
+    "cost": "Uses existing make/unmake; adds post-capture attack query, no new persistent table. Rejected captures undo earlier and skip recursion.",
+    "risk": "Hanging heuristic is not SEE; can prune compensated sacrifices or discard alternatives after ordinary quota selection.",
+    "tests": [
+      "post_capture_safety_rejects_real_defended_takes_and_restores_board",
+      "post_capture_safety_never_prunes_a_defended_royal_take"
+    ],
+    "screen_status": "separate_bounded_screen_complete"
+  },
+  "engine_precedent_limits": {
+    "quiet_checks": "Stockfish18mainquietorderingrewardsSEE-qualifiedchecks;currentqpickerCAPTURES/evasions. YaneuraOu currentqpicker capture/promotion subset; staleqquietcheckcommentsarenotactivestages. Ourboundedquietcheckproposaliscasehypothesis.",
+    "ethereal_partial_results": "Completed fail-high aspiration-attempt retention while re-searching, reverted on fail-low. Timeout skips its completed-attempt update. PR interrupted sibling-line adoption is our separate experiment."
+  },
+  "final_production_revision": "328e2cf",
+  "preceding_candidate_revision": "62dd2a5",
+  "source_lint_followup_revision": "f4d9071",
+  "native_preflight": {
+    "source_content_sha256": "075f4024499f0fc0decdaee438af88d1eec2822e9d2b484ae27877b2c043e285",
+    "candidate_binaries": {
+      "taikyoku_shogi": {
+        "path": "/opt/taikyoku-search-generation3-20261030/bin/candidate-taikyoku_shogi-114cd924c4f33c65e23eac2bd920f94ab504bfab360ae8db8a00e8a9cbba32ed",
+        "sha256": "114cd924c4f33c65e23eac2bd920f94ab504bfab360ae8db8a00e8a9cbba32ed"
+      },
+      "analyze_position": {
+        "path": "/opt/taikyoku-search-generation3-20261030/bin/candidate-analyze_position-10004cbb77dffd0163e6584e9a598d1963e88bf01b0adadbe1facb9f7b260e45",
+        "sha256": "10004cbb77dffd0163e6584e9a598d1963e88bf01b0adadbe1facb9f7b260e45"
+      },
+      "tactical_tree_worker": {
+        "path": "/opt/taikyoku-search-generation3-20261030/bin/candidate-tactical_tree_worker-1438971cdc4d63b1e3ac95cb9b708e3514bda082bd41632c12ac41307c1c14b1",
+        "sha256": "1438971cdc4d63b1e3ac95cb9b708e3514bda082bd41632c12ac41307c1c14b1"
+      }
+    },
+    "baseline_analyzer": "/mnt/HC_Volume_107032879/taikyoku/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/analyzer-2f08400ba053064cd7f8b616a171f2b1a478d93727f837d31fb1263605d03b98",
+    "baseline_analyzer_sha256": "2f08400ba053064cd7f8b616a171f2b1a478d93727f837d31fb1263605d03b98",
+    "reference": "Previously deployed immutable production analyzer; no rebuild/cache reuse",
+    "parity_metrics": "Every completed iteration: depth, Black-absolute score, full TM1 route, nodes",
+    "existing_descriptors": 61,
+    "candidate_descriptors": 26,
+    "parity_comparisons": 6,
+    "parity_all_exact": true,
+    "active_engine_sha256_before_after": "66755bb806e089a45cc5196aeede28f07735ae0653320c8e33972412decbac51",
+    "services_before": "Id=taikyoku-coordinator.service\nActiveState=active\nMainPID=1170015\n\nId=taikyoku-dual-labels.service\nActiveState=inactive\nMainPID=0\n",
+    "services_after": "Id=taikyoku-coordinator.service\nActiveState=active\nMainPID=1170015\n\nId=taikyoku-dual-labels.service\nActiveState=inactive\nMainPID=0\n",
+    "published": false,
+    "admitted": false
+  },
+  "retirement_generation": {
+    "name": "search",
+    "meaning": "Existing combined search generation. G3 is an experimentwave label, not an added protected retirement generation.",
+    "live_requires": "Explicit entrant generation metadata; existing live name classifier does not recognize G3 suffixes.",
+    "live_verified": true
+  },
+  "deployment": {
+    "publication": "applied",
+    "admission": "applied",
+    "bundle": "b207376d4515b078b5bef4670649feb3c2eec80ef881df1d9ef13ac081aa8cb5",
+    "admission_task_id": "01793416664768104929-admit-search-variants",
+    "admission_command_sha256": "95249603a986463717a92dfa3ede2ba23d0c9d6ef6dacf04c17c456b5ff35838",
+    "source_content_sha256": "075f4024499f0fc0decdaee438af88d1eec2822e9d2b484ae27877b2c043e285",
+    "native_verification_sha256": "8321826a1b8be73e9ed4bad7c7f3248ae73ce1816cba5bb8c8586e32be0bb9e5",
+    "wrapper_sha256": "bd65a1c21b707081edef30adc1100ec3c6a2f2ed6fb9a9a77fcec806b03ed317",
+    "admission_config_sha256": "535d5cf35c8ee2f23f5b0adadec183824683d7fb11248694552191e7d80f2c25",
+    "new_agents": 26,
+    "explicit_generation": "search",
+    "all_generation_and_config_checks": true,
+    "coordinator_pid": "1170015",
+    "analyzer": "paused",
+    "new_game_slots_at_snapshot": {},
+    "snapshot_unix": 1793416711.128829,
+    "main_operational_modules_unchanged": {
+      "engine_updates.py": "91e83fff15ed3ae22a75f0a0023ea704abb622be78a23a5e46371aaf58a29bf6",
+      "training_admission.py": "fa742e16949bd4678c63a6bdb2dfdd5b01f3c45409c6e1635caab3881e9c1009"
+    },
+    "receipt_files": {
+      "admission.log": "36ea1dddb3d7b1668fd100260146e56ac37e12489b90d99d48de8057b1b75be0",
+      "analysis/tasks/receipts/01793416664768104929-admit-search-variants.json": "4be2c3189acfefe9680d0a45b7c4949ad446024c83ab274cdab12acd6111bd5f",
+      "before-engine-update.json": "66755bb806e089a45cc5196aeede28f07735ae0653320c8e33972412decbac51",
+      "deployment.tar.gz": "f9f1b0bbdde076c9fd75c67b9c49c939b73bad7972d7236f3b95526dfa523d49",
+      "entrants/admission/search-variants/live-intent.json": "51054e00b0e2012f228ba22d7fe1ba0152efd99418659e3237ae9e311c35531f",
+      "entrants/admission/search-variants/status.json": "da072d9c8af762b08543efb4ebc1a0ceb2aaba67005e5c7318601eb164c7d789",
+      "generation-admission-intent.json": "8fbac4cfb572f1b28940551a428a41bfd5826d17a254d9180c315d48481f331f",
+      "generation-admission-verification.json": "9a37738644b077f98ecbeb6fa60a06c1bbb6ebb4dbede06ce2a0c7e75d0ad366",
+      "post-admission-status.json": "05744e702d1ec786e33fd0fbbef245a5d8e700d631ad7a16e6167743d52b7ecb",
+      "publication-receipt.json": "3216df536870dd1a23ebb588182edf59654fefa79c295419495bb7144e84c052",
+      "publication.log": "2ac70a159d7cd5cc79de30e9869a6a8a9b3927e58052d50ea277707090ff4c3d",
+      "publication.tar.gz": "470b21f5dce845d83cdfc6d07993c89e05038e5e6c98ad84ede086ac3b602a75"
+    },
+    "provenance_note": "Initial reconstructed-baseline cache parity was discarded. Accepted six exact comparisons use immutable existing production analyzer 2f08400ba053064cd7f8b616a171f2b1a478d93727f837d31fb1263605d03b98. Publication compatible_speedup parameter is fixed-depth legacy compatibility assertion, not a measured speedup claim.",
+    "publication_bundle": {
+      "protocol": 1,
+      "revision": "99979a5 + deployed caf49f6 progress fix + 328e2cf opt-in G3 backport; legacy trial=None F eligibility preserved; source075f4024499f0fc0decdaee438af88d1eec2822e9d2b484ae27877b2c043e285",
+      "engine_bin": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/engine-114cd924c4f33c65e23eac2bd920f94ab504bfab360ae8db8a00e8a9cbba32ed",
+      "engine_sha256": "114cd924c4f33c65e23eac2bd920f94ab504bfab360ae8db8a00e8a9cbba32ed",
+      "analyzer_bin": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/analyzer-10004cbb77dffd0163e6584e9a598d1963e88bf01b0adadbe1facb9f7b260e45",
+      "analyzer_sha256": "10004cbb77dffd0163e6584e9a598d1963e88bf01b0adadbe1facb9f7b260e45"
+    },
+    "admission_verification": {
+      "names": [
+        "NNUE_W512_v3_HLFS_G3ATK",
+        "NNUE_W512_v3_HLFS_G3CF",
+        "NNUE_W512_v3_HLFS_G3FP",
+        "NNUE_W512_v3_HLFS_G3GA",
+        "NNUE_W512_v3_HLFS_G3PR",
+        "NNUE_W512_v3_HLFS_G3PT",
+        "NNUE_W512_v3_HLFS_G3PV",
+        "NNUE_W512_v3_HLFS_G3PVS",
+        "NNUE_W512_v3_HLFS_G3PVSPV",
+        "NNUE_W512_v3_HLFS_G3QH",
+        "NNUE_W512_v3_HLFS_G3RF",
+        "NNUE_W512_v3_HLFS_G3RFQH",
+        "NNUE_W512_v3_HLFS_G3SC",
+        "NNUE_W512_v3_HLF_G3ATK",
+        "NNUE_W512_v3_HLF_G3CF",
+        "NNUE_W512_v3_HLF_G3FP",
+        "NNUE_W512_v3_HLF_G3GA",
+        "NNUE_W512_v3_HLF_G3PR",
+        "NNUE_W512_v3_HLF_G3PT",
+        "NNUE_W512_v3_HLF_G3PV",
+        "NNUE_W512_v3_HLF_G3PVS",
+        "NNUE_W512_v3_HLF_G3PVSPV",
+        "NNUE_W512_v3_HLF_G3QH",
+        "NNUE_W512_v3_HLF_G3RF",
+        "NNUE_W512_v3_HLF_G3RFQH",
+        "NNUE_W512_v3_HLF_G3SC"
+      ],
+      "count": 26,
+      "generation": "search",
+      "state_manifest_config_verified": true,
+      "analyzer_remains_paused": true
+    },
+    "snapshot_note": "Immediately after admission, 8 existing games were running and 9 pending; no G3 slots had been created yet. Eligibility is automatic; this is not a playing-strength result.",
+    "workload_at_snapshot": {
+      "done": 5773,
+      "pending": 9,
+      "running": 8
+    }
+  }
+}

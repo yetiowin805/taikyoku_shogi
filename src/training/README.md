@@ -262,6 +262,12 @@ groups remain provisional and are not directly comparable; once connected, cohor
 ranking is invariant to the active-pool centering shift. All historical games
 still enter the same equal-weight fit.
 
+The canonical `training_admission.py --search-variants` path explicitly pins
+generation-three entrants (`trial` other than `none`) to `generation: search` in
+their coordinator requests and verifies the applied cohort. Ordinary trained
+models and legacy `trial: none` search identities keep their existing metadata
+and cohort inference.
+
 Existing brackets and committed supplemental pairs finish with their original
 entrants. Eligibility controls new brackets and new supplemental pairs. New
 models must still be registered in the run's entrants and manifest; merely

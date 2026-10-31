@@ -29,6 +29,9 @@ pub enum MoveRecordData {
 pub struct MoveRecord {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub completed_depth: Option<u32>,
+    /// Present for a verified line chosen from a deeper incomplete root iteration.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub selected_depth: Option<u32>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub iteration_timings: Vec<crate::search::IterationTiming>,
     pub move_number: usize,
@@ -132,6 +135,7 @@ impl GameHistory {
                 static_eval: None,
                 nodes: None,
                 completed_depth: None,
+                selected_depth: None,
                 iteration_timings: Vec::new(),
             });
         }
@@ -200,6 +204,7 @@ impl GameHistory {
             static_eval: None,
             nodes: None,
             completed_depth: None,
+            selected_depth: None,
             iteration_timings: Vec::new(),
         }
     }

@@ -62,10 +62,20 @@ pub(crate) struct IterationBudget {
 }
 impl IterationBudget {
     pub fn start_next(&mut self, last: Duration, elapsed: Duration, budget: MoveBudget) -> bool {
+        self.start_next_with_estimate(last.saturating_mul(3), elapsed, budget)
+    }
+
+    /// Third-wave GrowthAware supplies a measured growth estimate; ordinary
+    /// agents continue using exactly the historical threefold estimate above.
+    pub fn start_next_with_estimate(
+        &mut self,
+        estimate: Duration,
+        elapsed: Duration,
+        budget: MoveBudget,
+    ) -> bool {
         if self.extended {
             return false;
         }
-        let estimate = last.saturating_mul(3);
         let hard = Duration::from_millis(budget.admission_ms()).saturating_sub(elapsed);
         if estimate > hard {
             return false;
@@ -98,6 +108,30 @@ mod tests {
     fn ms(n: u64) -> Duration {
         Duration::from_millis(n)
     }
+    #[test]
+    fn measured_growth_can_reject_iteration_without_relaxing_caps() {
+        let budget = MoveBudget {
+            soft_ms: 5000,
+            hard_ms: 899000,
+        };
+        assert!(IterationBudget::default().start_next(ms(1000), ms(2000), budget));
+        assert!(!IterationBudget::default().start_next_with_estimate(ms(16000), ms(2000), budget));
+        let mut trial = IterationBudget::default();
+        assert!(trial.start_next_with_estimate(ms(5000), ms(2000), budget));
+        assert!(
+            !trial.start_next_with_estimate(ms(1), ms(2000), budget),
+            "one-extension rule remains"
+        );
+        assert!(!IterationBudget::default().start_next_with_estimate(
+            ms(5001),
+            ms(2000),
+            MoveBudget {
+                soft_ms: 5000,
+                hard_ms: 7000
+            }
+        ));
+    }
+
     #[test]
     fn one_extension_even_when_prediction_is_conservative() {
         let mut p = IterationBudget::default();

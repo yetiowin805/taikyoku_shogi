@@ -102,7 +102,7 @@ pub fn child_main(request: &Path, output: &Path) -> Result<(), String> {
         "clock": record.stats.clock,
         "moves": record.moves.iter().map(|m| serde_json::json!({
             "move_number": m.move_number, "color": m.color,
-            "completed_depth": m.completed_depth, "nodes": m.nodes,
+            "completed_depth": m.completed_depth, "selected_depth": m.selected_depth, "nodes": m.nodes,
             "iteration_timings": m.iteration_timings,
         })).collect::<Vec<_>>(),
     });

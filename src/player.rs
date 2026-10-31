@@ -22,6 +22,8 @@ pub struct AgentOptions {
 #[derive(Debug, Clone, Default)]
 pub struct MoveAnnotation {
     pub completed_depth: Option<u32>,
+    /// Verified selected-line depth when greater than the fully completed iteration.
+    pub selected_depth: Option<u32>,
     pub iteration_timings: Vec<crate::search::IterationTiming>,
     /// Black-absolute search score for the chosen line.
     pub eval: Option<i32>,
