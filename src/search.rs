@@ -2818,7 +2818,7 @@ pub fn search_with_progress(
                         completed_best = mv;
                         completed_score = score;
                         partial_root_depth = Some(d);
-                        exact_root_lines.sort_by(|a, b| b.1.cmp(&a.1));
+                        exact_root_lines.sort_by_key(|line| std::cmp::Reverse(line.1));
                         completed_lines = exact_root_lines;
                         // completed_depth remains the last fully completed iteration.
                     }
