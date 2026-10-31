@@ -1,0 +1,8 @@
+{
+  "path": "/opt/taikyoku_shogi/deploy/engine_updates.py",
+  "backup": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/search-entrants-20261025/build/engine-updater-before-5f68338da19a23b5c80496dd98077ccace22580e0b02b25fc99bb78c6afa6f3e.py",
+  "sha256": "91e83fff15ed3ae22a75f0a0023ea704abb622be78a23a5e46371aaf58a29bf6",
+  "change": "Only search-policy capability function and per-model update guard",
+  "alias_fix_backup": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/search-entrants-20261025/build/engine-updater-before-alias-0768d161ee2768231e1ea3f2b6e26c1479c79a442ddd48c6433b0c0a93baa2c5.py",
+  "alias_fix": "Resolve binding keys as well as entrant model paths; validate every matching pin"
+}

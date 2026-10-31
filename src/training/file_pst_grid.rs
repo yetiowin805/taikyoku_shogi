@@ -7,9 +7,7 @@
 //!
 //! Seed cell `F100C100B60T15` is a byte-copy of the seed.
 
-use crate::eval::{
-    seed_file_factors, seed_rank_factors_fast_params, EvalCheckpoint, EvalWeights,
-};
+use crate::eval::{seed_file_factors, seed_rank_factors_fast_params, EvalCheckpoint, EvalWeights};
 use crate::training::tournament::{TourneyEntrant, TourneyManifest};
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -19,13 +17,8 @@ pub const DEFAULT_OUT_DIR: &str = "models/file-pst-grid";
 pub const DEFAULT_SEED_MODEL: &str = "models/ab-seed.json";
 
 /// (edge, center) file-PST regimes.
-pub const FILE_REGIMES: [(f32, f32); 5] = [
-    (1.0, 1.0),
-    (0.9, 1.1),
-    (0.8, 1.2),
-    (0.7, 1.5),
-    (0.5, 2.0),
-];
+pub const FILE_REGIMES: [(f32, f32); 5] =
+    [(1.0, 1.0), (0.9, 1.1), (0.8, 1.2), (0.7, 1.5), (0.5, 2.0)];
 /// Fast rank-PST back anchors (B50 / B60 / B75).
 pub const BACK_FACTORS: [f32; 3] = [0.50, 0.60, 0.75];
 /// `eg_tropism_scale` values (T10 / T15 / T20).

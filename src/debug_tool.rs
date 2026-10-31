@@ -185,7 +185,7 @@ impl DebugTool {
                 self.branch.clear();
             }
             GameStart::Position { position } => {
-                let state = position.to_state();
+                let state = position.to_state()?;
                 self.setup = Some(SetupSnapshot {
                     board: state.clone_board(),
                     turn: state.get_current_turn(),
@@ -252,17 +252,17 @@ impl DebugTool {
     }
 
     fn format_move(mv: &Move) -> String {
-        let from_f = Self::internal_to_shogi_file(mv.from.file);
-        let from_r = Self::internal_to_shogi_rank(mv.from.rank);
-        let to_f = Self::internal_to_shogi_file(mv.to.file);
-        let to_r = Self::internal_to_shogi_rank(mv.to.rank);
+        let from_f = Self::internal_to_shogi_file(mv.from.file());
+        let from_r = Self::internal_to_shogi_rank(mv.from.rank());
+        let to_f = Self::internal_to_shogi_file(mv.to.file());
+        let to_r = Self::internal_to_shogi_rank(mv.to.rank());
         let promo = if mv.promoted { " promote" } else { "" };
         let extra = match &mv.data {
             crate::game_state::MoveData::TwoStep { intermediate } => {
                 format!(
                     " via {},{}",
-                    Self::internal_to_shogi_file(intermediate.file),
-                    Self::internal_to_shogi_rank(intermediate.rank)
+                    Self::internal_to_shogi_file(intermediate.file()),
+                    Self::internal_to_shogi_rank(intermediate.rank())
                 )
             }
             crate::game_state::MoveData::FreeEagle { path } => {
@@ -326,10 +326,19 @@ impl DebugTool {
             self.cursor,
             self.timeline_len()
         ));
-        lines.push(format!("Side to move: {:?}", self.game_state.get_current_turn()));
+        lines.push(format!(
+            "Side to move: {:?}",
+            self.game_state.get_current_turn()
+        ));
         if self.setup.is_some() {
             lines.push("Mode: branched from edited setup".to_string());
-        } else if !self.branch.is_empty() || self.trunk.as_ref().map(|t| self.branch_index < t.moves.len()).unwrap_or(false) {
+        } else if !self.branch.is_empty()
+            || self
+                .trunk
+                .as_ref()
+                .map(|t| self.branch_index < t.moves.len())
+                .unwrap_or(false)
+        {
             lines.push(format!(
                 "Mode: branched (trunk prefix {}, branch {} moves)",
                 self.branch_index,
@@ -550,13 +559,13 @@ impl DebugTool {
                         std::path::PathBuf::from("games").join(name)
                     }
                 }
-                None => std::path::PathBuf::from("games").join(format!(
-                    "game_{}.json",
-                    timestamp
-                )),
+                None => std::path::PathBuf::from("games").join(format!("game_{}.json", timestamp)),
             };
             v2.save_path(&path)?;
-            Ok(format!("{} (saved as GameRecordV2 with start position)", path.display()))
+            Ok(format!(
+                "{} (saved as GameRecordV2 with start position)",
+                path.display()
+            ))
         } else {
             let record = self.build_save_record();
             let path = self.game_history.save_game(&record, filename)?;
@@ -714,8 +723,8 @@ impl DebugTool {
                 };
                 let mut output = String::new();
                 for piece in pieces {
-                    let f = Self::internal_to_shogi_file(piece.position.file);
-                    let r = Self::internal_to_shogi_rank(piece.position.rank);
+                    let f = Self::internal_to_shogi_file(piece.position.file());
+                    let r = Self::internal_to_shogi_rank(piece.position.rank());
                     output.push_str(&format!(
                         "{:?} {:?} at {},{}{}\n",
                         piece.color,
@@ -804,9 +813,7 @@ impl DebugTool {
 
             "attacked" => {
                 if parts.len() < 3 {
-                    return Err(
-                        "Usage: attacked <file> <rank> [black|white]".to_string(),
-                    );
+                    return Err("Usage: attacked <file> <rank> [black|white]".to_string());
                 }
                 let pos = Self::parse_shogi_pos(parts[1], parts[2])?;
                 let by_color = if parts.len() > 3 {
@@ -821,16 +828,13 @@ impl DebugTool {
                     None
                 };
                 let attackers = self.get_attackers(pos, by_color);
-                let mut output = format!(
-                    "Pieces attacking {},{}:\n",
-                    parts[1], parts[2]
-                );
+                let mut output = format!("Pieces attacking {},{}:\n", parts[1], parts[2]);
                 if attackers.is_empty() {
                     output.push_str("  (none)");
                 } else {
                     for a in attackers {
-                        let af = Self::internal_to_shogi_file(a.position.file);
-                        let ar = Self::internal_to_shogi_rank(a.position.rank);
+                        let af = Self::internal_to_shogi_file(a.position.file());
+                        let ar = Self::internal_to_shogi_rank(a.position.rank());
                         output.push_str(&format!(
                             "  {:?} {:?} at {},{}\n",
                             a.color, a.piece_type, af, ar
@@ -954,9 +958,7 @@ impl DebugTool {
                     } else if let Ok(i) = extra.parse::<usize>() {
                         path_index = Some(i);
                     } else {
-                        return Err(
-                            "Optional arg must be promote, n, or a path index".to_string(),
-                        );
+                        return Err("Optional arg must be promote, n, or a path index".to_string());
                     }
                 }
                 if let Some(extra) = parts.get(6) {
@@ -973,11 +975,7 @@ impl DebugTool {
                     matches[0].clone()
                 } else if let Some(i) = path_index {
                     matches.get(i).cloned().ok_or_else(|| {
-                        format!(
-                            "Path index {} out of range (0..{})",
-                            i,
-                            matches.len() - 1
-                        )
+                        format!("Path index {} out of range (0..{})", i, matches.len() - 1)
                     })?
                 } else {
                     let mut msg = format!(

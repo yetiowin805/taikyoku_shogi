@@ -1,0 +1,11 @@
+[Unit]
+Description=Verified archive backup and bounded feature cache
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/taikyoku_shogi
+ExecStart=/usr/bin/python3 /opt/taikyoku_shogi/deploy/storage_maintenance.py
+Nice=15
+IOSchedulingClass=idle
+TimeoutStartSec=infinity

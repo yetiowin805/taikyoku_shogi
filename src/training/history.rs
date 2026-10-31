@@ -56,8 +56,9 @@ pub fn load_seed_at(rev: &str, id: &str) -> Result<EvalCheckpoint, String> {
         .map_err(|e| format!("git show {spec}: {e}"))?;
     if !out.status.success() {
         return Err(format!(
-            "git show {spec} failed: {}",
-            String::from_utf8_lossy(&out.stderr)
+            "git show {spec} failed: {}{}",
+            String::from_utf8_lossy(&out.stderr).trim_end(),
+            shallow_clone_hint()
         ));
     }
     let mut cp: EvalCheckpoint =
@@ -65,6 +66,19 @@ pub fn load_seed_at(rev: &str, id: &str) -> Result<EvalCheckpoint, String> {
     cp.name = id.to_string();
     cp.weights.rebuild_piece_value_table();
     Ok(cp)
+}
+
+/// History seeds live in old commits, which a shallow clone (CI, agent sandboxes) lacks.
+fn shallow_clone_hint() -> &'static str {
+    let shallow = Command::new("git")
+        .args(["rev-parse", "--is-shallow-repository"])
+        .output()
+        .is_ok_and(|o| o.stdout.starts_with(b"true"));
+    if shallow {
+        " (shallow clone: run `git fetch --unshallow`)"
+    } else {
+        ""
+    }
 }
 
 /// `git show {rev}:models/ab-seed.json` → dest, then set checkpoint name to `id`.

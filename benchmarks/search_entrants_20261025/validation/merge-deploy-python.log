@@ -1,0 +1,152 @@
+.{"archived_files": 1, "source_bytes": 3072, "archive_bytes": 504}
+{"archived_files": 1, "source_bytes": 25, "archive_bytes": 218}
+.{"archived_files": 1, "source_bytes": 3072, "archive_bytes": 505}
+.{"archived_files": 1, "source_bytes": 3072, "archive_bytes": 505}
+..{"archived_files": 1, "source_bytes": 3072, "archive_bytes": 505}
+.{"archived_files": 1, "source_bytes": 3072, "archive_bytes": 504}
+..{"archived_files": 1, "source_bytes": 3072, "archive_bytes": 504}
+.{"archived_files": 1, "source_bytes": 3072, "archive_bytes": 505}
+..{"archived_files": 1, "source_bytes": 3072, "archive_bytes": 505}
+.........champion selection failed; retaining current teacher: simulated post-commit interruption
+.teacher champion: current -> challenger, lead 100.0; existing labels retained
+.champion selection failed; retaining current teacher: leader challenger lacks its unchanged frozen checkpoint
+.teacher champion: current -> challenger, lead 100.0; existing labels retained
+.teacher champion: current -> challenger, lead 0.0; existing labels retained
+................./home/frank/miniconda3/lib/python3.13/pathlib/_local.py:277: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7d36ce2c2980>
+  @property
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/home/frank/miniconda3/lib/python3.13/pathlib/_local.py:277: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7d36ce2c2c50>
+  @property
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/home/frank/miniconda3/lib/python3.13/pathlib/_local.py:277: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7d36cdfbe3e0>
+  @property
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/home/frank/miniconda3/lib/python3.13/pathlib/_local.py:277: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7d36cdfbe5c0>
+  @property
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+........{
+  "build": "40ea1ea28bc711092d08d1e3e59cc0d92feb202e71a5e7e02b90e3a5307f3c34",
+  "selected": {
+    "protocol": 1,
+    "revision": "new",
+    "engine_bin": "/tmp/tmp5awlnlvj/analysis/engine-builds/engine-78b9da564cf3d26c7c4a40ec3ee30d9244c9d875ebe58d947ae1f8f4274b74d8",
+    "engine_sha256": "78b9da564cf3d26c7c4a40ec3ee30d9244c9d875ebe58d947ae1f8f4274b74d8",
+    "analyzer_bin": "/tmp/tmp5awlnlvj/analysis/engine-builds/analyzer-78b9da564cf3d26c7c4a40ec3ee30d9244c9d875ebe58d947ae1f8f4274b74d8",
+    "analyzer_sha256": "78b9da564cf3d26c7c4a40ec3ee30d9244c9d875ebe58d947ae1f8f4274b74d8"
+  },
+  "running_games": "unchanged"
+}
+{
+  "build": "2108c67814d4e0764f0f16d8f18372b576a3655bc318d2ba9360a661eb278fa8",
+  "selected": {
+    "protocol": 1,
+    "revision": "new",
+    "engine_bin": "/tmp/tmp9m41ta65/analysis/engine-builds/engine-44d9dceac5e4bb527d3ebe16eb332daa1a06ece7e90a4d4e90233d2fb37d5203",
+    "engine_sha256": "44d9dceac5e4bb527d3ebe16eb332daa1a06ece7e90a4d4e90233d2fb37d5203",
+    "analyzer_bin": "/tmp/tmp9m41ta65/analysis/engine-builds/analyzer-44d9dceac5e4bb527d3ebe16eb332daa1a06ece7e90a4d4e90233d2fb37d5203",
+    "analyzer_sha256": "44d9dceac5e4bb527d3ebe16eb332daa1a06ece7e90a4d4e90233d2fb37d5203"
+  },
+  "running_games": "unchanged"
+}
+{
+  "build": "2eef39f2961edb4308d3c73ea341bd485c927a7452202886aee87cff98cfd71e",
+  "selected": {
+    "protocol": 1,
+    "revision": "old",
+    "engine_bin": "/tmp/tmp9m41ta65/analysis/engine-builds/engine-56d33bac6deaa378df1ea3b817972d079f0dfa879eba19b0509259ca83b8762e",
+    "engine_sha256": "56d33bac6deaa378df1ea3b817972d079f0dfa879eba19b0509259ca83b8762e",
+    "analyzer_bin": "/tmp/tmp9m41ta65/analysis/engine-builds/analyzer-56d33bac6deaa378df1ea3b817972d079f0dfa879eba19b0509259ca83b8762e",
+    "analyzer_sha256": "56d33bac6deaa378df1ea3b817972d079f0dfa879eba19b0509259ca83b8762e"
+  },
+  "running_games": "unchanged"
+}
+{
+  "build": "d3229db89b052f432cf0775e709408bf844cf81786ee70effad50813ac8d92ea",
+  "selected": {
+    "protocol": 1,
+    "revision": "new",
+    "engine_bin": "/tmp/tmpz_hpd626/analysis/engine-builds/engine-fd19062d79fdb56bc28816d73dd39a13b8907518ae712736bd2ebb32ccc630a9",
+    "engine_sha256": "fd19062d79fdb56bc28816d73dd39a13b8907518ae712736bd2ebb32ccc630a9",
+    "analyzer_bin": "/tmp/tmpz_hpd626/analysis/engine-builds/analyzer-fd19062d79fdb56bc28816d73dd39a13b8907518ae712736bd2ebb32ccc630a9",
+    "analyzer_sha256": "fd19062d79fdb56bc28816d73dd39a13b8907518ae712736bd2ebb32ccc630a9"
+  },
+  "running_games": "unchanged"
+}
+{
+  "build": "69472a1787ced319551e3aee6ae1dc0fa2a1bab2158c860ed84eeba069571cd2",
+  "selected": {
+    "protocol": 1,
+    "revision": "new",
+    "engine_bin": "/tmp/tmpx7d6i3f7/analysis/engine-builds/engine-0dcf307606c0be21d02aaab2dee5976a59746bc4e2f7331b2e535862c3b21ec5",
+    "engine_sha256": "0dcf307606c0be21d02aaab2dee5976a59746bc4e2f7331b2e535862c3b21ec5",
+    "analyzer_bin": "/tmp/tmpx7d6i3f7/analysis/engine-builds/analyzer-0dcf307606c0be21d02aaab2dee5976a59746bc4e2f7331b2e535862c3b21ec5",
+    "analyzer_sha256": "0dcf307606c0be21d02aaab2dee5976a59746bc4e2f7331b2e535862c3b21ec5"
+  },
+  "running_games": "unchanged"
+}
+{
+  "build": "158375c2c358fbdb5545a9c52c24fc6320bdbfab78e443caaf5b55e93f978c20",
+  "selected": {
+    "protocol": 1,
+    "revision": "new",
+    "engine_bin": "/tmp/tmpx7d6i3f7/analysis/engine-builds/engine-63125a5c87756a6a3363831efaf15542bfea20f95d79ee6997903e110896c342",
+    "engine_sha256": "63125a5c87756a6a3363831efaf15542bfea20f95d79ee6997903e110896c342",
+    "analyzer_bin": "/tmp/tmpx7d6i3f7/analysis/engine-builds/analyzer-63125a5c87756a6a3363831efaf15542bfea20f95d79ee6997903e110896c342",
+    "analyzer_sha256": "63125a5c87756a6a3363831efaf15542bfea20f95d79ee6997903e110896c342"
+  },
+  "running_games": "unchanged"
+}
+{
+  "build": "19df82e09f0a19b371b2fc2ecf07cdc509c18da43c920cb4a85f40723d8be7d1",
+  "selected": {
+    "protocol": 1,
+    "revision": "new",
+    "engine_bin": "/tmp/tmp86kzidet/analysis/engine-builds/engine-56d33bac6deaa378df1ea3b817972d079f0dfa879eba19b0509259ca83b8762e",
+    "engine_sha256": "56d33bac6deaa378df1ea3b817972d079f0dfa879eba19b0509259ca83b8762e",
+    "analyzer_bin": "/tmp/tmp86kzidet/analysis/engine-builds/analyzer-56d33bac6deaa378df1ea3b817972d079f0dfa879eba19b0509259ca83b8762e",
+    "analyzer_sha256": "56d33bac6deaa378df1ea3b817972d079f0dfa879eba19b0509259ca83b8762e"
+  },
+  "running_games": "unchanged"
+}
+{"archived_files": 1, "source_bytes": 8192, "archive_bytes": 353}
+{"archived_files": 1, "source_bytes": 31, "archive_bytes": 230}
+{"archived_files": 1, "source_bytes": 135, "archive_bytes": 284}
+{"archived_files": 2, "source_bytes": 53, "archive_bytes": 301}
+{"archived_files": 2, "source_bytes": 73, "archive_bytes": 337}
+{"archived_files": 1, "source_bytes": 8, "archive_bytes": 207}
+{"archived_files": 1, "source_bytes": 203, "archive_bytes": 295}
+...{"archived_files": 2, "source_bytes": 321, "archive_bytes": 427}
+{"archived_files": 1, "source_bytes": 266, "archive_bytes": 370}
+{"archived_files": 1, "source_bytes": 24, "archive_bytes": 218}
+{"archived_files": 1, "source_bytes": 319, "archive_bytes": 404}
+{"archived_files": 1, "source_bytes": 74, "archive_bytes": 259}
+{"archived_files": 1, "source_bytes": 8, "archive_bytes": 207}
+.{"archived_files": 2, "source_bytes": 322, "archive_bytes": 396}
+{"archived_files": 1, "source_bytes": 8, "archive_bytes": 207}
+.backfill retirement: invalid has no valid saved label; left unchanged
+backfill retirement: invalid has no valid saved label; left unchanged
+teacher backfill retired: {"cancelled": 3, "without_saved_label": 1}
+.<frozen posixpath>:82: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7d36cdfbe7a0>
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<frozen posixpath>:82: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7d36cdfbe3e0>
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<frozen posixpath>:82: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7d36cdfbcd60>
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<frozen posixpath>:82: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7d36cdfbe4d0>
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+backfill retirement: invalid has no valid saved label; left unchanged
+teacher backfill retired: {"cancelled": 3, "without_saved_label": 1, "backup": "/tmp/tmpxosxus8o/analysis/teacher-backups/1792964107349820436"}
+....................................../home/frank/miniconda3/lib/python3.13/unittest/mock.py:2245: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7d36cdfbe3e0>
+  def __init__(self, name, parent):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/home/frank/miniconda3/lib/python3.13/unittest/mock.py:2245: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7d36cdfbcd60>
+  def __init__(self, name, parent):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/home/frank/miniconda3/lib/python3.13/unittest/mock.py:2245: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7d36cdfbda80>
+  def __init__(self, name, parent):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+...........................
+----------------------------------------------------------------------
+Ran 120 tests in 25.712s
+
+OK

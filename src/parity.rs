@@ -110,10 +110,9 @@ mod tests {
     fn victim_square_gen_matches_oracle_midgame_pawn_pushes() {
         let mut state = opening();
         for file in [4u8, 8, 12, 16, 20, 24, 28] {
-            for &(from_rank, to_rank, color) in &[
-                (10u8, 11u8, Color::Black),
-                (25u8, 24u8, Color::White),
-            ] {
+            for &(from_rank, to_rank, color) in
+                &[(10u8, 11u8, Color::Black), (25u8, 24u8, Color::White)]
+            {
                 state.set_current_turn(color);
                 let from = Position::new(file, from_rank).unwrap();
                 let to = Position::new(file, to_rank).unwrap();
@@ -155,8 +154,12 @@ mod tests {
             for target in probes {
                 let full = MovementGenerator::generate_targets(&piece, board, &config.capabilities)
                     .contains(&target);
-                let directed =
-                    MovementGenerator::can_reach_target(&piece, board, &config.capabilities, target);
+                let directed = MovementGenerator::can_reach_target(
+                    &piece,
+                    board,
+                    &config.capabilities,
+                    target,
+                );
                 assert_eq!(
                     full, directed,
                     "reach mismatch {:?} -> {:?} full={} directed={}",
@@ -236,8 +239,7 @@ mod tests {
         let mut n = 0u32;
         for piece in board.iter_pieces_by_color(Color::Black) {
             let config = MovementConfig::for_piece(&piece);
-            for target in MovementGenerator::generate_targets(&piece, board, &config.capabilities)
-            {
+            for target in MovementGenerator::generate_targets(&piece, board, &config.capabilities) {
                 assert!(
                     crate::attack_utils::should_check_piece_for_target_position(
                         &piece, target, false

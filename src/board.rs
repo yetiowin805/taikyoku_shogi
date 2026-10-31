@@ -10,12 +10,18 @@ pub struct Board {
     piece_slots: Box<[u16]>, // square → index in its color list; empty = u16::MAX
     occupied: [[u64; 21]; 2], // occupied squares by color
     global_attackers: [[u64; 21]; 2], // movers that need unaligned attack probes
-    royal_count: [u16; 2], // kings and crown princes by color
+    royal_count: [u16; 2],   // kings and crown princes by color
+    royal_squares: [Vec<Position>; 2], // sparse index for royal-only queries
     single_royal: [Option<Position>; 2], // royal square when count is exactly one
-    attack_variant_key: u64, // movement origins not represented by the search Zobrist key
     squares: Vec<Option<Piece>>, // 36 * 36 = 1296 squares
     black_pieces: Vec<Piece>, // Fast iteration over black pieces
     white_pieces: Vec<Piece>, // Fast iteration over white pieces
+}
+
+impl Default for Board {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Board {
@@ -25,8 +31,8 @@ impl Board {
             occupied: [[0; 21]; 2],
             global_attackers: [[0; 21]; 2],
             royal_count: [0; 2],
+            royal_squares: [Vec::new(), Vec::new()],
             single_royal: [None; 2],
-            attack_variant_key: 0,
             squares: vec![None; 1296],
             black_pieces: Vec::new(),
             white_pieces: Vec::new(),
@@ -58,12 +64,12 @@ impl Board {
         self.royal_count[(color == Color::White) as usize]
     }
 
-    pub(crate) fn single_royal(&self, color: Color) -> Option<Position> {
-        self.single_royal[(color == Color::White) as usize]
+    pub(crate) fn royal_squares(&self, color: Color) -> &[Position] {
+        &self.royal_squares[(color == Color::White) as usize]
     }
 
-    pub(crate) fn attack_variant_key(&self) -> u64 {
-        self.attack_variant_key
+    pub(crate) fn single_royal(&self, color: Color) -> Option<Position> {
+        self.single_royal[(color == Color::White) as usize]
     }
 
     /// Place a piece on the board
@@ -76,7 +82,6 @@ impl Board {
         if let Some(old) = self.squares[index] {
             self.remove_from_list(old);
         }
-        self.attack_variant_key ^= attack_variant_key(&piece);
         let list = match piece.color {
             Color::Black => &mut self.black_pieces,
             Color::White => &mut self.white_pieces,
@@ -84,12 +89,18 @@ impl Board {
         self.piece_slots[index] = list.len() as u16;
         self.occupied[(piece.color == Color::White) as usize][index / 64] |= 1u64 << (index % 64);
         if crate::attack_utils::needs_global_scan(&piece) {
-            self.global_attackers[(piece.color == Color::White) as usize][index / 64] |= 1u64 << (index % 64);
+            self.global_attackers[(piece.color == Color::White) as usize][index / 64] |=
+                1u64 << (index % 64);
         }
         if piece.piece_type.is_royal() {
             let color = (piece.color == Color::White) as usize;
             self.royal_count[color] += 1;
-            self.single_royal[color] = if self.royal_count[color] == 1 { Some(piece.position) } else { None };
+            self.royal_squares[color].push(piece.position);
+            self.single_royal[color] = if self.royal_count[color] == 1 {
+                Some(piece.position)
+            } else {
+                None
+            };
         }
         list.push(piece);
         self.squares[index] = Some(piece);
@@ -97,7 +108,6 @@ impl Board {
 
     /// Constant-time removal. Deliberately changes traversal order after captures.
     fn remove_from_list(&mut self, piece: Piece) {
-        self.attack_variant_key ^= attack_variant_key(&piece);
         let list = match piece.color {
             Color::Black => &mut self.black_pieces,
             Color::White => &mut self.white_pieces,
@@ -110,13 +120,21 @@ impl Board {
             self.piece_slots[moved.position.to_index()] = index as u16;
         }
         self.piece_slots[square] = u16::MAX;
-        self.occupied[(piece.color == Color::White) as usize][square / 64] &= !(1u64 << (square % 64));
-        self.global_attackers[(piece.color == Color::White) as usize][square / 64] &= !(1u64 << (square % 64));
+        self.occupied[(piece.color == Color::White) as usize][square / 64] &=
+            !(1u64 << (square % 64));
+        self.global_attackers[(piece.color == Color::White) as usize][square / 64] &=
+            !(1u64 << (square % 64));
         if piece.piece_type.is_royal() {
             let color = (piece.color == Color::White) as usize;
             self.royal_count[color] -= 1;
+            let royals = &mut self.royal_squares[color];
+            let royal = royals
+                .iter()
+                .position(|&position| position == piece.position)
+                .expect("royal square index follows board contents");
+            royals.swap_remove(royal);
             self.single_royal[color] = if self.royal_count[color] == 1 {
-                list.iter().find(|p| p.piece_type.is_royal()).map(|p| p.position)
+                royals.first().copied()
             } else {
                 None
             };
@@ -176,9 +194,7 @@ impl Board {
         if from == to {
             return None;
         }
-        let Some(mut piece) = self.get_piece(from) else {
-            return None;
-        };
+        let mut piece = self.get_piece(from)?;
         let captured = self.remove_piece(to);
         let index = self.piece_slots[from.to_index()] as usize;
         let list = match piece.color {
@@ -187,8 +203,16 @@ impl Board {
         };
         piece.position = to;
         list[index] = piece;
-        if piece.piece_type.is_royal() && self.royal_count[(piece.color == Color::White) as usize] == 1 {
-            self.single_royal[(piece.color == Color::White) as usize] = Some(to);
+        if piece.piece_type.is_royal() {
+            let color = (piece.color == Color::White) as usize;
+            let royal = self.royal_squares[color]
+                .iter_mut()
+                .find(|position| **position == from)
+                .expect("royal square index follows board contents");
+            *royal = to;
+            if self.royal_count[color] == 1 {
+                self.single_royal[color] = Some(to);
+            }
         }
         self.squares[from.to_index()] = None;
         self.squares[to.to_index()] = Some(piece);
@@ -204,11 +228,6 @@ impl Board {
             global[to.to_index() / 64] |= 1u64 << (to.to_index() % 64);
         }
         captured
-    }
-
-    /// Create a copy of the board
-    pub fn clone(&self) -> Board {
-        Clone::clone(self)
     }
 
     /// Check if a position is attacked by pieces of a given color
@@ -245,7 +264,9 @@ impl Board {
         let candidates = (0..21).flat_map(|word| {
             let mut squares = (region[word] & occupied[word]) | global[word];
             std::iter::from_fn(move || {
-                if squares == 0 { return None; }
+                if squares == 0 {
+                    return None;
+                }
                 let square = word * 64 + squares.trailing_zeros() as usize;
                 squares &= squares - 1;
                 let slot = self.piece_slots[square] as usize;
@@ -264,25 +285,12 @@ impl Clone for Board {
             occupied: self.occupied,
             global_attackers: self.global_attackers,
             royal_count: self.royal_count,
+            royal_squares: self.royal_squares.clone(),
             single_royal: self.single_royal,
-            attack_variant_key: self.attack_variant_key,
             squares: self.squares.clone(),
             black_pieces: self.black_pieces.clone(),
             white_pieces: self.white_pieces.clone(),
         }
-    }
-}
-
-// Silver Rabbit and Reverse Chariot both promote to Whale, with different
-// movement. The existing TT key includes type and promotion, but not origin.
-// Supplement only the new attack/gate memo keys; keep TT behavior unchanged.
-fn attack_variant_key(piece: &Piece) -> u64 {
-    if piece.piece_type == crate::piece::PieceType::Whale
-        && piece.base_piece_type == Some(crate::piece::PieceType::ReverseChariot)
-    {
-        crate::zobrist::piece_key(piece).wrapping_mul(0xD6E8_FEB8_6659_FD93).rotate_left(23)
-    } else {
-        0
     }
 }
 
@@ -381,7 +389,7 @@ mod tests {
         let mut board = Board::new();
         let pos = Position::new(10, 10).unwrap();
         let piece = Piece::new(PieceType::King, Color::Black, pos);
-        
+
         board.place_piece(piece);
         assert_eq!(board.get_piece(pos), Some(piece));
         assert!(!board.is_empty(pos));
@@ -393,10 +401,10 @@ mod tests {
         let from = Position::new(10, 10).unwrap();
         let to = Position::new(11, 11).unwrap();
         let piece = Piece::new(PieceType::King, Color::Black, from);
-        
+
         board.place_piece(piece);
         board.move_piece(from, to);
-        
+
         assert!(board.is_empty(from));
         assert_eq!(board.get_piece(to).unwrap().position, to);
     }
@@ -407,33 +415,37 @@ mod tests {
         use crate::move_simulation::{simulate_move, BoardLike};
 
         let mut board = Board::new();
-        
+
         // Place a Tengu at (10, 10)
         let tengu_pos = Position::new(10, 10).unwrap();
         let tengu = Piece::new(PieceType::Tengu, Color::Black, tengu_pos);
         board.place_piece(tengu);
-        
+
         // Place a target piece at (15, 15) - two-step diagonal move away
         // First step: (10, 10) -> (12, 12) (diagonal range)
         // Second step: (12, 12) -> (15, 15) (diagonal range)
         let target_pos = Position::new(15, 15).unwrap();
         let target = Piece::new(PieceType::King, Color::White, target_pos);
         board.place_piece(target);
-        
+
         // Test that Tengu can attack the target (two-step move)
         assert!(board.is_position_attacked_by_color(target_pos, Color::Black));
-        
+
         // Test with VirtualBoard: simulate moving a piece and check if Tengu still attacks
         let other_piece_pos = Position::new(5, 5).unwrap();
         let other_piece = Piece::new(PieceType::Pawn, Color::White, other_piece_pos);
         board.place_piece(other_piece);
-        
+
         let move_to = Position::new(6, 6).unwrap();
         let mv = Move::new_with_promotion(other_piece_pos, move_to, false);
         let virtual_board = simulate_move(&board, &mv, &other_piece);
-        
+
         // Tengu should still be able to attack the target through VirtualBoard
-        assert!(BoardLike::is_position_attacked_by_color(&virtual_board, target_pos, Color::Black));
+        assert!(BoardLike::is_position_attacked_by_color(
+            &virtual_board,
+            target_pos,
+            Color::Black
+        ));
     }
 
     #[test]
@@ -442,37 +454,41 @@ mod tests {
         use crate::move_simulation::{simulate_move, BoardLike};
 
         let mut board = Board::new();
-        
+
         // Place an unpromoted Peacock at (10, 10)
         let peacock_pos = Position::new(10, 10).unwrap();
         let mut peacock = Piece::new(PieceType::Peacock, Color::Black, peacock_pos);
         peacock.is_promoted = false;
         board.place_piece(peacock);
-        
+
         // Place a target piece at (13, 11) - two-step L-shaped move away
         // First step: forward diagonal range NE to (12, 12) (intermediate)
         // Second step: any diagonal range from (12, 12) SE to (13, 11)
         let target_pos = Position::new(13, 11).unwrap();
         let target = Piece::new(PieceType::King, Color::White, target_pos);
         board.place_piece(target);
-        
+
         // Test that Peacock can attack the target (two-step move)
         // Note: This tests the two-step capability, which should work via can_reach_boardlike
         // The optimized tengu_attack function may not catch this specific case, but
         // can_reach_boardlike should handle it via TwoStep capability
         assert!(board.is_position_attacked_by_color(target_pos, Color::Black));
-        
+
         // Test with VirtualBoard
         let other_piece_pos = Position::new(5, 5).unwrap();
         let other_piece = Piece::new(PieceType::Pawn, Color::White, other_piece_pos);
         board.place_piece(other_piece);
-        
+
         let move_to = Position::new(6, 6).unwrap();
         let mv = Move::new_with_promotion(other_piece_pos, move_to, false);
         let virtual_board = simulate_move(&board, &mv, &other_piece);
-        
+
         // Peacock should still be able to attack the target through VirtualBoard
-        assert!(BoardLike::is_position_attacked_by_color(&virtual_board, target_pos, Color::Black));
+        assert!(BoardLike::is_position_attacked_by_color(
+            &virtual_board,
+            target_pos,
+            Color::Black
+        ));
     }
 
     #[test]
@@ -481,33 +497,37 @@ mod tests {
         use crate::move_simulation::{simulate_move, BoardLike};
 
         let mut board = Board::new();
-        
+
         // Place a Hook Mover at (10, 10)
         let hook_mover_pos = Position::new(10, 10).unwrap();
         let hook_mover = Piece::new(PieceType::HookMover, Color::Black, hook_mover_pos);
         board.place_piece(hook_mover);
-        
+
         // Place a target piece at (15, 10) - two-step orthogonal move away
         // First step: (10, 10) -> (12, 10) (orthogonal range)
         // Second step: (12, 10) -> (15, 10) (orthogonal range)
         let target_pos = Position::new(15, 10).unwrap();
         let target = Piece::new(PieceType::King, Color::White, target_pos);
         board.place_piece(target);
-        
+
         // Test that Hook Mover can attack the target (two-step move)
         assert!(board.is_position_attacked_by_color(target_pos, Color::Black));
-        
+
         // Test with VirtualBoard
         let other_piece_pos = Position::new(5, 5).unwrap();
         let other_piece = Piece::new(PieceType::Pawn, Color::White, other_piece_pos);
         board.place_piece(other_piece);
-        
+
         let move_to = Position::new(6, 6).unwrap();
         let mv = Move::new_with_promotion(other_piece_pos, move_to, false);
         let virtual_board = simulate_move(&board, &mv, &other_piece);
-        
+
         // Hook Mover should still be able to attack the target through VirtualBoard
-        assert!(BoardLike::is_position_attacked_by_color(&virtual_board, target_pos, Color::Black));
+        assert!(BoardLike::is_position_attacked_by_color(
+            &virtual_board,
+            target_pos,
+            Color::Black
+        ));
     }
 
     // ===== Attack Detection Test Suite =====
@@ -516,17 +536,17 @@ mod tests {
     fn test_adjacent_simple_attack() {
         // Test: Adjacent piece with Simple movement attacking royal piece
         let mut board = Board::new();
-        
+
         // Place Crown Prince at (10, 10)
         let royal_pos = Position::new(10, 10).unwrap();
         let royal = Piece::new(PieceType::CrownPrince, Color::Black, royal_pos);
         board.place_piece(royal);
-        
+
         // Place enemy piece adjacent (to the right)
         let attacker_pos = Position::new(11, 10).unwrap();
         let attacker = Piece::new(PieceType::King, Color::White, attacker_pos);
         board.place_piece(attacker);
-        
+
         // Should detect attack
         assert!(board.is_position_attacked_by_color_for_check(royal_pos, Color::White));
     }
@@ -535,16 +555,16 @@ mod tests {
     fn test_adjacent_simple_attack_diagonal() {
         // Test: Adjacent diagonal attack
         let mut board = Board::new();
-        
+
         let royal_pos = Position::new(10, 10).unwrap();
         let royal = Piece::new(PieceType::CrownPrince, Color::Black, royal_pos);
         board.place_piece(royal);
-        
+
         // Place enemy piece diagonally adjacent
         let attacker_pos = Position::new(11, 11).unwrap();
         let attacker = Piece::new(PieceType::King, Color::White, attacker_pos);
         board.place_piece(attacker);
-        
+
         assert!(board.is_position_attacked_by_color_for_check(royal_pos, Color::White));
     }
 
@@ -552,21 +572,21 @@ mod tests {
     fn test_simple_attack_blocked() {
         // Test: Simple attack blocked by friendly piece
         let mut board = Board::new();
-        
+
         let royal_pos = Position::new(10, 10).unwrap();
         let royal = Piece::new(PieceType::CrownPrince, Color::Black, royal_pos);
         board.place_piece(royal);
-        
+
         // Place friendly blocker
         let blocker_pos = Position::new(11, 10).unwrap();
         let blocker = Piece::new(PieceType::Pawn, Color::Black, blocker_pos);
         board.place_piece(blocker);
-        
+
         // Place enemy piece beyond blocker (should not be able to attack)
         let attacker_pos = Position::new(12, 10).unwrap();
         let attacker = Piece::new(PieceType::King, Color::White, attacker_pos);
         board.place_piece(attacker);
-        
+
         // Should NOT detect attack (blocked by friendly piece)
         assert!(!board.is_position_attacked_by_color_for_check(royal_pos, Color::White));
     }
@@ -577,20 +597,20 @@ mod tests {
         // For Simple movement, if there's an enemy piece at the target position,
         // the attacker can capture it, so it can attack that position.
         let mut board = Board::new();
-        
+
         let royal_pos = Position::new(10, 10).unwrap();
         let royal = Piece::new(PieceType::CrownPrince, Color::Black, royal_pos);
         board.place_piece(royal);
-        
+
         // Place enemy piece at royal position (can be captured by attacker)
         let blocker_at_royal = Piece::new(PieceType::Pawn, Color::Black, royal_pos);
         board.place_piece(blocker_at_royal);
-        
+
         // Place attacker at distance 1 (adjacent, can capture piece at royal position)
         let attacker_pos = Position::new(11, 10).unwrap();
         let attacker = Piece::new(PieceType::King, Color::White, attacker_pos);
         board.place_piece(attacker);
-        
+
         // Attacker can capture piece at royal position
         assert!(board.is_position_attacked_by_color_for_check(royal_pos, Color::White));
     }
@@ -599,16 +619,16 @@ mod tests {
     fn test_range_attack_adjacent() {
         // Test: Range movement piece adjacent to royal
         let mut board = Board::new();
-        
+
         let royal_pos = Position::new(10, 10).unwrap();
         let royal = Piece::new(PieceType::CrownPrince, Color::Black, royal_pos);
         board.place_piece(royal);
-        
+
         // Place Rook (range orthogonal) adjacent
         let attacker_pos = Position::new(11, 10).unwrap();
         let attacker = Piece::new(PieceType::Rook, Color::White, attacker_pos);
         board.place_piece(attacker);
-        
+
         assert!(board.is_position_attacked_by_color_for_check(royal_pos, Color::White));
     }
 
@@ -616,16 +636,16 @@ mod tests {
     fn test_range_attack_from_distance() {
         // Test: Range movement piece attacking from distance
         let mut board = Board::new();
-        
+
         let royal_pos = Position::new(10, 10).unwrap();
         let royal = Piece::new(PieceType::CrownPrince, Color::Black, royal_pos);
         board.place_piece(royal);
-        
+
         // Place Rook 5 spaces away
         let attacker_pos = Position::new(15, 10).unwrap();
         let attacker = Piece::new(PieceType::Rook, Color::White, attacker_pos);
         board.place_piece(attacker);
-        
+
         assert!(board.is_position_attacked_by_color_for_check(royal_pos, Color::White));
     }
 
@@ -633,21 +653,21 @@ mod tests {
     fn test_range_attack_blocked() {
         // Test: Range attack blocked by piece
         let mut board = Board::new();
-        
+
         let royal_pos = Position::new(10, 10).unwrap();
         let royal = Piece::new(PieceType::CrownPrince, Color::Black, royal_pos);
         board.place_piece(royal);
-        
+
         // Place blocker
         let blocker_pos = Position::new(12, 10).unwrap();
         let blocker = Piece::new(PieceType::Pawn, Color::Black, blocker_pos);
         board.place_piece(blocker);
-        
+
         // Place Rook beyond blocker
         let attacker_pos = Position::new(15, 10).unwrap();
         let attacker = Piece::new(PieceType::Rook, Color::White, attacker_pos);
         board.place_piece(attacker);
-        
+
         // Should NOT detect attack (blocked)
         assert!(!board.is_position_attacked_by_color_for_check(royal_pos, Color::White));
     }
@@ -656,16 +676,16 @@ mod tests {
     fn test_range_attack_jump_mode() {
         // Test: Range attack with Jump mode (can jump over pieces)
         let mut board = Board::new();
-        
+
         let royal_pos = Position::new(10, 10).unwrap();
         let royal = Piece::new(PieceType::CrownPrince, Color::Black, royal_pos);
         board.place_piece(royal);
-        
+
         // Place blocker (should be jumped over)
         let blocker_pos = Position::new(12, 10).unwrap();
         let blocker = Piece::new(PieceType::Pawn, Color::Black, blocker_pos);
         board.place_piece(blocker);
-        
+
         // Place piece with Jump range movement (need to find a piece with Jump mode)
         // For now, test that blocking works correctly - Jump mode pieces are rare
         // This test verifies the blocking logic works
@@ -675,16 +695,16 @@ mod tests {
     fn test_tengu_attack_adjacent() {
         // Test: Tengu attacking from adjacent position (should use two-step)
         let mut board = Board::new();
-        
+
         let royal_pos = Position::new(10, 10).unwrap();
         let royal = Piece::new(PieceType::CrownPrince, Color::Black, royal_pos);
         board.place_piece(royal);
-        
+
         // Place Tengu adjacent (can't attack directly, but can via two-step)
         let tengu_pos = Position::new(11, 11).unwrap();
         let tengu = Piece::new(PieceType::Tengu, Color::White, tengu_pos);
         board.place_piece(tengu);
-        
+
         // Tengu adjacent to royal - should be able to attack via two-step
         // (First step: diagonal range, second step: diagonal range)
         assert!(board.is_position_attacked_by_color_for_check(royal_pos, Color::White));
@@ -694,16 +714,16 @@ mod tests {
     fn test_tengu_attack_from_distance() {
         // Test: Tengu attacking from distance
         let mut board = Board::new();
-        
+
         let royal_pos = Position::new(10, 10).unwrap();
         let royal = Piece::new(PieceType::CrownPrince, Color::Black, royal_pos);
         board.place_piece(royal);
-        
+
         // Place Tengu 5 spaces away diagonally
         let tengu_pos = Position::new(15, 15).unwrap();
         let tengu = Piece::new(PieceType::Tengu, Color::White, tengu_pos);
         board.place_piece(tengu);
-        
+
         assert!(board.is_position_attacked_by_color_for_check(royal_pos, Color::White));
     }
 
@@ -711,16 +731,16 @@ mod tests {
     fn test_hook_mover_attack() {
         // Test: Hook Mover attacking royal
         let mut board = Board::new();
-        
+
         let royal_pos = Position::new(10, 10).unwrap();
         let royal = Piece::new(PieceType::CrownPrince, Color::Black, royal_pos);
         board.place_piece(royal);
-        
+
         // Place Hook Mover (two-step orthogonal)
         let hook_mover_pos = Position::new(12, 12).unwrap();
         let hook_mover = Piece::new(PieceType::HookMover, Color::White, hook_mover_pos);
         board.place_piece(hook_mover);
-        
+
         assert!(board.is_position_attacked_by_color_for_check(royal_pos, Color::White));
     }
 
@@ -731,28 +751,32 @@ mod tests {
         use crate::move_simulation::BoardLike;
 
         let mut board = Board::new();
-        
+
         // Place royal at (10, 10)
         let royal_pos = Position::new(10, 10).unwrap();
         let royal = Piece::new(PieceType::CrownPrince, Color::Black, royal_pos);
         board.place_piece(royal);
-        
+
         // Place friendly piece at (11, 10) - pinned
         let pinned_pos = Position::new(11, 10).unwrap();
         let pinned = Piece::new(PieceType::Pawn, Color::Black, pinned_pos);
         board.place_piece(pinned);
-        
+
         // Place enemy Rook at (15, 10) - can attack royal if pinned piece moves
         let rook_pos = Position::new(15, 10).unwrap();
         let rook = Piece::new(PieceType::Rook, Color::White, rook_pos);
         board.place_piece(rook);
-        
+
         // Simulate moving the pinned piece
         let mv = Move::new_with_promotion(pinned_pos, Position::new(11, 11).unwrap(), false);
         let virtual_board = crate::move_simulation::simulate_move(&board, &mv, &pinned);
-        
+
         // Royal should now be under attack
-        assert!(BoardLike::is_position_attacked_by_color_for_check(&virtual_board, royal_pos, Color::White));
+        assert!(BoardLike::is_position_attacked_by_color_for_check(
+            &virtual_board,
+            royal_pos,
+            Color::White
+        ));
     }
 
     #[test]
@@ -762,27 +786,31 @@ mod tests {
         use crate::move_simulation::BoardLike;
 
         let mut board = Board::new();
-        
+
         let royal_pos = Position::new(10, 10).unwrap();
         let royal = Piece::new(PieceType::CrownPrince, Color::Black, royal_pos);
         board.place_piece(royal);
-        
+
         // Place friendly piece diagonally between royal and enemy
         let pinned_pos = Position::new(11, 11).unwrap();
         let pinned = Piece::new(PieceType::Pawn, Color::Black, pinned_pos);
         board.place_piece(pinned);
-        
+
         // Place enemy Bishop (diagonal range) beyond
         let bishop_pos = Position::new(15, 15).unwrap();
         let bishop = Piece::new(PieceType::Bishop, Color::White, bishop_pos);
         board.place_piece(bishop);
-        
+
         // Move pinned piece
         let mv = Move::new_with_promotion(pinned_pos, Position::new(11, 12).unwrap(), false);
         let virtual_board = crate::move_simulation::simulate_move(&board, &mv, &pinned);
-        
+
         // Royal should now be under attack
-        assert!(BoardLike::is_position_attacked_by_color_for_check(&virtual_board, royal_pos, Color::White));
+        assert!(BoardLike::is_position_attacked_by_color_for_check(
+            &virtual_board,
+            royal_pos,
+            Color::White
+        ));
     }
 
     #[test]
@@ -792,34 +820,38 @@ mod tests {
         use crate::move_simulation::BoardLike;
 
         let mut board = Board::new();
-        
+
         let royal_pos = Position::new(10, 10).unwrap();
         let royal = Piece::new(PieceType::CrownPrince, Color::Black, royal_pos);
         board.place_piece(royal);
-        
+
         // Place friendly piece
         let piece_pos = Position::new(11, 10).unwrap();
         let piece = Piece::new(PieceType::Pawn, Color::Black, piece_pos);
         board.place_piece(piece);
-        
+
         // No enemy piece beyond - not actually pinned
         // Move should be safe
         let mv = Move::new_with_promotion(piece_pos, Position::new(11, 11).unwrap(), false);
         let virtual_board = crate::move_simulation::simulate_move(&board, &mv, &piece);
-        
+
         // Royal should NOT be under attack
-        assert!(!BoardLike::is_position_attacked_by_color_for_check(&virtual_board, royal_pos, Color::White));
+        assert!(!BoardLike::is_position_attacked_by_color_for_check(
+            &virtual_board,
+            royal_pos,
+            Color::White
+        ));
     }
 
     #[test]
     fn test_simple_attack_max_distance_2() {
         // Test: Simple movement with max_distance=2 attacking royal
         let mut board = Board::new();
-        
+
         let royal_pos = Position::new(10, 10).unwrap();
         let royal = Piece::new(PieceType::CrownPrince, Color::Black, royal_pos);
         board.place_piece(royal);
-        
+
         // Place piece with Simple max_distance=2 at distance 2
         // Using a piece that has Simple movement with max_distance=2
         // For example, a piece that can move 2 spaces in a direction
@@ -827,7 +859,7 @@ mod tests {
         // Need to find a piece with Simple max_distance=2 - using King (max_distance=2 in some directions)
         let attacker = Piece::new(PieceType::King, Color::White, attacker_pos);
         board.place_piece(attacker);
-        
+
         assert!(board.is_position_attacked_by_color_for_check(royal_pos, Color::White));
     }
 
@@ -835,21 +867,21 @@ mod tests {
     fn test_simple_attack_max_distance_2_blocked() {
         // Test: Simple movement max_distance=2 blocked at distance 1
         let mut board = Board::new();
-        
+
         let royal_pos = Position::new(10, 10).unwrap();
         let royal = Piece::new(PieceType::CrownPrince, Color::Black, royal_pos);
         board.place_piece(royal);
-        
+
         // Place blocker at distance 1
         let blocker_pos = Position::new(11, 10).unwrap();
         let blocker = Piece::new(PieceType::Pawn, Color::Black, blocker_pos);
         board.place_piece(blocker);
-        
+
         // Place attacker at distance 2 (should not be able to attack)
         let attacker_pos = Position::new(12, 10).unwrap();
         let attacker = Piece::new(PieceType::King, Color::White, attacker_pos);
         board.place_piece(attacker);
-        
+
         // Should NOT detect attack (blocked)
         assert!(!board.is_position_attacked_by_color_for_check(royal_pos, Color::White));
     }
@@ -858,21 +890,21 @@ mod tests {
     fn test_friendly_piece_blocking_attack() {
         // Test: Friendly piece between attacker and royal blocks attack
         let mut board = Board::new();
-        
+
         let royal_pos = Position::new(10, 10).unwrap();
         let royal = Piece::new(PieceType::CrownPrince, Color::Black, royal_pos);
         board.place_piece(royal);
-        
+
         // Place friendly blocker
         let blocker_pos = Position::new(11, 10).unwrap();
         let blocker = Piece::new(PieceType::Pawn, Color::Black, blocker_pos);
         board.place_piece(blocker);
-        
+
         // Place enemy Rook beyond blocker
         let attacker_pos = Position::new(15, 10).unwrap();
         let attacker = Piece::new(PieceType::Rook, Color::White, attacker_pos);
         board.place_piece(attacker);
-        
+
         // Should NOT detect attack (blocked by friendly piece)
         assert!(!board.is_position_attacked_by_color_for_check(royal_pos, Color::White));
     }
@@ -885,34 +917,34 @@ mod tests {
         // So if blocker is between attacker and royal, attacker cannot reach royal in one move.
         // This test should actually check: can Range piece attack when it can capture blocker at royal position?
         let mut board = Board::new();
-        
+
         let royal_pos = Position::new(10, 10).unwrap();
         let royal = Piece::new(PieceType::CrownPrince, Color::Black, royal_pos);
         board.place_piece(royal);
-        
+
         // Place enemy blocker (Black = enemy to White attacker, can be captured)
         let blocker_pos = Position::new(11, 10).unwrap();
         let blocker = Piece::new(PieceType::Pawn, Color::Black, blocker_pos);
         board.place_piece(blocker);
-        
+
         // Place White Rook beyond blocker
         let attacker_pos = Position::new(15, 10).unwrap();
         let attacker = Piece::new(PieceType::Rook, Color::White, attacker_pos);
         board.place_piece(attacker);
-        
+
         // Rook can capture blocker at (11, 10), but royal is at (10, 10)
         // So Rook cannot reach royal in one move (blocked by blocker)
         // The path from (15, 10) to (10, 10) goes through (11, 10) which has the blocker
         // So attack should NOT be detected
         assert!(!board.is_position_attacked_by_color_for_check(royal_pos, Color::White));
-        
+
         // But if blocker is at royal position, Rook can attack
         let mut board2 = Board::new();
         board2.place_piece(royal);
         let blocker_at_royal = Piece::new(PieceType::Pawn, Color::Black, royal_pos);
         board2.place_piece(blocker_at_royal);
         board2.place_piece(attacker);
-        
+
         // Rook can capture piece at royal position
         assert!(board2.is_position_attacked_by_color_for_check(royal_pos, Color::White));
     }
@@ -922,16 +954,16 @@ mod tests {
         // Test: Shitenno (Range with Jump mode in all directions) attacking on same rank
         // with many pieces in between - should be able to jump over them
         let mut board = Board::new();
-        
+
         let royal_pos = Position::new(20, 10).unwrap();
         let royal = Piece::new(PieceType::King, Color::Black, royal_pos);
         board.place_piece(royal);
-        
+
         // Place Shitenno far away on the same rank
         let shitenno_pos = Position::new(5, 10).unwrap();
         let shitenno = Piece::new(PieceType::Shitennou, Color::White, shitenno_pos);
         board.place_piece(shitenno);
-        
+
         // Place many pieces in between (both friendly and enemy)
         for i in 6..20 {
             let blocker_pos = Position::new(i, 10).unwrap();
@@ -946,25 +978,27 @@ mod tests {
             );
             board.place_piece(blocker);
         }
-        
+
         // Shitenno should be able to attack the king by jumping over all pieces
-        assert!(board.is_position_attacked_by_color_for_check(royal_pos, Color::White),
-                "Shitenno should be able to attack king on same rank with jumping range");
+        assert!(
+            board.is_position_attacked_by_color_for_check(royal_pos, Color::White),
+            "Shitenno should be able to attack king on same rank with jumping range"
+        );
     }
 
     #[test]
     fn test_shitenno_jumping_range_attack_same_file() {
         // Test: Shitenno attacking on same file (vertical)
         let mut board = Board::new();
-        
+
         let royal_pos = Position::new(10, 25).unwrap();
         let royal = Piece::new(PieceType::King, Color::Black, royal_pos);
         board.place_piece(royal);
-        
+
         let shitenno_pos = Position::new(10, 5).unwrap();
         let shitenno = Piece::new(PieceType::Shitennou, Color::White, shitenno_pos);
         board.place_piece(shitenno);
-        
+
         // Place pieces in between
         for i in 6..25 {
             let blocker_pos = Position::new(10, i).unwrap();
@@ -979,24 +1013,26 @@ mod tests {
             );
             board.place_piece(blocker);
         }
-        
-        assert!(board.is_position_attacked_by_color_for_check(royal_pos, Color::White),
-                "Shitenno should be able to attack king on same file with jumping range");
+
+        assert!(
+            board.is_position_attacked_by_color_for_check(royal_pos, Color::White),
+            "Shitenno should be able to attack king on same file with jumping range"
+        );
     }
 
     #[test]
     fn test_shitenno_jumping_range_attack_diagonal() {
         // Test: Shitenno attacking diagonally
         let mut board = Board::new();
-        
+
         let royal_pos = Position::new(20, 20).unwrap();
         let royal = Piece::new(PieceType::King, Color::Black, royal_pos);
         board.place_piece(royal);
-        
+
         let shitenno_pos = Position::new(5, 5).unwrap();
         let shitenno = Piece::new(PieceType::Shitennou, Color::White, shitenno_pos);
         board.place_piece(shitenno);
-        
+
         // Place pieces in between on the diagonal
         for i in 1..15 {
             let blocker_pos = Position::new(5 + i, 5 + i).unwrap();
@@ -1011,9 +1047,11 @@ mod tests {
             );
             board.place_piece(blocker);
         }
-        
-        assert!(board.is_position_attacked_by_color_for_check(royal_pos, Color::White),
-                "Shitenno should be able to attack king diagonally with jumping range");
+
+        assert!(
+            board.is_position_attacked_by_color_for_check(royal_pos, Color::White),
+            "Shitenno should be able to attack king diagonally with jumping range"
+        );
     }
 
     #[test]
@@ -1021,19 +1059,19 @@ mod tests {
         // Test: Great Eagle (promoted Flying Eagle) has jumping range in forward diagonals
         // For White: forward diagonals are SE and SW (rank decreases)
         let mut board = Board::new();
-        
+
         // Use proper diagonal: from (5, 25) to (20, 10) is SE diagonal (file+, rank-)
         // Both positions are 15 spaces apart in both file and rank
         let royal_pos = Position::new(20, 10).unwrap();
         let royal = Piece::new(PieceType::King, Color::Black, royal_pos);
         board.place_piece(royal);
-        
+
         // Place Great Eagle (White) at position where it can attack via forward diagonal
         // Forward diagonal for White is SE (file+, rank-) or SW (file-, rank-)
         let great_eagle_pos = Position::new(5, 25).unwrap();
         let great_eagle = Piece::new(PieceType::GreatEagle, Color::White, great_eagle_pos);
         board.place_piece(great_eagle);
-        
+
         // Place pieces in between on the SE diagonal
         // From (5, 25) to (20, 10): file increases, rank decreases
         for i in 1..15 {
@@ -1049,10 +1087,12 @@ mod tests {
             );
             board.place_piece(blocker);
         }
-        
+
         // Great Eagle should be able to attack via jumping range in forward diagonal
-        assert!(board.is_position_attacked_by_color_for_check(royal_pos, Color::White),
-                "Great Eagle should be able to attack king via forward diagonal jumping range");
+        assert!(
+            board.is_position_attacked_by_color_for_check(royal_pos, Color::White),
+            "Great Eagle should be able to attack king via forward diagonal jumping range"
+        );
     }
 
     #[test]
@@ -1060,20 +1100,20 @@ mod tests {
         // Test: Great Eagle has normal range (NoJump) in other directions
         // Should be blocked by pieces
         let mut board = Board::new();
-        
+
         let royal_pos = Position::new(20, 5).unwrap(); // Same file, different rank
         let royal = Piece::new(PieceType::King, Color::Black, royal_pos);
         board.place_piece(royal);
-        
+
         let great_eagle_pos = Position::new(5, 5).unwrap();
         let great_eagle = Piece::new(PieceType::GreatEagle, Color::Black, great_eagle_pos);
         board.place_piece(great_eagle);
-        
+
         // Place a blocker between them (same file, different rank)
         let blocker_pos = Position::new(10, 5).unwrap();
         let blocker = Piece::new(PieceType::Pawn, Color::White, blocker_pos);
         board.place_piece(blocker);
-        
+
         // Great Eagle should NOT be able to attack (blocked, not a forward diagonal)
         assert!(!board.is_position_attacked_by_color_for_check(royal_pos, Color::Black),
                 "Great Eagle should NOT be able to attack when blocked in non-forward-diagonal direction");
@@ -1083,14 +1123,14 @@ mod tests {
     fn test_shitenno_jumping_range_attack_empty_target() {
         // Test: Shitenno can attack empty square with jumping range
         let mut board = Board::new();
-        
+
         let target_pos = Position::new(20, 10).unwrap();
         // No piece at target - empty square
-        
+
         let shitenno_pos = Position::new(5, 10).unwrap();
         let shitenno = Piece::new(PieceType::Shitennou, Color::White, shitenno_pos);
         board.place_piece(shitenno);
-        
+
         // Place pieces in between
         for i in 6..20 {
             let blocker_pos = Position::new(i, 10).unwrap();
@@ -1105,24 +1145,26 @@ mod tests {
             );
             board.place_piece(blocker);
         }
-        
-        assert!(board.is_position_attacked_by_color(target_pos, Color::White),
-                "Shitenno should be able to attack empty square with jumping range");
+
+        assert!(
+            board.is_position_attacked_by_color(target_pos, Color::White),
+            "Shitenno should be able to attack empty square with jumping range"
+        );
     }
 
     #[test]
     fn test_shitenno_jumping_range_attack_enemy_target() {
         // Test: Shitenno can attack enemy piece with jumping range
         let mut board = Board::new();
-        
+
         let target_pos = Position::new(20, 10).unwrap();
         let enemy = Piece::new(PieceType::Pawn, Color::Black, target_pos);
         board.place_piece(enemy);
-        
+
         let shitenno_pos = Position::new(5, 10).unwrap();
         let shitenno = Piece::new(PieceType::Shitennou, Color::White, shitenno_pos);
         board.place_piece(shitenno);
-        
+
         // Place pieces in between
         for i in 6..20 {
             let blocker_pos = Position::new(i, 10).unwrap();
@@ -1137,9 +1179,11 @@ mod tests {
             );
             board.place_piece(blocker);
         }
-        
-        assert!(board.is_position_attacked_by_color(target_pos, Color::White),
-                "Shitenno should be able to attack enemy piece with jumping range");
+
+        assert!(
+            board.is_position_attacked_by_color(target_pos, Color::White),
+            "Shitenno should be able to attack enemy piece with jumping range"
+        );
     }
 }
 
@@ -1150,10 +1194,31 @@ mod dense_list_tests {
     fn check(b: &Board) {
         let mut count = 0;
         for color in [Color::Black, Color::White] {
-            assert_eq!(b.royal_count(color) as usize,
-                b.pieces_by_color(color).iter().filter(|p| p.piece_type.is_royal()).count());
-            let royals: Vec<_> = b.pieces_by_color(color).iter().filter(|p| p.piece_type.is_royal()).collect();
-            assert_eq!(b.single_royal(color), if royals.len() == 1 { Some(royals[0].position) } else { None });
+            assert_eq!(
+                b.royal_count(color) as usize,
+                b.pieces_by_color(color)
+                    .iter()
+                    .filter(|p| p.piece_type.is_royal())
+                    .count()
+            );
+            let royals: Vec<_> = b
+                .pieces_by_color(color)
+                .iter()
+                .filter(|p| p.piece_type.is_royal())
+                .collect();
+            let mut indexed = b.royal_squares(color).to_vec();
+            indexed.sort_unstable();
+            let mut expected: Vec<_> = royals.iter().map(|piece| piece.position).collect();
+            expected.sort_unstable();
+            assert_eq!(indexed, expected);
+            assert_eq!(
+                b.single_royal(color),
+                if royals.len() == 1 {
+                    Some(royals[0].position)
+                } else {
+                    None
+                }
+            );
             for (i, p) in b.pieces_by_color(color).iter().enumerate() {
                 assert_eq!(b.get_piece(p.position), Some(*p));
                 assert_eq!(b.piece_slots[p.position.to_index()] as usize, i);
@@ -1164,10 +1229,19 @@ mod dense_list_tests {
         for (i, sq) in b.squares.iter().enumerate() {
             for color in [Color::Black, Color::White] {
                 let marked = b.occupied_by_color(color)[i / 64] & (1u64 << (i % 64)) != 0;
-                assert_eq!(marked, sq.is_some_and(|p| p.color == color), "square {i} {color:?}");
+                assert_eq!(
+                    marked,
+                    sq.is_some_and(|p| p.color == color),
+                    "square {i} {color:?}"
+                );
                 let global = b.global_attackers_by_color(color)[i / 64] & (1u64 << (i % 64)) != 0;
-                assert_eq!(global, sq.is_some_and(|p| p.color == color && crate::attack_utils::needs_global_scan(&p)),
-                    "global attacker square {i} {color:?}");
+                assert_eq!(
+                    global,
+                    sq.is_some_and(
+                        |p| p.color == color && crate::attack_utils::needs_global_scan(&p)
+                    ),
+                    "global attacker square {i} {color:?}"
+                );
             }
             if sq.is_none() {
                 assert_eq!(b.piece_slots[i], u16::MAX);
@@ -1180,7 +1254,11 @@ mod dense_list_tests {
         let mut board = Board::new();
         for (i, &kind) in crate::eval::ALL_PIECE_TYPES.iter().enumerate() {
             let pos = Position::from_index((i * 37) % (36 * 36)).unwrap();
-            let color = if i % 2 == 0 { Color::Black } else { Color::White };
+            let color = if i % 2 == 0 {
+                Color::Black
+            } else {
+                Color::White
+            };
             let mut piece = Piece::new(kind, color, pos);
             piece.is_promoted = i % 3 == 0;
             board.place_piece(piece);
@@ -1209,7 +1287,13 @@ mod dense_list_tests {
             } else {
                 Color::White
             };
-            let kind = if i % 17 == 0 { PieceType::King } else if i % 5 == 0 { PieceType::Tengu } else { PieceType::Pawn };
+            let kind = if i % 17 == 0 {
+                PieceType::King
+            } else if i % 5 == 0 {
+                PieceType::Tengu
+            } else {
+                PieceType::Pawn
+            };
             b.place_piece(Piece::new(kind, color, from));
             b.place_piece(Piece::new(PieceType::Rook, color.opposite(), to));
             check(&b);
@@ -1225,6 +1309,52 @@ mod dense_list_tests {
         }
         check(&b);
     }
+    #[test]
+    fn royal_indices_survive_friendly_replacement_and_independent_clones() {
+        for color in [Color::Black, Color::White] {
+            let from = Position::new(8, 8).unwrap();
+            let to = Position::new(9, 9).unwrap();
+            let king = Piece::new(PieceType::King, color, from);
+            let prince = Piece::new(PieceType::CrownPrince, color, to);
+            let mut board = Board::new();
+            board.place_piece(king);
+            board.place_piece(prince);
+            check(&board);
+            assert_eq!(board.royal_count(color), 2);
+            assert_eq!(board.single_royal(color), None);
+            let before = board.clone();
+
+            // Board's low-level API permits this replacement, although normal
+            // GameState move validation rejects landing on a friendly piece.
+            assert_eq!(board.move_piece(from, to), Some(prince));
+            check(&board);
+            assert_eq!(board.royal_squares(color), &[to]);
+            assert_eq!(board.royal_count(color), 1);
+            assert_eq!(board.single_royal(color), Some(to));
+            assert_eq!(board.get_piece(to).unwrap().piece_type, PieceType::King);
+            check(&before);
+            assert_eq!(before.royal_count(color), 2);
+            assert_eq!(before.get_piece(from), Some(king));
+            assert_eq!(before.get_piece(to), Some(prince));
+
+            // Replacing the remaining royal with the opposite color updates
+            // both indices; mutating its clone must not alter the original.
+            board.place_piece(Piece::new(PieceType::CrownPrince, color.opposite(), to));
+            check(&board);
+            assert!(board.royal_squares(color).is_empty());
+            assert_eq!(board.royal_count(color), 0);
+            assert_eq!(board.single_royal(color), None);
+            assert_eq!(board.royal_squares(color.opposite()), &[to]);
+            assert_eq!(board.single_royal(color.opposite()), Some(to));
+            let mut copied = board.clone();
+            copied.remove_piece(to);
+            check(&copied);
+            check(&board);
+            assert_eq!(copied.royal_count(color.opposite()), 0);
+            assert_eq!(board.royal_squares(color.opposite()), &[to]);
+        }
+    }
+
     #[test]
     fn same_square_move_keeps_index_consistent() {
         let mut b = Board::new();

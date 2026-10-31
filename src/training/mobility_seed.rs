@@ -77,7 +77,7 @@ fn random_empty_square(state: &GameState, rng: &mut StdRng) -> Option<Position> 
     }
 }
 
-fn sample_base_position(cfg: &MobilitySeedConfig, rng: &mut StdRng) -> GameState {
+fn sample_base_position(cfg: &MobilitySeedConfig, rng: &mut StdRng) -> Result<GameState, String> {
     if !cfg.starts.is_empty() {
         let idx = rng.gen_range(0..cfg.starts.len());
         return cfg.starts[idx].to_state();
@@ -103,10 +103,15 @@ fn sample_base_position(cfg: &MobilitySeedConfig, rng: &mut StdRng) -> GameState
         }
         state.remove_piece(p.position);
     }
-    state
+    Ok(state)
 }
 
-fn measure_mobility(state: &GameState, pt: PieceType, pos: Position, color: Color) -> (usize, usize) {
+fn measure_mobility(
+    state: &GameState,
+    pt: PieceType,
+    pos: Position,
+    color: Color,
+) -> (usize, usize) {
     let mut probe = state.clone();
     // Clear landing square if occupied (should be empty).
     probe.remove_piece(pos);
@@ -119,7 +124,11 @@ fn measure_mobility(state: &GameState, pt: PieceType, pos: Position, color: Colo
     let mut attacks = 0usize;
     let board = probe.get_board();
     for mv in &from_moves {
-        if board.get_piece(mv.to).map(|p| p.color != color).unwrap_or(false) {
+        if board
+            .get_piece(mv.to)
+            .map(|p| p.color != color)
+            .unwrap_or(false)
+        {
             attacks += 1;
         }
         // Path clears count as attacks along the path.
@@ -127,7 +136,11 @@ fn measure_mobility(state: &GameState, pt: PieceType, pos: Position, color: Colo
             if p == mv.from || p == mv.to {
                 continue;
             }
-            if board.get_piece(p).map(|x| x.color != color).unwrap_or(false) {
+            if board
+                .get_piece(p)
+                .map(|x| x.color != color)
+                .unwrap_or(false)
+            {
                 attacks += 1;
             }
         }
@@ -136,7 +149,9 @@ fn measure_mobility(state: &GameState, pt: PieceType, pos: Position, color: Colo
 }
 
 /// Estimate mobility-based seed values; capturers keep explicit overrides / seed defaults.
-pub fn run_mobility_seed(cfg: &MobilitySeedConfig) -> Result<(EvalCheckpoint, Vec<MobilityStats>), String> {
+pub fn run_mobility_seed(
+    cfg: &MobilitySeedConfig,
+) -> Result<(EvalCheckpoint, Vec<MobilityStats>), String> {
     let mut rng = StdRng::seed_from_u64(cfg.seed);
     let mut weights = EvalWeights::seed();
     let mut stats = Vec::new();
@@ -157,11 +172,15 @@ pub fn run_mobility_seed(cfg: &MobilitySeedConfig) -> Result<(EvalCheckpoint, Ve
         let mut atk_sum = 0.0f64;
         let mut n = 0usize;
         for _ in 0..cfg.samples_per_piece {
-            let base = sample_base_position(cfg, &mut rng);
+            let base = sample_base_position(cfg, &mut rng)?;
             let Some(pos) = random_empty_square(&base, &mut rng) else {
                 continue;
             };
-            let color = if rng.gen() { Color::Black } else { Color::White };
+            let color = if rng.gen() {
+                Color::Black
+            } else {
+                Color::White
+            };
             let (m, a) = measure_mobility(&base, pt, pos, color);
             // Density-normalize lightly.
             let dens = (occupancy(&base) as f64 / 720.0).clamp(0.1, 1.0);

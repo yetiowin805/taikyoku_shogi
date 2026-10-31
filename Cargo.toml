@@ -39,3 +39,8 @@ incremental = true
 [[example]]
 name = "royal_probe_smoke"
 required-features = ["royal-probes"]
+
+# CI runs `cargo clippy --all-targets -- -D warnings`.
+[lints.clippy]
+dbg_macro = "warn"
+todo = "warn"

@@ -1,12 +1,42 @@
 /// Represents a position on the 36x36 board
 /// Coordinates are (file, rank) where file is column (0-35) and rank is row (0-35)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
+)]
+#[serde(try_from = "PositionData")]
 pub struct Position {
-    pub file: u8,  // column (0-35)
-    pub rank: u8,  // row (0-35)
+    file: u8, // column (0-35)
+    rank: u8, // row (0-35)
+}
+
+#[derive(serde::Deserialize)]
+struct PositionData {
+    file: u8,
+    rank: u8,
+}
+
+impl TryFrom<PositionData> for Position {
+    type Error = String;
+
+    fn try_from(value: PositionData) -> Result<Self, Self::Error> {
+        Self::new(value.file, value.rank).ok_or_else(|| {
+            format!(
+                "position out of bounds: {},{} (expected 0..36)",
+                value.file, value.rank
+            )
+        })
+    }
 }
 
 impl Position {
+    pub const fn file(self) -> u8 {
+        self.file
+    }
+
+    pub const fn rank(self) -> u8 {
+        self.rank
+    }
+
     pub fn new(file: u8, rank: u8) -> Option<Position> {
         if file < 36 && rank < 36 {
             Some(Position { file, rank })
@@ -41,8 +71,8 @@ impl Position {
     pub fn offset(&self, file_delta: i8, rank_delta: i8) -> Option<Position> {
         let new_file = self.file as i16 + file_delta as i16;
         let new_rank = self.rank as i16 + rank_delta as i16;
-        
-        if new_file >= 0 && new_file < 36 && new_rank >= 0 && new_rank < 36 {
+
+        if (0..36).contains(&new_file) && (0..36).contains(&new_rank) {
             Some(Position {
                 file: new_file as u8,
                 rank: new_rank as u8,
@@ -66,16 +96,28 @@ mod tests {
     }
 
     #[test]
+    fn json_coordinates_use_the_checked_constructor() {
+        for (file, rank) in [(36, 0), (0, 36), (255, 255)] {
+            let json = format!("{{\"file\":{file},\"rank\":{rank}}}");
+            assert!(serde_json::from_str::<Position>(&json).is_err());
+        }
+        let position = Position::new(35, 0).unwrap();
+        let json = serde_json::to_string(&position).unwrap();
+        assert_eq!(json, r#"{"file":35,"rank":0}"#);
+        assert_eq!(serde_json::from_str::<Position>(&json).unwrap(), position);
+    }
+
+    #[test]
     fn test_position_index_conversion() {
         let pos = Position::new(0, 0).unwrap();
         assert_eq!(pos.to_index(), 0);
-        
+
         let pos = Position::new(35, 35).unwrap();
         assert_eq!(pos.to_index(), 1295);
-        
+
         let pos = Position::new(10, 20).unwrap();
         assert_eq!(pos.to_index(), 20 * 36 + 10);
-        
+
         // Test round-trip
         for i in 0..1296 {
             let pos = Position::from_index(i).unwrap();
@@ -86,15 +128,14 @@ mod tests {
     #[test]
     fn test_position_offset() {
         let pos = Position::new(10, 10).unwrap();
-        
+
         assert_eq!(pos.offset(1, 0), Position::new(11, 10));
         assert_eq!(pos.offset(-1, 0), Position::new(9, 10));
         assert_eq!(pos.offset(0, 1), Position::new(10, 11));
         assert_eq!(pos.offset(0, -1), Position::new(10, 9));
-        
+
         // Out of bounds
         assert_eq!(pos.offset(-11, 0), None);
         assert_eq!(pos.offset(26, 0), None);
     }
 }
-

@@ -15,6 +15,38 @@ fn choices(state: &mut GameState) -> Vec<Move> {
     royal_probe_evasions(state).unwrap_or_else(|| state.generate_legal_moves())
 }
 
+fn terminal_reason(state: &GameState) -> Option<&'static str> {
+    if state.is_draw_by_progress_rule() {
+        Some("progress draw")
+    } else if state.is_draw_by_fivefold_repetition() {
+        Some("fivefold repetition")
+    } else if state.is_draw_by_insufficient_material() {
+        Some("insufficient material")
+    } else {
+        state.get_winner().map(|winner| match winner {
+            Color::Black => "Black wins",
+            Color::White => "White wins",
+        })
+    }
+}
+
+fn play_route(state: &mut GameState, route: &str) -> Result<serde_json::Value, String> {
+    if let Some(reason) = terminal_reason(state) {
+        return Err(format!("route {route}: game already ended ({reason})"));
+    }
+    // Some move generators emit the same exact Move twice.
+    let mut found = Vec::new();
+    for mv in choices(state) {
+        if move_encode(&mv) == route && !found.contains(&mv) {
+            found.push(mv);
+        }
+    }
+    if found.len() != 1 {
+        return Err(format!("route {route}: {} available matches", found.len()));
+    }
+    Ok(apply(state, found.remove(0)))
+}
+
 fn apply(state: &mut GameState, mv: Move) -> serde_json::Value {
     let before = BoardPosition::from_state(state);
     let mover = state.get_board().get_piece(mv.from).unwrap();
@@ -24,7 +56,7 @@ fn apply(state: &mut GameState, mv: Move) -> serde_json::Value {
     let removed: Vec<_> = before.pieces.iter()
         .filter(|p| p.position != mv.from && state.get_board().get_piece(p.position) != Some(**p))
         .map(|p| serde_json::json!({"piece":format!("{:?}",p.piece_type),"color":p.color,
-            "square":[p.position.file,p.position.rank],"seed_value":material_piece_value(p,&weights)}))
+            "square":[p.position.file(),p.position.rank()],"seed_value":material_piece_value(p,&weights)}))
         .collect();
     let material = |b: &BoardPosition| -> f32 {
         b.pieces
@@ -40,6 +72,9 @@ fn apply(state: &mut GameState, mv: Move) -> serde_json::Value {
 }
 
 fn captures(state: &mut GameState) -> Vec<serde_json::Value> {
+    if terminal_reason(state).is_some() {
+        return Vec::new();
+    }
     let stm = state.get_current_turn();
     let moves = royal_probe_evasions(state)
         .unwrap_or_else(|| state.generate_legal_moves_mode(LegalMoveGen::CapturesOnly));
@@ -100,7 +135,7 @@ fn run() -> Result<(), String> {
             return Err("ply out of range".into());
         }
         let mut state = match &rec.start {
-            GameStart::Position { position } => position.to_state(),
+            GameStart::Position { position } => position.to_state()?,
             GameStart::Opening => {
                 let mut s = GameState::new();
                 s.setup_initial_position();
@@ -122,7 +157,7 @@ fn run() -> Result<(), String> {
         let royals: Vec<_> = BoardPosition::from_state(&state).pieces.into_iter()
             .filter(|p| p.piece_type.is_royal()).map(|p| serde_json::json!({
                 "piece":format!("{:?}",p.piece_type),"color":p.color,
-                "square":[p.position.file,p.position.rank],
+                "square":[p.position.file(),p.position.rank()],
                 "attacked":state.get_board().is_position_attacked_by_color_for_check(p.position,p.color.opposite())
             })).collect();
         let evasion_routes = evasions.map(|ms| ms.iter().map(move_encode).collect::<Vec<_>>());
@@ -136,33 +171,20 @@ fn run() -> Result<(), String> {
             let mut error = None;
             for route in line["routes"].as_array().ok_or("routes missing")? {
                 let route = route.as_str().ok_or("route must be string")?;
-                let mut found: Vec<_> = choices(&mut copy)
-                    .into_iter()
-                    .filter(|m| move_encode(m) == route)
-                    .collect();
-                // Some move generators emit the same exact Move twice.
-                let mut unique = Vec::new();
-                for mv in found.drain(..) {
-                    if !unique.contains(&mv) {
-                        unique.push(mv);
+                match play_route(&mut copy, route) {
+                    Ok(event) => events.push(event),
+                    Err(message) => {
+                        error = Some(message);
+                        break;
                     }
                 }
-                let found = unique;
-                if found.len() != 1 {
-                    error = Some(format!("route {route}: {} available matches", found.len()));
-                    break;
-                }
-                events.push(apply(&mut copy, found[0].clone()));
             }
-            let replies = line["inspect_replies"]
-                .as_bool()
-                .unwrap_or(false)
-                .then(|| captures(&mut copy));
-            let reply_check = line["inspect_replies"]
-                .as_bool()
-                .unwrap_or(false)
-                .then(|| royal_probe_evasions(&mut copy).is_some());
-            lines.push(serde_json::json!({"label":line["label"],"events":events,"error":error,"reply_captures":replies,"reply_must_evade_last_royal_check":reply_check}));
+            let terminal = terminal_reason(&copy);
+            let inspect_replies =
+                line["inspect_replies"].as_bool().unwrap_or(false) && terminal.is_none();
+            let replies = inspect_replies.then(|| captures(&mut copy));
+            let reply_check = inspect_replies.then(|| royal_probe_evasions(&mut copy).is_some());
+            lines.push(serde_json::json!({"label":line["label"],"events":events,"error":error,"terminal":terminal,"reply_captures":replies,"reply_must_evade_last_royal_check":reply_check}));
         }
         let result = serde_json::json!({"case":job["case"],"ply":ply,"last_royal_in_check":check,"royals":royals,
             "evasion_routes":evasion_routes,"opponent_captures_if_given_turn":threats,
@@ -179,5 +201,56 @@ fn main() {
     if let Err(e) = run() {
         eprintln!("tactical_line: {e}");
         std::process::exit(1);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use taikyoku_shogi::{
+        piece::{Piece, PieceType},
+        position::Position,
+    };
+
+    fn fixture() -> GameState {
+        let pieces = [
+            (PieceType::King, Color::Black, 0, 0),
+            (PieceType::Rook, Color::Black, 5, 5),
+            (PieceType::King, Color::White, 5, 7),
+            (PieceType::Rook, Color::White, 10, 10),
+        ]
+        .map(|(kind, color, file, rank)| {
+            Piece::new(kind, color, Position::new(file, rank).unwrap())
+        })
+        .to_vec();
+        BoardPosition {
+            pieces,
+            turn: Color::Black,
+            draw_counter: 0,
+        }
+        .to_state()
+        .unwrap()
+    }
+
+    #[test]
+    fn last_royal_capture_ends_routes_and_capture_replies() {
+        let mut state = fixture();
+        assert!(play_route(&mut state, "5,5-5,7").is_ok());
+        assert_eq!(terminal_reason(&state), Some("Black wins"));
+        assert!(play_route(&mut state, "10,10-10,9")
+            .unwrap_err()
+            .contains("game already ended"));
+        assert!(captures(&mut state).is_empty());
+    }
+
+    #[test]
+    fn progress_draw_ends_routes_and_capture_replies() {
+        let mut state = fixture();
+        state.set_turns_without_capture_or_promotion(
+            taikyoku_shogi::game_state::PROGRESS_DRAW_LIMIT,
+        );
+        assert_eq!(terminal_reason(&state), Some("progress draw"));
+        assert!(play_route(&mut state, "5,5-5,7").is_err());
+        assert!(captures(&mut state).is_empty());
     }
 }

@@ -174,9 +174,10 @@ mod tests {
         )
         .unwrap();
         let (mv, ann) = player.choose_move_annotated(&state).expect("ab move");
-        assert!(state.generate_legal_moves().iter().any(|m| {
-            m.from == mv.from && m.to == mv.to && m.promoted == mv.promoted
-        }));
+        assert!(state
+            .generate_legal_moves()
+            .iter()
+            .any(|m| { m.from == mv.from && m.to == mv.to && m.promoted == mv.promoted }));
         assert!(ann.eval.is_some(), "search score should be recorded");
         assert!(ann.static_eval.is_some(), "static eval should be recorded");
         assert!(ann.nodes.is_some_and(|n| n > 0));

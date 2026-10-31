@@ -1,7 +1,9 @@
 //! Quiet-biased eval trajectories: swing metrics, jump attribution, interesting ranking.
 
+use crate::eval::is_big_piece;
 use crate::eval::{EvalCheckpoint, EvalWeights, ALL_PIECE_TYPES};
 use crate::game_history::GameResult;
+use crate::game_history::MoveRecord;
 use crate::game_state::GameState;
 use crate::piece::{Color, PieceType};
 use crate::position::Position;
@@ -9,9 +11,7 @@ use crate::search::{search, SearchConfig};
 use crate::training::featurize::move_was_capture;
 use crate::training::paths::{self, ensure_data_dirs};
 use crate::training::record::{AgentSpec, GameRecordV2, GameStart};
-use crate::eval::is_big_piece;
 use crate::training::worker::replay_to_ply;
-use crate::game_history::MoveRecord;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -152,12 +152,12 @@ pub struct SummaryRow {
     pub trace_path: String,
 }
 
-fn initial_state(start: &GameStart) -> GameState {
+fn initial_state(start: &GameStart) -> Result<GameState, String> {
     match start {
         GameStart::Opening => {
             let mut state = GameState::new();
             state.setup_initial_position();
-            state
+            Ok(state)
         }
         GameStart::Position { position } => position.to_state(),
     }
@@ -223,24 +223,35 @@ fn piece_counts(state: &GameState) -> Vec<i32> {
     c
 }
 
-fn snapshot_point(
-    state: &GameState,
-    ply: usize,
-    weights: &EvalWeights,
-    clip_cap: f32,
+/// How the move into a traced ply is classified.
+#[derive(Default)]
+struct PlyTags {
     quiet: bool,
     capture_into: bool,
     royal_change: bool,
     loud_promotion: bool,
     loud_promotion_to: Option<String>,
+}
+
+fn snapshot_point(
+    state: &GameState,
+    ply: usize,
+    weights: &EvalWeights,
+    clip_cap: f32,
+    tags: PlyTags,
     // When set (from AB game records), use instead of re-evaluating the board.
     recorded_eval: Option<i32>,
 ) -> TracePoint {
-    let eval = recorded_eval
-        .map(|e| e as f32)
-        .unwrap_or_else(|| {
-            crate::eval::evaluate_absolute_black(state.get_board(), weights, ply) as f32
-        });
+    let PlyTags {
+        quiet,
+        capture_into,
+        royal_change,
+        loud_promotion,
+        loud_promotion_to,
+    } = tags;
+    let eval = recorded_eval.map(|e| e as f32).unwrap_or_else(|| {
+        crate::eval::evaluate_absolute_black(state.get_board(), weights, ply) as f32
+    });
     TracePoint {
         ply,
         quiet,
@@ -385,9 +396,8 @@ pub fn compute_metrics(
     let early_med = median(&vals[..mid.max(1)]);
     let late_start = (n * 3) / 4;
     let late_med = median(&vals[late_start.min(n - 1)..]);
-    let late_reversal = early_med != 0.0
-        && late_med != 0.0
-        && early_med.signum() != late_med.signum();
+    let late_reversal =
+        early_med != 0.0 && late_med != 0.0 && early_med.signum() != late_med.signum();
 
     let disagree = if let Some(ws) = winner_sign(result) {
         let mut bad = 0usize;
@@ -441,7 +451,7 @@ fn median(xs: &[f32]) -> f32 {
     let mut v = xs.to_vec();
     v.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
     let m = v.len() / 2;
-    if v.len() % 2 == 0 {
+    if v.len().is_multiple_of(2) {
         (v[m - 1] + v[m]) * 0.5
     } else {
         v[m]
@@ -471,10 +481,7 @@ pub fn assign_interestingness(rows: &mut [SummaryRow]) {
         .iter()
         .map(|r| if r.metrics.late_reversal { 1.0 } else { 0.0 })
         .collect();
-    let dis: Vec<f32> = rows
-        .iter()
-        .map(|r| r.metrics.result_disagreement)
-        .collect();
+    let dis: Vec<f32> = rows.iter().map(|r| r.metrics.result_disagreement).collect();
     let vols: Vec<f32> = rows.iter().map(|r| r.metrics.volatility).collect();
     let (md, sd) = mean_std(&dds);
     let (mr, sr) = mean_std(&revs);
@@ -582,7 +589,7 @@ pub fn trace_game(
     let mut counts_by_ply = vec![Vec::new(); n_plies];
     let mut points_by_ply: Vec<Option<TracePoint>> = vec![None; n_plies];
 
-    let mut state = initial_state(&record.start);
+    let mut state = initial_state(&record.start)?;
     let mut prev_br = count_royals(&state, Color::Black);
     let mut prev_wr = count_royals(&state, Color::White);
     counts_by_ply[0] = piece_counts(&state);
@@ -591,11 +598,10 @@ pub fn trace_game(
         0,
         weights,
         cfg.eval_clip,
-        true,
-        false,
-        false,
-        false,
-        None,
+        PlyTags {
+            quiet: true,
+            ..Default::default()
+        },
         recorded_eval_for_ply(&record.moves, 0),
     ));
 
@@ -629,11 +635,13 @@ pub fn trace_game(
             ply,
             weights,
             cfg.eval_clip,
-            false,
-            cap,
-            royal_change[ply],
-            loud_promotion[ply],
-            loud_promo_to[ply].clone(),
+            PlyTags {
+                quiet: false,
+                capture_into: cap,
+                royal_change: royal_change[ply],
+                loud_promotion: loud_promotion[ply],
+                loud_promotion_to: loud_promo_to[ply].clone(),
+            },
             recorded_eval_for_ply(&record.moves, ply),
         ));
     }
@@ -653,11 +661,7 @@ pub fn trace_game(
 
     let quiet_series: Vec<(usize, f32)> = quiet_plies
         .iter()
-        .filter_map(|&ply| {
-            points_by_ply[ply]
-                .as_ref()
-                .map(|p| (ply, p.eval_clipped))
-        })
+        .filter_map(|&ply| points_by_ply[ply].as_ref().map(|p| (ply, p.eval_clipped)))
         .collect();
 
     let (mut metrics, _, _) = compute_metrics(&quiet_series, &record.result);
@@ -723,7 +727,10 @@ fn stm_score_to_black_abs(score: i32, turn: Color) -> f32 {
 fn move_label(mv: &crate::game_state::Move) -> String {
     format!(
         "{}{}{}{}",
-        mv.from.file, mv.from.rank, mv.to.file, mv.to.rank
+        mv.from.file(),
+        mv.from.rank(),
+        mv.to.file(),
+        mv.to.rank()
     )
 }
 
@@ -991,7 +998,8 @@ pub fn run_eval_trace(cfg: &EvalTraceConfig) -> Result<(usize, PathBuf), String>
         lines.push_str(&serde_json::to_string(r).map_err(|e| e.to_string())?);
         lines.push('\n');
     }
-    fs::write(&summary_path, lines).map_err(|e| format!("write {}: {e}", summary_path.display()))?;
+    fs::write(&summary_path, lines)
+        .map_err(|e| format!("write {}: {e}", summary_path.display()))?;
 
     let md_path = cfg.out_dir.join("interesting.md");
     write_interesting_md(&md_path, &summaries, cfg.top_n)?;
@@ -1067,8 +1075,8 @@ mod tests {
             eval,
             static_eval,
             nodes: None,
-                completed_depth: None,
-                iteration_timings: Vec::new(),
+            completed_depth: None,
+            iteration_timings: Vec::new(),
         };
         let moves = vec![mk(Some(100), Some(50)), mk(None, Some(200))];
         assert_eq!(recorded_eval_for_ply(&moves, 0), Some(50)); // start: static
@@ -1108,10 +1116,9 @@ mod tests {
                 is_big_piece(to).then_some((*pt, to))
             })
             .collect();
-        assert!(
-            loud.iter().any(|(f, t)| *f == PieceType::FreeKing
-                && *t == PieceType::GreatGeneral)
-        );
+        assert!(loud
+            .iter()
+            .any(|(f, t)| *f == PieceType::FreeKing && *t == PieceType::GreatGeneral));
         assert!(!loud.is_empty());
         // Keep this list in sync with scale_sample::is_big_piece for docs/debugging.
         let expected_new_big = [
@@ -1142,11 +1149,10 @@ mod tests {
             1,
             &weights,
             50_000.0,
-            true,
-            false,
-            false,
-            false,
-            None,
+            PlyTags {
+                quiet: true,
+                ..Default::default()
+            },
             Some(recorded),
         );
         assert_eq!(pt.eval as i32, recorded);
@@ -1155,11 +1161,10 @@ mod tests {
             1,
             &weights,
             50_000.0,
-            true,
-            false,
-            false,
-            false,
-            None,
+            PlyTags {
+                quiet: true,
+                ..Default::default()
+            },
             None,
         );
         assert_ne!(pt_board.eval as i32, recorded);
@@ -1177,7 +1182,7 @@ mod tests {
 
     #[test]
     fn mate_clip_limits_interestingness_input() {
-        let series = vec![(0, 10.0), (10, 20.0), (20, 1_000_000.0)];
+        let series = [(0, 10.0), (10, 20.0), (20, 1_000_000.0)];
         let clipped: Vec<_> = series
             .iter()
             .map(|(p, e)| (*p, clip(*e, DEFAULT_EVAL_CLIP)))

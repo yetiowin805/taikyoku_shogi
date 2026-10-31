@@ -1,8 +1,7 @@
 //! Versioned, content-verified NNUE residual on a fixed material baseline.
 pub mod features;
-mod storage;
 mod packed;
-pub(crate) use storage::Snapshot;
+mod storage;
 use crate::{
     board::Board,
     piece::{Color, Piece},
@@ -15,6 +14,7 @@ use std::{
     path::Path,
     sync::{Arc, Mutex, OnceLock},
 };
+pub(crate) use storage::Snapshot;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -87,7 +87,7 @@ pub fn hash_file(path: &Path) -> Result<String, String> {
 }
 impl Network {
     pub fn load(checkpoint: &Path, d: &Descriptor) -> Result<Arc<Self>, String> {
-        if d.width < 32 || d.width > 4096 || d.width % 32 != 0 {
+        if d.width < 32 || d.width > 4096 || !d.width.is_multiple_of(32) {
             return Err("invalid NNUE width".into());
         }
         if d.feature_hash
@@ -211,7 +211,11 @@ impl Accumulator {
     pub fn new(net: Arc<Network>, board: &Board) -> Self {
         let mut sums = net.bias.clone();
         sums.extend_from_slice(&net.bias);
-        let mut a = Self { net, sums, storage: storage::Storage::default() };
+        let mut a = Self {
+            net,
+            sums,
+            storage: storage::Storage::default(),
+        };
         for c in [Color::Black, Color::White] {
             for p in board.pieces_by_color(c) {
                 a.change(p, 1);
@@ -361,14 +365,13 @@ pub(crate) mod tests {
         let mut s = state();
         let mut w = EvalWeights::seed();
         w.nnue_runtime = Some(first_net.clone());
-        let _bind = eval::bind_search_weights(&w);
         s.ensure_eval_inc(&w);
         let old = s.nnue.clone().unwrap();
         let u = s
-            .make_move_for_search(Move::new(
-                Position::new(5, 5).unwrap(),
-                Position::new(5, 8).unwrap(),
-            ))
+            .make_move_for_search_with_weights(
+                Move::new(Position::new(5, 5).unwrap(), Position::new(5, 8).unwrap()),
+                &w,
+            )
             .unwrap();
         assert!(s.nnue.as_ref().unwrap().matches_rebuild(s.get_board()));
         let clone = s.clone();
@@ -423,9 +426,12 @@ pub(crate) mod tests {
                 w.nnue_runtime = Some(net(32, "before"));
                 s.ensure_eval_inc(&w);
             }
-            let undo = s.make_move_for_search(Move::new(
-                Position::new(5, 5).unwrap(), Position::new(5, 8).unwrap(),
-            )).unwrap();
+            let undo = s
+                .make_move_for_search(Move::new(
+                    Position::new(5, 5).unwrap(),
+                    Position::new(5, 8).unwrap(),
+                ))
+                .unwrap();
             w.nnue_runtime = Some(net(64, "after"));
             s.ensure_eval_inc(&w);
             s.unmake_move_for_search(undo);

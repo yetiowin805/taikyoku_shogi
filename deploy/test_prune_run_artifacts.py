@@ -18,10 +18,19 @@ class PruneRunArtifactsTest(unittest.TestCase):
         timed = [{"move_number": 1, "iteration_timings": [{"depth": 1, "elapsed_us": 5, "completed": True}]}]
         self.game = run / "slot0001-a-vs-b-a-black.json"
         self.game.write_text(json.dumps({"game_id": "g1", "moves": timed}, indent=2))
-        (run / "slot0002-a-vs-b-a-white.json").write_text(json.dumps({"game_id": "g2", "moves": [{"move_number": 1}]}, indent=2))
-        (run / "state.json").write_text(json.dumps({"slots": [
-            {"id": 1, "status": "done", "game_path": str(self.game)},
-            {"id": 2, "status": "done", "game_path": str(run / "slot0002-a-vs-b-a-white.json")}]}))
+        (run / "slot0002-a-vs-b-a-white.json").write_text(
+            json.dumps({"game_id": "g2", "moves": [{"move_number": 1}]}, indent=2)
+        )
+        (run / "state.json").write_text(
+            json.dumps(
+                {
+                    "slots": [
+                        {"id": 1, "status": "done", "game_path": str(self.game)},
+                        {"id": 2, "status": "done", "game_path": str(run / "slot0002-a-vs-b-a-white.json")},
+                    ]
+                }
+            )
+        )
         self.covered = workers / "slot-1.result.iterations.json"
         self.covered.write_text(json.dumps({"game_id": "g1", "moves": timed}))
         # The saved game lacks these timings (older coordinator): must be kept.
@@ -46,8 +55,9 @@ class PruneRunArtifactsTest(unittest.TestCase):
         self.tmp.cleanup()
 
     def prune(self, *flags):
-        subprocess.run([sys.executable, str(SCRIPT), str(self.run_dir), *flags],
-                       check=True, capture_output=True, text=True)
+        subprocess.run(
+            [sys.executable, str(SCRIPT), str(self.run_dir), *flags], check=True, capture_output=True, text=True
+        )
 
     def test_dry_run_changes_nothing(self):
         self.prune()

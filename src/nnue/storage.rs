@@ -80,7 +80,11 @@ impl Accumulator {
         // original ability list (White jumping pieces may differ from Black).
         let ability = features::schema().row_classes[features::key(piece)];
         let relative_color = usize::from(piece.color == Color::White) ^ side;
-        let square = if side == 1 { 1295 - piece.position.to_index() } else { piece.position.to_index() };
+        let square = if side == 1 {
+            1295 - piece.position.to_index()
+        } else {
+            piece.position.to_index()
+        };
         let key = (ability * 2 + relative_color) * 1296 + square;
         let slot = ((key as u64)
             .wrapping_mul(0x9e3779b97f4a7c15)
@@ -151,15 +155,21 @@ impl Accumulator {
     /// Save the current sums and apply every piece change of one move in a
     /// single tiled pass per perspective. The new sums are written into the
     /// recycled undo buffer, so no separate snapshot copy is needed.
-    pub(crate) fn save_and_apply(&mut self, subs: &[Piece], add: Option<&Piece>) -> Snapshot {
+    /// Cloning the iterator lets the caller combine the mover and captured
+    /// pieces directly without allocating a temporary changed-piece vector.
+    pub(crate) fn save_and_apply<'a>(
+        &mut self,
+        subs: impl Iterator<Item = &'a Piece> + Clone,
+        add: Option<&Piece>,
+    ) -> Snapshot {
         let w = self.net.width;
         let mut out = self.storage.undo_pool.pop().unwrap_or_default();
         out.resize(2 * w, 0);
         self.ensure_storage();
         let mut codes = std::mem::take(&mut self.storage.codes);
-        let delta_slot = if subs.len() + usize::from(add.is_some()) >= DELTA_MIN_CHANGES {
+        let delta_slot = if subs.clone().count() + usize::from(add.is_some()) >= DELTA_MIN_CHANGES {
             codes.clear();
-            codes.extend(subs.iter().map(piece_code));
+            codes.extend(subs.clone().map(piece_code));
             codes.extend(add.map(|p| piece_code(p) | 1 << 31));
             let mut h = 0u64;
             for &c in &codes {
@@ -193,7 +203,7 @@ impl Accumulator {
             slots.clear();
             let mut cached = true;
             for (p, plus) in subs
-                .iter()
+                .clone()
                 .map(|p| (p, false))
                 .chain(add.map(|p| (p, true)))
             {
@@ -209,13 +219,13 @@ impl Accumulator {
             let dst = &mut out[side * w..(side + 1) * w];
             if !cached {
                 dst.copy_from_slice(src);
-                for p in subs {
+                for p in subs.clone() {
                     self.add_direct(dst, p, side, -1);
                 }
                 if let Some(p) = add {
                     self.add_direct(dst, p, side, 1);
                 }
-            } else if w % 64 == 0 {
+            } else if w.is_multiple_of(64) {
                 tiled::<64>(src, dst, rows, &slots);
             } else {
                 tiled::<32>(src, dst, rows, &slots);
@@ -297,7 +307,8 @@ mod tests {
                 for reverse in [false, true] {
                     let mut black = Piece::new(pt, Color::Black, Position::from_index(37).unwrap());
                     black.is_promoted = promoted;
-                    black.base_piece_type = reverse.then_some(crate::piece::PieceType::ReverseChariot);
+                    black.base_piece_type =
+                        reverse.then_some(crate::piece::PieceType::ReverseChariot);
                     let mut white = black;
                     white.color = Color::White;
                     white.position = Position::from_index(1295 - 37).unwrap();
@@ -466,7 +477,7 @@ mod tests {
         }
         let mut acc = Accumulator::new(net.clone(), &board);
         let before = acc.sums.clone();
-        let saved = acc.save_and_apply(&pieces, None);
+        let saved = acc.save_and_apply(pieces.iter(), None);
         assert_eq!(acc.sums, reference(&net, &Board::new()));
         assert!(acc.storage.delta_keys.iter().any(|k| !k.is_empty()));
         assert!(acc.restore_sums(saved));
@@ -478,7 +489,7 @@ mod tests {
             Position::new(30, 30).unwrap(),
         );
         acc.change_cached(&extra, 1);
-        let saved = acc.save_and_apply(&pieces, None);
+        let saved = acc.save_and_apply(pieces.iter(), None);
         let mut expected = Board::new();
         expected.place_piece(extra);
         assert_eq!(acc.sums, reference(&net, &expected));
@@ -488,5 +499,41 @@ mod tests {
         drop(acc);
         // Parked rows must not keep a no-longer-active weight blob alive.
         assert_eq!(Arc::strong_count(&net), 1);
+    }
+
+    #[test]
+    fn chained_changes_match_slice_updates_on_misses_and_hits() {
+        let net = super::super::tests::net(32, "chained-deltas");
+        let pieces: Vec<_> = (0..5)
+            .map(|i| {
+                Piece::new(
+                    crate::piece::PieceType::Pawn,
+                    Color::Black,
+                    Position::new(i, 12).unwrap(),
+                )
+            })
+            .collect();
+        let mut board = Board::new();
+        for &piece in &pieces {
+            board.place_piece(piece);
+        }
+        let mut slice = Accumulator::new(net.clone(), &board);
+        let mut chained = Accumulator::new(net, &board);
+        let mut added = pieces[0];
+        added.position = Position::new(0, 13).unwrap();
+        for count in 1..=pieces.len() {
+            // The second application reuses the cached whole-move delta for
+            // sufficiently long changes; the first builds its full key.
+            for _ in 0..2 {
+                let a = slice.save_and_apply(pieces[..count].iter(), Some(&added));
+                let b = chained.save_and_apply(
+                    std::iter::once(&pieces[0]).chain(pieces[1..count].iter()),
+                    Some(&added),
+                );
+                assert_eq!(slice.sums, chained.sums);
+                assert!(slice.restore_sums(a));
+                assert!(chained.restore_sums(b));
+            }
+        }
     }
 }

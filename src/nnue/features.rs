@@ -161,9 +161,11 @@ pub fn schema() -> &'static Schema {
         // Identical ability lists select identical weight rows regardless of
         // piece identity. Preserve the original schema hash and model format.
         let mut representatives = BTreeMap::new();
-        let row_classes = mappings.iter().enumerate().map(|(i, abilities)| {
-            *representatives.entry(abilities.clone()).or_insert(i)
-        }).collect();
+        let row_classes = mappings
+            .iter()
+            .enumerate()
+            .map(|(i, abilities)| *representatives.entry(abilities.clone()).or_insert(i))
+            .collect();
         Schema {
             row_classes,
             names,

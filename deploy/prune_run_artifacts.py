@@ -15,6 +15,7 @@ catalogues and NNUE datasets. Logs are reported, never touched.
 
   ./deploy/prune_run_artifacts.py data/raw/tourney/RUN [RUN ...] [--apply]
 """
+
 import argparse
 import json
 import sqlite3

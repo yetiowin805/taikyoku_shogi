@@ -53,7 +53,7 @@ impl Default for WorkerConfig {
 #[derive(Debug, Clone)]
 pub struct PlayFailure {
     pub message: String,
-    pub partial: GameRecordV2,
+    pub partial: Box<GameRecordV2>,
 }
 
 impl std::fmt::Display for PlayFailure {
@@ -81,12 +81,12 @@ fn make_player(spec: &AgentSpec) -> Result<Box<dyn Player>, String> {
     player_by_name_with_options(&spec.name, &agent_options(spec))
 }
 
-fn initial_state(start: &GameStart) -> GameState {
+fn initial_state(start: &GameStart) -> Result<GameState, String> {
     match start {
         GameStart::Opening => {
             let mut state = GameState::new();
             state.setup_initial_position();
-            state
+            Ok(state)
         }
         GameStart::Position { position } => position.to_state(),
     }
@@ -134,7 +134,7 @@ pub fn play_one_game(config: &WorkerConfig) -> Result<GameRecordV2, PlayFailure>
         if let Err(message) = valid {
             return Err(PlayFailure {
                 message: message.clone(),
-                partial: build_record(
+                partial: Box::new(build_record(
                     config,
                     GameRecordV2::new_id(config.seed),
                     0,
@@ -142,13 +142,13 @@ pub fn play_one_game(config: &WorkerConfig) -> Result<GameRecordV2, PlayFailure>
                     vec![],
                     None,
                     Some(message),
-                ),
+                )),
             });
         }
     }
     let black = make_player(&config.black).map_err(|message| PlayFailure {
         message,
-        partial: build_record(
+        partial: Box::new(build_record(
             config,
             GameRecordV2::new_id(config.seed),
             0,
@@ -156,11 +156,11 @@ pub fn play_one_game(config: &WorkerConfig) -> Result<GameRecordV2, PlayFailure>
             Vec::new(),
             None,
             Some("failed before any moves".into()),
-        ),
+        )),
     })?;
     let white = make_player(&config.white).map_err(|message| PlayFailure {
         message,
-        partial: build_record(
+        partial: Box::new(build_record(
             config,
             GameRecordV2::new_id(config.seed),
             0,
@@ -168,9 +168,20 @@ pub fn play_one_game(config: &WorkerConfig) -> Result<GameRecordV2, PlayFailure>
             Vec::new(),
             None,
             Some("failed before any moves".into()),
-        ),
+        )),
     })?;
-    let mut state = initial_state(&config.start);
+    let mut state = initial_state(&config.start).map_err(|message| PlayFailure {
+        message: message.clone(),
+        partial: Box::new(build_record(
+            config,
+            GameRecordV2::new_id(config.seed),
+            0,
+            Instant::now(),
+            vec![],
+            None,
+            Some(message),
+        )),
+    })?;
     let started = Instant::now();
     let game_id = GameRecordV2::new_id(config.seed);
     let timestamp = std::time::SystemTime::now()
@@ -202,7 +213,10 @@ pub fn play_one_game(config: &WorkerConfig) -> Result<GameRecordV2, PlayFailure>
                 Some(message.clone()),
             );
             partial.stats.clock = clock;
-            PlayFailure { message, partial }
+            PlayFailure {
+                message,
+                partial: Box::new(partial),
+            }
         };
 
     while move_number <= config.max_moves {
@@ -252,7 +266,9 @@ pub fn play_one_game(config: &WorkerConfig) -> Result<GameRecordV2, PlayFailure>
         let choice = if let Some(control) = config.time_control {
             let spent = turn_started.elapsed().as_millis() as u64;
             let mut budget = control.budget(banks[clock_index].saturating_sub(spent));
-            budget.soft_ms = budget.soft_ms.min(control.increment_ms.saturating_sub(spent));
+            budget.soft_ms = budget
+                .soft_ms
+                .min(control.increment_ms.saturating_sub(spent));
             if budget.hard_ms == 0 {
                 Some((legal[0].clone(), Default::default()))
             } else {
@@ -324,10 +340,10 @@ pub fn play_one_game(config: &WorkerConfig) -> Result<GameRecordV2, PlayFailure>
                 "{}. {:?}: {}{}-{}{}",
                 move_number,
                 color,
-                mv.from.file,
-                mv.from.rank,
-                mv.to.file,
-                mv.to.rank
+                mv.from.file(),
+                mv.from.rank(),
+                mv.to.file(),
+                mv.to.rank()
             );
         }
 
@@ -346,7 +362,7 @@ pub fn play_one_game(config: &WorkerConfig) -> Result<GameRecordV2, PlayFailure>
 
 /// Replay recorded moves onto a fresh start position (for featurization).
 pub fn replay_to_end(record: &GameRecordV2) -> Result<GameState, String> {
-    let mut state = initial_state(&record.start);
+    let mut state = initial_state(&record.start)?;
     for mr in &record.moves {
         let mv = crate::game_history::GameHistory::record_to_move(mr)?;
         let turn_before = state.get_current_turn();
@@ -363,7 +379,7 @@ pub fn replay_to_end(record: &GameRecordV2) -> Result<GameState, String> {
 
 /// Snapshot after applying the first `ply` recorded moves (0 = start).
 pub fn replay_to_ply(record: &GameRecordV2, ply: usize) -> Result<GameState, String> {
-    let mut state = initial_state(&record.start);
+    let mut state = initial_state(&record.start)?;
     for mr in record.moves.iter().take(ply) {
         let mv = crate::game_history::GameHistory::record_to_move(mr)?;
         let turn_before = state.get_current_turn();

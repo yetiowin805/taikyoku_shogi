@@ -18,11 +18,12 @@ import argparse
 import json
 import math
 import sys
+from collections.abc import Iterable, Sequence
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Any
 
 # Mix-tournament top 11 (not leftover-only history). Keep in sync with FUTURE_NOTES.md.
-CHASSIS_IDS: Tuple[str, ...] = (
+CHASSIS_IDS: tuple[str, ...] = (
     "T150_P120_T12",
     "H120_P120_T15",
     "AVG_T150_H120",
@@ -37,7 +38,7 @@ CHASSIS_IDS: Tuple[str, ...] = (
 )
 
 # Pieces the twin transplant would overwrite. Capturers + range two-movers.
-HEADLINE: Tuple[str, ...] = (
+HEADLINE: tuple[str, ...] = (
     "HookMover",
     "Capricorn",
     "Tengu",
@@ -52,7 +53,7 @@ HEADLINE: Tuple[str, ...] = (
 # Init |value| at or above this counts as "large" for the group stats.
 LARGE_FLOOR = 400.0
 
-SHORT: Dict[str, str] = {
+SHORT: dict[str, str] = {
     "T150_P120_T12": "T150P12",
     "H120_P120_T15": "H120P15",
     "AVG_T150_H120": "AVG_TH",
@@ -71,15 +72,15 @@ def load_cp(path: Path) -> dict:
     return json.loads(path.read_text())
 
 
-def pieces(cp: dict) -> Dict[str, float]:
+def pieces(cp: dict) -> dict[str, float]:
     return {k: float(v) for k, v in cp["weights"]["piece"].items()}
 
 
-def pawn(piece: Dict[str, float]) -> float:
+def pawn(piece: dict[str, float]) -> float:
     return max(abs(piece.get("Pawn", 1.0)), 1e-6)
 
 
-def per_pawn(piece: Dict[str, float]) -> Dict[str, float]:
+def per_pawn(piece: dict[str, float]) -> dict[str, float]:
     p = pawn(piece)
     return {k: v / p for k, v in piece.items()}
 
@@ -112,8 +113,8 @@ def chassis_path(grid: Path, chassis_id: str) -> Path:
     return grid / f"{chassis_id}.json"
 
 
-def parse_log(path: Path) -> Dict[str, Any]:
-    out: Dict[str, Any] = {}
+def parse_log(path: Path) -> dict[str, Any]:
+    out: dict[str, Any] = {}
     if not path.is_file():
         return out
     text = path.read_text()
@@ -123,7 +124,7 @@ def parse_log(path: Path) -> Dict[str, Any]:
     return out
 
 
-def agent_stats(init: Dict[str, float], fit: Dict[str, float]) -> Dict[str, Any]:
+def agent_stats(init: dict[str, float], fit: dict[str, float]) -> dict[str, Any]:
     names = sorted(set(init) | set(fit))
     r0 = per_pawn(init)
     r1 = per_pawn(fit)
@@ -187,9 +188,9 @@ def render(
     grid: Path,
     fits: Path,
     ids: Sequence[str],
-) -> Tuple[str, dict]:
+) -> tuple[str, dict]:
     agents = []
-    missing: List[str] = []
+    missing: list[str] = []
     for i in ids:
         ip = chassis_path(grid, i)
         fp = fit_path(fits, i)
@@ -216,11 +217,9 @@ def render(
         )
 
     if missing:
-        raise SystemExit(
-            "missing chassis or fit for: " + ", ".join(missing) + f"\n  grid={grid}\n  fits={fits}"
-        )
+        raise SystemExit("missing chassis or fit for: " + ", ".join(missing) + f"\n  grid={grid}\n  fits={fits}")
 
-    lines: List[str] = []
+    lines: list[str] = []
     lines.append("# Top-11 Texel piece-value deltas")
     lines.append("")
     lines.append(
@@ -309,10 +308,7 @@ def render(
     lines.append(
         md_table(
             ["Piece", "mean /P", "stdev", "min", "max"],
-            [
-                [p, fmt_val(m), fmt_val(s), fmt_val(lo), fmt_val(hi)]
-                for p, m, s, lo, hi in collapse
-            ],
+            [[p, fmt_val(m), fmt_val(s), fmt_val(lo), fmt_val(hi)] for p, m, s, lo, hi in collapse],
         )
     )
     lines.append("")
@@ -375,7 +371,7 @@ def render(
     return "\n".join(lines) + "\n", payload
 
 
-def main(argv: Optional[Sequence[str]] = None) -> int:
+def main(argv: Sequence[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--grid", default="models/top4-mix-grid", type=Path)
     ap.add_argument("--fits", default="models/top11-texel", type=Path)

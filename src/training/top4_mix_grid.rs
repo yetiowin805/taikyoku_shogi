@@ -359,10 +359,8 @@ pub fn run_top4_mix_grid(cfg: &Top4MixGridConfig) -> Result<(TourneyManifest, Gr
         }
     }
 
-    for i in 0..TOP4.len() {
-        for j in (i + 1)..TOP4.len() {
-            let a_id = TOP4[i];
-            let b_id = TOP4[j];
+    for (i, &a_id) in TOP4.iter().enumerate() {
+        for &b_id in &TOP4[i + 1..] {
             let wa = by_id
                 .get(a_id)
                 .ok_or_else(|| format!("missing mix cell {a_id}"))?;
@@ -477,9 +475,9 @@ mod tests {
     #[test]
     fn pairwise_ids_are_six_and_ordered() {
         let mut ids = Vec::new();
-        for i in 0..TOP4.len() {
-            for j in (i + 1)..TOP4.len() {
-                ids.push(avg_id(TOP4[i], TOP4[j]));
+        for (i, a_id) in TOP4.iter().enumerate() {
+            for b_id in &TOP4[i + 1..] {
+                ids.push(avg_id(a_id, b_id));
             }
         }
         assert_eq!(

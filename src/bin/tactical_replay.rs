@@ -28,7 +28,7 @@ fn run() -> Result<(), String> {
         return Err("position ply out of range".into());
     }
     let mut state = match &rec.start {
-        GameStart::Position { position } => position.to_state(),
+        GameStart::Position { position } => position.to_state()?,
         GameStart::Opening => {
             let mut s = GameState::new();
             s.setup_initial_position();
@@ -62,7 +62,7 @@ fn run() -> Result<(), String> {
         }
         let removed: Vec<_>=before.pieces.iter().filter(|p|p.position!=from && state.get_board().get_piece(p.position)!=Some(**p))
             .map(|p|serde_json::json!({"piece":format!("{:?}",p.piece_type),"color":p.color,
-                "square":[p.position.file,p.position.rank],"seed_value":material_piece_value(p,&weights)})).collect();
+                "square":[p.position.file(),p.position.rank()],"seed_value":material_piece_value(p,&weights)})).collect();
         let after = BoardPosition::from_state(&state);
         let material = |b: &BoardPosition| -> f32 {
             b.pieces

@@ -1,0 +1,4 @@
+# Mechanical reformatting; `git blame` skips these (GitHub does automatically,
+# locally: git config blame.ignoreRevsFile .git-blame-ignore-revs).
+# cargo fmt + ruff format, squash-merged in #156 (also carries small lint fixes)
+baeba561c924f799d1ec6e743a1b0315e1934635

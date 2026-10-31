@@ -1,0 +1,89 @@
+[
+  {
+    "name": "iterator",
+    "patches": [
+      "iterator-storage.patch",
+      "iterator-state.patch"
+    ]
+  },
+  {
+    "name": "repetition",
+    "patches": [
+      "repetition-state.patch",
+      "search-repetition-roots.patch"
+    ]
+  },
+  {
+    "name": "second-head",
+    "patches": [
+      "nnue-second-head.patch"
+    ]
+  },
+  {
+    "name": "search-combined",
+    "patches": [
+      "search-root-order.patch",
+      "search-qretain.patch",
+      "search-cached-captures.patch",
+      "search-ttmask.patch"
+    ]
+  },
+  {
+    "name": "attack-filter",
+    "patches": [
+      "attack-filter.patch"
+    ]
+  },
+  {
+    "name": "range-count",
+    "patches": [
+      "range-count.patch",
+      "range-eval.patch"
+    ]
+  },
+  {
+    "name": "direct-append",
+    "patches": [
+      "direct-append.patch",
+      "range-eval.patch"
+    ]
+  },
+  {
+    "name": "board-direct",
+    "patches": [
+      "board-direct.patch"
+    ]
+  },
+  {
+    "name": "direction-bits",
+    "patches": [
+      "direction-bits.patch"
+    ]
+  },
+  {
+    "name": "fixed-rows",
+    "patches": [
+      "iterator-storage.patch",
+      "iterator-state.patch",
+      "nnue-fixed-rows.patch"
+    ]
+  },
+  {
+    "name": "head-shift",
+    "patches": [
+      "nnue-shift.patch"
+    ]
+  },
+  {
+    "name": "landing-cache",
+    "patches": [
+      "search-landing-cache.patch"
+    ]
+  },
+  {
+    "name": "virtual-attack",
+    "patches": [
+      "virtual-attack.patch"
+    ]
+  }
+]

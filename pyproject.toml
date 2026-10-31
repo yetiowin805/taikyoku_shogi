@@ -1,0 +1,15 @@
+# Tooling config only; the Python here is scripts, not an installable package.
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+# Scripts import siblings by bare name (`import tourney_analysis as a`);
+# these dirs tell import sorting which names are first-party.
+src = ["deploy", "training/nnue", "benchmarks/*"]
+
+[tool.ruff.lint]
+# pycodestyle, pyflakes, import order, bugbear, pyupgrade.
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = [
+    "E501",  # line length is the formatter's job; long strings stay as they are
+]

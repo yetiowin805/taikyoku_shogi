@@ -35,7 +35,7 @@ fn load(c: &Case) -> Result<(GameState, EvalCheckpoint), String> {
             s.setup_initial_position();
             s
         }
-        GameStart::Position { position } => position.to_state(),
+        GameStart::Position { position } => position.to_state()?,
     };
     if c.ply > rec.moves.len() {
         return Err("prefix out of range".into());
@@ -182,7 +182,9 @@ fn run() -> Result<(), String> {
     let mut rng = rand::rngs::StdRng::seed_from_u64(20260915);
     match args[1].as_str() {
         "grid-smoke" => {
-            use taikyoku_shogi::training::royal_al_grid::{experimental_cells, retired_checkpoint, BASE, SOURCE_REV};
+            use taikyoku_shogi::training::royal_al_grid::{
+                experimental_cells, retired_checkpoint, BASE, SOURCE_REV,
+            };
             let cells = experimental_cells(&retired_checkpoint(SOURCE_REV, BASE)?);
             for (name, state, _) in all.iter().take(5) {
                 let before = BoardPosition::from_state(state);
@@ -190,14 +192,18 @@ fn run() -> Result<(), String> {
                 for cp in &cells {
                     let player = AlphaBetaPlayer::from_checkpoint(cp.clone());
                     let mut cfg = player.config().clone();
-                    cfg.depth = 8; cfg.max_time_ms = Some(100); cfg.collect_trace = false;
+                    cfg.depth = 8;
+                    cfg.max_time_ms = Some(100);
+                    cfg.collect_trace = false;
                     let t = Instant::now();
                     let r = search(state, player.weights(), &cfg);
                     assert!(r.best_move.as_ref().is_some_and(|m| legal.contains(m)));
                     assert_eq!(BoardPosition::from_state(state), before);
-                    emit(serde_json::json!({"case":name,"agent":cp.name,"ms":t.elapsed().as_secs_f64()*1000.,
+                    emit(
+                        serde_json::json!({"case":name,"agent":cp.name,"ms":t.elapsed().as_secs_f64()*1000.,
                         "depth":r.completed_depth,"nodes":r.nodes,"best":r.best_move,
-                        "royal_extensions":r.royal_extensions,"royal_probe":r.royal_probe}));
+                        "royal_extensions":r.royal_extensions,"royal_probe":r.royal_probe}),
+                    );
                 }
             }
         }

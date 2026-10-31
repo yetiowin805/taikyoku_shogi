@@ -1,7 +1,7 @@
-use taikyoku_shogi::game_state::{GameState, Move};
-use taikyoku_shogi::piece::{Piece, PieceType, Color};
-use taikyoku_shogi::position::Position;
 use std::io::{self, Write};
+use taikyoku_shogi::game_state::{GameState, Move};
+use taikyoku_shogi::piece::{Color, Piece, PieceType};
+use taikyoku_shogi::position::Position;
 
 /// Test GameState that disables win conditions
 struct TestGameState {
@@ -16,14 +16,23 @@ impl TestGameState {
     }
 
     /// Place a piece on the board
-    fn place_piece(&mut self, piece_type: PieceType, color: Color, file: u8, rank: u8) -> Result<(), String> {
+    fn place_piece(
+        &mut self,
+        piece_type: PieceType,
+        color: Color,
+        file: u8,
+        rank: u8,
+    ) -> Result<(), String> {
         if file >= 9 || rank >= 9 {
-            return Err(format!("Position ({}, {}) is out of bounds for 9x9 board", file, rank));
+            return Err(format!(
+                "Position ({}, {}) is out of bounds for 9x9 board",
+                file, rank
+            ));
         }
-        
+
         let pos = Position::new(file, rank)
             .ok_or_else(|| format!("Invalid position: ({}, {})", file, rank))?;
-        
+
         let piece = Piece::new(piece_type, color, pos);
         self.state.place_piece(piece);
         Ok(())
@@ -32,18 +41,27 @@ impl TestGameState {
     /// Remove a piece from the board
     fn remove_piece(&mut self, file: u8, rank: u8) -> Result<(), String> {
         if file >= 9 || rank >= 9 {
-            return Err(format!("Position ({}, {}) is out of bounds for 9x9 board", file, rank));
+            return Err(format!(
+                "Position ({}, {}) is out of bounds for 9x9 board",
+                file, rank
+            ));
         }
-        
+
         let pos = Position::new(file, rank)
             .ok_or_else(|| format!("Invalid position: ({}, {})", file, rank))?;
-        
+
         self.state.get_board_mut().remove_piece(pos);
         Ok(())
     }
 
     /// Execute a move
-    fn make_move(&mut self, from_file: u8, from_rank: u8, to_file: u8, to_rank: u8) -> Result<(), String> {
+    fn make_move(
+        &mut self,
+        from_file: u8,
+        from_rank: u8,
+        to_file: u8,
+        to_rank: u8,
+    ) -> Result<(), String> {
         if from_file >= 9 || from_rank >= 9 || to_file >= 9 || to_rank >= 9 {
             return Err("Positions out of bounds for 9x9 board".to_string());
         }
@@ -74,15 +92,13 @@ impl TestGameState {
                 // so we can generate moves for any piece, not just current turn
                 let original_turn = self.state.get_current_turn();
                 self.state.set_current_turn(piece.color);
-                
+
                 let all_moves = self.state.generate_legal_moves();
-                let filtered: Vec<Move> = all_moves.into_iter()
-                    .filter(|m| m.from == pos)
-                    .collect();
-                
+                let filtered: Vec<Move> = all_moves.into_iter().filter(|m| m.from == pos).collect();
+
                 // Restore original turn
                 self.state.set_current_turn(original_turn);
-                
+
                 filtered
             } else {
                 Vec::new()
@@ -126,7 +142,8 @@ impl TestGameState {
 
     /// Switch turn (for testing)
     fn switch_turn(&mut self) {
-        self.state.set_current_turn(self.state.get_current_turn().opposite());
+        self.state
+            .set_current_turn(self.state.get_current_turn().opposite());
     }
 }
 
@@ -163,14 +180,16 @@ fn print_help() {
     println!("  help                                 - Show this help");
     println!("  quit                                 - Exit");
     println!();
-    println!("Piece types: FE (Free Eagle), P (Pawn), K (King), R (Rook), B (Bishop), Q (Free King)");
+    println!(
+        "Piece types: FE (Free Eagle), P (Pawn), K (King), R (Rook), B (Bishop), Q (Free King)"
+    );
     println!("Colors: B (Black), W (White)");
     println!("Coordinates: file and rank are 0-8 (9x9 board)");
 }
 
 fn main() {
     let mut state = TestGameState::new();
-    
+
     println!("Free Eagle Test Environment");
     println!("9x9 board, no win conditions");
     println!("Type 'help' for commands\n");
@@ -184,7 +203,7 @@ fn main() {
             break;
         }
 
-        let parts: Vec<&str> = input.trim().split_whitespace().collect();
+        let parts: Vec<&str> = input.split_whitespace().collect();
         if parts.is_empty() {
             continue;
         }
@@ -293,7 +312,10 @@ fn main() {
                 };
                 match state.make_move(from_file, from_rank, to_file, to_rank) {
                     Ok(_) => {
-                        println!("Move executed: ({}, {}) -> ({}, {})", from_file, from_rank, to_file, to_rank);
+                        println!(
+                            "Move executed: ({}, {}) -> ({}, {})",
+                            from_file, from_rank, to_file, to_rank
+                        );
                         state.print_board();
                     }
                     Err(e) => println!("Error: {}", e),
@@ -325,11 +347,24 @@ fn main() {
                     println!("Legal moves for piece at ({}, {}):", file, rank);
                     for (i, mv) in moves.iter().enumerate() {
                         if let Some(path) = mv.free_eagle_path() {
-                            println!("  {}. ({}, {}) -> ({}, {}) [Free Eagle path: {:?}]", 
-                                i + 1, mv.from.file, mv.from.rank, mv.to.file, mv.to.rank, path);
+                            println!(
+                                "  {}. ({}, {}) -> ({}, {}) [Free Eagle path: {:?}]",
+                                i + 1,
+                                mv.from.file(),
+                                mv.from.rank(),
+                                mv.to.file(),
+                                mv.to.rank(),
+                                path
+                            );
                         } else {
-                            println!("  {}. ({}, {}) -> ({}, {})", 
-                                i + 1, mv.from.file, mv.from.rank, mv.to.file, mv.to.rank);
+                            println!(
+                                "  {}. ({}, {}) -> ({}, {})",
+                                i + 1,
+                                mv.from.file(),
+                                mv.from.rank(),
+                                mv.to.file(),
+                                mv.to.rank()
+                            );
                         }
                     }
                 }
@@ -360,4 +395,3 @@ fn main() {
         }
     }
 }
-

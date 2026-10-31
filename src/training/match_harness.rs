@@ -98,8 +98,7 @@ fn resolve_start(starts: &StartsSource, seed: u64) -> Result<GameStart, String> 
 /// Play paired games (A as Black then A as White on same start).
 pub fn run_matches(cfg: &MatchConfig) -> Result<MatchScoreboard, String> {
     ensure_data_dirs()?;
-    std::fs::create_dir_all(&cfg.outdir)
-        .map_err(|e| format!("create {}: {}", cfg.outdir, e))?;
+    std::fs::create_dir_all(&cfg.outdir).map_err(|e| format!("create {}: {}", cfg.outdir, e))?;
 
     let starts = parse_starts_spec(&cfg.starts_spec).or_else(|e| {
         // Legacy: treat as opening fallback when path missing.
@@ -170,10 +169,13 @@ pub fn run_matches(cfg: &MatchConfig) -> Result<MatchScoreboard, String> {
                     }) {
                         Ok(rec) => {
                             let tag = if a_black { "a-black" } else { "a-white" };
-                            let path =
-                                Path::new(&cfg.outdir).join(format!("{}-{}.json", rec.game_id, tag));
+                            let path = Path::new(&cfg.outdir)
+                                .join(format!("{}-{}.json", rec.game_id, tag));
                             let _ = rec.save_path(&path);
-                            summary.lock().unwrap().record(&rec.result, rec.stats.move_count);
+                            summary
+                                .lock()
+                                .unwrap()
+                                .record(&rec.result, rec.stats.move_count);
                             let mut b = board.lock().unwrap();
                             match result_for_a(a_black, &rec.result) {
                                 MatchPoint::A => b.a_wins += 1,

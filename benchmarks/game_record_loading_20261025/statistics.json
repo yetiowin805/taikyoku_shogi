@@ -1,0 +1,188 @@
+{
+  "baseline_revision": "c73a7d5ecdd1f179213c1f5664b39a92178ae26b",
+  "candidate_revision": "dc0989125956eb26129b0ff8fcbd9a40ee8a2358",
+  "method": "Six alternating-order pairs per case, 100 parses per process, warmup; input read outside timing. Full serialized record signatures match on all 12 corpus games plus a legacy export. Peak RSS covers the entire helper process.",
+  "compiler": "rustc 1.92.0 (ded5c06cf 2025-12-08)",
+  "cpu_affinity": [
+    2
+  ],
+  "environment": {
+    "system": "Linux",
+    "machine": "x86_64",
+    "cpu_model": "12th Gen Intel(R) Core(TM) i7-1255U"
+  },
+  "uncertainty": "Percentile bootstrap of paired log time ratios, 10,000 resamples. Case intervals describe these six local pairs only; they are not guarantees for other workloads, hardware, or system load. Loader observations are batch means across 100 parses, not individual-request latencies.",
+  "cases": {
+    "v2-small": {
+      "pairs": 6,
+      "repeats_per_process": 100,
+      "moves": 671,
+      "rows": null,
+      "baseline_ms": {
+        "n": 6,
+        "minimum": 1.24203374,
+        "p25": 1.2536061475,
+        "median": 1.25621171,
+        "p75": 1.2575879325,
+        "maximum": 1.29933516,
+        "mean": 1.26076277,
+        "sample_sd": 0.019752563213661156
+      },
+      "candidate_ms": {
+        "n": 6,
+        "minimum": 0.25452134,
+        "p25": 0.255476585,
+        "median": 0.259762015,
+        "p75": 0.26230185,
+        "maximum": 0.26581398,
+        "mean": 0.25950932,
+        "sample_sd": 0.004591591896878474
+      },
+      "paired_time_ratio": {
+        "geometric_mean": 0.2058291251910909,
+        "median": 0.20421506500094666,
+        "time_reduction_percent": 79.41708748089091,
+        "speedup": 4.85839892226916,
+        "bootstrap_95_percentile_interval": [
+          0.2027283414579909,
+          0.20962056766594941
+        ],
+        "bootstrap_resamples": 10000
+      },
+      "baseline_peak_rss_mib": {
+        "n": 6,
+        "minimum": 4.8125,
+        "p25": 4.8134765625,
+        "median": 4.81640625,
+        "p75": 4.81640625,
+        "maximum": 4.81640625,
+        "mean": 4.815104166666667,
+        "sample_sd": 0.0020171788261496965
+      },
+      "candidate_peak_rss_mib": {
+        "n": 6,
+        "minimum": 3.0,
+        "p25": 3.125,
+        "median": 3.125,
+        "p75": 3.125,
+        "maximum": 3.125,
+        "mean": 3.1041666666666665,
+        "sample_sd": 0.05103103630798288
+      }
+    },
+    "v2-long": {
+      "pairs": 6,
+      "repeats_per_process": 100,
+      "moves": 4419,
+      "rows": null,
+      "baseline_ms": {
+        "n": 6,
+        "minimum": 11.085957760000001,
+        "p25": 11.223694937500001,
+        "median": 11.515458290000002,
+        "p75": 11.66394132,
+        "maximum": 13.42963674,
+        "mean": 11.731064538333333,
+        "sample_sd": 0.8666868945097171
+      },
+      "candidate_ms": {
+        "n": 6,
+        "minimum": 2.11139804,
+        "p25": 2.1178183524999996,
+        "median": 2.15924167,
+        "p75": 2.30160571,
+        "maximum": 2.42445269,
+        "mean": 2.21790084,
+        "sample_sd": 0.13297071959716814
+      },
+      "paired_time_ratio": {
+        "geometric_mean": 0.1891903660732832,
+        "median": 0.18978725540463554,
+        "time_reduction_percent": 81.08096339267168,
+        "speedup": 5.2856814052183205,
+        "bootstrap_95_percentile_interval": [
+          0.18444206184756487,
+          0.19411629865730753
+        ],
+        "bootstrap_resamples": 10000
+      },
+      "baseline_peak_rss_mib": {
+        "n": 6,
+        "minimum": 16.57421875,
+        "p25": 16.69921875,
+        "median": 16.701171875,
+        "p75": 16.703125,
+        "maximum": 16.703125,
+        "mean": 16.680338541666668,
+        "sample_sd": 0.052023077123382624
+      },
+      "candidate_peak_rss_mib": {
+        "n": 6,
+        "minimum": 5.390625,
+        "p25": 5.3916015625,
+        "median": 5.39453125,
+        "p75": 5.39453125,
+        "maximum": 5.39453125,
+        "mean": 5.393229166666667,
+        "sample_sd": 0.0020171788261496965
+      }
+    },
+    "legacy-long": {
+      "pairs": 6,
+      "repeats_per_process": 100,
+      "moves": 4419,
+      "rows": null,
+      "baseline_ms": {
+        "n": 6,
+        "minimum": 6.876773459999999,
+        "p25": 7.0054540525,
+        "median": 7.451695239999999,
+        "p75": 7.7289121,
+        "maximum": 7.9843760900000005,
+        "mean": 7.407094123333334,
+        "sample_sd": 0.4576309999812565
+      },
+      "candidate_ms": {
+        "n": 6,
+        "minimum": 3.55205581,
+        "p25": 3.7088096999999998,
+        "median": 3.775677675,
+        "p75": 4.5120080625000005,
+        "maximum": 4.77986106,
+        "mean": 4.054540686666667,
+        "sample_sd": 0.5540206601546178
+      },
+      "paired_time_ratio": {
+        "geometric_mean": 0.5441886705412329,
+        "median": 0.5280598214699945,
+        "time_reduction_percent": 45.58113294587671,
+        "speedup": 1.8375979768293074,
+        "bootstrap_95_percentile_interval": [
+          0.5125224147810388,
+          0.5800968109774617
+        ],
+        "bootstrap_resamples": 10000
+      },
+      "baseline_peak_rss_mib": {
+        "n": 6,
+        "minimum": 14.9375,
+        "p25": 14.9384765625,
+        "median": 14.94140625,
+        "p75": 15.03515625,
+        "maximum": 15.06640625,
+        "mean": 14.981770833333334,
+        "sample_sd": 0.06558158285995136
+      },
+      "candidate_peak_rss_mib": {
+        "n": 6,
+        "minimum": 4.12890625,
+        "p25": 4.12890625,
+        "median": 4.189453125,
+        "p75": 4.25,
+        "maximum": 4.25,
+        "mean": 4.189453125,
+        "sample_sd": 0.06632577844789121
+      }
+    }
+  }
+}

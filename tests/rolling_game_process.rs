@@ -81,8 +81,10 @@ fn update_and_rollback_only_affect_next_game_and_preserve_frozen_agents() {
     let a = f.bundle("a");
     let b = f.bundle("b");
     let pointer = f.select(&a);
-    let mut cfg = WorkerConfig::default();
-    cfg.seed = 42;
+    let mut cfg = WorkerConfig {
+        seed: 42,
+        ..Default::default()
+    };
     cfg.white.engine = Some(a.engine_bin.clone());
     let dir = f.0.clone();
     let first = cfg.clone();
@@ -147,9 +149,11 @@ fn real_game_child_matches_in_process_and_records_build() {
         analyzer_sha256: hash,
     };
     let pointer = f.select(&b);
-    let mut cfg = WorkerConfig::default();
-    cfg.max_moves = 2;
-    cfg.seed = 17;
+    let mut cfg = WorkerConfig {
+        max_moves: 2,
+        seed: 17,
+        ..Default::default()
+    };
     use taikyoku_shogi::{
         board_position::BoardPosition,
         piece::{Color, Piece, PieceType},
@@ -185,7 +189,10 @@ fn real_game_child_matches_in_process_and_records_build() {
     // completion flags, and all move/search fields in the parity comparison.
     let without_elapsed = |mut moves: serde_json::Value| {
         for mv in moves.as_array_mut().unwrap() {
-            if let Some(timings) = mv.get_mut("iteration_timings").and_then(|v| v.as_array_mut()) {
+            if let Some(timings) = mv
+                .get_mut("iteration_timings")
+                .and_then(|v| v.as_array_mut())
+            {
                 for timing in timings {
                     timing.as_object_mut().unwrap().remove("elapsed_us");
                 }
@@ -270,16 +277,29 @@ fn fischer_rejects_old_binary_and_preserves_real_worker_clocks() {
     let old = f.bundle("old");
     let pointer = f.select(&old);
     let cfg = WorkerConfig {
-        time_control: Some(FischerControl { initial_ms: 60_000, increment_ms: 5000 }),
-        black: AgentSpec::new("random"), white: AgentSpec::new("random"),
-        max_moves: 1, ..Default::default()
+        time_control: Some(FischerControl {
+            initial_ms: 60_000,
+            increment_ms: 5000,
+        }),
+        black: AgentSpec::new("random"),
+        white: AgentSpec::new("random"),
+        max_moves: 1,
+        ..Default::default()
     };
-    assert!(game_process::play(&cfg, &pointer, &f.0, 1).unwrap_err().contains("Fischer"));
+    assert!(game_process::play(&cfg, &pointer, &f.0, 1)
+        .unwrap_err()
+        .contains("Fischer"));
     assert!(!f.0.join("old.started").exists());
     let binary = env!("CARGO_BIN_EXE_taikyoku_shogi");
     let hash = game_process::file_hash(Path::new(binary)).unwrap();
-    let current = EngineBundle { engine_bin: binary.into(), analyzer_bin: binary.into(),
-        engine_sha256: hash.clone(), analyzer_sha256: hash, revision: "clock-test".into(), protocol: 1 };
+    let current = EngineBundle {
+        engine_bin: binary.into(),
+        analyzer_bin: binary.into(),
+        engine_sha256: hash.clone(),
+        analyzer_sha256: hash,
+        revision: "clock-test".into(),
+        protocol: 1,
+    };
     f.select(&current);
     let record = game_process::play(&cfg, &pointer, &f.0, 1).unwrap();
     let clock = record.stats.clock.unwrap();

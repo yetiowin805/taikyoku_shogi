@@ -7,12 +7,12 @@
 use std::path::Path;
 use std::time::Instant;
 use taikyoku_shogi::board_position::BoardPosition;
+use taikyoku_shogi::eval::{evaluate_with_ply, EvalWeights};
 use taikyoku_shogi::game_state::{GameState, Move};
 use taikyoku_shogi::notation::move_encode;
+use taikyoku_shogi::path_utils;
 use taikyoku_shogi::piece::{Color, PieceType};
 use taikyoku_shogi::position::Position;
-use taikyoku_shogi::eval::{evaluate_with_ply, EvalWeights};
-use taikyoku_shogi::path_utils;
 use taikyoku_shogi::search::{
     generate_loud_promotions, is_loud_promotion_move, probe_quiescence, search, QPruneMode,
     SearchConfig, SearchResult,
@@ -58,10 +58,9 @@ fn pawn_midgame() -> GameState {
     let mut state = GameState::new();
     state.setup_initial_position();
     for file in [4u8, 8, 12, 16, 20, 24, 28] {
-        for &(from_rank, to_rank, color) in &[
-            (10u8, 11u8, Color::Black),
-            (25u8, 24u8, Color::White),
-        ] {
+        for &(from_rank, to_rank, color) in
+            &[(10u8, 11u8, Color::Black), (25u8, 24u8, Color::White)]
+        {
             state.set_current_turn(color);
             let from = Position::new(file, from_rank).unwrap();
             let to = Position::new(file, to_rank).unwrap();
@@ -93,6 +92,7 @@ fn load_start(path: &str) -> GameState {
     BoardPosition::load_path(Path::new(path))
         .unwrap_or_else(|e| panic!("load {path}: {e}"))
         .to_state()
+        .expect("valid start position")
 }
 
 fn replay_game(path: &str, ply: usize) -> GameState {
@@ -129,8 +129,8 @@ fn run_one(name: &str, state: &GameState, weights: &EvalWeights, depth: u32, tim
         state.get_current_turn()
     );
     println!(
-        "{:<10} {:>7} {:>10} {:>8} {:>10} {:>6} {:>6} {:>5} {:>8} {:>+8} {}",
-        "var", "ms", "nodes", "nps", "qnodes", "qPC%", "scored", "abort", "score", "dscore", "best"
+        "{:<10} {:>7} {:>10} {:>8} {:>10} {:>6} {:>6} {:>5} {:>8} {:>+8} best",
+        "var", "ms", "nodes", "nps", "qnodes", "qPC%", "scored", "abort", "score", "dscore"
     );
     let mut base_score: Option<i32> = None;
     let mut base_best: Option<String> = None;
@@ -139,11 +139,11 @@ fn run_one(name: &str, state: &GameState, weights: &EvalWeights, depth: u32, tim
         let r = search(state, weights, &cfg(v, depth, time_ms));
         let ms = t0.elapsed().as_millis().max(1) as u64;
         let nps = r.nodes.saturating_mul(1000) / ms;
-        let qpc = if r.q_caps_searched == 0 {
-            0
-        } else {
-            r.q_kind_path.saturating_mul(100) / r.q_caps_searched
-        };
+        let qpc = r
+            .q_kind_path
+            .saturating_mul(100)
+            .checked_div(r.q_caps_searched)
+            .unwrap_or(0);
         let best = best_label(&r);
         let dscore = base_score.map(|b| r.score - b).unwrap_or(0);
         let move_mark = match &base_best {
@@ -194,8 +194,8 @@ fn path_victims(state: &GameState, mv: &Move) -> Vec<String> {
             let p = state.get_board().get_piece(pos)?;
             Some(format!(
                 "{},{} {:?} {:?}{}",
-                pos.file,
-                pos.rank,
+                pos.file(),
+                pos.rank(),
                 p.color,
                 p.piece_type,
                 if p.color == us { " (own)" } else { "" }
@@ -220,12 +220,16 @@ fn explain_miss(weights: &EvalWeights) {
     let keep = state
         .generate_legal_moves()
         .into_iter()
-        .find(|m| m.from.file == 29 && m.from.rank == 22 && m.to.file == 29 && m.to.rank == 0)
+        .find(|m| {
+            m.from.file() == 29 && m.from.rank() == 22 && m.to.file() == 29 && m.to.rank() == 0
+        })
         .expect("29,22-29,0");
     let miss = state
         .generate_legal_moves()
         .into_iter()
-        .find(|m| m.from.file == 35 && m.from.rank == 13 && m.to.file == 22 && m.to.rank == 0)
+        .find(|m| {
+            m.from.file() == 35 && m.from.rank() == 13 && m.to.file() == 22 && m.to.rank() == 0
+        })
         .expect("35,13-22,0");
 
     for (name, mv) in [("keep 29,22-29,0", &keep), ("alt  35,13-22,0", &miss)] {
@@ -246,11 +250,10 @@ fn explain_miss(weights: &EvalWeights) {
             child.get_current_turn(),
             q.score,
             q.q_nodes,
-            if q.q_caps_searched == 0 {
-                0
-            } else {
-                q.q_kind_path.saturating_mul(100) / q.q_caps_searched
-            }
+            q.q_kind_path
+                .saturating_mul(100)
+                .checked_div(q.q_caps_searched)
+                .unwrap_or(0)
         );
         let promos = generate_loud_promotions(&child);
         let mut pc = 0u32;
@@ -288,7 +291,7 @@ fn explain_miss(weights: &EvalWeights) {
             .iter()
             .map(|(m, s)| (move_encode(m), *s))
             .collect();
-        lines.sort_by(|a, b| b.1.cmp(&a.1));
+        lines.sort_by_key(|l| std::cmp::Reverse(l.1));
         let find = |tok: &str| {
             lines
                 .iter()

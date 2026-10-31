@@ -67,16 +67,24 @@ unsafe fn avx_vnni32(x: &[u8], h1: &[i8], out: &mut [i32; 32]) {
         let mut acc = [_mm256_setzero_si256(); 4];
         for i in (0..n).step_by(32) {
             let input = _mm256_loadu_si256(x.as_ptr().add(i).cast());
-            for k in 0..4 {
+            for (k, a) in acc.iter_mut().enumerate() {
                 let weights = _mm256_loadu_si256(h1.as_ptr().add((j + k) * n + i).cast());
-                acc[k] = _mm256_dpbusd_avx_epi32(acc[k], input, weights);
+                *a = _mm256_dpbusd_avx_epi32(*a, input, weights);
             }
         }
-        for k in 0..4 {
-            let mut lanes = [0i32; 8];
-            _mm256_storeu_si256(lanes.as_mut_ptr().cast(), acc[k]);
-            out[j + k] = lanes.into_iter().sum();
-        }
+        // hadd operates independently in each 128-bit half. The first stage
+        // pairs adjacent lanes within rows 0/1 and rows 2/3; the second stage
+        // leaves one partial sum per row in each half. Adding the halves gives
+        // the four complete dot products in output order, without four
+        // independent reductions or changing the weight layout.
+        let pair01 = _mm256_hadd_epi32(acc[0], acc[1]);
+        let pair23 = _mm256_hadd_epi32(acc[2], acc[3]);
+        let halves = _mm256_hadd_epi32(pair01, pair23);
+        let sums = _mm_add_epi32(
+            _mm256_castsi256_si128(halves),
+            _mm256_extracti128_si256::<1>(halves),
+        );
+        _mm_storeu_si128(out.as_mut_ptr().add(j).cast(), sums);
     }
 }
 
@@ -117,6 +125,51 @@ pub(super) fn dot(x: &[u8], weights: &[i8]) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(target_arch = "x86_64")]
+    #[test]
+    fn batched_vnni_reduction_preserves_rows_and_every_vector_lane() {
+        if !is_x86_feature_detected!("avx2") || !is_x86_feature_detected!("avxvnni") {
+            return;
+        }
+        for n in [32, 64, 96, 128, 384, 512, 768, 1024, 1536, 2048, 4096, 8192] {
+            for mode in 0..11 {
+                let x: Vec<_> = (0..n)
+                    .map(|i| match mode {
+                        0 => (i * 13 + 7) as u8 % 128,
+                        1 | 2 => 127,
+                        // Only one of each vector's eight four-byte dot-product
+                        // lanes contributes, testing both 128-bit halves.
+                        _ => {
+                            if i / 4 % 8 == mode - 3 {
+                                127
+                            } else {
+                                0
+                            }
+                        }
+                    })
+                    .collect();
+                let weights: Vec<_> = (0..32 * n)
+                    .map(|i| match mode {
+                        1 => -128,
+                        2 => 127,
+                        _ => ((i / n * 17 + i % n * 73) % 256) as u8 as i8,
+                    })
+                    .collect();
+                let mut out = [0i32; 32];
+                // SAFETY: runtime detection above; all input/weight rows are
+                // valid multiples of 32, and activations lie in 0..=127.
+                unsafe { avx_vnni32(&x, &weights, &mut out) };
+                for (j, &got) in out.iter().enumerate() {
+                    assert_eq!(
+                        got,
+                        scalar(&x, &weights[j * n..(j + 1) * n]),
+                        "n={n}, mode={mode}, row={j}"
+                    );
+                }
+            }
+        }
+    }
 
     #[test]
     fn packed_and_scalar_agree_at_extremes_and_supported_widths() {

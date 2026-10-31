@@ -15,7 +15,7 @@ MATE_BAND = 100_000
 
 def own_rows(game, color):
     sign = 1 if color == "Black" else -1
-    clock = game.get("stats", {}).get("clock", {}).get("moves", [])
+    clock = ((game.get("stats") or {}).get("clock") or {}).get("moves", [])
     rows = []
     for i, move in enumerate(game["moves"]):
         if move["color"] != color:
@@ -54,7 +54,11 @@ def candidates(rows, threshold=1200, radius=6):
             drop = high["score"] - low["score"]
             if drop < threshold:
                 continue
-            future = [r["score"] for r in rows[j : j + 3] if finite(r)]
+            future = []
+            for following in rows[j : j + 3]:
+                if not finite(following):
+                    break
+                future.append(following["score"])
             sustained = len(future) >= 2 and statistics.median(future) <= high["score"] - drop / 2
             crossing = high["score"] >= 0 and low["score"] < 0
             comparable = next(

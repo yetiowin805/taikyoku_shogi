@@ -61,6 +61,9 @@ pub struct RecordedEvals {
 pub struct EvalPointDto {
     pub ply: usize,
     pub eval: f32,
+    /// Agent that produced a recorded score; absent for a single-model eval trace.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub side: Option<String>,
     /// Present for eval-trace samples (`true` = quiet / non-loud ply).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub quiet: Option<bool>,
@@ -91,6 +94,7 @@ impl EvalSeriesDto {
                     EvalPointDto {
                         ply: i + 1,
                         eval: v,
+                        side: Some(color_name(mv.color)),
                         quiet: None,
                     }
                 })
@@ -126,6 +130,7 @@ impl EvalSeriesDto {
                 .map(|p| EvalPointDto {
                     ply: p.ply,
                     eval: p.eval_clipped,
+                    side: None,
                     quiet: Some(p.quiet),
                 })
                 .collect(),
@@ -182,12 +187,14 @@ impl DebugTool {
         for color in [Color::Black, Color::White] {
             for piece in board.get_pieces_by_color(color) {
                 pieces.push(PieceDto {
-                    file: Self::to_shogi_file(piece.position.file),
-                    rank: Self::to_shogi_rank(piece.position.rank),
+                    file: Self::to_shogi_file(piece.position.file()),
+                    rank: Self::to_shogi_rank(piece.position.rank()),
                     color: color_name(piece.color),
                     piece_type: format!("{:?}", piece.piece_type),
                     symbol: piece.base_symbol().to_string(),
-                    promotion_symbol: piece.piece_type.promotes_to()
+                    promotion_symbol: piece
+                        .piece_type
+                        .promotes_to()
                         .map(|kind| kind.display_symbol().to_string()),
                     promoted: piece.is_promoted,
                 });
@@ -277,16 +284,16 @@ impl DebugTool {
             .map(|(index, mv)| {
                 let via = mv.intermediate().map(|pos| {
                     (
-                        Self::to_shogi_file(pos.file),
-                        Self::to_shogi_rank(pos.rank),
+                        Self::to_shogi_file(pos.file()),
+                        Self::to_shogi_rank(pos.rank()),
                     )
                 });
                 MoveDto {
                     index,
-                    from_file: Self::to_shogi_file(mv.from.file),
-                    from_rank: Self::to_shogi_rank(mv.from.rank),
-                    to_file: Self::to_shogi_file(mv.to.file),
-                    to_rank: Self::to_shogi_rank(mv.to.rank),
+                    from_file: Self::to_shogi_file(mv.from.file()),
+                    from_rank: Self::to_shogi_rank(mv.from.rank()),
+                    to_file: Self::to_shogi_file(mv.to.file()),
+                    to_rank: Self::to_shogi_rank(mv.to.rank()),
                     promoted: mv.promoted,
                     label: Self::format_move_public(&mv),
                     via_file: via.map(|v| v.0),
@@ -298,10 +305,8 @@ impl DebugTool {
 
     pub fn apply_human_move(
         &mut self,
-        from_file: u8,
-        from_rank: u8,
-        to_file: u8,
-        to_rank: u8,
+        (from_file, from_rank): (u8, u8),
+        (to_file, to_rank): (u8, u8),
         promote: Option<bool>,
         path_index: Option<usize>,
         via: Option<(u8, u8)>,
@@ -480,10 +485,18 @@ mod tests {
     fn snapshot_exposes_actual_promotion_symbol() {
         let tool = DebugTool::new();
         let snapshot = tool.snapshot();
-        let pawn = snapshot.pieces.iter().find(|p| p.piece_type == "Pawn").unwrap();
+        let pawn = snapshot
+            .pieces
+            .iter()
+            .find(|p| p.piece_type == "Pawn")
+            .unwrap();
         assert_eq!(pawn.symbol, "P");
         assert_eq!(pawn.promotion_symbol.as_deref(), Some("G"));
-        let king = snapshot.pieces.iter().find(|p| p.piece_type == "King").unwrap();
+        let king = snapshot
+            .pieces
+            .iter()
+            .find(|p| p.piece_type == "King")
+            .unwrap();
         assert!(king.promotion_symbol.is_none());
     }
 
@@ -503,7 +516,7 @@ mod tests {
             static_eval: Some(10),
             nodes: Some(99),
             completed_depth: None,
-                iteration_timings: Vec::new(),
+            iteration_timings: Vec::new(),
         };
         let v2 = GameRecordV2 {
             format_version: FORMAT_VERSION,
@@ -539,7 +552,7 @@ mod tests {
         let moves = vec![
             MoveRecord {
                 move_number: 1,
-                color: Color::Black,
+                color: Color::White,
                 from_file: 0,
                 from_rank: 0,
                 to_file: 0,
@@ -554,7 +567,7 @@ mod tests {
             },
             MoveRecord {
                 move_number: 2,
-                color: Color::White,
+                color: Color::Black,
                 from_file: 0,
                 from_rank: 1,
                 to_file: 0,
@@ -573,8 +586,10 @@ mod tests {
         assert_eq!(s.points.len(), 2);
         assert_eq!(s.points[0].ply, 1);
         assert_eq!(s.points[0].eval, 100.0);
+        assert_eq!(s.points[0].side.as_deref(), Some("White"));
         assert_eq!(s.points[1].ply, 2);
         assert_eq!(s.points[1].eval, 20.0);
+        assert_eq!(s.points[1].side.as_deref(), Some("Black"));
     }
 
     #[test]
@@ -591,8 +606,8 @@ mod tests {
             eval: None,
             static_eval: None,
             nodes: None,
-                completed_depth: None,
-                iteration_timings: Vec::new(),
+            completed_depth: None,
+            iteration_timings: Vec::new(),
         }];
         assert!(EvalSeriesDto::from_recorded_moves(&moves, "g1").is_none());
     }

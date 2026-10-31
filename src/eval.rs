@@ -9,7 +9,6 @@ use crate::movement::{BlockingMode, MovementCapability, MovementConfig, Movement
 use crate::piece::{Color, Piece, PieceType};
 use crate::position::Position;
 use serde::{Deserialize, Serialize};
-use std::cell::Cell;
 use std::collections::HashMap;
 use std::fs;
 use std::hash::{Hash, Hasher};
@@ -391,10 +390,7 @@ pub fn seed_loud_capture_floor() -> f32 {
 /// Used by scale-sample free params and by search for "loud" promotions into
 /// these types (e.g. FreeKing→GreatGeneral).
 pub fn is_big_piece(pt: PieceType) -> bool {
-    big_piece_table()
-        .get(pt as usize)
-        .copied()
-        .unwrap_or(false)
+    big_piece_table().get(pt as usize).copied().unwrap_or(false)
 }
 
 fn big_piece_table() -> &'static [bool] {
@@ -410,14 +406,16 @@ fn big_piece_table() -> &'static [bool] {
                 continue;
             }
             let cfg = MovementConfig::for_piece_type(pt);
-            t[pt as usize] = cfg.capabilities.iter().any(|cap| match cap {
-                MovementCapability::TwoStep { .. }
-                | MovementCapability::FreeEagleMultiMove { .. } => true,
-                MovementCapability::Range {
-                    blocking: BlockingMode::Capturing,
-                    ..
-                } => true,
-                _ => false,
+            t[pt as usize] = cfg.capabilities.iter().any(|cap| {
+                matches!(
+                    cap,
+                    MovementCapability::TwoStep { .. }
+                        | MovementCapability::FreeEagleMultiMove { .. }
+                        | MovementCapability::Range {
+                            blocking: BlockingMode::Capturing,
+                            ..
+                        }
+                )
             });
         }
         t
@@ -493,7 +491,7 @@ pub fn first_leg_landing_count(piece: &Piece, board: &Board) -> u32 {
     for cap in &cfg.capabilities {
         if let MovementCapability::TwoStep { first, second } = cap {
             if is_range_capability(first) && is_range_capability(second) {
-                return MovementGenerator::capability_landings(piece, board, first).len() as u32;
+                return MovementGenerator::capability_landing_count(piece, board, first) as u32;
             }
         }
     }
@@ -512,8 +510,8 @@ fn two_mover_mob_apply(piece: &Piece, weights: &EvalWeights) -> f32 {
     match weights.two_mover_mob_apply {
         1 => {
             let progress = match piece.color {
-                Color::Black => piece.position.rank as usize,
-                Color::White => (35 - piece.position.rank) as usize,
+                Color::Black => piece.position.rank() as usize,
+                Color::White => (35 - piece.position.rank()) as usize,
             };
             weights
                 .rank_factor_fast
@@ -523,7 +521,7 @@ fn two_mover_mob_apply(piece: &Piece, weights: &EvalWeights) -> f32 {
         }
         2 => weights
             .file_factor
-            .get(piece.position.file as usize)
+            .get(piece.position.file() as usize)
             .copied()
             .unwrap_or(1.0),
         _ => 1.0,
@@ -540,7 +538,8 @@ fn two_mover_mobility_of(pieces: &[Piece], board: &Board, weights: &EvalWeights)
             continue;
         }
         let m = first_leg_landing_count(p, board) as f32;
-        s += weights.two_mover_mob_k * two_mover_mob_curve(m, weights.two_mover_mob_curve)
+        s += weights.two_mover_mob_k
+            * two_mover_mob_curve(m, weights.two_mover_mob_curve)
             * two_mover_mob_apply(p, weights);
     }
     s
@@ -568,8 +567,8 @@ fn first_leg_range_dirs(piece: &Piece) -> u8 {
 
 /// Orthogonal or diagonal unit direction from `from` to `to`, if any.
 fn ortho_diag_dir(from: Position, to: Position) -> Option<Direction> {
-    let df = to.file as i16 - from.file as i16;
-    let dr = to.rank as i16 - from.rank as i16;
+    let df = to.file() as i16 - from.file() as i16;
+    let dr = to.rank() as i16 - from.rank() as i16;
     if df == 0 && dr == 0 {
         return None;
     }
@@ -658,14 +657,17 @@ fn last_royal_flight_penalty(board: &Board, color: Color, weights: &EvalWeights)
     {
         return royal_probes::verified_flight_penalty(board, color, weights.lr_flight_k);
     }
-    if matches!(weights.last_royal_mode, LastRoyalMode::ScarceDefenses | LastRoyalMode::MateProbe) {
+    if matches!(
+        weights.last_royal_mode,
+        LastRoyalMode::ScarceDefenses | LastRoyalMode::MateProbe
+    ) {
         return 0.0;
     }
     if weights.lr_flight_k == 0.0 {
         return 0.0;
     }
     let pieces = board.pieces_by_color(color);
-    let Some(royal) = last_royal_of(&pieces) else {
+    let Some(royal) = last_royal_of(pieces) else {
         return 0.0;
     };
     let enemy = color.opposite();
@@ -867,8 +869,8 @@ pub fn tropism_class_scale(pt: PieceType) -> f32 {
 }
 
 fn chebyshev_distance(a: Position, b: Position) -> u8 {
-    let df = (a.file as i16 - b.file as i16).unsigned_abs() as u8;
-    let dr = (a.rank as i16 - b.rank as i16).unsigned_abs() as u8;
+    let df = (a.file() as i16 - b.file() as i16).unsigned_abs() as u8;
+    let dr = (a.rank() as i16 - b.rank() as i16).unsigned_abs() as u8;
     df.max(dr)
 }
 
@@ -959,7 +961,7 @@ fn linear_topk_tail_tropism(
         a.0.cmp(&b.0)
             .then_with(|| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal))
     });
-    let k = weights.eg_tropism_topk.max(0) as usize;
+    let k = weights.eg_tropism_topk as usize;
     let mut t_top = 0.0f32;
     let mut t_tail = 0.0f32;
     for (i, (_d, _neg_s, u)) in entries.iter().enumerate() {
@@ -1099,6 +1101,41 @@ pub enum LastRoyalMode {
     MateProbe,
 }
 
+/// October 2026 W512-v3 search tournament. Remove losing arms after adjudication.
+/// Named policies keep the six component experiments and two combinations explicit.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SearchExperiment {
+    #[default]
+    Baseline,
+    History,
+    TacticalLmr,
+    GuardedNull,
+    Sacrifice,
+    ThreatQ,
+    ScoutQ,
+    HistoryTacticalLmr,
+    SacrificeThreatQ,
+    /// Recursive-q check evasions and context-complete q cache (legacy tourney comparison).
+    QFix,
+}
+
+impl SearchExperiment {
+    /// Supported checkpoint policies, also exposed by the engine admission probe.
+    pub const ALL: [Self; 10] = [
+        Self::Baseline,
+        Self::History,
+        Self::TacticalLmr,
+        Self::GuardedNull,
+        Self::Sacrifice,
+        Self::ThreatQ,
+        Self::ScoutQ,
+        Self::HistoryTacticalLmr,
+        Self::SacrificeThreatQ,
+        Self::QFix,
+    ];
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchDefaults {
     pub depth: u32,
@@ -1134,6 +1171,9 @@ pub struct SearchDefaults {
     /// Missing → false.
     #[serde(default)]
     pub q_own_large_only: bool,
+    /// October 2026 W512-v3 search experiment; absent means unchanged production.
+    #[serde(default)]
+    pub experiment: SearchExperiment,
 }
 
 fn default_quiescence_depth() -> u32 {
@@ -1158,6 +1198,7 @@ impl Default for SearchDefaults {
             q_open_any_capture: false,
             q_recapture_only: false,
             q_own_large_only: true,
+            experiment: SearchExperiment::Baseline,
         }
     }
 }
@@ -1468,8 +1509,8 @@ pub fn positional_piece_value(piece: &Piece, weights: &EvalWeights) -> f32 {
     let mut score = material_piece_value(piece, weights);
     if !piece.piece_type.is_royal() && !skips_rank_pst(piece.piece_type) {
         let progress = match piece.color {
-            Color::Black => piece.position.rank as usize,
-            Color::White => (35 - piece.position.rank) as usize,
+            Color::Black => piece.position.rank() as usize,
+            Color::White => (35 - piece.position.rank()) as usize,
         };
         let table = if is_fast_piece(piece.piece_type) {
             &weights.rank_factor_fast
@@ -1479,7 +1520,7 @@ pub fn positional_piece_value(piece: &Piece, weights: &EvalWeights) -> f32 {
         score *= table.get(progress).copied().unwrap_or(1.0);
     }
     if uses_file_pst(piece.piece_type) {
-        let file = piece.position.file as usize;
+        let file = piece.position.file() as usize;
         score *= weights.file_factor.get(file).copied().unwrap_or(1.0);
     }
     score
@@ -1498,7 +1539,8 @@ impl EvalWeights {
             piece.insert(pt, seed_piece_value(pt));
         }
         let mut w = Self {
-            nnue: None, nnue_runtime: None,
+            nnue: None,
+            nnue_runtime: None,
             piece,
             royal_alive: 0,
             sole_royal_factor: 0,
@@ -1556,10 +1598,7 @@ impl EvalWeights {
         if i < self.piece_value_table.len() {
             self.piece_value_table[i]
         } else {
-            self.piece
-                .get(&pt)
-                .copied()
-                .unwrap_or(DEFAULT_PIECE_VALUE)
+            self.piece.get(&pt).copied().unwrap_or(DEFAULT_PIECE_VALUE)
         }
     }
 
@@ -1630,42 +1669,6 @@ fn chrono_like_now() -> String {
     format!("unix:{secs}")
 }
 
-thread_local! {
-    static SEARCH_WEIGHTS: Cell<*const EvalWeights> = const { Cell::new(std::ptr::null()) };
-}
-
-/// Restores the previous search-weight bind when dropped.
-pub struct SearchWeightsBind {
-    prev: *const EvalWeights,
-}
-
-impl Drop for SearchWeightsBind {
-    fn drop(&mut self) {
-        SEARCH_WEIGHTS.with(|c| c.set(self.prev));
-    }
-}
-
-/// Bind `weights` for search make/unmake incremental eval (TLS).
-pub fn bind_search_weights(weights: &EvalWeights) -> SearchWeightsBind {
-    SEARCH_WEIGHTS.with(|c| {
-        let prev = c.get();
-        c.set(weights as *const EvalWeights);
-        SearchWeightsBind { prev }
-    })
-}
-
-fn current_search_weights<'a>() -> Option<&'a EvalWeights> {
-    SEARCH_WEIGHTS.with(|c| {
-        let p = c.get();
-        if p.is_null() {
-            None
-        } else {
-            // Bound by [`bind_search_weights`]; only used inside that scope.
-            Some(unsafe { &*p })
-        }
-    })
-}
-
 fn color_idx(color: Color) -> usize {
     match color {
         Color::Black => 0,
@@ -1731,16 +1734,14 @@ impl EvalInc {
     }
 }
 
-/// Apply make-move deltas using the TLS search weights. Returns false if unbound.
+/// Apply make-move deltas using the explicitly borrowed search weights.
 pub(crate) fn apply_search_make_eval_inc(
     inc: &mut EvalInc,
+    weights: &EvalWeights,
     original_mover: &Piece,
     removed: &[(crate::position::Position, Piece)],
     final_piece: Option<&Piece>,
-) -> bool {
-    let Some(weights) = current_search_weights() else {
-        return false;
-    };
+) {
     inc.sub(original_mover, weights);
     for (_pos, piece) in removed {
         inc.sub(piece, weights);
@@ -1748,7 +1749,6 @@ pub(crate) fn apply_search_make_eval_inc(
     if let Some(piece) = final_piece {
         inc.add(piece, weights);
     }
-    true
 }
 
 /// Evaluate `state` from the side-to-move's perspective (positive = good for STM).
@@ -1774,14 +1774,29 @@ pub fn evaluate_with_ply(state: &GameState, weights: &EvalWeights, ply: usize) -
     let _prof = crate::profile_timers::eval_scope();
     if let Some(net) = &weights.nnue_runtime {
         let fresh;
-        let acc = if let Some(a) = state.nnue.as_ref().filter(|a|a.matches(net)) { a } else {
-            fresh = crate::nnue::Accumulator::new(net.clone(),state.get_board()); &fresh
+        let acc = if let Some(a) = state.nnue.as_ref().filter(|a| a.matches(net)) {
+            a
+        } else {
+            fresh = crate::nnue::Accumulator::new(net.clone(), state.get_board());
+            &fresh
         };
-        let material = state.eval_inc().filter(|i|i.matches(weights)).map(|i|i.mat[0]-i.mat[1]).unwrap_or_else(||crate::nnue::material(state.get_board(),weights));
-        let signed = if stm == Color::Black {material} else {-material};
-        return (signed.round() as i32 + acc.residual(stm)).clamp(-weights.mate_score/2,weights.mate_score/2);
+        let material = state
+            .eval_inc()
+            .filter(|i| i.matches(weights))
+            .map(|i| i.mat[0] - i.mat[1])
+            .unwrap_or_else(|| crate::nnue::material(state.get_board(), weights));
+        let signed = if stm == Color::Black {
+            material
+        } else {
+            -material
+        };
+        return (signed.round() as i32 + acc.residual(stm))
+            .clamp(-weights.mate_score / 2, weights.mate_score / 2);
     }
-    assert!(weights.nnue.is_none(), "NNUE descriptor has not been loaded from its checkpoint");
+    assert!(
+        weights.nnue.is_none(),
+        "NNUE descriptor has not been loaded from its checkpoint"
+    );
 
     let absolute_black = if let Some(inc) = state.eval_inc() {
         if inc.matches(weights) {
@@ -1815,10 +1830,14 @@ pub fn evaluate_absolute_black(board: &Board, weights: &EvalWeights, ply: usize)
     }
 
     if let Some(net) = &weights.nnue_runtime {
-        let a=crate::nnue::Accumulator::new(net.clone(),board);
-        return (crate::nnue::material(board,weights).round() as i32+a.residual(Color::Black)).clamp(-weights.mate_score/2,weights.mate_score/2);
+        let a = crate::nnue::Accumulator::new(net.clone(), board);
+        return (crate::nnue::material(board, weights).round() as i32 + a.residual(Color::Black))
+            .clamp(-weights.mate_score / 2, weights.mate_score / 2);
     }
-    assert!(weights.nnue.is_none(), "NNUE descriptor has not been loaded");
+    assert!(
+        weights.nnue.is_none(),
+        "NNUE descriptor has not been loaded"
+    );
     let mut score = 0.0f32;
     // Base material (no PST) + phase-blended positional (PST ↔ tropism).
     score += raw_material_of(black, weights) - raw_material_of(white, weights);
@@ -1838,8 +1857,8 @@ pub fn evaluate_absolute_black(board: &Board, weights: &EvalWeights, ply: usize)
     score -= last_royal_flight_penalty(board, Color::Black, weights);
     score += last_royal_flight_penalty(board, Color::White, weights);
 
-    score += two_mover_align_of(board, black, &enemy_royal_positions(&white), weights);
-    score -= two_mover_align_of(board, white, &enemy_royal_positions(&black), weights);
+    score += two_mover_align_of(board, black, &enemy_royal_positions(white), weights);
+    score -= two_mover_align_of(board, white, &enemy_royal_positions(black), weights);
 
     score.round() as i32 + noise_component(board, weights, ply)
 }
@@ -1921,8 +1940,8 @@ fn evaluate_absolute_black_from_inc(
             score += last_royal_flight_penalty(board, Color::White, weights);
         }
         if weights.two_mover_align_k != 0.0 {
-            score += two_mover_align_of(board, black, &enemy_royal_positions(&white), weights);
-            score -= two_mover_align_of(board, white, &enemy_royal_positions(&black), weights);
+            score += two_mover_align_of(board, black, &enemy_royal_positions(white), weights);
+            score -= two_mover_align_of(board, white, &enemy_royal_positions(black), weights);
         }
     }
 
@@ -1936,7 +1955,12 @@ fn initial_non_royal_home_ranks() -> &'static [[u8; 2]] {
     HOMES.get_or_init(|| {
         let mut state = GameState::new();
         state.setup_initial_position();
-        let len = ALL_PIECE_TYPES.iter().map(|&pt| pt as usize).max().unwrap_or(0) + 1;
+        let len = ALL_PIECE_TYPES
+            .iter()
+            .map(|&pt| pt as usize)
+            .max()
+            .unwrap_or(0)
+            + 1;
         let mut ranks = vec![[36; 2]; len];
         for color in [Color::Black, Color::White] {
             for p in state.get_board().pieces_by_color(color) {
@@ -1946,12 +1970,14 @@ fn initial_non_royal_home_ranks() -> &'static [[u8; 2]] {
                 let slot = &mut ranks[p.piece_type as usize][p.color as usize];
                 if *slot != 36 {
                     debug_assert_eq!(
-                        *slot, p.position.rank,
+                        *slot,
+                        p.position.rank(),
                         "piece type {:?} starts on multiple ranks for {:?}",
-                        p.piece_type, p.color
+                        p.piece_type,
+                        p.color
                     );
                 }
-                *slot = p.position.rank;
+                *slot = p.position.rank();
             }
         }
         ranks
@@ -1960,8 +1986,8 @@ fn initial_non_royal_home_ranks() -> &'static [[u8; 2]] {
 
 fn on_home_rank_or_behind(piece: &Piece, home_rank: u8) -> bool {
     match piece.color {
-        Color::Black => piece.position.rank <= home_rank,
-        Color::White => piece.position.rank >= home_rank,
+        Color::Black => piece.position.rank() <= home_rank,
+        Color::White => piece.position.rank() >= home_rank,
     }
 }
 
@@ -2008,8 +2034,8 @@ fn advance_positional(pieces: &[Piece], color: Color, weights: &EvalWeights) -> 
             continue;
         }
         let progress = match color {
-            Color::Black => p.position.rank as i32,
-            Color::White => 35 - p.position.rank as i32,
+            Color::Black => p.position.rank() as i32,
+            Color::White => 35 - p.position.rank() as i32,
         };
         s += weights.advance * progress / 12;
     }
@@ -2031,8 +2057,8 @@ fn noise_component(board: &Board, weights: &EvalWeights, ply: usize) -> i32 {
         for p in board.pieces_by_color(color) {
             p.piece_type.hash(&mut hasher);
             p.color.hash(&mut hasher);
-            p.position.file.hash(&mut hasher);
-            p.position.rank.hash(&mut hasher);
+            p.position.file().hash(&mut hasher);
+            p.position.rank().hash(&mut hasher);
             p.is_promoted.hash(&mut hasher);
         }
     }
@@ -2064,7 +2090,12 @@ pub fn list_model_files(dir: impl AsRef<Path>) -> Result<Vec<String>, String> {
                             continue;
                         }
                     }
-                    names.push(path.strip_prefix(root).unwrap().to_string_lossy().replace('\\', "/"));
+                    names.push(
+                        path.strip_prefix(root)
+                            .unwrap()
+                            .to_string_lossy()
+                            .replace('\\', "/"),
+                    );
                 }
             }
         }
@@ -2085,10 +2116,18 @@ pub fn load_checkpoint_or_seed(path: impl AsRef<Path>) -> EvalCheckpoint {
         Ok(cp) => cp,
         Err(error) => {
             // An explicitly declared NNUE must never silently become the seed engine.
-            let declared = fs::read_to_string(path.as_ref()).ok().and_then(|s|serde_json::from_str::<serde_json::Value>(&s).ok()).is_some_and(|v|!v["weights"]["nnue"].is_null());
-            if declared { panic!("NNUE checkpoint {} failed: {error}",path.as_ref().display()); }
+            let declared = fs::read_to_string(path.as_ref())
+                .ok()
+                .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
+                .is_some_and(|v| !v["weights"]["nnue"].is_null());
+            if declared {
+                panic!(
+                    "NNUE checkpoint {} failed: {error}",
+                    path.as_ref().display()
+                );
+            }
             EvalCheckpoint::seed("ab-seed")
-        },
+        }
     }
 }
 
@@ -2165,9 +2204,7 @@ mod tests {
         promo_fk.promote();
         assert_eq!(promo_fk.piece_type, PieceType::FreeKing);
         assert!(promo_fk.is_promoted);
-        assert!(
-            (material_piece_value(&promo_fk, &w) - PROMOTED_FREE_KING_VALUE).abs() < 1e-3
-        );
+        assert!((material_piece_value(&promo_fk, &w) - PROMOTED_FREE_KING_VALUE).abs() < 1e-3);
         let natural_fk = Piece::new(
             PieceType::FreeKing,
             Color::Black,
@@ -2228,11 +2265,12 @@ mod tests {
         assert!((seed_loud_capture_floor() - 648.0).abs() < 1e-3);
         assert!(
             (seed_loud_capture_floor()
-                - (TARIFF_RANGE_CAPTURING * SEED_CAPTURER_SCALE * 2.4).max(TARIFF_RANGE_JUMP * 8.0))
-                .abs()
+                - (TARIFF_RANGE_CAPTURING * SEED_CAPTURER_SCALE * 2.4)
+                    .max(TARIFF_RANGE_JUMP * 8.0))
+            .abs()
                 < 1e-6
         );
-        assert!(TARIFF_RANGE_CAPTURING * SEED_CAPTURER_SCALE * 2.4 >= TARIFF_RANGE_JUMP * 8.0);
+        const { assert!(TARIFF_RANGE_CAPTURING * SEED_CAPTURER_SCALE * 2.4 >= TARIFF_RANGE_JUMP * 8.0) };
     }
 
     #[test]
@@ -2283,7 +2321,9 @@ mod tests {
         assert!((back.weights.eg_tropism_d_ref - 18.0).abs() < 1e-6);
         assert_eq!(back.weights.eg_tropism_topk, 8);
         assert!((back.weights.eg_tropism_tail_scale - 0.25).abs() < 1e-6);
-        assert!((back.weights.eg_tropism_range_scale - DEFAULT_EG_TROPISM_RANGE_SCALE).abs() < 1e-6);
+        assert!(
+            (back.weights.eg_tropism_range_scale - DEFAULT_EG_TROPISM_RANGE_SCALE).abs() < 1e-6
+        );
     }
 
     #[test]
@@ -2408,12 +2448,22 @@ mod tests {
         fs::write(root.join("manifest.json"), r#"{"entrants": []}"#).unwrap();
         fs::write(root.join("invalid.json"), "invalid").unwrap();
         cp.weights.nnue = Some(crate::nnue::Descriptor {
-            file: "weights.bin".into(), sha256: "unused-by-discovery".into(), feature_hash: "unused".into(), width: 512,
+            file: "weights.bin".into(),
+            sha256: "unused-by-discovery".into(),
+            feature_hash: "unused".into(),
+            width: 512,
         });
         cp.save_path(root.join("nnue-v2/model.json")).unwrap();
         assert_eq!(list_model_files(&root).unwrap(), vec!["seed.json"]);
-        fs::write(root.join("nnue-v2/weights.bin"), b"not loaded during discovery").unwrap();
-        assert_eq!(list_model_files(&root).unwrap(), vec!["nnue-v2/model.json", "seed.json"]);
+        fs::write(
+            root.join("nnue-v2/weights.bin"),
+            b"not loaded during discovery",
+        )
+        .unwrap();
+        assert_eq!(
+            list_model_files(&root).unwrap(),
+            vec!["nnue-v2/model.json", "seed.json"]
+        );
     }
 
     #[test]
@@ -2455,7 +2505,10 @@ mod tests {
         state.set_current_turn(Color::Black);
         let score = evaluate(&state, &weights);
         // Two royals → +100 royal bonus vs one (0), plus CP material 8.
-        assert!(score > 100, "black with two royals vs one should be positive, got {score}");
+        assert!(
+            score > 100,
+            "black with two royals vs one should be positive, got {score}"
+        );
     }
 
     #[test]
@@ -2485,7 +2538,10 @@ mod tests {
         let white_pen =
             undeveloped_home_penalty(state.get_board().pieces_by_color(Color::White), &weights);
         assert!((black_pen - white_pen).abs() < 1e-3);
-        assert!(black_pen > 100.0, "expected full-army undeveloped penalty, got {black_pen}");
+        assert!(
+            black_pen > 100.0,
+            "expected full-army undeveloped penalty, got {black_pen}"
+        );
 
         // Pawn value is now 1.0 → 90% cap = 0.9.
         let from = Position::new(16, 10).unwrap();
@@ -2560,10 +2616,7 @@ mod tests {
         );
         let a = evaluate_absolute_black(&back, &weights, 0);
         let b = evaluate_absolute_black(&fwd, &weights, 0);
-        assert!(
-            b > a,
-            "forward gold should score higher: back={a} fwd={b}"
-        );
+        assert!(b > a, "forward gold should score higher: back={a} fwd={b}");
     }
 
     fn quiet_weights() -> EvalWeights {
@@ -2585,7 +2638,10 @@ mod tests {
     fn tropism_class_scales_short_range_capturing() {
         assert!((tropism_class_scale(PieceType::GoldGeneral) - 1.0).abs() < 1e-6);
         assert!((tropism_class_scale(PieceType::Pawn) - 1.0).abs() < 1e-6);
-        assert!((tropism_class_scale(PieceType::FreeKing) - DEFAULT_EG_TROPISM_RANGE_SCALE).abs() < 1e-6);
+        assert!(
+            (tropism_class_scale(PieceType::FreeKing) - DEFAULT_EG_TROPISM_RANGE_SCALE).abs()
+                < 1e-6
+        );
         assert!((tropism_class_scale(PieceType::GreatGeneral) - 0.0).abs() < 1e-6);
         assert!((tropism_class_scale(PieceType::King) - 0.0).abs() < 1e-6);
         assert!((tropism_class_scale(PieceType::CrownPrince) - 0.0).abs() < 1e-6);
@@ -3001,7 +3057,10 @@ mod tests {
             .copied()
             .unwrap();
         let open_n = first_leg_landing_count(&hook, &open_hook);
-        assert!(open_n > 10, "open Hook first-leg should be many, got {open_n}");
+        assert!(
+            open_n > 10,
+            "open Hook first-leg should be many, got {open_n}"
+        );
 
         let mut boxed = open_hook.clone();
         for (df, dr) in [(0i8, 1), (0, -1), (1, 0), (-1, 0)] {
@@ -3009,7 +3068,10 @@ mod tests {
             boxed.place_piece(Piece::new(PieceType::Pawn, Color::Black, pos));
         }
         let boxed_n = first_leg_landing_count(&hook, &boxed);
-        assert!(boxed_n <= 2, "boxed Hook first-leg should be 0–2, got {boxed_n}");
+        assert!(
+            boxed_n <= 2,
+            "boxed Hook first-leg should be 0–2, got {boxed_n}"
+        );
 
         let tengu_board = kings_and(Piece::new(
             PieceType::Tengu,
@@ -3095,6 +3157,30 @@ mod tests {
     }
 
     #[test]
+    fn search_move_does_not_retain_borrowed_weights() {
+        let mut state = GameState::new();
+        state.setup_initial_position();
+        let mv = state.generate_legal_moves()[0].clone();
+        let undo = {
+            let weights = EvalWeights::seed();
+            state.ensure_eval_inc(&weights);
+            let undo = state
+                .make_move_for_search_with_weights(mv.clone(), &weights)
+                .expect("legal move");
+            assert_inc_matches_full(&state, &weights, 1);
+            undo
+        };
+        // The evaluator is gone. Undo and a subsequent unweighted move must
+        // neither access it nor leave a stale child accumulator behind.
+        state.unmake_move_for_search(undo);
+        let before = state.eval_inc().cloned();
+        let undo = state.make_move_for_search(mv).expect("legal move");
+        assert!(state.eval_inc().is_none());
+        state.unmake_move_for_search(undo);
+        assert_eq!(state.eval_inc(), before.as_ref());
+    }
+
+    #[test]
     fn incremental_eval_matches_full_opening_and_pawn_pushes() {
         let weights = EvalWeights::seed();
         let mut state = GameState::new();
@@ -3102,7 +3188,6 @@ mod tests {
         state.ensure_eval_inc(&weights);
         assert_inc_matches_full(&state, &weights, 0);
 
-        let _bind = bind_search_weights(&weights);
         for file in [4u8, 8, 12, 16, 20, 24, 28] {
             for &(from_rank, to_rank, color) in
                 &[(10u8, 11u8, Color::Black), (25u8, 24u8, Color::White)]
@@ -3117,14 +3202,19 @@ mod tests {
                 if state.get_board().get_piece(to).is_some() {
                     continue;
                 }
-                let Some(undo) = state.make_move_for_search(crate::game_state::Move::new(from, to))
-                else {
+                let Some(undo) = state.make_move_for_search_with_weights(
+                    crate::game_state::Move::new(from, to),
+                    &weights,
+                ) else {
                     continue;
                 };
                 assert_inc_matches_full(&state, &weights, 1);
                 state.unmake_move_for_search(undo);
                 assert_inc_matches_full(&state, &weights, 0);
-                let _ = state.make_move_for_search(crate::game_state::Move::new(from, to));
+                let _ = state.make_move_for_search_with_weights(
+                    crate::game_state::Move::new(from, to),
+                    &weights,
+                );
             }
         }
         state.set_current_turn(Color::Black);
@@ -3142,11 +3232,10 @@ mod tests {
         state.ensure_eval_inc(&weights);
         assert_inc_matches_full(&state, &weights, 0);
 
-        let _bind = bind_search_weights(&weights);
         let from = Position::new(4, 10).unwrap();
         let to = Position::new(4, 11).unwrap();
         let undo = state
-            .make_move_for_search(crate::game_state::Move::new(from, to))
+            .make_move_for_search_with_weights(crate::game_state::Move::new(from, to), &weights)
             .expect("pawn push");
         assert_inc_matches_full(&state, &weights, 1);
         state.unmake_move_for_search(undo);
@@ -3260,10 +3349,10 @@ mod tests {
         on.two_mover_align_k = 80.0;
         on.two_mover_align_cap = 400.0;
 
-        let d_file =
-            evaluate_absolute_black(&file_board, &on, 0) - evaluate_absolute_black(&file_board, &off, 0);
-        let d_diag =
-            evaluate_absolute_black(&diag_board, &on, 0) - evaluate_absolute_black(&diag_board, &off, 0);
+        let d_file = evaluate_absolute_black(&file_board, &on, 0)
+            - evaluate_absolute_black(&file_board, &off, 0);
+        let d_diag = evaluate_absolute_black(&diag_board, &on, 0)
+            - evaluate_absolute_black(&diag_board, &off, 0);
         assert_eq!(d_file, 80, "Hook first-leg is orthogonal");
         assert_eq!(d_diag, 0, "Hook should not score a diagonal royal");
     }
@@ -3306,10 +3395,10 @@ mod tests {
         let mut on = off.clone();
         on.two_mover_align_k = 80.0;
 
-        let d_diag =
-            evaluate_absolute_black(&diag_board, &on, 0) - evaluate_absolute_black(&diag_board, &off, 0);
-        let d_file =
-            evaluate_absolute_black(&file_board, &on, 0) - evaluate_absolute_black(&file_board, &off, 0);
+        let d_diag = evaluate_absolute_black(&diag_board, &on, 0)
+            - evaluate_absolute_black(&diag_board, &off, 0);
+        let d_file = evaluate_absolute_black(&file_board, &on, 0)
+            - evaluate_absolute_black(&file_board, &off, 0);
         assert_eq!(d_diag, 80, "Tengu first-leg is diagonal");
         assert_eq!(d_file, 0, "Tengu should not score a file royal");
     }

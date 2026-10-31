@@ -106,12 +106,17 @@ leader pairs, and CPU 3 remains shared between the analyzer and an idle-analysis
 bracket worker. Before a converged order-neutral fit exists, CPU 2 plays brackets.
 
 At each pair boundary in a strongly connected pool, select the highest-rated
-active entrant and the most underrepresented opponent. Opponent weights are 1
-for rank 2, 1/2 each for ranks 3–4, 1/4 each for ranks 5–8, and so on, normalized
-over active opponents (rank 2 gets 20% in a 32-agent pool). Minimize completed
+active entrant and the most underrepresented opponent. Order opponents by their
+completed score against the leader (draws count half): first 100% scorers, with
+more games first; then mixed scorers, with higher score percentage first; then
+0% scorers, with fewer games first. Higher order-neutral rating breaks ties in
+each group. Unplayed opponents follow these groups in rating order, but their
+zero coverage gives them selection priority over every played opponent.
+Opponent weights are 1 for position 1, 1/2 each for positions 2–3, 1/4 each for
+positions 4–7, and so on, normalized over active opponents. Minimize completed
 head-to-head games divided by target weight; count both bracket and supplemental
-games, with wins, draws, and losses each counting once. Higher rank breaks ties,
-so unseen opponents are visited in rating order. Counts follow identities when
+games, with wins, draws, and losses each counting once. The empirical ordering
+breaks equal coverage ratios. Counts follow identities when
 rankings or the champion change. Pending/running games do not count. Existing
 component-bridging selection remains in force until connectivity is established.
 Play two opening games
@@ -211,12 +216,23 @@ completed.
 
 For order-neutral tournaments, `retired` is a recomputed inactive set, not a
 permanent exclusion. After completed games and on resume, entrants in the largest
-strongly connected component are eligible within 400 points (inclusive) of its
-leader. Every entrant outside that component remains eligible for connectivity
-repair. Equal-sized components are resolved by lexicographic membership; when
-all components are singletons, everyone remains eligible. All historical results
-are retained. The active entrants define rating centering, so reactivation may
-translate displayed ratings without changing relative strengths.
+strongly connected component can become inactive after at least **20 games**
+against **six covered opponents** (each with at least two games). Require eight
+rivals with positive lower rating-gap bounds, including three whose bounds exceed
+50 Elo. For rival j and candidate i, the bound is
+`rating[j] - rating[i] - 1.959963985 * SE(j-i)`. The joint standard error is the
+larger of the Bradley–Terry information estimate and a cluster-sandwich estimate,
+grouped by unordered pair, start seed and start mode, with finite-sample correction.
+These are approximate pointwise bounds, not simultaneous or anytime-valid error
+guarantees. The October 2026 preserved-outcome replay selected this rule; its
+permanent-first-signal audit was more conservative than this reversible lifecycle.
+
+Every entrant outside the core remains eligible for connectivity repair.
+Equal-sized components use lexicographic membership. All historical results are
+retained. The active entrants define rating centering, so reactivation may
+translate displayed ratings without changing relative strengths. No old retirement
+is grandfathered past the new evidence requirements. `tournament_ratings STATE`
+includes the policy ID, coverage and rival counts, and inactive set for inspection.
 
 Existing brackets and committed supplemental pairs finish with their original
 entrants. Eligibility controls new brackets and new supplemental pairs. New

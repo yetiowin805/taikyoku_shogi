@@ -18,11 +18,11 @@ import json
 import math
 import sys
 from collections import defaultdict
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 
-def pearson(xs: Sequence[float], ys: Sequence[float]) -> Optional[float]:
+def pearson(xs: Sequence[float], ys: Sequence[float]) -> float | None:
     n = len(xs)
     if n < 3 or n != len(ys):
         return None
@@ -31,7 +31,7 @@ def pearson(xs: Sequence[float], ys: Sequence[float]) -> Optional[float]:
     num = 0.0
     dx2 = 0.0
     dy2 = 0.0
-    for x, y in zip(xs, ys):
+    for x, y in zip(xs, ys, strict=True):
         dx = x - mx
         dy = y - my
         num += dx * dy
@@ -42,13 +42,13 @@ def pearson(xs: Sequence[float], ys: Sequence[float]) -> Optional[float]:
     return num / math.sqrt(dx2 * dy2)
 
 
-def spearman(xs: Sequence[float], ys: Sequence[float]) -> Optional[float]:
+def spearman(xs: Sequence[float], ys: Sequence[float]) -> float | None:
     """Pearson of average ranks (ties get mid-rank)."""
     n = len(xs)
     if n < 3 or n != len(ys):
         return None
 
-    def ranks(vals: Sequence[float]) -> List[float]:
+    def ranks(vals: Sequence[float]) -> list[float]:
         order = sorted(range(n), key=lambda i: vals[i])
         out = [0.0] * n
         i = 0
@@ -66,8 +66,8 @@ def spearman(xs: Sequence[float], ys: Sequence[float]) -> Optional[float]:
     return pearson(ranks(xs), ranks(ys))
 
 
-def match_scores(state: dict) -> Dict[str, float]:
-    scores: Dict[str, float] = defaultdict(float)
+def match_scores(state: dict) -> dict[str, float]:
+    scores: dict[str, float] = defaultdict(float)
     for e in state.get("entrants", []):
         scores[e["id"]] = 0.0
     for slot in state.get("slots", []):
@@ -83,7 +83,7 @@ def match_scores(state: dict) -> Dict[str, float]:
     return dict(scores)
 
 
-def load_elo(path: Path) -> Dict[str, float]:
+def load_elo(path: Path) -> dict[str, float]:
     raw = json.loads(path.read_text())
     return {k: float(v) for k, v in raw.items()}
 
@@ -96,7 +96,7 @@ def mean(xs: Sequence[float]) -> float:
     return sum(xs) / len(xs) if xs else float("nan")
 
 
-def fmt_r(r: Optional[float]) -> str:
+def fmt_r(r: float | None) -> str:
     if r is None:
         return "  n/a "
     return f"{r:+.3f}"
@@ -105,20 +105,21 @@ def fmt_r(r: Optional[float]) -> str:
 def analyze(
     samples_path: Path,
     state_path: Path,
-    elo_path: Optional[Path],
+    elo_path: Path | None,
     include_controls: bool,
     metric: str,
 ) -> int:
     samples = json.loads(samples_path.read_text())
     state = json.loads(state_path.read_text())
-    names: List[str] = list(samples["param_names"])
+    names: list[str] = list(samples["param_names"])
     by_id = {s["id"]: s for s in samples["samples"]}
 
     scores = match_scores(state)
-    elo = load_elo(elo_path) if elo_path and elo_path.exists() else {
-        e["id"]: float(state.get("elo", {}).get(e["id"], 1500.0))
-        for e in state.get("entrants", [])
-    }
+    elo = (
+        load_elo(elo_path)
+        if elo_path and elo_path.exists()
+        else {e["id"]: float(state.get("elo", {}).get(e["id"], 1500.0)) for e in state.get("entrants", [])}
+    )
     # state.json usually embeds elo
     if "elo" in state and isinstance(state["elo"], dict):
         for k, v in state["elo"].items():
@@ -134,8 +135,7 @@ def analyze(
 
     if len(ids) < 5:
         print(
-            f"Need more entrants with scores (got {len(ids)}). "
-            "Try --include-controls or check paths.",
+            f"Need more entrants with scores (got {len(ids)}). Try --include-controls or check paths.",
             file=sys.stderr,
         )
         return 1
@@ -158,8 +158,8 @@ def analyze(
         r_p = pearson(xs, y)
         r_s = spearman(xs, y)
         # mean target by multiplier level
-        by_lvl: Dict[float, List[float]] = defaultdict(list)
-        for x, yi in zip(xs, y):
+        by_lvl: dict[float, list[float]] = defaultdict(list)
+        for x, yi in zip(xs, y, strict=True):
             by_lvl[round(x, 3)].append(yi)
         levels = sorted(by_lvl)
         level_means = {lv: mean(by_lvl[lv]) for lv in levels}
@@ -182,13 +182,12 @@ def analyze(
     print("-" * 100)
     for name, r_p, r_s, effect, level_means, xs in rows:
         n_unique = len({round(x, 3) for x in xs})
-        def m(lv: float) -> str:
+
+        def m(lv: float, level_means=level_means) -> str:
             return f"{level_means[lv]:7.2f}" if lv in level_means else "    n/a"
+
         eff_s = f"{effect:+10.2f}" if effect is not None else "       n/a"
-        print(
-            f"{name:20s}  {fmt_r(r_p):>8s}  {fmt_r(r_s):>8s}  {eff_s}  "
-            f"{m(0.9)}  {m(1.0)}  {m(1.1)}  {n_unique}"
-        )
+        print(f"{name:20s}  {fmt_r(r_p):>8s}  {fmt_r(r_s):>8s}  {eff_s}  {m(0.9)}  {m(1.0)}  {m(1.1)}  {n_unique}")
 
     print()
     print("Notes:")
@@ -199,31 +198,23 @@ def analyze(
         print("- Controls (seed, all_m10, all_p10) excluded; pass --include-controls to add them.")
 
     # Top / bottom agents quick dump
-    ranked = sorted(zip(ids, y), key=lambda t: t[1], reverse=True)
+    ranked = sorted(zip(ids, y, strict=True), key=lambda t: t[1], reverse=True)
     print()
     print(f"Top 3 by {y_label}:")
     for sid, yi in ranked[:3]:
         s = by_id[sid]
-        changed = [
-            (n, m)
-            for n, m in zip(names, s["multipliers"])
-            if abs(float(m) - 1.0) > 1e-6
-        ]
+        changed = [(n, m) for n, m in zip(names, s["multipliers"], strict=True) if abs(float(m) - 1.0) > 1e-6]
         print(f"  {sid:6s}  {y_label}={yi:.1f}  changed={changed}")
     print(f"Bottom 3 by {y_label}:")
     for sid, yi in ranked[-3:]:
         s = by_id[sid]
-        changed = [
-            (n, m)
-            for n, m in zip(names, s["multipliers"])
-            if abs(float(m) - 1.0) > 1e-6
-        ]
+        changed = [(n, m) for n, m in zip(names, s["multipliers"], strict=True) if abs(float(m) - 1.0) > 1e-6]
         print(f"  {sid:6s}  {y_label}={yi:.1f}  changed={changed}")
 
     return 0
 
 
-def main(argv: Optional[Sequence[str]] = None) -> int:
+def main(argv: Sequence[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument(
         "--samples",

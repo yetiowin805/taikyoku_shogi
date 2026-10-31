@@ -28,7 +28,9 @@ The inventory is a JSON object with `captured`, `completed_games`, `run_id`, and
   threshold is configurable. Do not cross absent scores, depth-zero fallbacks,
   or scores of magnitude 100,000 or more (mate/terminal-like scores).
 - Prefer persistent drops and positive-to-negative crossings, but retain
-  rebound and already-losing examples with explicit flags.
+  rebound and already-losing examples with explicit flags. Persistence requires
+  contiguous finite follow-up scores; missing, mate-like, and depth-zero rows
+  stop the follow-up window. Missing or null clock telemetry is optional.
 - Also compare the low score with the most recent own decision at the same
   completed depth (up to six own decisions back). Flag depth-confounded drops
   when a depth change lacks a corroborating same-depth decline. Alternation
@@ -95,6 +97,10 @@ helper reports exact captures, friendly path removals, material changes, royal
 attacks, and whether a candidate forces a last-royal evasion. Invalid or ambiguous
 routes are recorded as line errors and must not be treated as verified evidence.
 Identical duplicate moves from move generation are collapsed before matching.
+Routes after a win, progress draw, fivefold repetition, or insufficient-material
+draw are line errors. A terminal leaf reports `terminal` and suppresses reply
+inspection. Archived reports retain their historical classifications and are
+not automatically recomputed by changes to these helpers.
 
 The initial opponent threat map temporarily switches the side to move: it is
 counterfactual capture geometry, not a legal pass or a proof of forced loss.

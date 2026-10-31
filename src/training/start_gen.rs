@@ -88,7 +88,7 @@ pub fn is_file_tied(pt: PieceType) -> bool {
     )
 }
 
-#[allow(dead_code)] // used by unit tests
+#[cfg(test)]
 fn count_powerful(state: &GameState, color: Color) -> usize {
     state
         .get_board()
@@ -314,8 +314,8 @@ pub fn apply_powerful_ablation(
             recipe.removed.push(RemovedPiece {
                 color,
                 piece_type: p.piece_type,
-                file: p.position.file,
-                rank: p.position.rank,
+                file: p.position.file(),
+                rank: p.position.rank(),
             });
         }
     }
@@ -360,8 +360,8 @@ pub fn apply_royal_ablation(
         recipe.removed.push(RemovedPiece {
             color,
             piece_type: p.piece_type,
-            file: p.position.file,
-            rank: p.position.rank,
+            file: p.position.file(),
+            rank: p.position.rank(),
         });
     }
 }
@@ -431,8 +431,8 @@ mod tests {
     fn assert_color_mirror(state: &GameState) {
         let board = state.get_board();
         for p in board.pieces_by_color(Color::Black) {
-            let mf = 35 - p.position.file;
-            let mr = 35 - p.position.rank;
+            let mf = 35 - p.position.file();
+            let mr = 35 - p.position.rank();
             let Some(mpos) = Position::new(mf, mr) else {
                 panic!("bad mirror pos");
             };
@@ -483,7 +483,7 @@ mod tests {
             !recipe.shuffled_black_ranks.is_empty(),
             "expected some ranks shuffled"
         );
-        let state = pos.to_state();
+        let state = pos.to_state().unwrap();
         assert_color_mirror(&state);
 
         for (pt, old_pos) in tied_before {
@@ -491,14 +491,14 @@ mod tests {
                 .get_board()
                 .pieces_by_color(Color::Black)
                 .iter()
-                .find(|p| p.piece_type == pt && p.position.file == old_pos.file);
+                .find(|p| p.piece_type == pt && p.position.file() == old_pos.file());
             assert!(
                 still.is_some(),
                 "file-tied {:?} should stay on file {}",
                 pt,
-                old_pos.file
+                old_pos.file()
             );
-            assert_eq!(still.unwrap().position.rank, old_pos.rank);
+            assert_eq!(still.unwrap().position.rank(), old_pos.rank());
         }
     }
 
@@ -524,7 +524,10 @@ mod tests {
                 break;
             }
         }
-        assert!(found_shuffle, "expected at least one light shuffle in 200 seeds");
+        assert!(
+            found_shuffle,
+            "expected at least one light shuffle in 200 seeds"
+        );
     }
 
     #[test]
@@ -534,7 +537,7 @@ mod tests {
             let (b, rb) = generate_fischer_start(seed);
             assert_eq!(a, b);
             assert_eq!(ra, rb);
-            let state = a.to_state();
+            let state = a.to_state().unwrap();
             for color in [Color::Black, Color::White] {
                 let n = state
                     .get_board()
@@ -552,7 +555,7 @@ mod tests {
         // Many seeds: removed powerful count per color ≤ 2 and matches recipe.
         for seed in 0u64..40 {
             let (pos, recipe) = generate_fischer_start(seed);
-            let state = pos.to_state();
+            let state = pos.to_state().unwrap();
             for color in [Color::Black, Color::White] {
                 let removed = recipe
                     .removed

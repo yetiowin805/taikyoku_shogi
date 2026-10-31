@@ -16,7 +16,7 @@ pub fn tsfen_encode(pos: &BoardPosition) -> String {
         Color::White => "w",
     };
     let mut pieces: Vec<&Piece> = pos.pieces.iter().collect();
-    pieces.sort_by_key(|p| (p.position.file, p.position.rank, color_key(p.color)));
+    pieces.sort_by_key(|p| (p.position.file(), p.position.rank(), color_key(p.color)));
     let mut out = format!("TSFEN1 {} {} {}", turn, pos.draw_counter, pieces.len());
     for p in pieces {
         out.push(' ');
@@ -66,6 +66,9 @@ pub fn tsfen_decode(input: &str) -> Result<BoardPosition, String> {
         .parse()
         .map_err(|_| "TSFEN: piece count must be an integer".to_string())?;
 
+    if n > 1296 {
+        return Err("TSFEN: piece count exceeds board capacity".into());
+    }
     let mut pieces = Vec::with_capacity(n);
     for _ in 0..n {
         let tok = parts
@@ -77,11 +80,13 @@ pub fn tsfen_decode(input: &str) -> Result<BoardPosition, String> {
         return Err("TSFEN: trailing tokens after piece list".into());
     }
 
-    Ok(BoardPosition {
+    let position = BoardPosition {
         pieces,
         turn,
         draw_counter: draw,
-    })
+    };
+    position.validate()?;
+    Ok(position)
 }
 
 /// Encode a move as a TM1 token.
@@ -105,7 +110,7 @@ pub fn move_encode(mv: &Move) -> String {
     }
     let mut s = squares
         .iter()
-        .map(|p| format!("{},{}", p.file, p.rank))
+        .map(|p| format!("{},{}", p.file(), p.rank()))
         .collect::<Vec<_>>()
         .join("-");
     if mv.promoted {
@@ -213,7 +218,10 @@ fn encode_piece_token(p: &Piece) -> String {
     }
     format!(
         "{}:{}@{},{}",
-        color, type_part, p.position.file, p.position.rank
+        color,
+        type_part,
+        p.position.file(),
+        p.position.rank()
     )
 }
 
@@ -266,12 +274,8 @@ fn parse_square(s: &str) -> Result<Position, String> {
     let (f, r) = s
         .split_once(',')
         .ok_or_else(|| format!("bad square '{}', expected file,rank", s))?;
-    let file: u8 = f
-        .parse()
-        .map_err(|_| format!("bad file in '{}'", s))?;
-    let rank: u8 = r
-        .parse()
-        .map_err(|_| format!("bad rank in '{}'", s))?;
+    let file: u8 = f.parse().map_err(|_| format!("bad file in '{}'", s))?;
+    let rank: u8 = r.parse().map_err(|_| format!("bad rank in '{}'", s))?;
     Position::new(file, rank).ok_or_else(|| format!("square out of range: '{}'", s))
 }
 
@@ -400,5 +404,11 @@ mod tests {
             other => panic!("expected FreeEagle, got {:?}", other),
         }
         assert_eq!(back.to, Position::new(3, 0).unwrap());
+    }
+    #[test]
+    fn tsfen_rejects_duplicate_squares_and_oversized_piece_count() {
+        assert!(tsfen_decode("TSFEN1 b 0 2 B:Pawn@0,0 W:Pawn@0,0").is_err());
+        assert!(tsfen_decode("TSFEN1 b 0 18446744073709551615").is_err());
+        assert!(tsfen_decode("TSFEN1 b 4294967295 0").is_err());
     }
 }

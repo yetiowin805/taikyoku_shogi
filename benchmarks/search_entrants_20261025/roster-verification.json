@@ -1,0 +1,110 @@
+{
+  "verified": 1792962336.1745348,
+  "registered": 51,
+  "active": 23,
+  "checked": [
+    {
+      "id": "NNUE_W512_v3_H",
+      "policy": "history",
+      "model_sha256": "0692f1e7e00ca7a41b7263589731d5a194d3a4f3033cabbfb30e0ad8192aa8a7",
+      "network_sha256": "a2f0ddbd753237dfbb699a13c93df538e7bfb441319e377fca1995ac448f09a5",
+      "eligible": true
+    },
+    {
+      "id": "NNUE_W512_v3_L",
+      "policy": "tactical_lmr",
+      "model_sha256": "d7c043412a62fcc6005a46ed92c401a6e991c3a40ecc0b2119c7d564cb3d268e",
+      "network_sha256": "a2f0ddbd753237dfbb699a13c93df538e7bfb441319e377fca1995ac448f09a5",
+      "eligible": true
+    },
+    {
+      "id": "NNUE_W512_v3_N",
+      "policy": "guarded_null",
+      "model_sha256": "1999a246fa3483807bdf78d798abe4360057350fe228078b7c66edbbecd7a769",
+      "network_sha256": "a2f0ddbd753237dfbb699a13c93df538e7bfb441319e377fca1995ac448f09a5",
+      "eligible": true
+    },
+    {
+      "id": "NNUE_W512_v3_S",
+      "policy": "sacrifice",
+      "model_sha256": "4c2667227f952f88f6c41576f42d0f992637597a83f2a15d044d86d843a7eda6",
+      "network_sha256": "a2f0ddbd753237dfbb699a13c93df538e7bfb441319e377fca1995ac448f09a5",
+      "eligible": true
+    },
+    {
+      "id": "NNUE_W512_v3_T",
+      "policy": "threat_q",
+      "model_sha256": "c01c26c76dec46054ef8d4eb2088a655755955918a5408907f2dfa8fad77012f",
+      "network_sha256": "a2f0ddbd753237dfbb699a13c93df538e7bfb441319e377fca1995ac448f09a5",
+      "eligible": true
+    },
+    {
+      "id": "NNUE_W512_v3_Q",
+      "policy": "scout_q",
+      "model_sha256": "807f7d762d15d39e4850d177d5c30537a9d67daff53d0a7a9c2e85ae53d13f0f",
+      "network_sha256": "a2f0ddbd753237dfbb699a13c93df538e7bfb441319e377fca1995ac448f09a5",
+      "eligible": true
+    },
+    {
+      "id": "NNUE_W512_v3_HL",
+      "policy": "history_tactical_lmr",
+      "model_sha256": "f186150e0ff4f0b9f0ecbe83eba45a32d7ba1436666eed0152dbfbb406781e65",
+      "network_sha256": "a2f0ddbd753237dfbb699a13c93df538e7bfb441319e377fca1995ac448f09a5",
+      "eligible": true
+    },
+    {
+      "id": "NNUE_W512_v3_ST",
+      "policy": "sacrifice_threat_q",
+      "model_sha256": "60ee2cc60f94bbc10e3be1ca1731ec28bb8c82b805fbcb5c0a46ab85c875b361",
+      "network_sha256": "a2f0ddbd753237dfbb699a13c93df538e7bfb441319e377fca1995ac448f09a5",
+      "eligible": true
+    },
+    {
+      "id": "NNUE_W512_v3_QFIX",
+      "policy": "q_fix",
+      "model_sha256": "a7796300df2a28f0447bf10cfb8f9dfa9e7f2fa7d10dbd7df2664760255e499f",
+      "network_sha256": "a2f0ddbd753237dfbb699a13c93df538e7bfb441319e377fca1995ac448f09a5",
+      "eligible": true
+    }
+  ],
+  "shared_network_file": "/mnt/HC_Volume_107032879/taikyoku/model-snapshots/a2f0ddbd753237dfbb699a13c93df538e7bfb441319e377fca1995ac448f09a5.nnue",
+  "coordinator": {
+    "identity": "190681074",
+    "pid": 985351,
+    "protocol": 1
+  },
+  "running_workers": [
+    {
+      "slot": 4585,
+      "engine_sha256": "4288a6dbfd4495ce9afc47a7b3dc1c755c44f2668d850ab0299563e3c5ccedb1"
+    },
+    {
+      "slot": 4586,
+      "engine_sha256": "4288a6dbfd4495ce9afc47a7b3dc1c755c44f2668d850ab0299563e3c5ccedb1"
+    },
+    {
+      "slot": 4588,
+      "engine_sha256": "4288a6dbfd4495ce9afc47a7b3dc1c755c44f2668d850ab0299563e3c5ccedb1"
+    },
+    {
+      "slot": 4589,
+      "engine_sha256": "4288a6dbfd4495ce9afc47a7b3dc1c755c44f2668d850ab0299563e3c5ccedb1"
+    },
+    {
+      "slot": 4603,
+      "engine_sha256": "4288a6dbfd4495ce9afc47a7b3dc1c755c44f2668d850ab0299563e3c5ccedb1"
+    },
+    {
+      "slot": 4604,
+      "engine_sha256": "4288a6dbfd4495ce9afc47a7b3dc1c755c44f2668d850ab0299563e3c5ccedb1"
+    },
+    {
+      "slot": 4606,
+      "engine_sha256": "4288a6dbfd4495ce9afc47a7b3dc1c755c44f2668d850ab0299563e3c5ccedb1"
+    },
+    {
+      "slot": 4607,
+      "engine_sha256": "4288a6dbfd4495ce9afc47a7b3dc1c755c44f2668d850ab0299563e3c5ccedb1"
+    }
+  ]
+}

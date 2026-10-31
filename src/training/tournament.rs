@@ -117,6 +117,8 @@ pub struct TourneySlot {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TourneyState {
+    #[serde(default)]
+    pub runtime_control: super::runtime_tasks::ControlState,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub time_control: Option<super::clock::FischerControl>,
     pub run_id: String,
@@ -308,9 +310,17 @@ fn score_from_result(a_is_black: bool, result: &Option<GameResult>) -> f64 {
 pub(crate) fn ensure_ratings(state: &mut TourneyState) {
     if state.order_neutral_only {
         let fit = super::order_neutral::from_state(state);
-        assert!(!fit.ratings.is_empty(), "order-neutral fit failed: {}", fit.status);
+        assert!(
+            !fit.ratings.is_empty(),
+            "order-neutral fit failed: {}",
+            fit.status
+        );
         state.retired = super::order_neutral::inactive_agents(&fit);
-        state.ratings = fit.ratings.iter().map(|(id,r)| (id.clone(), GlickoRating {r:*r, rd:0.})).collect();
+        state.ratings = fit
+            .ratings
+            .iter()
+            .map(|(id, r)| (id.clone(), GlickoRating { r: *r, rd: 0. }))
+            .collect();
         state.elo = fit.ratings;
         return;
     }
@@ -326,10 +336,7 @@ pub(crate) fn ensure_ratings(state: &mut TourneyState) {
         }
     }
     for e in &state.entrants {
-        state
-            .ratings
-            .entry(e.id.clone())
-            .or_insert_with(GlickoRating::default);
+        state.ratings.entry(e.id.clone()).or_default();
     }
     // Mirror r into elo for legacy consumers.
     state.elo.clear();
@@ -350,6 +357,7 @@ pub(crate) fn build_schedule(cfg: &TourneyConfig) -> TourneyState {
         elo.insert(e.id.clone(), DEFAULT_RATING);
     }
     let mut state = TourneyState {
+        runtime_control: Default::default(),
         time_control: cfg.time_control,
         run_id: cfg.run_id.clone(),
         depth: cfg.depth,
@@ -734,7 +742,7 @@ pub fn swiss_pair_pool(state: &TourneyState, names: &[String]) -> Vec<String> {
 
 /// Deterministic 1-in-[`INFORMATIONAL_PAIR_DENOM`] roll for the next slot.
 pub fn informational_pair_due(seed_base: u64, slot_id: usize) -> bool {
-    pairing_u64(seed_base, slot_id, 0xA11C_E11E) % INFORMATIONAL_PAIR_DENOM == 0
+    pairing_u64(seed_base, slot_id, 0xA11C_E11E).is_multiple_of(INFORMATIONAL_PAIR_DENOM)
 }
 
 fn pairing_u64(seed_base: u64, slot_id: usize, salt: u64) -> u64 {
@@ -796,14 +804,15 @@ fn try_informational_pair(state: &TourneyState, names: &[String]) -> Option<(Str
 pub fn apply_passive_rd_tick(rating: GlickoRating) -> GlickoRating {
     let rd = (rating.rd * rating.rd + RD_PASSIVE_C * RD_PASSIVE_C)
         .sqrt()
-        .min(DEFAULT_RD)
-        .max(RD_MIN);
+        .clamp(RD_MIN, DEFAULT_RD);
     GlickoRating { r: rating.r, rd }
 }
 
 /// Record a finished game toward the every-N passive RD tick.
 pub fn note_finished_game_for_rd_tick(state: &mut TourneyState, a: &str, b: &str) {
-    if state.order_neutral_only { return; }
+    if state.order_neutral_only {
+        return;
+    }
     state.rd_tick_participants.insert(a.to_string());
     state.rd_tick_participants.insert(b.to_string());
     state.rd_tick_done_counter += 1;
@@ -874,7 +883,12 @@ pub fn schedule_one_swiss_game(state: &mut TourneyState) -> bool {
     // Engines are copies of weights, not humans: the same id may sit in many
     // in-flight games. Occupancy does not shrink the pairing pool; `jobs` is
     // the only concurrency cap.
-    let names: Vec<String> = state.entrants.iter().filter(|e| !state.retired.contains(&e.id)).map(|e| e.id.clone()).collect();
+    let names: Vec<String> = state
+        .entrants
+        .iter()
+        .filter(|e| !state.retired.contains(&e.id))
+        .map(|e| e.id.clone())
+        .collect();
     if names.len() < 2 {
         return false;
     }
@@ -1084,9 +1098,18 @@ pub fn save_state(cfg: &TourneyConfig, state: &TourneyState) -> Result<(), Strin
     let ratings_json = serde_json::to_string_pretty(&state.ratings).map_err(|e| e.to_string())?;
     super::durable::write(&ratings_path(cfg), ratings_json.as_bytes(), false)?;
     let neutral = super::order_neutral::from_state(&state);
-    super::durable::write(&dir.join("order-neutral-ratings.json"),
-        serde_json::to_string_pretty(&neutral).map_err(|e| e.to_string())?.as_bytes(), false)?;
-    super::durable::write(&standings_path(cfg), format_standings_with_fit(&state, &neutral).as_bytes(), false)?;
+    super::durable::write(
+        &dir.join("order-neutral-ratings.json"),
+        serde_json::to_string_pretty(&neutral)
+            .map_err(|e| e.to_string())?
+            .as_bytes(),
+        false,
+    )?;
+    super::durable::write(
+        &standings_path(cfg),
+        format_standings_with_fit(&state, &neutral).as_bytes(),
+        false,
+    )?;
     Ok(())
 }
 
@@ -1098,13 +1121,27 @@ fn format_standings_with_fit(state: &TourneyState, neutral: &super::order_neutra
     let scores = match_scores(state);
     let games = games_played(state);
     if state.order_neutral_only {
-        let mut rows: Vec<_> = neutral.ratings.iter().filter(|(id,_)| !state.retired.contains(*id)).collect();
-        rows.sort_by(|a,b| b.1.total_cmp(a.1).then_with(|| a.0.cmp(b.0)));
+        let mut rows: Vec<_> = neutral
+            .ratings
+            .iter()
+            .filter(|(id, _)| !state.retired.contains(*id))
+            .collect();
+        rows.sort_by(|a, b| b.1.total_cmp(a.1).then_with(|| a.0.cmp(b.0)));
         let mut text = format!("# Tournament {}\n\nOrder-neutral ratings: {}. All completed games have equal weight. Component gaps are provisional; disconnected groups are incomparable.\n\n| Rank | Agent | Rating | Games | Score |\n|---:|---|---:|---:|---:|\n",state.run_id,neutral.status);
-        for (i,(id,r)) in rows.iter().enumerate() {
-            text.push_str(&format!("| {} | {} | {:.1} | {} | {:.1} |\n", i+1,id,r,games.get(*id).unwrap_or(&0),scores.get(*id).unwrap_or(&0.)));
+        for (i, (id, r)) in rows.iter().enumerate() {
+            text.push_str(&format!(
+                "| {} | {} | {:.1} | {} | {:.1} |\n",
+                i + 1,
+                id,
+                r,
+                games.get(*id).unwrap_or(&0),
+                scores.get(*id).unwrap_or(&0.)
+            ));
         }
-        text.push_str(&format!("\nCurrently inactive agents: {:?}\n",state.retired));
+        text.push_str(&format!(
+            "\nCurrently inactive agents: {:?}\n",
+            state.retired
+        ));
         text.push_str(&format_knockout_stage_table(state));
         return text;
     }
@@ -1152,9 +1189,11 @@ fn format_standings_with_fit(state: &TourneyState, neutral: &super::order_neutra
     out.push_str("\n## Order-neutral ratings\n\nEqual-weight Bradley–Terry fit over all completed games; draws count half, mean rating 1500. These are separate from live Glicko and do not seed the bracket.\n\n");
     if neutral.status == "converged" {
         let mut fitted: Vec<_> = neutral.ratings.iter().collect();
-        fitted.sort_by(|a,b| b.1.total_cmp(a.1).then_with(||a.0.cmp(b.0)));
+        fitted.sort_by(|a, b| b.1.total_cmp(a.1).then_with(|| a.0.cmp(b.0)));
         out.push_str("| Agent | Rating |\n|---|---:|\n");
-        for (id,r) in fitted { out.push_str(&format!("| {id} | {r:.1} |\n")); }
+        for (id, r) in fitted {
+            out.push_str(&format!("| {id} | {r:.1} |\n"));
+        }
     } else {
         out.push_str(&format!("Fit unavailable: {}. Result-graph components: {:?}. No regularized or arbitrary extreme ratings are substituted.\n", neutral.status, neutral.components));
     }
@@ -1265,6 +1304,22 @@ pub fn standings_summary(state: &TourneyState) -> String {
     lines.join("\n")
 }
 
+pub(crate) fn claim_for_worker(
+    state: &mut TourneyState,
+    cfg: &TourneyConfig,
+    worker: usize,
+    top_two: bool,
+) -> Option<usize> {
+    if state.runtime_control.assignments_paused {
+        return None;
+    }
+    if top_two && worker == 2 {
+        super::top_two::claim(state).or_else(|| claim_or_schedule_slot(state, cfg))
+    } else {
+        claim_or_schedule_slot(state, cfg)
+    }
+}
+
 fn agent_for(state: &TourneyState, id: &str, depth: u32) -> Result<AgentSpec, String> {
     let e = state
         .entrants
@@ -1330,7 +1385,11 @@ fn claim_or_schedule_slot(st: &mut TourneyState, cfg: &TourneyConfig) -> Option<
 }
 
 pub(crate) fn rate_finished_slot(
-    st: &mut TourneyState, slot_id: usize, model_a: &str, model_b: &str, score_a: f64,
+    st: &mut TourneyState,
+    slot_id: usize,
+    model_a: &str,
+    model_b: &str,
+    score_a: f64,
 ) {
     if super::top_two::is_slot(st, slot_id) {
         ensure_ratings(st);
@@ -1443,6 +1502,15 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
     // A broken rolling build drains other games rather than aborting them or
     // repeatedly claiming slots with a known-bad executable.
     let admission_failed = Arc::new(AtomicBool::new(false));
+    let _tasks = if cfg!(target_os = "linux") {
+        Some(super::runtime_tasks::TaskService::start(
+            cfg.clone(),
+            Arc::clone(&state_mu),
+            Arc::clone(&admission_failed),
+        )?)
+    } else {
+        None
+    };
     let cfg_stop = cfg.stop.clone();
     let games_dir = dir.clone();
 
@@ -1451,6 +1519,17 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
         stop_for_handler.store(true, Ordering::Relaxed);
         eprintln!("tournament: stop requested (will abort in-flight games)");
     });
+
+    // The detached launcher acknowledges success only after configuration,
+    // durable state, the compute gate and runtime services have initialized.
+    if let Some(path) = std::env::var_os("TAIKYOKU_TOURNAMENT_READY_FILE") {
+        fs::write(&path, format!("ready {}\n", std::process::id())).map_err(|e| {
+            format!(
+                "publish tournament readiness {}: {e}",
+                Path::new(&path).display()
+            )
+        })?;
+    }
 
     loop {
         std::thread::scope(|scope| {
@@ -1496,12 +1575,13 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
                             }
                         }
                         let mut st = state_mu.lock().unwrap();
-                        let claim = if top_two_enabled && worker_index == 2 {
-                            super::top_two::claim(&mut st)
-                                .or_else(|| claim_or_schedule_slot(&mut st, cfg))
-                        } else {
-                            claim_or_schedule_slot(&mut st, cfg)
-                        };
+                        if st.runtime_control.assignments_paused {
+                            drop(st);
+                            shared_lease.take();
+                            std::thread::sleep(std::time::Duration::from_millis(100));
+                            continue;
+                        }
+                        let claim = claim_for_worker(&mut st, cfg, worker_index, top_two_enabled);
                         match claim {
                             Some(id) => {
                                 if let Err(e) = save_state(cfg, &st) {
@@ -1719,6 +1799,7 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
         break;
     }
 
+    drop(_tasks);
     let mut state = state_mu.lock().unwrap().clone();
     for slot in &mut state.slots {
         if slot.status == SlotStatus::Running {
@@ -1843,13 +1924,20 @@ mod tests {
 
     #[test]
     fn fischer_transition_preserves_results_and_survives_legacy_resume() {
-        let mut cfg = TourneyConfig { entrants: entrants(2), max_time_ms: Some(3000),
-            format: TourneyFormat::RoundRobin, ..Default::default() };
+        let mut cfg = TourneyConfig {
+            entrants: entrants(2),
+            max_time_ms: Some(3000),
+            format: TourneyFormat::RoundRobin,
+            ..Default::default()
+        };
         let mut state = build_schedule(&cfg);
         state.slots[0].status = SlotStatus::Done;
         state.slots[0].score_a = Some(1.0);
         let before = serde_json::to_value(&state).unwrap();
-        cfg.time_control = Some(super::super::clock::FischerControl { initial_ms: 900000, increment_ms: 5000 });
+        cfg.time_control = Some(super::super::clock::FischerControl {
+            initial_ms: 900000,
+            increment_ms: 5000,
+        });
         cfg.max_time_ms = None;
         cfg.depth = 64;
         apply_time_control(&mut state, &cfg).unwrap();
@@ -2089,9 +2177,9 @@ mod tests {
             ..TourneyConfig::default()
         });
         let rs = [1900.0, 1880.0, 1860.0, 1500.0, 1490.0, 1480.0];
-        for i in 0..6 {
+        for (i, &r) in rs.iter().enumerate() {
             st.ratings
-                .insert(format!("p{i}"), GlickoRating { r: rs[i], rd: 40.0 });
+                .insert(format!("p{i}"), GlickoRating { r, rd: 40.0 });
         }
         for i in 0..3 {
             give_min_games(
@@ -2212,9 +2300,9 @@ mod tests {
         let rs = [
             2400.0, 2100.0, 1600.0, 1580.0, 1560.0, 1540.0, 1520.0, 1500.0,
         ];
-        for i in 0..8 {
+        for (i, &r) in rs.iter().enumerate() {
             st.ratings
-                .insert(format!("p{i}"), GlickoRating { r: rs[i], rd: 40.0 });
+                .insert(format!("p{i}"), GlickoRating { r, rd: 40.0 });
         }
         for i in 0..4 {
             give_min_games(
@@ -2227,7 +2315,7 @@ mod tests {
         st.seed_base = seed_for_info_pair(next_slot_id(&st), false);
         assert!(elite_eligible(&st, "p0"));
         assert!(!elite_eligible(&st, "p1")); // 2100+40+40 ≤ 2400
-        assert_eq!((rs[0] - rs[1]).abs() > PAIRING_WINDOW, true);
+        assert!((rs[0] - rs[1]).abs() > PAIRING_WINDOW);
 
         assert!(schedule_one_swiss_game(&mut st));
         let first = st.slots.last().unwrap();
@@ -2397,6 +2485,7 @@ mod tests {
     #[test]
     fn migrate_legacy_elo_into_ratings() {
         let mut st = TourneyState {
+            runtime_control: Default::default(),
             run_id: "x".into(),
             depth: 2,
             max_time_ms: None,
@@ -2455,9 +2544,9 @@ mod tests {
         let rs = [
             2400.0, 2200.0, 2150.0, 2100.0, 2050.0, 2000.0, 1950.0, 1900.0, 1700.0, 1600.0,
         ];
-        for i in 0..10 {
+        for (i, &r) in rs.iter().enumerate() {
             st.ratings
-                .insert(format!("p{i}"), GlickoRating { r: rs[i], rd: 40.0 });
+                .insert(format!("p{i}"), GlickoRating { r, rd: 40.0 });
         }
         for i in 0..5 {
             give_min_games(
@@ -2527,9 +2616,9 @@ mod tests {
         let rs = [
             2400.0, 2200.0, 2150.0, 2100.0, 2050.0, 2000.0, 1950.0, 1900.0, 1700.0, 1600.0,
         ];
-        for i in 0..10 {
+        for (i, &r) in rs.iter().enumerate() {
             st.ratings
-                .insert(format!("p{i}"), GlickoRating { r: rs[i], rd: 40.0 });
+                .insert(format!("p{i}"), GlickoRating { r, rd: 40.0 });
         }
         for i in 0..5 {
             give_min_games(

@@ -25,6 +25,21 @@ class TacticalMiningTest(unittest.TestCase):
         for bad in [row(3, 999999), row(3, None), row(3, 0, 0)]:
             self.assertEqual(candidates([row(1, 4000), bad, row(5, -1000)])[0], [])
 
+    def test_persistence_stops_at_mate_missing_or_fallback(self):
+        for bad in [row(5, 999999), row(5, None), row(5, 0, 0)]:
+            with self.subTest(bad=bad):
+                chosen, _ = candidates([row(1, 3000), row(3, 0), bad, row(7, 0)])
+                self.assertEqual(len(chosen), 1)
+                self.assertFalse(chosen[0]["sustained"])
+
+    def test_missing_and_null_clock_telemetry_are_optional(self):
+        move = {"color": "Black", "eval": 10, "move_number": 1}
+        for stats in [{}, {"clock": None}]:
+            with self.subTest(stats=stats):
+                rows = own_rows({"moves": [move], "stats": stats}, "Black")
+                self.assertIsNone(rows[0]["elapsed_ms"])
+                self.assertIsNone(rows[0]["remaining_ms"])
+
     def test_local_duplicate_drops_are_one_episode(self):
         chosen, _ = candidates([row(1, 3000), row(3, 1000), row(5, -1000), row(7, -1500), row(9, -1600)])
         self.assertEqual(len(chosen), 1)
