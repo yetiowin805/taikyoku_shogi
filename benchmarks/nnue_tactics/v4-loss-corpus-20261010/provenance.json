@@ -1,0 +1,18 @@
+{
+  "diagnostic_engine_revision": "63de99c429402588de6132e4cefec3a972203fdd",
+  "diagnostic_binary_sha256": "712ee783acfaf8ef831bffb8784075f65abf4f960284990e5d19452efb9972f1",
+  "replay_helper_sha256": "d65b3a7ada15d4af249db541de591251a3641a74e72384fe5a24cf8cba346713",
+  "replay_rules_revision": "d7b35e4",
+  "rules_diff_from_game": "Only addition of with_rule_only_probe helper; no move/replay semantics changed",
+  "probe_workers": 3,
+  "probe_max_time_ms": 45000,
+  "probe_watchdog_seconds": 60,
+  "variants": {
+    "baseline": "historical engine, q=2 on full-window nodes and q=1 on probes",
+    "fullq": "q=2 on all leaves; other historical pruning unchanged",
+    "deeper": "historical engine requesting depth 4"
+  },
+  "warning": "Times are contended local wall times, not an isolated performance benchmark. Requested depth may not finish.",
+  "extractor_commit": "aaa1ced",
+  "extractor_pull_request": "https://github.com/yetiowin805/taikyoku_shogi/pull/155"
+}
