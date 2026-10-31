@@ -3,12 +3,40 @@
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
 )]
+#[serde(try_from = "PositionData")]
 pub struct Position {
-    pub file: u8, // column (0-35)
-    pub rank: u8, // row (0-35)
+    file: u8, // column (0-35)
+    rank: u8, // row (0-35)
+}
+
+#[derive(serde::Deserialize)]
+struct PositionData {
+    file: u8,
+    rank: u8,
+}
+
+impl TryFrom<PositionData> for Position {
+    type Error = String;
+
+    fn try_from(value: PositionData) -> Result<Self, Self::Error> {
+        Self::new(value.file, value.rank).ok_or_else(|| {
+            format!(
+                "position out of bounds: {},{} (expected 0..36)",
+                value.file, value.rank
+            )
+        })
+    }
 }
 
 impl Position {
+    pub const fn file(self) -> u8 {
+        self.file
+    }
+
+    pub const fn rank(self) -> u8 {
+        self.rank
+    }
+
     pub fn new(file: u8, rank: u8) -> Option<Position> {
         if file < 36 && rank < 36 {
             Some(Position { file, rank })
@@ -65,6 +93,18 @@ mod tests {
         assert!(Position::new(35, 35).is_some());
         assert!(Position::new(36, 0).is_none());
         assert!(Position::new(0, 36).is_none());
+    }
+
+    #[test]
+    fn json_coordinates_use_the_checked_constructor() {
+        for (file, rank) in [(36, 0), (0, 36), (255, 255)] {
+            let json = format!("{{\"file\":{file},\"rank\":{rank}}}");
+            assert!(serde_json::from_str::<Position>(&json).is_err());
+        }
+        let position = Position::new(35, 0).unwrap();
+        let json = serde_json::to_string(&position).unwrap();
+        assert_eq!(json, r#"{"file":35,"rank":0}"#);
+        assert_eq!(serde_json::from_str::<Position>(&json).unwrap(), position);
     }
 
     #[test]

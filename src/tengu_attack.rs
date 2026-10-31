@@ -56,8 +56,8 @@ pub fn can_tengu_attack_target<B: BoardLike>(tengu: &Piece, target: Position, bo
 
 /// Check if two positions are on the same diagonal
 fn is_on_same_diagonal(from: Position, to: Position) -> bool {
-    let file_diff = (to.file as i16 - from.file as i16).abs();
-    let rank_diff = (to.rank as i16 - from.rank as i16).abs();
+    let file_diff = (to.file() as i16 - from.file() as i16).abs();
+    let rank_diff = (to.rank() as i16 - from.rank() as i16).abs();
     file_diff == rank_diff && file_diff > 0
 }
 
@@ -66,10 +66,10 @@ fn is_on_same_diagonal(from: Position, to: Position) -> bool {
 fn find_potential_intermediates(tengu_pos: Position, target: Position) -> [Option<Position>; 2] {
     let mut intermediates = [None; 2];
 
-    let f_t = tengu_pos.file as i16;
-    let r_t = tengu_pos.rank as i16;
-    let f_g = target.file as i16;
-    let r_g = target.rank as i16;
+    let f_t = tengu_pos.file() as i16;
+    let r_t = tengu_pos.rank() as i16;
+    let f_g = target.file() as i16;
+    let r_g = target.rank() as i16;
 
     // Case 1: f_i - f_t = r_i - r_t AND f_g - f_i = r_g - r_i
     // f_i = (f_t - r_t + f_g + r_g) / 2
@@ -121,8 +121,8 @@ fn find_single_enemy_blocker<B: BoardLike>(
     target: Position,
     board: &B,
 ) -> Option<Piece> {
-    let file_diff = target.file as i8 - tengu.position.file as i8;
-    let rank_diff = target.rank as i8 - tengu.position.rank as i8;
+    let file_diff = target.file() as i8 - tengu.position.file() as i8;
+    let rank_diff = target.rank() as i8 - tengu.position.rank() as i8;
 
     // Must be diagonal
     if file_diff.abs() != rank_diff.abs() {
@@ -149,12 +149,12 @@ fn find_single_enemy_blocker<B: BoardLike>(
     let target_piece_color = board.get_piece(target).map(|p| p.color);
 
     // Check each square along the path (excluding the destination)
-    let mut current_file = tengu.position.file as i8 + file_step;
-    let mut current_rank = tengu.position.rank as i8 + rank_step;
+    let mut current_file = tengu.position.file() as i8 + file_step;
+    let mut current_rank = tengu.position.rank() as i8 + rank_step;
     let mut blocker_count = 0;
     let mut found_blocker: Option<Piece> = None;
 
-    while current_file != target.file as i8 || current_rank != target.rank as i8 {
+    while current_file != target.file() as i8 || current_rank != target.rank() as i8 {
         {
             let pos = Position::new(current_file as u8, current_rank as u8)?;
             if let Some(piece) = board.get_piece(pos) {
@@ -284,8 +284,8 @@ pub fn can_peacock_attack_target<B: BoardLike>(
 /// For Black: forward diagonals are NE (file+, rank+) and NW (file-, rank+)
 /// For White: forward diagonals are SE (file+, rank-) and SW (file-, rank-)
 fn is_forward_diagonal(piece: &Piece, from: Position, to: Position) -> bool {
-    let file_diff = to.file as i8 - from.file as i8;
-    let rank_diff = to.rank as i8 - from.rank as i8;
+    let file_diff = to.file() as i8 - from.file() as i8;
+    let rank_diff = to.rank() as i8 - from.rank() as i8;
 
     // Must be diagonal
     if file_diff.abs() != rank_diff.abs() {
@@ -309,8 +309,8 @@ fn is_forward_diagonal(piece: &Piece, from: Position, to: Position) -> bool {
 /// For Black: backwards diagonals are SE (file+, rank-) and SW (file-, rank-)
 /// For White: backwards diagonals are NE (file+, rank+) and NW (file-, rank+)
 fn is_backwards_diagonal(piece: &Piece, from: Position, to: Position) -> bool {
-    let file_diff = to.file as i8 - from.file as i8;
-    let rank_diff = to.rank as i8 - from.rank as i8;
+    let file_diff = to.file() as i8 - from.file() as i8;
+    let rank_diff = to.rank() as i8 - from.rank() as i8;
 
     // Must be diagonal
     if file_diff.abs() != rank_diff.abs() {
@@ -343,7 +343,7 @@ fn can_reach_via_backwards_diagonal_simple<B: BoardLike>(
     }
 
     // Check distance (must be <= 2)
-    let file_diff = (to.file as i16 - from.file as i16).abs();
+    let file_diff = (to.file() as i16 - from.file() as i16).abs();
     if file_diff > 2 {
         return false;
     }
@@ -447,7 +447,7 @@ pub fn can_hook_mover_attack_target<B: BoardLike>(
 
 /// Check if two positions are on the same orthogonal line (same file or same rank)
 fn is_on_same_orthogonal(from: Position, to: Position) -> bool {
-    from.file == to.file || from.rank == to.rank
+    from.file() == to.file() || from.rank() == to.rank()
 }
 
 /// Find the 2 potential intermediate positions for a two-step orthogonal move
@@ -460,10 +460,10 @@ fn find_potential_intermediates_orthogonal(
 ) -> [Option<Position>; 2] {
     let mut intermediates = [None; 2];
 
-    let f_h = hook_mover_pos.file as i16;
-    let r_h = hook_mover_pos.rank as i16;
-    let f_t = target.file as i16;
-    let r_t = target.rank as i16;
+    let f_h = hook_mover_pos.file() as i16;
+    let r_h = hook_mover_pos.rank() as i16;
+    let f_t = target.file() as i16;
+    let r_t = target.rank() as i16;
 
     // Only handle L-shaped paths (different file and different rank)
     // Same file/rank cases are already handled by:
@@ -503,8 +503,8 @@ fn find_single_enemy_blocker_orthogonal<B: BoardLike>(
     target: Position,
     board: &B,
 ) -> Option<Piece> {
-    let file_diff = target.file as i8 - hook_mover.position.file as i8;
-    let rank_diff = target.rank as i8 - hook_mover.position.rank as i8;
+    let file_diff = target.file() as i8 - hook_mover.position.file() as i8;
+    let rank_diff = target.rank() as i8 - hook_mover.position.rank() as i8;
 
     // Must be orthogonal
     if file_diff != 0 && rank_diff != 0 {
@@ -534,12 +534,12 @@ fn find_single_enemy_blocker_orthogonal<B: BoardLike>(
     let target_piece_color = BoardLike::get_piece(board, target).map(|p| p.color);
 
     // Check each square along the path (excluding the destination)
-    let mut current_file = hook_mover.position.file as i8 + file_step;
-    let mut current_rank = hook_mover.position.rank as i8 + rank_step;
+    let mut current_file = hook_mover.position.file() as i8 + file_step;
+    let mut current_rank = hook_mover.position.rank() as i8 + rank_step;
     let mut blocker_count = 0;
     let mut found_blocker: Option<Piece> = None;
 
-    while current_file != target.file as i8 || current_rank != target.rank as i8 {
+    while current_file != target.file() as i8 || current_rank != target.rank() as i8 {
         {
             let pos = Position::new(current_file as u8, current_rank as u8)?;
             if let Some(piece) = BoardLike::get_piece(board, pos) {
@@ -649,8 +649,8 @@ pub fn can_cannon_soldier_attack_target<B: BoardLike>(
                 // Check if the adjusted directions include forward
                 if (adjusted_directions & forward_direction.to_bit()) != 0 {
                     // Check if target is on the forward line from cannon_soldier position
-                    let file_diff = target.file as i8 - cannon_soldier.position.file as i8;
-                    let rank_diff = target.rank as i8 - cannon_soldier.position.rank as i8;
+                    let file_diff = target.file() as i8 - cannon_soldier.position.file() as i8;
+                    let rank_diff = target.rank() as i8 - cannon_soldier.position.rank() as i8;
 
                     // Must be on same file (orthogonal forward)
                     if file_diff == 0 {
@@ -707,8 +707,8 @@ pub fn can_lion_hawk_attack_target<B: BoardLike>(
         }
     }
 
-    let file_diff = (target.file as i8 - lion_hawk.position.file as i8).abs();
-    let rank_diff = (target.rank as i8 - lion_hawk.position.rank as i8).abs();
+    let file_diff = (target.file() as i8 - lion_hawk.position.file() as i8).abs();
+    let rank_diff = (target.rank() as i8 - lion_hawk.position.rank() as i8).abs();
 
     // Jump: all squares at Chebyshev distance 2 (same as Lion)
     if file_diff.max(rank_diff) == 2 {
@@ -775,8 +775,8 @@ fn can_reach_via_simple_1_any_direction<B: BoardLike>(
     to: Position,
     board: &B,
 ) -> bool {
-    let file_diff = to.file as i8 - from.file as i8;
-    let rank_diff = to.rank as i8 - from.rank as i8;
+    let file_diff = to.file() as i8 - from.file() as i8;
+    let rank_diff = to.rank() as i8 - from.rank() as i8;
 
     // Must be exactly 1 space away (any of the 8 directions)
     if file_diff.abs() > 1 || rank_diff.abs() > 1 {
@@ -811,10 +811,10 @@ mod tests {
             for to_index in 0..1296 {
                 let to = Position::new((to_index % 36) as u8, (to_index / 36) as u8).unwrap();
                 let (x, y, u, v) = (
-                    from.file as i16,
-                    from.rank as i16,
-                    to.file as i16,
-                    to.rank as i16,
+                    from.file() as i16,
+                    from.rank() as i16,
+                    to.file() as i16,
+                    to.rank() as i16,
                 );
                 let mut diagonal = Vec::new();
                 for (a, b) in [
@@ -830,8 +830,8 @@ mod tests {
                 }
                 let orthogonal = if x != u && y != v {
                     vec![
-                        Position::new(from.file, to.rank).unwrap(),
-                        Position::new(to.file, from.rank).unwrap(),
+                        Position::new(from.file(), to.rank()).unwrap(),
+                        Position::new(to.file(), from.rank()).unwrap(),
                     ]
                 } else {
                     Vec::new()

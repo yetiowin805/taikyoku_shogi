@@ -135,6 +135,7 @@ pub fn append_history_entrants_except(
             id: w.id.clone(),
             model: dest.display().to_string(),
             engine: None,
+            generation: None,
         });
     }
     for e in &man.engines {
@@ -148,6 +149,7 @@ pub fn append_history_entrants_except(
             id: e.id.clone(),
             model: dest.display().to_string(),
             engine: Some(logic_binary_path(&e.id).display().to_string()),
+            generation: None,
         });
     }
     Ok(ids)

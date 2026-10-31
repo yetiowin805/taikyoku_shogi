@@ -134,6 +134,14 @@ Incomplete exits (stop file / aborted slots) now fail the tournament binary with
 
 3×3×3 material grid (Hook H ∈ {90,100,110}% × Capricorn C ∈ {80,100,120}% × other two-movers O ∈ {80,100,110}%; capturers stay at seed; center `H100C100O100` = seed). Continuous Swiss uses an elite pool (`r + RD + RD_leader >` current max `r`, always including the top 2 by `r`), prioritizes agents below 4 counted games before elite gating, inflates sit-out RD every 10 finished games, keeps at least 2 rating-window opponents (expand by alternating higher/lower from the closer side), and after 4 games prefers not to rematch someone who already has more than half of an agent's games. Once every agent has 4 games, 10% of pairings are the current leader vs a random opponent who fails the UCI elite bar. Prefer `--detach` (or the systemd unit) so SSH logout cannot kill the job.
 
+All Swiss wrappers complete grid/manifest/resume/lock checks before detaching.
+They publish a PID and print `Running` only after the engine acknowledges startup;
+the acknowledgement has a 60-second deadline, configurable with
+`TOURNEY_START_TIMEOUT_SECONDS`. Use a freshly built engine with these wrappers:
+an older binary without startup acknowledgement fails rather than appearing to
+launch successfully. Failed prerequisites print their step on stderr and exit
+nonzero. No PID or success message is published for a failed start.
+
 **One-shot as root** (pulls `main`, builds with the `taikyoku` user’s cargo PATH, regenerates grid, starts 1s/move Swiss):
 
 ```bash
@@ -605,8 +613,8 @@ The supplemental worker first bridges the two smallest disconnected active
 groups (their best active agent each), otherwise tests the worst active member
 of the SCC containing the leader against the best active outsider, otherwise
 plays the top two. Ties use reproducible randomness; committed color-swapped
-pairs survive restart. Champion-teacher promotion only compares agents in the
-same SCC, so an assigned 100-point gap cannot trigger promotion.
+pairs survive restart. Analysis teacher selection follows the ranking as described
+below, including provisional component rankings.
 
 After the recovery ExecStopPost, also run
 `register_training_models.py RUN_DIR`. This registers newly admitted model
@@ -618,7 +626,20 @@ The automatic analysis teacher follows the highest-rated active entrant in the
 order-neutral ranking, including provisional component rankings. There is no
 minimum rating lead; legacy `auto_champion.margin` values are ignored. Exact
 ties retain the current active teacher, otherwise ties use entrant ID. Frozen
-checkpoint validation and bounded, resumable backfill still apply.
+checkpoint validation still applies. Teacher changes apply to new analysis work;
+completed labels remain valid and are never automatically requeued just because
+a different agent leads. Teacher switches do not copy the label database.
+
+At the first collector restart after this change, legacy teacher-refresh jobs with
+valid saved labels are restored to completed status. Current and archived search
+results and their provenance remain unchanged. The migration runs while holding
+`dual-label.lock`, before any workers start, and creates one verified compressed
+rollback backup before modifying queued rows. Its audit is committed with the
+changes in `analysis_migrations` and copied to `backfill_retirement` in
+`dual-label-config.json`; interrupted publication is safe to retry. Refresh jobs
+without a valid saved label remain unchanged and emit a diagnostic. Newly selected
+positions, including previously unlabelled positions from older games, continue
+to be analysed normally. This does not alter position selection or search limits.
 
 ## Disk reserve and durable tournament checkpoints
 
@@ -732,3 +753,146 @@ to a separate file, verify it against `sha256` in `backup.json` (or legacy
 database/config and any WAL files before installing the restored database and
 its matching `dual-label-config.json`. This backup concerns labels and teacher
 selection, not tournament game results.
+
+### Graceful clock transitions
+
+For a clock transition after all current games finish, the scheduler-upgrade
+utility also accepts `--initial-time-ms 60000 --increment-ms 1000` (1 minute
+plus 1 second). It holds the assignment gate, waits without an elapsed-time
+cutoff, backs up state/configuration, then restarts with the new clock and
+verifies that it was applied. Pass the existing coordinator binary to change
+only the clock, and list external CPU holders with `--external-service` as
+usual. Completed records, ratings, pairings and models are preserved; each game
+retains its actual clock in `stats.clock.control`. Ratings consequently include
+both clock regimes unless explicitly filtered in a separate comparison.
+
+Current search uses the increment remaining after move setup as the base of its
+bank-sensitive limits. The next iteration is estimated at three times the last
+iteration; it must fit within `increment + 1% of remaining bank`, counting search
+time already spent. At most one iteration extends beyond the increment budget.
+The hard search deadline is `increment + 10% of remaining bank`, retaining the
+one-second clock reserve and the last completed iteration. At 1+1 with a full
+60-second bank, those limits are approximately 1.6 and 7 seconds. Publish this
+clock-aware game engine before applying the shorter clock.
+
+### Incremental completed-model admission
+
+`training_admission.py CONFIG --watch` admits each completed model independently,
+including its held-out evaluation, without waiting for other models or the trainer
+service to exit. Each model has a resumable transaction under
+`OUT/admission/MODEL/`; the aggregate status lists admitted and waiting models.
+
+The running coordinator handles a durable admission request under the same lock
+as game claims and results. It does not need idle CPUs or a restart. Per-model
+requests and receipts survive retry, and an invalid model does not prevent other
+ready models from being attempted. Configure the explicit `admission_models` list
+and run the watcher with failure restarts and no runtime cutoff. See
+[`LIVE_TOURNAMENT_TASKS.md`](LIVE_TOURNAMENT_TASKS.md) for details and legacy upgrades.
+
+## Verified archive and training cache
+
+Install `archive-storage.json.example` as `/etc/taikyoku/archive-storage.json`,
+with an absolute control directory on the data volume, the existing private
+rclone remote, required mounts, and filesystem reserves. The policy and recovery
+indexes contain host paths and object keys; keep them outside the repository.
+`TAIKYOKU_ARCHIVE_CONFIG` selects another policy for tests or development. Python,
+zstd and a configured rclone client are required. Without a policy, local training
+keeps its existing storage behavior.
+
+`archive_storage.py archive PATH... --category features` creates compressed packs
+(default 128 MiB input), uploads immutable objects, downloads every byte again,
+and verifies both pack and original-content hashes. It publishes and verifies the
+remote recovery index before any local removal. `evict PATH...` or
+`evict --cache-bytes BYTES` removes only verified, unchanged, unpinned `features`
+and `closed-training` files. Game/model backups are never evicted by this tool.
+Partial transfers leave sources intact. New checkpoint generations retain their
+older remote objects and immutable index generations. There is no remote object
+deletion policy; preservation of historical dependencies takes precedence over
+remote garbage collection.
+
+`archive_storage.py restore PATH...` restores original paths and modes after full
+hash/size checks, with atomic publication that refuses a different existing
+file. `recover-index` rebuilds an empty local index from the private remote index;
+maintenance policies select the last fully completed, hash-bound backup marker.
+The recovery command skips legacy auto-import so an absent old index cannot block
+disaster recovery. Restore original mount locations on a replacement host. Keep the
+policy, credentials, and original layout in the private operations inventory.
+`legacy_manifest` can import the earlier completed, verified six-file offload
+without downloading or repackaging its objects. Gzip originals restore as gzip
+originals; decompress explicitly if a legacy recipe requires an uncompressed file.
+
+Current trainers hydrate their complete input set before mmap, hold process-owned
+shared locks for its lifetime, and reserve peak space for missing inputs, archive
+staging, two checkpoint generations and model publication. Concurrent reservations
+share a filesystem budget. PID plus process-start identity reaps dead reservations;
+a slow live process never loses its pins through an age timeout. Set soft free
+space targets to 8 GiB on root and 10 GiB on the volume, retaining hard reserves of
+3 GiB and 5 GiB. Oversized new jobs fail before downloading while existing games
+continue. Supervisors and the legacy wrapper also stop optional writers at the soft target
+during preparation, preserving completed checkpoints and the lower game reserves.
+SQLite backup space is reserved before its snapshot copy is allocated.
+Declared schema, sample-view, and feature hashes must match verified archive
+entries before cache cleanup or a completed-backup marker is published.
+Pre-existing compressed indexes must be restored and registered once; an unknown
+missing dependency fails maintenance instead of silently skipping its backup.
+Pins override cache quotas. Historical games and retired models remain
+local until their consumers also have hydration gates.
+
+For a frozen older training program, hold the same input lease around its command:
+
+```sh
+python3 training/nnue/dataset_storage.py /absolute/dataset -- python3 /absolute/legacy-trainer.py ARGS
+```
+
+Completed trainers archive their resumable checkpoint when
+`archive_completed_checkpoints` is enabled, after releasing peak reservations.
+The pilot checkpoint includes the selected best state as well as the current
+resume state. Failed/interrupted training retains its last committed checkpoint;
+uncommitted progress and incomplete archives remain available for diagnosis.
+Model exports and frozen parents share verified content-addressed blobs, and
+frozen experiment games share an immutable byte-preserving game store configured
+with `game_store` in the artifact-storage policy. No mutable training inode is
+used as an immutable source.
+
+Weighted v5 datasets now use `sample-view.json` and a float64 override file instead
+of rewriting common JSONL metadata. The view binds its immutable source and the
+override bytes by hash. Readers reconstruct original sample order, splits,
+position identities, teacher provenance and exact numerical weights. Legacy
+JSONL remains readable. Freeze `dataset_storage.py`, `archive_storage.py` and
+`artifact_storage.py` along with the trainer; the continuation sidecar does this
+automatically. Keep old frozen recipes and their original hashes unchanged.
+
+`storage_maintenance.py` backs up completed games, immutable models and bindings,
+versioned runtime metadata, and a consistent SQLite snapshot. It archives configured
+feature dependencies and completed checkpoint directories, then trims only the
+unpinned verified cache. Dataset preparation registers new immutable manifests,
+so future training outputs join maintenance without editing a static path list.
+Sample metadata and override files share the same pin and archive lifecycle. It retains the latest consistent label snapshot locally,
+keeps a bounded local runtime snapshot set, and performs an actual game restore
+to scratch on every successful pass. The private status records free space,
+bytes by producer, and growth since the previous pass; the existing storage guard
+includes that report. Install the optional
+`systemd/taikyoku-storage-maintenance.{service,timer}` after a successful manual
+pass, adjusting host paths and `RequiresMountsFor` to the actual data volume.
+The daily timer resumes after downtime and failures are visible in the journal.
+Remote packs and index generations remain recoverable; they are not a substitute
+for retaining the private policy and credentials independently of this VPS.
+
+## Compact label catalogue storage
+
+Moments now reference exact search results in `searches`, including prior teacher
+history. Source moves are retained once per game hash and ply. The `label_storage`
+reader reconstructs the previous payload for collectors, snapshots and dataset
+builders; JSON sampling and winner-teacher metadata stays directly queryable.
+Scores, PVs, budgets, depths, engine/model hashes and search identities are retained.
+
+Before migrating an existing catalogue, stop its collectors and deploy all updated
+readers. Run `python3 deploy/label_storage.py /absolute/analysis/training-labels.sqlite`.
+The command takes `dual-label.lock`, makes and checks a consistent
+`.before-normalization` rollback database, verifies every reconstructed moment,
+commits the migration transaction, and compacts the database. Retries recognize a
+completed migration; an existing unfinished rollback needs inspection. Keep the
+rollback until an off-site verified backup and live read checks have passed.
+For rollback, stop collectors, preserve the current database and WAL, restore the
+rollback database and matching older reader scripts, then verify SQLite integrity.
+The live game engine and tournament state do not change during this migration.

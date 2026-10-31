@@ -1,0 +1,306 @@
+{
+  "survey_date": "2026-10-25",
+  "kind": "source_review_and_proposed_research",
+  "new_performance_experiments": false,
+  "local_baseline": "3a2044085acb4c4c7828b1812b8052fe917b7b04",
+  "local_files": [
+    {
+      "path": "src/search.rs",
+      "sha256": "cd1fe99fd2367a023b3f7362cb9396c0eef124659043ffd72e0fda8d598d110e"
+    },
+    {
+      "path": "src/zobrist.rs",
+      "sha256": "587ad9792f12038434987651fa9b0dea03edd15ba7e811a58bc857ba9c0f631a"
+    },
+    {
+      "path": "src/board.rs",
+      "sha256": "de40c115893d358a384df862042707503fa08127a98acd2311559de0ea0db6b8"
+    },
+    {
+      "path": "src/training/clock.rs",
+      "sha256": "f82343973b1066d9a3125f3e5464433b775023ebc0dd50f4c760c3f7e5bcebe9"
+    },
+    {
+      "path": "src/eval/royal_probes.rs",
+      "sha256": "e136e08a3a08a3d89b48299be7f2044947600d0caa97acac349d710c07ad7cdf"
+    },
+    {
+      "path": "benchmarks/nnue_followup/README.md",
+      "sha256": "306d5991371e8368c6d7184677606cacd417052beaafbf1449e8f93fbfab100f"
+    },
+    {
+      "path": "benchmarks/nnue_followup/COMPREHENSIVE.md",
+      "sha256": "feeb7ca7ba8ed761ede2ebfa89aa3345bbabff0c34580b0627e88fa83482212d"
+    },
+    {
+      "path": "training/tactical_tree/README.md",
+      "sha256": "f9df9f5212768f61756f72fc0687fcf606eae006f05ad452ef8e54588665f3af"
+    },
+    {
+      "path": "src/bin/tactical_tree_worker.rs",
+      "sha256": "ee98c092b294309f440548399c2f120081fe32bea85111cb4ab025fb4b2c7ddb"
+    }
+  ],
+  "reference_agent": {
+    "name": "NNUE_W512_v4.5",
+    "descriptor_sha256": "42bb57d10d2b01bbe59fb7ab7c75a260158c72bd322b3b8cf8533376f486d37e",
+    "search_defaults": {
+      "depth": 2,
+      "max_time_ms": null,
+      "quiescence_depth": 2,
+      "sibling_mode": 0,
+      "q_loud_promo_simple_only": false,
+      "hang_q_dest_multileg": true,
+      "hang_q_dest_pathclear": true,
+      "q_open_large_mover": false,
+      "q_open_any_capture": false,
+      "q_recapture_only": false,
+      "q_own_large_only": true
+    },
+    "last_royal_mode": "legacy",
+    "network": {
+      "file": "nnue-81b1c69ab269ecce313a93b0cbe866ede18c37d8a5ff83116dc20d196ba12ea4.bin",
+      "sha256": "81b1c69ab269ecce313a93b0cbe866ede18c37d8a5ff83116dc20d196ba12ea4",
+      "width": 512,
+      "feature_hash": "126bc08ca9871740d5cc545d4c1723d21e7705089bf98a79b8714a598409ca72"
+    }
+  },
+  "prior_study_commit": "6d3f30ae80036394d0ce4bf158fec69b800bee6d",
+  "external_snapshots": [
+    {
+      "name": "stockfish",
+      "repo": "official-stockfish/Stockfish",
+      "ref": "master",
+      "commit": "dbe600b7438662e9ade60b31fa0625259dcd0077",
+      "commit_date": "2026-10-24T18:14:41Z",
+      "files": [
+        {
+          "path": "src/search.cpp",
+          "sha256": "4e3d9b11f3a1a5f60f024ae2221023673daea46d1cfead4ea3f9ca3b63ec3064",
+          "url": "https://github.com/official-stockfish/Stockfish/blob/dbe600b7438662e9ade60b31fa0625259dcd0077/src/search.cpp"
+        },
+        {
+          "path": "src/movepick.cpp",
+          "sha256": "a6c7ee8c47a506c25aa8ef723ce2ab38a215caa49779a02459b00c8e5bf10033",
+          "url": "https://github.com/official-stockfish/Stockfish/blob/dbe600b7438662e9ade60b31fa0625259dcd0077/src/movepick.cpp"
+        },
+        {
+          "path": "src/history.h",
+          "sha256": "f6e957d6e717348f58aa308f88aefddb5975e6a6c1d23e936ecf3548cbb48c39",
+          "url": "https://github.com/official-stockfish/Stockfish/blob/dbe600b7438662e9ade60b31fa0625259dcd0077/src/history.h"
+        },
+        {
+          "path": "src/tt.cpp",
+          "sha256": "b8332e1dd5c5d1589f2855aa586fda6423197a39167e95b0001a7b4c5049648a",
+          "url": "https://github.com/official-stockfish/Stockfish/blob/dbe600b7438662e9ade60b31fa0625259dcd0077/src/tt.cpp"
+        },
+        {
+          "path": "src/evaluate.cpp",
+          "sha256": "566917116f4ab3ccac8cb1f9b433453ebb69e09ee9c77dfa455419350999bd7c",
+          "url": "https://github.com/official-stockfish/Stockfish/blob/dbe600b7438662e9ade60b31fa0625259dcd0077/src/evaluate.cpp"
+        },
+        {
+          "path": "src/nnue/nnue_accumulator.cpp",
+          "sha256": "700c76fbc5786bf73b363f517dbd246637062eed9778fc98f67e3caf6fd573a7",
+          "url": "https://github.com/official-stockfish/Stockfish/blob/dbe600b7438662e9ade60b31fa0625259dcd0077/src/nnue/nnue_accumulator.cpp"
+        },
+        {
+          "path": "src/timeman.cpp",
+          "sha256": "f604f6387ace75d3eb7648f5b278f7d842bc72f5d0100637b26693fafbf6bc7d",
+          "url": "https://github.com/official-stockfish/Stockfish/blob/dbe600b7438662e9ade60b31fa0625259dcd0077/src/timeman.cpp"
+        }
+      ]
+    },
+    {
+      "name": "stockfish11",
+      "repo": "official-stockfish/Stockfish",
+      "ref": "sf_11",
+      "commit": "c3483fa9a7d7c0ffa9fcc32b467ca844cfb63790",
+      "commit_date": "2020-01-18T00:44:37Z",
+      "files": [
+        {
+          "path": "src/search.cpp",
+          "sha256": "ccc67363d6b124205e8174d59130ed100618d9483debeb826ff59d787d217aeb",
+          "url": "https://github.com/official-stockfish/Stockfish/blob/c3483fa9a7d7c0ffa9fcc32b467ca844cfb63790/src/search.cpp"
+        },
+        {
+          "path": "src/movepick.cpp",
+          "sha256": "f3386ff108f79c04a1c33c02c030bef2f990dd0a849c42bf4639cd6738f557c0",
+          "url": "https://github.com/official-stockfish/Stockfish/blob/c3483fa9a7d7c0ffa9fcc32b467ca844cfb63790/src/movepick.cpp"
+        }
+      ]
+    },
+    {
+      "name": "yaneuraou",
+      "repo": "yaneurao/YaneuraOu",
+      "ref": "master",
+      "commit": "0f421391ae311df9df57dcfcb2b4a78a1972bdf8",
+      "commit_date": "2026-10-25T06:44:15Z",
+      "files": [
+        {
+          "path": "source/engine/yaneuraou-engine/yaneuraou-search.cpp",
+          "sha256": "b24777417f37d60de75952f7cc1f55acd191dd8e5fb368d8a149668f64baf12b",
+          "url": "https://github.com/yaneurao/YaneuraOu/blob/0f421391ae311df9df57dcfcb2b4a78a1972bdf8/source/engine/yaneuraou-engine/yaneuraou-search.cpp"
+        },
+        {
+          "path": "source/movepick.cpp",
+          "sha256": "7436db0bbd3beb5170c632f88ecf14379d8cac81f622d4b7d539645176761cb8",
+          "url": "https://github.com/yaneurao/YaneuraOu/blob/0f421391ae311df9df57dcfcb2b4a78a1972bdf8/source/movepick.cpp"
+        },
+        {
+          "path": "source/position.cpp",
+          "sha256": "bd8ac4e00121013ba9939de6a90c64c78390c6c77e44417fb7293ef0c06f4506",
+          "url": "https://github.com/yaneurao/YaneuraOu/blob/0f421391ae311df9df57dcfcb2b4a78a1972bdf8/source/position.cpp"
+        },
+        {
+          "path": "source/movegen.h",
+          "sha256": "1cda73ee5c5458f254bfe6bd5f50be4809f1cc494026cd062d865cd135484d13",
+          "url": "https://github.com/yaneurao/YaneuraOu/blob/0f421391ae311df9df57dcfcb2b4a78a1972bdf8/source/movegen.h"
+        },
+        {
+          "path": "source/movegen.cpp",
+          "sha256": "cda3ece7016edc19d37743b3e7a4df08b6bf60d15e502c8740b7ac516f84a9f2",
+          "url": "https://github.com/yaneurao/YaneuraOu/blob/0f421391ae311df9df57dcfcb2b4a78a1972bdf8/source/movegen.cpp"
+        }
+      ]
+    },
+    {
+      "name": "pikafish",
+      "repo": "official-pikafish/Pikafish",
+      "ref": "master",
+      "commit": "5ca32d8a50506da70c7319fc228e90c0c6b5dea0",
+      "commit_date": "2026-10-25T15:12:47Z",
+      "files": [
+        {
+          "path": "src/search.cpp",
+          "sha256": "6e0019ee69183a97b62d312169c4fac9351f4ad9bf8cf0311ef0fd462702aa30",
+          "url": "https://github.com/official-pikafish/Pikafish/blob/5ca32d8a50506da70c7319fc228e90c0c6b5dea0/src/search.cpp"
+        },
+        {
+          "path": "src/movepick.cpp",
+          "sha256": "0a06a3116b750e21e31f33f081d3d770fa3b0b3dd6ca1d80ba628509e6612a9d",
+          "url": "https://github.com/official-pikafish/Pikafish/blob/5ca32d8a50506da70c7319fc228e90c0c6b5dea0/src/movepick.cpp"
+        },
+        {
+          "path": "src/position.cpp",
+          "sha256": "ad17f3640bd01afbf6e9f4e6682d4add7d25c2b8e12a6669140a9f5f07617e4f",
+          "url": "https://github.com/official-pikafish/Pikafish/blob/5ca32d8a50506da70c7319fc228e90c0c6b5dea0/src/position.cpp"
+        }
+      ]
+    },
+    {
+      "name": "ethereal",
+      "repo": "AndyGrant/Ethereal",
+      "ref": "master",
+      "commit": "0e47e9b67f345c75eb965d9fb3e2493b6a11d09a",
+      "commit_date": "2024-06-11T19:50:35Z",
+      "files": [
+        {
+          "path": "src/search.c",
+          "sha256": "de379f886f81b410c589b6d6142397b9b59047d1ba3d95392e2b7fcb579fc0b2",
+          "url": "https://github.com/AndyGrant/Ethereal/blob/0e47e9b67f345c75eb965d9fb3e2493b6a11d09a/src/search.c"
+        },
+        {
+          "path": "src/movepicker.c",
+          "sha256": "f88ce50958e89021eed3adafea8f80f86adce9bf8889e199939ae868da1bf59f",
+          "url": "https://github.com/AndyGrant/Ethereal/blob/0e47e9b67f345c75eb965d9fb3e2493b6a11d09a/src/movepicker.c"
+        },
+        {
+          "path": "src/history.c",
+          "sha256": "a082df0305d5d8bc0e86548a7d9f75f0ec1f80c820ce67f34f42d908d2e989ff",
+          "url": "https://github.com/AndyGrant/Ethereal/blob/0e47e9b67f345c75eb965d9fb3e2493b6a11d09a/src/history.c"
+        },
+        {
+          "path": "src/evaluate.c",
+          "sha256": "0119abd9e77992f7de7ba760e024be37fbbc6309bf51569ebf716005ef9bc1de",
+          "url": "https://github.com/AndyGrant/Ethereal/blob/0e47e9b67f345c75eb965d9fb3e2493b6a11d09a/src/evaluate.c"
+        },
+        {
+          "path": "src/nnue/nnue.c",
+          "sha256": "1945184a9f8d8f89b5110bd579508b713030be1c9a72ec92ed98003c641e313e",
+          "url": "https://github.com/AndyGrant/Ethereal/blob/0e47e9b67f345c75eb965d9fb3e2493b6a11d09a/src/nnue/nnue.c"
+        }
+      ]
+    },
+    {
+      "name": "berserk",
+      "repo": "jhonnold/berserk",
+      "ref": "main",
+      "commit": "32628515050b83805bab4afa1026dd2bcaa93f55",
+      "commit_date": "2026-09-07T03:48:14Z",
+      "files": [
+        {
+          "path": "src/search.c",
+          "sha256": "ac510c7a04e4350e53ea63f70800c6e71c83d82d2d469ec324302ea61442b707",
+          "url": "https://github.com/jhonnold/berserk/blob/32628515050b83805bab4afa1026dd2bcaa93f55/src/search.c"
+        },
+        {
+          "path": "src/movepick.c",
+          "sha256": "ad29b5210b241ae2db0614548e11c56bf950be1dd06c35198462d01737c6340a",
+          "url": "https://github.com/jhonnold/berserk/blob/32628515050b83805bab4afa1026dd2bcaa93f55/src/movepick.c"
+        },
+        {
+          "path": "src/history.c",
+          "sha256": "63ec1e7dae381fd7b09ead1a7d7077e5ec291e3bb6d3c3b215f7d0966fd3e5f7",
+          "url": "https://github.com/jhonnold/berserk/blob/32628515050b83805bab4afa1026dd2bcaa93f55/src/history.c"
+        },
+        {
+          "path": "src/nn/accumulator.c",
+          "sha256": "20405b7ff62bfb16c8393ccf43eb592be974de09530e41e0acf29ad81eeca630",
+          "url": "https://github.com/jhonnold/berserk/blob/32628515050b83805bab4afa1026dd2bcaa93f55/src/nn/accumulator.c"
+        }
+      ]
+    }
+  ],
+  "citations": {
+    "local-ab": "https://github.com/yetiowin805/taikyoku_shogi/blob/3a2044085acb4c4c7828b1812b8052fe917b7b04/src/search.rs#L3396-L3600",
+    "local-root": "https://github.com/yetiowin805/taikyoku_shogi/blob/3a2044085acb4c4c7828b1812b8052fe917b7b04/src/search.rs#L2398-L2714",
+    "local-loop": "https://github.com/yetiowin805/taikyoku_shogi/blob/3a2044085acb4c4c7828b1812b8052fe917b7b04/src/search.rs#L3614-L3810",
+    "local-leaf": "https://github.com/yetiowin805/taikyoku_shogi/blob/3a2044085acb4c4c7828b1812b8052fe917b7b04/src/search.rs#L3803-L3935",
+    "local-q": "https://github.com/yetiowin805/taikyoku_shogi/blob/3a2044085acb4c4c7828b1812b8052fe917b7b04/src/search.rs#L3975-L4495",
+    "local-qgen": "https://github.com/yetiowin805/taikyoku_shogi/blob/3a2044085acb4c4c7828b1812b8052fe917b7b04/src/search.rs#L1664-L1825",
+    "local-keys": "https://github.com/yetiowin805/taikyoku_shogi/blob/3a2044085acb4c4c7828b1812b8052fe917b7b04/src/search.rs#L640-L729",
+    "local-tt": "https://github.com/yetiowin805/taikyoku_shogi/blob/3a2044085acb4c4c7828b1812b8052fe917b7b04/src/search.rs#L529-L637",
+    "local-context": "https://github.com/yetiowin805/taikyoku_shogi/blob/3a2044085acb4c4c7828b1812b8052fe917b7b04/src/search.rs#L2232-L2398",
+    "local-hang": "https://github.com/yetiowin805/taikyoku_shogi/blob/3a2044085acb4c4c7828b1812b8052fe917b7b04/src/search.rs#L1024-L1076",
+    "local-tactical-doc": "https://github.com/yetiowin805/taikyoku_shogi/blob/3a2044085acb4c4c7828b1812b8052fe917b7b04/training/tactical_tree/README.md",
+    "local-tactical-worker": "https://github.com/yetiowin805/taikyoku_shogi/blob/3a2044085acb4c4c7828b1812b8052fe917b7b04/src/bin/tactical_tree_worker.rs#L1-L168",
+    "yo-movegen": "https://github.com/yaneurao/YaneuraOu/blob/0f421391ae311df9df57dcfcb2b4a78a1972bdf8/source/movegen.h",
+    "local-zobrist": "https://github.com/yetiowin805/taikyoku_shogi/blob/3a2044085acb4c4c7828b1812b8052fe917b7b04/src/zobrist.rs#L24-L71",
+    "local-board": "https://github.com/yetiowin805/taikyoku_shogi/blob/3a2044085acb4c4c7828b1812b8052fe917b7b04/src/board.rs#L287-L302",
+    "local-clock": "https://github.com/yetiowin805/taikyoku_shogi/blob/3a2044085acb4c4c7828b1812b8052fe917b7b04/src/training/clock.rs#L1-L94",
+    "local-probe": "https://github.com/yetiowin805/taikyoku_shogi/blob/3a2044085acb4c4c7828b1812b8052fe917b7b04/src/eval/royal_probes.rs#L132-L245",
+    "speed-first": "https://github.com/yetiowin805/taikyoku_shogi/blob/3a2044085acb4c4c7828b1812b8052fe917b7b04/benchmarks/nnue_followup/README.md",
+    "speed-second": "https://github.com/yetiowin805/taikyoku_shogi/blob/3a2044085acb4c4c7828b1812b8052fe917b7b04/benchmarks/nnue_followup/COMPREHENSIVE.md",
+    "previous": "https://github.com/yetiowin805/taikyoku_shogi/blob/6d3f30ae80036394d0ce4bf158fec69b800bee6d/benchmarks/nnue_search_efficiency/README.md",
+    "previous-summary": "https://github.com/yetiowin805/taikyoku_shogi/blob/6d3f30ae80036394d0ce4bf158fec69b800bee6d/benchmarks/nnue_search_efficiency/results/summary.json",
+    "previous-evidence": "https://github.com/yetiowin805/taikyoku_shogi/blob/6d3f30ae80036394d0ce4bf158fec69b800bee6d/benchmarks/nnue_search_efficiency/results/report-evidence.json",
+    "sf-search": "https://github.com/official-stockfish/Stockfish/blob/dbe600b7438662e9ade60b31fa0625259dcd0077/src/search.cpp#L735-L1674",
+    "sf-q": "https://github.com/official-stockfish/Stockfish/blob/dbe600b7438662e9ade60b31fa0625259dcd0077/src/search.cpp#L1686-L1912",
+    "sf-time": "https://github.com/official-stockfish/Stockfish/blob/dbe600b7438662e9ade60b31fa0625259dcd0077/src/search.cpp#L561-L640",
+    "sf-picker": "https://github.com/official-stockfish/Stockfish/blob/dbe600b7438662e9ade60b31fa0625259dcd0077/src/movepick.cpp#L188-L355",
+    "sf-history": "https://github.com/official-stockfish/Stockfish/blob/dbe600b7438662e9ade60b31fa0625259dcd0077/src/history.h",
+    "sf-tt": "https://github.com/official-stockfish/Stockfish/blob/dbe600b7438662e9ade60b31fa0625259dcd0077/src/tt.cpp",
+    "sf-eval": "https://github.com/official-stockfish/Stockfish/blob/dbe600b7438662e9ade60b31fa0625259dcd0077/src/evaluate.cpp#L52-L87",
+    "sf-accum": "https://github.com/official-stockfish/Stockfish/blob/dbe600b7438662e9ade60b31fa0625259dcd0077/src/nnue/nnue_accumulator.cpp#L76-L232",
+    "sf11-search": "https://github.com/official-stockfish/Stockfish/blob/c3483fa9a7d7c0ffa9fcc32b467ca844cfb63790/src/search.cpp",
+    "sf11-picker": "https://github.com/official-stockfish/Stockfish/blob/c3483fa9a7d7c0ffa9fcc32b467ca844cfb63790/src/movepick.cpp#L246-L266",
+    "yo-search": "https://github.com/yaneurao/YaneuraOu/blob/0f421391ae311df9df57dcfcb2b4a78a1972bdf8/source/engine/yaneuraou-engine/yaneuraou-search.cpp#L2804-L4060",
+    "yo-q": "https://github.com/yaneurao/YaneuraOu/blob/0f421391ae311df9df57dcfcb2b4a78a1972bdf8/source/engine/yaneuraou-engine/yaneuraou-search.cpp#L4441-L5148",
+    "yo-picker": "https://github.com/yaneurao/YaneuraOu/blob/0f421391ae311df9df57dcfcb2b4a78a1972bdf8/source/movepick.cpp",
+    "pika-q": "https://github.com/official-pikafish/Pikafish/blob/5ca32d8a50506da70c7319fc228e90c0c6b5dea0/src/search.cpp#L1592-L1820",
+    "pika-position": "https://github.com/official-pikafish/Pikafish/blob/5ca32d8a50506da70c7319fc228e90c0c6b5dea0/src/position.cpp",
+    "berserk-search": "https://github.com/jhonnold/berserk/blob/32628515050b83805bab4afa1026dd2bcaa93f55/src/search.c",
+    "berserk-picker": "https://github.com/jhonnold/berserk/blob/32628515050b83805bab4afa1026dd2bcaa93f55/src/movepick.c#L198-L280",
+    "berserk-history": "https://github.com/jhonnold/berserk/blob/32628515050b83805bab4afa1026dd2bcaa93f55/src/history.c",
+    "eth-search": "https://github.com/AndyGrant/Ethereal/blob/0e47e9b67f345c75eb965d9fb3e2493b6a11d09a/src/search.c",
+    "eth-picker": "https://github.com/AndyGrant/Ethereal/blob/0e47e9b67f345c75eb965d9fb3e2493b6a11d09a/src/movepicker.c",
+    "eth-history": "https://github.com/AndyGrant/Ethereal/blob/0e47e9b67f345c75eb965d9fb3e2493b6a11d09a/src/history.c",
+    "eth-eval": "https://github.com/AndyGrant/Ethereal/blob/0e47e9b67f345c75eb965d9fb3e2493b6a11d09a/src/evaluate.c#L440-L470",
+    "nnue-doc": "https://official-stockfish.github.io/docs/nnue-pytorch-wiki/docs/nnue.html",
+    "fishtest-test": "https://official-stockfish.github.io/docs/fishtest-wiki/Creating-my-first-test.html",
+    "fishtest-math": "https://official-stockfish.github.io/docs/fishtest-wiki/Fishtest-Mathematics.html",
+    "fishtest-faq": "https://official-stockfish.github.io/docs/fishtest-wiki/Fishtest-FAQ.html"
+  },
+  "method": "Read public source at pinned GitHub commits via raw.githubusercontent.com, with official documentation browsed separately. No external engines built or run; no source copies committed."
+}

@@ -13,6 +13,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
+source "$ROOT/deploy/tournament_launch.sh"
+
 REPO_USER="${REPO_USER:-taikyoku}"
 BRANCH="${BRANCH:-main}"
 REMOTE="${REMOTE:-origin}"
@@ -89,6 +91,7 @@ if [[ "$KILL_OLD" == "1" ]]; then
   run_as_repo 'rm -f data/run/TOURNEY_STOP data/run/loud-swiss.lock' || true
 fi
 
+TAIKYOKU_LAUNCH_STEP="pull"
 if [[ "$SKIP_PULL" != "1" ]]; then
   echo "Pulling $REMOTE/$BRANCH as $REPO_USER…"
   run_as_repo "
@@ -98,12 +101,14 @@ git pull --ff-only $(printf '%q' "$REMOTE") $(printf '%q' "$BRANCH")
 "
 fi
 
+TAIKYOKU_LAUNCH_STEP="build"
 if [[ "$SKIP_BUILD" != "1" ]]; then
   echo "Native CPU release build as $REPO_USER…"
   run_as_repo './deploy/build_native.sh --release'
 fi
 
 BIN="${BIN:-$ROOT/target/release/taikyoku_shogi}"
+TAIKYOKU_LAUNCH_STEP="build output"
 if [[ ! -x "$BIN" ]]; then
   echo "Missing binary after build: $BIN" >&2
   exit 1
@@ -123,5 +128,6 @@ for a in "${swiss_cmd[@]}"; do
   quoted+=" $(printf '%q' "$a")"
 done
 
+TAIKYOKU_LAUNCH_STEP="tournament launch"
 echo "Starting loud Swiss (depth=$DEPTH time_ms=$TIME_MS jobs=$JOBS detach=$DETACH)…"
 run_as_repo "$quoted"

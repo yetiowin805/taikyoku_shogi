@@ -1,0 +1,79 @@
+[
+  {
+    "repository": "official-stockfish/Stockfish",
+    "revision": "ff7cee4244ec96ea488c402669e3674c0574dce6",
+    "path": "src/movepick.cpp",
+    "url": "https://github.com/official-stockfish/Stockfish/blob/ff7cee4244ec96ea488c402669e3674c0574dce6/src/movepick.cpp",
+    "sha256": "a6c7ee8c47a506c25aa8ef723ce2ab38a215caa49779a02459b00c8e5bf10033"
+  },
+  {
+    "repository": "official-stockfish/Stockfish",
+    "revision": "ff7cee4244ec96ea488c402669e3674c0574dce6",
+    "path": "src/movegen.h",
+    "url": "https://github.com/official-stockfish/Stockfish/blob/ff7cee4244ec96ea488c402669e3674c0574dce6/src/movegen.h",
+    "sha256": "0ba251ab90282995eba69c83a583a3043ed6ca745efd073688abefdd4e04d3ec"
+  },
+  {
+    "repository": "official-stockfish/Stockfish",
+    "revision": "ff7cee4244ec96ea488c402669e3674c0574dce6",
+    "path": "src/bitboard.h",
+    "url": "https://github.com/official-stockfish/Stockfish/blob/ff7cee4244ec96ea488c402669e3674c0574dce6/src/bitboard.h",
+    "sha256": "621affdc9c8c6f096b0c4f2adaeac075197a1ce61b4e3e278d223bdb23c467df"
+  },
+  {
+    "repository": "official-stockfish/Stockfish",
+    "revision": "ff7cee4244ec96ea488c402669e3674c0574dce6",
+    "path": "src/tt.cpp",
+    "url": "https://github.com/official-stockfish/Stockfish/blob/ff7cee4244ec96ea488c402669e3674c0574dce6/src/tt.cpp",
+    "sha256": "cc0c5304f6cb4e1acd7276cd1acf88055ba99a680af11b9c29ac342f5c96e634"
+  },
+  {
+    "repository": "official-stockfish/Stockfish",
+    "revision": "ff7cee4244ec96ea488c402669e3674c0574dce6",
+    "path": "src/nnue/layers/affine_transform.h",
+    "url": "https://github.com/official-stockfish/Stockfish/blob/ff7cee4244ec96ea488c402669e3674c0574dce6/src/nnue/layers/affine_transform.h",
+    "sha256": "b0a30ba12d1f11e8fddab66d8592c42ac3ca56233d0117ccf3bb9a9c27fefda2"
+  },
+  {
+    "repository": "official-stockfish/Stockfish",
+    "revision": "ff7cee4244ec96ea488c402669e3674c0574dce6",
+    "path": "src/nnue/nnue_accumulator.cpp",
+    "url": "https://github.com/official-stockfish/Stockfish/blob/ff7cee4244ec96ea488c402669e3674c0574dce6/src/nnue/nnue_accumulator.cpp",
+    "sha256": "ccf94379d64ad9da6f5c59f4a9ea221c0f078092bdf99b3a369c1ebad84c8511"
+  },
+  {
+    "repository": "official-stockfish/nnue-pytorch",
+    "revision": "568c7fbdff25412423947041ab3fa3f2037b0bac",
+    "path": "docs/nnue.md",
+    "url": "https://github.com/official-stockfish/nnue-pytorch/blob/568c7fbdff25412423947041ab3fa3f2037b0bac/docs/nnue.md",
+    "sha256": "9e9533b4571084bad870d90526ca4bed21fc10b2d27c77e3944b9ab841d63d6a"
+  },
+  {
+    "repository": "yaneurao/YaneuraOu",
+    "revision": "c6a4a08df662ab3cbb4318b852ca2bcb786c66e8",
+    "path": "source/movepick.cpp",
+    "url": "https://github.com/yaneurao/YaneuraOu/blob/c6a4a08df662ab3cbb4318b852ca2bcb786c66e8/source/movepick.cpp",
+    "sha256": "7436db0bbd3beb5170c632f88ecf14379d8cac81f622d4b7d539645176761cb8"
+  },
+  {
+    "repository": "AndyGrant/Ethereal",
+    "revision": "0e47e9b67f345c75eb965d9fb3e2493b6a11d09a",
+    "path": "src/movepicker.c",
+    "url": "https://github.com/AndyGrant/Ethereal/blob/0e47e9b67f345c75eb965d9fb3e2493b6a11d09a/src/movepicker.c",
+    "sha256": "f88ce50958e89021eed3adafea8f80f86adce9bf8889e199939ae868da1bf59f"
+  },
+  {
+    "repository": "fairy-stockfish/Fairy-Stockfish",
+    "revision": "53c1f2bd14a2d3b685904ccf8ec9dec8401800ff",
+    "path": "src/bitboard.h",
+    "url": "https://github.com/fairy-stockfish/Fairy-Stockfish/blob/53c1f2bd14a2d3b685904ccf8ec9dec8401800ff/src/bitboard.h",
+    "sha256": "b50e9349fc763d483beb0c8169fce60b972969e6a764516e7243d1f6aad06c69"
+  },
+  {
+    "repository": "fairy-stockfish/Fairy-Stockfish",
+    "revision": "53c1f2bd14a2d3b685904ccf8ec9dec8401800ff",
+    "path": "src/types.h",
+    "url": "https://github.com/fairy-stockfish/Fairy-Stockfish/blob/53c1f2bd14a2d3b685904ccf8ec9dec8401800ff/src/types.h",
+    "sha256": "7e42ef80439fb779713d8be1b06e14f31f85e7dfdd18a915a61fad38f355868d"
+  }
+]

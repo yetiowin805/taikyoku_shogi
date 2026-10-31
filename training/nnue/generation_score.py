@@ -7,6 +7,7 @@ from pathlib import Path
 import numpy as np
 import torch
 
+import dataset_storage
 from pilot_fit import calibration, evaluate, from_quantized
 from train import atomic_json
 
@@ -16,9 +17,14 @@ def main():
     p.add_argument("dataset", type=Path)
     p.add_argument("model", type=Path)
     a = p.parse_args()
+    with dataset_storage.prepare(a.dataset):
+        return consume(a)
+
+
+def consume(a):
     torch.set_num_threads(1)
     torch.set_num_interop_threads(1)
-    samples = [json.loads(x) for x in (a.dataset / "samples.jsonl").read_text().splitlines()]
+    samples = list(dataset_storage.rows(a.dataset / "samples.jsonl"))
     data = np.memmap(a.dataset / "features.bin", mode="r", dtype="<u4")
     scale = calibration(samples)["scale"]
     schema = json.loads((a.dataset / "schema.json").read_text())

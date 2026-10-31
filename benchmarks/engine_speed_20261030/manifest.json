@@ -1,0 +1,1350 @@
+{
+  "files": {
+    "aggregate.json": {
+      "bytes": 220923,
+      "content_bytes": 220923,
+      "content_sha256": "f23cc5fee1613b803864b69b4bbb6015f210395ca58a18d8a33120ac4d3d9eee",
+      "sha256": "f23cc5fee1613b803864b69b4bbb6015f210395ca58a18d8a33120ac4d3d9eee",
+      "source": "Verified records and current statistics runner"
+    },
+    "all-loaded-game-audit.json": {
+      "bytes": 2316,
+      "content_bytes": 2316,
+      "content_sha256": "2e3078b2ef6af6d48893a22bebb7932d1d458a744d644fb697ec79cbe6142ba0",
+      "sha256": "2e3078b2ef6af6d48893a22bebb7932d1d458a744d644fb697ec79cbe6142ba0",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/all-loaded-game-audit.json"
+    },
+    "baseline-build.json": {
+      "bytes": 366,
+      "content_bytes": 366,
+      "content_sha256": "ed560aef003fe35b75481d5cb773385073a69546a4d78edf4c126bd42f56f00a",
+      "sha256": "ed560aef003fe35b75481d5cb773385073a69546a4d78edf4c126bd42f56f00a",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/baseline-build.json"
+    },
+    "cases.json": {
+      "bytes": 6233,
+      "content_bytes": 6233,
+      "content_sha256": "36179a9fa030ccfd289b2acf296cec2d683a5c94a1067ebc0a9c659563df4dec",
+      "sha256": "36179a9fa030ccfd289b2acf296cec2d683a5c94a1067ebc0a9c659563df4dec",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/cases.json"
+    },
+    "checks/attack-filter-build.log.gz": {
+      "bytes": 140,
+      "content_bytes": 136,
+      "content_sha256": "b243a0d559455a27b08d6ddb252a45951166aba19929c0f4f543dbfa87afb0b8",
+      "sha256": "f73148de3877c96dd46a1bfff4efb429f524f17c3740f1720d51ae9c1906f231",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/attack-filter-build.log"
+    },
+    "checks/batched-reduction-build.log.gz": {
+      "bytes": 139,
+      "content_bytes": 136,
+      "content_sha256": "6518358b0fd614e4b3eab058919e3c2b5853ed46ab2db17f8f6b581772beec76",
+      "sha256": "822400f668aef2e7cea359fe9f2542102f32de42379f6e6365d750df99c04f0e",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/batched-reduction-build.log"
+    },
+    "checks/batched-reduction-tests.log.gz": {
+      "bytes": 668,
+      "content_bytes": 1347,
+      "content_sha256": "37867a0ffaa948bddbb381f48780da389aed9ef4f8fbf4425df1b6740c4d3627",
+      "sha256": "7289fa28f2c9390dc8a8016c05ead64258d1e992bdbcd454257f476585c5a7e7",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/batched-reduction-tests.log"
+    },
+    "checks/board-direct-build.log.gz": {
+      "bytes": 138,
+      "content_bytes": 136,
+      "content_sha256": "5caa235cd0a1fd82d85c634fa753a0bf48939b1329accae37186997640da6218",
+      "sha256": "74c34503553be73575aed405f7fd937fae69cdd85196707f5d275599f95777bc",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/board-direct-build.log"
+    },
+    "checks/direct-append-build.log.gz": {
+      "bytes": 138,
+      "content_bytes": 136,
+      "content_sha256": "0f7711b84def55f04d147b46f689047ab2020d6505df23feb175bcbd1d7339d4",
+      "sha256": "711b3cac21e8afb300d601a492398f1a42e60bb5d73d8b8da8ca551e0cc90bd3",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/direct-append-build.log"
+    },
+    "checks/direction-bits-build.log.gz": {
+      "bytes": 139,
+      "content_bytes": 136,
+      "content_sha256": "753459a54a6b793155750c859a997aab2eb0853aaa3a1e537a40da08d70d1bd8",
+      "sha256": "d439639965dafcc1876783c063e95f7125976353701034696668ba2f8fd7139a",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/direction-bits-build.log"
+    },
+    "checks/direction-index-build.log.gz": {
+      "bytes": 139,
+      "content_bytes": 136,
+      "content_sha256": "f8f602dc4dbbd2184a7ca1a14c37e283d736f68b43b663a7e60a8b1148c14c98",
+      "sha256": "aae7339bf6f379ed0faff614c69bb154256e94144b08bcd29d6b884333ba2df6",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/direction-index-build.log"
+    },
+    "checks/direction-index-tests.log.gz": {
+      "bytes": 900,
+      "content_bytes": 3420,
+      "content_sha256": "2512f1ca9e084f79e82e5706cca613baa225bcd0fa66c8ce3b44d742bc75215a",
+      "sha256": "04d9e321b73070846c496887d9b0a1bbce23b728d39271fc041d3e1e50f39b34",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/direction-index-tests.log"
+    },
+    "checks/exploratory-library-tests.log.gz": {
+      "bytes": 9194,
+      "content_bytes": 37642,
+      "content_sha256": "9b75699105866a023f2d1adfd939cb1d37ce7c223a6e25bb42d694817bc28d21",
+      "sha256": "402ee5ba9498f5b25362364ad220eb18b3880acbda2bcdbe5fe8a8157e9d893a",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/exploratory-library-tests.log"
+    },
+    "checks/final-cargo-fmt-check.log.gz": {
+      "bytes": 20,
+      "content_bytes": 0,
+      "content_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/final-cargo-fmt-check.log"
+    },
+    "checks/final-cargo-fmt.log.gz": {
+      "bytes": 20,
+      "content_bytes": 0,
+      "content_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/final-cargo-fmt.log"
+    },
+    "checks/final-cargo-test.log.gz": {
+      "bytes": 10853,
+      "content_bytes": 44335,
+      "content_sha256": "39be1ccfa6d5d1f2f2d7643c7d9c34a654db62c5ed09bcb602f879359e3d5256",
+      "sha256": "8a01796a5b03c3106a8341a4dcb4c718e2a2715b23fd4c80b07664b5132965c0",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/final-cargo-test.log"
+    },
+    "checks/final-clippy.log.gz": {
+      "bytes": 830,
+      "content_bytes": 2403,
+      "content_sha256": "8ec584c2277f9160a6f302b87afa96d84f9248b6189d910c2d8bc09baeb85cc9",
+      "sha256": "912713196501ac8dd4fe78ee592ef336e260c9cf1c39fec3f10386cb221b7db6",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/final-clippy.log"
+    },
+    "checks/final-deploy-tests.log.gz": {
+      "bytes": 1611,
+      "content_bytes": 9855,
+      "content_sha256": "b9c22b8e30f530df363e48412c59379b09fae3022da2addf4dc29291daf93beb",
+      "sha256": "54e527e8c884aeeeb29b52c7d935c45c356addaadd76b6a6cbf2e592ceb1b361",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/final-deploy-tests.log"
+    },
+    "checks/final-diff-check.log.gz": {
+      "bytes": 20,
+      "content_bytes": 0,
+      "content_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/final-diff-check.log"
+    },
+    "checks/final-nnue-python-tests.log.gz": {
+      "bytes": 108,
+      "content_bytes": 206,
+      "content_sha256": "85137a29b81b7f53e3c7e3abe272844cb53838a3d87ee4ad81973f0df2966c19",
+      "sha256": "297b26fe790e8882452fd3573b909f17afb0ad9b564e629f80e38bfe52af2c5c",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/final-nnue-python-tests.log"
+    },
+    "checks/final-randomized-search-tests.log.gz": {
+      "bytes": 144,
+      "content_bytes": 211,
+      "content_sha256": "ee69168cce7d41b3ebdd5e9440ab77acd8e128814a355039ab8a2bae120c85c2",
+      "sha256": "42f217e076952d562d4ea52c7e72212197041f6d241c23c7a6bc07d2946ac2a4",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/final-randomized-search-tests.log"
+    },
+    "checks/final-ruff-check-final.log.gz": {
+      "bytes": 39,
+      "content_bytes": 19,
+      "content_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "sha256": "f3af4d142827f5aad2eb0c72d556d325488a57fb6219aac10afeb51085667d53",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/final-ruff-check-final.log"
+    },
+    "checks/final-ruff-check.log.gz": {
+      "bytes": 39,
+      "content_bytes": 19,
+      "content_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "sha256": "f3af4d142827f5aad2eb0c72d556d325488a57fb6219aac10afeb51085667d53",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/final-ruff-check.log"
+    },
+    "checks/final-ruff-format-check.log.gz": {
+      "bytes": 48,
+      "content_bytes": 28,
+      "content_sha256": "273e81e5999dffa54a2889cd098e6b1b5fa9937e557bd94fbc92a5cf43b546f0",
+      "sha256": "2d7049627afdf2c3ca1943c1511701a2ac08cfc0d3b3ccc8ce5f3bc62ffe2abe",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/final-ruff-format-check.log"
+    },
+    "checks/final-ruff-format.log.gz": {
+      "bytes": 45,
+      "content_bytes": 25,
+      "content_sha256": "1c09a7da2f2ffd47f0af1162ba737923d808c0969fbc62a7951319536bc8cb2d",
+      "sha256": "4c0dcbec1b121759c13d077299c810ddf125e9df25a5f6b3dd89ecaa786fafcf",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/final-ruff-format.log"
+    },
+    "checks/final-tactical-tree-tests.log.gz": {
+      "bytes": 55,
+      "content_bytes": 121,
+      "content_sha256": "21b18ddafafb76eb215073cf3c58a3049c86f819cb6f68b4d638b8389bafd3f7",
+      "sha256": "d2244888c15c8dbe9e576b8b81074b3da11e35aa25afdce0b1c5a2f62744153b",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/final-tactical-tree-tests.log"
+    },
+    "checks/fixed-rows-build.log.gz": {
+      "bytes": 139,
+      "content_bytes": 136,
+      "content_sha256": "7a1882502b3582189ffff836a27ec2a7f49cbf3a40a94c5d65a5042e66cf80af",
+      "sha256": "f992fcceaf05747715c80634edebab371c2587f3e8cfed3fdbb8955ffca29c66",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/fixed-rows-build.log"
+    },
+    "checks/fused-fit-build.log.gz": {
+      "bytes": 139,
+      "content_bytes": 136,
+      "content_sha256": "90439c10419d1023c828a0ca0bc84af319f24889c150c30d5491407ce3892962",
+      "sha256": "40571071d4c5bc1931d4fbc733a4ebd795cfcae3cdb1042da22078c9964b3ef0",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/fused-fit-build.log"
+    },
+    "checks/fused-fit-tests.log.gz": {
+      "bytes": 1374,
+      "content_bytes": 3703,
+      "content_sha256": "93decbff780b003b94443e87319f61fb914dd98c69af8519cf94ea0031dc22ee",
+      "sha256": "d69da2b571f2845c57dba2de62ec474f7daa9b34ae1d59b982ea085211475033",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/fused-fit-tests.log"
+    },
+    "checks/head-shift-build.log.gz": {
+      "bytes": 139,
+      "content_bytes": 136,
+      "content_sha256": "90b85e62e8fb4f7820eea295135d0d69da3ac5fc692d7bdee700e72d2055ca0c",
+      "sha256": "9680e08a6607dbf7ec2adea552f82d6ca84fb010a7d693d37e52e24a27c55b90",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/head-shift-build.log"
+    },
+    "checks/iterator-build.log.gz": {
+      "bytes": 139,
+      "content_bytes": 136,
+      "content_sha256": "e56ba5e2d4a1f79f8f1a7c437dd230ea29508d3c5550fd3f2726ad87fb7fc870",
+      "sha256": "25c59ff3342fd1f64c05a7344d58919e9c7944628f980f0af82b994b0b590cfb",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/iterator-build.log"
+    },
+    "checks/landing-cache-build.log.gz": {
+      "bytes": 138,
+      "content_bytes": 136,
+      "content_sha256": "7ffc4e55ada77ad9656008eeda18f831520073e673de5a022caa682d2813d45f",
+      "sha256": "6d901fec64ba89d41b0c3b7f68dabe801014fb7da1a925128865f217097e4c41",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/landing-cache-build.log"
+    },
+    "checks/material-only-build.log.gz": {
+      "bytes": 140,
+      "content_bytes": 136,
+      "content_sha256": "3f36188482dd33e61e589893b28f369d31e6455dad1ecbfc80a9341bd8d3aa27",
+      "sha256": "348f5147f105e74539ff1397df0033ddf2e18402a65c649eae4e46343c241d31",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/material-only-build.log"
+    },
+    "checks/output-lut-build.log.gz": {
+      "bytes": 139,
+      "content_bytes": 136,
+      "content_sha256": "225cc3eac17e78afb6b4151bdee3a8226fbd694b70f911810fd6996288825509",
+      "sha256": "1ae0a6f7ef67031f1c16a828ae59f43a1e521b53bbea4daeb4726f2cc4848872",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/output-lut-build.log"
+    },
+    "checks/output-lut-tests.log.gz": {
+      "bytes": 687,
+      "content_bytes": 1417,
+      "content_sha256": "abb3837f8cc59498d5d558243d11474f8e5a17702a6c502fb2be5376e0e43278",
+      "sha256": "a14b2e76228344c1895252b887c241fe432970b404120c661f5088859c47dc0a",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/output-lut-tests.log"
+    },
+    "checks/pgo-build.log.gz": {
+      "bytes": 22924,
+      "content_bytes": 175122,
+      "content_sha256": "ed9e9fe57fc2abd39c5b707cb38adb2053c124cbf037a0f9970ec8aad4681f5a",
+      "sha256": "80b785cb8d0b991945402d8600b92dc96af83b92487c6ea4171f321e8cc8de2b",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/pgo-build.log"
+    },
+    "checks/range-count-build.log.gz": {
+      "bytes": 140,
+      "content_bytes": 136,
+      "content_sha256": "ce530cf2c935fa13aa8f161dc1a586af5cc8986520938f56d02f164bc74cd528",
+      "sha256": "0920a0a5dec6749d32790f3bcad4c8706c6229a4c2c96041aac32479bf35795c",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/range-count-build.log"
+    },
+    "checks/repetition-build.log.gz": {
+      "bytes": 139,
+      "content_bytes": 136,
+      "content_sha256": "81c11433e571a129c7ada987982b6efe5fd0c5f852b31972a096ea7a0e90efe2",
+      "sha256": "1be15c0dc95308d3948b4d41e70c48a5e6c30ad4802fe3f01971f2ed29562886",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/repetition-build.log"
+    },
+    "checks/search-cached-captures-build.log.gz": {
+      "bytes": 139,
+      "content_bytes": 136,
+      "content_sha256": "a520b15664cacd4c82a05f29c800d540d9c82789b3bb7c15c7fbd6910e4aa1f8",
+      "sha256": "295c10271cca6784cc62ee1adc8dfd9e5dfb6e4e850c1e681ad45fdbbbe9dfd0",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/search-cached-captures-build.log"
+    },
+    "checks/search-combined-build.log.gz": {
+      "bytes": 139,
+      "content_bytes": 136,
+      "content_sha256": "dbe33631796c9caa30b4b3568827163b64e5529770a5db9693befa347d29d53a",
+      "sha256": "bb727152e02291c18294ae2424f0c25c2afcedca43ff9c88ba7ce979f42f88f1",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/search-combined-build.log"
+    },
+    "checks/search-qretain-build.log.gz": {
+      "bytes": 139,
+      "content_bytes": 136,
+      "content_sha256": "620a4b1f78799b179b6a4d8f12704dc9ad47e4ea10acbc07e5cffe3ec936eaff",
+      "sha256": "19f6b3ee6c987fd998ec37a09ba3e697f9df0280e11bbd12d315b3590c03f926",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/search-qretain-build.log"
+    },
+    "checks/search-root-order-build.log.gz": {
+      "bytes": 140,
+      "content_bytes": 136,
+      "content_sha256": "ac95d2d3b3d96548a87849bd28e552f3ac8bdb9c6ed357795a3dd8d5d69e5628",
+      "sha256": "99f1e397c97112d7ce2e76abc7369cfb58e74e08281737ab72bfa722c867bc45",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/search-root-order-build.log"
+    },
+    "checks/search-ttmask-build.log.gz": {
+      "bytes": 140,
+      "content_bytes": 136,
+      "content_sha256": "2c676dc3eedc98c31407eff0f248ae71bc95bf781d3d81264bfde43f48899e16",
+      "sha256": "38f1dd43849c0df6d6ef4837dc79e6f8786e953f4a01b47986a2ff732f19464a",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/search-ttmask-build.log"
+    },
+    "checks/second-head-build.log.gz": {
+      "bytes": 139,
+      "content_bytes": 136,
+      "content_sha256": "36065f0c8eda49f4041c93d695e73ea9cf987377444667a5d1f1b51f3ca3116d",
+      "sha256": "a81a68ae07b826323ef3ff043221453e58165edb42d9fee869c3f9ceb59a5541",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/second-head-build.log"
+    },
+    "checks/selected-build.log.gz": {
+      "bytes": 127,
+      "content_bytes": 127,
+      "content_sha256": "fd984ece650bbb102d569225eac399cfb65c51be02a2c184bffdcdcd4662247b",
+      "sha256": "3d86c62b8a1cdda41cd1097cf59d3468c228e8e13e05ffb153ae1e19fbfd3a40",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/selected-build.log"
+    },
+    "checks/virtual-attack-build.log.gz": {
+      "bytes": 138,
+      "content_bytes": 136,
+      "content_sha256": "e49fd63cded68e5107c34ab4393d2c6651f71b976185730afb680188b9d43958",
+      "sha256": "0e72ebefdd5e2bb748fb40092bad8aba1bdd34bc7c73460797c7ff607cc4f23f",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/virtual-attack-build.log"
+    },
+    "checks/virtual-attack-micro-build.log.gz": {
+      "bytes": 20,
+      "content_bytes": 0,
+      "content_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/virtual-attack-micro-build.log"
+    },
+    "confirm-cases.json": {
+      "bytes": 3748,
+      "content_bytes": 3748,
+      "content_sha256": "c48313a21ed6646f6e7df4fc62a7ef34ec1586806cd33283974eb24256f832c1",
+      "sha256": "c48313a21ed6646f6e7df4fc62a7ef34ec1586806cd33283974eb24256f832c1",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/confirm-cases.json"
+    },
+    "corpus.json": {
+      "bytes": 10115,
+      "content_bytes": 10115,
+      "content_sha256": "2437f8f39486e1afb671c56db8de824dfacc48d27a7f189bbed95e2fd7f5bbe7",
+      "sha256": "2437f8f39486e1afb671c56db8de824dfacc48d27a7f189bbed95e2fd7f5bbe7",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/corpus.json"
+    },
+    "direction-index-plan.json": {
+      "bytes": 96,
+      "content_bytes": 96,
+      "content_sha256": "0afe4cb88d2f73d4e74941df197b38ba3f0cc5026567b6343d859f636690112c",
+      "sha256": "0afe4cb88d2f73d4e74941df197b38ba3f0cc5026567b6343d859f636690112c",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/direction-index-plan.json"
+    },
+    "experiment-descriptions.json": {
+      "bytes": 3469,
+      "content_bytes": 3469,
+      "content_sha256": "ad55a1ffe6821936d5841e4e228ea31b94f86bb02728b0ba205d29a856732522",
+      "sha256": "ad55a1ffe6821936d5841e4e228ea31b94f86bb02728b0ba205d29a856732522",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/experiment-descriptions.json"
+    },
+    "experiments.json": {
+      "bytes": 202552,
+      "content_bytes": 202552,
+      "content_sha256": "82bd584a0da8e19e47eefde8587766fb0170fa470df80f5e88d0f25e873c916b",
+      "sha256": "82bd584a0da8e19e47eefde8587766fb0170fa470df80f5e88d0f25e873c916b",
+      "source": "Merged screen, late-screen, direction-index records plus material-only plan"
+    },
+    "late-screen-plan.json": {
+      "bytes": 725,
+      "content_bytes": 725,
+      "content_sha256": "e75dc57795540cce4c0750d45f1a8a3baf1d646da23c0d35c4d514b156593f92",
+      "sha256": "e75dc57795540cce4c0750d45f1a8a3baf1d646da23c0d35c4d514b156593f92",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/late-screen-plan.json"
+    },
+    "llvm-tool-provenance.json": {
+      "bytes": 657,
+      "content_bytes": 657,
+      "content_sha256": "80ea45caef0d235705c9584afd64ef7c0a0772fc5e6ede6fea9e389c7a86fcf0",
+      "sha256": "80ea45caef0d235705c9584afd64ef7c0a0772fc5e6ede6fea9e389c7a86fcf0",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/llvm-tool-provenance.json"
+    },
+    "pgo-build.json": {
+      "bytes": 1797,
+      "content_bytes": 1797,
+      "content_sha256": "0ddaa5ae9a2ec07219b4ee5578b63e73c49a9e2bf215189a7077664602cf4b57",
+      "sha256": "0ddaa5ae9a2ec07219b4ee5578b63e73c49a9e2bf215189a7077664602cf4b57",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/pgo-build.json"
+    },
+    "pgo-direct-preselection.json": {
+      "bytes": 494,
+      "content_bytes": 494,
+      "content_sha256": "1555126c005c64254b59302314245b490b00628da96aaa9b0fc3d56c78cd0e9f",
+      "sha256": "1555126c005c64254b59302314245b490b00628da96aaa9b0fc3d56c78cd0e9f",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/pgo-direct-preselection.json"
+    },
+    "pgo-preselection.json": {
+      "bytes": 780,
+      "content_bytes": 780,
+      "content_sha256": "151b7a0426c83bc1cb381a74fb32097f05cb6af8892855dbd21d491f4d38f1da",
+      "sha256": "151b7a0426c83bc1cb381a74fb32097f05cb6af8892855dbd21d491f4d38f1da",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/pgo-preselection.json"
+    },
+    "pgo-training-corpus.json": {
+      "bytes": 5498,
+      "content_bytes": 5498,
+      "content_sha256": "6a1858faa0af59364bd06787eda05a0abe5eaac733660429f818cff5a411eab5",
+      "sha256": "6a1858faa0af59364bd06787eda05a0abe5eaac733660429f818cff5a411eab5",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/pgo-training-corpus.json"
+    },
+    "plans/attack-filter-screen.json.gz": {
+      "bytes": 4709,
+      "content_bytes": 19072,
+      "content_sha256": "1e1bd100e95a1aac0be145af130f72601393b147adc89ee4cc33f7dc2707e229",
+      "sha256": "a553d0898689ca3f65eaf4e97d2e2d271a107817f54907e23d46c3160c10b24b",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/attack-filter-screen/plan.json"
+    },
+    "plans/baseline-control.json.gz": {
+      "bytes": 4790,
+      "content_bytes": 21827,
+      "content_sha256": "76c3a5a4792c33d41b57d72abefda825709be4932de2bc380eda18362a883dd3",
+      "sha256": "b5100e1ddff3a073ce6fff29d848651f3249cda57a9b76a807f2729ecb55485c",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/baseline-control/plan.json"
+    },
+    "plans/batched-reduction-screen.json.gz": {
+      "bytes": 5121,
+      "content_bytes": 20863,
+      "content_sha256": "ac4e96b4b643fb7cd4071815bc24b39cc0e8e6712fb7dcbf20f604ed7f1ed334",
+      "sha256": "a29b8b2ed3375b4304d6bc97082fb30c5ca3c0c039daabd78b9182db916dadbf",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/batched-reduction-screen/plan.json"
+    },
+    "plans/board-direct-screen.json.gz": {
+      "bytes": 4979,
+      "content_bytes": 19548,
+      "content_sha256": "1004d65cba71a4f3eeb9ba801059280e6b309ea147dce62ff0c6736235ece7a9",
+      "sha256": "8e665e463f81b9cb5305eb9a1a04da42c8114625a4fd66d08c79987523bdf5b9",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/board-direct-screen/plan.json"
+    },
+    "plans/direct-append-screen.json.gz": {
+      "bytes": 4988,
+      "content_bytes": 19569,
+      "content_sha256": "71617de822c7e9cf5aa303d6dbbbba3bebf423b62ebdb3d9d23f8fa5f9cd5e8b",
+      "sha256": "06dcdb8b419970492016150dfe9280b48e0ddfb8f2e01cd2d83c45f71a132a82",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/direct-append-screen/plan.json"
+    },
+    "plans/direction-bits-screen.json.gz": {
+      "bytes": 4975,
+      "content_bytes": 19546,
+      "content_sha256": "bcbd69a79771cde7329008d10914c4e2d1d9182c142a7c72259bb00f644c69d0",
+      "sha256": "a40850bbb1cad57734d1e428c91d4b0a2ac13cee5fefe10ac711cf15b3955dd7",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/direction-bits-screen/plan.json"
+    },
+    "plans/direction-index-screen.json.gz": {
+      "bytes": 5114,
+      "content_bytes": 20846,
+      "content_sha256": "e1391eddd46f7029fff080fb317bac3540f06dcdfb63a4ec9c0b23f40cc38233",
+      "sha256": "b5a4d47475c345c61bd59d0ef990d9ddb51e59cd549929c1f059eabb332dd165",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/direction-index-screen/plan.json"
+    },
+    "plans/fixed-rows-screen.json.gz": {
+      "bytes": 4999,
+      "content_bytes": 19588,
+      "content_sha256": "996c4f2702260947ffb41fb1458838982dfd64d9a3c51f750a6d81e24eef4c35",
+      "sha256": "7ddcd80af4c3c55532991f3d40dfea5e0a902d1bd7b9dfcad2a47259c455d93a",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/fixed-rows-screen/plan.json"
+    },
+    "plans/fused-fit-screen.json.gz": {
+      "bytes": 5076,
+      "content_bytes": 20774,
+      "content_sha256": "295c9ea925a8ffd7aa1a9df2384092f3d5d8f882179e6414b9259720b9d265a2",
+      "sha256": "33565da52c68444162459275c4abd1f31aa016601f4d2a96c42dffec7b7eb914",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/fused-fit-screen/plan.json"
+    },
+    "plans/head-shift-screen.json.gz": {
+      "bytes": 4977,
+      "content_bytes": 19541,
+      "content_sha256": "428cf029ea4e86f975f1680c37edd80d6470898cddce82d7c78478e208f3f36e",
+      "sha256": "508154425d4a872842154fd1b7f47b096816c91dfc5798364b7383eb851a3f62",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/head-shift-screen/plan.json"
+    },
+    "plans/iterator-screen.json.gz": {
+      "bytes": 4712,
+      "content_bytes": 19080,
+      "content_sha256": "9a30737690fa5a2a7be6d00c8887de1b42e052f2941aeaec975cb95655e682c0",
+      "sha256": "cd36a8a0513f19c2b6eefa5763e2e0db598ebc5b991973e24b9c3dd07da3cf8f",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/iterator-screen/plan.json"
+    },
+    "plans/landing-cache-screen.json.gz": {
+      "bytes": 4991,
+      "content_bytes": 19588,
+      "content_sha256": "6e7bab8812e2eb8d7c5870c8043a9e45ffa66e6c6d5c5c09f3b8879b8c4f92ac",
+      "sha256": "308bff1b8f0cd330ef4bc2c8c77d8608e1277829657db8834ce393ae6554a08d",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/landing-cache-screen/plan.json"
+    },
+    "plans/material-only-screen.json.gz": {
+      "bytes": 4831,
+      "content_bytes": 21768,
+      "content_sha256": "d5e06736d3ba81d197d0ea47a4845e54c6360bb7db72c67fc2d274a9ee5d7986",
+      "sha256": "12f431187690c8f4c2efea239ad189c1d9001ff42df034df8e87221140f72399",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/material-only-screen/plan.json"
+    },
+    "plans/output-lut-screen.json.gz": {
+      "bytes": 5068,
+      "content_bytes": 20739,
+      "content_sha256": "dc5bc4a0e4623a9f207771701944399cd2120a115c1b48de532fa690ca8b507f",
+      "sha256": "601e90306166b5aec434496d87d009045dc6a48393e0643ab9ab6eccaadf4c12",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/output-lut-screen/plan.json"
+    },
+    "plans/pgo-confirm.json.gz": {
+      "bytes": 5347,
+      "content_bytes": 25151,
+      "content_sha256": "31fd9704a29d2e13ed9b98649e29b50ae9216d6dcfbc43825b652a0c8b6e2c81",
+      "sha256": "bbe30878ec88c245b0b2d3fccd6e511e8904fb867e5b57d164f3c2863de6e080",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/pgo-confirm/plan.json"
+    },
+    "plans/pgo-sequence.json.gz": {
+      "bytes": 4528,
+      "content_bytes": 27983,
+      "content_sha256": "21a292806688a8460911bc5627eac1bed0f080291d12aeec38cb42d96cc3f9c8",
+      "sha256": "0b8c99188f69ce953dd9b08eee76587d3d338ee72492bb3a5406af1b2fb5e1ab",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/pgo-sequence/plan.json"
+    },
+    "plans/pgo-vs-original.json.gz": {
+      "bytes": 5353,
+      "content_bytes": 25023,
+      "content_sha256": "287c00222da77169e2d3cb401edfa6bc41f7b67d70f885b98d14d9ac80f25171",
+      "sha256": "7ee56a7a6172d0c667aea1092fcf0a6d358358b4579a2b012f1febb565c3cf4c",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/pgo-vs-original/plan.json"
+    },
+    "plans/range-count-screen.json.gz": {
+      "bytes": 4982,
+      "content_bytes": 19561,
+      "content_sha256": "902487735d08b61a60c40ad8d558bef2b2d750c19db2106d006fdeb31fc83810",
+      "sha256": "119ebac55f741833b6d90f46c492020fb9e4046c0d50f89649ad5bb4d154ef8e",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/range-count-screen/plan.json"
+    },
+    "plans/repetition-screen.json.gz": {
+      "bytes": 4717,
+      "content_bytes": 19095,
+      "content_sha256": "2cc32924fd2cb7c40bbde3f3f3c23b24f9a3d1eb75ee909444180017da75e6ec",
+      "sha256": "ef0f51295350cd4622fa93fd33d6444cc8edb45f14b8767d29a0efd1c26f2344",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/repetition-screen/plan.json"
+    },
+    "plans/search-cached-captures-screen.json.gz": {
+      "bytes": 5116,
+      "content_bytes": 20873,
+      "content_sha256": "d883b48b1176eee9b9ad9258dc3eecd5e75ac167da2fad62f9fb8ae60ca3eba2",
+      "sha256": "902d3529ede534863d1cbd139eda54d3808bb6b10bfbe003dc8a7af8efa8a7a7",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/search-cached-captures-screen/plan.json"
+    },
+    "plans/search-combined-screen.json.gz": {
+      "bytes": 4731,
+      "content_bytes": 19150,
+      "content_sha256": "881243c6a5b8dec88c5399ccb5159a2439907fc7f172712dec6c7792930c5bfb",
+      "sha256": "d819f25634a59a77244a1cca6520aa61d41fe5ebc686a6c2df49c5414bdc7a20",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/search-combined-screen/plan.json"
+    },
+    "plans/search-qretain-screen.json.gz": {
+      "bytes": 5119,
+      "content_bytes": 20845,
+      "content_sha256": "a3de6679b9897755b273953737c7a405b92214af2210505f105c547c05463db0",
+      "sha256": "994a9aab160322687f490c21bd9a21dd293b556f15c43b0e427279492e4e6824",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/search-qretain-screen/plan.json"
+    },
+    "plans/search-root-order-screen.json.gz": {
+      "bytes": 5116,
+      "content_bytes": 20854,
+      "content_sha256": "b3cea3fc4af363128eadbe27ae75a94295415de4d6df943aacef327f2570585f",
+      "sha256": "3a0d69a54d2b5b0dd4d41fd858e27d94c756f53618a3b977e3466ca938bbc561",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/search-root-order-screen/plan.json"
+    },
+    "plans/search-ttmask-screen.json.gz": {
+      "bytes": 5117,
+      "content_bytes": 20841,
+      "content_sha256": "e79b11079980ccbd7a236b84d5efa6c15a16d89dcd77888b74e24718d08139c0",
+      "sha256": "195566fc0ed329a9dbd83045b5a59a2e6afb0c1209dcd865d11130341786af8a",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/search-ttmask-screen/plan.json"
+    },
+    "plans/second-head-screen.json.gz": {
+      "bytes": 4704,
+      "content_bytes": 19066,
+      "content_sha256": "e0ce9501019e18d772efa5e9a61fb91b65d95b2adeb678213986055a29223ccf",
+      "sha256": "7ac4eb47fa5b3fafa5311abc2765493ee8f431387560d572df5b3a8b805a97b0",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/second-head-screen/plan.json"
+    },
+    "plans/selected-confirm.json.gz": {
+      "bytes": 5334,
+      "content_bytes": 25141,
+      "content_sha256": "02370aa572139fe209a0a2e84eefaf8ce4d16692dc17ce21855f970823ca27c5",
+      "sha256": "9d9d6ea528c81b989bf772299990f06e8ed5d07aeac276c5d5f7c129554e420a",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/selected-confirm/plan.json"
+    },
+    "plans/selected-sequence.json.gz": {
+      "bytes": 4524,
+      "content_bytes": 27978,
+      "content_sha256": "3640711bdfc84c1054439398a04cb61dd00d63e7a00e0cd0121245705df98509",
+      "sha256": "0e345bf4208d5734d726b511338fa0484002eac43ab5e06c2cd1b13d807cd251",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/selected-sequence/plan.json"
+    },
+    "plans/virtual-attack-screen.json.gz": {
+      "bytes": 4989,
+      "content_bytes": 19578,
+      "content_sha256": "4377944ca914210851c27f985a676d899c3bfef1293a005835e48c577fd140f2",
+      "sha256": "f211bc2c75d56353f8e7bdf266e517468150967227941a6c7e3e6b27296855ce",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/virtual-attack-screen/plan.json"
+    },
+    "primary-sources.json": {
+      "bytes": 3932,
+      "content_bytes": 3932,
+      "content_sha256": "403455cb1bf54bf033e28dcb9eb029586ef2a9cbd61c4295b099e267a8b4d44e",
+      "sha256": "403455cb1bf54bf033e28dcb9eb029586ef2a9cbd61c4295b099e267a8b4d44e",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/primary-sources.json"
+    },
+    "profiles/binary-sha256.txt": {
+      "bytes": 623,
+      "content_bytes": 623,
+      "content_sha256": "9b6c253c3e65055b54cae98244cf5313f24d7cb59e0322ce4c89783a95674714",
+      "sha256": "9b6c253c3e65055b54cae98244cf5313f24d7cb59e0322ce4c89783a95674714",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/pgo/binary-sha256.txt"
+    },
+    "profiles/source-revision.txt": {
+      "bytes": 41,
+      "content_bytes": 41,
+      "content_sha256": "d0c095b29ad1ab41d166269f7466148f44e083685877e06d0fa43e7016f7cdb4",
+      "sha256": "d0c095b29ad1ab41d166269f7466148f44e083685877e06d0fa43e7016f7cdb4",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/pgo/source-revision.txt"
+    },
+    "profiles/workload/plan.json.gz": {
+      "bytes": 1790,
+      "content_bytes": 16331,
+      "content_sha256": "403696b267176d2653da267e180a97e8b92c348108e54faa9a4eb212ec9cf921",
+      "sha256": "63cc4b6a326519110e078cc5cca0b1dc79af8c946acbb0d895732833648c1340",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/pgo/workload/plan.json"
+    },
+    "profiles/workload/searches.jsonl.gz": {
+      "bytes": 3733,
+      "content_bytes": 74773,
+      "content_sha256": "c95d1f321a6862cbda7c19a7d7958b304fdfe3406469349bdde982540754cefc",
+      "sha256": "9c4e5fe951e1c6dc92f596bfac7379d352a6d22deed3cd73cf2cfbcba7ea1493",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/pgo/workload/searches.jsonl"
+    },
+    "raw/attack-filter-screen-ab.jsonl.gz": {
+      "bytes": 3600,
+      "content_bytes": 44805,
+      "content_sha256": "9a663403250b30fd6d3a46c4c425f4b462cc4bf9fd0a368d1b30560f9752ddd7",
+      "sha256": "ee5c131aa4980b5e8619240387ce56c3fb474146250a307ab86a941a6e8937ad",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/attack-filter-screen/ab-pairs.jsonl"
+    },
+    "raw/baseline-control-ab.jsonl.gz": {
+      "bytes": 7351,
+      "content_bytes": 103970,
+      "content_sha256": "f57ae5dbdffe60dd732b83c96ccb353fa2f9fe248feaba6673817e4fbfd68c00",
+      "sha256": "8286d6cd24e360cf0eb39e32f3c929f4b8e3acec70b32d6d056fe03651ce3d9d",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/baseline-control/ab-pairs.jsonl"
+    },
+    "raw/batched-reduction-screen-ab.jsonl.gz": {
+      "bytes": 3623,
+      "content_bytes": 44920,
+      "content_sha256": "c4c96557574ed69d95fddb8762a4292ae99f476ebb3c7c5716ad12af19aa1af9",
+      "sha256": "1410f7eaeb016eb1d67136c163b6227044721716645416ffc073a28a1668fc8d",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/batched-reduction-screen/ab-pairs.jsonl"
+    },
+    "raw/board-direct-screen-ab.jsonl.gz": {
+      "bytes": 3639,
+      "content_bytes": 44933,
+      "content_sha256": "97b749561666e4f44db61178abb0b849047d32b3b3c6a21a0e4eb1d6f9f764f9",
+      "sha256": "689e3850537183d09113aff132b9314b3ce80345c2b8a277d18028e003c36442",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/board-direct-screen/ab-pairs.jsonl"
+    },
+    "raw/direct-append-screen-ab.jsonl.gz": {
+      "bytes": 3636,
+      "content_bytes": 44821,
+      "content_sha256": "d32d8d8495256c9ee37b403f9c769267c193eaf7389acdbf218575fdfcecca0e",
+      "sha256": "fd93dbea673d571f3ac39e1c57f3887b82a4c13125e1653ff3bf0a121fe4e765",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/direct-append-screen/ab-pairs.jsonl"
+    },
+    "raw/direction-bits-screen-ab.jsonl.gz": {
+      "bytes": 3603,
+      "content_bytes": 44870,
+      "content_sha256": "50b41cdeffe3d0d273acfac883cb3db8232ff4a97e22011114a4e48ae73dd0e8",
+      "sha256": "4d371f957bbe99b15040b7ca15b6af86d76d3afb48290c15044bb6355d4e54da",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/direction-bits-screen/ab-pairs.jsonl"
+    },
+    "raw/direction-index-screen-ab.jsonl.gz": {
+      "bytes": 3643,
+      "content_bytes": 44863,
+      "content_sha256": "38aa3fe1f2f344d2325a8712d18309993316bc3dcc93ce078709533dc660419d",
+      "sha256": "cfd4e82758e65b2654c728af4bd6288814f8b78cf087ed475e01afc8fb09eeb5",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/direction-index-screen/ab-pairs.jsonl"
+    },
+    "raw/fixed-rows-screen-ab.jsonl.gz": {
+      "bytes": 3601,
+      "content_bytes": 44862,
+      "content_sha256": "4ba0a83ccdbe5ba7d68cbd73974ec1ed14daaa7f535ef3d02354914033fd6319",
+      "sha256": "36d532f1ffd501bb9a2b0c93f46af2414f4d27974c0c966696e49b0716f4ac6d",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/fixed-rows-screen/ab-pairs.jsonl"
+    },
+    "raw/fused-fit-screen-ab.jsonl.gz": {
+      "bytes": 3611,
+      "content_bytes": 44928,
+      "content_sha256": "cc2c5059d1ca356e81cb6bebd35372ce2931d26b422a4a65775ce1fd450776a1",
+      "sha256": "c5475141e4818de5cb8eaac286e4abda44196396bbe40cfb26260ba9375a92aa",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/fused-fit-screen/ab-pairs.jsonl"
+    },
+    "raw/head-shift-screen-ab.jsonl.gz": {
+      "bytes": 3619,
+      "content_bytes": 44874,
+      "content_sha256": "4f7959454c2fd58d29b9fa4a968a91f1afc1ddc82104da47f8ce2a6f3da66025",
+      "sha256": "cc06e888d2d8e9654c28efb8a0e3e905f67c2b2dcf34a1c43f1583ac885d25c3",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/head-shift-screen/ab-pairs.jsonl"
+    },
+    "raw/iterator-screen-ab.jsonl.gz": {
+      "bytes": 3626,
+      "content_bytes": 44822,
+      "content_sha256": "964079f235fe55c878a594569e6655dcff8387aaf8be856a2193e3c5a59cdb7f",
+      "sha256": "c2c4ed2a87cf72ea54365d2e880a42d8c3524cdd1fcf2ce657561660fee9c5b3",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/iterator-screen/ab-pairs.jsonl"
+    },
+    "raw/landing-cache-screen-ab.jsonl.gz": {
+      "bytes": 3649,
+      "content_bytes": 44834,
+      "content_sha256": "8503ade1580006fd54c242729161129c15af796ce91917998d24744968411307",
+      "sha256": "07a23bcf239c30afb14b5a52c007982cd6b85f045798c469201ee0afc45efe67",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/landing-cache-screen/ab-pairs.jsonl"
+    },
+    "raw/material-only-screen-ab.jsonl.gz": {
+      "bytes": 9226,
+      "content_bytes": 156108,
+      "content_sha256": "6f169b78646dd728028ef136e0a62c3cf1b17f750cb4d37bcc708020870d6d24",
+      "sha256": "5922cd489be3a50c9774e8bb385c90b670fa9eb069e21d00a131067d17b89794",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/material-only-screen/ab-pairs.jsonl"
+    },
+    "raw/output-lut-screen-ab.jsonl.gz": {
+      "bytes": 3614,
+      "content_bytes": 44904,
+      "content_sha256": "fe8b41f2a21756ce4aa1fb3e10794fd49e6553a4a748069971af6e7c50e77dbf",
+      "sha256": "7731728a05ed2bd4d7470afe34edd2066e9c8f820ae7f3fc690097c0626d452c",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/output-lut-screen/ab-pairs.jsonl"
+    },
+    "raw/pgo-confirm-ab.jsonl.gz": {
+      "bytes": 16934,
+      "content_bytes": 318667,
+      "content_sha256": "600829cfbc8471701978b391fc616415ff999cc490796015ab3af7b5e73f05ba",
+      "sha256": "ac7979ae74ba797904e72063b9aee6a820ec47fdbb90df0aa9d8bb09c893f247",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/pgo-confirm/ab-pairs.jsonl"
+    },
+    "raw/pgo-sequence-ab.jsonl.gz": {
+      "bytes": 18455,
+      "content_bytes": 282477,
+      "content_sha256": "a4abaa24df7870290f2d4d8e824fd955a639930023d1040955be2d06f4c0ac05",
+      "sha256": "6d2d6110f0af3b3f4006b87bbed86f463bc03f0a484d9f332d65309ea617aadd",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/pgo-sequence/ab-pairs.jsonl"
+    },
+    "raw/pgo-vs-original-ab.jsonl.gz": {
+      "bytes": 11194,
+      "content_bytes": 158756,
+      "content_sha256": "6c40f0d866b2139a252a681194e9de5275fb92911696aaecbc68ba7e4e8b667e",
+      "sha256": "4f525132e6cae3d2779991ef963688f71a3a0359620fa96f3fdba5685486e538",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/pgo-vs-original/ab-pairs.jsonl"
+    },
+    "raw/range-count-screen-ab.jsonl.gz": {
+      "bytes": 3625,
+      "content_bytes": 44836,
+      "content_sha256": "66130c94f5beef92069b14e71aa536741876b7e48bde96a6a001f46026fa3bd7",
+      "sha256": "e26066524c15151c698ea19f32f2c4f84ca3747f2192d2f4a41ee13e980fdff1",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/range-count-screen/ab-pairs.jsonl"
+    },
+    "raw/repetition-screen-ab.jsonl.gz": {
+      "bytes": 3625,
+      "content_bytes": 44871,
+      "content_sha256": "04002d8e4560f827a4145728f41d7920af2e26855c43c5e74fe93e0c2d34b7cd",
+      "sha256": "e496cafccb88c77add8c744261504f4d6962645d4f275e013bae6378568836ff",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/repetition-screen/ab-pairs.jsonl"
+    },
+    "raw/search-cached-captures-screen-ab.jsonl.gz": {
+      "bytes": 3617,
+      "content_bytes": 44868,
+      "content_sha256": "0732f7c1856bc4f08b0aa018635381b39a19070c6885c813f5927d6224fd7f19",
+      "sha256": "75ada87112564ef51fb2543f755218d458d40e10dc8a4a51dbaafa332dba2037",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/search-cached-captures-screen/ab-pairs.jsonl"
+    },
+    "raw/search-combined-screen-ab.jsonl.gz": {
+      "bytes": 3618,
+      "content_bytes": 44822,
+      "content_sha256": "1cf272809d60711d138e964306fdb49fed88885b2ace90915d59e28a3c813851",
+      "sha256": "52b4f88403b6fd207bb408d676e17d0f97f5cc2bea6823961ad2457d5d0b0d25",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/search-combined-screen/ab-pairs.jsonl"
+    },
+    "raw/search-qretain-screen-ab.jsonl.gz": {
+      "bytes": 3626,
+      "content_bytes": 44921,
+      "content_sha256": "92f3a142e744b58e0491b15f80f6a3faea8a4af11b52f2be08942112003662da",
+      "sha256": "abb0f73e3a8e811c6b342b296c7d60e70eb646e2b08e4c974c005c5aa7921d02",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/search-qretain-screen/ab-pairs.jsonl"
+    },
+    "raw/search-root-order-screen-ab.jsonl.gz": {
+      "bytes": 3624,
+      "content_bytes": 44868,
+      "content_sha256": "4c245496fd71d9ccee74607e304500dbc5b49a0344def4324da905eb0b558442",
+      "sha256": "d54245cf966afeff791ab6ecad4ccebe90e8b34c79b1ebce7fc94794ce6f3d85",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/search-root-order-screen/ab-pairs.jsonl"
+    },
+    "raw/search-ttmask-screen-ab.jsonl.gz": {
+      "bytes": 3572,
+      "content_bytes": 44829,
+      "content_sha256": "40819401781d2c808cc1c31072c61c0e7b1dc68d81e81fdd66df43ee8ef9d899",
+      "sha256": "604e8b31d10dd361a2159ab2e22ef4acafd76e52d4d57ebfe5cc719559da16a2",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/search-ttmask-screen/ab-pairs.jsonl"
+    },
+    "raw/second-head-screen-ab.jsonl.gz": {
+      "bytes": 3624,
+      "content_bytes": 44874,
+      "content_sha256": "430f19725b7894930d4f8a28b4acf5bface5a43281323ed6388d0e8274ee126c",
+      "sha256": "746daca399b35d8ecbd2bcd24253a9149e508f7e26755376e175b1392d161724",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/second-head-screen/ab-pairs.jsonl"
+    },
+    "raw/selected-confirm-aa.jsonl.gz": {
+      "bytes": 10984,
+      "content_bytes": 159037,
+      "content_sha256": "a99d82320b0035140e880d944e20c50f460472b58ee7229fc9c4151d0261899c",
+      "sha256": "89cbe666942771ff9f7e74299947eb45f63532421a4f3ac3c56007ccef8a63b8",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/selected-confirm/aa-pairs.jsonl"
+    },
+    "raw/selected-confirm-ab.jsonl.gz": {
+      "bytes": 22195,
+      "content_bytes": 477106,
+      "content_sha256": "0d470ee180a14b7c342633f15e3409c07203626e20f14751400429faaf2a7d44",
+      "sha256": "db0fbe990c515ad37b93d6962dbbb26987d7778ea715ca0b34397fc259537612",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/selected-confirm/ab-pairs.jsonl"
+    },
+    "raw/selected-sequence-ab.jsonl.gz": {
+      "bytes": 28194,
+      "content_bytes": 564018,
+      "content_sha256": "0766656c14f2aa250f543283a8351a3b6864f48a9031cc92e64a1c873058cdd5",
+      "sha256": "9f29b60fcefe32c490099f53483435ffcae90faaa221e2902d8ccfb7a13e6d89",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/selected-sequence/ab-pairs.jsonl"
+    },
+    "raw/virtual-attack-micro.jsonl.gz": {
+      "bytes": 840,
+      "content_bytes": 4334,
+      "content_sha256": "5b0da20298df27080180cf532b0e3708e20019a2722abb2921e109a0105bb716",
+      "sha256": "daeb6f9a2ac63ea5e232492d65abce4e4a2a1fea6a94e32f372974d00f345435",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/virtual-attack-micro.jsonl"
+    },
+    "raw/virtual-attack-screen-ab.jsonl.gz": {
+      "bytes": 3647,
+      "content_bytes": 44896,
+      "content_sha256": "c6604190129665c7783640f42c0edcd5129985a2a29942363da041b1fe428b07",
+      "sha256": "1ef4b3aa486f45f04303edd7d9fcb0d35c5d1d62989b36ea94df14963e3f9012",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/virtual-attack-screen/ab-pairs.jsonl"
+    },
+    "rust197-tool-provenance.json": {
+      "bytes": 2143,
+      "content_bytes": 2143,
+      "content_sha256": "d3e4966e1cdeacf94a9439f8734a386689918e3223026eb6572602259a8d3796",
+      "sha256": "d3e4966e1cdeacf94a9439f8734a386689918e3223026eb6572602259a8d3796",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/rust197-tool-provenance.json"
+    },
+    "screen-cases.json": {
+      "bytes": 2488,
+      "content_bytes": 2488,
+      "content_sha256": "c3aa2a29ad516a221e3b1b814ba205f0f88732b8235625a4acc436477f0b88fa",
+      "sha256": "c3aa2a29ad516a221e3b1b814ba205f0f88732b8235625a4acc436477f0b88fa",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/screen-cases.json"
+    },
+    "screen-plan.json": {
+      "bytes": 1443,
+      "content_bytes": 1443,
+      "content_sha256": "368ee51626a08a1338dc3cb5bc0a165411cfcb891b5c43dc875b7733779425eb",
+      "sha256": "368ee51626a08a1338dc3cb5bc0a165411cfcb891b5c43dc875b7733779425eb",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/screen-plan.json"
+    },
+    "search-prior-evidence.json": {
+      "bytes": 13560,
+      "content_bytes": 13560,
+      "content_sha256": "7dbdb49274d24b4e7f6ce96fc167d65de688b38aa84e681ffb62250cb0a7e947",
+      "sha256": "7dbdb49274d24b4e7f6ce96fc167d65de688b38aa84e681ffb62250cb0a7e947",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/search-prior-evidence.json"
+    },
+    "selected-build.json": {
+      "bytes": 9510,
+      "content_bytes": 9510,
+      "content_sha256": "93a7fd215e7bd1f0a3db97d4369ef7ff39f613fde80bb9365a5fd2c23b744e7f",
+      "sha256": "93a7fd215e7bd1f0a3db97d4369ef7ff39f613fde80bb9365a5fd2c23b744e7f",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/selected-build.json"
+    },
+    "selected-initial-plan.json": {
+      "bytes": 1731,
+      "content_bytes": 1731,
+      "content_sha256": "e26b357f286c52c23ab1433b63a2562326aab81e9696d1d90cc2b7d83c34ccd5",
+      "sha256": "e26b357f286c52c23ab1433b63a2562326aab81e9696d1d90cc2b7d83c34ccd5",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/selected-initial-plan.json"
+    },
+    "sequence-cases.json": {
+      "bytes": 6653,
+      "content_bytes": 6653,
+      "content_sha256": "30b433880e085a8bdd36c7e60caf19e6856523dac2ca9424e8598e53200b1483",
+      "sha256": "30b433880e085a8bdd36c7e60caf19e6856523dac2ca9424e8598e53200b1483",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/sequence-cases.json"
+    },
+    "sequence-corpus.json": {
+      "bytes": 11259,
+      "content_bytes": 11259,
+      "content_sha256": "0195267472c0e8cad7f59a59a77f6d27796598396c84e5855aa0a9cf13d66388",
+      "sha256": "0195267472c0e8cad7f59a59a77f6d27796598396c84e5855aa0a9cf13d66388",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/sequence-corpus.json"
+    },
+    "sequence-preselection.json": {
+      "bytes": 236,
+      "content_bytes": 236,
+      "content_sha256": "9120dc9f082a538e612d4ef249a7469d17b7eb4195ad063f0f3e1b03bda74dad",
+      "sha256": "9120dc9f082a538e612d4ef249a7469d17b7eb4195ad063f0f3e1b03bda74dad",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/sequence-preselection.json"
+    },
+    "source-engine-revisions.json": {
+      "bytes": 379,
+      "content_bytes": 379,
+      "content_sha256": "4468aa1b036419697999575a33352703f168351014849efa8ed7d1e3ebd89ba6",
+      "sha256": "4468aa1b036419697999575a33352703f168351014849efa8ed7d1e3ebd89ba6",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/source-engine-revisions.json"
+    },
+    "summaries/attack-filter-screen-ab.json.gz": {
+      "bytes": 2086,
+      "content_bytes": 9555,
+      "content_sha256": "5016ae2285482d1d62ea14c3f5708c12ff0b03609eec6029d4bcd3d5cecf1fa6",
+      "sha256": "a5a636ddbb2063b71ddd8675c256b82542ec6a760225b6d4abfe81e11adc30c3",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/attack-filter-screen/ab-summary.json"
+    },
+    "summaries/baseline-control-ab.json.gz": {
+      "bytes": 2662,
+      "content_bytes": 13278,
+      "content_sha256": "4944aa56db16884b408108e7fc7c7c78b38e160c09fb8f299ecf612e23f0c71f",
+      "sha256": "49c5d196a422b55ba0a890cc3967f90035fbfb66d8ffc6dd59e0f6d63d6b47e4",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/baseline-control/ab-summary.json"
+    },
+    "summaries/batched-reduction-screen-ab.json.gz": {
+      "bytes": 2097,
+      "content_bytes": 9612,
+      "content_sha256": "15e0630c653334ce278b8a3d8aa890b981d4e7e112bf43dd4e7d6e210c9fe7cb",
+      "sha256": "eb94610618bc763aba9b596d9f438c90ab247b9cc965138ef1bed150d280651a",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/batched-reduction-screen/ab-summary.json"
+    },
+    "summaries/board-direct-screen-ab.json.gz": {
+      "bytes": 2158,
+      "content_bytes": 9654,
+      "content_sha256": "bf92d97a6b61a237cc72dd0b80cf29c09c618629d8eab35a7cd92178683e3c12",
+      "sha256": "91bd684568eed0417bd6b9651f986398a1cb86eb538cba7a8bda34f6479eb0c6",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/board-direct-screen/ab-summary.json"
+    },
+    "summaries/direct-append-screen-ab.json.gz": {
+      "bytes": 2165,
+      "content_bytes": 9642,
+      "content_sha256": "cde58ce4e9d06c65ba35fb81c8a3f455966d3a6d62c81d69c9cd07257e8a2d22",
+      "sha256": "d52ad3ce2547ba5d0660e2ebc4ae96147f1f9f19c8f9c131614f8aa1564ca97c",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/direct-append-screen/ab-summary.json"
+    },
+    "summaries/direction-bits-screen-ab.json.gz": {
+      "bytes": 2130,
+      "content_bytes": 9612,
+      "content_sha256": "088d44f89029d2a2c2f88bd63a4ad367db0f856411db744317beb849d919fccc",
+      "sha256": "9617f43ba22bb5e53b1ad3d128afa5654897e0ce50be1939504a995afc3dd326",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/direction-bits-screen/ab-summary.json"
+    },
+    "summaries/direction-index-screen-ab.json.gz": {
+      "bytes": 2116,
+      "content_bytes": 9657,
+      "content_sha256": "f06887bc8327682cc1318900277aaf30a2ebd38a213a2ab2b58fd55b321122f6",
+      "sha256": "eb75cb98f4a9ff8d9ef49421a59d7322349e3c41b0f19b9017d653a93b2f20a8",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/direction-index-screen/ab-summary.json"
+    },
+    "summaries/fixed-rows-screen-ab.json.gz": {
+      "bytes": 2148,
+      "content_bytes": 9655,
+      "content_sha256": "3fd8639f51cef3174fa85694537b1b335578dfa78d90e1851fd79557973a0524",
+      "sha256": "5465a25d92a9e7360d47d0c4d8b8210ae23fdd7e308cd829929687723ceaaa5c",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/fixed-rows-screen/ab-summary.json"
+    },
+    "summaries/fused-fit-screen-ab.json.gz": {
+      "bytes": 2159,
+      "content_bytes": 9659,
+      "content_sha256": "0b27386c1e799cda25cad45ddd93332a9007aa54032b27d06e339703579992f4",
+      "sha256": "474a6df778e4f2ff327b686619a36a5ffff274142e33856f9658ec0cce828003",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/fused-fit-screen/ab-summary.json"
+    },
+    "summaries/head-shift-screen-ab.json.gz": {
+      "bytes": 2151,
+      "content_bytes": 9622,
+      "content_sha256": "72c9fc18249ad838e9f796784574a85f9ba5f2e80b67c7efb2ab0b06315134ba",
+      "sha256": "0323724c0d97acf1cb7baa28e924d8741ce7825a3230e3c6f48e3ff00d2361bf",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/head-shift-screen/ab-summary.json"
+    },
+    "summaries/iterator-screen-ab.json.gz": {
+      "bytes": 2114,
+      "content_bytes": 9552,
+      "content_sha256": "cb0e81446a6a6b42e4d376f18f93faae8179a5cde7ac3e390ac41792f5a1c563",
+      "sha256": "c1ede303ac4aa05c44fe62edd5c33af1169d96ce42210e96e5a1dcc924c52cbe",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/iterator-screen/ab-summary.json"
+    },
+    "summaries/landing-cache-screen-ab.json.gz": {
+      "bytes": 2148,
+      "content_bytes": 9629,
+      "content_sha256": "9759cf46d632b350163b3ce88a6337fb8622a35eb6a5d53d5683a216f57f588c",
+      "sha256": "e1506cff79c1cbcb05c5460c551b56122cdad8e828b41c2d8e4afad1c39ae4eb",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/landing-cache-screen/ab-summary.json"
+    },
+    "summaries/material-only-screen-ab.json.gz": {
+      "bytes": 2851,
+      "content_bytes": 13778,
+      "content_sha256": "e85930d09915e874eee31a853c69b39096afec5058cd88f1aad991fb8a92f079",
+      "sha256": "5b1372b6fa15f6c1b421c66cca6f92d5ba77d10ef8cd3f47dc9d8a54384b0f12",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/material-only-screen/ab-summary.json"
+    },
+    "summaries/output-lut-screen-ab.json.gz": {
+      "bytes": 2155,
+      "content_bytes": 9614,
+      "content_sha256": "8e5030619c64daff31cebcb47676555b2a00dc19a42e5c4c401aec57bb184c51",
+      "sha256": "34e0ed70cb7f1f62c05be980e91207b011c2effd909b76852487e8726534a01b",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/output-lut-screen/ab-summary.json"
+    },
+    "summaries/pgo-confirm-ab.json.gz": {
+      "bytes": 3626,
+      "content_bytes": 16801,
+      "content_sha256": "9fd0819e7baece03ac2db816373137c11ce13f8e16db6c2c3579984ccf091c34",
+      "sha256": "3d1fe27f7f28161c18dc2093053da25a70a86e0c1ef2605e5f86dc5745a4a93a",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/pgo-confirm/ab-summary.json"
+    },
+    "summaries/pgo-sequence-ab.json.gz": {
+      "bytes": 3807,
+      "content_bytes": 20568,
+      "content_sha256": "a06ae63fd51ab5e588baf250c00f1f8087a31bc56fd07331959ead9ad53a0887",
+      "sha256": "e88c7607f01f2aa44d7bbdb47e73fd8bea85b5d5908c578c10f509dc6492e39f",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/pgo-sequence/ab-summary.json"
+    },
+    "summaries/pgo-vs-original-ab.json.gz": {
+      "bytes": 3194,
+      "content_bytes": 15603,
+      "content_sha256": "0df087a5a1c43616d7c24bfa5aad16ed4a93daa21b2f3599ca6850ff8384c22b",
+      "sha256": "6583a4eb0cd920e193b503bc095f1b2b4623a9627e3ed82a51660b867d62ed3d",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/pgo-vs-original/ab-summary.json"
+    },
+    "summaries/range-count-screen-ab.json.gz": {
+      "bytes": 2146,
+      "content_bytes": 9633,
+      "content_sha256": "35c9d54252a37a152e9eec97624a85b03d6623b773f79c9f54e0608b50ea8a74",
+      "sha256": "46aa9ccb396028cc4b7498524ab16ea6acefb19402ec42c67f294579838efd82",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/range-count-screen/ab-summary.json"
+    },
+    "summaries/repetition-screen-ab.json.gz": {
+      "bytes": 2104,
+      "content_bytes": 9577,
+      "content_sha256": "0b0f764248f102be42ce5b53bfb5fb399964c89e9c056b246fc7ca3cedc3dcdc",
+      "sha256": "e79b5732a4d8a78c283ed5fd1f7c5ac160f1c167dc9cad95883107af5e5f8bea",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/repetition-screen/ab-summary.json"
+    },
+    "summaries/search-cached-captures-screen-ab.json.gz": {
+      "bytes": 2096,
+      "content_bytes": 9637,
+      "content_sha256": "b3212905cad4cf2955d9668194cc0acdb8df6cd22298d05d853ddbbfc523959b",
+      "sha256": "c98dc5874ad9bf23a2309a3fe7d909d8a923faa690fcba1263538a04aa80287b",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/search-cached-captures-screen/ab-summary.json"
+    },
+    "summaries/search-combined-screen-ab.json.gz": {
+      "bytes": 2116,
+      "content_bytes": 9582,
+      "content_sha256": "cec0bcde1710bf2e57320fa83cabf10ea295a6e1327077f0b007d371ea416024",
+      "sha256": "992aa6bf2aacb3c759a82efc3f356f9a644f4a26a4a9310fb54c1380394b7bdf",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/search-combined-screen/ab-summary.json"
+    },
+    "summaries/search-qretain-screen-ab.json.gz": {
+      "bytes": 2099,
+      "content_bytes": 9630,
+      "content_sha256": "d3285bd16fbbd2f4e0c324443b213c4df403be4202e98f58fb6741de6e316b75",
+      "sha256": "7566aaa05a6af28968e24ff9a86be9f690227a3f762f2f981ed7738776871aa0",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/search-qretain-screen/ab-summary.json"
+    },
+    "summaries/search-root-order-screen-ab.json.gz": {
+      "bytes": 2120,
+      "content_bytes": 9613,
+      "content_sha256": "8ee3222ccfbbba6baf5348dccc3c4f9380740da578938feaf71b099653a1a250",
+      "sha256": "4d1f187e90391b0a5c63dea14007d578790cb45b9a4fff577b9aa6613dfca4d7",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/search-root-order-screen/ab-summary.json"
+    },
+    "summaries/search-ttmask-screen-ab.json.gz": {
+      "bytes": 2095,
+      "content_bytes": 9630,
+      "content_sha256": "ad681fe39575f611d338a1fe8392899c57ea45fcffee5ba6dde0af5669cd3b84",
+      "sha256": "bf88dd170602be6c43c5683d25244b7025fa1ecff72870caf7492effccdf7b0c",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/search-ttmask-screen/ab-summary.json"
+    },
+    "summaries/second-head-screen-ab.json.gz": {
+      "bytes": 2086,
+      "content_bytes": 9540,
+      "content_sha256": "a9ef4d353b9a2a48bf6d91675f1353f73a56858dae93d3ba2d0878bac52f7aa7",
+      "sha256": "b4490b3f37692743769a6858710f4a2e5ae5cec579b56c7d7d30715185ee2de5",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/second-head-screen/ab-summary.json"
+    },
+    "summaries/selected-confirm-aa.json.gz": {
+      "bytes": 3179,
+      "content_bytes": 15605,
+      "content_sha256": "58946c2871b2d28d292084ec3a984ce4e3553ff4bcd9bcb6c8983879a744ddbf",
+      "sha256": "5ca1a9ec115aa8750b1582479e4c21f35ff1ea1aaa9549e643591ecc764656a0",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/selected-confirm/aa-summary.json"
+    },
+    "summaries/selected-confirm-ab.json.gz": {
+      "bytes": 4030,
+      "content_bytes": 17951,
+      "content_sha256": "f593b14910c318723f171a0378879c116b96c7c5995628a39cfd608926744368",
+      "sha256": "a9741842dae8a82a75ff208d74b543a37ffb4c5528c308a34b08249ada29508e",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/selected-confirm/ab-summary.json"
+    },
+    "summaries/selected-sequence-ab.json.gz": {
+      "bytes": 4406,
+      "content_bytes": 22253,
+      "content_sha256": "ecaeb0f77bdb64cf274e68a61f9873f5129f7888ac005347a040e2f331555d94",
+      "sha256": "659a55587c29fbe3da13ca2c4fd12e27d753ee51260a71a5a999b87461f69f78",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/selected-sequence/ab-summary.json"
+    },
+    "summaries/virtual-attack-screen-ab.json.gz": {
+      "bytes": 2152,
+      "content_bytes": 9625,
+      "content_sha256": "659d9273ccbb870e494e29f6acc69612fcd7c401aacd55d855982ba007253793",
+      "sha256": "d1a4ea66fb0711996738249e81eb5248411b80f6c8d2cd2939bd4ca6091377c8",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/virtual-attack-screen/ab-summary.json"
+    },
+    "validation.json": {
+      "bytes": 27880,
+      "content_bytes": 27880,
+      "content_sha256": "6555b7cc67d3592939ab7150dc7c988e3c57af85bd264d343be7ab60a5220f48",
+      "sha256": "6555b7cc67d3592939ab7150dc7c988e3c57af85bd264d343be7ab60a5220f48",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/validation.json"
+    },
+    "virtual-attack-micro-plan.json": {
+      "bytes": 1210,
+      "content_bytes": 1210,
+      "content_sha256": "62eb27254e0ee84073971ef79c09e53f3daf036ea9e21fdd3e25d9e80b3750ca",
+      "sha256": "62eb27254e0ee84073971ef79c09e53f3daf036ea9e21fdd3e25d9e80b3750ca",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/virtual-attack-micro-plan.json"
+    },
+    "virtual-attack-micro-summary.json": {
+      "bytes": 1446,
+      "content_bytes": 1446,
+      "content_sha256": "f1c2c68fb2cde1951d4d65bdf6ad9d1e1759f91d7fa5d6672f714f5a2affe68e",
+      "sha256": "f1c2c68fb2cde1951d4d65bdf6ad9d1e1759f91d7fa5d6672f714f5a2affe68e",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/virtual-attack-micro-summary.json"
+    },
+    "warmups/attack-filter-screen-ab.jsonl.gz": {
+      "bytes": 2796,
+      "content_bytes": 21554,
+      "content_sha256": "c4481e393ee91cd6b835abce3a1a7281a0d0b23557c1949a1fc10f18174cce29",
+      "sha256": "408ca8047e9fcb81966d5e8d9aef7697941d6bd2604b0e4e4fb84e4e34377318",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/attack-filter-screen/ab-warmups.jsonl"
+    },
+    "warmups/baseline-control-ab.jsonl.gz": {
+      "bytes": 5584,
+      "content_bytes": 50036,
+      "content_sha256": "f091602ccae53940b6d2a3c3892323af6a96d10165aeabddaa80922c62e799c4",
+      "sha256": "c03db562066ad435ecd2a2c8c27af423f7ac65d05057ed3ddc02296ef4609240",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/baseline-control/ab-warmups.jsonl"
+    },
+    "warmups/batched-reduction-screen-ab.jsonl.gz": {
+      "bytes": 2827,
+      "content_bytes": 21571,
+      "content_sha256": "9466f6312102f3e091401efb7323d9c417ef597471d1deed9c7694f368945344",
+      "sha256": "b19cb1172754d7228a56d1bf562c3b2f22901ac704ce08bf1eee40a6c0a8b10c",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/batched-reduction-screen/ab-warmups.jsonl"
+    },
+    "warmups/board-direct-screen-ab.jsonl.gz": {
+      "bytes": 2828,
+      "content_bytes": 21606,
+      "content_sha256": "7f552d3e0552a8b5008505409735c1915b7e77aa430cde7990798003c9e06c9e",
+      "sha256": "0cbcb660f0a711d6bedded5648cdc43dabc9f4524c78ccb93b88e15d677354f5",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/board-direct-screen/ab-warmups.jsonl"
+    },
+    "warmups/direct-append-screen-ab.jsonl.gz": {
+      "bytes": 2834,
+      "content_bytes": 21604,
+      "content_sha256": "6e2af175489c8643b46d1e9d53e6da7cf53f1bebb8b697c5361541d2a3aca482",
+      "sha256": "b8f2a905e468331618ef670c61d9d5339a22b07d3b32cdc1420c3f75b70d94cb",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/direct-append-screen/ab-warmups.jsonl"
+    },
+    "warmups/direction-bits-screen-ab.jsonl.gz": {
+      "bytes": 2830,
+      "content_bytes": 21586,
+      "content_sha256": "5074b4d912319974be03b451ebe099d57c860daabe7fe7ae7ab27ccfaf8822e1",
+      "sha256": "597e2d9253c7930b9e44e6eff3743656897d5e350c4b01d82f352a182f71f798",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/direction-bits-screen/ab-warmups.jsonl"
+    },
+    "warmups/direction-index-screen-ab.jsonl.gz": {
+      "bytes": 2850,
+      "content_bytes": 21571,
+      "content_sha256": "68c8a85b64e1752989dc56747d55761cd5c8c5415db9e350982a6b093afb3372",
+      "sha256": "956797ba874b0eb830f73fffa85dea3947f35d37249b308f4c64af9f42d98b0b",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/direction-index-screen/ab-warmups.jsonl"
+    },
+    "warmups/fixed-rows-screen-ab.jsonl.gz": {
+      "bytes": 2806,
+      "content_bytes": 21618,
+      "content_sha256": "03c39bc4eaa3fff3422d5efd306b12df1977f2be6cbf6cadffabd0d85e45be4c",
+      "sha256": "1463f4a0f93c29ef92d887277ea7dcb3604cf543996e1f1f9e439f19c45d2d89",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/fixed-rows-screen/ab-warmups.jsonl"
+    },
+    "warmups/fused-fit-screen-ab.jsonl.gz": {
+      "bytes": 2823,
+      "content_bytes": 21642,
+      "content_sha256": "5558e9e5919aedca9c1a1078eaab962d21ec330af44f4e31e27d6abf9e61c53f",
+      "sha256": "4533f6f8784f6120f016f3161a5de750278026808d519050fa832114f4fae850",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/fused-fit-screen/ab-warmups.jsonl"
+    },
+    "warmups/head-shift-screen-ab.jsonl.gz": {
+      "bytes": 2817,
+      "content_bytes": 21600,
+      "content_sha256": "a63e3dc490cd54d47ba333ffe89afbe6a3a1eabe644c47284569ea40ef75d102",
+      "sha256": "c21b7588638a6595fd386e82c4c25974958808fa8d2356aab7ea2851e1723b8f",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/head-shift-screen/ab-warmups.jsonl"
+    },
+    "warmups/iterator-screen-ab.jsonl.gz": {
+      "bytes": 2794,
+      "content_bytes": 21557,
+      "content_sha256": "25492fa225246f22586d43146dab15899d12819f1b0e4c5666eb17f05934615f",
+      "sha256": "bd66c1e6a49091e782a3f5045a67f0388c7e53da4d3e640fe064002f9955c39e",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/iterator-screen/ab-warmups.jsonl"
+    },
+    "warmups/landing-cache-screen-ab.jsonl.gz": {
+      "bytes": 2835,
+      "content_bytes": 21610,
+      "content_sha256": "d11d1db5bb769ef421b1e8548745eb599e2894f6ee47e9f6fa663de3bc121159",
+      "sha256": "760d7d259dd8c7ed528fef9440aba35f59ca90ad63fd538e467cf11de2863753",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/landing-cache-screen/ab-warmups.jsonl"
+    },
+    "warmups/material-only-screen-ab.jsonl.gz": {
+      "bytes": 5613,
+      "content_bytes": 50031,
+      "content_sha256": "9b624384276d0ff2e6bf30ea679c9a7dec46a502631566ed91c6836a95c76301",
+      "sha256": "a484c4bd76a3ba37809993afbf7b80476a3da95c2adde1046f18dac450f144a9",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/material-only-screen/ab-warmups.jsonl"
+    },
+    "warmups/output-lut-screen-ab.jsonl.gz": {
+      "bytes": 2812,
+      "content_bytes": 21615,
+      "content_sha256": "c3cf5866a55a14555a8c140a95a8f2bcbc3732d49bfee83bed1364c5bea7a15a",
+      "sha256": "d9d32c11d00daf330a776acaf60de5c7465f86d993dfd7fe0431054b1b9e834f",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/output-lut-screen/ab-warmups.jsonl"
+    },
+    "warmups/pgo-confirm-ab.jsonl.gz": {
+      "bytes": 8530,
+      "content_bytes": 76790,
+      "content_sha256": "696f170d944960e680bd92a24554d8f8ddddf4d0190e684d2179334648d0efff",
+      "sha256": "8b4cc1091a4211280cdd266c43b48ce520b635a372a984ce578bafef481f36a7",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/pgo-confirm/ab-warmups.jsonl"
+    },
+    "warmups/pgo-sequence-ab.jsonl.gz": {
+      "bytes": 14081,
+      "content_bytes": 136098,
+      "content_sha256": "c0099af9d3a99428c4cef344853d821397d318aeec920e23b18adf435e832a90",
+      "sha256": "35a29ec3e6cf700fd39d66cb0a1cb4c01ca581fd2af4a6464c83b0178c4097e6",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/pgo-sequence/ab-warmups.jsonl"
+    },
+    "warmups/pgo-vs-original-ab.jsonl.gz": {
+      "bytes": 8532,
+      "content_bytes": 76473,
+      "content_sha256": "d70b3332d293a66626e387c78333a7f6a51465deef5f6f40fc49d9dcf7a88570",
+      "sha256": "3a4f7607ac64de637ea61b4e1c18ea27e03e5a1aed452c19e999f4200c571e34",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/pgo-vs-original/ab-warmups.jsonl"
+    },
+    "warmups/range-count-screen-ab.jsonl.gz": {
+      "bytes": 2825,
+      "content_bytes": 21563,
+      "content_sha256": "bcfc5d29870eb464e52faa99dfab67fd2419ac9ee4fcf589251b47e301affa67",
+      "sha256": "1cb2d03927c7d59e239172f0071104a701c2e4c8fb01aaad828e9032134721ae",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/range-count-screen/ab-warmups.jsonl"
+    },
+    "warmups/repetition-screen-ab.jsonl.gz": {
+      "bytes": 2818,
+      "content_bytes": 21565,
+      "content_sha256": "5f09d741aa412cc7c43ee3903326e8648aaad23a249538d0b10e6d9f31ffc9ac",
+      "sha256": "e016dbc138b561be719413a4d712db39393f09417c8924600aafcfb05a0c28c3",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/repetition-screen/ab-warmups.jsonl"
+    },
+    "warmups/search-cached-captures-screen-ab.jsonl.gz": {
+      "bytes": 2823,
+      "content_bytes": 21621,
+      "content_sha256": "ef157dfd8a4736dab57518f73cde0f1607dba7cd2c91c0d42b7e3739b4b57a3b",
+      "sha256": "261c28bb8eeaf4363eb70703fc174f7c3d1a95f2a23f03e280826e08ba97ebb1",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/search-cached-captures-screen/ab-warmups.jsonl"
+    },
+    "warmups/search-combined-screen-ab.jsonl.gz": {
+      "bytes": 2818,
+      "content_bytes": 21598,
+      "content_sha256": "6bf986e84be746d23ede802475a36ed7194b373af87310ba0d4ae65ecaea9cc5",
+      "sha256": "b2ffdcdb9f3e5e3f3dfed857391d6b09d6fd5d655d91e98445b0b7a562f8d09f",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/search-combined-screen/ab-warmups.jsonl"
+    },
+    "warmups/search-qretain-screen-ab.jsonl.gz": {
+      "bytes": 2828,
+      "content_bytes": 21617,
+      "content_sha256": "f4b0b3ee7b474b4a3bc05ac3a817781adb02d6e68a9755a703ac81884f834936",
+      "sha256": "76a083cc670f47ca7eccbc7e6fc2b062d5fa01e766291b056d443eff4a2133e4",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/search-qretain-screen/ab-warmups.jsonl"
+    },
+    "warmups/search-root-order-screen-ab.jsonl.gz": {
+      "bytes": 2833,
+      "content_bytes": 21604,
+      "content_sha256": "bf7dc4d24b7df515c38665529a95e7072829e00fe519c699ae69c8909e57d033",
+      "sha256": "d601c5ab23095facdc8fd23b9838c49a44a6871c578116cf7138ec64141b4b4d",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/search-root-order-screen/ab-warmups.jsonl"
+    },
+    "warmups/search-ttmask-screen-ab.jsonl.gz": {
+      "bytes": 2815,
+      "content_bytes": 21598,
+      "content_sha256": "365f6ce862e60af97c81880542825ccd2f3caf5280ec777b30305a2dc2c6aa8e",
+      "sha256": "89c95e7f7a27d37dbb05f1aeee1cd5d3e404efec3a557cf2feba09f2202345ef",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/search-ttmask-screen/ab-warmups.jsonl"
+    },
+    "warmups/second-head-screen-ab.jsonl.gz": {
+      "bytes": 2824,
+      "content_bytes": 21598,
+      "content_sha256": "991cb16c3678a2f6c805336478e594067ac35abe0ef0989600fea09f6cded1a9",
+      "sha256": "c4cb098f90adbc54908806df863e4dcbf60106a54b902c78755cad1aa403fcf9",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/second-head-screen/ab-warmups.jsonl"
+    },
+    "warmups/selected-confirm-aa.jsonl.gz": {
+      "bytes": 8417,
+      "content_bytes": 76644,
+      "content_sha256": "23b4331e0ee5b52efc16a0b7df84f561c0316cb293f3810d7fa37dc1e353d3d6",
+      "sha256": "8ff5bc389f16997b2511e3000422d350e24ebec3d5881343edc726ebc1eb4558",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/selected-confirm/aa-warmups.jsonl"
+    },
+    "warmups/selected-confirm-ab.jsonl.gz": {
+      "bytes": 8420,
+      "content_bytes": 76649,
+      "content_sha256": "f7dfb40483bb460a476f1414fbeeff2dca288d64e5681440953c4c5235f7efb5",
+      "sha256": "0b90330753c1e55735373d29f6e5656b615623880d9be6723cae00f98a2010c4",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/selected-confirm/ab-warmups.jsonl"
+    },
+    "warmups/selected-sequence-ab.jsonl.gz": {
+      "bytes": 13927,
+      "content_bytes": 135904,
+      "content_sha256": "f8e198d3a166727d1fb3c4c246c484c2367554f4560c517077721953af5d8fa8",
+      "sha256": "dfb1a92edb8ba89399ff28cf290e24278b1dce2c80cf14daef84f8ee533a62d1",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/selected-sequence/ab-warmups.jsonl"
+    },
+    "warmups/virtual-attack-screen-ab.jsonl.gz": {
+      "bytes": 2853,
+      "content_bytes": 21644,
+      "content_sha256": "840a34a1e9b697cf4311e984f0db20eca476fd28baabeadc9c2eddfb38a65131",
+      "sha256": "45cfe7ba036c680c6e4ee194551067121367ae4d540738c1e2fdeb7fbfb435a1",
+      "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/virtual-attack-screen/ab-warmups.jsonl"
+    }
+  },
+  "gzip_mtime": 0,
+  "schema_version": 1
+}

@@ -15,6 +15,8 @@ import sys
 import time
 from pathlib import Path
 
+import label_storage
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import engine_updates
 import storage_guard
@@ -24,6 +26,8 @@ import training_sidecar
 ROOT = Path(__file__).resolve().parent.parent
 STOPPING = False
 SEARCH_HARD_SECONDS = 300
+# Bound incomplete telemetry as well as completed JSON records.
+MAX_ANALYZER_LINE_BYTES = 16 * 1024 * 1024
 POLICY = "same-player-1000-window7-v1"
 
 
@@ -118,7 +122,7 @@ def scan(db, run, labels=False, label_candidates=None):
                 moment.update(id=key, game=str(path), game_hash=game_hash, game_id=game["game_id"], slot_id=slot["id"])
                 db.execute(
                     "INSERT OR IGNORE INTO moments VALUES(?,?,'pending',?,NULL)",
-                    (key, moment["magnitude"], json.dumps(moment)),
+                    (key, moment["magnitude"], label_storage.encode(db, moment)),
                 )
             db.execute("INSERT INTO files VALUES(?,?)", (str(path), game_hash))
             db.commit()
@@ -279,13 +283,25 @@ def search_position(config, moment, ply, db):
     key = digest(json.dumps(identity, sort_keys=True).encode())
     cached = db.execute("SELECT payload FROM searches WHERE key=?", (key,)).fetchone()
     if cached:
-        return json.loads(cached["payload"])
+        return label_storage.decode_search(db, cached["payload"])
     run = Path(config["run"])
     log_path = run / "analysis/search.stderr.log"
     start = time.monotonic()
     best = None
     iterations = []
     hard_timeout = False
+
+    def accept_iteration(line):
+        nonlocal best
+        if len(line) > MAX_ANALYZER_LINE_BYTES:
+            raise ValueError("analyzer record exceeds the telemetry size limit")
+        result = json.loads(line)
+        if result["completed_depth"] > 0 or result.get("terminal"):
+            best = result
+            iterations.append(dict(result))
+            # Durable iteration output even if this controller is interrupted.
+            atomic(run / "analysis" / (key + ".progress.json"), result)
+
     env = {k: v for k, v in os.environ.items() if not k.startswith("TAIKYOKU_AB_")}
     command = [helper["analyzer_bin"], moment["game"], str(ply), model["snapshot"], str(depth), str(budget)]
     if agent.get("engine"):
@@ -295,24 +311,48 @@ def search_position(config, moment, ply, db):
             command, stdout=subprocess.PIPE, stderr=err, env=env, preexec_fn=parent_death_guard(os.getpid())
         )
         selector = selectors.DefaultSelector()
-        selector.register(proc.stdout, selectors.EVENT_READ)
         try:
+            os.set_blocking(proc.stdout.fileno(), False)
+            selector.register(proc.stdout, selectors.EVENT_READ)
+            pending = bytearray()
+            stdout_eof = False
             while True:
-                if STOPPING or time.monotonic() - start >= SEARCH_HARD_SECONDS:
+                remaining = SEARCH_HARD_SECONDS - (time.monotonic() - start)
+                if STOPPING or remaining <= 0:
                     hard_timeout = not STOPPING
                     proc.kill()
                     break
-                events = selector.select(0.2)
+                if stdout_eof:
+                    try:
+                        proc.wait(timeout=min(0.2, remaining))
+                    except subprocess.TimeoutExpired:
+                        continue
+                    break
+                events = selector.select(min(0.2, remaining))
                 if events:
-                    line = proc.stdout.readline()
-                    if not line:
-                        break
-                    result = json.loads(line)
-                    if result["completed_depth"] > 0 or result.get("terminal"):
-                        best = result
-                        iterations.append(dict(result))
-                        # Durable iteration output even if this controller is interrupted.
-                        atomic(run / "analysis" / (key + ".progress.json"), result)
+                    # Read readiness promises available bytes, not a complete
+                    # line. A blocking readline here bypasses stop/deadline
+                    # checks whenever a helper flushes only part of a record.
+                    try:
+                        chunk = os.read(proc.stdout.fileno(), 64 * 1024)
+                    except BlockingIOError:
+                        continue
+                    if not chunk:
+                        if pending:
+                            accept_iteration(pending)
+                            pending.clear()
+                        selector.unregister(proc.stdout)
+                        stdout_eof = True
+                        continue
+                    pending.extend(chunk)
+                    consumed = 0
+                    while (end := pending.find(b"\n", consumed)) != -1:
+                        accept_iteration(pending[consumed:end])
+                        consumed = end + 1
+                    if consumed:
+                        del pending[:consumed]
+                    if len(pending) > MAX_ANALYZER_LINE_BYTES:
+                        raise ValueError("analyzer record exceeds the telemetry size limit")
             proc.wait(timeout=5)
         finally:
             if proc.poll() is None:
@@ -348,7 +388,7 @@ def search_position(config, moment, ply, db):
         hard_timeout=hard_timeout,
         wall_ms=int((time.monotonic() - start) * 1000),
     )
-    db.execute("INSERT OR REPLACE INTO searches VALUES(?,?)", (key, json.dumps(best)))
+    db.execute("INSERT OR REPLACE INTO searches VALUES(?,?)", (key, label_storage.encode_search(db, best)))
     db.commit()
     # The committed row supersedes the interrupt checkpoint.
     (run / "analysis" / (key + ".progress.json")).unlink(missing_ok=True)
@@ -396,7 +436,7 @@ def analyzer(config):
                 for row in batch:
                     if STOPPING:
                         break
-                    moment = json.loads(row["payload"])
+                    moment = label_storage.decode(db, row["payload"])
                     atomic(
                         control / "analyzer-status.json",
                         {"state": "analyzing", "moment": row["id"], "backlog": backlog, "updated": time.time()},
@@ -408,7 +448,7 @@ def analyzer(config):
                         moment["status"] = "completed"
                         db.execute(
                             "UPDATE moments SET status='completed',payload=?,error=NULL WHERE id=?",
-                            (json.dumps(moment), row["id"]),
+                            (label_storage.encode(db, moment), row["id"]),
                         )
                         print(f"completed {row['id']} swing={row['magnitude']}", flush=True)
                     except InterruptedError:

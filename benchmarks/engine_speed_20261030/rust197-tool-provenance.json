@@ -1,0 +1,43 @@
+{
+  "version": "1.97.0",
+  "purpose": "Match repository CI validation only; performance binaries remain Rust1.92.0 for paired comparison",
+  "manifest_url": "https://static.rust-lang.org/dist/channel-rust-1.97.0.toml",
+  "manifest_sha256": "3804d2666f7c12ce64205baa69b6be52f910b45b158091013264beb7aa1de7f5",
+  "components": [
+    {
+      "component": "rustc",
+      "url": "https://static.rust-lang.org/dist/2026-07-09/rustc-1.97.0-x86_64-unknown-linux-gnu.tar.xz",
+      "sha256": "0a8787303c88b018af61b5c53a0c7024d516d175e623eeab35a35eab11dbcad0",
+      "archive": "/tmp/engine-speed-rust197-downloads/rustc-1.97.0-x86_64-unknown-linux-gnu.tar.xz",
+      "bytes": 81045896
+    },
+    {
+      "component": "rust-std",
+      "url": "https://static.rust-lang.org/dist/2026-07-09/rust-std-1.97.0-x86_64-unknown-linux-gnu.tar.xz",
+      "sha256": "0c43618128a7a6b96b0b04c04cf7b28dd52fb0991a74c9615fbd1a684ff88712",
+      "archive": "/tmp/engine-speed-rust197-downloads/rust-std-1.97.0-x86_64-unknown-linux-gnu.tar.xz",
+      "bytes": 30076456
+    },
+    {
+      "component": "cargo",
+      "url": "https://static.rust-lang.org/dist/2026-07-09/cargo-1.97.0-x86_64-unknown-linux-gnu.tar.xz",
+      "sha256": "5c5bc94af02797b699bb7d4e85b356192eab9fb50376053a1e6edf509fcf7129",
+      "archive": "/tmp/engine-speed-rust197-downloads/cargo-1.97.0-x86_64-unknown-linux-gnu.tar.xz",
+      "bytes": 11147356
+    },
+    {
+      "component": "clippy-preview",
+      "url": "https://static.rust-lang.org/dist/2026-07-09/clippy-1.97.0-x86_64-unknown-linux-gnu.tar.xz",
+      "sha256": "1f7bd64e545de3c1921dc68b4d1e6ceae034b0d8c40d66b795c04e946d4262c0",
+      "archive": "/tmp/engine-speed-rust197-downloads/clippy-1.97.0-x86_64-unknown-linux-gnu.tar.xz",
+      "bytes": 4940472
+    },
+    {
+      "component": "rustfmt-preview",
+      "url": "https://static.rust-lang.org/dist/2026-07-09/rustfmt-1.97.0-x86_64-unknown-linux-gnu.tar.xz",
+      "sha256": "0aaaebebf628af9151d99388db9074fa47c5e8b4b218c56119ef71f0084051f9",
+      "archive": "/tmp/engine-speed-rust197-downloads/rustfmt-1.97.0-x86_64-unknown-linux-gnu.tar.xz",
+      "bytes": 2161024
+    }
+  ]
+}

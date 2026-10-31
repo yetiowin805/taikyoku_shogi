@@ -8,6 +8,7 @@ from pathlib import Path
 
 import numpy as np
 
+import dataset_storage
 from quantized import Quantized
 
 WIDTHS = [512, 768, 1024, 1536, 2048]
@@ -29,8 +30,13 @@ def main():
     p.add_argument("--widths", nargs="+", type=int, default=WIDTHS)
     p.add_argument("--search-ms", type=int, default=3000)
     a = p.parse_args()
+    with dataset_storage.prepare(a.dataset):
+        return consume(a)
+
+
+def consume(a):
     schema = json.loads((a.dataset / "schema.json").read_text())
-    samples = [json.loads(x) for x in (a.dataset / "samples.jsonl").read_text().splitlines()]
+    samples = list(dataset_storage.rows(a.dataset / "samples.jsonl"))
     val = [s for s in samples if s["split"] == "validation"]
     data = np.memmap(a.dataset / "features.bin", mode="r", dtype="<u4")
     results = []

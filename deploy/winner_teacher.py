@@ -3,6 +3,7 @@
 import json
 from pathlib import Path
 
+import label_storage
 import training_labels as labels
 
 POLICY = "winner-teacher-v2"
@@ -130,7 +131,7 @@ def scan(a, db, run, config):
                 }
                 for sample in candidates(game):
                     old = existing.get(sample["center_ply"])
-                    moment = json.loads(old["payload"]) if old else {}
+                    moment = label_storage.decode(db, old["payload"]) if old else {}
                     if old:
                         moment.setdefault(
                             "previous_sampling",
@@ -152,7 +153,7 @@ def scan(a, db, run, config):
                     )
                     db.execute(
                         "INSERT OR REPLACE INTO moments VALUES(?,?,'pending',?,NULL)",
-                        (key, moment["magnitude"], json.dumps(moment)),
+                        (key, moment["magnitude"], label_storage.encode(db, moment)),
                     )
                     db.execute("DELETE FROM dual_paired WHERE id=?", (key,))
                     db.execute("DELETE FROM dual_failures WHERE id=?", (key,))

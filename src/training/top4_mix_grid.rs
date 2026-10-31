@@ -298,6 +298,7 @@ fn push_entrant(entrants: &mut Vec<TourneyEntrant>, id: String, model: String) {
         id,
         model,
         engine: None,
+        generation: None,
     });
 }
 

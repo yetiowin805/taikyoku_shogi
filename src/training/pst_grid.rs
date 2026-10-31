@@ -134,6 +134,7 @@ pub fn run_pst_grid(cfg: &PstGridConfig) -> Result<(TourneyManifest, GridFile), 
                     id,
                     model,
                     engine: None,
+                    generation: None,
                 });
             }
         }

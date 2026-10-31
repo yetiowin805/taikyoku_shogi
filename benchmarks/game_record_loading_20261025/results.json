@@ -1,0 +1,490 @@
+{
+  "baseline_revision": "c73a7d5ecdd1f179213c1f5664b39a92178ae26b",
+  "candidate_revision": "dc0989125956eb26129b0ff8fcbd9a40ee8a2358",
+  "cpu": 2,
+  "compiler": "rustc 1.92.0 (ded5c06cf 2025-12-08)",
+  "method": "Six alternating-order pairs per case, 100 parses per process, warmup; input read outside timing. Full serialized record signatures match on all 12 corpus games plus a legacy export. Peak RSS covers the entire helper process.",
+  "probe_source_sha256": "df87e392bc6e0be4c781f8115570969c2563d5ddf1eaa1f8e2081540e00fef8a",
+  "binaries": {
+    "baseline": "79f3fe1a67e593c0774613e43837a3979b360d95d256400a2d835340a1252104",
+    "loader": "ce810d88f7fc2b570e5f1f3020b4f05397013ff2e8fd0bed2f04a51b1e62e2bc"
+  },
+  "summary": {
+    "v2-small": {
+      "baseline_ms_per_load": 1.25621171,
+      "loader_ms_per_load": 0.259762015,
+      "baseline_peak_rss_mib": 4.81640625,
+      "loader_peak_rss_mib": 3.125,
+      "median_time_ratio": 0.20421506500094666
+    },
+    "v2-long": {
+      "baseline_ms_per_load": 11.515458290000002,
+      "loader_ms_per_load": 2.15924167,
+      "baseline_peak_rss_mib": 16.701171875,
+      "loader_peak_rss_mib": 5.39453125,
+      "median_time_ratio": 0.18978725540463554
+    },
+    "legacy-long": {
+      "baseline_ms_per_load": 7.451695239999999,
+      "loader_ms_per_load": 3.775677675,
+      "baseline_peak_rss_mib": 14.94140625,
+      "loader_peak_rss_mib": 4.189453125,
+      "median_time_ratio": 0.5280598214699945
+    }
+  },
+  "pairs": [
+    {
+      "case": "v2-small",
+      "rep": 0,
+      "baseline": {
+        "bytes": 211561,
+        "mode": "load",
+        "moves": 671,
+        "ms": 124.20337400000001,
+        "repeats": 100,
+        "peak_rss_kib": 4932
+      },
+      "loader": {
+        "bytes": 211561,
+        "mode": "load",
+        "moves": 671,
+        "ms": 26.581398,
+        "repeats": 100,
+        "peak_rss_kib": 3200
+      }
+    },
+    {
+      "case": "v2-small",
+      "rep": 1,
+      "loader": {
+        "bytes": 211561,
+        "mode": "load",
+        "moves": 671,
+        "ms": 26.200935,
+        "repeats": 100,
+        "peak_rss_kib": 3200
+      },
+      "baseline": {
+        "bytes": 211561,
+        "mode": "load",
+        "moves": 671,
+        "ms": 129.933516,
+        "repeats": 100,
+        "peak_rss_kib": 4932
+      }
+    },
+    {
+      "case": "v2-small",
+      "rep": 2,
+      "baseline": {
+        "bytes": 211561,
+        "mode": "load",
+        "moves": 671,
+        "ms": 125.285854,
+        "repeats": 100,
+        "peak_rss_kib": 4928
+      },
+      "loader": {
+        "bytes": 211561,
+        "mode": "load",
+        "moves": 671,
+        "ms": 25.751468,
+        "repeats": 100,
+        "peak_rss_kib": 3200
+      }
+    },
+    {
+      "case": "v2-small",
+      "rep": 3,
+      "loader": {
+        "bytes": 211561,
+        "mode": "load",
+        "moves": 671,
+        "ms": 26.239935,
+        "repeats": 100,
+        "peak_rss_kib": 3200
+      },
+      "baseline": {
+        "bytes": 211561,
+        "mode": "load",
+        "moves": 671,
+        "ms": 125.65744500000001,
+        "repeats": 100,
+        "peak_rss_kib": 4932
+      }
+    },
+    {
+      "case": "v2-small",
+      "rep": 4,
+      "baseline": {
+        "bytes": 211561,
+        "mode": "load",
+        "moves": 671,
+        "ms": 125.79257599999998,
+        "repeats": 100,
+        "peak_rss_kib": 4932
+      },
+      "loader": {
+        "bytes": 211561,
+        "mode": "load",
+        "moves": 671,
+        "ms": 25.452134,
+        "repeats": 100,
+        "peak_rss_kib": 3200
+      }
+    },
+    {
+      "case": "v2-small",
+      "rep": 5,
+      "loader": {
+        "bytes": 211561,
+        "mode": "load",
+        "moves": 671,
+        "ms": 25.479722,
+        "repeats": 100,
+        "peak_rss_kib": 3072
+      },
+      "baseline": {
+        "bytes": 211561,
+        "mode": "load",
+        "moves": 671,
+        "ms": 125.584897,
+        "repeats": 100,
+        "peak_rss_kib": 4928
+      }
+    },
+    {
+      "case": "v2-long",
+      "rep": 0,
+      "baseline": {
+        "bytes": 1510414,
+        "mode": "load",
+        "moves": 4419,
+        "ms": 1150.32907,
+        "repeats": 100,
+        "peak_rss_kib": 17100
+      },
+      "loader": {
+        "bytes": 1510414,
+        "mode": "load",
+        "moves": 4419,
+        "ms": 218.351389,
+        "repeats": 100,
+        "peak_rss_kib": 5524
+      }
+    },
+    {
+      "case": "v2-long",
+      "rep": 1,
+      "loader": {
+        "bytes": 1510414,
+        "mode": "load",
+        "moves": 4419,
+        "ms": 211.210132,
+        "repeats": 100,
+        "peak_rss_kib": 5524
+      },
+      "baseline": {
+        "bytes": 1510414,
+        "mode": "load",
+        "moves": 4419,
+        "ms": 1113.049635,
+        "repeats": 100,
+        "peak_rss_kib": 17104
+      }
+    },
+    {
+      "case": "v2-long",
+      "rep": 2,
+      "baseline": {
+        "bytes": 1510414,
+        "mode": "load",
+        "moves": 4419,
+        "ms": 1342.9636739999999,
+        "repeats": 100,
+        "peak_rss_kib": 16972
+      },
+      "loader": {
+        "bytes": 1510414,
+        "mode": "load",
+        "moves": 4419,
+        "ms": 242.445269,
+        "repeats": 100,
+        "peak_rss_kib": 5524
+      }
+    },
+    {
+      "case": "v2-long",
+      "rep": 3,
+      "loader": {
+        "bytes": 1510414,
+        "mode": "load",
+        "moves": 4419,
+        "ms": 234.09696499999998,
+        "repeats": 100,
+        "peak_rss_kib": 5524
+      },
+      "baseline": {
+        "bytes": 1510414,
+        "mode": "load",
+        "moves": 4419,
+        "ms": 1170.93798,
+        "repeats": 100,
+        "peak_rss_kib": 17104
+      }
+    },
+    {
+      "case": "v2-long",
+      "rep": 4,
+      "baseline": {
+        "bytes": 1510414,
+        "mode": "load",
+        "moves": 4419,
+        "ms": 1108.5957760000001,
+        "repeats": 100,
+        "peak_rss_kib": 17104
+      },
+      "loader": {
+        "bytes": 1510414,
+        "mode": "load",
+        "moves": 4419,
+        "ms": 213.49694499999998,
+        "repeats": 100,
+        "peak_rss_kib": 5520
+      }
+    },
+    {
+      "case": "v2-long",
+      "rep": 5,
+      "loader": {
+        "bytes": 1510414,
+        "mode": "load",
+        "moves": 4419,
+        "ms": 211.139804,
+        "repeats": 100,
+        "peak_rss_kib": 5520
+      },
+      "baseline": {
+        "bytes": 1510414,
+        "mode": "load",
+        "moves": 4419,
+        "ms": 1152.762588,
+        "repeats": 100,
+        "peak_rss_kib": 17100
+      }
+    },
+    {
+      "case": "legacy-long",
+      "rep": 0,
+      "baseline": {
+        "bytes": 954576,
+        "mode": "load",
+        "moves": 4419,
+        "ms": 691.074345,
+        "repeats": 100,
+        "peak_rss_kib": 15300
+      },
+      "loader": {
+        "bytes": 954576,
+        "mode": "load",
+        "moves": 4419,
+        "ms": 355.205581,
+        "repeats": 100,
+        "peak_rss_kib": 4352
+      }
+    },
+    {
+      "case": "legacy-long",
+      "rep": 1,
+      "loader": {
+        "bytes": 954576,
+        "mode": "load",
+        "moves": 4419,
+        "ms": 382.325538,
+        "repeats": 100,
+        "peak_rss_kib": 4228
+      },
+      "baseline": {
+        "bytes": 954576,
+        "mode": "load",
+        "moves": 4419,
+        "ms": 761.380462,
+        "repeats": 100,
+        "peak_rss_kib": 15296
+      }
+    },
+    {
+      "case": "legacy-long",
+      "rep": 2,
+      "baseline": {
+        "bytes": 954576,
+        "mode": "load",
+        "moves": 4419,
+        "ms": 776.728126,
+        "repeats": 100,
+        "peak_rss_kib": 15428
+      },
+      "loader": {
+        "bytes": 954576,
+        "mode": "load",
+        "moves": 4419,
+        "ms": 477.986106,
+        "repeats": 100,
+        "peak_rss_kib": 4352
+      }
+    },
+    {
+      "case": "legacy-long",
+      "rep": 3,
+      "loader": {
+        "bytes": 954576,
+        "mode": "load",
+        "moves": 4419,
+        "ms": 474.15922900000004,
+        "repeats": 100,
+        "peak_rss_kib": 4352
+      },
+      "baseline": {
+        "bytes": 954576,
+        "mode": "load",
+        "moves": 4419,
+        "ms": 798.4376090000001,
+        "repeats": 100,
+        "peak_rss_kib": 15428
+      }
+    },
+    {
+      "case": "legacy-long",
+      "rep": 4,
+      "baseline": {
+        "bytes": 954576,
+        "mode": "load",
+        "moves": 4419,
+        "ms": 687.677346,
+        "repeats": 100,
+        "peak_rss_kib": 15300
+      },
+      "loader": {
+        "bytes": 954576,
+        "mode": "load",
+        "moves": 4419,
+        "ms": 372.809997,
+        "repeats": 100,
+        "peak_rss_kib": 4228
+      }
+    },
+    {
+      "case": "legacy-long",
+      "rep": 5,
+      "loader": {
+        "bytes": 954576,
+        "mode": "load",
+        "moves": 4419,
+        "ms": 370.237961,
+        "repeats": 100,
+        "peak_rss_kib": 4228
+      },
+      "baseline": {
+        "bytes": 954576,
+        "mode": "load",
+        "moves": 4419,
+        "ms": 728.958586,
+        "repeats": 100,
+        "peak_rss_kib": 15296
+      }
+    }
+  ],
+  "record_signatures": [
+    {
+      "name": "opening",
+      "path": "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/position-00.json",
+      "sha256": "315684a55724ccb297bc7205f719abf7701a99b9dddbd12bad26a23953a5670d",
+      "moves": 671,
+      "signature": "2b117f150988ba69847e0ce2607f5378956cb6c3c671c702501d31dc342e46d7"
+    },
+    {
+      "name": "middlegame",
+      "path": "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/position-01.json",
+      "sha256": "5aca746fc7cdaf325a04d61847c470636cf391a79a755bfe06cb7f41ae7eba9a",
+      "moves": 400,
+      "signature": "436a2e32f1ca384404cbcaccf28b176063aed7cb0b7729c9e6607294a1b35f6e"
+    },
+    {
+      "name": "tactical",
+      "path": "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/position-02.json",
+      "sha256": "48db53e7f60f96e79cf58d35a624698f970d125b3e981ee450db9c6edffd5cd2",
+      "moves": 434,
+      "signature": "b2a1691b9067fd8d795885259efc17e4b7eb7092181abc2932067b17d4cfd30c"
+    },
+    {
+      "name": "long-history",
+      "path": "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/position-03.json",
+      "sha256": "97f5b99c5a0ec6e53508b014940fd6aad9cf4fb97f062a264b282f8770d97846",
+      "moves": 4419,
+      "signature": "2e7beb2f2dfe19bfc4317cefaa61e88fd2bf84df759b2e2579cd205ccafb1973"
+    },
+    {
+      "name": "early-development",
+      "path": "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/position-04.json",
+      "sha256": "5a3f40d64295571d454d5c856635b5f49d1301361336cda2529ea24f43c0dde1",
+      "moves": 547,
+      "signature": "9c3d20f8c11d66f39f6a271abac795b14403eec8584164aa72d1d27a54d1d2fc"
+    },
+    {
+      "name": "midgame-independent",
+      "path": "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/position-05.json",
+      "sha256": "468d7bc1c6618013e30ac33182c252dbc69a5344f93739927a5f7b08d8c426a1",
+      "moves": 341,
+      "signature": "53f0f3d9aab8c832da9b560b0063893af8c710385c81dca34340ec47ab39266b"
+    },
+    {
+      "name": "late-independent",
+      "path": "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/position-06.json",
+      "sha256": "ce881048d9fdf4e56811972641d5b83c3f47c4413c63347901cee9df932bbe82",
+      "moves": 800,
+      "signature": "1755692d57765cede279bf333c3fb66ffda6ded488e1932e0458fa0d0ded9169"
+    },
+    {
+      "name": "late-royal",
+      "path": "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/position-07.json",
+      "sha256": "b8b71afea7529335b921b32e1c7b1a409ccc18b2a33747df6ea437b73abd08c0",
+      "moves": 1124,
+      "signature": "f741771625410f73d590e1a9b9805dd6ce2ab79b66abf0cc29cbd67f4b86f150"
+    },
+    {
+      "name": "champs-midgame",
+      "path": "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/position-08.json",
+      "sha256": "64b9a20a4dffb15292c8067ca77bc86c2c73e2f6be32013ac2a8421a65766be9",
+      "moves": 167,
+      "signature": "a00a3ed06c23c5fa8c66e2e3d1517ca3cb25a8efd8fc7bb1497afe24169c5815"
+    },
+    {
+      "name": "twins-midgame-a",
+      "path": "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/position-09.json",
+      "sha256": "7ba0f8d23be24c200dce91decf5c0863655e1541cefe38af3e90715ff685f73c",
+      "moves": 264,
+      "signature": "b38bbb1b3144b0f47397a0adecfd75ee91908658b8902e23eb332231ee579efe"
+    },
+    {
+      "name": "twins-midgame-b",
+      "path": "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/position-10.json",
+      "sha256": "38eb51646e505a62d13ee219a5e57c6d0f551c470831f65cba63a627af8c12a9",
+      "moves": 574,
+      "signature": "d6f0d9501f295a7754dfc6af2a61581984baefad140917e52d51fb86894b20c2"
+    },
+    {
+      "name": "late-endgame",
+      "path": "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/position-11.json",
+      "sha256": "100938bf9b66480300e8b307b24fd83a60722603fe194ebd80804b9c6e64133f",
+      "moves": 1190,
+      "signature": "2592066795475b0b300dbc736f3dc74bd7f10c7a09454b015a96c5c1372a842a"
+    },
+    {
+      "name": "legacy-long",
+      "path": "/tmp/taikyoku-efficiency-screen/legacy.json",
+      "sha256": "781fead57aeca3f6dd4b3be4738b29d28d3cd25538c61517e212545e7cf1e532",
+      "moves": 4419,
+      "signature": "b34dceaeacb3dba7f8ca6abd9b9ea63c0e8efdc90b79dddb4d6ab92779697b64"
+    }
+  ]
+}

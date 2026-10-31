@@ -445,21 +445,21 @@ impl MinimalIntelligencePlayer {
         // Note: Bonus does NOT apply if piece is already in promotion zone (opponent's first 11 ranks)
         // Black promotion zone: ranks 25-35, White promotion zone: ranks 0-10
         let is_in_promotion_zone = match moving_piece.color {
-            Color::Black => mv.from.rank >= 25, // Black in opponent's first 11 ranks
-            Color::White => mv.from.rank <= 10, // White in opponent's first 11 ranks
+            Color::Black => mv.from.rank() >= 25, // Black in opponent's first 11 ranks
+            Color::White => mv.from.rank() <= 10, // White in opponent's first 11 ranks
         };
 
         if !is_in_promotion_zone
-            && ((moving_piece.color == Color::Black && mv.to.rank > mv.from.rank)
-                || (moving_piece.color == Color::White && mv.to.rank < mv.from.rank))
+            && ((moving_piece.color == Color::Black && mv.to.rank() > mv.from.rank())
+                || (moving_piece.color == Color::White && mv.to.rank() < mv.from.rank()))
         {
             weight *= Self::FORWARD_RANK_WEIGHT_MULTIPLIER;
         }
 
         // Center file check (stackable)
         // Center is at file 17.5 (middle of 0-35 range)
-        let from_dist = (mv.from.file as f64 - Self::CENTER_FILE).abs();
-        let to_dist = (mv.to.file as f64 - Self::CENTER_FILE).abs();
+        let from_dist = (mv.from.file() as f64 - Self::CENTER_FILE).abs();
+        let to_dist = (mv.to.file() as f64 - Self::CENTER_FILE).abs();
         if to_dist < from_dist {
             weight *= Self::CENTER_FILE_WEIGHT_MULTIPLIER;
         }

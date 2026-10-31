@@ -7,6 +7,7 @@ mod durable;
 pub mod eval_trace;
 pub mod featurize;
 pub mod file_pst_grid;
+pub mod generations;
 pub mod hang_q_ab_grid;
 pub mod history;
 pub mod knockout;
@@ -19,6 +20,7 @@ pub mod pool;
 pub mod pst_grid;
 pub mod q_rs_grid;
 pub mod record;
+pub mod retirement;
 pub mod royal_al_grid;
 pub mod royal_s2_grid;
 pub mod run_status;
@@ -39,3 +41,5 @@ pub mod game_process;
 pub mod clock;
 
 pub mod top_two;
+
+pub mod runtime_tasks;

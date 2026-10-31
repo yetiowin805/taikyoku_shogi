@@ -9,7 +9,6 @@ use crate::movement::{BlockingMode, MovementCapability, MovementConfig, Movement
 use crate::piece::{Color, Piece, PieceType};
 use crate::position::Position;
 use serde::{Deserialize, Serialize};
-use std::cell::Cell;
 use std::collections::HashMap;
 use std::fs;
 use std::hash::{Hash, Hasher};
@@ -492,7 +491,7 @@ pub fn first_leg_landing_count(piece: &Piece, board: &Board) -> u32 {
     for cap in &cfg.capabilities {
         if let MovementCapability::TwoStep { first, second } = cap {
             if is_range_capability(first) && is_range_capability(second) {
-                return MovementGenerator::capability_landings(piece, board, first).len() as u32;
+                return MovementGenerator::capability_landing_count(piece, board, first) as u32;
             }
         }
     }
@@ -511,8 +510,8 @@ fn two_mover_mob_apply(piece: &Piece, weights: &EvalWeights) -> f32 {
     match weights.two_mover_mob_apply {
         1 => {
             let progress = match piece.color {
-                Color::Black => piece.position.rank as usize,
-                Color::White => (35 - piece.position.rank) as usize,
+                Color::Black => piece.position.rank() as usize,
+                Color::White => (35 - piece.position.rank()) as usize,
             };
             weights
                 .rank_factor_fast
@@ -522,7 +521,7 @@ fn two_mover_mob_apply(piece: &Piece, weights: &EvalWeights) -> f32 {
         }
         2 => weights
             .file_factor
-            .get(piece.position.file as usize)
+            .get(piece.position.file() as usize)
             .copied()
             .unwrap_or(1.0),
         _ => 1.0,
@@ -568,8 +567,8 @@ fn first_leg_range_dirs(piece: &Piece) -> u8 {
 
 /// Orthogonal or diagonal unit direction from `from` to `to`, if any.
 fn ortho_diag_dir(from: Position, to: Position) -> Option<Direction> {
-    let df = to.file as i16 - from.file as i16;
-    let dr = to.rank as i16 - from.rank as i16;
+    let df = to.file() as i16 - from.file() as i16;
+    let dr = to.rank() as i16 - from.rank() as i16;
     if df == 0 && dr == 0 {
         return None;
     }
@@ -870,8 +869,8 @@ pub fn tropism_class_scale(pt: PieceType) -> f32 {
 }
 
 fn chebyshev_distance(a: Position, b: Position) -> u8 {
-    let df = (a.file as i16 - b.file as i16).unsigned_abs() as u8;
-    let dr = (a.rank as i16 - b.rank as i16).unsigned_abs() as u8;
+    let df = (a.file() as i16 - b.file() as i16).unsigned_abs() as u8;
+    let dr = (a.rank() as i16 - b.rank() as i16).unsigned_abs() as u8;
     df.max(dr)
 }
 
@@ -1102,6 +1101,41 @@ pub enum LastRoyalMode {
     MateProbe,
 }
 
+/// October 2026 W512-v3 search tournament. Remove losing arms after adjudication.
+/// Named policies keep the six component experiments and two combinations explicit.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SearchExperiment {
+    #[default]
+    Baseline,
+    History,
+    TacticalLmr,
+    GuardedNull,
+    Sacrifice,
+    ThreatQ,
+    ScoutQ,
+    HistoryTacticalLmr,
+    SacrificeThreatQ,
+    /// Recursive-q check evasions and context-complete q cache (legacy tourney comparison).
+    QFix,
+}
+
+impl SearchExperiment {
+    /// Supported checkpoint policies, also exposed by the engine admission probe.
+    pub const ALL: [Self; 10] = [
+        Self::Baseline,
+        Self::History,
+        Self::TacticalLmr,
+        Self::GuardedNull,
+        Self::Sacrifice,
+        Self::ThreatQ,
+        Self::ScoutQ,
+        Self::HistoryTacticalLmr,
+        Self::SacrificeThreatQ,
+        Self::QFix,
+    ];
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchDefaults {
     pub depth: u32,
@@ -1137,6 +1171,9 @@ pub struct SearchDefaults {
     /// Missing → false.
     #[serde(default)]
     pub q_own_large_only: bool,
+    /// October 2026 W512-v3 search experiment; absent means unchanged production.
+    #[serde(default)]
+    pub experiment: SearchExperiment,
 }
 
 fn default_quiescence_depth() -> u32 {
@@ -1161,6 +1198,7 @@ impl Default for SearchDefaults {
             q_open_any_capture: false,
             q_recapture_only: false,
             q_own_large_only: true,
+            experiment: SearchExperiment::Baseline,
         }
     }
 }
@@ -1471,8 +1509,8 @@ pub fn positional_piece_value(piece: &Piece, weights: &EvalWeights) -> f32 {
     let mut score = material_piece_value(piece, weights);
     if !piece.piece_type.is_royal() && !skips_rank_pst(piece.piece_type) {
         let progress = match piece.color {
-            Color::Black => piece.position.rank as usize,
-            Color::White => (35 - piece.position.rank) as usize,
+            Color::Black => piece.position.rank() as usize,
+            Color::White => (35 - piece.position.rank()) as usize,
         };
         let table = if is_fast_piece(piece.piece_type) {
             &weights.rank_factor_fast
@@ -1482,7 +1520,7 @@ pub fn positional_piece_value(piece: &Piece, weights: &EvalWeights) -> f32 {
         score *= table.get(progress).copied().unwrap_or(1.0);
     }
     if uses_file_pst(piece.piece_type) {
-        let file = piece.position.file as usize;
+        let file = piece.position.file() as usize;
         score *= weights.file_factor.get(file).copied().unwrap_or(1.0);
     }
     score
@@ -1631,42 +1669,6 @@ fn chrono_like_now() -> String {
     format!("unix:{secs}")
 }
 
-thread_local! {
-    static SEARCH_WEIGHTS: Cell<*const EvalWeights> = const { Cell::new(std::ptr::null()) };
-}
-
-/// Restores the previous search-weight bind when dropped.
-pub struct SearchWeightsBind {
-    prev: *const EvalWeights,
-}
-
-impl Drop for SearchWeightsBind {
-    fn drop(&mut self) {
-        SEARCH_WEIGHTS.with(|c| c.set(self.prev));
-    }
-}
-
-/// Bind `weights` for search make/unmake incremental eval (TLS).
-pub fn bind_search_weights(weights: &EvalWeights) -> SearchWeightsBind {
-    SEARCH_WEIGHTS.with(|c| {
-        let prev = c.get();
-        c.set(weights as *const EvalWeights);
-        SearchWeightsBind { prev }
-    })
-}
-
-fn current_search_weights<'a>() -> Option<&'a EvalWeights> {
-    SEARCH_WEIGHTS.with(|c| {
-        let p = c.get();
-        if p.is_null() {
-            None
-        } else {
-            // Bound by [`bind_search_weights`]; only used inside that scope.
-            Some(unsafe { &*p })
-        }
-    })
-}
-
 fn color_idx(color: Color) -> usize {
     match color {
         Color::Black => 0,
@@ -1732,16 +1734,14 @@ impl EvalInc {
     }
 }
 
-/// Apply make-move deltas using the TLS search weights. Returns false if unbound.
+/// Apply make-move deltas using the explicitly borrowed search weights.
 pub(crate) fn apply_search_make_eval_inc(
     inc: &mut EvalInc,
+    weights: &EvalWeights,
     original_mover: &Piece,
     removed: &[(crate::position::Position, Piece)],
     final_piece: Option<&Piece>,
-) -> bool {
-    let Some(weights) = current_search_weights() else {
-        return false;
-    };
+) {
     inc.sub(original_mover, weights);
     for (_pos, piece) in removed {
         inc.sub(piece, weights);
@@ -1749,7 +1749,6 @@ pub(crate) fn apply_search_make_eval_inc(
     if let Some(piece) = final_piece {
         inc.add(piece, weights);
     }
-    true
 }
 
 /// Evaluate `state` from the side-to-move's perspective (positive = good for STM).
@@ -1971,12 +1970,14 @@ fn initial_non_royal_home_ranks() -> &'static [[u8; 2]] {
                 let slot = &mut ranks[p.piece_type as usize][p.color as usize];
                 if *slot != 36 {
                     debug_assert_eq!(
-                        *slot, p.position.rank,
+                        *slot,
+                        p.position.rank(),
                         "piece type {:?} starts on multiple ranks for {:?}",
-                        p.piece_type, p.color
+                        p.piece_type,
+                        p.color
                     );
                 }
-                *slot = p.position.rank;
+                *slot = p.position.rank();
             }
         }
         ranks
@@ -1985,8 +1986,8 @@ fn initial_non_royal_home_ranks() -> &'static [[u8; 2]] {
 
 fn on_home_rank_or_behind(piece: &Piece, home_rank: u8) -> bool {
     match piece.color {
-        Color::Black => piece.position.rank <= home_rank,
-        Color::White => piece.position.rank >= home_rank,
+        Color::Black => piece.position.rank() <= home_rank,
+        Color::White => piece.position.rank() >= home_rank,
     }
 }
 
@@ -2033,8 +2034,8 @@ fn advance_positional(pieces: &[Piece], color: Color, weights: &EvalWeights) -> 
             continue;
         }
         let progress = match color {
-            Color::Black => p.position.rank as i32,
-            Color::White => 35 - p.position.rank as i32,
+            Color::Black => p.position.rank() as i32,
+            Color::White => 35 - p.position.rank() as i32,
         };
         s += weights.advance * progress / 12;
     }
@@ -2056,8 +2057,8 @@ fn noise_component(board: &Board, weights: &EvalWeights, ply: usize) -> i32 {
         for p in board.pieces_by_color(color) {
             p.piece_type.hash(&mut hasher);
             p.color.hash(&mut hasher);
-            p.position.file.hash(&mut hasher);
-            p.position.rank.hash(&mut hasher);
+            p.position.file().hash(&mut hasher);
+            p.position.rank().hash(&mut hasher);
             p.is_promoted.hash(&mut hasher);
         }
     }
@@ -3156,6 +3157,30 @@ mod tests {
     }
 
     #[test]
+    fn search_move_does_not_retain_borrowed_weights() {
+        let mut state = GameState::new();
+        state.setup_initial_position();
+        let mv = state.generate_legal_moves()[0].clone();
+        let undo = {
+            let weights = EvalWeights::seed();
+            state.ensure_eval_inc(&weights);
+            let undo = state
+                .make_move_for_search_with_weights(mv.clone(), &weights)
+                .expect("legal move");
+            assert_inc_matches_full(&state, &weights, 1);
+            undo
+        };
+        // The evaluator is gone. Undo and a subsequent unweighted move must
+        // neither access it nor leave a stale child accumulator behind.
+        state.unmake_move_for_search(undo);
+        let before = state.eval_inc().cloned();
+        let undo = state.make_move_for_search(mv).expect("legal move");
+        assert!(state.eval_inc().is_none());
+        state.unmake_move_for_search(undo);
+        assert_eq!(state.eval_inc(), before.as_ref());
+    }
+
+    #[test]
     fn incremental_eval_matches_full_opening_and_pawn_pushes() {
         let weights = EvalWeights::seed();
         let mut state = GameState::new();
@@ -3163,7 +3188,6 @@ mod tests {
         state.ensure_eval_inc(&weights);
         assert_inc_matches_full(&state, &weights, 0);
 
-        let _bind = bind_search_weights(&weights);
         for file in [4u8, 8, 12, 16, 20, 24, 28] {
             for &(from_rank, to_rank, color) in
                 &[(10u8, 11u8, Color::Black), (25u8, 24u8, Color::White)]
@@ -3178,14 +3202,19 @@ mod tests {
                 if state.get_board().get_piece(to).is_some() {
                     continue;
                 }
-                let Some(undo) = state.make_move_for_search(crate::game_state::Move::new(from, to))
-                else {
+                let Some(undo) = state.make_move_for_search_with_weights(
+                    crate::game_state::Move::new(from, to),
+                    &weights,
+                ) else {
                     continue;
                 };
                 assert_inc_matches_full(&state, &weights, 1);
                 state.unmake_move_for_search(undo);
                 assert_inc_matches_full(&state, &weights, 0);
-                let _ = state.make_move_for_search(crate::game_state::Move::new(from, to));
+                let _ = state.make_move_for_search_with_weights(
+                    crate::game_state::Move::new(from, to),
+                    &weights,
+                );
             }
         }
         state.set_current_turn(Color::Black);
@@ -3203,11 +3232,10 @@ mod tests {
         state.ensure_eval_inc(&weights);
         assert_inc_matches_full(&state, &weights, 0);
 
-        let _bind = bind_search_weights(&weights);
         let from = Position::new(4, 10).unwrap();
         let to = Position::new(4, 11).unwrap();
         let undo = state
-            .make_move_for_search(crate::game_state::Move::new(from, to))
+            .make_move_for_search_with_weights(crate::game_state::Move::new(from, to), &weights)
             .expect("pawn push");
         assert_inc_matches_full(&state, &weights, 1);
         state.unmake_move_for_search(undo);

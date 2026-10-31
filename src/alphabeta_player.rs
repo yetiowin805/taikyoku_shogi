@@ -88,6 +88,7 @@ impl AlphaBetaPlayer {
             q_open_any_capture: checkpoint_defaults.q_open_any_capture,
             q_recapture_only: checkpoint_defaults.q_recapture_only,
             q_own_large_only: checkpoint_defaults.q_own_large_only,
+            experiment: checkpoint_defaults.experiment,
             ..Default::default()
         };
         if let Ok(d) = env::var("TAIKYOKU_AB_DEPTH") {
@@ -136,6 +137,7 @@ impl AlphaBetaPlayer {
             q_open_any_capture: checkpoint.search_defaults.q_open_any_capture,
             q_recapture_only: checkpoint.search_defaults.q_recapture_only,
             q_own_large_only: checkpoint.search_defaults.q_own_large_only,
+            experiment: checkpoint.search_defaults.experiment,
             ..Default::default()
         };
         if let Ok(d) = env::var("TAIKYOKU_AB_DEPTH") {

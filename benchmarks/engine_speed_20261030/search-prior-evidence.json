@@ -1,0 +1,291 @@
+{
+  "schema_version": 1,
+  "audit_scope": "Existing small manifests/summaries and bounded game header/tail reads; no new searches, ratings fits, bulk-game parsing, tests, builds, or source edits.",
+  "recommendation": "Existing H bounded quiet/capture history has actual completed-game evidence. Relative-history normalization and cost-aware move ordering remain untested follow-ups in this audited evidence; do not conflate them with H, continuation history, q-history, or clock growth policy.",
+  "sources": [
+    {
+      "path": "/home/frank/taikyoku_shogi/benchmarks/search_entrants_20261025/README.md",
+      "bytes": 9880,
+      "sha256": "3eaab8557a52a5f8d5edc23bf988c02e885eb4290e0c678abd399a0be0389906"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/benchmarks/search_entrants_20261025/build-provenance.json",
+      "bytes": 1638,
+      "sha256": "3115dc69d88ae05eef9ef014d2d8e5328180e34166ea701274a8d81de1057e32"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/raw/tourney/512v3-vs-higher-rated-2026-10-29/manifest.json",
+      "bytes": 7556,
+      "sha256": "8de4815f617182efb904ced790bd78f86bdc9c489f581feab1404c1db2f08292"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/raw/tourney/HLF-six-game-pairs-2026-10-28/manifest.json",
+      "bytes": 9041,
+      "sha256": "3546bde05aa0b5d0c5b54c3dbec110c2e1f18ed549918efd930962c0cf9bc5cb"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/screen/manifest.json",
+      "bytes": 8866,
+      "sha256": "0f3408c9f01e5228745a96b3d9fc691533b2a5d9f237c2ba14403ba8613f48c4"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/screen/matched-depth-summary.json",
+      "bytes": 55186,
+      "sha256": "43ed4833ac0bc91aacbc377d7b623b8efc3bca636c89f95204888f1ac7e6c007"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/binaries/candidate-build.json",
+      "bytes": 1309,
+      "sha256": "aa0248f44f5f2e7a1255488e263ea52c9ea27f84b9a8cfa2e0ae563cc3ebf385"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/mining/summary.json",
+      "bytes": 3331,
+      "sha256": "e9e33ae25884a26edc22fc00f2d1b12ca85e717428a0bf8a8a3aa6e6ff0fd814"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/mining/incomplete-iteration-cost.json",
+      "bytes": 1813,
+      "sha256": "7a8e5b1765cf096c527b6b74032a8208747b7fcd63bca3c042eb0ba27f4f4e9f"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/live-preparation/deployment-receipt-index.json",
+      "bytes": 2803,
+      "sha256": "993b73cb22213ea0b16196243c5b42c7700c0e6d946099b75314fa07e781968a"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/raw/tourney/g3-pvs-pair-5796-5797/manifest.json",
+      "bytes": 5465,
+      "sha256": "8042daff2bb9f0519e8445669685771c68ceffc1983ebbc70dd046d0c81e4b40"
+    }
+  ],
+  "git_object_sources": [
+    {
+      "revision": "b11c5e61c3497041d16569b5553d48038cf1fbd4",
+      "path": "benchmarks/search_entrants_20261027/README.md",
+      "sha256": "94d8ab535aae2089c315bc36929730183b314794bbf1790bc2c0b76a440f9ed7"
+    },
+    {
+      "revision": "b11c5e61c3497041d16569b5553d48038cf1fbd4",
+      "path": "benchmarks/search_entrants_20261027/build-provenance.json",
+      "sha256": "5602f0c984cabe24e689436f4180d65cc790363e1cbcddbeb3f9d58da65eeb58"
+    }
+  ],
+  "bounded_history_H": {
+    "policy": "Bounded positive/negative quiet history and capture history, ordering only, per-search through iterative deepening; not an attempts-normalized relative history and not cost-aware ordering.",
+    "ratings_snapshot_utc": "2026-10-30T01:59:20.933938+00:00",
+    "rating_fit_games": 5621,
+    "rating_method": "Bradley-Terry; equal game weights; draws=half; mean=1500",
+    "descriptive_rating_points": {
+      "NNUE_W512_v3": 1519.623533111055,
+      "NNUE_W512_v3_H": 1559.9303646608532
+    },
+    "archived_pair": {
+      "start_mode": "opening",
+      "start_seed": 50001024,
+      "history_agent_results": {
+        "wins": 2,
+        "draws": 0,
+        "losses": 0
+      },
+      "games": [
+        {
+          "slot_id": 4881,
+          "base_agent_color": "black",
+          "base_agent_score": 0.0,
+          "path": "/home/frank/taikyoku_shogi/data/raw/tourney/512v3-vs-higher-rated-2026-10-29/games/slot4881-NNUE_W512_v3-vs-NNUE_W512_v3_H-a-black.json",
+          "record_sha256": "da1ccf489252350ec88725e093ece275b44e155786a6e773e01da961599eeb60"
+        },
+        {
+          "slot_id": 4880,
+          "base_agent_color": "white",
+          "base_agent_score": 0.0,
+          "path": "/home/frank/taikyoku_shogi/data/raw/tourney/512v3-vs-higher-rated-2026-10-29/games/slot4880-NNUE_W512_v3-vs-NNUE_W512_v3_H-a-white.json",
+          "record_sha256": "ccad1b8e1f0ba02f55c3f7703a18e02fc449348275d6a1d4c76704ba25844dcb"
+        }
+      ],
+      "record_timestamp_utc_by_slot": {
+        "4880": "2026-10-26T21:44:21+00:00",
+        "4881": "2026-10-26T21:59:25+00:00"
+      },
+      "engine_revision": "dcb54bd31db8e5b1693ac9e39e4fab76e0421106",
+      "engine_sha256": "7289bec73cc0ddce6a232ccccc2bfbc92014a579794df91f024c0fed0b995532",
+      "nominal_depth_cap": 64
+    },
+    "selection": "Twelve original game records in six complete color-swapped pairs against the four highest-rated eligible opponents with complete pairs available. Retain variety (at most two pairs per opponent); assign remaining pairs to higher-rated opponents and break ties in favor of older slots. Outcomes are not a selection criterion.",
+    "caveats": [
+      "Only one archived two-game pair is counted here; not all H games in the rating fit.",
+      "The reported fit has no uncertainty interval or per-H sample count in this small manifest.",
+      "Higher-rated-opponent selection is not random. Rating points and the pair outcomes do not estimate a causal improvement or validate another history formulation.",
+      "These games precede the permanent-progress correction and use the preserved legacy live search; applicability to current main is limited."
+    ]
+  },
+  "history_combinations": {
+    "snapshot_utc": "2026-10-29T05:45:55.748920+00:00",
+    "fit_games": 5549,
+    "selection": "Six complete same-start color-swapped pairs; at least four opponents; at most two pairs per opponent. Maximize summed current opponent ratings subject to these constraints, then select the oldest completed pairs for each opponent by latest game-file modification time. Outcomes are not a selection criterion.",
+    "archived_sample": {
+      "pairs": 6,
+      "games": 12,
+      "HLF_wins": 9,
+      "HLF_draws": 0,
+      "HLF_losses": 3
+    },
+    "per_opponent": [
+      {
+        "opponent": "NNUE_W512_v3_HL",
+        "games": 4,
+        "HLF_score_sum": 4.0
+      },
+      {
+        "opponent": "NNUE_W512_v3_HLFN",
+        "games": 4,
+        "HLF_score_sum": 3.0
+      },
+      {
+        "opponent": "NNUE_W512_v3_HLFS",
+        "games": 2,
+        "HLF_score_sum": 2.0
+      },
+      {
+        "opponent": "NNUE_W512_v3_HLF_CH",
+        "games": 2,
+        "HLF_score_sum": 0.0
+      }
+    ],
+    "engine_revision": "99979a5fdf8dbb56238123da0f48dae210a06ec8",
+    "engine_sha256": "1601e5cd4ec6825c37ad556bd330454a33989332f73b7f7d059075a6d34cd5f1",
+    "policy_mapping": {
+      "HLF": "H + tactical LMR + QFIX",
+      "HLFS": "HLF + root/PV sacrifice probes",
+      "HLF_CH": "HLF + one-previous-move continuation history; not relative normalization or cost-aware ordering"
+    },
+    "caveats": [
+      "All HLF/HLFS comparisons combine policies; no isolated H effect.",
+      "The HLF_CH 2-0 result against HLF is one selected pair, not a continuation-history verdict.",
+      "Archived sample and opponent rating fit do not supply error bars or current-running status."
+    ]
+  },
+  "generation3_capped_screen": {
+    "started_utc": "2026-10-31T02:40:28.372076+00:00",
+    "finished_utc": "2026-10-31T02:42:55.390616+00:00",
+    "source_basis": "caf49f6 + b11c5e6 + third-wave working tree",
+    "binary_sha256": "91f46c8e071b12ba9fbb221428d507026cca8e05cbf9598bcd2aef1793a46a6a",
+    "case_count": 9,
+    "model_arm_count": 26,
+    "requests_source_derived": 234,
+    "budget_ms_per_request": 750,
+    "requested_depth_ceilings": [
+      5,
+      8
+    ],
+    "comparator": "ContextRetry on the same HLF or HLFS parent in the same candidate binary",
+    "method": "One capped search per case/arm. Highest shared completed depth per comparison, cumulative nodes through depth, comparator ContextRetry on same parent. Ratios describe this convenience corpus only; depths vary by comparison; no playing-strength or isolated-time claim. GA has no Fischer soft budget here and tests common context only. PR screen predates stricter exact-bound classification and requires final rerun.",
+    "selected_observed_trial_stats": [
+      {
+        "trial": "QH",
+        "n": 18,
+        "median_cumulative_nodes_ratio_at_highest_shared_completed_depth": 1.0,
+        "minimum_ratio": 0.9834852967815954,
+        "maximum_ratio": 1.008378613795678,
+        "different_move_or_score": 0
+      },
+      {
+        "trial": "PVS",
+        "n": 18,
+        "median_cumulative_nodes_ratio_at_highest_shared_completed_depth": 0.9979627105081832,
+        "minimum_ratio": 0.7850368221379156,
+        "maximum_ratio": 1.0731879954699888,
+        "different_move_or_score": 0
+      },
+      {
+        "trial": "ATK",
+        "n": 18,
+        "median_cumulative_nodes_ratio_at_highest_shared_completed_depth": 1.0334472102698946,
+        "minimum_ratio": 0.7397423806510918,
+        "maximum_ratio": 2.7246130511850595,
+        "different_move_or_score": 10
+      },
+      {
+        "trial": "RFQH",
+        "n": 18,
+        "median_cumulative_nodes_ratio_at_highest_shared_completed_depth": 1.0,
+        "minimum_ratio": 0.9834852967815954,
+        "maximum_ratio": 1.008378613795678,
+        "different_move_or_score": 0
+      },
+      {
+        "trial": "GA",
+        "n": 18,
+        "median_cumulative_nodes_ratio_at_highest_shared_completed_depth": 1.0,
+        "minimum_ratio": 1.0,
+        "maximum_ratio": 1.0,
+        "different_move_or_score": 0
+      }
+    ],
+    "caveats": [
+      "Single capped request per case/arm; no repeated timing uncertainty.",
+      "Ratios are cumulative nodes at highest shared completed depth, not NPS, elapsed-time speedup, or playing strength.",
+      "QH reuses existing capture history in q ordering; it does not test relative-history normalization or cost-aware ordering.",
+      "GA has no Fischer soft budget in these requests, so its clock mechanism is inactive."
+    ]
+  },
+  "cost_related_observations": {
+    "local_mining_revision": "8fb6fdcef4acfe19ac8c979a74eb1ab4a5951070",
+    "corpus_games": 36,
+    "corrected_build_games": 28,
+    "target_nonmate_plies": 12022,
+    "corrected_game_engine_sha256": "6ce1ee2601c237f94b44cf5e3d28d3393cf3888d6d0f95ebff6459307dec0029",
+    "recorded_iteration_cost": {
+      "n_target_nonmate_moves": 12022,
+      "moves_with_incomplete_iteration": 3381,
+      "incomplete_fraction_moves": 0.28123440359341206,
+      "recorded_iteration_us": 31670058679,
+      "incomplete_iteration_us": 11358357971,
+      "incomplete_fraction_total_iteration_time": 0.35864657170754083,
+      "incomplete_fraction_per_aborted_move_median": 0.8866185626761242,
+      "incomplete_fraction_per_aborted_move_p90": 0.9733710409638923
+    },
+    "caveats": [
+      "Convenience corpus with correlated turns and game-length weighting.",
+      "Incomplete-iteration share measures summed recorded iteration time, not recoverable speed or whole-game time.",
+      "This motivates clock/partial-iteration work; it is not a cost-aware move-ordering experiment."
+    ]
+  },
+  "admission_and_completed_G3_games": {
+    "receipt_snapshot_utc": "2026-10-31T03:18:31.128829+00:00",
+    "receipt_publication": "applied",
+    "receipt_admission": "applied",
+    "new_agents": 26,
+    "receipt_new_slots_at_snapshot": {},
+    "later_archived_pair_downloaded_utc": "2026-10-31T04:58:56.401720+00:00",
+    "later_pair_selection": "The first completed color-swapped G3 PVS pair, slots5796 and5797.",
+    "completed_games": [
+      {
+        "slot_id": 5796,
+        "plies": 523,
+        "result": "BlackWins",
+        "HLF_G3PVS_score": 1.0,
+        "HLF_G3PVS_black": true
+      },
+      {
+        "slot_id": 5797,
+        "plies": 365,
+        "result": "BlackWins",
+        "HLF_G3PVS_score": 0.0,
+        "HLF_G3PVS_black": false
+      }
+    ],
+    "engine_revision": "99979a5 + deployed caf49f6 progress fix + 328e2cf opt-in G3 backport; legacy trial=None F eligibility preserved; source075f4024499f0fc0decdaee438af88d1eec2822e9d2b484ae27877b2c043e285",
+    "engine_sha256": "114cd924c4f33c65e23eac2bd920f94ab504bfab360ae8db8a00e8a9cbba32ed",
+    "caveats": [
+      "The receipt establishes admission at its recorded snapshot; it is not a current process-state check.",
+      "The later pair proves two G3 PVS identities actually played. Both sides use PVS and H foundations, so this does not compare PVS against a non-PVS control or test relative/cost-aware histories."
+    ]
+  },
+  "no_direct_usable_comparison_found": [
+    "Attempts-normalized relative history versus the existing H gravity update.",
+    "Move-order selection conditioned on measured subtree cost or cost/benefit ratio.",
+    "Randomized equal-clock isolated playing-strength estimate for either proposal."
+  ]
+}

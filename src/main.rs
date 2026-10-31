@@ -86,6 +86,10 @@ fn main() {
         match args[1].as_str() {
             "tournament-game-protocol" => println!("1"),
             "tournament-game-clock-protocol" => println!("1"),
+            "tournament-search-experiments" => println!(
+                "{}",
+                serde_json::to_string(&taikyoku_shogi::eval::SearchExperiment::ALL).unwrap()
+            ),
             "tournament-game-validate" => {
                 let result = args
                     .get(2)
@@ -111,6 +115,9 @@ fn main() {
                 }
             }
 
+            "tournament-task-protocol" => {
+                println!("{}", taikyoku_shogi::training::runtime_tasks::PROTOCOL)
+            }
             "play" => match parse_play_args(&args) {
                 Ok((agent, depth, model)) => {
                     if let Some(d) = depth {
@@ -580,14 +587,14 @@ fn play_game(agent: &str) {
                 // Check if this is a two-step move for display
                 if let Some(intermediate) = mv.intermediate() {
                     // Display two-step move as two lines with different move numbers
-                    let to_file_flipped = flip_file(mv.to.file);
-                    let to_rank_flipped = flip_rank(mv.to.rank);
+                    let to_file_flipped = flip_file(mv.to.file());
+                    let to_rank_flipped = flip_rank(mv.to.rank());
                     let to_rank_jp = to_japanese_numeral(to_rank_flipped);
-                    let from_file_flipped = flip_file(mv.from.file);
-                    let from_rank_flipped = flip_rank(mv.from.rank);
+                    let from_file_flipped = flip_file(mv.from.file());
+                    let from_rank_flipped = flip_rank(mv.from.rank());
                     let from_rank_jp = to_japanese_numeral(from_rank_flipped);
-                    let inter_file_flipped = flip_file(intermediate.file);
-                    let inter_rank_flipped = flip_rank(intermediate.rank);
+                    let inter_file_flipped = flip_file(intermediate.file());
+                    let inter_rank_flipped = flip_rank(intermediate.rank());
                     let inter_rank_jp = to_japanese_numeral(inter_rank_flipped);
 
                     println!(
@@ -622,11 +629,11 @@ fn play_game(agent: &str) {
                     move_number += 2;
                 } else {
                     // Display single move
-                    let to_file_flipped = flip_file(mv.to.file);
-                    let to_rank_flipped = flip_rank(mv.to.rank);
+                    let to_file_flipped = flip_file(mv.to.file());
+                    let to_rank_flipped = flip_rank(mv.to.rank());
                     let to_rank_jp = to_japanese_numeral(to_rank_flipped);
-                    let from_file_flipped = flip_file(mv.from.file);
-                    let from_rank_flipped = flip_rank(mv.from.rank);
+                    let from_file_flipped = flip_file(mv.from.file());
+                    let from_rank_flipped = flip_rank(mv.from.rank());
                     let from_rank_jp = to_japanese_numeral(from_rank_flipped);
 
                     println!(

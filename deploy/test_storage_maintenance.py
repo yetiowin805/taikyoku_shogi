@@ -1,0 +1,215 @@
+import json
+import sqlite3
+import tempfile
+import unittest
+from pathlib import Path
+from unittest.mock import patch
+
+import archive_storage
+import storage_maintenance
+
+
+class MaintenanceTests(unittest.TestCase):
+    def test_backup_closure_restore_drill_and_feature_eviction_keep_games_hot(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            run = root / "run"
+            (run / "analysis").mkdir(parents=True)
+            game = run / "slot1.json"
+            game.write_text(json.dumps(dict(result="Draw", moves=[])))
+            weights = root / "weights.bin"
+            weights.write_bytes(b"network")
+            model = root / "model.json"
+            model.write_text(json.dumps(dict(weights=dict(nnue=dict(file=weights.name)))))
+            (run / "state.json").write_text(
+                json.dumps(dict(entrants=[dict(model=str(model))], slots=[dict(status="done", game_path=str(game))]))
+            )
+            labels = run / "analysis/training-labels.sqlite"
+            with sqlite3.connect(labels) as db:
+                db.execute("CREATE TABLE evidence(value TEXT)")
+                db.execute("INSERT INTO evidence VALUES(?)", ("preserve me",))
+            dataset = root / "dataset"
+            dataset.mkdir()
+            feature = dataset / "features.bin"
+            feature.write_bytes(b"features")
+            (dataset / "dataset.json").write_text(json.dumps(dict(feature_shards=[dict(path=str(feature))])))
+            (dataset / "schema.json").write_text("{}")
+            archive = archive_storage.Archive(
+                dict(
+                    root=str(root / "archive"),
+                    remote=str(root / "remote"),
+                    local_remote=True,
+                    min_free_bytes=0,
+                    feature_cache_bytes=0,
+                    maintenance=dict(runs=[str(run)], datasets=[str(dataset)], catalogues=[str(labels)]),
+                )
+            )
+            archive.register_dataset(dataset)
+            archive.config["maintenance"]["datasets"] = []
+            storage_maintenance.maintain(archive)
+            self.assertFalse(feature.exists())
+            self.assertTrue(game.exists())
+            self.assertTrue(weights.exists())
+            self.assertTrue((root / "archive/maintenance-status.json").is_file())
+            with archive.locked() as db:
+                categories = {r[0] for r in db.execute("SELECT category FROM files")}
+            self.assertTrue({"models", "games", "labels", "features", "other"} <= categories)
+            storage_maintenance.maintain(archive)
+            complete = json.loads((root / "remote/maintenance-complete.json").read_text())
+            self.assertEqual(complete["index_sha256"], archive_storage.digest(Path(complete["index_remote"])))
+            committed = (root / "remote/maintenance-complete.json").read_bytes()
+            later = run / "slot2.json"
+            later.write_text(json.dumps(dict(result="Draw", moves=[])))
+            state = json.loads((run / "state.json").read_text())
+            state["slots"].append(dict(status="done", game_path=str(later)))
+            (run / "state.json").write_text(json.dumps(state))
+            real_copy = archive.copy
+
+            def fail_commit(source, destination, immutable=False):
+                if destination.endswith("/maintenance-complete.json"):
+                    raise RuntimeError("commit interrupted")
+                return real_copy(source, destination, immutable)
+
+            with patch.object(archive, "copy", side_effect=fail_commit):
+                with self.assertRaisesRegex(RuntimeError, "commit interrupted"):
+                    storage_maintenance.maintain(archive)
+            self.assertEqual((root / "remote/maintenance-complete.json").read_bytes(), committed)
+            recovered = archive_storage.Archive(dict(archive.config, root=str(root / "recovered")), import_legacy=False)
+            recovered.recover_index()
+            with recovered.locked() as db:
+                self.assertTrue(db.execute("SELECT 1 FROM files WHERE path=?", (str(feature),)).fetchone())
+                self.assertIsNone(db.execute("SELECT 1 FROM files WHERE path=?", (str(later),)).fetchone())
+            archive.hydrate(feature)
+            self.assertEqual(feature.read_bytes(), b"features")
+
+    def test_forward_model_bindings_are_dependencies_before_admission(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            original, snapshot, weights = [root / name for name in ("model.json", "snapshot.json", "weights.nnue")]
+            for path in (original, snapshot, weights):
+                path.write_text("frozen")
+            value = dict(
+                models={
+                    str(original): dict(
+                        snapshot=str(snapshot), artifacts=[dict(original=str(weights), snapshot=str(weights))]
+                    )
+                }
+            )
+            self.assertEqual(set(storage_maintenance.binding_files(value, root)), {original, snapshot, weights})
+
+    def test_unknown_sample_index_cannot_publish_complete_backup_or_evict_features(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            dataset = root / "dataset"
+            dataset.mkdir()
+            (dataset / "schema.json").write_text("{}")
+            feature = dataset / "features.bin"
+            feature.write_bytes(b"features")
+            (dataset / "dataset.json").write_text(
+                json.dumps(
+                    dict(
+                        feature_shards=[dict(path=str(feature), sha256=archive_storage.digest(feature))],
+                        schema_sha256=archive_storage.digest(dataset / "schema.json"),
+                        samples_sha256="0" * 64,
+                    )
+                )
+            )
+            archive = archive_storage.Archive(
+                dict(
+                    root=str(root / "archive"),
+                    remote=str(root / "remote"),
+                    local_remote=True,
+                    min_free_bytes=0,
+                    feature_cache_bytes=0,
+                    maintenance=dict(datasets=[str(dataset)]),
+                )
+            )
+            with self.assertRaisesRegex(ValueError, "dataset dependency"):
+                storage_maintenance.maintain(archive)
+            self.assertTrue(feature.exists())
+            self.assertFalse((root / "remote/maintenance-complete.json").exists())
+
+    def test_label_snapshot_reserves_peak_before_allocating_copy(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "labels.sqlite"
+            with sqlite3.connect(source) as db:
+                db.execute("CREATE TABLE evidence(value TEXT)")
+                db.execute("INSERT INTO evidence VALUES('keep')")
+            archive = archive_storage.Archive(
+                dict(
+                    root=str(root / "archive"),
+                    remote=str(root / "remote"),
+                    local_remote=True,
+                    min_free_bytes=0,
+                    maintenance=dict(catalogues=[str(source)]),
+                )
+            )
+            original = source.read_bytes()
+            with patch("archive_storage.shutil.disk_usage", return_value=type("Usage", (), {"free": 0})()):
+                with self.assertRaisesRegex(ValueError, "Insufficient peak"):
+                    storage_maintenance.maintain(archive)
+            self.assertEqual(source.read_bytes(), original)
+            self.assertEqual(list((root / "archive/catalogue-snapshots").glob("*.sqlite")), [])
+
+    def test_overlay_registers_its_source_and_survives_complete_cold_cache(self):
+        import struct
+        import sys
+
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "training/nnue"))
+        import dataset_storage
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source, view = [root / name for name in ("source", "prepared")]
+            source.mkdir()
+            view.mkdir()
+            feature = source / "features.bin"
+            feature.write_bytes(b"features")
+            sample = dict(split="train", sampling_weight=1, offset=0, us=1, them=1)
+            (source / "samples.jsonl").write_text(json.dumps(sample) + "\n")
+            for folder in (source, view):
+                (folder / "schema.json").write_text("{}")
+            identity = dict(
+                feature_shards=[dict(path=str(feature), sha256=archive_storage.digest(feature))],
+                schema_sha256=archive_storage.digest(source / "schema.json"),
+                samples_sha256=archive_storage.digest(source / "samples.jsonl"),
+            )
+            (source / "dataset.json").write_text(json.dumps(identity))
+            overrides = view / "weights.bin"
+            overrides.write_bytes(struct.pack("<ddd", 0.25, 0.1, 1.2))
+            (view / "sample-view.json").write_text(
+                json.dumps(
+                    dict(
+                        source=str(source / "samples.jsonl"),
+                        source_sha256=identity["samples_sha256"],
+                        overrides=overrides.name,
+                        overrides_sha256=archive_storage.digest(overrides),
+                        samples=1,
+                    )
+                )
+            )
+            (view / "dataset.json").write_text(
+                json.dumps(dict(identity, samples_sha256=archive_storage.digest(view / "sample-view.json")))
+            )
+            archive = archive_storage.Archive(
+                dict(
+                    root=str(root / "archive"),
+                    remote=str(root / "remote"),
+                    local_remote=True,
+                    min_free_bytes=0,
+                    feature_cache_bytes=0,
+                    maintenance={},
+                )
+            )
+            with patch.object(dataset_storage.archive_storage, "configured", return_value=archive):
+                with dataset_storage.prepare(view):
+                    pass
+                storage_maintenance.maintain(archive)
+                self.assertFalse((source / "samples.jsonl").exists())
+                self.assertFalse(overrides.exists())
+                with dataset_storage.prepare(view):
+                    rows = list(dataset_storage.rows(view / "samples.jsonl"))
+            self.assertEqual(
+                rows, [dict(sample, sampling_weight=0.25, parent_probability_error=0.1, difficulty_multiplier=1.2)]
+            )

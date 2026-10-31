@@ -15,6 +15,7 @@ import time
 from pathlib import Path
 
 import champion_teacher
+import label_storage
 import teacher_refresh
 import tourney_analysis as a
 import winner_teacher
@@ -120,7 +121,7 @@ def paired_searches(config, moment, db):
                 archived[result.get("key", result.get("model_sha256"))] = result
         moment["previous_teacher_searches"] = list(archived.values())
     moment["searches"] = [first]
-    db.execute("UPDATE moments SET payload=? WHERE id=?", (json.dumps(moment), moment["id"]))
+    db.execute("UPDATE moments SET payload=? WHERE id=?", (label_storage.encode(db, moment), moment["id"]))
     db.commit()
     second = (first if old_sha == new_sha else existing.get(new_sha)) or a.search_position(
         teacher_config(config, True), moment, ply, db
@@ -153,7 +154,7 @@ def run(config):
             "CREATE TABLE IF NOT EXISTS dual_paired(id TEXT PRIMARY KEY);"
             "CREATE TABLE IF NOT EXISTS dual_failures(id TEXT PRIMARY KEY, error TEXT, updated REAL);"
         )
-        teacher_refresh.apply_backfill(db, config)
+        teacher_refresh.retire_backfill(a, run, db, config)
         try:
             while not a.STOPPING:
                 live = a.read(control / "supervisor.json")
@@ -161,7 +162,6 @@ def run(config):
                     print("tournament stopped; dual labeling stopped", flush=True)
                     break
                 config = champion_teacher.check(a, run, config)
-                teacher_refresh.apply_backfill(db, config)
                 winner_teacher.scan(a, db, run, config)
                 a.scan(
                     db,
@@ -173,7 +173,7 @@ def run(config):
                 )
                 batch = db.execute(
                     "SELECT * FROM moments WHERE id NOT IN (SELECT id FROM dual_paired) "
-                    "AND id NOT IN (SELECT id FROM dual_failures) ORDER BY CASE WHEN json_extract(payload,'$.teacher_refresh') IS NOT NULL THEN 0 ELSE 1 END, CASE WHEN json_extract(payload,'$.winner_teacher') IS NOT NULL THEN 0 ELSE 1 END,id LIMIT 20"
+                    "AND id NOT IN (SELECT id FROM dual_failures) ORDER BY CASE WHEN json_extract(payload,'$.winner_teacher') IS NOT NULL THEN 0 ELSE 1 END,id LIMIT 20"
                 ).fetchall()
                 remaining = db.execute(
                     "SELECT count(*) FROM moments WHERE id NOT IN (SELECT id FROM dual_paired)"
@@ -213,17 +213,15 @@ def run(config):
                         if a.STOPPING:
                             break
                         config = champion_teacher.check(a, run, config)
-                        teacher_refresh.apply_backfill(db, config)
-                        # A promotion can update queued payloads after this batch
-                        # was selected; reload to retain its recovery marker.
-                        moment = json.loads(
-                            db.execute("SELECT payload FROM moments WHERE id=?", (row["id"],)).fetchone()["payload"]
+                        # Reload any search results persisted since batch selection.
+                        moment = label_storage.decode(
+                            db, db.execute("SELECT payload FROM moments WHERE id=?", (row["id"],)).fetchone()["payload"]
                         )
                         try:
                             moment = paired_searches(config, moment, db)
                             db.execute(
                                 "UPDATE moments SET status=?,payload=?,error=NULL WHERE id=?",
-                                ("completed", json.dumps(moment), row["id"]),
+                                ("completed", label_storage.encode(db, moment), row["id"]),
                             )
                             db.execute("INSERT INTO dual_paired VALUES(?)", (row["id"],))
                             db.commit()

@@ -61,6 +61,9 @@ pub struct RecordedEvals {
 pub struct EvalPointDto {
     pub ply: usize,
     pub eval: f32,
+    /// Agent that produced a recorded score; absent for a single-model eval trace.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub side: Option<String>,
     /// Present for eval-trace samples (`true` = quiet / non-loud ply).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub quiet: Option<bool>,
@@ -91,6 +94,7 @@ impl EvalSeriesDto {
                     EvalPointDto {
                         ply: i + 1,
                         eval: v,
+                        side: Some(color_name(mv.color)),
                         quiet: None,
                     }
                 })
@@ -126,6 +130,7 @@ impl EvalSeriesDto {
                 .map(|p| EvalPointDto {
                     ply: p.ply,
                     eval: p.eval_clipped,
+                    side: None,
                     quiet: Some(p.quiet),
                 })
                 .collect(),
@@ -182,8 +187,8 @@ impl DebugTool {
         for color in [Color::Black, Color::White] {
             for piece in board.get_pieces_by_color(color) {
                 pieces.push(PieceDto {
-                    file: Self::to_shogi_file(piece.position.file),
-                    rank: Self::to_shogi_rank(piece.position.rank),
+                    file: Self::to_shogi_file(piece.position.file()),
+                    rank: Self::to_shogi_rank(piece.position.rank()),
                     color: color_name(piece.color),
                     piece_type: format!("{:?}", piece.piece_type),
                     symbol: piece.base_symbol().to_string(),
@@ -277,15 +282,18 @@ impl DebugTool {
             .into_iter()
             .enumerate()
             .map(|(index, mv)| {
-                let via = mv
-                    .intermediate()
-                    .map(|pos| (Self::to_shogi_file(pos.file), Self::to_shogi_rank(pos.rank)));
+                let via = mv.intermediate().map(|pos| {
+                    (
+                        Self::to_shogi_file(pos.file()),
+                        Self::to_shogi_rank(pos.rank()),
+                    )
+                });
                 MoveDto {
                     index,
-                    from_file: Self::to_shogi_file(mv.from.file),
-                    from_rank: Self::to_shogi_rank(mv.from.rank),
-                    to_file: Self::to_shogi_file(mv.to.file),
-                    to_rank: Self::to_shogi_rank(mv.to.rank),
+                    from_file: Self::to_shogi_file(mv.from.file()),
+                    from_rank: Self::to_shogi_rank(mv.from.rank()),
+                    to_file: Self::to_shogi_file(mv.to.file()),
+                    to_rank: Self::to_shogi_rank(mv.to.rank()),
                     promoted: mv.promoted,
                     label: Self::format_move_public(&mv),
                     via_file: via.map(|v| v.0),
@@ -544,7 +552,7 @@ mod tests {
         let moves = vec![
             MoveRecord {
                 move_number: 1,
-                color: Color::Black,
+                color: Color::White,
                 from_file: 0,
                 from_rank: 0,
                 to_file: 0,
@@ -559,7 +567,7 @@ mod tests {
             },
             MoveRecord {
                 move_number: 2,
-                color: Color::White,
+                color: Color::Black,
                 from_file: 0,
                 from_rank: 1,
                 to_file: 0,
@@ -578,8 +586,10 @@ mod tests {
         assert_eq!(s.points.len(), 2);
         assert_eq!(s.points[0].ply, 1);
         assert_eq!(s.points[0].eval, 100.0);
+        assert_eq!(s.points[0].side.as_deref(), Some("White"));
         assert_eq!(s.points[1].ply, 2);
         assert_eq!(s.points[1].eval, 20.0);
+        assert_eq!(s.points[1].side.as_deref(), Some("Black"));
     }
 
     #[test]
