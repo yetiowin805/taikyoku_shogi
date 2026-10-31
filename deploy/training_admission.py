@@ -19,7 +19,7 @@ import tourney_analysis as a
 from register_training_models import merge_bindings
 
 
-def freeze_models(models, control):
+def freeze_models(models, control, *, search_variants=False):
     entries, bindings = [], {}
     (control / "models").mkdir(exist_ok=True)
     for directory in models:
@@ -42,7 +42,13 @@ def freeze_models(models, control):
         if not target.exists():
             a.atomic(target, frozen)
         bindings[str(target)] = a.snapshot_model(target, target.read_bytes(), control)
-        entries.append(dict(id=name, model=str(target)))
+        entry = dict(id=name, model=str(target))
+        # Generation-three names are deliberately outside the legacy roster's
+        # ID inference. Pin their retirement cohort with the admission identity.
+        # Ordinary training and legacy trial=None admissions keep their metadata.
+        if search_variants and checkpoint.get("search_defaults", {}).get("trial", "none") != "none":
+            entry["generation"] = "search"
+        entries.append(entry)
     return entries, bindings
 
 
@@ -97,7 +103,7 @@ def admit(config, model):
     admit_checkpoints(run, [model], report)
 
 
-def admit_checkpoints(run, models, report):
+def admit_checkpoints(run, models, report, *, search_variants=False):
     """Shared content-pinned transaction for trained models or explicit search arms."""
     control = run / "analysis"
     report.mkdir(parents=True, exist_ok=True)
@@ -105,7 +111,7 @@ def admit_checkpoints(run, models, report):
     with (control / "update.lock").open("a+") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
         check_storage(models, control, run)
-        entries, bindings = freeze_models(models, control)
+        entries, bindings = freeze_models(models, control, search_variants=search_variants)
         bundle = engine_updates.active(a, run)
         validate_entries(bundle, entries, bindings)
         cfg = a.read(control / "config.json")
@@ -133,7 +139,12 @@ def admit_checkpoints(run, models, report):
     state = a.read(run / "state.json")
     for entry in entries:
         actual = next((e for e in state["entrants"] if e["id"] == entry["id"]), None)
-        if actual is None or actual.get("model") != entry["model"] or actual.get("engine") != entry.get("engine"):
+        if (
+            actual is None
+            or actual.get("model") != entry["model"]
+            or actual.get("engine") != entry.get("engine")
+            or ("generation" in entry and actual.get("generation") != entry["generation"])
+        ):
             raise RuntimeError("Applied receipt is not reflected in the tournament entrant state")
     a.atomic(report / "status.json", dict(state="admitted", task_id=task_id, receipt=receipt, updated=time.time()))
 
@@ -246,7 +257,7 @@ def main():
             parser.error("--watch is only for training admissions")
         tournament_tasks.ready(Path(config["run"]))
         models = prepare_search_variants(config)
-        admit_checkpoints(Path(config["run"]), models, out / "admission" / "search-variants")
+        admit_checkpoints(Path(config["run"]), models, out / "admission" / "search-variants", search_variants=True)
         return
     names = config["admission_models"]
     if not names or len(set(names)) != len(names) or any(Path(n).name != n or n in (".", "..") for n in names):

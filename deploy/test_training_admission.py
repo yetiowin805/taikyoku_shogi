@@ -3,6 +3,7 @@
 import os
 import tempfile
 import unittest
+from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import patch
 
@@ -12,6 +13,100 @@ from training_admission import a
 
 
 class AdmissionTests(unittest.TestCase):
+    @contextmanager
+    def admission_fixture(self, trial=None):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            run, model = root / "run", root / "out" / "NNUE_test"
+            control = run / "analysis"
+            for folder in [control / "tasks/requests", control / "tasks/receipts", model]:
+                folder.mkdir(parents=True)
+            blob = model / "network.bin"
+            blob.write_bytes(b"immutable test weights")
+            checkpoint = dict(name=model.name, weights=dict(nnue=dict(file=blob.name, sha256=a.file_digest(blob))))
+            if trial is not None:
+                checkpoint["search_defaults"] = dict(experiment="history_tactical_lmr_q_fix", trial=trial)
+            else:
+                a.atomic(model / "status.json", dict(state="completed"))
+            a.atomic(model / "model.json", checkpoint)
+            a.atomic(run / "state.json", dict(run_id="run", entrants=[], slots=[]))
+            a.atomic(control / "config.json", dict(models={}, command=["unchanged-engine"]))
+            with (
+                patch.object(admission.tournament_tasks, "ready", return_value=control / "tasks"),
+                patch.object(admission, "check_storage"),
+                patch.object(
+                    admission.engine_updates, "active", return_value=dict(engine_bin="engine", analyzer_bin="analyzer")
+                ),
+                patch.object(admission.engine_updates, "require_search_support") as support,
+                patch.object(admission.subprocess, "run"),
+                patch("artifact_storage.settings", return_value={"model_store": str(root / "store")}),
+            ):
+                yield run, model, control, support
+
+    def test_trial_cohort_is_pinned_and_idempotent_without_changing_old_admissions(self):
+        for trial, expected in [(None, None), ("none", None), ("q_refill", "search")]:
+            with self.subTest(trial=trial), self.admission_fixture(trial) as (run, model, control, _):
+                requests = []
+
+                def acknowledge(run, ident, digest, *, requests=requests, expected=expected):
+                    request = a.read(control / "tasks/requests" / f"{ident}.json")
+                    entry = request["command"]["entrants"][0]["entrant"]
+                    requests.append((ident, entry))
+                    self.assertEqual(entry.get("generation"), expected)
+                    if expected is None:
+                        self.assertNotIn("generation", entry)
+                    state = a.read(run / "state.json")
+                    if not state["entrants"]:
+                        state["entrants"].append(entry)
+                    self.assertEqual(state["entrants"], [entry])
+                    a.atomic(run / "state.json", state)
+                    return dict(status="applied", sha256=digest)
+
+                with patch.object(admission.tournament_tasks, "wait", side_effect=acknowledge):
+                    for _ in range(2):
+                        if trial is None:
+                            admission.admit(dict(run=str(run), out=str(model.parent)), model)
+                        else:
+                            admission.admit_checkpoints(run, [model], model.parent / "receipt", search_variants=True)
+                self.assertEqual(requests[0], requests[1])
+                self.assertEqual(a.read(run / "state.json")["entrants"][0].get("generation"), expected)
+                self.assertEqual(a.read(control / "config.json")["command"], ["unchanged-engine"])
+
+    def test_trial_receipt_cannot_silently_drop_its_cohort(self):
+        with self.admission_fixture("q_refill") as (run, model, control, _):
+
+            def acknowledge(run, ident, digest):
+                request = a.read(control / "tasks/requests" / f"{ident}.json")
+                entry = request["command"]["entrants"][0]["entrant"]
+                self.assertEqual(entry.pop("generation"), "search")
+                state = a.read(run / "state.json")
+                state["entrants"] = [entry]
+                a.atomic(run / "state.json", state)
+                return dict(status="applied", sha256=digest)
+
+            with patch.object(admission.tournament_tasks, "wait", side_effect=acknowledge):
+                with self.assertRaisesRegex(RuntimeError, "not reflected"):
+                    admission.admit_checkpoints(run, [model], model.parent / "receipt", search_variants=True)
+
+    def test_admission_rechecks_trial_support_after_preparation(self):
+        with self.admission_fixture() as (run, model, control, support):
+            a.atomic(run / "state.json", dict(entrants=[dict(id="base", model=str(model / "model.json"))]))
+            config = dict(
+                run=str(run),
+                out=str(model.parent / "search"),
+                search_variants={
+                    "HLF_RF": dict(base_entrant="base", experiment="history_tactical_lmr_q_fix", trial="q_refill"),
+                },
+            )
+            models = admission.prepare_search_variants(config)
+            support.side_effect = ValueError("active engine does not support q_refill")
+            with patch.object(admission.tournament_tasks, "submit") as submit:
+                with self.assertRaisesRegex(ValueError, "does not support"):
+                    admission.admit_checkpoints(run, models, model.parent / "receipt", search_variants=True)
+                submit.assert_not_called()
+            self.assertEqual(a.read(control / "config.json")["models"], {})
+            self.assertEqual(support.call_args.args[2], ["q_refill"])
+
     def test_snapshot_and_retry_preserve_new_results(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
