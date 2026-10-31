@@ -83,12 +83,11 @@ def candidates(game):
         if len(chosen) == 4:
             break
     valid = sorted(valid)
-    for bucket in range(16):
-        pool = valid[len(valid) * bucket // 16 : len(valid) * (bucket + 1) // 16]
-        pool = [i for i in pool if all(abs(i - j) >= 4 for j in picked)]
-        if pool:
-            j = min(pool, key=lambda i: labels.hashed([group, POLICY, i]))
-            picked[j] = dict(selection="winner_representative", magnitude=0)
+    # Account for the mate windows added by the shared scanner as fixed anchors.
+    fixed = set(picked) | set(labels.mate_windows(game))
+    for j, metadata in labels.ordinary_positions(game, valid, fixed, group).items():
+        metadata.pop("pool_size")
+        picked[j] = dict(selection="winner_representative", magnitude=0, **metadata)
     return [
         dict(
             center_ply=i + 1,
@@ -96,7 +95,7 @@ def candidates(game):
             split_group=group,
             split="validation" if int(group[:8], 16) % 10 == 0 else "train",
             sampling_policy=POLICY,
-            selection_quota=32,
+            selection_quota=28,
             selection_pool_size=len(valid),
             game_result=game["result"],
             source_eval=moves[i]["eval"],

@@ -102,6 +102,8 @@ def candidates(game):
 
 def scan(db, run, labels=False, label_candidates=None):
     state = read(run / "state.json")  # caller retries transient/incomplete state reads
+    if labels:
+        training_labels.scan_mates(sys.modules[__name__], db, run, state)
     for slot in state["slots"]:
         if slot["status"] != "done" or not slot.get("game_path"):
             continue
