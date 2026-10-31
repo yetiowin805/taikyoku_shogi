@@ -1,4 +1,4 @@
-use crate::move_simulation::BoardLike;
+use crate::move_simulation::{BoardAfterStep, BoardLike};
 use crate::movement::direction::{direction_iter, Direction, DirectionSet};
 use crate::movement::types::{BlockingMode, MovementCapability};
 #[cfg(test)]
@@ -674,14 +674,21 @@ impl MovementGenerator {
         for intermediate_pos in first_targets {
             let mut temp_piece = *piece;
             temp_piece.position = intermediate_pos;
-            let second_targets =
-                Self::generate_for_capability(&temp_piece, board, second, captures_only);
+            let after_first = BoardAfterStep::new(board, *piece, intermediate_pos);
+            let inter_captures = board
+                .get_piece(intermediate_pos)
+                .is_some_and(|p| p.color != piece.color);
+            let second_targets = Self::generate_for_capability(
+                &temp_piece,
+                &after_first,
+                second,
+                captures_only && !inter_captures,
+            );
             if captures_only {
-                let inter_captures = board
-                    .get_piece(intermediate_pos)
-                    .is_some_and(|p| p.color != piece.color);
                 for t in second_targets {
-                    let dest_captures = board.get_piece(t).is_some_and(|p| p.color != piece.color);
+                    let dest_captures = after_first
+                        .get_piece(t)
+                        .is_some_and(|p| p.color != piece.color);
                     if inter_captures || dest_captures {
                         targets.push(t);
                     }
