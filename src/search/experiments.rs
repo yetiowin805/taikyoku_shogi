@@ -7,19 +7,52 @@ const HISTORY_ENTRIES: usize = 65_536;
 
 impl SearchExperiment {
     pub(super) fn history(self) -> bool {
-        matches!(self, Self::History | Self::HistoryTacticalLmr)
+        matches!(self, Self::History | Self::HistoryTacticalLmr) || self.second_wave_hl()
     }
     pub(super) fn tactical_lmr(self) -> bool {
-        matches!(self, Self::TacticalLmr | Self::HistoryTacticalLmr)
+        matches!(self, Self::TacticalLmr | Self::HistoryTacticalLmr) || self.second_wave_hl()
     }
     pub(super) fn guarded_null(self) -> bool {
-        self == Self::GuardedNull
+        matches!(
+            self,
+            Self::GuardedNull
+                | Self::QFixNull
+                | Self::HistoryTacticalLmrQFixNull
+                | Self::HistoryTacticalLmrQFixNullVerify
+        )
     }
     pub(super) fn sacrifice(self) -> bool {
-        matches!(self, Self::Sacrifice | Self::SacrificeThreatQ)
+        matches!(
+            self,
+            Self::Sacrifice | Self::SacrificeThreatQ | Self::HistoryTacticalLmrQFixSacrifice
+        )
     }
     pub(super) fn threat_q(self) -> bool {
         matches!(self, Self::ThreatQ | Self::SacrificeThreatQ)
+    }
+    fn second_wave_hl(self) -> bool {
+        matches!(
+            self,
+            Self::HistoryTacticalLmrQFix
+                | Self::HistoryTacticalLmrQFixNull
+                | Self::HistoryTacticalLmrQFixContinuation
+                | Self::HistoryTacticalLmrQFixHistoryReduction
+                | Self::HistoryTacticalLmrQFixRecapture
+                | Self::HistoryTacticalLmrQFixSacrifice
+                | Self::HistoryTacticalLmrQFixNullVerify
+        )
+    }
+    pub(super) fn continuation(self) -> bool {
+        self == Self::HistoryTacticalLmrQFixContinuation
+    }
+    pub(super) fn history_reduction(self) -> bool {
+        self == Self::HistoryTacticalLmrQFixHistoryReduction
+    }
+    pub(super) fn recapture_extension(self) -> bool {
+        self == Self::HistoryTacticalLmrQFixRecapture
+    }
+    pub(super) fn verify_null(self) -> bool {
+        self == Self::HistoryTacticalLmrQFixNullVerify
     }
 }
 
@@ -28,15 +61,153 @@ pub(super) struct ExperimentState {
     pub policy: SearchExperiment,
     capture_history: HashMap<u64, i32>,
     pub quiet_entry: Option<QuietEntry>,
+    // Second-wave CH: one tagged, direct-mapped 1 MiB table; never dense board².
+    continuation: Vec<ContinuationEntry>,
+    pub previous_move: Option<u64>,
+    // Second-wave HR: support is bounded by the existing quiet-history key cap.
+    quiet_support: HashMap<u32, u8>,
+    pub recapture_spent: bool,
+    pub verifying_null: bool,
+    pub recapture_extensions: u64,
+    pub null_verifications: u64,
 }
 
 impl ExperimentState {
     pub fn new(policy: SearchExperiment) -> Self {
         Self {
             policy,
+            continuation: if policy.continuation() {
+                vec![ContinuationEntry::default(); HISTORY_ENTRIES]
+            } else {
+                Vec::new()
+            },
             ..Self::default()
         }
     }
+}
+
+// Hash collisions can affect ordering, never legality or TT scores. Tags reject
+// index collisions; all full-route coordinates/promotion and mover identity enter
+// the fingerprint. A different two-step/FreeEagle route gets its own hint.
+#[derive(Clone, Copy, Default)]
+struct ContinuationEntry {
+    key: u64,
+    value: i32,
+}
+
+fn mix(key: u64, value: u64) -> u64 {
+    let mut x = key.wrapping_add(value).wrapping_add(0x9e3779b97f4a7c15);
+    x = (x ^ (x >> 30)).wrapping_mul(0xbf58476d1ce4e5b9);
+    x = (x ^ (x >> 27)).wrapping_mul(0x94d049bb133111eb);
+    x ^ (x >> 31)
+}
+
+fn route_key(state: &GameState, mv: &Move) -> u64 {
+    let mut key = mix(mv.from.to_index() as u64, mv.to.to_index() as u64);
+    key = mix(key, u64::from(mv.promoted));
+    if let Some(piece) = state.get_board().get_piece(mv.from) {
+        key = mix(key, piece.piece_type as u64);
+        key = mix(key, u64::from(piece.color == Color::White));
+    }
+    match &mv.data {
+        crate::game_state::MoveData::Standard => mix(key, 0),
+        crate::game_state::MoveData::TwoStep { intermediate } => {
+            mix(mix(key, 1), intermediate.to_index() as u64)
+        }
+        crate::game_state::MoveData::FreeEagle { path } => {
+            key = mix(mix(key, 2), path.len() as u64);
+            for square in path {
+                key = mix(key, square.to_index() as u64);
+            }
+            key
+        }
+    }
+}
+
+pub(super) fn incoming_move(state: &GameState, mv: &Move, ctx: &SearchContext) -> Option<u64> {
+    ctx.experiments
+        .policy
+        .continuation()
+        .then(|| route_key(state, mv))
+}
+
+fn continuation_key(state: &GameState, mv: &Move, ctx: &SearchContext) -> Option<u64> {
+    ctx.experiments
+        .previous_move
+        .map(|previous| mix(previous, route_key(state, mv)))
+}
+
+pub(super) fn continuation_score(ctx: &SearchContext, state: &GameState, mv: &Move) -> i32 {
+    if !ctx.experiments.policy.continuation() || move_captures_enemy(state, mv) {
+        return 0;
+    }
+    let Some(key) = continuation_key(state, mv, ctx) else {
+        return 0;
+    };
+    let Some(entry) = ctx
+        .experiments
+        .continuation
+        .get(key as usize & (HISTORY_ENTRIES - 1))
+    else {
+        return 0;
+    };
+    if entry.key == key {
+        entry.value
+    } else {
+        0
+    }
+}
+
+fn update_continuation(ctx: &mut SearchContext, state: &GameState, mv: &Move, bonus: i32) {
+    let Some(key) = continuation_key(state, mv, ctx) else {
+        return;
+    };
+    let entry = &mut ctx.experiments.continuation[key as usize & (HISTORY_ENTRIES - 1)];
+    if entry.key != key {
+        *entry = ContinuationEntry { key, value: 0 };
+    }
+    entry.value += bonus - entry.value * bonus.abs() / HISTORY_LIMIT;
+    entry.value = entry.value.clamp(-HISTORY_LIMIT, HISTORY_LIMIT);
+}
+
+pub(super) fn age_continuation(ctx: &mut SearchContext) {
+    for entry in &mut ctx.experiments.continuation {
+        entry.value /= 2;
+    }
+}
+
+pub(super) fn protect_history(ctx: &SearchContext, mv: &Move) -> bool {
+    ctx.experiments.policy.history_reduction()
+        && ctx
+            .experiments
+            .quiet_support
+            .get(&history_key(mv))
+            .copied()
+            .unwrap_or(0)
+            >= 2
+        && history_score(ctx, mv) >= 512
+}
+
+/// Isolate real-move null verification from scores obtained with passing enabled.
+pub(super) fn verification_key(ctx: &SearchContext) -> u64 {
+    if ctx.experiments.verifying_null {
+        0x6e75_6c6c_7665_7269
+    } else {
+        0
+    }
+}
+
+pub(super) fn has_major_recapture(
+    state: &GameState,
+    weights: &EvalWeights,
+    prev_to: Option<Position>,
+) -> bool {
+    prev_to_is_major_enemy(state, weights, prev_to)
+        && prev_to.is_some_and(|target| {
+            generate_captures_hitting_square(state, target)
+                .iter()
+                .any(|mv| mv.to == target)
+        })
 }
 
 #[derive(Clone, Copy)]
@@ -136,6 +307,18 @@ pub(super) fn record_cutoff(
             update_bounded(&mut ctx.experiments.capture_history, key, delta);
         } else {
             update_quiet_history(ctx, mv, delta);
+            if ctx.experiments.policy.continuation() {
+                update_continuation(ctx, state, mv, delta);
+            }
+            if ctx.experiments.policy.history_reduction() && mv == winner {
+                let key = history_key(mv);
+                if ctx.experiments.quiet_support.len() < HISTORY_ENTRIES
+                    || ctx.experiments.quiet_support.contains_key(&key)
+                {
+                    let support = ctx.experiments.quiet_support.entry(key).or_default();
+                    *support = support.saturating_add(1);
+                }
+            }
         }
     }
 }
@@ -417,5 +600,185 @@ mod tests {
                 assert_eq!(pos.hash(), state.hash());
             });
         }
+    }
+    #[test]
+    fn second_wave_compositions_keep_their_components_explicit() {
+        for policy in [
+            SearchExperiment::HistoryTacticalLmrQFix,
+            SearchExperiment::HistoryTacticalLmrQFixNull,
+            SearchExperiment::HistoryTacticalLmrQFixContinuation,
+            SearchExperiment::HistoryTacticalLmrQFixHistoryReduction,
+            SearchExperiment::HistoryTacticalLmrQFixRecapture,
+            SearchExperiment::HistoryTacticalLmrQFixSacrifice,
+            SearchExperiment::HistoryTacticalLmrQFixNullVerify,
+        ] {
+            assert!(policy.history());
+            assert!(policy.tactical_lmr());
+            assert!(!policy.threat_q());
+        }
+        assert!(SearchExperiment::QFixNull.guarded_null());
+        assert!(!SearchExperiment::QFixNull.history());
+        assert!(!SearchExperiment::QFixNull.tactical_lmr());
+        assert!(!SearchExperiment::HistoryTacticalLmrQFix.guarded_null());
+        assert!(SearchExperiment::HistoryTacticalLmrQFixNull.guarded_null());
+        assert!(SearchExperiment::HistoryTacticalLmrQFixNullVerify.guarded_null());
+    }
+
+    #[test]
+    fn continuation_is_contextual_route_aware_bounded_and_aged() {
+        let mut state = kings();
+        let weights = EvalWeights::seed();
+        put(&mut state, PieceType::GoldGeneral, Color::Black, 10, 10);
+        let a = Move::new_two_step(position(10, 10), position(10, 11), position(11, 11));
+        let b = Move::new_two_step(position(10, 10), position(11, 10), position(11, 11));
+        let c = Move::new_free_eagle(position(10, 10), position(11, 11), vec![position(10, 11)]);
+        let d = Move::new_free_eagle(position(10, 10), position(11, 11), vec![position(11, 10)]);
+        assert_ne!(route_key(&state, &a), route_key(&state, &b));
+        assert_ne!(route_key(&state, &c), route_key(&state, &d));
+        with_quiesce_test_context(&state, &weights, 0, None, |pos, ctx| {
+            ctx.experiments =
+                ExperimentState::new(SearchExperiment::HistoryTacticalLmrQFixContinuation);
+            assert_eq!(
+                ctx.experiments.continuation.len() * std::mem::size_of::<ContinuationEntry>(),
+                1024 * 1024
+            );
+            ctx.experiments.previous_move = Some(123);
+            update_continuation(ctx, pos, &a, 1024);
+            assert_eq!(continuation_score(ctx, pos, &a), 1024);
+            assert_eq!(continuation_score(ctx, pos, &b), 0);
+            ctx.experiments.previous_move = Some(124);
+            assert_eq!(continuation_score(ctx, pos, &a), 0);
+            ctx.experiments.previous_move = Some(123);
+            age_continuation(ctx);
+            assert_eq!(continuation_score(ctx, pos, &a), 512);
+            let incoming = ctx.experiments.previous_move;
+            alphabeta(pos, &weights, 2, -900_000, 900_000, true, ctx);
+            assert_eq!(ctx.experiments.previous_move, incoming);
+            assert_eq!(pos.hash(), state.hash());
+            assert_eq!(ctx.experiments.continuation.len(), HISTORY_ENTRIES);
+        });
+        assert!(
+            ExperimentState::new(SearchExperiment::HistoryTacticalLmrQFix)
+                .continuation
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn history_depth_protection_requires_repeated_positive_evidence() {
+        let state = kings();
+        let weights = EvalWeights::seed();
+        let mv = Move::new(position(1, 1), position(1, 2));
+        with_quiesce_test_context(&state, &weights, 0, None, |pos, ctx| {
+            ctx.experiments.policy = SearchExperiment::HistoryTacticalLmrQFixHistoryReduction;
+            assert!(!protect_history(ctx, &mv));
+            record_cutoff(pos, ctx, &mv, 6, &[(mv.clone(), 1)]);
+            assert!(!protect_history(ctx, &mv));
+            record_cutoff(pos, ctx, &mv, 6, &[(mv.clone(), 1)]);
+            assert!(protect_history(ctx, &mv));
+            ctx.experiments.policy = SearchExperiment::HistoryTacticalLmrQFix;
+            assert!(!protect_history(ctx, &mv));
+        });
+    }
+
+    #[test]
+    fn recapture_extra_ply_is_selective_bounded_and_context_keyed() {
+        let mut state = kings();
+        let weights = EvalWeights::seed();
+        put(&mut state, PieceType::GoldGeneral, Color::Black, 10, 10);
+        put(&mut state, PieceType::GreatGeneral, Color::White, 10, 11);
+        let target = Some(position(10, 11));
+        assert!(has_major_recapture(&state, &weights, target));
+        with_quiesce_test_context(&state, &weights, 2, target, |pos, ctx| {
+            ctx.experiments.policy = SearchExperiment::HistoryTacticalLmrQFixRecapture;
+            ctx.quiesce_entry_depth = 1;
+            let stand = evaluate_with_ply(pos, &weights, ctx.ply);
+            let ordinary = q_tt_key(pos, target, 1, true, true, ctx);
+            ctx.experiments.recapture_spent = true;
+            assert_ne!(ordinary, q_tt_key(pos, target, 1, true, true, ctx));
+            assert_eq!(
+                quiesce(pos, &weights, 0, -900_000, 900_000, target, true, true, ctx),
+                stand
+            );
+            assert_eq!(ctx.experiments.recapture_extensions, 0);
+            ctx.experiments.recapture_spent = false;
+            let resolved = quiesce(pos, &weights, 0, -900_000, 900_000, target, true, true, ctx);
+            assert!(resolved > stand);
+            assert_eq!(ctx.experiments.recapture_extensions, 1);
+            assert!(!ctx.experiments.recapture_spent);
+            assert_eq!(ctx.quiesce_entry_depth, 1);
+            ctx.quiesce_entry_depth = 2;
+            quiesce(pos, &weights, 0, -900_000, 900_000, target, true, true, ctx);
+            assert_eq!(ctx.experiments.recapture_extensions, 1);
+            assert_eq!(pos.hash(), state.hash());
+        });
+    }
+
+    #[test]
+    fn shallow_null_verification_uses_real_search_and_separate_tt_namespace() {
+        let state = kings();
+        let weights = EvalWeights::seed();
+        with_quiesce_test_context(&state, &weights, 0, None, |pos, ctx| {
+            ctx.experiments.policy = SearchExperiment::HistoryTacticalLmrQFixNullVerify;
+            ctx.last_ab_capture_enemy = min_quiescence_enemy_material();
+            let incoming = (
+                ctx.last_ab_capture_enemy,
+                ctx.last_ab_to,
+                ctx.last_ab_wipe,
+                ctx.last_ab_mover_large,
+                ctx.quiesce_entry_depth,
+            );
+            // Too shallow for the depth-two parent, but an unisolated depth-one
+            // verification would incorrectly accept this planted optimistic bound.
+            ctx.tt.store(TtEntry {
+                key: position_hash(pos),
+                depth: 1,
+                score: 900_000,
+                bound: TtBound::Lower,
+                best: None,
+            });
+            alphabeta(pos, &weights, 2, -200_000, -100_000, false, ctx);
+            assert_eq!(ctx.experiments.null_verifications, 1);
+            assert!(ctx.nodes >= 3);
+            assert!(ctx.allow_null);
+            assert!(!ctx.experiments.verifying_null);
+            assert_eq!(
+                (
+                    ctx.last_ab_capture_enemy,
+                    ctx.last_ab_to,
+                    ctx.last_ab_wipe,
+                    ctx.last_ab_mover_large,
+                    ctx.quiesce_entry_depth
+                ),
+                incoming
+            );
+            assert_eq!(pos.hash(), state.hash());
+        });
+    }
+    #[test]
+    fn risky_null_verification_rejects_a_static_cutoff_losing_a_trapped_hook() {
+        let mut state = GameState::new();
+        put(&mut state, PieceType::King, Color::Black, 2, 1);
+        put(&mut state, PieceType::King, Color::White, 33, 34);
+        put(&mut state, PieceType::HookMover, Color::Black, 18, 15);
+        for (file, rank) in [(17, 15), (19, 15), (18, 14), (18, 16)] {
+            put(&mut state, PieceType::Pawn, Color::Black, file, rank);
+        }
+        put(&mut state, PieceType::Knight, Color::White, 19, 17);
+        let weights = EvalWeights::seed();
+        let beta = evaluate_with_ply(&state, &weights, 0) - 1000;
+        let run = |policy| {
+            with_quiesce_test_context(&state, &weights, 2, None, |pos, ctx| {
+                ctx.experiments.policy = policy;
+                ctx.last_ab_capture_enemy = min_quiescence_enemy_material();
+                let score = alphabeta(pos, &weights, 2, beta - 1, beta, false, ctx);
+                (score, ctx.experiments.null_verifications)
+            })
+        };
+        let ordinary = run(SearchExperiment::HistoryTacticalLmrQFixNull);
+        let verified = run(SearchExperiment::HistoryTacticalLmrQFixNullVerify);
+        assert!(ordinary.0 >= beta);
+        assert_eq!(verified.1, 1);
+        assert!(verified.0 < beta, "{verified:?}, beta={beta}");
     }
 }

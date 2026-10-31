@@ -662,11 +662,12 @@ fn q_tt_key(
     include_captures: bool,
     ctx: &SearchContext,
 ) -> u64 {
-    let mut key = state.hash() ^ royal_extension_key(ctx);
+    let mut key = state.hash() ^ royal_extension_key(ctx) ^ experiments::verification_key(ctx);
     let landing = prev_to.map_or(0, |p| 1 + p.to_index() as u64);
     let flags = u64::from(allow_pathclear)
         | (u64::from(include_captures) << 1)
-        | (u64::from(ctx.last_ab_wipe) << 2);
+        | (u64::from(ctx.last_ab_wipe) << 2)
+        | (u64::from(ctx.experiments.recapture_spent) << 3);
     // SplitMix64 mixes each small context value into the board hash. Always
     // include the landing: even ordinary PathAware search uses it for eligibility.
     for value in [
@@ -2517,6 +2518,7 @@ pub fn search_with_progress(
             }
         }
         let iteration_started = Instant::now();
+        experiments::age_continuation(&mut ctx);
         ctx.search_depth = d;
         ctx.phase = "root";
         ctx.best_score = completed_score;
@@ -2583,11 +2585,17 @@ pub fn search_with_progress(
                 } else {
                     experiments::QuietThreats::default()
                 };
+                if quiet_red > 0 && experiments::protect_history(&ctx, mv) {
+                    quiet_red -= 1;
+                }
+                let previous_move = ctx.experiments.previous_move;
+                let incoming_move = experiments::incoming_move(state, mv, &ctx);
                 let quiet_entry = (!is_capture).then(|| QuietEntry::new(mv));
                 let Some(undo) = pos.make_move_for_search_with_weights(mv.clone(), weights) else {
                     continue;
                 };
                 ctx.experiments.quiet_entry = quiet_entry;
+                ctx.experiments.previous_move = incoming_move;
                 if quiet_red > 0
                     && ctx.experiments.policy.tactical_lmr()
                     && experiments::protect_quiet(&pos, mv, &defended)
@@ -2712,6 +2720,7 @@ pub fn search_with_progress(
                 }
 
                 pos.unmake_move_for_search(undo);
+                ctx.experiments.previous_move = previous_move;
                 ctx.ply = root_ply;
                 ctx.q_nodes_last_root = ctx.q_nodes.saturating_sub(ctx.q_nodes_at_root_start);
 
@@ -3482,8 +3491,10 @@ fn alphabeta(
     ctx: &mut SearchContext,
 ) -> i32 {
     let quiet_entry = ctx.experiments.quiet_entry;
+    let previous_move = ctx.experiments.previous_move;
     let score = alphabeta_impl(state, weights, depth, alpha, beta, is_pv, ctx);
     ctx.experiments.quiet_entry = quiet_entry;
+    ctx.experiments.previous_move = previous_move;
     score
 }
 
@@ -3521,7 +3532,7 @@ fn alphabeta_impl(
         return leaf_or_quiesce(state, weights, alpha, beta, is_pv, ctx);
     }
 
-    let key = position_hash(state) ^ royal_extension_key(ctx);
+    let key = position_hash(state) ^ royal_extension_key(ctx) ^ experiments::verification_key(ctx);
     let alpha_orig = alpha;
     let mut tt_move: Option<MoveKey> = None;
     if let Some(e) = ctx.tt.probe(key) {
@@ -3551,6 +3562,7 @@ fn alphabeta_impl(
     // Null leaf (depth 0 after R) uses stand-pat eval — not quiescence.
     const NULL_R: u32 = 2;
     if ctx.allow_null
+        && !ctx.experiments.verifying_null
         && (!ctx.experiments.policy.guarded_null()
             || (!is_pv && evaluate_with_ply(state, weights, ctx.ply) >= beta))
         && depth >= 2
@@ -3562,6 +3574,7 @@ fn alphabeta_impl(
         ctx.allow_null = false;
         let prev_turn = state.get_current_turn();
         let saved_quiet_entry = ctx.experiments.quiet_entry.take();
+        let saved_previous_move = ctx.experiments.previous_move.take();
         let saved_enemy = ctx.last_ab_capture_enemy;
         let saved_to = ctx.last_ab_to;
         let saved_wipe = ctx.last_ab_wipe;
@@ -3584,13 +3597,43 @@ fn alphabeta_impl(
         state.pop_repetition_key();
         state.set_current_turn(prev_turn);
         ctx.experiments.quiet_entry = saved_quiet_entry;
+        ctx.experiments.previous_move = saved_previous_move;
         ctx.last_ab_capture_enemy = saved_enemy;
         ctx.last_ab_to = saved_to;
         ctx.last_ab_wipe = saved_wipe;
         ctx.last_ab_mover_large = saved_mover_large;
         ctx.allow_null = true;
         if !ctx.abort && score >= beta {
-            return score;
+            let verify = ctx.experiments.policy.verify_null()
+                && null_depth == 0
+                && (saved_enemy >= min_quiescence_enemy_material()
+                    || experiments::has_major_recapture(state, weights, saved_to));
+            if !verify {
+                return score;
+            }
+            ctx.experiments.null_verifications += 1;
+            ctx.experiments.verifying_null = true;
+            ctx.allow_null = false;
+            let incoming = (
+                ctx.last_ab_capture_enemy,
+                ctx.last_ab_to,
+                ctx.last_ab_wipe,
+                ctx.last_ab_mover_large,
+                ctx.quiesce_entry_depth,
+            );
+            let verified = alphabeta(state, weights, depth - 1, beta - 1, beta, false, ctx);
+            (
+                ctx.last_ab_capture_enemy,
+                ctx.last_ab_to,
+                ctx.last_ab_wipe,
+                ctx.last_ab_mover_large,
+                ctx.quiesce_entry_depth,
+            ) = incoming;
+            ctx.allow_null = true;
+            ctx.experiments.verifying_null = false;
+            if !ctx.abort && verified >= beta {
+                return verified;
+            }
         }
     }
 
@@ -3775,11 +3818,17 @@ fn search_move_list(
         } else {
             experiments::QuietThreats::default()
         };
+        if quiet_red > 0 && experiments::protect_history(ctx, mv) {
+            quiet_red -= 1;
+        }
+        let previous_move = ctx.experiments.previous_move;
+        let incoming_move = experiments::incoming_move(state, mv, ctx);
         let quiet_entry = (!is_capture).then(|| QuietEntry::new(mv));
         let Some(undo) = state.make_move_for_search_with_weights(mv.clone(), weights) else {
             continue;
         };
         ctx.experiments.quiet_entry = quiet_entry;
+        ctx.experiments.previous_move = incoming_move;
         if quiet_red > 0
             && ctx.experiments.policy.tactical_lmr()
             && experiments::protect_quiet(state, mv, &defended)
@@ -3887,6 +3936,7 @@ fn search_move_list(
         }
 
         state.unmake_move_for_search(undo);
+        ctx.experiments.previous_move = previous_move;
         ctx.ply = parent_ply;
         if !ctx.abort {
             if let Some(k) = wipe_key {
@@ -4083,10 +4133,22 @@ fn quiesce(
     include_captures: bool,
     ctx: &mut SearchContext,
 ) -> i32 {
-    quiesce_impl(
+    let extend = ctx.experiments.policy.recapture_extension()
+        && qdepth == 0
+        && ctx.quiesce_entry_depth == 1
+        && ctx.quiescence_depth >= 2
+        && !ctx.experiments.recapture_spent
+        && experiments::has_major_recapture(state, weights, prev_to);
+    let saved = (ctx.experiments.recapture_spent, ctx.quiesce_entry_depth);
+    if extend {
+        ctx.experiments.recapture_extensions += 1;
+        ctx.experiments.recapture_spent = true;
+        ctx.quiesce_entry_depth = 2;
+    }
+    let score = quiesce_impl(
         state,
         weights,
-        qdepth,
+        if extend { 1 } else { qdepth },
         alpha,
         beta,
         prev_to,
@@ -4094,7 +4156,11 @@ fn quiesce(
         include_captures,
         false,
         ctx,
-    )
+    );
+    if ctx.experiments.policy.recapture_extension() {
+        (ctx.experiments.recapture_spent, ctx.quiesce_entry_depth) = saved;
+    }
+    score
 }
 
 #[allow(clippy::too_many_arguments)] // search recursion state; bundling it is a hot-path refactor
@@ -4541,6 +4607,8 @@ fn quiesce_impl(
             continue;
         }
 
+        let previous_move = ctx.experiments.previous_move;
+        let incoming_move = experiments::incoming_move(state, &mv, ctx);
         let Some(undo) = state.make_move_for_search_with_weights(mv, weights) else {
             continue;
         };
@@ -4568,6 +4636,7 @@ fn quiesce_impl(
             && !(ctx.q_no_pathclear_reply
                 && matches!(kind, CaptureKind::PathClear | CaptureKind::MultiLeg));
 
+        ctx.experiments.previous_move = incoming_move;
         ctx.q_caps_searched += 1;
         match kind {
             CaptureKind::SimpleTake => ctx.q_kind_simple += 1,
@@ -4589,6 +4658,7 @@ fn quiesce_impl(
         state.unmake_move_for_search(undo);
         ctx.ply = parent_ply;
         ctx.q_depth_left = qdepth;
+        ctx.experiments.previous_move = previous_move;
         ctx.q_caps_at_node = n_caps;
 
         if score > best {
@@ -4947,7 +5017,8 @@ fn order_moves_with_heuristics(
             let cap = mvv_lva_score(state, weights, mv)
                 .saturating_add(experiments::capture_history_score(ctx, state, mv));
             let kr = killer_rank(ctx, ply, mv);
-            let hist = history_score(ctx, mv);
+            let hist = history_score(ctx, mv)
+                .saturating_add(experiments::continuation_score(ctx, state, mv));
             std::cmp::Reverse((cap, kr, hist))
         });
         return;
@@ -4965,7 +5036,8 @@ fn order_moves_with_heuristics(
         )
         .saturating_add(experiments::capture_history_score(ctx, state, mv));
         let kr = killer_rank(ctx, ply, mv);
-        let hist = history_score(ctx, mv);
+        let hist =
+            history_score(ctx, mv).saturating_add(experiments::continuation_score(ctx, state, mv));
         std::cmp::Reverse((cap, kr, hist))
     });
 }

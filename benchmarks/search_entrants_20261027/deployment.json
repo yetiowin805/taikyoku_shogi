@@ -1,0 +1,153 @@
+{
+  "checked_utc": "2026-10-28T03:07:54.926842+00:00",
+  "active": {
+    "protocol": 1,
+    "revision": "99979a5fdf8dbb56238123da0f48dae210a06ec8 (second-wave opt-in search; preserves dcb54bd legacy policies)",
+    "engine_bin": "/mnt/HC_Volume_107032879/taikyoku/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/engine-1601e5cd4ec6825c37ad556bd330454a33989332f73b7f7d059075a6d34cd5f1",
+    "engine_sha256": "1601e5cd4ec6825c37ad556bd330454a33989332f73b7f7d059075a6d34cd5f1",
+    "analyzer_bin": "/mnt/HC_Volume_107032879/taikyoku/tourney/royal-nnue-v3-32-20260925/analysis/engine-builds/analyzer-a339964746f4970c381fa03cc5107f53ba2e0302194e4789de4d17c55f026f70",
+    "analyzer_sha256": "a339964746f4970c381fa03cc5107f53ba2e0302194e4789de4d17c55f026f70"
+  },
+  "admission": {
+    "state": "admitted",
+    "task_id": "01793156787492708233-admit-search-variants",
+    "receipt": {
+      "sha256": "f96838bca587c95790a7f0eef86ba1da08558d793a2fc2e59f66720ab9a4bb7d",
+      "status": "applied",
+      "error": null
+    },
+    "updated": 1793156791.0438223
+  },
+  "entrants": [
+    {
+      "id": "NNUE_W512_v3_HLF",
+      "base": "NNUE_W512_v3",
+      "policy": "history_tactical_lmr_q_fix",
+      "model": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/admitted-models/NNUE_W512_v3_HLF/model.json",
+      "descriptor_sha256": "0451dedf8be7ac99474f7139990f69f2fbd402b9e433ccdb3f9094bbf0658d70",
+      "network_sha256": "a2f0ddbd753237dfbb699a13c93df538e7bfb441319e377fca1995ac448f09a5",
+      "slots": {}
+    },
+    {
+      "id": "NNUE_W512_v3_HLFN",
+      "base": "NNUE_W512_v3",
+      "policy": "history_tactical_lmr_q_fix_null",
+      "model": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/admitted-models/NNUE_W512_v3_HLFN/model.json",
+      "descriptor_sha256": "aca32a1c68a01dd84b1810db208b78c8aafffaf161c2100e523e1aaf24a89f2d",
+      "network_sha256": "a2f0ddbd753237dfbb699a13c93df538e7bfb441319e377fca1995ac448f09a5",
+      "slots": {}
+    },
+    {
+      "id": "NNUE_W512_v3_HLF_CH",
+      "base": "NNUE_W512_v3",
+      "policy": "history_tactical_lmr_q_fix_continuation",
+      "model": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/admitted-models/NNUE_W512_v3_HLF_CH/model.json",
+      "descriptor_sha256": "69548e9501083f6d25c51cc62cd43dc5063616ac178b5761ff9296c70771d155",
+      "network_sha256": "a2f0ddbd753237dfbb699a13c93df538e7bfb441319e377fca1995ac448f09a5",
+      "slots": {}
+    },
+    {
+      "id": "NNUE_W512_v3_HLF_HR",
+      "base": "NNUE_W512_v3",
+      "policy": "history_tactical_lmr_q_fix_history_reduction",
+      "model": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/admitted-models/NNUE_W512_v3_HLF_HR/model.json",
+      "descriptor_sha256": "2844a9d5241bd610883b2ff537ed77151c7381aac114d397a2de829bcce3f0d0",
+      "network_sha256": "a2f0ddbd753237dfbb699a13c93df538e7bfb441319e377fca1995ac448f09a5",
+      "slots": {}
+    },
+    {
+      "id": "NNUE_W512_v3_HLF_QR",
+      "base": "NNUE_W512_v3",
+      "policy": "history_tactical_lmr_q_fix_recapture",
+      "model": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/admitted-models/NNUE_W512_v3_HLF_QR/model.json",
+      "descriptor_sha256": "def6f9406fe143e370069d17be892aae16f5c24f937a4c3756683913290f9727",
+      "network_sha256": "a2f0ddbd753237dfbb699a13c93df538e7bfb441319e377fca1995ac448f09a5",
+      "slots": {}
+    },
+    {
+      "id": "NNUE_W512_v3_HLFS",
+      "base": "NNUE_W512_v3",
+      "policy": "history_tactical_lmr_q_fix_sacrifice",
+      "model": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/admitted-models/NNUE_W512_v3_HLFS/model.json",
+      "descriptor_sha256": "df4c89f3607b02fa3ec3776ea3ede4cbeb53067202ff5c0657a09ff218cbbe01",
+      "network_sha256": "a2f0ddbd753237dfbb699a13c93df538e7bfb441319e377fca1995ac448f09a5",
+      "slots": {}
+    },
+    {
+      "id": "NNUE_W512_v3_HLFN_V",
+      "base": "NNUE_W512_v3",
+      "policy": "history_tactical_lmr_q_fix_null_verify",
+      "model": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/admitted-models/NNUE_W512_v3_HLFN_V/model.json",
+      "descriptor_sha256": "c56c27edfce507370300607d80d064a5ae007ae1a961c3ed07e4f7fc42f48a9a",
+      "network_sha256": "a2f0ddbd753237dfbb699a13c93df538e7bfb441319e377fca1995ac448f09a5",
+      "slots": {}
+    },
+    {
+      "id": "NNUE_W512_v3_FN",
+      "base": "NNUE_W512_v3",
+      "policy": "q_fix_null",
+      "model": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/admitted-models/NNUE_W512_v3_FN/model.json",
+      "descriptor_sha256": "d41edf22de2c3ccca2d7307b4de2f6deec345bddd7f4db07dfc7329e9ce7fca3",
+      "network_sha256": "a2f0ddbd753237dfbb699a13c93df538e7bfb441319e377fca1995ac448f09a5",
+      "slots": {}
+    },
+    {
+      "id": "NNUE_W384_v3_HLF",
+      "base": "NNUE_W384_v3",
+      "policy": "history_tactical_lmr_q_fix",
+      "model": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/admitted-models/NNUE_W384_v3_HLF/model.json",
+      "descriptor_sha256": "c98b93b8c0cedcec3fa4bdef8361210e2edb0d9fd78a98149e8a705cb8be23bc",
+      "network_sha256": "f8e6bbc3499a2a0ef3e692e36fb30dfc008aa3f4f1c5f0651980350f5b58cff6",
+      "slots": {}
+    },
+    {
+      "id": "NNUE_W384_v4.5_HLF",
+      "base": "NNUE_W384_v4.5",
+      "policy": "history_tactical_lmr_q_fix",
+      "model": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/admitted-models/NNUE_W384_v4.5_HLF/model.json",
+      "descriptor_sha256": "fe742461dbd13eb66020bbe2bea4d72a52ed8a6cf362f8c075abab228bb435a1",
+      "network_sha256": "d16f28d452104d9c79a5f8e8a8dc3fb6fdeb8ee896440a14acc62e1968414c1e",
+      "slots": {}
+    }
+  ],
+  "active_count": 31,
+  "registered_count": 61,
+  "retired": [
+    "AVG_P120_SEED_C2R",
+    "BASE_C2S2_A0_L0",
+    "BASE_C2S2_A0_Ldefense",
+    "BASE_C2S2_A160_Ldefense",
+    "BASE_C2S2_A160_Lflight",
+    "BASE_C2S2_A160_Lmate",
+    "BASE_C2S2_A40_L0",
+    "BASE_C2S2_A40_Ldefense",
+    "BASE_C2S2_A40_Lmate",
+    "BASE_C2S2_A80_L0",
+    "BASE_C2S2_A80_Ldefense",
+    "BASE_C2S2_A80_Lflight",
+    "BASE_C2S2_A80_Lmate",
+    "BASE_C2S2_AB80_Ldefense",
+    "BASE_C2S2_AB80_Lflight",
+    "BASE_C2S2_AB80_Lmate",
+    "C2K100A1D50R",
+    "C2K50A1",
+    "NNUE_W1024_v2",
+    "NNUE_W1536_v2",
+    "NNUE_W1536_v4.5",
+    "NNUE_W2048_v2",
+    "NNUE_W2048_v3",
+    "NNUE_W384_v5a",
+    "NNUE_W384_v5b",
+    "NNUE_W512_v2",
+    "NNUE_W512_v5c",
+    "NNUE_W768_v2",
+    "SEEDS2",
+    "T150_P120_T12_C2R"
+  ],
+  "running": 8,
+  "coordinator": {
+    "identity": "190681074",
+    "pid": 985351,
+    "protocol": 1
+  }
+}

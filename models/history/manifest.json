@@ -168,6 +168,12 @@
       "git": "8b229ed8a4130d10d1a799dc7e16215dab771ee5",
       "kind": "logic",
       "summary": "Before opt-in W512-v3 search experiments (PR184); baseline with recursive-q fixes and explicit search-weight borrows."
+    },
+    {
+      "id": "LOGIC_PRE_SEARCH_GENERATION2",
+      "git": "257c9ea64bdddb5f6948ddb6ae2d164863a7d000",
+      "kind": "logic",
+      "summary": "Before second-wave opt-in NNUE search experiments (PR193) and their multi-network admission; parent includes the first search experiments and accepted exact engine speedups."
     }
   ]
 }

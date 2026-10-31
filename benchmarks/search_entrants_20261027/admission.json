@@ -1,0 +1,23 @@
+{
+  "run": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925",
+  "out": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/analysis/search-entrants-20261027",
+  "base_entrant": "NNUE_W512_v3",
+  "search_variants": {
+    "NNUE_W512_v3_HLF": "history_tactical_lmr_q_fix",
+    "NNUE_W512_v3_HLFN": "history_tactical_lmr_q_fix_null",
+    "NNUE_W512_v3_HLF_CH": "history_tactical_lmr_q_fix_continuation",
+    "NNUE_W512_v3_HLF_HR": "history_tactical_lmr_q_fix_history_reduction",
+    "NNUE_W512_v3_HLF_QR": "history_tactical_lmr_q_fix_recapture",
+    "NNUE_W512_v3_HLFS": "history_tactical_lmr_q_fix_sacrifice",
+    "NNUE_W512_v3_HLFN_V": "history_tactical_lmr_q_fix_null_verify",
+    "NNUE_W512_v3_FN": "q_fix_null",
+    "NNUE_W384_v3_HLF": {
+      "base_entrant": "NNUE_W384_v3",
+      "experiment": "history_tactical_lmr_q_fix"
+    },
+    "NNUE_W384_v4.5_HLF": {
+      "base_entrant": "NNUE_W384_v4.5",
+      "experiment": "history_tactical_lmr_q_fix"
+    }
+  }
+}
