@@ -1,4 +1,5 @@
 use crate::board::Board;
+use crate::move_simulation::{BoardAfterStep, BoardLike};
 use crate::movement::MovementConfig;
 use crate::path_utils;
 use crate::piece::{Color, Piece, PieceType};
@@ -144,9 +145,10 @@ mod two_step_dedup_tests {
                 ) {
                     let mut at_mid = *piece;
                     at_mid.position = mid;
+                    let after_first = BoardAfterStep::new(&state.board, *piece, mid);
                     for target in crate::movement::MovementGenerator::capability_landings(
                         &at_mid,
-                        &state.board,
+                        &after_first,
                         second.as_ref(),
                     ) {
                         state.push_two_step_moves(&mut out, piece, mid, target, None);
@@ -1269,6 +1271,8 @@ impl GameState {
                             for intermediate in first_targets {
                                 let mut temp_piece = *piece;
                                 temp_piece.position = intermediate;
+                                let after_first =
+                                    BoardAfterStep::new(&self.board, *piece, intermediate);
                                 let inter_cap = self
                                     .board
                                     .get_piece(intermediate)
@@ -1284,7 +1288,7 @@ impl GameState {
                                 let second_targets =
                                     crate::movement::MovementGenerator::capability_landings_filtered(
                                         &temp_piece,
-                                        &self.board,
+                                        &after_first,
                                         second.as_ref(),
                                         second_captures_only,
                                     );
@@ -1406,7 +1410,11 @@ impl GameState {
         }
         let mut temp = *piece;
         temp.position = intermediate;
-        if !self.is_legal_move_assuming_reachable(&temp, intermediate, target, false) {
+        let after_first = BoardAfterStep::new(&self.board, *piece, intermediate);
+        if after_first
+            .get_piece(target)
+            .is_some_and(|p| p.color == temp.color)
+        {
             return;
         }
         self.push_two_step_moves(moves, piece, intermediate, target, None);
@@ -1551,17 +1559,6 @@ impl GameState {
 
     /// Lightweight enemy-capture check used during move generation filtering.
     fn move_captures_enemy_piece(&self, piece: &Piece, mv: &Move) -> bool {
-        if mv.from == mv.to {
-            // Free Eagle in-place patterns still capture adjacent enemies.
-            if let Some(path) = mv.free_eagle_path() {
-                return path.iter().skip(1).any(|pos| {
-                    self.board
-                        .get_piece(*pos)
-                        .is_some_and(|p| p.color != piece.color)
-                });
-            }
-            return false;
-        }
         let enemy = piece.color.opposite();
         if self
             .board
@@ -1600,8 +1597,23 @@ impl GameState {
             return false;
         }
 
-        // Check if piece can reach the target (basic movement pattern)
-        if !piece.can_reach(to, &self.board) {
+        // This gate validates a Standard move. Full two-step reachability can
+        // require a turn or an intermediate capture which Standard does not
+        // execute, so only the first leg is available without an explicit route.
+        let config = MovementConfig::for_piece(&piece);
+        let reachable = config.capabilities.iter().any(|capability| {
+            let capability = match capability {
+                crate::movement::MovementCapability::TwoStep { first, .. } => first.as_ref(),
+                other => other,
+            };
+            crate::movement::MovementGenerator::can_reach_target(
+                &piece,
+                &self.board,
+                std::slice::from_ref(capability),
+                to,
+            )
+        });
+        if !reachable {
             return false;
         }
 
@@ -1847,6 +1859,9 @@ impl GameState {
         let Some(piece) = self.board.get_piece(mv.from) else {
             return ApplyOutcome::Failed;
         };
+        if validate && piece.color != self.current_turn {
+            return ApplyOutcome::Failed;
+        }
 
         if piece.piece_type == PieceType::FreeEagle && !mv.is_free_eagle() {
             let free_eagle_moves = self.generate_free_eagle_moves(&piece);
@@ -1873,6 +1888,7 @@ impl GameState {
                 // starting a fresh multi-leg move (e.g. Peacock cannot
                 // `can_reach` a pure second-leg diagonal landing).
                 let config = MovementConfig::for_piece(&piece);
+                let after_first = BoardAfterStep::new(&self.board, piece, intermediate);
                 let legs_ok = config.capabilities.iter().any(|cap| {
                     if let crate::movement::types::MovementCapability::TwoStep { first, second } =
                         cap
@@ -1886,7 +1902,7 @@ impl GameState {
                             intermediate,
                         ) && crate::movement::MovementGenerator::can_reach_target(
                             &at_mid,
-                            &self.board,
+                            &after_first,
                             std::slice::from_ref(second.as_ref()),
                             mv.to,
                         )
@@ -1897,7 +1913,7 @@ impl GameState {
                 if !legs_ok {
                     return ApplyOutcome::Failed;
                 }
-                if let Some(target_piece) = self.board.get_piece(mv.to) {
+                if let Some(target_piece) = after_first.get_piece(mv.to) {
                     if target_piece.color == piece.color {
                         return ApplyOutcome::Failed;
                     }
@@ -1942,6 +1958,14 @@ impl GameState {
         }
 
         if let Some(path) = mv.free_eagle_path() {
+            // Validate the entire route before mutating any square. Otherwise
+            // an invalid later landing can leave earlier victims captured.
+            if validate
+                && (piece.piece_type != PieceType::FreeEagle
+                    || !self.generate_free_eagle_moves(&piece).contains(&mv))
+            {
+                return ApplyOutcome::Failed;
+            }
             let mut had_capture = false;
             let mut had_promotion = false;
 
@@ -2443,38 +2467,55 @@ impl GameState {
             }
         }
 
-        // Pattern 5: Stay in place while capturing enemy 1 space away in any direction
-        if let Some(capture_pos) =
-            crate::movement::MovementGenerator::check_pattern5(piece, &self.board)
-        {
-            // There's an enemy piece 1 space away - can capture while staying in place
-            // Path: [start, capture_pos, start]
-            let path = vec![piece.position, capture_pos, piece.position];
-            if self.is_legal_move(piece.position, piece.position) {
-                moves.push(Move::new_free_eagle(piece.position, piece.position, path));
+        // Pattern 5: Every adjacent capture-and-return route matters: identical
+        // endpoints can remove different victims. Do not stop at the first one.
+        for direction in Direction::all() {
+            let (df, dr) = direction.to_offset();
+            let Some(victim) = piece.position.offset(df, dr) else {
+                continue;
+            };
+            if self
+                .board
+                .get_piece(victim)
+                .is_some_and(|p| p.color != piece.color)
+                && self.free_eagle_candidate_allowed(piece, piece.position)
+            {
+                moves.push(Move::new_free_eagle(
+                    piece.position,
+                    piece.position,
+                    vec![piece.position, victim, piece.position],
+                ));
             }
         }
 
-        // Pattern 6: Stay in place while capturing one or two enemies on first or second space along forward diagonals
-        // Only generate if there's a capture on the 2nd space (otherwise Pattern 5 covers it)
-        if let Some((pos1, pos2)) =
-            crate::movement::MovementGenerator::check_pattern6(piece, &self.board)
-        {
-            let mut path = vec![piece.position];
-
-            // Include pos1 in path (even if empty or has enemy)
-            if let Some(pos1) = pos1 {
-                path.push(pos1);
+        // Pattern 6: Both forward diagonals can supply a two-square return
+        // capture, provided the first square is empty or an enemy.
+        for direction in &forward_diagonals {
+            let (df, dr) = direction.to_offset();
+            let Some(first) = piece.position.offset(df, dr) else {
+                continue;
+            };
+            let Some(second) = first.offset(df, dr) else {
+                continue;
+            };
+            if self
+                .board
+                .get_piece(first)
+                .is_some_and(|p| p.color == piece.color)
+            {
+                continue;
             }
-
-            // Include pos2 (which has the capture)
-            path.push(pos2);
-
-            // Return to start
-            path.push(piece.position);
-
-            if self.is_legal_move(piece.position, piece.position) {
-                moves.push(Move::new_free_eagle(piece.position, piece.position, path));
+            if self
+                .board
+                .get_piece(second)
+                .is_some_and(|p| p.color != piece.color)
+                && self.free_eagle_candidate_allowed(piece, piece.position)
+            {
+                moves.push(Move::new_free_eagle(
+                    piece.position,
+                    piece.position,
+                    vec![piece.position, first, second, piece.position],
+                ));
             }
         }
 
@@ -2506,7 +2547,7 @@ mod free_eagle_gate_tests {
     use super::*;
 
     #[test]
-    fn constructed_paths_pass_the_original_reachability_gate() {
+    fn constructed_free_eagle_paths_apply_including_capture_and_return() {
         let origins = [(0, 0), (1, 34), (18, 18), (30, 5)];
         for color in [Color::Black, Color::White] {
             for (file, rank) in origins {
@@ -2539,10 +2580,19 @@ mod free_eagle_gate_tests {
                     }
                     state.set_current_turn(color);
                     for mv in state.generate_free_eagle_moves(&eagle) {
-                        assert!(
-                            state.is_legal_move(mv.from, mv.to),
+                        // A destination-only reach probe rejects the origin;
+                        // complete capture-and-return paths must bypass it.
+                        if mv.from != mv.to {
+                            assert!(state.is_legal_move(mv.from, mv.to));
+                        }
+                        let mut child = state.clone();
+                        child.make_move(mv.clone());
+                        assert_eq!(
+                            child.get_current_turn(),
+                            color.opposite(),
                             "{color:?} {origin:?} {pattern} {mv:?}"
                         );
+                        assert_eq!(child.hash(), crate::zobrist::compute(&child));
                     }
                     state.set_current_turn(color.opposite());
                     assert!(state.generate_free_eagle_moves(&eagle).is_empty());
@@ -3284,3 +3334,7 @@ mod tests {
         assert_eq!(state.repetition_count(), 2);
     }
 }
+
+#[cfg(test)]
+#[path = "multileg_occupancy_tests.rs"]
+mod multileg_occupancy_tests;

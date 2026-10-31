@@ -238,6 +238,62 @@ pub trait BoardLike {
         -> bool;
 }
 
+/// Occupancy after the first leg of a multi-step move, without copying a board.
+/// The origin is empty and the mover replaces any victim at the intermediate.
+/// A fixed trait-object base also permits nested capabilities without recursively
+/// instantiating a new generic board type for every hypothetical leg.
+pub(crate) struct BoardAfterStep<'a> {
+    base: &'a dyn BoardLike,
+    from: Position,
+    mover: Piece,
+}
+
+impl<'a> BoardAfterStep<'a> {
+    pub(crate) fn new(base: &'a dyn BoardLike, mut mover: Piece, to: Position) -> Self {
+        let from = mover.position;
+        mover.position = to;
+        Self { base, from, mover }
+    }
+}
+
+impl BoardLike for BoardAfterStep<'_> {
+    fn get_piece(&self, pos: Position) -> Option<Piece> {
+        if pos == self.mover.position {
+            Some(self.mover)
+        } else if pos == self.from {
+            None
+        } else {
+            self.base.get_piece(pos)
+        }
+    }
+
+    fn is_empty(&self, pos: Position) -> bool {
+        self.get_piece(pos).is_none()
+    }
+
+    fn has_piece_of_color(&self, pos: Position, color: Color) -> bool {
+        self.get_piece(pos)
+            .is_some_and(|piece| piece.color == color)
+    }
+
+    fn get_pieces_by_color(&self, color: Color) -> Vec<Piece> {
+        let mut pieces = self.base.get_pieces_by_color(color);
+        pieces.retain(|piece| piece.position != self.from && piece.position != self.mover.position);
+        if self.mover.color == color {
+            pieces.push(self.mover);
+        }
+        pieces
+    }
+
+    fn is_position_attacked_by_color(&self, pos: Position, color: Color) -> bool {
+        crate::board::is_position_attacked_by_color_impl(self, pos, color, false)
+    }
+
+    fn is_position_attacked_by_color_for_check(&self, pos: Position, color: Color) -> bool {
+        crate::board::is_position_attacked_by_color_impl(self, pos, color, true)
+    }
+}
+
 // Implement for Board
 impl BoardLike for Board {
     fn get_piece(&self, pos: Position) -> Option<Piece> {
@@ -281,6 +337,9 @@ impl<'a> BoardLike for VirtualBoard<'a> {
                 // Apply promotion if this position was promoted
                 if let Some((promo_pos, _, new_type)) = &self.delta.piece_promoted {
                     if *promo_pos == *to {
+                        if piece.base_piece_type.is_none() {
+                            piece.base_piece_type = Some(piece.piece_type);
+                        }
                         piece.piece_type = *new_type;
                         piece.is_promoted = true;
                     }
@@ -327,6 +386,9 @@ impl<'a> BoardLike for VirtualBoard<'a> {
                 moved_piece.position = *to;
                 if let Some((promo_pos, _, new_type)) = &self.delta.piece_promoted {
                     if *promo_pos == *to {
+                        if moved_piece.base_piece_type.is_none() {
+                            moved_piece.base_piece_type = Some(moved_piece.piece_type);
+                        }
                         moved_piece.piece_type = *new_type;
                         moved_piece.is_promoted = true;
                     }
@@ -404,6 +466,20 @@ pub fn move_to_delta(board: &Board, mv: &Move, moving_piece: &Piece) -> MoveDelt
         if let Some(captured) = board.get_piece(intermediate) {
             if captured.color != moving_piece.color {
                 delta.pieces_removed.push((intermediate, captured));
+            }
+        }
+    }
+
+    // Free Eagle paths can capture before the final landing and revisit a
+    // previously captured square on the way back. Record each victim once.
+    if let Some(path) = mv.free_eagle_path() {
+        for pos in path.iter().skip(1) {
+            if let Some(captured) = board.get_piece(*pos) {
+                if captured.color != moving_piece.color
+                    && !delta.pieces_removed.iter().any(|(seen, _)| seen == pos)
+                {
+                    delta.pieces_removed.push((*pos, captured));
+                }
             }
         }
     }

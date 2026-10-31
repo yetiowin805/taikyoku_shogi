@@ -7,7 +7,7 @@ use crate::eval::{
     promotes_into_big_piece, seed_loud_capture_floor, EvalWeights,
 };
 use crate::game_state::{GameState, LegalMoveGen, Move};
-use crate::move_simulation::BoardLike;
+use crate::move_simulation::{BoardAfterStep, BoardLike};
 use crate::movement::{BlockingMode, MovementCapability, MovementConfig, MovementGenerator};
 use crate::path_utils;
 use crate::piece::{Color, Piece};
@@ -755,15 +755,12 @@ fn bump_history(ctx: &mut SearchContext, mv: &Move, depth: u32) {
     *e = e.saturating_add(add).min(1_000_000);
 }
 
-/// True if `mv` captures enemy material and is not a pure self-capture (`from == to`).
+/// True if `mv` captures enemy material, including a capture-and-return route.
 pub fn move_captures_enemy(state: &GameState, mv: &Move) -> bool {
     move_captures_enemy_raw(state, mv)
 }
 
 fn move_captures_enemy_raw(state: &GameState, mv: &Move) -> bool {
-    if mv.from == mv.to {
-        return false;
-    }
     let board = state.get_board();
     let Some(piece) = board.get_piece(mv.from) else {
         return false;
@@ -821,12 +818,12 @@ fn capture_exchange_kind(
     weights: &EvalWeights,
     mv: &Move,
 ) -> (f32, f32, CaptureKind) {
-    if mv.from == mv.to {
-        return (0.0, 0.0, CaptureKind::SimpleTake);
-    }
     if mv.is_two_step() || mv.is_free_eagle() {
         let (enemy, own) = capture_material_exchange_raw(state, weights, mv);
         return (enemy, own, CaptureKind::MultiLeg);
+    }
+    if mv.from == mv.to {
+        return (0.0, 0.0, CaptureKind::SimpleTake);
     }
     let board = state.get_board();
     let Some(piece) = board.get_piece(mv.from) else {
@@ -877,9 +874,6 @@ fn capture_material_exchange_raw(
     weights: &EvalWeights,
     mv: &Move,
 ) -> (f32, f32) {
-    if mv.from == mv.to {
-        return (0.0, 0.0);
-    }
     let board = state.get_board();
     let Some(piece) = board.get_piece(mv.from) else {
         return (0.0, 0.0);
@@ -890,6 +884,9 @@ fn capture_material_exchange_raw(
     let mut own = 0.0f32;
 
     let mut add = |pos: crate::position::Position| {
+        if pos == mv.from {
+            return;
+        }
         if let Some(p) = board.get_piece(pos) {
             let v = material_piece_value(&p, weights);
             if p.color == them {
@@ -905,8 +902,8 @@ fn capture_material_exchange_raw(
         add(inter);
     }
     if let Some(path) = mv.free_eagle_path() {
-        for pos in path.iter().skip(1) {
-            if *pos != mv.to {
+        for (index, pos) in path.iter().enumerate().skip(1) {
+            if *pos != mv.to && !path[1..index].contains(pos) {
                 add(*pos);
             }
         }
@@ -2072,10 +2069,11 @@ fn emit_directed_two_step_captures_hitting(
                 for intermediate in first_targets {
                     let mut temp = *piece;
                     temp.position = intermediate;
+                    let after_first = BoardAfterStep::new(board, *piece, intermediate);
                     if victim_is_enemy && intermediate == victim {
                         for target in MovementGenerator::generate_targets_filtered(
                             &temp,
-                            board,
+                            &after_first,
                             std::slice::from_ref(second.as_ref()),
                             false,
                         ) {
@@ -2084,7 +2082,7 @@ fn emit_directed_two_step_captures_hitting(
                     } else {
                         for landing in MovementGenerator::capture_landings_hitting_target(
                             &temp,
-                            board,
+                            &after_first,
                             std::slice::from_ref(second.as_ref()),
                             victim,
                         ) {
@@ -3448,7 +3446,8 @@ fn partial_root_improvement(incumbent: &Move, exact_lines: &[(Move, i32)]) -> Op
 }
 
 fn same_root_move(a: &Move, b: &Move) -> bool {
-    a.from == b.from && a.to == b.to && a.promoted == b.promoted
+    // Identical endpoints can hide different intermediate captures or FE paths.
+    a == b
 }
 
 /// After an ID iteration: previous best first, then by that iteration's scores, else unchanged.
@@ -3493,9 +3492,7 @@ fn build_trace_tree(
         .iter()
         .take(MAX_TREE_ROOT_CHILDREN)
         .map(|(mv, score)| {
-            let is_best = mv.from == best_move.from
-                && mv.to == best_move.to
-                && mv.promoted == best_move.promoted;
+            let is_best = same_root_move(mv, best_move);
             SearchTreeNode {
                 label: move_label(state, mv),
                 score: Some(*score),
@@ -5508,6 +5505,77 @@ mod tests {
     use crate::eval::{EvalWeights, ALL_PIECE_TYPES};
     use crate::piece::{Color, Piece, PieceType};
     use crate::position::Position;
+
+    #[test]
+    fn root_ordering_and_best_markers_keep_distinct_capture_routes() {
+        let from = Position::new(18, 18).unwrap();
+        let first = Position::new(17, 18).unwrap();
+        let second = Position::new(19, 18).unwrap();
+        let a = Move::new_two_step(from, first, from);
+        let b = Move::new_two_step(from, second, from);
+        assert!(!same_root_move(&a, &b));
+        let mut moves = vec![a.clone(), b.clone()];
+        reorder_root_moves(&mut moves, &b, &[(a.clone(), 10), (b.clone(), 50)]);
+        assert_eq!(moves, vec![b.clone(), a.clone()]);
+        let mut state = GameState::new();
+        state.place_piece(Piece::new(PieceType::Lion, Color::Black, from));
+        state.place_piece(Piece::new(PieceType::Pawn, Color::White, first));
+        state.place_piece(Piece::new(PieceType::WoodlandDemon, Color::White, second));
+        let (_, displayed, _) = display_root(&state, &b, &[(a, 10), (b.clone(), 50)]);
+        assert_eq!(displayed.iter().filter(|m| m.best).count(), 1);
+        assert!(!displayed[0].best);
+        assert!(displayed[1].best);
+    }
+
+    #[test]
+    fn capture_and_return_is_a_loud_multileg_take_in_full_and_directed_generation() {
+        let from = Position::new(18, 18).unwrap();
+        let via = Position::new(18, 22).unwrap();
+        let mut state = GameState::new();
+        state.place_piece(Piece::new(PieceType::HookMover, Color::Black, from));
+        let victim = Piece::new(PieceType::WoodlandDemon, Color::White, via);
+        state.place_piece(victim);
+        let weights = EvalWeights::seed();
+        let mv = Move::new_two_step(from, via, from);
+        assert!(move_captures_enemy(&state, &mv));
+        let (enemy, own, kind) = capture_exchange_kind(&state, &weights, &mv);
+        assert_eq!(enemy, material_piece_value(&victim, &weights));
+        assert_eq!(own, 0.0);
+        assert!(matches!(kind, CaptureKind::MultiLeg));
+        assert!(generate_captures_hitting_square(&state, via).contains(&mv));
+        let quiet = Move::new_two_step(from, Position::new(18, 20).unwrap(), from);
+        assert!(!move_captures_enemy(&state, &quiet));
+        assert_eq!(
+            capture_material_exchange(&state, &weights, &quiet),
+            (0.0, 0.0)
+        );
+    }
+
+    #[test]
+    fn free_eagle_revisited_victims_are_counted_once_and_origin_is_not_self_capture() {
+        let from = Position::new(18, 18).unwrap();
+        let a = Position::new(19, 19).unwrap();
+        let b = Position::new(20, 20).unwrap();
+        let c = Position::new(21, 21).unwrap();
+        let mut state = GameState::new();
+        state.place_piece(Piece::new(PieceType::FreeEagle, Color::Black, from));
+        for square in [a, b, c] {
+            state.place_piece(Piece::new(PieceType::Pawn, Color::White, square));
+        }
+        let weights = EvalWeights::seed();
+        let value = material_piece_value(&state.get_board().get_piece(a).unwrap(), &weights);
+        // A generated 3-forward / 1-back path revisits b after capturing it.
+        let mv = Move::new_free_eagle(from, b, vec![from, a, b, c, b]);
+        assert_eq!(
+            capture_material_exchange(&state, &weights, &mv),
+            (3.0 * value, 0.0)
+        );
+        let returned = Move::new_free_eagle(from, from, vec![from, a, from]);
+        assert!(move_captures_enemy(&state, &returned));
+        let (enemy, own, kind) = capture_exchange_kind(&state, &weights, &returned);
+        assert_eq!((enemy, own), (value, 0.0));
+        assert!(matches!(kind, CaptureKind::MultiLeg));
+    }
 
     #[test]
     fn capture_path_membership_preserves_iterator_off_ray_rules() {

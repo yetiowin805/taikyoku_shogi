@@ -1,4 +1,4 @@
-use crate::move_simulation::BoardLike;
+use crate::move_simulation::{BoardAfterStep, BoardLike};
 use crate::path_utils;
 use crate::piece::{Color, Piece};
 use crate::position::Position;
@@ -39,8 +39,9 @@ pub fn can_tengu_attack_target<B: BoardLike>(tengu: &Piece, target: Position, bo
         // Create a temporary piece at intermediate position
         let mut temp_piece = *tengu;
         temp_piece.position = intermediate;
+        let after_first = BoardAfterStep::new(board, *tengu, intermediate);
 
-        if can_reach_via_diagonal_range(&temp_piece, intermediate, target, board) {
+        if can_reach_via_diagonal_range(&temp_piece, intermediate, target, &after_first) {
             // Check if target has a friendly piece (can't capture friendly)
             if let Some(target_piece) = BoardLike::get_piece(board, target) {
                 if target_piece.color == tengu.color {
@@ -235,6 +236,11 @@ pub fn can_peacock_attack_target<B: BoardLike>(
     if can_reach_via_backwards_diagonal_simple(peacock, peacock.position, target, board) {
         return true;
     }
+    // The first leg of a TwoStep is also a complete legal move. Same-diagonal
+    // targets have no turning intermediates, so the fallback below cannot find it.
+    if can_reach_via_forward_diagonal_range(peacock, peacock.position, target, board) {
+        return true;
+    }
 
     // Special case: If Peacock and target are on the same diagonal with exactly one enemy piece
     // (same color as target) between them, Peacock can attack via two-step:
@@ -265,8 +271,9 @@ pub fn can_peacock_attack_target<B: BoardLike>(
         // Create a temporary piece at intermediate position
         let mut temp_piece = *peacock;
         temp_piece.position = intermediate;
+        let after_first = BoardAfterStep::new(board, *peacock, intermediate);
 
-        if can_reach_via_diagonal_range(&temp_piece, intermediate, target, board) {
+        if can_reach_via_diagonal_range(&temp_piece, intermediate, target, &after_first) {
             // Check if target has a friendly piece (can't capture friendly)
             if let Some(target_piece) = BoardLike::get_piece(board, target) {
                 if target_piece.color == peacock.color {
@@ -430,8 +437,9 @@ pub fn can_hook_mover_attack_target<B: BoardLike>(
         // Create a temporary piece at intermediate position
         let mut temp_piece = *hook_mover;
         temp_piece.position = intermediate;
+        let after_first = BoardAfterStep::new(board, *hook_mover, intermediate);
 
-        if can_reach_via_orthogonal_range(&temp_piece, intermediate, target, board) {
+        if can_reach_via_orthogonal_range(&temp_piece, intermediate, target, &after_first) {
             // Check if target has a friendly piece (can't capture friendly)
             if let Some(target_piece) = BoardLike::get_piece(board, target) {
                 if target_piece.color == hook_mover.color {
