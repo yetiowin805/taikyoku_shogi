@@ -95,6 +95,12 @@ def update(api, args, run):
     with (control / "update.lock").open("a+") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         before = active(api, run)
+        expected = getattr(args, "expected_build", None)
+        if expected is not None:
+            if len(expected) != 64 or any(c not in "0123456789abcdef" for c in expected):
+                raise ValueError("expected build must be a saved 64-character build ID")
+            if api.digest(json.dumps(before, sort_keys=True).encode()) != expected:
+                raise ValueError("active engine changed since preparation; refusing stale publication")
         if args.rollback_build:
             ident = args.rollback_build
             if len(ident) != 64 or any(c not in "0123456789abcdef" for c in ident):

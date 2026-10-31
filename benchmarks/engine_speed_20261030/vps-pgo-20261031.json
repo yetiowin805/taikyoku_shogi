@@ -1,0 +1,219 @@
+{
+  "status": {
+    "state": "published",
+    "captured_utc": "2026-10-31T07:16:50.375669+00:00",
+    "selected_build": "cab94ec05c57ae053bfa4362d39ee9a2b39707b57ca061eea0622e59c3dad458",
+    "selected_engine_sha256": "96b2cdb83ea0030c457c2aea92780f6ba46237f3570fd7503d6c42b96e4f5688",
+    "selected_analyzer_sha256": "8822a902707fc9b5bbcd51ce7b464bc138ed7bbd3819c2a8ea79f9a2decf8697",
+    "rollback_native_build": "05c1968b8532d7b6c762512a201d11d1476478381dcbb6beda0c3f16559d6596",
+    "rollback_original_build": "b207376d4515b078b5bef4670649feb3c2eec80ef881df1d9ef13ac081aa8cb5",
+    "coordinator_pid": 1170015,
+    "completed_results_preserved": true,
+    "completed_games": 5822,
+    "running_games": 8,
+    "running_build_counts": {
+      "114cd924c4f33c65e23eac2bd920f94ab504bfab360ae8db8a00e8a9cbba32ed": 8
+    }
+  },
+  "tooling_git_revision": "17f0c2b07e2af12f56b9b68febe3fa89d427e80a",
+  "accepted_speedup_git_revision": "480393c630d4fac476ec0df53d9e19bb4c78c9cc",
+  "baseline_source_content_sha256": "075f4024499f0fc0decdaee438af88d1eec2822e9d2b484ae27877b2c043e285",
+  "source_content_sha256": "5b859b1576f93e5306ba11b9b7740f8fb5b36e989a23fee2f37f165f385b0a06",
+  "pgo_builder_source_identity_sha256": "f2cc962ff95cdfdb66c689aef51c42d98864b9d2c9da28bab1442b39bfaf8518",
+  "compiler": "rustc 1.97.1 (8bab26f4f 2026-07-14)\nbinary: rustc\ncommit-hash: 8bab26f4f68e0e26f0bb7960be334d5b520ea452\ncommit-date: 2026-07-14\nhost: x86_64-unknown-linux-gnu\nrelease: 1.97.1\nLLVM version: 22.1.6\n",
+  "flags": [
+    "-C",
+    "target-cpu=native"
+  ],
+  "host": {
+    "cpu": "AMD EPYC-Genoa",
+    "logical_cpus": 8,
+    "architecture": "x86_64",
+    "workload": "active eight-worker tournament; no isolated CPU lease"
+  },
+  "native_binary_sha256": {
+    "engine": "8c75e72a8ac864483b1edc45730ef28ae336e3bca5822d10c13e4ec51bcd7682",
+    "analyzer": "aec6a355a016f0314b9d405f66b823f2b64af6b655c83354a20c7a549ef0e491",
+    "benchmark": "d75282b22089dd5a2e0a447cac2dae3a6749036cae30e24c9e220ad90e202c13"
+  },
+  "pgo_binary_sha256": {
+    "analyze_position": "8822a902707fc9b5bbcd51ce7b464bc138ed7bbd3819c2a8ea79f9a2decf8697",
+    "benchmark": "e2fbe16008328ce6c553248429df71d21ded4c27fcf391eeaaf3e1086ec8d164",
+    "instrumented": "dee17404b571d7c518ac2759c2c65bf0f7852c5596851c522406573bf105d0f4",
+    "taikyoku_shogi": "96b2cdb83ea0030c457c2aea92780f6ba46237f3570fd7503d6c42b96e4f5688"
+  },
+  "merged_profile_sha256": "a1e034a8a375e870071ac1cf0be7ad4bc52a61b578c7e997c0b921f8e139d3a1",
+  "native_compatibility": {
+    "status": "passed",
+    "published": false,
+    "compared_pairs": 86,
+    "expected_pairs": 86,
+    "heldout_positions": 6,
+    "chosen_models": 10,
+    "g3_models": 26,
+    "all_exact": true,
+    "source_sha256": "5b859b1576f93e5306ba11b9b7740f8fb5b36e989a23fee2f37f165f385b0a06",
+    "error": null
+  },
+  "profiling": {
+    "games": 3,
+    "positions": 6,
+    "models": 10,
+    "repeats": 2,
+    "depth": 2
+  },
+  "verification": {
+    "pairs": 240,
+    "candidate_over_baseline": 0.9045720480576396,
+    "geomean_cpu_ms": {
+      "baseline": 13.676556729552187,
+      "candidate": 12.371430931227513
+    },
+    "summed_cpu_ms": {
+      "baseline": 11292.048,
+      "candidate": 10144.286
+    },
+    "all_signatures_match": true,
+    "positions": 6,
+    "source_games": 3,
+    "by_model": {
+      "BASE_C2S2_A0_Ldefense": {
+        "pairs": 24,
+        "candidate_over_baseline": 0.9013092694506128,
+        "geomean_cpu_ms": {
+          "baseline": 12.833896848771053,
+          "candidate": 11.567310192970362
+        },
+        "summed_cpu_ms": {
+          "baseline": 1315.504,
+          "candidate": 1147.545
+        }
+      },
+      "NNUE_W256_v3": {
+        "pairs": 24,
+        "candidate_over_baseline": 0.8785430655683407,
+        "geomean_cpu_ms": {
+          "baseline": 9.750916452405166,
+          "candidate": 8.566600032196805
+        },
+        "summed_cpu_ms": {
+          "baseline": 714.5450000000001,
+          "candidate": 648.216
+        }
+      },
+      "NNUE_W384_v4.5": {
+        "pairs": 24,
+        "candidate_over_baseline": 0.8700439448493781,
+        "geomean_cpu_ms": {
+          "baseline": 13.061986885650617,
+          "candidate": 11.364502597562302
+        },
+        "summed_cpu_ms": {
+          "baseline": 1038.724,
+          "candidate": 922.985
+        }
+      },
+      "NNUE_W512_v3": {
+        "pairs": 24,
+        "candidate_over_baseline": 0.9071954737900649,
+        "geomean_cpu_ms": {
+          "baseline": 14.310024077150326,
+          "candidate": 12.981989072617624
+        },
+        "summed_cpu_ms": {
+          "baseline": 1117.176,
+          "candidate": 986.825
+        }
+      },
+      "NNUE_W512_v4.5": {
+        "pairs": 24,
+        "candidate_over_baseline": 0.8714008852059716,
+        "geomean_cpu_ms": {
+          "baseline": 13.907498781936088,
+          "candidate": 12.119006749580077
+        },
+        "summed_cpu_ms": {
+          "baseline": 1160.832,
+          "candidate": 1027.298
+        }
+      },
+      "NNUE_W1536_v3": {
+        "pairs": 24,
+        "candidate_over_baseline": 0.9276732574543988,
+        "geomean_cpu_ms": {
+          "baseline": 18.245921840726577,
+          "candidate": 16.92625374924518
+        },
+        "summed_cpu_ms": {
+          "baseline": 1260.99,
+          "candidate": 1206.161
+        }
+      },
+      "NNUE_W512_v3_HLF": {
+        "pairs": 24,
+        "candidate_over_baseline": 0.9138714363196443,
+        "geomean_cpu_ms": {
+          "baseline": 17.027759801749134,
+          "candidate": 15.561183307330383
+        },
+        "summed_cpu_ms": {
+          "baseline": 1417.809,
+          "candidate": 1257.674
+        }
+      },
+      "NNUE_W512_v3_HLFS": {
+        "pairs": 24,
+        "candidate_over_baseline": 0.9664956510201866,
+        "geomean_cpu_ms": {
+          "baseline": 12.810361354343232,
+          "candidate": 12.3811585369698
+        },
+        "summed_cpu_ms": {
+          "baseline": 1087.701,
+          "candidate": 985.07
+        }
+      },
+      "NNUE_W512_v3_HLF_G3PVS": {
+        "pairs": 24,
+        "candidate_over_baseline": 0.8942535531308029,
+        "geomean_cpu_ms": {
+          "baseline": 13.616600701663193,
+          "candidate": 12.176693559025694
+        },
+        "summed_cpu_ms": {
+          "baseline": 1096.791,
+          "candidate": 983.902
+        }
+      },
+      "NNUE_W512_v3_HLF_G3QH": {
+        "pairs": 24,
+        "candidate_over_baseline": 0.91916602626371,
+        "geomean_cpu_ms": {
+          "baseline": 12.987085094512045,
+          "candidate": 11.937287399071291
+        },
+        "summed_cpu_ms": {
+          "baseline": 1081.976,
+          "candidate": 978.61
+        }
+      }
+    },
+    "method": "Equal-case geometric mean paired process CPU ratios; each model/root/repetition has equal weight.",
+    "limits": "Warm fixed-depth searches on one host; loading/replay excluded; no clock, cold-start or strength claim.",
+    "source_game_cluster_bootstrap_95": [
+      0.8870745758165124,
+      0.9167833090313539
+    ],
+    "interval_method": "3000 deterministic draws of complete source-game clusters; few games limit inference."
+  },
+  "warmup_pairs": 60,
+  "deployment": {
+    "native_build": "05c1968b8532d7b6c762512a201d11d1476478381dcbb6beda0c3f16559d6596",
+    "pgo_build": "cab94ec05c57ae053bfa4362d39ee9a2b39707b57ca061eea0622e59c3dad458",
+    "native_seconds": 140.21577072143555,
+    "pgo_seconds": 124.12474536895752,
+    "coordinator_unchanged": true,
+    "completed_results_preserved": true
+  },
+  "limits": "Warm fixed-depth search CPU comparison versus same-source native build, not a measured total against the older deployed engine; three held-out game clusters. No playing-strength, cold-start, clock-path or games/hour gain established."
+}

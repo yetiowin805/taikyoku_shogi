@@ -383,6 +383,36 @@ Wall time for one batch ≈ `(BATCH / JOBS) * mean_game_seconds` when CPU-bound.
 - `GET /api/training/status` (via tunnel) matches `status.json`
 - Same env + unit on a second VM (e.g. Oracle Free) with only hostname / `SEED_BASE` changes
 
+### Host-local PGO for rolling tournament engines
+
+The shared updater can build and verify PGO from the exact source archive used
+by a rolling tournament, including an archive without Git metadata:
+
+```sh
+./deploy/update_tourney_engine.sh "$RUN" --compatible-speedup --pgo \
+  --source-dir /absolute/path/to/exact-source --out /absolute/path/to/NEW-pgo-build \
+  --llvm-profdata auto --cpu ID --prepare-only
+```
+
+`--prepare-only` retains the build, profile and verification evidence without
+publishing. Omit it to publish after successful verification. With `--source-dir`,
+the updater never fetches or substitutes `main`; without it, the optional positional
+Git ref retains the existing `origin/main` default. A PGO request never falls back
+to a native build. Both paths use the installed deployment helpers.
+
+PGO trains the compiler, not the NNUE weights. The helper selects bounded,
+disjoint training/verification games and frozen active checkpoints, compares
+same-source native/PGO signatures and process CPU time, then publishes only if
+the aggregate paired CPU ratio improves and the original active build is still
+selected. Inspect per-model results and game-cluster uncertainty before wider
+use; a small host-local check is not a strength or whole-tournament gain.
+
+Build on the destination CPU with matching Rust/LLVM tools. Defaults use one
+build job and niceness 19. `--cpu` pins profiling/verification; it does not claim
+a tournament CPU lease, so use an idle or maintenance CPU. Existing games and the
+coordinator are not restarted. See [rolling updates](ROLLING_ENGINES.md#host-local-pgo)
+for model/game controls, retained provenance and publication of prepared pairs.
+
 ### Tournament with continuous swing analysis (four Linux CPUs)
 
 Build with `cargo build --release --bins`. The combined Python launcher requires
