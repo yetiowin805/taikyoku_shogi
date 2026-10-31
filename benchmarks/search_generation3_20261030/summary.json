@@ -102,7 +102,7 @@
     "chosen_enemy_capture": 108
   },
   "prepared_agents": {
-    "count": 24,
+    "count": 26,
     "identities": [
       "NNUE_W512_v3_HLF_G3CF",
       "NNUE_W512_v3_HLF_G3RF",
@@ -127,10 +127,145 @@
       "NNUE_W512_v3_HLFS_G3ATK",
       "NNUE_W512_v3_HLFS_G3RFQH",
       "NNUE_W512_v3_HLFS_G3PVSPV",
-      "NNUE_W512_v3_HLFS_G3GA"
+      "NNUE_W512_v3_HLFS_G3GA",
+      "NNUE_W512_v3_HLF_G3PT",
+      "NNUE_W512_v3_HLFS_G3PT"
     ],
     "control": "ContextRetry on same foundation; every active trial includes context restoration",
-    "config": "admission.json; remote run/out paths are intentional prepared deployment destinations, not execution receipts"
+    "config": "admission.json; remote run/out paths are intentional prepared deployment destinations, not execution receipts",
+    "trial_count": 13,
+    "trial_manifest": {
+      "NNUE_W512_v3_HLF_G3CF": {
+        "base_entrant": "NNUE_W512_v3",
+        "experiment": "history_tactical_lmr_q_fix",
+        "trial": "context_retry"
+      },
+      "NNUE_W512_v3_HLF_G3RF": {
+        "base_entrant": "NNUE_W512_v3",
+        "experiment": "history_tactical_lmr_q_fix",
+        "trial": "q_refill"
+      },
+      "NNUE_W512_v3_HLF_G3QH": {
+        "base_entrant": "NNUE_W512_v3",
+        "experiment": "history_tactical_lmr_q_fix",
+        "trial": "q_history"
+      },
+      "NNUE_W512_v3_HLF_G3PVS": {
+        "base_entrant": "NNUE_W512_v3",
+        "experiment": "history_tactical_lmr_q_fix",
+        "trial": "internal_pvs"
+      },
+      "NNUE_W512_v3_HLF_G3PV": {
+        "base_entrant": "NNUE_W512_v3",
+        "experiment": "history_tactical_lmr_q_fix",
+        "trial": "promote_pv"
+      },
+      "NNUE_W512_v3_HLF_G3SC": {
+        "base_entrant": "NNUE_W512_v3",
+        "experiment": "history_tactical_lmr_q_fix",
+        "trial": "searched_lmr"
+      },
+      "NNUE_W512_v3_HLF_G3FP": {
+        "base_entrant": "NNUE_W512_v3",
+        "experiment": "history_tactical_lmr_q_fix",
+        "trial": "shallow_futility"
+      },
+      "NNUE_W512_v3_HLF_G3PR": {
+        "base_entrant": "NNUE_W512_v3",
+        "experiment": "history_tactical_lmr_q_fix",
+        "trial": "partial_root"
+      },
+      "NNUE_W512_v3_HLF_G3ATK": {
+        "base_entrant": "NNUE_W512_v3",
+        "experiment": "history_tactical_lmr_q_fix",
+        "trial": "major_threat_lmr"
+      },
+      "NNUE_W512_v3_HLF_G3RFQH": {
+        "base_entrant": "NNUE_W512_v3",
+        "experiment": "history_tactical_lmr_q_fix",
+        "trial": "q_refill_history"
+      },
+      "NNUE_W512_v3_HLF_G3PVSPV": {
+        "base_entrant": "NNUE_W512_v3",
+        "experiment": "history_tactical_lmr_q_fix",
+        "trial": "pvs_promote"
+      },
+      "NNUE_W512_v3_HLF_G3GA": {
+        "base_entrant": "NNUE_W512_v3",
+        "experiment": "history_tactical_lmr_q_fix",
+        "trial": "growth_aware"
+      },
+      "NNUE_W512_v3_HLFS_G3CF": {
+        "base_entrant": "NNUE_W512_v3",
+        "experiment": "history_tactical_lmr_q_fix_sacrifice",
+        "trial": "context_retry"
+      },
+      "NNUE_W512_v3_HLFS_G3RF": {
+        "base_entrant": "NNUE_W512_v3",
+        "experiment": "history_tactical_lmr_q_fix_sacrifice",
+        "trial": "q_refill"
+      },
+      "NNUE_W512_v3_HLFS_G3QH": {
+        "base_entrant": "NNUE_W512_v3",
+        "experiment": "history_tactical_lmr_q_fix_sacrifice",
+        "trial": "q_history"
+      },
+      "NNUE_W512_v3_HLFS_G3PVS": {
+        "base_entrant": "NNUE_W512_v3",
+        "experiment": "history_tactical_lmr_q_fix_sacrifice",
+        "trial": "internal_pvs"
+      },
+      "NNUE_W512_v3_HLFS_G3PV": {
+        "base_entrant": "NNUE_W512_v3",
+        "experiment": "history_tactical_lmr_q_fix_sacrifice",
+        "trial": "promote_pv"
+      },
+      "NNUE_W512_v3_HLFS_G3SC": {
+        "base_entrant": "NNUE_W512_v3",
+        "experiment": "history_tactical_lmr_q_fix_sacrifice",
+        "trial": "searched_lmr"
+      },
+      "NNUE_W512_v3_HLFS_G3FP": {
+        "base_entrant": "NNUE_W512_v3",
+        "experiment": "history_tactical_lmr_q_fix_sacrifice",
+        "trial": "shallow_futility"
+      },
+      "NNUE_W512_v3_HLFS_G3PR": {
+        "base_entrant": "NNUE_W512_v3",
+        "experiment": "history_tactical_lmr_q_fix_sacrifice",
+        "trial": "partial_root"
+      },
+      "NNUE_W512_v3_HLFS_G3ATK": {
+        "base_entrant": "NNUE_W512_v3",
+        "experiment": "history_tactical_lmr_q_fix_sacrifice",
+        "trial": "major_threat_lmr"
+      },
+      "NNUE_W512_v3_HLFS_G3RFQH": {
+        "base_entrant": "NNUE_W512_v3",
+        "experiment": "history_tactical_lmr_q_fix_sacrifice",
+        "trial": "q_refill_history"
+      },
+      "NNUE_W512_v3_HLFS_G3PVSPV": {
+        "base_entrant": "NNUE_W512_v3",
+        "experiment": "history_tactical_lmr_q_fix_sacrifice",
+        "trial": "pvs_promote"
+      },
+      "NNUE_W512_v3_HLFS_G3GA": {
+        "base_entrant": "NNUE_W512_v3",
+        "experiment": "history_tactical_lmr_q_fix_sacrifice",
+        "trial": "growth_aware"
+      },
+      "NNUE_W512_v3_HLF_G3PT": {
+        "base_entrant": "NNUE_W512_v3",
+        "experiment": "history_tactical_lmr_q_fix",
+        "trial": "post_capture_safety"
+      },
+      "NNUE_W512_v3_HLFS_G3PT": {
+        "base_entrant": "NNUE_W512_v3",
+        "experiment": "history_tactical_lmr_q_fix_sacrifice",
+        "trial": "post_capture_safety"
+      }
+    }
   },
   "screen": {
     "requests": 234,
@@ -239,17 +374,48 @@
       "interpretation": "Four other final differences coincide with completed-depth/timing changes; no isolated algorithm-effect or speed claim. No selected partial result exercised.",
       "manifest": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/partial-final/screen/manifest.json",
       "results": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/partial-final/screen/results.json"
+    },
+    "initial_derived_agents": 24,
+    "initial_trial_count": 12,
+    "includes_post_capture_safety": false,
+    "post_take_screen": {
+      "status": "complete_bounded",
+      "trial": "post_capture_safety",
+      "label": "PT",
+      "parents": [
+        "HLF",
+        "HLFS"
+      ],
+      "scope": "Separate screen; not part of initial234requests or its18-comparison feature rows.",
+      "requests": 24,
+      "cases": 4,
+      "arms": 6,
+      "per_request_ms": 750,
+      "repetitions_per_case_arm": 1,
+      "comparisons": 8,
+      "shared_completed_depth_range": [
+        2,
+        4
+      ],
+      "median_cumulative_node_ratio": 1.0,
+      "minimum_ratio": 1.0,
+      "maximum_ratio": 1.0,
+      "different_move_or_score": 0,
+      "final_qcap_count_differences": 2,
+      "interpretation": "No observed effect at shared completed iterations. Finalqcap counts include incompletework and are not a matched-depth gain. Contractfixtures demonstrate active filterbranch, not thisscreen. No speed/strength claim.",
+      "binary_sha256": "15c7c107727fdff67f3d4fc3e8b89cab44c4f79787a2c0f6f32fb19aae538d76",
+      "matched_depth_summary": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/post-take-screen/screen/matched-depth-summary.json"
     }
   },
   "validation": {
     "rust": {
-      "checked_utc": "2026-10-31T02:46:50.946384+00:00",
+      "checked_utc": "2026-10-31T02:58:16.387855+00:00",
       "worktree": "/home/frank/taikyoku_shogi/.worktrees/search-generation3",
-      "base_revision": "b11c5e61c3497041d16569b5553d48038cf1fbd4",
+      "base_revision": "62dd2a588ad3d3db9ff41e469a8b4184c8133fb0",
       "dirty_source_hashes": {
-        "src/search.rs": "a5cc5504454526567c0094c09ad108bb1269502a21add51b98cafd226619f0f7",
-        "src/search/experiments.rs": "9a459bf93a9d935f3981ae16fd2e3f84f61275be0d500626c6e36218b0430ec0",
-        "src/eval.rs": "6d9d007486e6c3ccfa33dec4ee9880ce000856fd0025208b41da9c2781710c6a",
+        "src/search.rs": "b0632e0ad80647c86cf725de0068600e0f8d40b5eb19bd74ac59dceaa428974a",
+        "src/search/experiments.rs": "7ed7d225d4d27ed43eccbbe4ae193a45e83b571ac48dbbb3eddcfd2462b24355",
+        "src/eval.rs": "ac799aa46448b164c2f360f51d98e44b539c42eb50f02b5b3c8035095b488bb7",
         "src/alphabeta_player.rs": "beced42074dd4f7d5216a3372caf61c7bd8c194bb2f6d5428a2708803f01781f",
         "src/main.rs": "4dd16929ed44f8d3b930b025a27a2eb65e58161272793b0acfd4c741a3489d65",
         "src/player.rs": "9d6c3208a2d8c3c937b99bad6076ed92763b3ccbc53395781d25d88de53d6058",
@@ -264,21 +430,69 @@
       "cargo_fmt": "passed",
       "cargo_clippy_all_targets_all_features_deny_warnings": "passed",
       "cargo_test": "passed",
-      "test_passed_total": 509,
+      "test_passed_total": 511,
       "test_failed_total": 0,
       "test_ignored_total": 4,
       "cargo_target_dir": "/tmp/taikyoku-search3-baseline/target",
       "cargo_build_jobs": 2,
-      "notes": "No production fixes required by full validation. Four existing ignored library tests remain ignored. Release binaries built before full validation; source hashes permit checking exact correspondence."
+      "notes": "Repeated full validation after adding PT PostCaptureSafety. All passed; four existing ignored library tests remain ignored. Final release binaries built after this validation.",
+      "release_binaries": {
+        "tactical_tree_worker": "15c7c107727fdff67f3d4fc3e8b89cab44c4f79787a2c0f6f32fb19aae538d76",
+        "analyze_position": "51dc79eb3676e1a34d96147cbd35c1e9351d50be3e000e53c865fbfdd3af8354",
+        "taikyoku_shogi": "7ad0a981924cc97b0a369f1b35ae022561ee0a9f4a4fd4cf634d4277e0e2addb"
+      }
     },
     "none_parity": {
       "method": "Fixed-depth2, 15s fail-safe, exact full-route move/score/cumulative-node comparison at every completed iteration. Main baseline b11c5e6 and final main candidate, not livelegacy parity.",
       "cases": 6,
       "baseline_sha256": "6504035d4cad501c56e4c639645a0ad0cf41aad7ca9219fc449787678d943318",
       "candidate_sha256": "14ae833c3cd97616f5e6a41af57a86ff00f2618709e7fef9e7e45f34bf209e55",
-      "exact_all_iterations": true
+      "exact_all_iterations": true,
+      "scope": "Recorded pre-PT candidate check. It is not a new claim that parity was rerun after PT."
     },
     "descriptors": {
+      "state": "prepared_and_validated_not_admitted",
+      "checked_utc": "2026-10-31T03:01:30.119453+00:00",
+      "models": 26,
+      "bundle": {
+        "protocol": 1,
+        "revision": "62dd2a5 + post_capture_safety diff",
+        "engine_bin": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/binaries/post-pt-taikyoku_shogi",
+        "engine_sha256": "7ad0a981924cc97b0a369f1b35ae022561ee0a9f4a4fd4cf634d4277e0e2addb",
+        "analyzer_bin": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/binaries/post-pt-analyze_position",
+        "analyzer_sha256": "51dc79eb3676e1a34d96147cbd35c1e9351d50be3e000e53c865fbfdd3af8354"
+      },
+      "identities": [
+        "NNUE_W512_v3_HLF_G3CF",
+        "NNUE_W512_v3_HLF_G3RF",
+        "NNUE_W512_v3_HLF_G3QH",
+        "NNUE_W512_v3_HLF_G3PVS",
+        "NNUE_W512_v3_HLF_G3PV",
+        "NNUE_W512_v3_HLF_G3SC",
+        "NNUE_W512_v3_HLF_G3FP",
+        "NNUE_W512_v3_HLF_G3PR",
+        "NNUE_W512_v3_HLF_G3ATK",
+        "NNUE_W512_v3_HLF_G3RFQH",
+        "NNUE_W512_v3_HLF_G3PVSPV",
+        "NNUE_W512_v3_HLF_G3GA",
+        "NNUE_W512_v3_HLF_G3PT",
+        "NNUE_W512_v3_HLFS_G3CF",
+        "NNUE_W512_v3_HLFS_G3RF",
+        "NNUE_W512_v3_HLFS_G3QH",
+        "NNUE_W512_v3_HLFS_G3PVS",
+        "NNUE_W512_v3_HLFS_G3PV",
+        "NNUE_W512_v3_HLFS_G3SC",
+        "NNUE_W512_v3_HLFS_G3FP",
+        "NNUE_W512_v3_HLFS_G3PR",
+        "NNUE_W512_v3_HLFS_G3ATK",
+        "NNUE_W512_v3_HLFS_G3RFQH",
+        "NNUE_W512_v3_HLFS_G3PVSPV",
+        "NNUE_W512_v3_HLFS_G3GA",
+        "NNUE_W512_v3_HLFS_G3PT"
+      ]
+    },
+    "descriptor_scope": "All26identitiesvalidatedagainstbothpostPTengineandanalyzer;preparednotadmitted.",
+    "descriptors_historical_initial24": {
       "state": "prepared_and_validated_not_admitted",
       "models": 24,
       "bundle": {
@@ -316,12 +530,25 @@
         "NNUE_W512_v3_HLFS_G3GA"
       ]
     },
-    "python_reported_by_orchestrator": {
+    "production_source_hashes_match_rust_receipt": true,
+    "python": {
+      "recorded_utc": "2026-10-31T03:02:35.055685+00:00",
+      "validation_stage": "before commit62dd2a5; no Python source changes since",
+      "commands": [
+        "ruff format .",
+        "ruff check --fix .",
+        "python3 -m unittest discover -s deploy -p 'test_*.py'"
+      ],
       "ruff_files": 159,
       "ruff_result": "passed",
       "deploy_unittests": 123,
       "deploy_result": "passed",
-      "receipt": "awaiting final orchestrator validation receipt; do not represent as checks run by report author"
+      "notes": "Completed by root before initial candidate commit. This receipt records the completed result; raw terminal log was not retained. Tests printed incidental existing ResourceWarnings without failing.",
+      "source_sha256": {
+        "deploy/engine_updates.py": "9287e0dfb009213d9d6154b5eae2bc266e23591b99ec0c5e3c7198bd6366beea",
+        "deploy/training_admission.py": "a131925486e78c020257f858d843492f71f2ca27336054e13b23c01034f192f6",
+        "deploy/test_training_admission.py": "810be910f717defba0f8cd26195f00f83f1524bc75f5f8c978fd4608c85bb093"
+      }
     }
   },
   "source_artifacts": [
@@ -383,7 +610,7 @@
     },
     {
       "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/validation/rust-validation.json",
-      "sha256": "cb6967ed3754732abc491bb86bdcdf0439ddd4a1ff66d17cdef21627e2d61b88"
+      "sha256": "0f07aca71ba3b138f42867306afa93389cfe7866440bfed6f1025be83aee9358"
     },
     {
       "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/validation/none-parity.json",
@@ -395,7 +622,7 @@
     },
     {
       "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/admission.json",
-      "sha256": "b67da88570a6784b05c37ee26922bed3e9dccdfadc9d86738eac38c7c3a80754"
+      "sha256": "535d5cf35c8ee2f23f5b0adadec183824683d7fb11248694552191e7d80f2c25"
     },
     {
       "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/binaries/final-build.json",
@@ -408,6 +635,56 @@
     {
       "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/partial-final/screen/results.json",
       "sha256": "cfb2fb59160399c4901cd0414bce51a642e8286d9eeb0a07973215f482f3714f"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/post-take-screen/screen/manifest.json",
+      "sha256": "52c96fe36e4c204a117e1406bc2abee1141f106dfb1c8ad3396a9799489d3354"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/post-take-screen/screen/results.json",
+      "sha256": "9a64d3ed9abd03aa67f313714320ab8dd443d84df3ef73c256c4e5e984bb4a94"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/post-take-screen/screen/matched-depth-summary.json",
+      "sha256": "29b951396ddc7e8eb99306a597dbcca3025b1ffb11d164210d1c6ee6fa1051ca"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/binaries/post-pt-build.json",
+      "sha256": "cea9a9cd262744a40e19713d85f3baaf21f4756eeba4faa12a81f41de2085165"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/validation/models-post-pt.json",
+      "sha256": "a062fda1fe5d87d68c6b6fca492476c7a878cca2afd067e5e20d84085af2cfd5"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/validation/python-validation.json",
+      "sha256": "241b6eb34035a4cfa391356b79b43a049121921ac6fcf989e3f336cdb7d95bfa"
     }
-  ]
+  ],
+  "updated_utc": "2026-10-31T03:03:05.245072+00:00",
+  "post_capture_safety": {
+    "trial": "post_capture_safety",
+    "label": "PT",
+    "status": "implemented_opt_in",
+    "source": "src/search.rs:4804",
+    "scope": "Only PathAware qsearch SimpleTake candidates below existing net/hang fraction; after make, query actual landing; unmake and skip if attacked. Existing None, AB SimpleTake checks, and prior variants remain unchanged.",
+    "exemptions": [
+      "royal captures",
+      "loud promotions",
+      "required major destination recaptures"
+    ],
+    "cost": "Uses existing make/unmake; adds post-capture attack query, no new persistent table. Rejected captures undo earlier and skip recursion.",
+    "risk": "Hanging heuristic is not SEE; can prune compensated sacrifices or discard alternatives after ordinary quota selection.",
+    "tests": [
+      "post_capture_safety_rejects_real_defended_takes_and_restores_board",
+      "post_capture_safety_never_prunes_a_defended_royal_take"
+    ],
+    "screen_status": "separate_bounded_screen_complete"
+  },
+  "engine_precedent_limits": {
+    "quiet_checks": "Stockfish18mainquietorderingrewardsSEE-qualifiedchecks;currentqpickerCAPTURES/evasions. YaneuraOu currentqpicker capture/promotion subset; staleqquietcheckcommentsarenotactivestages. Ourboundedquietcheckproposaliscasehypothesis.",
+    "ethereal_partial_results": "Completed fail-high aspiration-attempt retention while re-searching, reverted on fail-low. Timeout skips its completed-attempt update. PR interrupted sibling-line adoption is our separate experiment."
+  },
+  "final_production_revision": "328e2cf",
+  "preceding_candidate_revision": "62dd2a5"
 }
