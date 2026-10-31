@@ -6,11 +6,11 @@ import signal
 import time
 from pathlib import Path
 
-from audit import compare
 from comparison import STRATEGIES
 from rollout import evaluate
 from tree import key
 
+from audit import compare
 from run import STOP, Oracle, atomic, validate_inputs
 
 
