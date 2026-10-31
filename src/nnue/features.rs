@@ -27,7 +27,18 @@ fn abilities(piece: &Piece) -> BTreeSet<String> {
             Cap::Simple {
                 directions,
                 max_distance,
-            } => ordinary(&mut out, *directions, *max_distance),
+            } => {
+                // Version 1 encodes Flying Crocodile's historical lateral
+                // diagonal masks. Its legal movement now uses forward/backward
+                // diagonals; retain the trained inputs byte-for-byte until a
+                // separately versioned feature schema replaces this encoding.
+                let directions = match (piece.piece_type, *max_distance) {
+                    (PieceType::FlyingCrocodile, 2) => 0xA0,
+                    (PieceType::FlyingCrocodile, 3) => 0x0A,
+                    _ => *directions,
+                };
+                ordinary(&mut out, directions, *max_distance);
+            }
             Cap::Range {
                 directions,
                 blocking: BlockingMode::NoJump,
@@ -53,9 +64,9 @@ fn abilities(piece: &Piece) -> BTreeSet<String> {
             }
             Cap::Jumping { offsets } => {
                 for &(x, y) in offsets {
-                    // The actual engine flips only rank for White jumps, unlike
-                    // its 180-degree ordinary directions. Preserve that quirk
-                    // in the piece-relative ability encoding.
+                    // Version 1 reflected only rank for White jumps. Legal
+                    // jumps now rotate both axes, but the trained encoding
+                    // retains that historical quirk for checkpoint compatibility.
                     let x = if piece.color == Color::White { -x } else { x };
                     let (ax, ay) = (x.abs(), y.abs());
                     if ax.max(ay) == 1 {

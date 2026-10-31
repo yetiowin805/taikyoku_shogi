@@ -242,6 +242,23 @@ pub fn can_peacock_attack_target<B: BoardLike>(
         return true;
     }
 
+    // A forward first leg followed by a reversal can pass the vacated origin
+    // and continue arbitrarily far backwards. The turning-point intersections
+    // below exclude collinear paths, and the ordinary backwards move stops at 2.
+    if is_backwards_diagonal(peacock, peacock.position, target) {
+        let df = (peacock.position.file() as i8 - target.file() as i8).signum();
+        let dr = (peacock.position.rank() as i8 - target.rank() as i8).signum();
+        if let Some(intermediate) = peacock.position.offset(df, dr) {
+            if can_reach_via_forward_diagonal_range(peacock, peacock.position, intermediate, board)
+            {
+                let after_first = BoardAfterStep::new(board, *peacock, intermediate);
+                if can_reach_via_diagonal_range(peacock, intermediate, target, &after_first) {
+                    return true;
+                }
+            }
+        }
+    }
+
     // Special case: If Peacock and target are on the same diagonal with exactly one enemy piece
     // (same color as target) between them, Peacock can attack via two-step:
     // First move: capture the intervening enemy piece

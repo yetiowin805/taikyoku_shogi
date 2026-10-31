@@ -2085,14 +2085,7 @@ impl GameState {
         }
 
         // Check if this piece uses capturing range movement
-        let config = MovementConfig::for_piece(&piece);
-        let uses_capturing = config.capabilities.iter().any(|cap| {
-            if let crate::movement::MovementCapability::Range { blocking, .. } = cap {
-                *blocking == crate::movement::BlockingMode::Capturing
-            } else {
-                false
-            }
-        });
+        let uses_capturing = MovementConfig::uses_capturing_range(&piece, mv.from, mv.to);
 
         // Track if any captures occurred in the path
         let mut had_capture_path = false;
@@ -3338,3 +3331,7 @@ mod tests {
 #[cfg(test)]
 #[path = "multileg_occupancy_tests.rs"]
 mod multileg_occupancy_tests;
+
+#[cfg(test)]
+#[path = "move_generation_audit_tests.rs"]
+mod move_generation_audit_tests;

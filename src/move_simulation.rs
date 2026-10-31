@@ -1,6 +1,5 @@
 use crate::board::Board;
 use crate::game_state::Move;
-use crate::movement::types::BlockingMode;
 use crate::movement::MovementConfig;
 use crate::path_utils;
 use crate::piece::{Color, Piece, PieceType};
@@ -433,14 +432,7 @@ pub fn move_to_delta(board: &Board, mv: &Move, moving_piece: &Piece) -> MoveDelt
     delta.piece_moved = Some((mv.from, mv.to, *moving_piece));
 
     // 2. Handle capturing range movements (pieces cleared along the path, not endpoints)
-    let config = MovementConfig::for_piece(moving_piece);
-    let uses_capturing = config.capabilities.iter().any(|cap| {
-        if let crate::movement::types::MovementCapability::Range { blocking, .. } = cap {
-            *blocking == BlockingMode::Capturing
-        } else {
-            false
-        }
-    });
+    let uses_capturing = MovementConfig::uses_capturing_range(moving_piece, mv.from, mv.to);
 
     if uses_capturing {
         let path_positions = path_utils::path_positions(mv.from, mv.to);

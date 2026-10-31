@@ -284,6 +284,7 @@ fn needs_global_scan_uncached(piece: &Piece) -> bool {
         || is_hook_mover_like_piece(piece)
         || is_lion_hawk(piece)
         || is_cannon_soldier(piece)
+        || piece.piece_type == crate::piece::PieceType::BuddhistSpirit
     {
         return true;
     }
@@ -403,6 +404,11 @@ pub fn should_check_piece_for_target_position(
     target_position: Position,
     for_check: bool,
 ) -> bool {
+    // Its first leg slides in any direction and the final step can leave that
+    // ray. Neither the near window nor alignment with the origin is sufficient.
+    if piece.piece_type == crate::piece::PieceType::BuddhistSpirit {
+        return true;
+    }
     // Always check Tengu/promoted Peacock/Capricorn and unpromoted Peacock due to highly mobile two-step movement
     if is_tengu_or_promoted_peacock(piece) || is_unpromoted_peacock(piece) {
         return true;
@@ -418,8 +424,9 @@ pub fn should_check_piece_for_target_position(
     if is_lion_hawk(piece) {
         let file_diff = (target_position.file() as i8 - piece.position.file() as i8).abs();
         let rank_diff = (target_position.rank() as i8 - piece.position.rank() as i8).abs();
-        // For diagonal range + 1 space: |file_diff| and |rank_diff| differ by at most 1
-        if (file_diff as i16 - rank_diff as i16).abs() <= 1 {
+        // A diagonal last step can add to one coordinate and subtract from the
+        // other, putting the target two squares off the original diagonal.
+        if (file_diff as i16 - rank_diff as i16).abs() <= 2 {
             return true;
         }
         // Also check if within 9x9 square (covers orthogonal simple + 1 space option)
