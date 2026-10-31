@@ -5,11 +5,11 @@ from pathlib import Path
 from unittest import mock
 
 import supervise
-from audit import compare
 from rollout import evaluate, summarize
 from supervise import BoundaryLeases, claim
 from tree import Tree, key
 
+from audit import compare
 from run import STOP
 
 
