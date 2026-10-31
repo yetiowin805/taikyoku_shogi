@@ -848,6 +848,7 @@ def main():
         "--compatible-speedup", action="store_true", help="attest this update preserves fixed-depth search behavior"
     )
     parser.add_argument("--rollback-build", help="select a previously published build ID for future work")
+    parser.add_argument("--expected-build", help="update-engine: publish only if this build ID is still selected")
     parser.add_argument(
         "--top-two-worker", action="store_true", help="reserve one game worker for order-neutral top-two pairs"
     )

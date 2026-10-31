@@ -200,6 +200,29 @@ class Updates(unittest.TestCase):
             u.update(a, self.args, self.run)
         self.assertEqual(u.active(a, self.run), self.bundle)
 
+    def test_expected_build_rejects_stale_or_invalid_publication_before_snapshot(self):
+        self.args.expected_build = "0" * 64
+        with patch.object(u, "snapshot") as snapshot:
+            with self.assertRaisesRegex(ValueError, "active engine changed"):
+                u.update(a, self.args, self.run)
+            snapshot.assert_not_called()
+        self.assertEqual(u.active(a, self.run), self.bundle)
+        self.assertFalse((self.control / "last-engine-update.json").exists())
+        self.args.expected_build = "not-a-build"
+        with self.assertRaisesRegex(ValueError, "64-character"):
+            u.update(a, self.args, self.run)
+        self.assertEqual(u.active(a, self.run), self.bundle)
+
+    def test_expected_build_accepts_current_selection_and_rejects_later_reuse(self):
+        self.args.expected_build = self.old_id
+        self.engine.write_text(self.engine.read_text() + "# PGO build\n")
+        u.update(a, self.args, self.run)
+        selected = u.active(a, self.run)
+        self.assertEqual(selected["revision"], "new")
+        with self.assertRaisesRegex(ValueError, "active engine changed"):
+            u.update(a, self.args, self.run)
+        self.assertEqual(u.active(a, self.run), selected)
+
 
 if __name__ == "__main__":
     unittest.main()
