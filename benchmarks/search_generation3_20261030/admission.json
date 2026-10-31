@@ -1,0 +1,127 @@
+{
+  "run": "/opt/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925",
+  "out": "/opt/taikyoku-search-generation3-20261030/entrants",
+  "base_entrant": "NNUE_W512_v3",
+  "search_variants": {
+    "NNUE_W512_v3_HLF_G3CF": {
+      "base_entrant": "NNUE_W512_v3",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "context_retry"
+    },
+    "NNUE_W512_v3_HLF_G3RF": {
+      "base_entrant": "NNUE_W512_v3",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "q_refill"
+    },
+    "NNUE_W512_v3_HLF_G3QH": {
+      "base_entrant": "NNUE_W512_v3",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "q_history"
+    },
+    "NNUE_W512_v3_HLF_G3PVS": {
+      "base_entrant": "NNUE_W512_v3",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "internal_pvs"
+    },
+    "NNUE_W512_v3_HLF_G3PV": {
+      "base_entrant": "NNUE_W512_v3",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "promote_pv"
+    },
+    "NNUE_W512_v3_HLF_G3SC": {
+      "base_entrant": "NNUE_W512_v3",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "searched_lmr"
+    },
+    "NNUE_W512_v3_HLF_G3FP": {
+      "base_entrant": "NNUE_W512_v3",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "shallow_futility"
+    },
+    "NNUE_W512_v3_HLF_G3PR": {
+      "base_entrant": "NNUE_W512_v3",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "partial_root"
+    },
+    "NNUE_W512_v3_HLF_G3ATK": {
+      "base_entrant": "NNUE_W512_v3",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "major_threat_lmr"
+    },
+    "NNUE_W512_v3_HLF_G3RFQH": {
+      "base_entrant": "NNUE_W512_v3",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "q_refill_history"
+    },
+    "NNUE_W512_v3_HLF_G3PVSPV": {
+      "base_entrant": "NNUE_W512_v3",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "pvs_promote"
+    },
+    "NNUE_W512_v3_HLF_G3GA": {
+      "base_entrant": "NNUE_W512_v3",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "growth_aware"
+    },
+    "NNUE_W512_v3_HLFS_G3CF": {
+      "base_entrant": "NNUE_W512_v3",
+      "experiment": "history_tactical_lmr_q_fix_sacrifice",
+      "trial": "context_retry"
+    },
+    "NNUE_W512_v3_HLFS_G3RF": {
+      "base_entrant": "NNUE_W512_v3",
+      "experiment": "history_tactical_lmr_q_fix_sacrifice",
+      "trial": "q_refill"
+    },
+    "NNUE_W512_v3_HLFS_G3QH": {
+      "base_entrant": "NNUE_W512_v3",
+      "experiment": "history_tactical_lmr_q_fix_sacrifice",
+      "trial": "q_history"
+    },
+    "NNUE_W512_v3_HLFS_G3PVS": {
+      "base_entrant": "NNUE_W512_v3",
+      "experiment": "history_tactical_lmr_q_fix_sacrifice",
+      "trial": "internal_pvs"
+    },
+    "NNUE_W512_v3_HLFS_G3PV": {
+      "base_entrant": "NNUE_W512_v3",
+      "experiment": "history_tactical_lmr_q_fix_sacrifice",
+      "trial": "promote_pv"
+    },
+    "NNUE_W512_v3_HLFS_G3SC": {
+      "base_entrant": "NNUE_W512_v3",
+      "experiment": "history_tactical_lmr_q_fix_sacrifice",
+      "trial": "searched_lmr"
+    },
+    "NNUE_W512_v3_HLFS_G3FP": {
+      "base_entrant": "NNUE_W512_v3",
+      "experiment": "history_tactical_lmr_q_fix_sacrifice",
+      "trial": "shallow_futility"
+    },
+    "NNUE_W512_v3_HLFS_G3PR": {
+      "base_entrant": "NNUE_W512_v3",
+      "experiment": "history_tactical_lmr_q_fix_sacrifice",
+      "trial": "partial_root"
+    },
+    "NNUE_W512_v3_HLFS_G3ATK": {
+      "base_entrant": "NNUE_W512_v3",
+      "experiment": "history_tactical_lmr_q_fix_sacrifice",
+      "trial": "major_threat_lmr"
+    },
+    "NNUE_W512_v3_HLFS_G3RFQH": {
+      "base_entrant": "NNUE_W512_v3",
+      "experiment": "history_tactical_lmr_q_fix_sacrifice",
+      "trial": "q_refill_history"
+    },
+    "NNUE_W512_v3_HLFS_G3PVSPV": {
+      "base_entrant": "NNUE_W512_v3",
+      "experiment": "history_tactical_lmr_q_fix_sacrifice",
+      "trial": "pvs_promote"
+    },
+    "NNUE_W512_v3_HLFS_G3GA": {
+      "base_entrant": "NNUE_W512_v3",
+      "experiment": "history_tactical_lmr_q_fix_sacrifice",
+      "trial": "growth_aware"
+    }
+  }
+}

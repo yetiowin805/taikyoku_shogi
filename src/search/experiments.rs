@@ -56,9 +56,57 @@ impl SearchExperiment {
     }
 }
 
+impl SearchTrial {
+    pub(super) fn active(self) -> bool {
+        self != Self::None
+    }
+    pub(super) fn q_refill(self) -> bool {
+        matches!(self, Self::QRefill | Self::QRefillHistory)
+    }
+    pub(super) fn q_history(self) -> bool {
+        matches!(self, Self::QHistory | Self::QRefillHistory)
+    }
+    pub(super) fn internal_pvs(self) -> bool {
+        matches!(self, Self::InternalPvs | Self::PvsPromote)
+    }
+    pub(super) fn promote_pv(self) -> bool {
+        matches!(self, Self::PromotePv | Self::PvsPromote)
+    }
+}
+
+/// Candidate incoming leaf policy. Descendant AB searches overwrite these fields;
+/// third-wave trials restore them at the recursive boundary before a retry.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(super) struct IncomingLeaf {
+    enemy: f32,
+    to: Option<Position>,
+    wipe: bool,
+    mover_large: bool,
+    entry_depth: u32,
+}
+impl IncomingLeaf {
+    pub fn read(ctx: &SearchContext) -> Self {
+        Self {
+            enemy: ctx.last_ab_capture_enemy,
+            to: ctx.last_ab_to,
+            wipe: ctx.last_ab_wipe,
+            mover_large: ctx.last_ab_mover_large,
+            entry_depth: ctx.quiesce_entry_depth,
+        }
+    }
+    pub fn restore(self, ctx: &mut SearchContext) {
+        ctx.last_ab_capture_enemy = self.enemy;
+        ctx.last_ab_to = self.to;
+        ctx.last_ab_wipe = self.wipe;
+        ctx.last_ab_mover_large = self.mover_large;
+        ctx.quiesce_entry_depth = self.entry_depth;
+    }
+}
+
 #[derive(Default)]
 pub(super) struct ExperimentState {
     pub policy: SearchExperiment,
+    pub trial: SearchTrial,
     capture_history: HashMap<u64, i32>,
     pub quiet_entry: Option<QuietEntry>,
     // Second-wave CH: one tagged, direct-mapped 1 MiB table; never dense board².
@@ -73,6 +121,10 @@ pub(super) struct ExperimentState {
 }
 
 impl ExperimentState {
+    pub fn with_trial(mut self, trial: SearchTrial) -> Self {
+        self.trial = trial;
+        self
+    }
     pub fn new(policy: SearchExperiment) -> Self {
         Self {
             policy,
@@ -359,6 +411,39 @@ pub(super) fn threatened_majors(
     }
 }
 
+/// Third-wave ATK: only previously unattacked major targets on affected geometry.
+/// Geometry is a prescreen, never evidence of an attack; the post-move oracle verifies it.
+pub(super) fn new_major_targets(
+    state: &GameState,
+    weights: &EvalWeights,
+    mv: &Move,
+) -> Vec<Position> {
+    let us = state.get_current_turn();
+    let entry = QuietEntry::new(mv);
+    state
+        .get_board()
+        .iter_pieces_by_color(us.opposite())
+        .filter(|piece| {
+            is_large_hang_victim(piece, weights)
+                && !piece.piece_type.is_royal()
+                && entry.affects(piece.position)
+                && !attacked_memo(state, piece.position, us)
+        })
+        .map(|piece| piece.position)
+        .collect()
+}
+
+pub(super) fn creates_major_threat(state: &GameState, targets: &[Position]) -> bool {
+    let us = state.get_current_turn().opposite();
+    targets.iter().any(|&target| {
+        state
+            .get_board()
+            .get_piece(target)
+            .is_some_and(|piece| piece.color == us.opposite())
+            && attacked_memo(state, target, us)
+    })
+}
+
 pub(super) fn protect_quiet(state: &GameState, mv: &Move, before: &QuietThreats) -> bool {
     let us = state.get_current_turn().opposite();
     before
@@ -433,6 +518,287 @@ mod tests {
             r#"{"depth":2,"max_time_ms":null,"experiment":"typo"}"#
         )
         .is_err());
+    }
+
+    #[test]
+    fn third_wave_trials_round_trip_without_replacing_hlf_or_hlfs() {
+        let old: crate::eval::SearchDefaults =
+            serde_json::from_str(r#"{"depth":2,"max_time_ms":null}"#).unwrap();
+        assert_eq!(old.trial, SearchTrial::None);
+        for foundation in [
+            SearchExperiment::HistoryTacticalLmrQFix,
+            SearchExperiment::HistoryTacticalLmrQFixSacrifice,
+        ] {
+            for trial in SearchTrial::ALL {
+                let mut checkpoint = crate::eval::EvalCheckpoint::seed("third-wave-test");
+                checkpoint.search_defaults.experiment = foundation;
+                checkpoint.search_defaults.trial = trial;
+                let checkpoint =
+                    serde_json::from_str(&serde_json::to_string(&checkpoint).unwrap()).unwrap();
+                let player = crate::alphabeta_player::AlphaBetaPlayer::from_checkpoint(checkpoint);
+                assert_eq!(player.config().experiment, foundation);
+                assert_eq!(player.config().trial, trial);
+            }
+        }
+        assert!(serde_json::from_str::<crate::eval::SearchDefaults>(
+            r#"{"depth":2,"max_time_ms":null,"trial":"typo"}"#
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn context_trial_restores_real_descendant_overwrite_before_retries() {
+        let mut state = kings();
+        put(&mut state, PieceType::Pawn, Color::Black, 10, 10);
+        let mut weights = EvalWeights::seed();
+        weights.noise_scale = 0.0;
+        let run = |trial| {
+            with_quiesce_test_context(&state, &weights, 0, None, |pos, ctx| {
+                ctx.experiments.policy = SearchExperiment::HistoryTacticalLmrQFix;
+                ctx.experiments.trial = trial;
+                ctx.allow_null = false;
+                ctx.last_ab_capture_enemy = 77.0;
+                ctx.last_ab_to = Some(position(20, 20));
+                ctx.last_ab_wipe = true;
+                ctx.last_ab_mover_large = true;
+                ctx.quiesce_entry_depth = 7;
+                let incoming = IncomingLeaf::read(ctx);
+                alphabeta(pos, &weights, 1, -900_000, 900_000, true, ctx);
+                assert_eq!(pos.hash(), state.hash());
+                (incoming, IncomingLeaf::read(ctx))
+            })
+        };
+        let legacy = run(SearchTrial::None);
+        assert_ne!(
+            legacy.0, legacy.1,
+            "ordinary descendant search really changes incoming leaf policy"
+        );
+        let restored = run(SearchTrial::ContextRetry);
+        assert_eq!(restored.0, restored.1);
+    }
+
+    fn refill_position() -> (GameState, EvalWeights) {
+        let mut state = kings();
+        let mut weights = EvalWeights::seed();
+        weights.noise_scale = 0.0;
+        weights.piece.insert(PieceType::Rook, 2000.0);
+        weights.piece.insert(PieceType::Bishop, 1000.0);
+        weights.rebuild_piece_value_table();
+        for file in [5, 15, 25] {
+            put(&mut state, PieceType::Rook, Color::Black, file, 5);
+            put(&mut state, PieceType::Bishop, Color::White, file, 8);
+        }
+        for file in [5, 15] {
+            put(&mut state, PieceType::Rook, Color::White, file, 10);
+        }
+        (state, weights)
+    }
+
+    #[test]
+    fn refill_reaches_second_path_after_post_fire_hang_rejects_first() {
+        let mut state = GameState::new();
+        for (kind, color, file, rank) in [
+            (PieceType::King, Color::Black, 1, 2),
+            (PieceType::CrownPrince, Color::Black, 0, 2),
+            (PieceType::King, Color::White, 34, 33),
+            (PieceType::CrownPrince, Color::White, 35, 33),
+        ] {
+            put(&mut state, kind, color, file, rank);
+        }
+        let mut weights = EvalWeights::seed();
+        weights.noise_scale = 0.0;
+        for (kind, value) in [
+            (PieceType::GreatGeneral, 5000.0),
+            (PieceType::Peacock, 1000.0),
+            (PieceType::Bishop, 900.0),
+            (PieceType::Rook, 2000.0),
+            (PieceType::Pawn, 2.0),
+        ] {
+            weights.piece.insert(kind, value);
+        }
+        weights.rebuild_piece_value_table();
+        for file in [5, 16] {
+            put(&mut state, PieceType::GreatGeneral, Color::Black, file, 5);
+            put(&mut state, PieceType::Pawn, Color::Black, file, 6);
+            put(&mut state, PieceType::Pawn, Color::White, file, 7);
+            put(&mut state, PieceType::Peacock, Color::White, file, 8);
+        }
+        put(&mut state, PieceType::Rook, Color::White, 5, 10);
+        put(&mut state, PieceType::Rook, Color::Black, 25, 5);
+        put(&mut state, PieceType::Bishop, Color::White, 25, 8);
+        // Different square colors prevent the first Peacock from defending the second.
+        for (file, attacked) in [(5, true), (16, false)] {
+            let mv = Move::new(position(file, 5), position(file, 8));
+            let undo = state
+                .make_move_for_search_with_weights(mv, &weights)
+                .unwrap();
+            assert_eq!(
+                state
+                    .get_board()
+                    .is_position_attacked_by_color(position(file, 8), Color::White),
+                attacked
+            );
+            state.unmake_move_for_search(undo);
+        }
+        let run = |trial| {
+            with_quiesce_test_context(&state, &weights, 1, None, |pos, ctx| {
+                ctx.experiments.policy = SearchExperiment::HistoryTacticalLmrQFix;
+                ctx.experiments.trial = trial;
+                let score = quiesce(pos, &weights, 1, -900_000, 900_000, None, true, true, ctx);
+                assert_eq!(pos.hash(), state.hash());
+                (score, ctx.q_caps_searched)
+            })
+        };
+        let legacy = run(SearchTrial::None);
+        let refill = run(SearchTrial::QRefill);
+        assert!(legacy.1 > 0);
+        assert!(
+            refill.0 > legacy.0,
+            "refill should search the larger surviving path take: {legacy:?} vs {refill:?}"
+        );
+    }
+
+    #[test]
+    fn q_history_promotes_equal_victim_capture_without_expanding_quota() {
+        let (state, weights) = refill_position();
+        with_quiesce_test_context(&state, &weights, 1, None, |pos, ctx| {
+            ctx.experiments.policy = SearchExperiment::HistoryTacticalLmrQFix;
+            ctx.experiments.trial = SearchTrial::QHistory;
+            let wanted = Move::new(position(25, 5), position(25, 8));
+            ctx.experiments
+                .capture_history
+                .insert(capture_key(pos, &wanted).unwrap(), HISTORY_LIMIT);
+            let key = q_tt_key(pos, None, 1, true, true, ctx);
+            let stand = evaluate_with_ply(pos, &weights, ctx.ply);
+            let score = quiesce(pos, &weights, 1, -900_000, 900_000, None, true, true, ctx);
+            assert!(score > stand);
+            assert_eq!(
+                ctx.q_tt.probe(key).unwrap().best,
+                Some(move_tt_key(&wanted))
+            );
+            assert!(ctx.q_caps_searched <= QUIESCE_TOP_N_PATH_AWARE_ROOT as u64);
+            assert_eq!(pos.hash(), state.hash());
+        });
+    }
+
+    #[test]
+    fn pre_move_attack_oracle_does_not_count_a_defender_of_friendly_occupied_destination() {
+        let (mut state, weights) = refill_position();
+        let target = position(5, 8);
+        assert!(!state
+            .get_board()
+            .is_position_attacked_by_color(target, Color::White));
+        let undo = state
+            .make_move_for_search_with_weights(Move::new(position(5, 5), target), &weights)
+            .unwrap();
+        assert!(state
+            .get_board()
+            .is_position_attacked_by_color(target, Color::White));
+        state.unmake_move_for_search(undo);
+    }
+
+    #[test]
+    fn shallow_futility_saves_nodes_but_never_hides_a_royal_capture() {
+        let mut state = kings();
+        put(&mut state, PieceType::Rook, Color::Black, 10, 10);
+        let mut weights = EvalWeights::seed();
+        weights.noise_scale = 0.0;
+        let run = |state: &GameState, trial| {
+            with_quiesce_test_context(state, &weights, 0, None, |pos, ctx| {
+                ctx.experiments.policy = SearchExperiment::HistoryTacticalLmrQFix;
+                ctx.experiments.trial = trial;
+                ctx.allow_null = false;
+                ctx.last_ab_capture_enemy = 0.0;
+                let beta = evaluate_with_ply(pos, &weights, 0) - 1000;
+                let score = alphabeta(pos, &weights, 1, beta - 1, beta, false, ctx);
+                (score, beta, ctx.nodes)
+            })
+        };
+        let legacy = run(&state, SearchTrial::None);
+        let trial = run(&state, SearchTrial::ShallowFutility);
+        assert_eq!(trial.0, trial.1);
+        assert!(trial.2 < legacy.2);
+        put(&mut state, PieceType::Rook, Color::Black, 34, 10);
+        let winning = run(&state, SearchTrial::ShallowFutility);
+        assert!(
+            winning.0 >= MATE_SCORE_BAND,
+            "royal capture must be searched"
+        );
+        assert!(winning.2 > 1);
+    }
+
+    #[test]
+    fn promoted_pv_does_not_reuse_a_scout_exact_bound() {
+        let state = kings();
+        let mut weights = EvalWeights::seed();
+        weights.noise_scale = 0.0;
+        let run = |trial, pv| {
+            with_quiesce_test_context(&state, &weights, 0, None, |pos, ctx| {
+                ctx.experiments.policy = SearchExperiment::HistoryTacticalLmrQFixSacrifice;
+                ctx.experiments.trial = trial;
+                ctx.allow_null = false;
+                ctx.tt.store(TtEntry {
+                    key: position_hash(pos),
+                    depth: 1,
+                    score: 123_456,
+                    bound: TtBound::Exact,
+                    best: None,
+                });
+                alphabeta(pos, &weights, 1, -900_000, 900_000, pv, ctx)
+            })
+        };
+        assert_eq!(run(SearchTrial::ContextRetry, true), 123_456);
+        assert_eq!(run(SearchTrial::PromotePv, false), 123_456);
+        assert_ne!(run(SearchTrial::PromotePv, true), 123_456);
+    }
+
+    #[test]
+    fn interior_pvs_preserves_unpruned_small_tree_value() {
+        let mut state = kings();
+        put(&mut state, PieceType::Rook, Color::Black, 10, 10);
+        put(&mut state, PieceType::Pawn, Color::White, 10, 12);
+        put(&mut state, PieceType::Rook, Color::White, 15, 12);
+        let mut weights = EvalWeights::seed();
+        weights.noise_scale = 0.0;
+        let run = |trial| {
+            with_quiesce_test_context(&state, &weights, 0, None, |pos, ctx| {
+                ctx.experiments.policy = SearchExperiment::HistoryTacticalLmrQFix;
+                ctx.experiments.trial = trial;
+                ctx.allow_null = false;
+                let score = alphabeta(pos, &weights, 2, -900_000, 900_000, true, ctx);
+                assert_eq!(pos.hash(), state.hash());
+                score
+            })
+        };
+        assert_eq!(
+            run(SearchTrial::InternalPvs),
+            run(SearchTrial::ContextRetry)
+        );
+    }
+
+    #[test]
+    fn major_threat_protection_requires_new_actual_attack() {
+        let mut state = kings();
+        let mut weights = EvalWeights::seed();
+        weights.piece.insert(PieceType::Rook, 1000.0);
+        weights.rebuild_piece_value_table();
+        put(&mut state, PieceType::Rook, Color::Black, 10, 10);
+        put(&mut state, PieceType::Rook, Color::White, 20, 15);
+        let checking_line = Move::new(position(10, 10), position(20, 10));
+        let targets = new_major_targets(&state, &weights, &checking_line);
+        assert!(targets.contains(&position(20, 15)));
+        let undo = state
+            .make_move_for_search_with_weights(checking_line, &weights)
+            .unwrap();
+        assert!(creates_major_threat(&state, &targets));
+        state.unmake_move_for_search(undo);
+        let harmless = Move::new(position(10, 10), position(11, 10));
+        let targets = new_major_targets(&state, &weights, &harmless);
+        let undo = state
+            .make_move_for_search_with_weights(harmless, &weights)
+            .unwrap();
+        assert!(!creates_major_threat(&state, &targets));
+        state.unmake_move_for_search(undo);
     }
 
     #[test]
@@ -584,7 +950,7 @@ mod tests {
         ] {
             with_quiesce_test_context(&state, &weights, 0, None, |pos, ctx| {
                 ctx.experiments.policy = policy;
-                let (score, _, _, _) = search_move_list(
+                let (score, _, _, _, _) = search_move_list(
                     pos,
                     &weights,
                     1,

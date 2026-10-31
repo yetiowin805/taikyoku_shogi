@@ -13,7 +13,7 @@ use crate::path_utils;
 use crate::piece::{Color, Piece};
 use crate::position::Position;
 mod experiments;
-use crate::eval::SearchExperiment;
+use crate::eval::{SearchExperiment, SearchTrial};
 use experiments::{ExperimentState, QuietEntry};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -285,6 +285,8 @@ pub struct SearchConfig {
     pub q_own_large_only: bool,
     /// October 2026 W512-v3 tournament policy (baseline unless explicitly selected).
     pub experiment: SearchExperiment,
+    /// Third-wave October 2026 experiment; None preserves old agents.
+    pub trial: SearchTrial,
 }
 
 impl Default for SearchConfig {
@@ -314,6 +316,7 @@ impl Default for SearchConfig {
             q_recapture_only: false,
             q_own_large_only: true,
             experiment: SearchExperiment::Baseline,
+            trial: SearchTrial::None,
         }
     }
 }
@@ -365,6 +368,9 @@ pub struct SearchInfo {
     pub depth: u32,
     /// Depth ceiling requested by the caller.
     pub requested_depth: u32,
+    /// Present when a verified deeper root line was selected from an incomplete iteration.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub selected_depth: Option<u32>,
     pub nodes: u64,
     /// Static eval before the move (side-to-move perspective).
     pub static_eval: i32,
@@ -393,6 +399,8 @@ pub struct SearchResult {
     pub royal_probe: Option<crate::eval::royal_probes::ProbeResult>,
     /// Fully completed iterative-deepening depth; zero means no completed iteration.
     pub completed_depth: u32,
+    /// Third-wave PR selected a verified line from this incomplete iteration.
+    pub partial_root_depth: Option<u32>,
     pub best_move: Option<Move>,
     pub score: i32,
     pub nodes: u64,
@@ -2351,7 +2359,7 @@ pub fn search_with_progress(
         q_tt: tt_from_config(1 << 18, config),
         killers: Vec::new(),
         history: HashMap::new(),
-        experiments: ExperimentState::new(config.experiment),
+        experiments: ExperimentState::new(config.experiment).with_trial(config.trial),
         allow_null: true,
         last_ab_capture_enemy: 0.0,
         last_ab_to: None,
@@ -2431,6 +2439,7 @@ pub fn search_with_progress(
             royal_probe: None,
             iteration_timings: Vec::new(),
             completed_depth: 0,
+            partial_root_depth: None,
             best_move: None,
             score,
             nodes: 0,
@@ -2479,8 +2488,10 @@ pub fn search_with_progress(
     let mut completed_lines: Vec<(Move, i32)> = Vec::new();
     let mut completed_depth = 0u32;
     let mut actual_completed_depth = 0u32;
+    let mut partial_root_depth = None;
     let mut iteration_timings = Vec::new();
-    let mut last_iteration_duration = None;
+    let mut last_iteration_duration: Option<Duration> = None;
+    let mut previous_iteration_duration: Option<Duration> = None;
     let mut iteration_budget = crate::training::clock::IterationBudget::default();
 
     // Working copy already cloned above for last-royal evasion filtering.
@@ -2494,11 +2505,22 @@ pub fn search_with_progress(
             config.max_time_ms,
             last_iteration_duration,
         ) {
-            if !iteration_budget.start_next(
-                last,
-                clock_started.elapsed(),
-                crate::training::clock::MoveBudget { soft_ms, hard_ms },
-            ) {
+            let budget = crate::training::clock::MoveBudget { soft_ms, hard_ms };
+            let start_next = if ctx.experiments.trial == SearchTrial::GrowthAware {
+                // Third-wave GA: observed complete-iteration growth, bounded
+                // to 3..16. Sustainable/hard bank caps and one extension remain.
+                let growth = previous_iteration_duration.map_or(3.0, |previous| {
+                    (last.as_secs_f64() / previous.as_secs_f64().max(0.000_001)).clamp(3.0, 16.0)
+                });
+                iteration_budget.start_next_with_estimate(
+                    last.mul_f64(growth),
+                    clock_started.elapsed(),
+                    budget,
+                )
+            } else {
+                iteration_budget.start_next(last, clock_started.elapsed(), budget)
+            };
+            if !start_next {
                 break;
             }
         } else if actual_completed_depth >= 2 {
@@ -2530,6 +2552,15 @@ pub fn search_with_progress(
             let mut iter_lines: Vec<(Move, i32)> = Vec::with_capacity(moves.len());
             let mut finished_iteration = true;
             let mut sib_reps: HashMap<u64, (i32, i32)> = HashMap::new();
+            let mut root_searched = 0usize;
+            let mut exact_root_lines = Vec::new();
+            // Do not let endpoint aliases select a different two-leg route as the incumbent.
+            if ctx.experiments.trial == SearchTrial::PartialRoot && actual_completed_depth > 0 {
+                if let Some(index) = moves.iter().position(|mv| mv == &completed_best) {
+                    let incumbent = moves.remove(index);
+                    moves.insert(0, incumbent);
+                }
+            }
 
             for (i, mv) in moves.iter().enumerate() {
                 if ctx.timed_out() {
@@ -2558,10 +2589,15 @@ pub fn search_with_progress(
                 let child_depth = d - 1;
                 // Root LMR: late quiets at ID depth >= 2 (pre–PR17 rule).
                 // Never reduce promotions into two-movers / range capturers.
+                let lmr_index = if ctx.experiments.trial == SearchTrial::SearchedLmr {
+                    root_searched
+                } else {
+                    i
+                };
                 let can_reduce =
-                    d >= 2 && i >= 3 && !is_capture && !is_loud_promo && child_depth >= 1;
+                    d >= 2 && lmr_index >= 3 && !is_capture && !is_loud_promo && child_depth >= 1;
                 let mut quiet_red = if can_reduce {
-                    (if i >= 12 { 2 } else { 1 }).min(child_depth)
+                    (if lmr_index >= 12 { 2 } else { 1 }).min(child_depth)
                 } else {
                     0
                 };
@@ -2577,6 +2613,12 @@ pub fn search_with_progress(
                 } else {
                     experiments::QuietThreats::default()
                 };
+                let major_targets =
+                    if quiet_red > 0 && ctx.experiments.trial == SearchTrial::MajorThreatLmr {
+                        experiments::new_major_targets(state, weights, mv)
+                    } else {
+                        Vec::new()
+                    };
                 if quiet_red > 0 && experiments::protect_history(&ctx, mv) {
                     quiet_red -= 1;
                 }
@@ -2586,11 +2628,13 @@ pub fn search_with_progress(
                 let Some(undo) = pos.make_move_for_search_with_weights(mv.clone(), weights) else {
                     continue;
                 };
+                root_searched += 1;
                 ctx.experiments.quiet_entry = quiet_entry;
                 ctx.experiments.previous_move = incoming_move;
                 if quiet_red > 0
-                    && ctx.experiments.policy.tactical_lmr()
-                    && experiments::protect_quiet(&pos, mv, &defended)
+                    && ((ctx.experiments.policy.tactical_lmr()
+                        && experiments::protect_quiet(&pos, mv, &defended))
+                        || experiments::creates_major_threat(&pos, &major_targets))
                 {
                     quiet_red -= 1;
                 }
@@ -2637,6 +2681,8 @@ pub fn search_with_progress(
 
                 // Root PVS: first move full window (PV); later moves null-window then
                 // full-window research on fail-high (research keeps full q depth).
+                let candidate_start_alpha = alpha;
+                let mut root_verified = i == 0 && reduction == 0 && static_score.is_none();
                 let mut score = if let Some(expected) = static_score {
                     expected
                 } else if i == 0 {
@@ -2675,6 +2721,7 @@ pub fn search_with_progress(
                         )
                     };
                     if !ctx.abort && s > probe_a {
+                        root_verified = true;
                         ctx.root_fail_high += 1;
                         if sib_r > 0 {
                             ctx.sib_researched += 1;
@@ -2697,6 +2744,7 @@ pub fn search_with_progress(
                 };
                 if static_score.is_none() && i == 0 && reduction > 0 && !ctx.abort && score > alpha
                 {
+                    root_verified = true;
                     if sib_r > 0 {
                         ctx.sib_researched += 1;
                     }
@@ -2722,6 +2770,13 @@ pub fn search_with_progress(
                 }
                 if let Some(k) = wipe_key {
                     sib_reps.entry(k).or_insert((score, e_i));
+                }
+                if ctx.experiments.trial == SearchTrial::PartialRoot
+                    && root_verified
+                    && score > candidate_start_alpha
+                    && score < beta
+                {
+                    exact_root_lines.push((mv.clone(), score));
                 }
                 iter_lines.push((mv.clone(), score));
                 ctx.root_moves_scored += 1;
@@ -2756,6 +2811,18 @@ pub fn search_with_progress(
                     elapsed_us: iteration_started.elapsed().as_micros() as u64,
                     completed: false,
                 });
+                if ctx.experiments.trial == SearchTrial::PartialRoot && actual_completed_depth > 0 {
+                    if let Some((mv, score)) =
+                        partial_root_improvement(&completed_best, &exact_root_lines)
+                    {
+                        completed_best = mv;
+                        completed_score = score;
+                        partial_root_depth = Some(d);
+                        exact_root_lines.sort_by(|a, b| b.1.cmp(&a.1));
+                        completed_lines = exact_root_lines;
+                        // completed_depth remains the last fully completed iteration.
+                    }
+                }
                 if completed_depth == 0 && !iter_lines.is_empty() {
                     // Hard timeout: keep last completed iteration (partial d=1 only if nothing completed yet).
                     iter_lines.sort_by_key(|l| std::cmp::Reverse(l.1));
@@ -2782,6 +2849,7 @@ pub fn search_with_progress(
             completed_depth = d;
             actual_completed_depth = d;
             let duration = iteration_started.elapsed();
+            previous_iteration_duration = last_iteration_duration;
             last_iteration_duration = Some(duration);
             iteration_timings.push(IterationTiming {
                 depth: d,
@@ -2881,6 +2949,7 @@ pub fn search_with_progress(
         royal_probe,
         iteration_timings,
         completed_depth: actual_completed_depth,
+        partial_root_depth,
         best_move: Some(best_move),
         score: best_score,
         nodes: ctx.nodes,
@@ -3014,6 +3083,7 @@ pub fn probe_quiescence(
         royal_probe: None,
         iteration_timings: Vec::new(),
         completed_depth: 0,
+        partial_root_depth: None,
         best_move: None,
         score,
         nodes: ctx.nodes,
@@ -3357,6 +3427,17 @@ fn probe_capture_parent_leaf_or_quiesce_rs(
     (score, ctx.q_nodes)
 }
 
+/// Third-wave PR compares only completed exact lines from the same depth/attempt.
+/// Caller must have searched the previous iteration's full-route incumbent first.
+fn partial_root_improvement(incumbent: &Move, exact_lines: &[(Move, i32)]) -> Option<(Move, i32)> {
+    let old_score = exact_lines.iter().find(|(mv, _)| mv == incumbent)?.1;
+    exact_lines
+        .iter()
+        .filter(|(_, score)| *score > old_score)
+        .max_by_key(|(_, score)| *score)
+        .cloned()
+}
+
 fn same_root_move(a: &Move, b: &Move) -> bool {
     a.from == b.from && a.to == b.to && a.promoted == b.promoted
 }
@@ -3483,7 +3564,15 @@ fn alphabeta(
 ) -> i32 {
     let quiet_entry = ctx.experiments.quiet_entry;
     let previous_move = ctx.experiments.previous_move;
+    let incoming = ctx
+        .experiments
+        .trial
+        .active()
+        .then(|| experiments::IncomingLeaf::read(ctx));
     let score = alphabeta_impl(state, weights, depth, alpha, beta, is_pv, ctx);
+    if let Some(incoming) = incoming {
+        incoming.restore(ctx);
+    }
     ctx.experiments.quiet_entry = quiet_entry;
     ctx.experiments.previous_move = previous_move;
     score
@@ -3527,7 +3616,9 @@ fn alphabeta_impl(
     let alpha_orig = alpha;
     let mut tt_move: Option<MoveKey> = None;
     if let Some(e) = ctx.tt.probe(key) {
-        if e.depth >= depth {
+        // Third-wave PV retries need the richer horizon: a scout's exact entry
+        // must not immediately answer its PV verification. Keep its move hint.
+        if e.depth >= depth && !(is_pv && ctx.experiments.trial.promote_pv()) {
             match e.bound {
                 TtBound::Exact => return e.score,
                 TtBound::Lower => {
@@ -3544,6 +3635,26 @@ fn alphabeta_impl(
             }
         }
         tt_move = e.best;
+    }
+
+    // Third-wave FP: deliberately generous margin, quiet incoming move, and
+    // verified tactical exclusions. A heuristic cutoff, never a proof of safety.
+    if ctx.experiments.trial == SearchTrial::ShallowFutility
+        && depth == 1
+        && !is_pv
+        && beta.abs() < MATE_SCORE_BAND
+        && ctx.last_ab_capture_enemy == 0.0
+        && !ctx.last_ab_wipe
+    {
+        let static_eval = evaluate_with_ply(state, weights, ctx.ply);
+        if static_eval.abs() < MATE_SCORE_BAND
+            && static_eval.saturating_sub(800) >= beta
+            && !stm_last_royal_in_check(state)
+            && !stm_has_royal_capture(state)
+            && !stm_has_large_hang_take(state, weights, QHangOpts::from_ctx(ctx))
+        {
+            return beta;
+        }
     }
 
     // Null-move prune: pass and search shallow; if still >= beta, cutoff.
@@ -3637,7 +3748,7 @@ fn alphabeta_impl(
         order_moves_with_heuristics(state, weights, &mut evasions, ctx, ctx.ply, false, false);
         prefer_tt_move(&mut evasions, tt_move);
         let parent_ply = ctx.ply;
-        let (best, best_move_key, _, _) = search_move_list(
+        let (best, best_move_key, _, _, _) = search_move_list(
             state, weights, depth, alpha, beta, is_pv, ctx, parent_ply, &evasions, 0,
         );
         if best == i32::MIN + 1 {
@@ -3682,7 +3793,7 @@ fn alphabeta_impl(
 
     let parent_ply = ctx.ply;
     let stage_a_len = moves.len();
-    let (mut best, mut best_move_key, alpha, did_cutoff) = search_move_list(
+    let (mut best, mut best_move_key, alpha, did_cutoff, stage_a_searched) = search_move_list(
         state, weights, depth, alpha, beta, is_pv, ctx, parent_ply, &moves, 0,
     );
 
@@ -3691,7 +3802,12 @@ fn alphabeta_impl(
         if !stage_b.is_empty() {
             order_moves_with_heuristics(state, weights, &mut stage_b, ctx, parent_ply, true, false);
             prefer_tt_move(&mut stage_b, tt_move);
-            let (b2, k2, _a2, _cut2) = search_move_list(
+            let stage_b_index = if ctx.experiments.trial == SearchTrial::SearchedLmr {
+                stage_a_searched
+            } else {
+                stage_a_len
+            };
+            let (b2, k2, _a2, _cut2, _) = search_move_list(
                 state,
                 weights,
                 depth,
@@ -3701,7 +3817,7 @@ fn alphabeta_impl(
                 ctx,
                 parent_ply,
                 &stage_b,
-                stage_a_len,
+                stage_b_index,
             );
             if b2 > best {
                 best = b2;
@@ -3754,7 +3870,7 @@ fn search_move_list(
     parent_ply: usize,
     moves: &[Move],
     move_index_base: usize,
-) -> (i32, Option<MoveKey>, i32, bool) {
+) -> (i32, Option<MoveKey>, i32, bool, usize) {
     let mut best = i32::MIN + 1;
     let mut best_move_key = None;
     let mut did_cutoff = false;
@@ -3762,6 +3878,7 @@ fn search_move_list(
     let mut sib_reps: HashMap<u64, (i32, i32)> = HashMap::new();
     let skip_hang = stm_last_royal_in_check(state);
     let mut searched = Vec::new();
+    let mut actually_searched = 0usize;
 
     for (i, mv) in moves.iter().enumerate() {
         if ctx.timed_out() {
@@ -3777,7 +3894,12 @@ fn search_move_list(
             continue;
         }
         let is_killer = killer_rank(ctx, parent_ply, mv) > 0;
-        let move_index = move_index_base + i;
+        let move_index = move_index_base
+            + if ctx.experiments.trial == SearchTrial::SearchedLmr {
+                actually_searched
+            } else {
+                i
+            };
 
         // LMR: late quiet non-killers get a reduced child search.
         // depth is the remaining AB depth at this node (root passes ID_depth-1).
@@ -3809,6 +3931,12 @@ fn search_move_list(
         } else {
             experiments::QuietThreats::default()
         };
+        let major_targets = if quiet_red > 0 && ctx.experiments.trial == SearchTrial::MajorThreatLmr
+        {
+            experiments::new_major_targets(state, weights, mv)
+        } else {
+            Vec::new()
+        };
         if quiet_red > 0 && experiments::protect_history(ctx, mv) {
             quiet_red -= 1;
         }
@@ -3821,11 +3949,13 @@ fn search_move_list(
         ctx.experiments.quiet_entry = quiet_entry;
         ctx.experiments.previous_move = incoming_move;
         if quiet_red > 0
-            && ctx.experiments.policy.tactical_lmr()
-            && experiments::protect_quiet(state, mv, &defended)
+            && ((ctx.experiments.policy.tactical_lmr()
+                && experiments::protect_quiet(state, mv, &defended))
+                || experiments::creates_major_threat(state, &major_targets))
         {
             quiet_red -= 1;
         }
+        actually_searched += 1;
         ctx.last_ab_capture_enemy = capture_enemy;
         ctx.last_ab_to = Some(mv.to);
         ctx.last_ab_wipe = is_wipe;
@@ -3897,6 +4027,17 @@ fn search_move_list(
             } else {
                 s
             }
+        } else if ctx.experiments.trial.internal_pvs() && move_index > 0 {
+            let reduced = child_depth - reduction;
+            -alphabeta(
+                state,
+                weights,
+                reduced,
+                -alpha.saturating_add(1),
+                -alpha,
+                child_pv,
+                ctx,
+            )
         } else if reduction > 0 {
             let reduced = depth - 1 - reduction;
             -alphabeta(state, weights, reduced, -beta, -alpha, false, ctx)
@@ -3908,7 +4049,9 @@ fn search_move_list(
         // Fail-high research restores PV (full q) when the parent was PV.
         if static_score.is_none()
             && rel_expected.is_none()
-            && reduction > 0
+            && (reduction > 0
+                || (ctx.experiments.trial.internal_pvs() && move_index > 0)
+                || (ctx.experiments.trial.promote_pv() && is_pv && !child_pv))
             && !ctx.abort
             && score > alpha
         {
@@ -3921,7 +4064,7 @@ fn search_move_list(
                 depth - 1,
                 -beta,
                 -alpha,
-                is_pv && i == 0,
+                is_pv && (i == 0 || ctx.experiments.trial.promote_pv()),
                 ctx,
             );
         }
@@ -3959,7 +4102,7 @@ fn search_move_list(
             break;
         }
     }
-    (best, best_move_key, alpha, did_cutoff)
+    (best, best_move_key, alpha, did_cutoff, actually_searched)
 }
 
 /// Quiescence ply budget for this leaf: full config on PV / fail-high research;
@@ -4011,7 +4154,7 @@ fn search_leaf_evasions(
         ctx.last_ab_mover_large,
         ctx.quiesce_entry_depth,
     );
-    let (best, _, _, _) = search_move_list(
+    let (best, _, _, _, _) = search_move_list(
         state,
         weights,
         if extend { 2 } else { 1 },
@@ -4447,8 +4590,18 @@ fn quiesce_impl(
         if promo_a != std::cmp::Ordering::Equal {
             return promo_a.reverse();
         }
-        let ga = (a.tactical_gain * 1000.0).round() as i32;
-        let gb = (b.tactical_gain * 1000.0).round() as i32;
+        let history_a = if ctx.experiments.trial.q_history() {
+            experiments::capture_history_score(ctx, state, &a.mv).saturating_mul(32)
+        } else {
+            0
+        };
+        let history_b = if ctx.experiments.trial.q_history() {
+            experiments::capture_history_score(ctx, state, &b.mv).saturating_mul(32)
+        } else {
+            0
+        };
+        let ga = ((a.tactical_gain * 1000.0).round() as i32).saturating_add(history_a);
+        let gb = ((b.tactical_gain * 1000.0).round() as i32).saturating_add(history_b);
         gb.cmp(&ga)
             .then_with(|| b.is_dest_recapture.cmp(&a.is_dest_recapture))
             .then_with(|| b.is_recapture.cmp(&a.is_recapture))
@@ -4480,6 +4633,21 @@ fn quiesce_impl(
         usize::MAX
     };
 
+    // Third-wave RF inspects at most three times the usual ordinary quota,
+    // then charges slots only after live delta/hanging/make filters accept a move.
+    // Mandatory royal/promotion/major recaptures remain outside both quotas.
+    let refill = path_aware && ctx.experiments.trial.q_refill();
+    let inspect_cap = if refill {
+        top_n_cap.saturating_mul(3)
+    } else {
+        top_n_cap
+    };
+    let inspect_path_cap = if refill {
+        QUIESCE_PATHCLEAR_DEEP_BUDGET * 3
+    } else {
+        QUIESCE_PATHCLEAR_DEEP_BUDGET
+    };
+
     // PathAware: PathClear/MultiLeg under budget only when they answer a capture
     // or land on a loud piece (drop mop PathClears whose value is path-sum junk).
     // Deep plies also restrict SimpleTakes to recaptures onto the previous landing.
@@ -4493,7 +4661,7 @@ fn quiesce_impl(
                 kept.push(c);
                 continue;
             }
-            if non_promo >= top_n_cap {
+            if non_promo >= inspect_cap {
                 continue;
             }
             match c.kind {
@@ -4506,7 +4674,7 @@ fn quiesce_impl(
                     if !allow_pathclear {
                         continue;
                     }
-                    if path_kept >= QUIESCE_PATHCLEAR_DEEP_BUDGET {
+                    if path_kept >= inspect_path_cap {
                         continue;
                     }
                     if !pathclear_allowed_in_pathaware_q(c.is_dest_recapture) && !c.is_hang_dest {
@@ -4546,10 +4714,22 @@ fn quiesce_impl(
     let mut best_move_key: Option<MoveKey> = None;
     let parent_ply = ctx.ply;
     let opponent = state.get_current_turn().opposite();
+    let mut ordinary_searched = 0usize;
+    let mut path_searched = 0usize;
 
     for (i, c) in cands.into_iter().enumerate() {
         if ctx.timed_out() {
             break;
+        }
+        let quota_exempt =
+            c.is_loud_promo || c.is_royal_take || (resolve_major && c.is_dest_recapture);
+        let path_candidate = matches!(c.kind, CaptureKind::PathClear | CaptureKind::MultiLeg);
+        if refill
+            && !quota_exempt
+            && (ordinary_searched >= top_n_cap
+                || (path_candidate && path_searched >= QUIESCE_PATHCLEAR_DEEP_BUDGET))
+        {
+            continue;
         }
         // Live delta: skip once earlier MVV takes have raised alpha.
         // Loud promos always expand (promo gain is the point of searching them).
@@ -4628,6 +4808,10 @@ fn quiesce_impl(
                 && matches!(kind, CaptureKind::PathClear | CaptureKind::MultiLeg));
 
         ctx.experiments.previous_move = incoming_move;
+        if !quota_exempt {
+            ordinary_searched += 1;
+            path_searched += usize::from(path_candidate);
+        }
         ctx.q_caps_searched += 1;
         match kind {
             CaptureKind::SimpleTake => ctx.q_kind_simple += 1,
@@ -5162,6 +5346,7 @@ pub fn search_info_from_iteration(
         side: side.to_string(),
         depth,
         requested_depth,
+        selected_depth: None,
         nodes,
         static_eval: evaluate_with_ply(state, weights, state.get_move_history().len()),
         score,
@@ -5198,6 +5383,7 @@ pub fn search_info_for_display(
         side: side.to_string(),
         depth: result.completed_depth,
         requested_depth,
+        selected_depth: result.partial_root_depth,
         nodes: result.nodes,
         static_eval: result.static_eval,
         score: result.score,
@@ -5280,6 +5466,7 @@ pub fn search_info_from_result(
         side: side.to_string(),
         depth: result.completed_depth,
         requested_depth: depth,
+        selected_depth: result.partial_root_depth,
         nodes: result.nodes,
         static_eval: result.static_eval,
         score: result.score,
@@ -5737,6 +5924,7 @@ mod tests {
             royal_probe: None,
             iteration_timings: Vec::new(),
             completed_depth: 2,
+            partial_root_depth: None,
             best_move: best,
             score: 15,
             nodes: 40,
@@ -9028,6 +9216,36 @@ mod royal_al_search_tests {
             1
         );
     }
+    #[test]
+    fn partial_root_requires_current_depth_incumbent_and_distinguishes_routes() {
+        let from = Position::new(10, 10).unwrap();
+        let to = Position::new(12, 12).unwrap();
+        let incumbent = Move::new(from, to);
+        let mut different_route = incumbent.clone();
+        different_route.data = crate::game_state::MoveData::TwoStep {
+            intermediate: Position::new(11, 10).unwrap(),
+        };
+        let alternative = Move::new(from, Position::new(12, 10).unwrap());
+        assert!(partial_root_improvement(&incumbent, &[(alternative.clone(), 100)]).is_none());
+        assert!(partial_root_improvement(
+            &incumbent,
+            &[(different_route, 0), (alternative.clone(), 100)]
+        )
+        .is_none());
+        assert!(partial_root_improvement(
+            &incumbent,
+            &[(incumbent.clone(), 100), (alternative.clone(), 90)]
+        )
+        .is_none());
+        assert_eq!(
+            partial_root_improvement(
+                &incumbent,
+                &[(incumbent.clone(), 80), (alternative.clone(), 100)]
+            ),
+            Some((alternative, 100))
+        );
+    }
+
     #[test]
     fn aspiration_windows_expand_safely_and_keep_full_mate_window() {
         assert_eq!(aspiration_window(1200, 500), (700, 1700));

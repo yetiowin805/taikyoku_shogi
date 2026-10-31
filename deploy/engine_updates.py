@@ -18,16 +18,18 @@ def require_clock_support(binary):
         raise ValueError("engine does not support Fischer clocks; publish a clock-capable bundle first")
 
 
-def require_search_support(binary, policies):
+def require_search_support(binary, policies, trials=()):
     required = set(policies) - {"baseline"}
-    if not required:
-        return
-    result = subprocess.run(
-        [str(binary), "tournament-search-experiments"], check=True, capture_output=True, text=True, timeout=30
-    )
-    supported = json.loads(result.stdout)
-    if not isinstance(supported, list) or not required.issubset(supported):
-        raise ValueError("engine does not support requested search experiments")
+    for command, names in (
+        ("tournament-search-experiments", required),
+        ("tournament-search-trials", set(trials) - {"none"}),
+    ):
+        if not names:
+            continue
+        result = subprocess.run([str(binary), command], check=True, capture_output=True, text=True, timeout=30)
+        supported = json.loads(result.stdout)
+        if not isinstance(supported, list) or not names.issubset(supported):
+            raise ValueError("engine does not support requested search experiments or trials")
 
 
 def verify(api, bundle):
@@ -121,7 +123,9 @@ def update(api, args, run):
             for binding in bindings:
                 api.validate_model_binding(model, binding)
             require_search_support(
-                bundle["engine_bin"], [api.read(model).get("search_defaults", {}).get("experiment", "baseline")]
+                bundle["engine_bin"],
+                [api.read(model).get("search_defaults", {}).get("experiment", "baseline")],
+                [api.read(model).get("search_defaults", {}).get("trial", "none")],
             )
             subprocess.run(
                 [bundle["engine_bin"], "tournament-game-validate", model],

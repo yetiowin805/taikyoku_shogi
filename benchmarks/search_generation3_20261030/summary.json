@@ -1,0 +1,413 @@
+{
+  "created_utc": "2026-10-31T02:51:21.975610+00:00",
+  "status": "prepared_and_locally_validated_not_admitted",
+  "source_base_revision": "b11c5e61c3497041d16569b5553d48038cf1fbd4",
+  "scores": "Native Black-absolute integer root values; no centipawn or win-probability calibration",
+  "root_ply": "zero-based moves already played; worker input and recorded move ply are root+1",
+  "sampling": "Recent/diverse convenience sample, not random; game lengths and repeated positions affect move-weighted aggregates",
+  "corpus": {
+    "corpus_games": 36,
+    "corrected_build_games": 28,
+    "corpus_plies": 51541,
+    "fixed_build_target_nonmate_plies": 12022,
+    "abs_raw_search_gap_quantiles": {
+      "0.5": 232,
+      "0.75": 645,
+      "0.9": 1029,
+      "0.95": 1358,
+      "0.99": 2386
+    },
+    "early_depth_counts_root_ply_lt100": {
+      "4": 626,
+      "3": 633,
+      "2": 83,
+      "5": 55,
+      "6": 3
+    },
+    "moves_with_incomplete_next_iteration": 3381,
+    "corpus_sha256": "203dc03b7c2dd9af7865c353b76cb3e6c3addb7ceacb1c5675f9aafc37e682a0",
+    "fixed_game_engine_sha256": "6ce1ee2601c237f94b44cf5e3d28d3393cf3888d6d0f95ebff6459307dec0029"
+  },
+  "incomplete_iteration_cost": {
+    "all": {
+      "n_target_nonmate_moves": 12022,
+      "moves_with_incomplete_iteration": 3381,
+      "incomplete_fraction_moves": 0.28123440359341206,
+      "recorded_iteration_us": 31670058679,
+      "incomplete_iteration_us": 11358357971,
+      "incomplete_fraction_total_iteration_time": 0.35864657170754083,
+      "incomplete_fraction_per_aborted_move_median": 0.8866185626761242,
+      "incomplete_fraction_per_aborted_move_p90": 0.9733710409638923
+    },
+    "early_root_lt100": {
+      "n_target_nonmate_moves": 1400,
+      "moves_with_incomplete_iteration": 68,
+      "incomplete_fraction_moves": 0.04857142857142857,
+      "recorded_iteration_us": 7460117575,
+      "incomplete_iteration_us": 1268396344,
+      "incomplete_fraction_total_iteration_time": 0.17002363987540772,
+      "incomplete_fraction_per_aborted_move_median": 0.9764731424232471,
+      "incomplete_fraction_per_aborted_move_p90": 0.9922023559284125
+    },
+    "middle_root100to399": {
+      "n_target_nonmate_moves": 3907,
+      "moves_with_incomplete_iteration": 1048,
+      "incomplete_fraction_moves": 0.2682364985922703,
+      "recorded_iteration_us": 10861369103,
+      "incomplete_iteration_us": 4199193717,
+      "incomplete_fraction_total_iteration_time": 0.38661734788482127,
+      "incomplete_fraction_per_aborted_move_median": 0.9211385989723622,
+      "incomplete_fraction_per_aborted_move_p90": 0.981942057979807
+    },
+    "late_root400plus": {
+      "n_target_nonmate_moves": 6715,
+      "moves_with_incomplete_iteration": 2265,
+      "incomplete_fraction_moves": 0.33730454206999255,
+      "recorded_iteration_us": 13348572001,
+      "incomplete_iteration_us": 5890767910,
+      "incomplete_fraction_total_iteration_time": 0.44130322775789776,
+      "incomplete_fraction_per_aborted_move_median": 0.8717933118371155,
+      "incomplete_fraction_per_aborted_move_p90": 0.9552757166463567
+    }
+  },
+  "opening_metrics": {
+    "first20_target_turns": 280,
+    "turns_with_own_piece_removal": 82,
+    "own_removal_movers": {
+      "GreatGeneral": 27,
+      "FierceDragon": 34,
+      "ViceGeneral": 17,
+      "BishopGeneral": 2,
+      "FlyingGeneral": 2
+    },
+    "own_removal_counts": {
+      "7": 56,
+      "6": 19,
+      "1": 2,
+      "5": 3,
+      "9": 2
+    },
+    "same_player_abs_eval_swing_first20_quantiles": {
+      "0.5": 602,
+      "0.9": 2338,
+      "0.99": 3748
+    }
+  },
+  "large_gap_classification": {
+    "definition": "Only corrected-build HLF/HLFS root turns, ordinary nonmate scores, absolute raw/search gap>=2000. Literal recapture means preceding move removed our piece, actual chosen move removes enemy on preceding move destination. This identifies observed chosen move only, not all tactical causes.",
+    "n": 197,
+    "literal_recaptures": 33,
+    "takes_last_mover": 42,
+    "search_draw": 4,
+    "chosen_enemy_capture": 108
+  },
+  "prepared_agents": {
+    "count": 24,
+    "identities": [
+      "NNUE_W512_v3_HLF_G3CF",
+      "NNUE_W512_v3_HLF_G3RF",
+      "NNUE_W512_v3_HLF_G3QH",
+      "NNUE_W512_v3_HLF_G3PVS",
+      "NNUE_W512_v3_HLF_G3PV",
+      "NNUE_W512_v3_HLF_G3SC",
+      "NNUE_W512_v3_HLF_G3FP",
+      "NNUE_W512_v3_HLF_G3PR",
+      "NNUE_W512_v3_HLF_G3ATK",
+      "NNUE_W512_v3_HLF_G3RFQH",
+      "NNUE_W512_v3_HLF_G3PVSPV",
+      "NNUE_W512_v3_HLF_G3GA",
+      "NNUE_W512_v3_HLFS_G3CF",
+      "NNUE_W512_v3_HLFS_G3RF",
+      "NNUE_W512_v3_HLFS_G3QH",
+      "NNUE_W512_v3_HLFS_G3PVS",
+      "NNUE_W512_v3_HLFS_G3PV",
+      "NNUE_W512_v3_HLFS_G3SC",
+      "NNUE_W512_v3_HLFS_G3FP",
+      "NNUE_W512_v3_HLFS_G3PR",
+      "NNUE_W512_v3_HLFS_G3ATK",
+      "NNUE_W512_v3_HLFS_G3RFQH",
+      "NNUE_W512_v3_HLFS_G3PVSPV",
+      "NNUE_W512_v3_HLFS_G3GA"
+    ],
+    "control": "ContextRetry on same foundation; every active trial includes context restoration",
+    "config": "admission.json; remote run/out paths are intentional prepared deployment destinations, not execution receipts"
+  },
+  "screen": {
+    "requests": 234,
+    "cases": 9,
+    "arms": [
+      {
+        "trial": "RF",
+        "n": 18,
+        "median_cumulative_nodes_ratio_at_highest_shared_completed_depth": 1.0,
+        "minimum_ratio": 1.0,
+        "maximum_ratio": 1.0,
+        "different_move_or_score": 0
+      },
+      {
+        "trial": "QH",
+        "n": 18,
+        "median_cumulative_nodes_ratio_at_highest_shared_completed_depth": 1.0,
+        "minimum_ratio": 0.9834852967815954,
+        "maximum_ratio": 1.008378613795678,
+        "different_move_or_score": 0
+      },
+      {
+        "trial": "PVS",
+        "n": 18,
+        "median_cumulative_nodes_ratio_at_highest_shared_completed_depth": 0.9979627105081832,
+        "minimum_ratio": 0.7850368221379156,
+        "maximum_ratio": 1.0731879954699888,
+        "different_move_or_score": 0
+      },
+      {
+        "trial": "PV",
+        "n": 18,
+        "median_cumulative_nodes_ratio_at_highest_shared_completed_depth": 1.0976477707786145,
+        "minimum_ratio": 0.985200169071916,
+        "maximum_ratio": 2.485021645021645,
+        "different_move_or_score": 2
+      },
+      {
+        "trial": "SC",
+        "n": 18,
+        "median_cumulative_nodes_ratio_at_highest_shared_completed_depth": 1.0,
+        "minimum_ratio": 1.0,
+        "maximum_ratio": 1.0,
+        "different_move_or_score": 0
+      },
+      {
+        "trial": "FP",
+        "n": 18,
+        "median_cumulative_nodes_ratio_at_highest_shared_completed_depth": 0.9996635077552579,
+        "minimum_ratio": 0.3648748340136724,
+        "maximum_ratio": 1.0276867559832428,
+        "different_move_or_score": 2
+      },
+      {
+        "trial": "PR",
+        "n": 18,
+        "median_cumulative_nodes_ratio_at_highest_shared_completed_depth": 1.0,
+        "minimum_ratio": 1.0,
+        "maximum_ratio": 1.0,
+        "different_move_or_score": 0
+      },
+      {
+        "trial": "ATK",
+        "n": 18,
+        "median_cumulative_nodes_ratio_at_highest_shared_completed_depth": 1.0334472102698946,
+        "minimum_ratio": 0.7397423806510918,
+        "maximum_ratio": 2.7246130511850595,
+        "different_move_or_score": 10
+      },
+      {
+        "trial": "RFQH",
+        "n": 18,
+        "median_cumulative_nodes_ratio_at_highest_shared_completed_depth": 1.0,
+        "minimum_ratio": 0.9834852967815954,
+        "maximum_ratio": 1.008378613795678,
+        "different_move_or_score": 0
+      },
+      {
+        "trial": "PVSPV",
+        "n": 18,
+        "median_cumulative_nodes_ratio_at_highest_shared_completed_depth": 1.0672979464982908,
+        "minimum_ratio": 0.7871196905452652,
+        "maximum_ratio": 2.485238095238095,
+        "different_move_or_score": 2
+      },
+      {
+        "trial": "GA",
+        "n": 18,
+        "median_cumulative_nodes_ratio_at_highest_shared_completed_depth": 1.0,
+        "minimum_ratio": 1.0,
+        "maximum_ratio": 1.0,
+        "different_move_or_score": 0
+      }
+    ],
+    "per_request_ms": 750,
+    "repetitions_per_case_arm": 1,
+    "binary_sha256": "91f46c8e071b12ba9fbb221428d507026cca8e05cbf9598bcd2aef1793a46a6a",
+    "method": "One capped search per case/arm. Highest shared completed depth per comparison, cumulative nodes through depth, comparator ContextRetry on same parent. Ratios describe this convenience corpus only; depths vary by comparison; no playing-strength or isolated-time claim. GA has no Fischer soft budget here and tests common context only. PR screen predates stricter exact-bound classification and requires final rerun.",
+    "pr_final_status": {
+      "requests": 36,
+      "candidate_requests": 18,
+      "parent_requests": 18,
+      "partial_adoptions": 0,
+      "same_final_move_score_vs_initial": 14,
+      "other_final_differences": 4,
+      "interpretation": "Four other final differences coincide with completed-depth/timing changes; no isolated algorithm-effect or speed claim. No selected partial result exercised.",
+      "manifest": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/partial-final/screen/manifest.json",
+      "results": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/partial-final/screen/results.json"
+    }
+  },
+  "validation": {
+    "rust": {
+      "checked_utc": "2026-10-31T02:46:50.946384+00:00",
+      "worktree": "/home/frank/taikyoku_shogi/.worktrees/search-generation3",
+      "base_revision": "b11c5e61c3497041d16569b5553d48038cf1fbd4",
+      "dirty_source_hashes": {
+        "src/search.rs": "a5cc5504454526567c0094c09ad108bb1269502a21add51b98cafd226619f0f7",
+        "src/search/experiments.rs": "9a459bf93a9d935f3981ae16fd2e3f84f61275be0d500626c6e36218b0430ec0",
+        "src/eval.rs": "6d9d007486e6c3ccfa33dec4ee9880ce000856fd0025208b41da9c2781710c6a",
+        "src/alphabeta_player.rs": "beced42074dd4f7d5216a3372caf61c7bd8c194bb2f6d5428a2708803f01781f",
+        "src/main.rs": "4dd16929ed44f8d3b930b025a27a2eb65e58161272793b0acfd4c741a3489d65",
+        "src/player.rs": "9d6c3208a2d8c3c937b99bad6076ed92763b3ccbc53395781d25d88de53d6058",
+        "src/game_history.rs": "477fff8e2c89f56bafbb533dc8e7995e810adf3430254e6f3ba96d4c5127cb94",
+        "src/training/clock.rs": "fb0cf4970183b9a638d38d9b79095fdd75949e85a04ea9d6bcbf2e3d923823b5",
+        "src/training/game_process.rs": "9e499afe86b09e5cb91f32144ade41ceb6d2100f8a5cc9bf56b21f925a414230",
+        "src/training/worker.rs": "36dbf0af378dd64daacc3ce145a96db47e962de3f574e735ad6dfb200bfc8311",
+        "src/session_api.rs": "48075e2a58d21ca624e41397d9c6b8f15e0191dab37120543bd83741d97af570",
+        "src/training/eval_trace.rs": "0b24e832533742570c323ba6fd105f2f067b457f52c342a75716f4556dccdb5f",
+        "src/bin/tactical_tree_worker.rs": "4e1e7bad8a200041f903b5713534ed665268807fe44979c29d8d74c90c9ebfdd"
+      },
+      "cargo_fmt": "passed",
+      "cargo_clippy_all_targets_all_features_deny_warnings": "passed",
+      "cargo_test": "passed",
+      "test_passed_total": 509,
+      "test_failed_total": 0,
+      "test_ignored_total": 4,
+      "cargo_target_dir": "/tmp/taikyoku-search3-baseline/target",
+      "cargo_build_jobs": 2,
+      "notes": "No production fixes required by full validation. Four existing ignored library tests remain ignored. Release binaries built before full validation; source hashes permit checking exact correspondence."
+    },
+    "none_parity": {
+      "method": "Fixed-depth2, 15s fail-safe, exact full-route move/score/cumulative-node comparison at every completed iteration. Main baseline b11c5e6 and final main candidate, not livelegacy parity.",
+      "cases": 6,
+      "baseline_sha256": "6504035d4cad501c56e4c639645a0ad0cf41aad7ca9219fc449787678d943318",
+      "candidate_sha256": "14ae833c3cd97616f5e6a41af57a86ff00f2618709e7fef9e7e45f34bf209e55",
+      "exact_all_iterations": true
+    },
+    "descriptors": {
+      "state": "prepared_and_validated_not_admitted",
+      "models": 24,
+      "bundle": {
+        "protocol": 1,
+        "revision": "third-wave candidate working tree",
+        "engine_bin": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/binaries/final-taikyoku_shogi",
+        "engine_sha256": "87aa27c3b826680d4ca31a4306c0014a1bb81e7fb9e3af49e5b1d823ac7a0615",
+        "analyzer_bin": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/binaries/final-analyze_position",
+        "analyzer_sha256": "8aad5345efd1044387b6c3326a065a250e3966b421a10b1125e1a54ca47fb3cb"
+      },
+      "identities": [
+        "NNUE_W512_v3_HLF_G3CF",
+        "NNUE_W512_v3_HLF_G3RF",
+        "NNUE_W512_v3_HLF_G3QH",
+        "NNUE_W512_v3_HLF_G3PVS",
+        "NNUE_W512_v3_HLF_G3PV",
+        "NNUE_W512_v3_HLF_G3SC",
+        "NNUE_W512_v3_HLF_G3FP",
+        "NNUE_W512_v3_HLF_G3PR",
+        "NNUE_W512_v3_HLF_G3ATK",
+        "NNUE_W512_v3_HLF_G3RFQH",
+        "NNUE_W512_v3_HLF_G3PVSPV",
+        "NNUE_W512_v3_HLF_G3GA",
+        "NNUE_W512_v3_HLFS_G3CF",
+        "NNUE_W512_v3_HLFS_G3RF",
+        "NNUE_W512_v3_HLFS_G3QH",
+        "NNUE_W512_v3_HLFS_G3PVS",
+        "NNUE_W512_v3_HLFS_G3PV",
+        "NNUE_W512_v3_HLFS_G3SC",
+        "NNUE_W512_v3_HLFS_G3FP",
+        "NNUE_W512_v3_HLFS_G3PR",
+        "NNUE_W512_v3_HLFS_G3ATK",
+        "NNUE_W512_v3_HLFS_G3RFQH",
+        "NNUE_W512_v3_HLFS_G3PVSPV",
+        "NNUE_W512_v3_HLFS_G3GA"
+      ]
+    },
+    "python_reported_by_orchestrator": {
+      "ruff_files": 159,
+      "ruff_result": "passed",
+      "deploy_unittests": 123,
+      "deploy_result": "passed",
+      "receipt": "awaiting final orchestrator validation receipt; do not represent as checks run by report author"
+    }
+  },
+  "source_artifacts": [
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/mining/manifest.json",
+      "sha256": "04c369a236378565d69667920d697fceec840852b373e7da6bf013536f63dbf3"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/mining/summary.json",
+      "sha256": "e9e33ae25884a26edc22fc00f2d1b12ca85e717428a0bf8a8a3aa6e6ff0fd814"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/mining/candidates.json",
+      "sha256": "97aa18a900667f7b5f6b5a3d284345c65a7c1fcef1fbc07b3cdc176847c4fbaa"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/mining/incomplete-iteration-cost.json",
+      "sha256": "7a8e5b1765cf096c527b6b74032a8208747b7fcd63bca3c042eb0ba27f4f4e9f"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/mining/opening-metrics.json",
+      "sha256": "606b172eaa298afe53aba111f3859864d62ebcec8d69b1922df2525580d2b07f"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/mining/large-gap-classification.json",
+      "sha256": "c78b89a8fd70013748cfc4c51df7c4a7477a8d29e3d463a7f9c73fda85f5edbe"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/tactical-probes/manifest.json",
+      "sha256": "42cdab54b69fd062887cb8a5fb2f4804163b4f2ca93f6fc267ad93798d135690"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/tactical-probes/summary.json",
+      "sha256": "846c9d504358816bb65d7e0604d8237984d34c76f0f1ebbba583ab541b7992e6"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/royal-probes/manifest.json",
+      "sha256": "7d6d7d1bc6b0ad2cec62b1290692a8abf091e8fd92f7522891c7a2af940f1088"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/royal-probes/case-summary.json",
+      "sha256": "42a6c3f00ec0807917b616b73a298e1d00daf9447588324b36c0dd8eefd87140"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/royal-probes/royal-flight-validity.json",
+      "sha256": "83e9833ca9b4104f9f986b6cef0bc1cefab93bff3ba6d8ad9ef300d04971bfad"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/royal-probes/legacy-royal-mode-manifest.json",
+      "sha256": "295eb3f5242c8ca4c1bbd3809568be1cbb8879accd3f5c6fd6fb54764c0b23ea"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/screen/manifest.json",
+      "sha256": "0f3408c9f01e5228745a96b3d9fc691533b2a5d9f237c2ba14403ba8613f48c4"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/screen/matched-depth-summary.json",
+      "sha256": "43ed4833ac0bc91aacbc377d7b623b8efc3bca636c89f95204888f1ac7e6c007"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/validation/rust-validation.json",
+      "sha256": "cb6967ed3754732abc491bb86bdcdf0439ddd4a1ff66d17cdef21627e2d61b88"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/validation/none-parity.json",
+      "sha256": "f8af8a42c3b4530e27614826e56f9541b7343c94b52e936458dccb012ecda8bf"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/validation/models.json",
+      "sha256": "2affe7325c98d2050944f7f84b27bd430ab2c6e3f71caaff3bfd438d0d72c988"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/admission.json",
+      "sha256": "b67da88570a6784b05c37ee26922bed3e9dccdfadc9d86738eac38c7c3a80754"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/binaries/final-build.json",
+      "sha256": "c53460ae7fae6be0939b4eca033b986a673db68c4eeb3807d756288a687b8ce1"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/partial-final/screen/manifest.json",
+      "sha256": "ed3bae3ca5a971f70103a8da12af32887edd0dbf4824178c3288c395958431e3"
+    },
+    {
+      "path": "/home/frank/taikyoku_shogi/data/analysis/search-generation3-20261030/partial-final/screen/results.json",
+      "sha256": "cfb2fb59160399c4901cd0414bce51a642e8286d9eeb0a07973215f482f3714f"
+    }
+  ]
+}

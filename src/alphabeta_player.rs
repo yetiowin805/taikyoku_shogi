@@ -89,6 +89,7 @@ impl AlphaBetaPlayer {
             q_recapture_only: checkpoint_defaults.q_recapture_only,
             q_own_large_only: checkpoint_defaults.q_own_large_only,
             experiment: checkpoint_defaults.experiment,
+            trial: checkpoint_defaults.trial,
             ..Default::default()
         };
         if let Ok(d) = env::var("TAIKYOKU_AB_DEPTH") {
@@ -138,6 +139,7 @@ impl AlphaBetaPlayer {
             q_recapture_only: checkpoint.search_defaults.q_recapture_only,
             q_own_large_only: checkpoint.search_defaults.q_own_large_only,
             experiment: checkpoint.search_defaults.experiment,
+            trial: checkpoint.search_defaults.trial,
             ..Default::default()
         };
         if let Ok(d) = env::var("TAIKYOKU_AB_DEPTH") {
@@ -216,6 +218,7 @@ impl AlphaBetaPlayer {
             mv,
             MoveAnnotation {
                 completed_depth: Some(result.completed_depth),
+                selected_depth: result.partial_root_depth,
                 iteration_timings: result.iteration_timings,
                 eval: Some(stm_to_black_abs(stm, result.score)),
                 static_eval: Some(stm_to_black_abs(stm, result.static_eval)),

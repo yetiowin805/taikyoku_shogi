@@ -183,6 +183,57 @@ class AdmissionTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 admission.engine_updates.require_search_support("old", ["history"])
 
+    def test_new_search_trial_requires_an_explicit_capability(self):
+        with patch.object(admission.engine_updates.subprocess, "run") as probe:
+            probe.return_value.stdout = '["history"]'
+            admission.engine_updates.require_search_support("engine", ["history"], ["none"])
+            self.assertEqual(probe.call_count, 1)
+            with self.assertRaisesRegex(ValueError, "does not support"):
+                admission.engine_updates.require_search_support("engine", ["history"], ["q_refill"])
+            self.assertEqual(probe.call_args.args[0][1], "tournament-search-trials")
+            probe.return_value.stdout = '["none","q_refill"]'
+            admission.engine_updates.require_search_support("engine", ["baseline"], ["q_refill"])
+
+    def test_distinct_trials_share_foundation_without_mutating_it(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            run = root / "run"
+            run.mkdir()
+            blob = root / "network.bin"
+            blob.write_bytes(b"fixed network")
+            source = root / "model.json"
+            model = dict(
+                name="base",
+                search_defaults=dict(depth=2),
+                weights=dict(piece={"Pawn": 1}, nnue=dict(file=blob.name, sha256=a.file_digest(blob))),
+            )
+            a.atomic(source, model)
+            original = source.read_bytes()
+            a.atomic(run / "state.json", dict(entrants=[dict(id="base", model=str(source))]))
+            config = dict(
+                run=str(run),
+                out=str(root / "out"),
+                search_variants={
+                    "HLF_RF": dict(base_entrant="base", experiment="history_tactical_lmr_q_fix", trial="q_refill"),
+                    "HLF_QH": dict(base_entrant="base", experiment="history_tactical_lmr_q_fix", trial="q_history"),
+                },
+            )
+            with (
+                patch.object(admission.engine_updates, "active", return_value=dict(engine_bin="engine")),
+                patch.object(admission.engine_updates, "require_search_support") as support,
+            ):
+                models = admission.prepare_search_variants(config)
+                self.assertEqual(len(models), 2)
+                self.assertEqual(source.read_bytes(), original)
+                self.assertEqual(
+                    [a.read(path / "model.json")["search_defaults"]["trial"] for path in models],
+                    ["q_refill", "q_history"],
+                )
+                self.assertEqual(support.call_args.args[2], ["q_refill", "q_history"])
+                config["search_variants"]["duplicate"] = dict(config["search_variants"]["HLF_RF"])
+                with self.assertRaisesRegex(ValueError, "distinct search policies"):
+                    admission.prepare_search_variants(config)
+
     def test_external_lease_exemption_requires_actual_service_owner(self):
         with tempfile.TemporaryDirectory() as temp:
             control = Path(temp)

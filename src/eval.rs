@@ -1153,6 +1153,46 @@ impl SearchExperiment {
     ];
 }
 
+/// October 2026 third-wave search experiments on unchanged HLF/HLFS networks.
+/// Remove losing trials after tournament adjudication; None preserves old agents.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SearchTrial {
+    #[default]
+    None,
+    ContextRetry,
+    QRefill,
+    QHistory,
+    InternalPvs,
+    PromotePv,
+    SearchedLmr,
+    ShallowFutility,
+    PartialRoot,
+    MajorThreatLmr,
+    QRefillHistory,
+    PvsPromote,
+    GrowthAware,
+}
+
+impl SearchTrial {
+    /// Engine admission probes reject checkpoints requiring an unsupported trial.
+    pub const ALL: [Self; 13] = [
+        Self::None,
+        Self::ContextRetry,
+        Self::QRefill,
+        Self::QHistory,
+        Self::InternalPvs,
+        Self::PromotePv,
+        Self::SearchedLmr,
+        Self::ShallowFutility,
+        Self::PartialRoot,
+        Self::MajorThreatLmr,
+        Self::QRefillHistory,
+        Self::PvsPromote,
+        Self::GrowthAware,
+    ];
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchDefaults {
     pub depth: u32,
@@ -1191,6 +1231,9 @@ pub struct SearchDefaults {
     /// October 2026 W512-v3 search experiment; absent means unchanged production.
     #[serde(default)]
     pub experiment: SearchExperiment,
+    /// Third-wave search trial; missing preserves the checkpoint's old search.
+    #[serde(default)]
+    pub trial: SearchTrial,
 }
 
 fn default_quiescence_depth() -> u32 {
@@ -1216,6 +1259,7 @@ impl Default for SearchDefaults {
             q_recapture_only: false,
             q_own_large_only: true,
             experiment: SearchExperiment::Baseline,
+            trial: SearchTrial::None,
         }
     }
 }

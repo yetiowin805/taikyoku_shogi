@@ -1076,6 +1076,7 @@ mod tests {
             static_eval,
             nodes: None,
             completed_depth: None,
+            selected_depth: None,
             iteration_timings: Vec::new(),
         };
         let moves = vec![mk(Some(100), Some(50)), mk(None, Some(200))];
