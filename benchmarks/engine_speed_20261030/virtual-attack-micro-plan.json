@@ -1,0 +1,29 @@
+{
+  "source_sha256": "3caf44b67de8f4440b975d674948cf4b57fedbff7865bef8a072d56b5a3319d1",
+  "binary_sha256": "cbe6401c3735127b0b3340a5918b15330bcffddd048aab2bc87f8c7c69b1d610",
+  "rlib_sha256": "8dfde9494e9caffd96c597c1dc49e953325da478c2e614a09e91c2302b8b257b",
+  "build_command": [
+    "rustc",
+    "--edition=2021",
+    "-O",
+    "-C",
+    "target-cpu=native",
+    "-C",
+    "lto=thin",
+    "-C",
+    "codegen-units=1",
+    "/tmp/virtual_attack_micro.rs",
+    "-L",
+    "dependency=/tmp/engine-speed-baseline-20261030/target/release/deps",
+    "--extern",
+    "taikyoku_shogi=/tmp/engine-speed-baseline-20261030/target/release/deps/libtaikyoku_shogi-989991c79f948c73.rlib",
+    "-o",
+    "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/bin/virtual-attack-micro"
+  ],
+  "rounds": 8,
+  "repeats": 7,
+  "cpu": 2,
+  "queries_per_fixture_arm_trial": 4096,
+  "fixtures": "synthetic opening/striped sparse boards; pawn teleport and arbitrary twelve removals; same overlay/queries each arm; not legal game sequences",
+  "timer": "Instant wall seconds; alternating arms; ThinLTO same executable; legacy dispatcher rebuilt in benchmark vs production streamed dispatcher; subsystem evidence only"
+}

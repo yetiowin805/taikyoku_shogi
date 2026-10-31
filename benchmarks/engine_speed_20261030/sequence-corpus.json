@@ -1,0 +1,214 @@
+{
+  "revision": "caf49f64a5a6eb2a1ba2660040676217bc1ce794",
+  "positions": [
+    {
+      "name": "slot1507-p0120",
+      "game": "/home/frank/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/slot1507-NNUE_W512_v5a-vs-NNUE_W384_v4.5-a-black.json",
+      "source_game": "/home/frank/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/slot1507-NNUE_W512_v5a-vs-NNUE_W384_v4.5-a-black.json",
+      "sha256": "8ff23ae8ece1dbecd9d4104a0086026d1c8b75540dbedfc9f124bd546dc0d993",
+      "ply": 120
+    },
+    {
+      "name": "slot1507-p0121",
+      "game": "/home/frank/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/slot1507-NNUE_W512_v5a-vs-NNUE_W384_v4.5-a-black.json",
+      "source_game": "/home/frank/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/slot1507-NNUE_W512_v5a-vs-NNUE_W384_v4.5-a-black.json",
+      "sha256": "8ff23ae8ece1dbecd9d4104a0086026d1c8b75540dbedfc9f124bd546dc0d993",
+      "ply": 121
+    },
+    {
+      "name": "slot1507-p0122",
+      "game": "/home/frank/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/slot1507-NNUE_W512_v5a-vs-NNUE_W384_v4.5-a-black.json",
+      "source_game": "/home/frank/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/slot1507-NNUE_W512_v5a-vs-NNUE_W384_v4.5-a-black.json",
+      "sha256": "8ff23ae8ece1dbecd9d4104a0086026d1c8b75540dbedfc9f124bd546dc0d993",
+      "ply": 122
+    },
+    {
+      "name": "slot1507-p0123",
+      "game": "/home/frank/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/slot1507-NNUE_W512_v5a-vs-NNUE_W384_v4.5-a-black.json",
+      "source_game": "/home/frank/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/slot1507-NNUE_W512_v5a-vs-NNUE_W384_v4.5-a-black.json",
+      "sha256": "8ff23ae8ece1dbecd9d4104a0086026d1c8b75540dbedfc9f124bd546dc0d993",
+      "ply": 123
+    },
+    {
+      "name": "slot1507-p0124",
+      "game": "/home/frank/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/slot1507-NNUE_W512_v5a-vs-NNUE_W384_v4.5-a-black.json",
+      "source_game": "/home/frank/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/slot1507-NNUE_W512_v5a-vs-NNUE_W384_v4.5-a-black.json",
+      "sha256": "8ff23ae8ece1dbecd9d4104a0086026d1c8b75540dbedfc9f124bd546dc0d993",
+      "ply": 124
+    },
+    {
+      "name": "slot1507-p0125",
+      "game": "/home/frank/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/slot1507-NNUE_W512_v5a-vs-NNUE_W384_v4.5-a-black.json",
+      "source_game": "/home/frank/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/slot1507-NNUE_W512_v5a-vs-NNUE_W384_v4.5-a-black.json",
+      "sha256": "8ff23ae8ece1dbecd9d4104a0086026d1c8b75540dbedfc9f124bd546dc0d993",
+      "ply": 125
+    },
+    {
+      "name": "slot1507-p0126",
+      "game": "/home/frank/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/slot1507-NNUE_W512_v5a-vs-NNUE_W384_v4.5-a-black.json",
+      "source_game": "/home/frank/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/slot1507-NNUE_W512_v5a-vs-NNUE_W384_v4.5-a-black.json",
+      "sha256": "8ff23ae8ece1dbecd9d4104a0086026d1c8b75540dbedfc9f124bd546dc0d993",
+      "ply": 126
+    },
+    {
+      "name": "slot1507-p0127",
+      "game": "/home/frank/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/slot1507-NNUE_W512_v5a-vs-NNUE_W384_v4.5-a-black.json",
+      "source_game": "/home/frank/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/slot1507-NNUE_W512_v5a-vs-NNUE_W384_v4.5-a-black.json",
+      "sha256": "8ff23ae8ece1dbecd9d4104a0086026d1c8b75540dbedfc9f124bd546dc0d993",
+      "ply": 127
+    },
+    {
+      "name": "slot1508-p0220",
+      "game": "/home/frank/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/slot1508-NNUE_W512_v5a-vs-NNUE_W384_v4.5-a-white.json",
+      "source_game": "/home/frank/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/slot1508-NNUE_W512_v5a-vs-NNUE_W384_v4.5-a-white.json",
+      "sha256": "183b62b220936c873b3377d18330289f547cac26ef3a62daa8ce760e1fa0f1fe",
+      "ply": 220
+    },
+    {
+      "name": "slot1508-p0221",
+      "game": "/home/frank/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/slot1508-NNUE_W512_v5a-vs-NNUE_W384_v4.5-a-white.json",
+      "source_game": "/home/frank/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/slot1508-NNUE_W512_v5a-vs-NNUE_W384_v4.5-a-white.json",
+      "sha256": "183b62b220936c873b3377d18330289f547cac26ef3a62daa8ce760e1fa0f1fe",
+      "ply": 221
+    },
+    {
+      "name": "slot1508-p0222",
+      "game": "/home/frank/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/slot1508-NNUE_W512_v5a-vs-NNUE_W384_v4.5-a-white.json",
+      "source_game": "/home/frank/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/slot1508-NNUE_W512_v5a-vs-NNUE_W384_v4.5-a-white.json",
+      "sha256": "183b62b220936c873b3377d18330289f547cac26ef3a62daa8ce760e1fa0f1fe",
+      "ply": 222
+    },
+    {
+      "name": "slot1508-p0223",
+      "game": "/home/frank/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/slot1508-NNUE_W512_v5a-vs-NNUE_W384_v4.5-a-white.json",
+      "source_game": "/home/frank/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/slot1508-NNUE_W512_v5a-vs-NNUE_W384_v4.5-a-white.json",
+      "sha256": "183b62b220936c873b3377d18330289f547cac26ef3a62daa8ce760e1fa0f1fe",
+      "ply": 223
+    },
+    {
+      "name": "slot1508-p0224",
+      "game": "/home/frank/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/slot1508-NNUE_W512_v5a-vs-NNUE_W384_v4.5-a-white.json",
+      "source_game": "/home/frank/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/slot1508-NNUE_W512_v5a-vs-NNUE_W384_v4.5-a-white.json",
+      "sha256": "183b62b220936c873b3377d18330289f547cac26ef3a62daa8ce760e1fa0f1fe",
+      "ply": 224
+    },
+    {
+      "name": "slot1508-p0225",
+      "game": "/home/frank/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/slot1508-NNUE_W512_v5a-vs-NNUE_W384_v4.5-a-white.json",
+      "source_game": "/home/frank/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/slot1508-NNUE_W512_v5a-vs-NNUE_W384_v4.5-a-white.json",
+      "sha256": "183b62b220936c873b3377d18330289f547cac26ef3a62daa8ce760e1fa0f1fe",
+      "ply": 225
+    },
+    {
+      "name": "slot1508-p0226",
+      "game": "/home/frank/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/slot1508-NNUE_W512_v5a-vs-NNUE_W384_v4.5-a-white.json",
+      "source_game": "/home/frank/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/slot1508-NNUE_W512_v5a-vs-NNUE_W384_v4.5-a-white.json",
+      "sha256": "183b62b220936c873b3377d18330289f547cac26ef3a62daa8ce760e1fa0f1fe",
+      "ply": 226
+    },
+    {
+      "name": "slot1508-p0227",
+      "game": "/home/frank/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/slot1508-NNUE_W512_v5a-vs-NNUE_W384_v4.5-a-white.json",
+      "source_game": "/home/frank/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/slot1508-NNUE_W512_v5a-vs-NNUE_W384_v4.5-a-white.json",
+      "sha256": "183b62b220936c873b3377d18330289f547cac26ef3a62daa8ce760e1fa0f1fe",
+      "ply": 227
+    }
+  ],
+  "models": [
+    {
+      "name": "NNUE_W512_v4.5",
+      "path": "/home/frank/taikyoku_shogi/models/nnue-v4.5/NNUE_W512_v4.5/model.json",
+      "sha256": "42bb57d10d2b01bbe59fb7ab7c75a260158c72bd322b3b8cf8533376f486d37e",
+      "nnue": {
+        "file": "nnue-81b1c69ab269ecce313a93b0cbe866ede18c37d8a5ff83116dc20d196ba12ea4.bin",
+        "sha256": "81b1c69ab269ecce313a93b0cbe866ede18c37d8a5ff83116dc20d196ba12ea4",
+        "width": 512,
+        "feature_hash": "126bc08ca9871740d5cc545d4c1723d21e7705089bf98a79b8714a598409ca72"
+      },
+      "model_bytes": 244223428
+    },
+    {
+      "name": "NNUE_W384_v4.5",
+      "path": "/home/frank/taikyoku_shogi/models/nnue-v4.5/NNUE_W384_v4.5/model.json",
+      "sha256": "016e7a4bcc96a4e0bb91724d575faca1b25264943c78c268d96472120e351855",
+      "nnue": {
+        "file": "nnue-d16f28d452104d9c79a5f8e8a8dc3fb6fdeb8ee896440a14acc62e1968414c1e.bin",
+        "sha256": "d16f28d452104d9c79a5f8e8a8dc3fb6fdeb8ee896440a14acc62e1968414c1e",
+        "width": 384,
+        "feature_hash": "126bc08ca9871740d5cc545d4c1723d21e7705089bf98a79b8714a598409ca72"
+      },
+      "model_bytes": 183167940
+    },
+    {
+      "name": "NNUE_W512_v3",
+      "path": "/home/frank/taikyoku_shogi/models/nnue-v3/NNUE_W512_v3/model.json",
+      "sha256": "977b4177d85b73e85b6c4c2b72f1c8d299221058b839993bf705728d567c1475",
+      "nnue": {
+        "file": "nnue-a2f0ddbd753237dfbb699a13c93df538e7bfb441319e377fca1995ac448f09a5.bin",
+        "sha256": "a2f0ddbd753237dfbb699a13c93df538e7bfb441319e377fca1995ac448f09a5",
+        "width": 512,
+        "feature_hash": "126bc08ca9871740d5cc545d4c1723d21e7705089bf98a79b8714a598409ca72"
+      }
+    },
+    {
+      "name": "NNUE_W1536_v3",
+      "path": "/home/frank/taikyoku_shogi/models/nnue-v3/NNUE_W1536_v3/model.json",
+      "sha256": "e33264d795b9610027c535f380c0a6a942e8470923b7f0adbdd52829782cd321",
+      "nnue": {
+        "file": "nnue-f9c19733dc22ae8139353bd4eb3afc08c185c2807c2a058ad98c7da003ad46c2.bin",
+        "sha256": "f9c19733dc22ae8139353bd4eb3afc08c185c2807c2a058ad98c7da003ad46c2",
+        "width": 1536,
+        "feature_hash": "126bc08ca9871740d5cc545d4c1723d21e7705089bf98a79b8714a598409ca72"
+      }
+    },
+    {
+      "name": "NNUE_W2048_v2",
+      "path": "/home/frank/taikyoku_shogi/models/nnue-v2/NNUE_W2048_v2.json",
+      "sha256": "0f5d5754a7ec378ba73fc646bd0a9757d273d776e17c3e6b5523dcb76f8b5c7d",
+      "nnue": {
+        "file": "nnue-bfb0ddf94230ab010cb0e818c653dc8ae9bcf0ab4c4992366eea31dcddb11ddd.bin",
+        "sha256": "bfb0ddf94230ab010cb0e818c653dc8ae9bcf0ab4c4992366eea31dcddb11ddd",
+        "width": 2048,
+        "feature_hash": "126bc08ca9871740d5cc545d4c1723d21e7705089bf98a79b8714a598409ca72"
+      }
+    },
+    {
+      "name": "BASE_C2S2_A40_Lmate",
+      "path": "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/BASE_C2S2_A40_Lmate.json",
+      "source_model": "/home/frank/taikyoku_shogi/data/nnue-speed-probe-20260920/models/BASE_C2S2_A40_Lmate.json",
+      "sha256": "5d61f7a75ef2503cc01754eff5d46b845198e35d2b7359b95755703d974694bb",
+      "search_defaults": {
+        "depth": 2,
+        "max_time_ms": null,
+        "quiescence_depth": 2,
+        "sibling_mode": 0,
+        "q_loud_promo_simple_only": false,
+        "hang_q_dest_multileg": true,
+        "hang_q_dest_pathclear": true,
+        "q_open_large_mover": false,
+        "q_open_any_capture": false,
+        "q_recapture_only": false,
+        "q_own_large_only": true
+      }
+    },
+    {
+      "name": "C2K50A1",
+      "path": "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/C2K50A1.json",
+      "source_model": "/home/frank/taikyoku_shogi/data/nnue-speed-probe-20260920/models/C2K50A1.json",
+      "sha256": "cedf5cf23ca6b9bbd2d5d5f8a247375dca3bce276578b14be07fcddd40d7586c",
+      "search_defaults": {
+        "depth": 2,
+        "max_time_ms": null,
+        "quiescence_depth": 2,
+        "sibling_mode": 0,
+        "q_loud_promo_simple_only": false,
+        "hang_q_dest_multileg": true,
+        "hang_q_dest_pathclear": true,
+        "q_open_large_mover": false,
+        "q_open_any_capture": false,
+        "q_recapture_only": false,
+        "q_own_large_only": false
+      }
+    }
+  ]
+}

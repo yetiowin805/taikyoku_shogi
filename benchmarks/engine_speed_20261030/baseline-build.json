@@ -1,0 +1,7 @@
+{
+  "revision": "caf49f64a5a6eb2a1ba2660040676217bc1ce794",
+  "source_export": "git archive caf49f64a5a6eb2a1ba2660040676217bc1ce794",
+  "build": "./deploy/build_native.sh --offline --release --example nnue_tournament_bench -j 4",
+  "profile": "release; opt-level=3; ThinLTO; codegen-units=1; target-cpu=native",
+  "workdir": "/tmp/engine-speed-baseline-20261030"
+}

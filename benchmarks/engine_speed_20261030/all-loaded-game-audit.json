@@ -1,0 +1,19 @@
+{
+  "verified_unix": 1793422958.1735466,
+  "inputs": {
+    "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/position-00.json": "315684a55724ccb297bc7205f719abf7701a99b9dddbd12bad26a23953a5670d",
+    "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/position-01.json": "5aca746fc7cdaf325a04d61847c470636cf391a79a755bfe06cb7f41ae7eba9a",
+    "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/position-02.json": "48db53e7f60f96e79cf58d35a624698f970d125b3e981ee450db9c6edffd5cd2",
+    "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/position-03.json": "97f5b99c5a0ec6e53508b014940fd6aad9cf4fb97f062a264b282f8770d97846",
+    "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/position-04.json": "5a3f40d64295571d454d5c856635b5f49d1301361336cda2529ea24f43c0dde1",
+    "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/position-05.json": "468d7bc1c6618013e30ac33182c252dbc69a5344f93739927a5f7b08d8c426a1",
+    "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/position-06.json": "ce881048d9fdf4e56811972641d5b83c3f47c4413c63347901cee9df932bbe82",
+    "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/position-07.json": "b8b71afea7529335b921b32e1c7b1a409ccc18b2a33747df6ea437b73abd08c0",
+    "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/position-08.json": "64b9a20a4dffb15292c8067ca77bc86c2c73e2f6be32013ac2a8421a65766be9",
+    "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/position-09.json": "7ba0f8d23be24c200dce91decf5c0863655e1541cefe38af3e90715ff685f73c",
+    "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/position-10.json": "38eb51646e505a62d13ee219a5e57c6d0f551c470831f65cba63a627af8c12a9",
+    "/home/frank/taikyoku_shogi/data/derived/search-speed-20260920/inputs/position-11.json": "100938bf9b66480300e8b307b24fd83a60722603fe194ebd80804b9c6e64133f",
+    "/home/frank/taikyoku_shogi/data/raw/tourney/royal-nnue-v3-32-20260925/slot1517-NNUE_W384_v4.5-vs-NNUE_W512_v5c-a-black.json": "eca99897f0fc4df82ae0527a8b2b060bc2cf626f9d01ff2d4c29d5d28f4db394"
+  },
+  "note": "All eager-loaded roots agree with the preselected corpus hashes, including unselected roots in earlier screens."
+}
