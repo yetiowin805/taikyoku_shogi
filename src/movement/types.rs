@@ -88,6 +88,8 @@ pub enum MovementCapability {
     Jumping { offsets: Vec<(i8, i8)> },
     /// Two-step movement: First move, then second move from intermediate position
     /// Both moves are full MovementCapability instances
+    /// When both legs are Range (Hook Mover / Tengu / Capricorn / Peacock),
+    /// the second leg must turn 90 degrees and the first leg must not capture.
     TwoStep {
         first: Box<MovementCapability>,
         second: Box<MovementCapability>,
@@ -106,6 +108,28 @@ pub enum MovementCapability {
         max_distance_forward_diagonal: u8, // 4 for forward diagonals
         max_distance_other: u8,            // 3 for orthogonal and backward diagonals
     },
+}
+
+impl MovementCapability {
+    pub(crate) fn is_range_two_step(&self) -> bool {
+        matches!(self, Self::TwoStep { first, second }
+            if matches!(first.as_ref(), Self::Range { .. })
+                && matches!(second.as_ref(), Self::Range { .. }))
+    }
+
+    /// Route restriction in addition to each leg's reach/blocker validation.
+    /// Short two-movers retain their capture-and-continue / return abilities.
+    pub(crate) fn allows_two_step_continuation<B: crate::move_simulation::BoardLike>(
+        &self,
+        board: &B,
+        from: crate::position::Position,
+        via: crate::position::Position,
+        to: crate::position::Position,
+    ) -> bool {
+        matches!(self, Self::TwoStep { .. })
+            && (!self.is_range_two_step()
+                || (board.is_empty(via) && crate::path_utils::is_perpendicular_turn(from, via, to)))
+    }
 }
 
 #[cfg(test)]

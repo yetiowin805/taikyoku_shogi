@@ -332,7 +332,11 @@ impl MovementGenerator {
             MovementCapability::Jumping { offsets } => {
                 let df = target.file() as i8 - piece.position.file() as i8;
                 let dr = target.rank() as i8 - piece.position.rank() as i8;
-                let dr = if piece.color == Color::White { -dr } else { dr };
+                let (df, dr) = if piece.color == Color::White {
+                    (-df, -dr)
+                } else {
+                    (df, dr)
+                };
                 offsets.contains(&(df, dr))
                     && !board
                         .get_piece(target)
@@ -387,12 +391,11 @@ impl MovementGenerator {
             MovementCapability::Jumping { offsets } => {
                 Self::generate_jumping_into(piece, board, offsets, captures_only, targets);
             }
-            MovementCapability::TwoStep { first, second } => {
+            MovementCapability::TwoStep { .. } => {
                 targets.extend(Self::generate_two_step(
                     piece,
                     board,
-                    first,
-                    second,
+                    capability,
                     captures_only,
                 ));
             }
@@ -427,38 +430,9 @@ impl MovementGenerator {
         directions: DirectionSet,
         color: Color,
     ) -> DirectionSet {
-        if color == Color::Black {
-            // No adjustment needed for Black (N is forward)
-            directions
-        } else {
-            // For White, flip directions: N<->S, NE<->SW, E<->W, SE<->NW
-            let mut adjusted = 0u8;
-            if directions & Direction::N.to_bit() != 0 {
-                adjusted |= Direction::S.to_bit();
-            }
-            if directions & Direction::S.to_bit() != 0 {
-                adjusted |= Direction::N.to_bit();
-            }
-            if directions & Direction::NE.to_bit() != 0 {
-                adjusted |= Direction::SW.to_bit();
-            }
-            if directions & Direction::SW.to_bit() != 0 {
-                adjusted |= Direction::NE.to_bit();
-            }
-            if directions & Direction::E.to_bit() != 0 {
-                adjusted |= Direction::E.to_bit();
-            } // E stays E
-            if directions & Direction::W.to_bit() != 0 {
-                adjusted |= Direction::W.to_bit();
-            } // W stays W
-            if directions & Direction::SE.to_bit() != 0 {
-                adjusted |= Direction::NW.to_bit();
-            }
-            if directions & Direction::NW.to_bit() != 0 {
-                adjusted |= Direction::SE.to_bit();
-            }
-            adjusted
-        }
+        // Share the full rotation with attack filtering. Leaving E/W fixed
+        // while rotating diagonals gave White's asymmetric pieces mixed frames.
+        crate::attack_utils::adjust_directions_for_color(directions, color)
     }
 
     /// Generate targets for simple movement
@@ -607,7 +581,7 @@ impl MovementGenerator {
 
     /// Generate targets for jumping movement
     /// Offsets are relative to Black's perspective (N is up, S is down)
-    /// For White pieces, offsets are automatically flipped (rank_delta is negated)
+    /// For White pieces, both offsets are negated (180-degree rotation).
     #[cfg(test)]
     fn generate_jumping<B: BoardLike>(
         piece: &Piece,
@@ -628,14 +602,13 @@ impl MovementGenerator {
         targets: &mut Vec<Position>,
     ) {
         for &(file_delta, rank_delta) in offsets {
-            // Adjust rank_delta for White (flip vertically)
-            let adjusted_rank_delta = if piece.color == Color::White {
-                -rank_delta
+            let (file_delta, rank_delta) = if piece.color == Color::White {
+                (-file_delta, -rank_delta)
             } else {
-                rank_delta
+                (file_delta, rank_delta)
             };
 
-            if let Some(target) = piece.position.offset(file_delta, adjusted_rank_delta) {
+            if let Some(target) = piece.position.offset(file_delta, rank_delta) {
                 // Jumping moves are never blocked, but can't land on friendly pieces
                 if let Some(target_piece) = board.get_piece(target) {
                     if target_piece.color != piece.color {
@@ -652,10 +625,12 @@ impl MovementGenerator {
     fn generate_two_step<B: BoardLike>(
         piece: &Piece,
         board: &B,
-        first: &MovementCapability,
-        second: &MovementCapability,
+        capability: &MovementCapability,
         captures_only: bool,
     ) -> Vec<Position> {
+        let MovementCapability::TwoStep { first, second } = capability else {
+            unreachable!("two-step generator requires a TwoStep capability");
+        };
         let mut targets = Vec::new();
 
         // Intermediates need full first-leg targets even for captures_only.
@@ -678,23 +653,34 @@ impl MovementGenerator {
             let inter_captures = board
                 .get_piece(intermediate_pos)
                 .is_some_and(|p| p.color != piece.color);
+            if capability.is_range_two_step() && inter_captures {
+                continue;
+            }
             let second_targets = Self::generate_for_capability(
                 &temp_piece,
                 &after_first,
                 second,
                 captures_only && !inter_captures,
             );
-            if captures_only {
-                for t in second_targets {
+            for t in second_targets {
+                if !capability.allows_two_step_continuation(
+                    board,
+                    piece.position,
+                    intermediate_pos,
+                    t,
+                ) {
+                    continue;
+                }
+                if captures_only {
                     let dest_captures = after_first
                         .get_piece(t)
                         .is_some_and(|p| p.color != piece.color);
                     if inter_captures || dest_captures {
                         targets.push(t);
                     }
+                } else {
+                    targets.push(t);
                 }
-            } else {
-                targets.extend(second_targets);
             }
         }
 
@@ -739,7 +725,7 @@ impl MovementGenerator {
                     if target_piece.color != piece.color {
                         targets.push(target); // Can capture enemy
                     }
-                } else {
+                } else if !captures_only {
                     targets.push(target); // Empty square
                 }
             }
@@ -846,6 +832,7 @@ impl MovementGenerator {
             let (file_delta, rank_delta) = direction.to_offset();
             let mut path = vec![piece.position];
             let mut current = piece.position;
+            let mut has_capture = false;
 
             for _ in 1..=max_distance_forward_diagonal {
                 let Some(next) = current.offset(file_delta, rank_delta) else {
@@ -859,11 +846,12 @@ impl MovementGenerator {
                     // Enemy piece - can capture and continue
                     path.push(next);
                     current = next;
+                    has_capture = true;
                     targets.push(next);
                 } else {
                     path.push(next);
                     current = next;
-                    if !captures_only {
+                    if !captures_only || has_capture {
                         targets.push(next);
                     }
                 }
@@ -874,6 +862,7 @@ impl MovementGenerator {
         for direction in other_directions {
             let (file_delta, rank_delta) = direction.to_offset();
             let mut current = piece.position;
+            let mut has_capture = false;
 
             for _ in 1..=max_distance_other {
                 let Some(next) = current.offset(file_delta, rank_delta) else {
@@ -886,11 +875,12 @@ impl MovementGenerator {
                     }
                     // Enemy piece - can capture and continue
                     current = next;
+                    has_capture = true;
                     targets.push(next);
                 } else {
                     // Empty square
                     current = next;
-                    if !captures_only {
+                    if !captures_only || has_capture {
                         targets.push(next);
                     }
                 }
@@ -1084,9 +1074,8 @@ mod linear_simple_tests {
                     (Direction::SE, 1, -1),
                     (Direction::E, 1, 0),
                 ] {
-                    // Preserve the generator's legacy convention: White reverses
-                    // these diagonal/forward rays, while E remains E.
-                    if color == Color::White && direction != Direction::E {
+                    // White's whole frame rotates, including sideways rays.
+                    if color == Color::White {
                         df = -df;
                         dr = -dr;
                     }
@@ -1199,17 +1188,19 @@ mod linear_simple_tests {
         for color in [Color::Black, Color::White] {
             let mut board = Board::new();
             let piece = Piece::new(PieceType::FreeEagle, color, Position::new(18, 18).unwrap());
+            let square = |file: u8, rank: u8| {
+                let df = file as i8 - 18;
+                let dr = rank as i8 - 18;
+                let sign = if color == Color::Black { 1 } else { -1 };
+                piece.position.offset(sign * df, sign * dr).unwrap()
+            };
             board.place_piece(piece);
             for (file, rank, occupant) in [
                 (19, 18, color.opposite()),
                 (18, 19, color),
                 (20, 20, color.opposite()),
             ] {
-                board.place_piece(Piece::new(
-                    PieceType::Pawn,
-                    occupant,
-                    Position::new(file, rank).unwrap(),
-                ));
+                board.place_piece(Piece::new(PieceType::Pawn, occupant, square(file, rank)));
             }
             let ordinary = vec![
                 MovementCapability::Simple {
@@ -1283,13 +1274,13 @@ mod linear_simple_tests {
                         captures,
                     );
                     assert_eq!(actual, expected, "{color:?}, captures={captures}");
-                    let overlapping_capture = Position::new(19, 18).unwrap();
+                    let overlapping_capture = square(19, 18);
                     assert_eq!(
                         actual.iter().filter(|&&p| p == overlapping_capture).count(),
                         1
                     );
                     if !captures {
-                        assert!(actual.contains(&Position::new(13, 18).unwrap()));
+                        assert!(actual.contains(&square(13, 18)));
                     }
                 }
             }
@@ -1309,13 +1300,17 @@ mod linear_simple_tests {
                 Color::Black
             };
             let mut board = Board::new();
-            let piece = Piece::new(PieceType::Rook, color, Position::new(0, 0).unwrap());
+            let square = |distance| match color {
+                Color::Black => Position::new(distance, 0).unwrap(),
+                Color::White => Position::new(35 - distance, 35).unwrap(),
+            };
+            let piece = Piece::new(PieceType::Rook, color, square(0));
             for (file, kind, occupant) in [
                 (2, PieceType::Pawn, color),
                 (4, PieceType::Pawn, enemy),
                 (6, PieceType::King, enemy),
             ] {
-                board.place_piece(Piece::new(kind, occupant, Position::new(file, 0).unwrap()));
+                board.place_piece(Piece::new(kind, occupant, square(file)));
             }
             let mut blockers = PieceTypeSet::new();
             blockers.insert(PieceType::King);
@@ -1338,10 +1333,7 @@ mod linear_simple_tests {
                         (BlockingMode::Capturing, false) => vec![1, 3, 4, 5],
                         (BlockingMode::Capturing, true) => vec![4, 5],
                     };
-                    let expected: Vec<_> = files
-                        .into_iter()
-                        .map(|file| Position::new(file, 0).unwrap())
-                        .collect();
+                    let expected: Vec<_> = files.into_iter().map(square).collect();
                     assert_eq!(
                         MovementGenerator::capability_landings_filtered(
                             &piece,

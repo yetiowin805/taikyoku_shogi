@@ -27,12 +27,32 @@ fn abilities(piece: &Piece) -> BTreeSet<String> {
             Cap::Simple {
                 directions,
                 max_distance,
-            } => ordinary(&mut out, *directions, *max_distance),
+            } => {
+                // Version 1 encodes Flying Crocodile's historical lateral
+                // diagonal masks. Its legal movement now uses forward/backward
+                // diagonals; retain the trained inputs byte-for-byte until a
+                // separately versioned feature schema replaces this encoding.
+                let directions = match (piece.piece_type, *max_distance) {
+                    (PieceType::FlyingCrocodile, 2) => 0xA0,
+                    (PieceType::FlyingCrocodile, 3) => 0x0A,
+                    _ => *directions,
+                };
+                ordinary(&mut out, directions, *max_distance);
+            }
             Cap::Range {
                 directions,
                 blocking: BlockingMode::NoJump,
                 ..
-            } => ordinary(&mut out, *directions, 255),
+            } => {
+                if piece.piece_type == PieceType::BuddhistSpirit {
+                    // Version 1's trained representation used the old extra-
+                    // step template. Keep its input channel stable after the
+                    // legal move correction; this is not a movement capability.
+                    out.insert("two:Range { directions: 255, blocking: NoJump, cannot_jump_over: {} }:Simple { directions: 255, max_distance: 1 }".into());
+                } else {
+                    ordinary(&mut out, *directions, 255);
+                }
+            }
             Cap::Range {
                 directions,
                 blocking: BlockingMode::Jump,
@@ -53,9 +73,9 @@ fn abilities(piece: &Piece) -> BTreeSet<String> {
             }
             Cap::Jumping { offsets } => {
                 for &(x, y) in offsets {
-                    // The actual engine flips only rank for White jumps, unlike
-                    // its 180-degree ordinary directions. Preserve that quirk
-                    // in the piece-relative ability encoding.
+                    // Version 1 reflected only rank for White jumps. Legal
+                    // jumps now rotate both axes, but the trained encoding
+                    // retains that historical quirk for checkpoint compatibility.
                     let x = if piece.color == Color::White { -x } else { x };
                     let (ax, ay) = (x.abs(), y.abs());
                     if ax.max(ay) == 1 {

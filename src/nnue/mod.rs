@@ -467,8 +467,8 @@ pub(crate) mod tests {
             features::active(&a, Color::Black),
             features::active(&b, Color::White)
         );
-        // Asymmetric jumping pieces intentionally do NOT obey that rotation in
-        // the current rules implementation (White's jump file is not flipped).
+        // The version-1 feature encoding preserves the original White jump
+        // reflection, even though legal moves now rotate both axes correctly.
         let p = Piece::new(
             PieceType::LeftMountainEagle,
             Color::Black,
@@ -484,6 +484,21 @@ pub(crate) mod tests {
         features::visit(&p, Color::Black, |i| x.push(i));
         features::visit(&q, Color::White, |i| y.push(i));
         assert_ne!(x, y);
+    }
+
+    #[test]
+    fn v1_feature_schema_keeps_existing_checkpoint_inputs() {
+        // Full names + per-piece mapping hash from pre-audit v1 checkpoints,
+        // including W512 v3. Checking only vocabulary size misses remapped rows.
+        let actual: String = features::schema()
+            .hash
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect();
+        assert_eq!(
+            actual,
+            "e1aaa350f52836d488f7383a6859cc3f901dfce2df0098681e90b6fdf1034556"
+        );
     }
     #[test]
     fn checkpoint_hash_length_and_schema_validation() {

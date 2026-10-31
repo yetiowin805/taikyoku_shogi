@@ -359,14 +359,7 @@ impl MinimalIntelligencePlayer {
     /// Uses lazy evaluation (short-circuits on first attacker found) similar to check detection
     fn would_range_capture_be_worthwhile(board: &Board, mv: &Move, moving_piece: &Piece) -> bool {
         // Check if piece has capturing range movement capability
-        let config = MovementConfig::for_piece(moving_piece);
-        let uses_capturing = config.capabilities.iter().any(|cap| {
-            if let crate::movement::types::MovementCapability::Range { blocking, .. } = cap {
-                *blocking == crate::movement::types::BlockingMode::Capturing
-            } else {
-                false
-            }
-        });
+        let uses_capturing = MovementConfig::uses_capturing_range(moving_piece, mv.from, mv.to);
 
         // If not a capturing range move, no restriction
         if !uses_capturing {
@@ -594,14 +587,7 @@ impl MinimalIntelligencePlayer {
             return false;
         };
 
-        let config = crate::movement::MovementConfig::for_piece(&moving_piece);
-        let uses_capturing = config.capabilities.iter().any(|cap| {
-            if let crate::movement::MovementCapability::Range { blocking, .. } = cap {
-                *blocking == crate::movement::BlockingMode::Capturing
-            } else {
-                false
-            }
-        });
+        let uses_capturing = MovementConfig::uses_capturing_range(&moving_piece, mv.from, mv.to);
 
         if uses_capturing {
             let path_positions = path_utils::get_path_positions(mv.from, mv.to);

@@ -418,8 +418,9 @@ pub fn should_check_piece_for_target_position(
     if is_lion_hawk(piece) {
         let file_diff = (target_position.file() as i8 - piece.position.file() as i8).abs();
         let rank_diff = (target_position.rank() as i8 - piece.position.rank() as i8).abs();
-        // For diagonal range + 1 space: |file_diff| and |rank_diff| differ by at most 1
-        if (file_diff as i16 - rank_diff as i16).abs() <= 1 {
+        // A diagonal last step can add to one coordinate and subtract from the
+        // other, putting the target two squares off the original diagonal.
+        if (file_diff as i16 - rank_diff as i16).abs() <= 2 {
             return true;
         }
         // Also check if within 9x9 square (covers orthogonal simple + 1 space option)

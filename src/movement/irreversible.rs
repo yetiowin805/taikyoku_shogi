@@ -46,13 +46,13 @@ fn nondecreasing_coordinates(cap: &MovementCapability, color: Color) -> u8 {
             mask & for_offset(i16::from(x), i16::from(y))
         }),
         MovementCapability::Jumping { offsets } => offsets.iter().fold(u8::MAX, |mask, &(x, y)| {
-            // Match generate_jumping: White reflects rank, not the file offset.
-            let y = if color == Color::White {
-                -i16::from(y)
+            // Match the generator's full rotation of piece-relative offsets.
+            let (x, y) = if color == Color::White {
+                (-i16::from(x), -i16::from(y))
             } else {
-                i16::from(y)
+                (i16::from(x), i16::from(y))
             };
-            mask & for_offset(i16::from(x), y)
+            mask & for_offset(x, y)
         }),
         MovementCapability::TwoStep { first, second } => {
             // An envelope of BOTH legs is deliberately conservative: any legal

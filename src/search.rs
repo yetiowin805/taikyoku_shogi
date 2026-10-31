@@ -8,7 +8,7 @@ use crate::eval::{
 };
 use crate::game_state::{GameState, LegalMoveGen, Move};
 use crate::move_simulation::{BoardAfterStep, BoardLike};
-use crate::movement::{BlockingMode, MovementCapability, MovementConfig, MovementGenerator};
+use crate::movement::{MovementCapability, MovementConfig, MovementGenerator};
 use crate::path_utils;
 use crate::piece::{Color, Piece};
 use crate::position::Position;
@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::sync::{
     atomic::{AtomicBool, Ordering as AtomicOrdering},
-    Arc, OnceLock,
+    Arc,
 };
 use std::time::{Duration, Instant};
 
@@ -125,7 +125,7 @@ fn capturing_wipe_group_key(state: &GameState, mv: &Move) -> Option<u64> {
     }
     let board = state.get_board();
     let piece = board.get_piece(mv.from)?;
-    if !piece_has_capturing_range(&piece) {
+    if !MovementConfig::uses_capturing_range(&piece, mv.from, mv.to) {
         return None;
     }
     if board.get_piece(mv.to).is_some() {
@@ -782,16 +782,7 @@ fn move_captures_enemy_raw(state: &GameState, mv: &Move) -> bool {
             .any(|pos| board.get_piece(*pos).is_some_and(|p| p.color == enemy));
     }
 
-    let config = MovementConfig::for_piece(&piece);
-    let uses_capturing = config.capabilities.iter().any(|cap| {
-        matches!(
-            cap,
-            MovementCapability::Range {
-                blocking: BlockingMode::Capturing,
-                ..
-            }
-        )
-    });
+    let uses_capturing = MovementConfig::uses_capturing_range(&piece, mv.from, mv.to);
     if uses_capturing {
         for pos in path_utils::path_positions(mv.from, mv.to) {
             if pos != mv.from
@@ -851,7 +842,7 @@ fn capture_exchange_kind(
         add(inter);
     }
 
-    if !piece_has_capturing_range(&piece) {
+    if !MovementConfig::uses_capturing_range(&piece, mv.from, mv.to) {
         return (enemy, own, CaptureKind::SimpleTake);
     }
     for pos in path_utils::path_positions(mv.from, mv.to) {
@@ -910,7 +901,7 @@ fn capture_material_exchange_raw(
         return (enemy, own);
     }
 
-    if piece_has_capturing_range(&piece) {
+    if MovementConfig::uses_capturing_range(&piece, mv.from, mv.to) {
         for pos in path_utils::path_positions(mv.from, mv.to) {
             if pos != mv.from && pos != mv.to {
                 add(pos);
@@ -1037,7 +1028,8 @@ fn captured_enemy_royal_count(state: &GameState, mv: &Move) -> usize {
         return 0;
     }
     let free_eagle_path = mv.free_eagle_path();
-    let capturing_range = free_eagle_path.is_none() && piece_has_capturing_range(&mover);
+    let capturing_range =
+        free_eagle_path.is_none() && MovementConfig::uses_capturing_range(&mover, mv.from, mv.to);
     royals
         .iter()
         .filter(|&&square| {
@@ -1080,7 +1072,7 @@ fn captured_enemy_royal_count_full_walk(state: &GameState, mv: &Move) -> usize {
         for &pos in path {
             add(pos);
         }
-    } else if piece_has_capturing_range(&mover) {
+    } else if MovementConfig::uses_capturing_range(&mover, mv.from, mv.to) {
         for pos in path_utils::path_positions(mv.from, mv.to) {
             if pos != mv.from && pos != mv.to {
                 add(pos);
@@ -1453,50 +1445,6 @@ fn landing_attacked_cached(
     hit
 }
 
-fn config_has_capturing_range(caps: &[MovementCapability]) -> bool {
-    caps.iter().any(|cap| {
-        matches!(
-            cap,
-            MovementCapability::Range {
-                blocking: BlockingMode::Capturing,
-                ..
-            }
-        )
-    })
-}
-
-fn capturing_range_table() -> &'static [[bool; 2]] {
-    static TABLE: OnceLock<Vec<[bool; 2]>> = OnceLock::new();
-    TABLE.get_or_init(|| {
-        let mut max_idx = 0usize;
-        for &pt in crate::eval::ALL_PIECE_TYPES {
-            max_idx = max_idx.max(pt as usize);
-        }
-        let mut t = vec![[false; 2]; max_idx + 1];
-        for &pt in crate::eval::ALL_PIECE_TYPES {
-            t[pt as usize][0] =
-                config_has_capturing_range(&MovementConfig::for_piece_type(pt).capabilities);
-            let mut promo = Piece::new(pt, Color::Black, Position::new(0, 0).unwrap());
-            promo.is_promoted = true;
-            t[pt as usize][1] =
-                config_has_capturing_range(&MovementConfig::for_piece(&promo).capabilities);
-        }
-        t
-    })
-}
-
-fn piece_has_capturing_range(piece: &Piece) -> bool {
-    if piece.base_piece_type.is_some() {
-        return config_has_capturing_range(&MovementConfig::for_piece(piece).capabilities);
-    }
-    capturing_range_table()
-        .get(piece.piece_type as usize)
-        .map(|row| row[piece.is_promoted as usize])
-        .unwrap_or_else(|| {
-            config_has_capturing_range(&MovementConfig::for_piece(piece).capabilities)
-        })
-}
-
 /// True if this capture is a capturing-range path clear or multi-leg (FE / two-step).
 /// Cheap structural check — no piece-value walk.
 fn quiesce_move_looks_path_or_multileg(state: &GameState, mv: &Move) -> bool {
@@ -1507,7 +1455,7 @@ fn quiesce_move_looks_path_or_multileg(state: &GameState, mv: &Move) -> bool {
     let Some(piece) = board.get_piece(mv.from) else {
         return false;
     };
-    if !piece_has_capturing_range(&piece) {
+    if !MovementConfig::uses_capturing_range(&piece, mv.from, mv.to) {
         return false;
     }
     path_utils::path_positions(mv.from, mv.to)
@@ -2067,6 +2015,9 @@ fn emit_directed_two_step_captures_hitting(
                 let first_targets =
                     MovementGenerator::capability_landings(piece, board, first.as_ref());
                 for intermediate in first_targets {
+                    if cap.is_range_two_step() && !board.is_empty(intermediate) {
+                        continue;
+                    }
                     let mut temp = *piece;
                     temp.position = intermediate;
                     let after_first = BoardAfterStep::new(board, *piece, intermediate);
@@ -2077,7 +2028,14 @@ fn emit_directed_two_step_captures_hitting(
                             std::slice::from_ref(second.as_ref()),
                             false,
                         ) {
-                            state.emit_two_step_moves_to(piece, intermediate, target, out);
+                            if cap.allows_two_step_continuation(
+                                board,
+                                piece.position,
+                                intermediate,
+                                target,
+                            ) {
+                                state.emit_two_step_moves_to(piece, intermediate, target, out);
+                            }
                         }
                     } else {
                         for landing in MovementGenerator::capture_landings_hitting_target(
@@ -2086,7 +2044,14 @@ fn emit_directed_two_step_captures_hitting(
                             std::slice::from_ref(second.as_ref()),
                             victim,
                         ) {
-                            state.emit_two_step_moves_to(piece, intermediate, landing, out);
+                            if cap.allows_two_step_continuation(
+                                board,
+                                piece.position,
+                                intermediate,
+                                landing,
+                            ) {
+                                state.emit_two_step_moves_to(piece, intermediate, landing, out);
+                            }
                         }
                     }
                 }
@@ -4913,16 +4878,7 @@ pub(crate) fn capture_hits_square(state: &GameState, mv: &Move, sq: Position) ->
     if let Some(path) = mv.free_eagle_path() {
         return path.iter().any(|p| *p == sq && is_enemy(sq));
     }
-    let config = MovementConfig::for_piece(&piece);
-    let uses_capturing = config.capabilities.iter().any(|cap| {
-        matches!(
-            cap,
-            MovementCapability::Range {
-                blocking: BlockingMode::Capturing,
-                ..
-            }
-        )
-    });
+    let uses_capturing = MovementConfig::uses_capturing_range(&piece, mv.from, mv.to);
     if uses_capturing {
         return path_utils::path_positions(mv.from, mv.to)
             .into_iter()
@@ -5507,6 +5463,41 @@ mod tests {
     use crate::position::Position;
 
     #[test]
+    fn vice_general_jump_does_not_score_or_prune_as_a_path_capture() {
+        let from = Position::new(18, 18).unwrap();
+        let midpoint = Position::new(18, 19).unwrap();
+        let to = Position::new(18, 20).unwrap();
+        let weights = EvalWeights::seed();
+        for color in [Color::Black, Color::White] {
+            let mut state = GameState::new();
+            state.set_current_turn(color);
+            state.place_piece(Piece::new(PieceType::ViceGeneral, color, from));
+            state.place_piece(Piece::new(PieceType::King, color.opposite(), midpoint));
+            let mv = Move::new(from, to);
+            assert!(!move_captures_enemy(&state, &mv));
+            assert_eq!(captured_enemy_royal_count(&state, &mv), 0);
+            assert!(!capture_takes_last_enemy_royal(&state, &mv));
+            assert!(!capture_hits_square(&state, &mv, midpoint));
+            assert!(!quiesce_move_looks_path_or_multileg(&state, &mv));
+            assert!(capturing_wipe_group_key(&state, &mv).is_none());
+            let (enemy, own, kind) = capture_exchange_kind(&state, &weights, &mv);
+            assert_eq!((enemy, own), (0.0, 0.0));
+            assert!(matches!(kind, CaptureKind::SimpleTake));
+            assert_eq!(
+                capture_material_exchange_raw(&state, &weights, &mv),
+                (0.0, 0.0)
+            );
+
+            let victim = Piece::new(PieceType::Pawn, color.opposite(), to);
+            state.place_piece(victim);
+            assert!(move_captures_enemy(&state, &mv));
+            assert_eq!(captured_enemy_royal_count(&state, &mv), 0);
+            let (enemy, own, kind) = capture_exchange_kind(&state, &weights, &mv);
+            assert_eq!((enemy, own), (material_piece_value(&victim, &weights), 0.0));
+            assert!(matches!(kind, CaptureKind::SimpleTake));
+        }
+    }
+    #[test]
     fn root_ordering_and_best_markers_keep_distinct_capture_routes() {
         let from = Position::new(18, 18).unwrap();
         let first = Position::new(17, 18).unwrap();
@@ -5530,9 +5521,9 @@ mod tests {
     #[test]
     fn capture_and_return_is_a_loud_multileg_take_in_full_and_directed_generation() {
         let from = Position::new(18, 18).unwrap();
-        let via = Position::new(18, 22).unwrap();
+        let via = Position::new(18, 19).unwrap();
         let mut state = GameState::new();
-        state.place_piece(Piece::new(PieceType::HookMover, Color::Black, from));
+        state.place_piece(Piece::new(PieceType::Lion, Color::Black, from));
         let victim = Piece::new(PieceType::WoodlandDemon, Color::White, via);
         state.place_piece(victim);
         let weights = EvalWeights::seed();
@@ -5543,7 +5534,7 @@ mod tests {
         assert_eq!(own, 0.0);
         assert!(matches!(kind, CaptureKind::MultiLeg));
         assert!(generate_captures_hitting_square(&state, via).contains(&mv));
-        let quiet = Move::new_two_step(from, Position::new(18, 20).unwrap(), from);
+        let quiet = Move::new_two_step(from, Position::new(17, 18).unwrap(), from);
         assert!(!move_captures_enemy(&state, &quiet));
         assert_eq!(
             capture_material_exchange(&state, &weights, &quiet),
@@ -7834,9 +7825,9 @@ mod tests {
         );
     }
 
-    /// Slot 11 shape: Hook takes Gold then last royal (CP). Landing is attacked
-    /// and net is ~14 vs Hook 6237 — hang-skip used to drop an instant win.
-    fn hook_takes_gold_then_last_cp() -> (GameState, EvalWeights, Move) {
+    /// Hook turns at an empty corner to take the last royal (CP). The landing
+    /// is defended, but hang-skip must not drop an instant win.
+    fn hook_turns_to_take_last_cp() -> (GameState, EvalWeights, Move) {
         let mut weights = EvalWeights::seed();
         weights.noise_scale = 0.0;
         weights.rebuild_piece_value_table();
@@ -7859,28 +7850,28 @@ mod tests {
         state.place_piece(Piece::new(
             PieceType::CrownPrince,
             Color::Black,
-            Position::new(18, 0).unwrap(),
+            Position::new(18, 2).unwrap(),
         ));
         state.place_piece(Piece::new(
             PieceType::GoldGeneral,
             Color::Black,
-            Position::new(19, 0).unwrap(),
+            Position::new(19, 2).unwrap(),
         ));
         state.set_current_turn(Color::White);
         let mv = Move::new_two_step(
             Position::new(4, 0).unwrap(),
-            Position::new(16, 0).unwrap(),
-            Position::new(18, 0).unwrap(),
+            Position::new(4, 2).unwrap(),
+            Position::new(18, 2).unwrap(),
         );
         (state, weights, mv)
     }
 
     #[test]
     fn ab_hang_keeps_royal_capture_even_when_hook_hangs() {
-        let (state, weights, take) = hook_takes_gold_then_last_cp();
+        let (state, weights, take) = hook_turns_to_take_last_cp();
         assert!(
             capture_takes_enemy_royal(&state, &take),
-            "two-step via Gold onto CP must count as a royal take"
+            "two-step via an empty corner onto CP must count as a royal take"
         );
         assert!(
             capture_takes_last_enemy_royal(&state, &take),

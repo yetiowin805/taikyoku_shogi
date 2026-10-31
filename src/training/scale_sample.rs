@@ -52,7 +52,7 @@ impl Default for ScaleSampleConfig {
 pub struct SampleRecord {
     pub id: String,
     pub model: String,
-    /// Multipliers aligned with [`param_names`] (length 17).
+    /// Multipliers aligned with the names saved in [`SamplesFile::param_names`].
     pub multipliers: Vec<f32>,
 }
 
@@ -169,17 +169,6 @@ pub fn run_scale_sample(cfg: &ScaleSampleConfig) -> Result<(TourneyManifest, Sam
     let base = &base_cp.weights;
     let names = param_names();
     let n_params = names.len();
-    let pieces = big_piece_types();
-    if pieces.len() != 15 {
-        return Err(format!(
-            "expected 15 big pieces, found {} ({:?})",
-            pieces.len(),
-            pieces
-        ));
-    }
-    if n_params != 17 {
-        return Err(format!("expected 17 params, got {n_params}"));
-    }
 
     fs::create_dir_all(&cfg.out_dir)
         .map_err(|e| format!("create {}: {e}", cfg.out_dir.display()))?;
@@ -279,10 +268,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn big_piece_count_is_fifteen() {
+    fn big_piece_count_excludes_buddhist_spirit() {
         let pts = big_piece_types();
-        assert_eq!(pts.len(), 15, "{pts:?}");
+        assert_eq!(pts.len(), 14, "{pts:?}");
         assert!(!pts.contains(&PieceType::King));
+        assert!(!pts.contains(&PieceType::BuddhistSpirit));
         assert!(!pts.contains(&PieceType::WoodenDove));
         assert!(pts.contains(&PieceType::GreatGeneral));
         assert!(pts.contains(&PieceType::HookMover));
@@ -291,8 +281,9 @@ mod tests {
     }
 
     #[test]
-    fn param_names_seventeen() {
-        assert_eq!(param_names().len(), 17);
+    fn param_names_match_current_piece_classes() {
+        assert_eq!(param_names().len(), big_piece_types().len() + 2);
+        assert!(!param_names().contains(&"BuddhistSpirit".into()));
     }
 
     #[test]
@@ -340,7 +331,7 @@ mod tests {
         assert!(out.join("seed.json").is_file());
 
         let mut keys = HashSet::new();
-        keys.insert(mult_key(&[1.0f32; 17]));
+        keys.insert(mult_key(&vec![1.0f32; param_names().len()]));
         for s in &samples.samples {
             assert!(!all_ones(&s.multipliers));
             assert!(keys.insert(mult_key(&s.multipliers)));

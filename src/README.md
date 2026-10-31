@@ -24,6 +24,19 @@ Eval (capability material, rank PST, multi-royal bonuses) is separate from searc
 - **Black** advances toward **high** ranks; **White** toward **low** ranks.
 - Promotion zone: Black ranks `25–35`, White ranks `0–10` (opponent’s last 11 ranks).
 
+## Range two-mover rules
+
+Hook Mover, Tengu, Capricorn, and Peacock may take a second slide only after an
+empty first landing, and the second slide must turn exactly 90 degrees. A capture
+on the first slide ends the move. Continuing straight, reversing, and returning
+to the starting square are illegal. These restrictions also apply to promoted
+pieces using those movement types; Lion, Lion Hawk, Furious Fiend, and Free Eagle
+retain their distinct multi-leg rules.
+
+Buddhist Spirit has ordinary slides in all eight directions and separate jumps
+to squares at Chebyshev distance two. It cannot take an extra step after sliding.
+Range-capturing pieces still capture all intervening pieces, including friendly ones.
+
 ## TSFEN / TM1
 
 Portable strings for sharing positions/moves. **JSON remains the on-disk canonical form** (`BoardPosition`, `GameRecordV2`); TSFEN/TM1 is the clipboard / protocol layer.

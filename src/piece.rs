@@ -41,16 +41,16 @@ pub enum PieceType {
     FreeBaku,           // Range in all directions except sideways (limited to 5)
     FreeDemon,          // Range in all directions except forwards/backwards (limited to 5 in those)
     RunningHorse,       // Range forwards, 1 space backwards, jump 2 spaces backwards diagonals
-    Tengu,              // Two-step move: both steps are range diagonal moves
-    WoodenDove,         // Range diagonal, orthogonal up to 2, conditional diagonal jumps
-    CeramicDove,        // Range diagonal, orthogonal up to 2
+    Tengu, // Diagonal slides; second slide turns 90 degrees and requires a quiet first landing
+    WoodenDove, // Range diagonal, orthogonal up to 2, conditional diagonal jumps
+    CeramicDove, // Range diagonal, orthogonal up to 2
     EarthDragon, // Range backwards diagonals, forward up to 2, forward diagonals 1, backwards 1
-    RainDragon,  // Promoted earth dragon
+    RainDragon, // Promoted earth dragon
     LeftMountainEagle, // Range all except right backwards (simple 2), jump 2 in left diagonals
     RightMountainEagle, // Range all except left backwards (simple 2), jump 2 in right diagonals
     FlyingEagle, // Promoted mountain eagle (range all 8, jump 2 in forward diagonals)
-    FireDemon,   // Range all except forwards/backwards (simple 2), promotes to Free Fire
-    FreeFire,    // Promoted fire demon (range all except forwards/backwards, simple 5)
+    FireDemon, // Range all except forwards/backwards (simple 2), promotes to Free Fire
+    FreeFire, // Promoted fire demon (range all except forwards/backwards, simple 5)
     Whale, // Range in all 3 backwards directions and directly forwards, promotes to Great Whale
     GreatWhale, // Promoted whale (range in all 3 forwards and all 3 backwards directions)
     RunningRabbit, // Range in all 3 forwards, simple 1 in all 3 backwards, promotes to Treacherous Fox
@@ -160,7 +160,7 @@ pub enum PieceType {
     Daiba,         // Simple 1 in all directions except upper right, promotes to King of Teachings
     KingOfTeachings, // Jump up to 3 spaces in all directions
     DarkSpirit,    // Simple 1 in all directions except upper left, promotes to Buddhist Spirit
-    BuddhistSpirit, // Jump to all squares 2 steps away, two-step: range all directions then 1 space any direction
+    BuddhistSpirit, // Range in all directions plus jumps to squares exactly 2 steps away; no slide continuation
     GoldBird, // Simple 3 sideways and backward diagonals, range vertically, jump up to 3 forward diagonals, promotes to Free Bird
     FreeBird, // Range sideways, simple 3 backward diagonals, range vertically, jump up to 3 forward diagonals
     FierceOx, // Simple 1 vertically, range forward diagonals, promotes to Flying Ox
@@ -206,7 +206,7 @@ pub enum PieceType {
     LittleTurtle, // Simple 3 sideways, range all other directions, jump 2 straight forwards and backwards, promotes to Treasure Turtle
     TreasureTurtle, // Range all directions, jump 2 in all 4 orthogonal directions
     Capricorn, // Same movement as Tengu (two-step: both steps are range diagonal moves), promotes to Hook Mover
-    HookMover, // Two-step: both steps are range orthogonal moves
+    HookMover, // Orthogonal slides; second slide turns 90 degrees and requires a quiet first landing
     Kirin,     // Simple 1 in all directions except sideways, jump 2 sideways, promotes to Gold Bird
     Phoenix,   // Simple 1 orthogonally, jump 2 in all diagonal directions, promotes to Gold Bird
     FireGeneral, // Simple 1 in forwards diagonal directions, simple 3 vertically, promotes to Great General
