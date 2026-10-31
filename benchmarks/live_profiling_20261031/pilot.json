@@ -1,0 +1,758 @@
+{
+  "captured_utc": "2026-10-31T07:43:23.279385+00:00",
+  "tooling_git_revision": "945c3def3f42cd64539c4eb988fdd074b17052db",
+  "evidence_root": "/mnt/HC_Volume_107032879/taikyoku/profiling/pilot-20261031",
+  "environment": {
+    "cpu": "AMD EPYC-Genoa",
+    "logical_cpus": 8,
+    "kernel": "7.0.0-34-generic",
+    "perf_version": "perf version 7.0.14",
+    "active_tournament_workers": 8
+  },
+  "tools": {
+    "tools/profile_tourney.py": "816919651363ac696c1e5a11e48695e16ec007a3bdf1fc534a38e0895b4e3aa6",
+    "tools/deploy/measure_profile_overhead.py": "2d3f0b6639385442b55ff2d1b086977ea0174742c85f1107f499b8be2180077b",
+    "tools/benchmarks/nnue_followup/profile_workload.py": "63796e61d7b0644e6e0d0622b87412597a562104d2396fae5156dc05a731e52b"
+  },
+  "captures": [
+    {
+      "name": "pgo-flat-1",
+      "started_utc": "2026-10-31T07:30:51.132410+00:00",
+      "pid": 1224864,
+      "slot": 5828,
+      "model_pair": [
+        "NNUE_W512_v3",
+        "NNUE_W512_v3_HLFN"
+      ],
+      "engine_sha256": "96b2cdb83ea0030c457c2aea92780f6ba46237f3570fd7503d6c42b96e4f5688",
+      "source_label": "5b859b1576f93e5306ba11b9b7740f8fb5b36e989a23fee2f37f165f385b0a06:pgo-compatible-speedup-20261031",
+      "checkpoint_hashes_observed_on_disk": [
+        "aca32a1c68a01dd84b1810db208b78c8aafffaf161c2100e523e1aaf24a89f2d",
+        "977b4177d85b73e85b6c4c2b72f1c8d299221058b839993bf705728d567c1475"
+      ],
+      "frequency_hz": 19,
+      "call_graph": "none",
+      "samples": 568,
+      "lost_samples": 0,
+      "unresolved_symbol_samples": 29,
+      "sampled_game_cpu_seconds": 30.269999999999982,
+      "elapsed_seconds": 30.36994341434911,
+      "collector_cpu_seconds": {
+        "collector_self": 0.10150300000000001,
+        "reaped_collector_children": 0.31034799999999996
+      },
+      "commands": [
+        {
+          "command": "--version",
+          "cpu_seconds": {
+            "collector_self": 0.0008200000000000013,
+            "reaped_collector_children": 0.008532
+          }
+        },
+        {
+          "command": "record",
+          "cpu_seconds": {
+            "collector_self": 0.027566000000000007,
+            "reaped_collector_children": 0.26191000000000003
+          }
+        },
+        {
+          "command": "report",
+          "cpu_seconds": {
+            "collector_self": 0.0010139999999999871,
+            "reaped_collector_children": 0.01999799999999996
+          }
+        },
+        {
+          "command": "script",
+          "cpu_seconds": {
+            "collector_self": 0.0010470000000000201,
+            "reaped_collector_children": 0.01990799999999998
+          }
+        }
+      ],
+      "top_symbols": [
+        {
+          "symbol": "<taikyoku_shogi::board::Board>::is_position_attacked_by_color_filtered",
+          "samples": 104,
+          "percent": 18.309859154929576
+        },
+        {
+          "symbol": "<taikyoku_shogi::nnue::Accumulator>::residual",
+          "samples": 56,
+          "percent": 9.859154929577464
+        },
+        {
+          "symbol": "<taikyoku_shogi::game_state::GameState>::make_move_for_search",
+          "samples": 53,
+          "percent": 9.330985915492958
+        },
+        {
+          "symbol": "taikyoku_shogi::search::generate_captures_hitting_square",
+          "samples": 35,
+          "percent": 6.161971830985915
+        },
+        {
+          "symbol": "<core::iter::adapters::filter_map::FilterMap<alloc::vec::into_iter::IntoIter<taikyoku_shogi::game_state::Move>, taikyoku_shogi::search::quiesce_impl::{closure#0}> as core::iter::traits::iterator::Iterator>::next",
+          "samples": 30,
+          "percent": 5.28169014084507
+        },
+        {
+          "symbol": "[unknown]",
+          "samples": 29,
+          "percent": 5.105633802816901
+        },
+        {
+          "symbol": "<taikyoku_shogi::movement::generator::MovementGenerator>::append_for_capability::<taikyoku_shogi::board::Board>",
+          "samples": 25,
+          "percent": 4.401408450704225
+        },
+        {
+          "symbol": "taikyoku_shogi::search::generate_quiescence_captures_with_hang",
+          "samples": 23,
+          "percent": 4.049295774647887
+        },
+        {
+          "symbol": "taikyoku_shogi::search::stm_has_large_hang_take",
+          "samples": 23,
+          "percent": 4.049295774647887
+        },
+        {
+          "symbol": "<taikyoku_shogi::game_state::GameState>::execute_single_move",
+          "samples": 19,
+          "percent": 3.3450704225352115
+        },
+        {
+          "symbol": "taikyoku_shogi::search::generate_loud_promotions",
+          "samples": 16,
+          "percent": 2.816901408450704
+        },
+        {
+          "symbol": "taikyoku_shogi::search::quiesce",
+          "samples": 14,
+          "percent": 2.464788732394366
+        }
+      ],
+      "raw_profile": {
+        "sha256": "65ae1f416bcadd81aa7f7b2d73368eeeb7bbe79e0eacd5dde653d7e9311b1f2b",
+        "bytes": 34696
+      },
+      "metadata_sha256": "3f377c61d7fce8d02e513fe9cbeffef4cf4d41bacbe8abba6cf4808237e76316",
+      "request_sha256": "410018e37ce3df004436f2e241695612f1c7966eca696e3e7aa28c148d5ebbf4"
+    },
+    {
+      "name": "pgo-dwarf-1",
+      "started_utc": "2026-10-31T07:31:42.296037+00:00",
+      "pid": 1224864,
+      "slot": 5828,
+      "model_pair": [
+        "NNUE_W512_v3",
+        "NNUE_W512_v3_HLFN"
+      ],
+      "engine_sha256": "96b2cdb83ea0030c457c2aea92780f6ba46237f3570fd7503d6c42b96e4f5688",
+      "source_label": "5b859b1576f93e5306ba11b9b7740f8fb5b36e989a23fee2f37f165f385b0a06:pgo-compatible-speedup-20261031",
+      "checkpoint_hashes_observed_on_disk": [
+        "aca32a1c68a01dd84b1810db208b78c8aafffaf161c2100e523e1aaf24a89f2d",
+        "977b4177d85b73e85b6c4c2b72f1c8d299221058b839993bf705728d567c1475"
+      ],
+      "frequency_hz": 19,
+      "call_graph": "dwarf",
+      "samples": 568,
+      "lost_samples": 0,
+      "unresolved_symbol_samples": 35,
+      "sampled_game_cpu_seconds": 30.279999999999973,
+      "elapsed_seconds": 30.368429009336978,
+      "collector_cpu_seconds": {
+        "collector_self": 0.10811399999999999,
+        "reaped_collector_children": 0.308017
+      },
+      "commands": [
+        {
+          "command": "--version",
+          "cpu_seconds": {
+            "collector_self": 0.0012739999999999974,
+            "reaped_collector_children": 0.008768
+          }
+        },
+        {
+          "command": "record",
+          "cpu_seconds": {
+            "collector_self": 0.029742000000000005,
+            "reaped_collector_children": 0.26062799999999997
+          }
+        },
+        {
+          "command": "report",
+          "cpu_seconds": {
+            "collector_self": 0.0008289999999999964,
+            "reaped_collector_children": 0.019174000000000024
+          }
+        },
+        {
+          "command": "script",
+          "cpu_seconds": {
+            "collector_self": 0.0008009999999999962,
+            "reaped_collector_children": 0.019446999999999992
+          }
+        }
+      ],
+      "top_symbols": [
+        {
+          "symbol": "<taikyoku_shogi::board::Board>::is_position_attacked_by_color_filtered",
+          "samples": 103,
+          "percent": 18.133802816901408
+        },
+        {
+          "symbol": "<taikyoku_shogi::game_state::GameState>::make_move_for_search",
+          "samples": 45,
+          "percent": 7.922535211267606
+        },
+        {
+          "symbol": "<taikyoku_shogi::nnue::Accumulator>::residual",
+          "samples": 44,
+          "percent": 7.746478873239437
+        },
+        {
+          "symbol": "taikyoku_shogi::search::generate_captures_hitting_square",
+          "samples": 38,
+          "percent": 6.690140845070423
+        },
+        {
+          "symbol": "[unknown]",
+          "samples": 35,
+          "percent": 6.161971830985915
+        },
+        {
+          "symbol": "<core::iter::adapters::filter_map::FilterMap<alloc::vec::into_iter::IntoIter<taikyoku_shogi::game_state::Move>, taikyoku_shogi::search::quiesce_impl::{closure#0}> as core::iter::traits::iterator::Iterator>::next",
+          "samples": 31,
+          "percent": 5.457746478873239
+        },
+        {
+          "symbol": "taikyoku_shogi::search::generate_quiescence_captures_with_hang",
+          "samples": 30,
+          "percent": 5.28169014084507
+        },
+        {
+          "symbol": "taikyoku_shogi::search::stm_has_large_hang_take",
+          "samples": 25,
+          "percent": 4.401408450704225
+        },
+        {
+          "symbol": "<taikyoku_shogi::movement::generator::MovementGenerator>::append_for_capability::<taikyoku_shogi::board::Board>",
+          "samples": 22,
+          "percent": 3.8732394366197185
+        },
+        {
+          "symbol": "taikyoku_shogi::search::quiesce",
+          "samples": 21,
+          "percent": 3.6971830985915495
+        },
+        {
+          "symbol": "<taikyoku_shogi::game_state::GameState>::execute_single_move",
+          "samples": 18,
+          "percent": 3.1690140845070425
+        },
+        {
+          "symbol": "taikyoku_shogi::search::move_order_score",
+          "samples": 12,
+          "percent": 2.112676056338028
+        }
+      ],
+      "raw_profile": {
+        "sha256": "b2d250b9a859aa7cee7f049a27fb5b6a2648bba8f22672136370a9231221ce69",
+        "bytes": 4800960
+      },
+      "metadata_sha256": "0810c827bbc38e781419bcd7d0e546e7ceb5c58793a6c70454d478ce8807f5c6",
+      "request_sha256": "410018e37ce3df004436f2e241695612f1c7966eca696e3e7aa28c148d5ebbf4"
+    },
+    {
+      "name": "old-flat-1",
+      "started_utc": "2026-10-31T07:32:48.005575+00:00",
+      "pid": 1217805,
+      "slot": 5816,
+      "model_pair": [
+        "NNUE_W512_v3_HLFN_V",
+        "NNUE_W512_v3_N"
+      ],
+      "engine_sha256": "114cd924c4f33c65e23eac2bd920f94ab504bfab360ae8db8a00e8a9cbba32ed",
+      "source_label": "99979a5 + deployed caf49f6 progress fix + 328e2cf opt-in G3 backport; legacy trial=None F eligibility preserved; source075f4024499f0fc0decdaee438af88d1eec2822e9d2b484ae27877b2c043e285",
+      "checkpoint_hashes_observed_on_disk": [
+        "c56c27edfce507370300607d80d064a5ae007ae1a961c3ed07e4f7fc42f48a9a",
+        "1999a246fa3483807bdf78d798abe4360057350fe228078b7c66edbbecd7a769"
+      ],
+      "frequency_hz": 19,
+      "call_graph": "none",
+      "samples": 569,
+      "lost_samples": 0,
+      "unresolved_symbol_samples": 21,
+      "sampled_game_cpu_seconds": 30.329999999999927,
+      "elapsed_seconds": 30.365372428204864,
+      "collector_cpu_seconds": {
+        "collector_self": 0.103582,
+        "reaped_collector_children": 0.31005099999999997
+      },
+      "commands": [
+        {
+          "command": "--version",
+          "cpu_seconds": {
+            "collector_self": 0.0007670000000000038,
+            "reaped_collector_children": 0.008480999999999999
+          }
+        },
+        {
+          "command": "record",
+          "cpu_seconds": {
+            "collector_self": 0.026941999999999994,
+            "reaped_collector_children": 0.263395
+          }
+        },
+        {
+          "command": "report",
+          "cpu_seconds": {
+            "collector_self": 0.0007810000000000039,
+            "reaped_collector_children": 0.01894399999999996
+          }
+        },
+        {
+          "command": "script",
+          "cpu_seconds": {
+            "collector_self": 0.0007680000000000187,
+            "reaped_collector_children": 0.019230999999999998
+          }
+        }
+      ],
+      "top_symbols": [
+        {
+          "symbol": "<taikyoku_shogi::game_state::GameState>::make_move_for_search",
+          "samples": 86,
+          "percent": 15.114235500878735
+        },
+        {
+          "symbol": "<taikyoku_shogi::nnue::Accumulator>::residual",
+          "samples": 82,
+          "percent": 14.411247803163445
+        },
+        {
+          "symbol": "taikyoku_shogi::search::attacked_memo",
+          "samples": 30,
+          "percent": 5.272407732864675
+        },
+        {
+          "symbol": "<taikyoku_shogi::nnue::Accumulator>::add_direct",
+          "samples": 24,
+          "percent": 4.21792618629174
+        },
+        {
+          "symbol": "<taikyoku_shogi::nnue::Accumulator>::ensure_row",
+          "samples": 23,
+          "percent": 4.042179261862917
+        },
+        {
+          "symbol": "<taikyoku_shogi::board::Board>::is_position_attacked_by_color_filtered",
+          "samples": 22,
+          "percent": 3.866432337434095
+        },
+        {
+          "symbol": "<taikyoku_shogi::movement::generator::MovementGenerator>::generate_for_capability::<taikyoku_shogi::board::Board>",
+          "samples": 21,
+          "percent": 3.6906854130052724
+        },
+        {
+          "symbol": "[unknown]",
+          "samples": 21,
+          "percent": 3.6906854130052724
+        },
+        {
+          "symbol": "taikyoku_shogi::search::alphabeta_impl",
+          "samples": 19,
+          "percent": 3.3391915641476273
+        },
+        {
+          "symbol": "<taikyoku_shogi::movement::generator::MovementGenerator>::capability_reaches::<taikyoku_shogi::board::Board>",
+          "samples": 16,
+          "percent": 2.81195079086116
+        },
+        {
+          "symbol": "taikyoku_shogi::search::is_large_hang_victim",
+          "samples": 15,
+          "percent": 2.6362038664323375
+        },
+        {
+          "symbol": "taikyoku_shogi::search::gate_memo::<taikyoku_shogi::search::leaf_or_quiesce::{closure#3}>",
+          "samples": 13,
+          "percent": 2.2847100175746924
+        }
+      ],
+      "raw_profile": {
+        "sha256": "f80b9f5a108871ebcf678f4a60071ead55c9840dc8e096c6156b7b07406c1b8f",
+        "bytes": 34736
+      },
+      "metadata_sha256": "c20b1b4ddbe729051ed87829727588a84d11f53fcc36563f279dea4abc9ed172",
+      "request_sha256": "6d24aaf024aa6f0f2193a93cd2612ff943598daa3e65c473884e3cc29d2c4fbf"
+    },
+    {
+      "name": "pgo-flat-g3-1",
+      "started_utc": "2026-10-31T07:34:49.926638+00:00",
+      "pid": 1226610,
+      "slot": 5832,
+      "model_pair": [
+        "NNUE_W512_v3_HLFS_G3GA",
+        "NNUE_W512_v3_HLF_G3SC"
+      ],
+      "engine_sha256": "96b2cdb83ea0030c457c2aea92780f6ba46237f3570fd7503d6c42b96e4f5688",
+      "source_label": "5b859b1576f93e5306ba11b9b7740f8fb5b36e989a23fee2f37f165f385b0a06:pgo-compatible-speedup-20261031",
+      "checkpoint_hashes_observed_on_disk": [
+        "254bc91fc20158cae05789c5ffa313eb1da9c4d7f3bde05c9d42941b1b3c5440",
+        "3a77dd9ff104c55153fc29ed2809b31f96837801808268eef3501f74e7490084"
+      ],
+      "frequency_hz": 19,
+      "call_graph": "none",
+      "samples": 568,
+      "lost_samples": 0,
+      "unresolved_symbol_samples": 38,
+      "sampled_game_cpu_seconds": 30.30000000000001,
+      "elapsed_seconds": 30.373583463951945,
+      "collector_cpu_seconds": {
+        "collector_self": 0.09531599999999998,
+        "reaped_collector_children": 0.308492
+      },
+      "commands": [
+        {
+          "command": "--version",
+          "cpu_seconds": {
+            "collector_self": 0.000667999999999988,
+            "reaped_collector_children": 0.008587
+          }
+        },
+        {
+          "command": "record",
+          "cpu_seconds": {
+            "collector_self": 0.026495999999999992,
+            "reaped_collector_children": 0.25816599999999995
+          }
+        },
+        {
+          "command": "report",
+          "cpu_seconds": {
+            "collector_self": 0.0008009999999999962,
+            "reaped_collector_children": 0.021813000000000027
+          }
+        },
+        {
+          "command": "script",
+          "cpu_seconds": {
+            "collector_self": 0.0007959999999999912,
+            "reaped_collector_children": 0.019926
+          }
+        }
+      ],
+      "top_symbols": [
+        {
+          "symbol": "taikyoku_shogi::search::generate_captures_hitting_square",
+          "samples": 76,
+          "percent": 13.380281690140846
+        },
+        {
+          "symbol": "<taikyoku_shogi::board::Board>::is_position_attacked_by_color_filtered",
+          "samples": 66,
+          "percent": 11.619718309859154
+        },
+        {
+          "symbol": "<taikyoku_shogi::nnue::Accumulator>::residual",
+          "samples": 55,
+          "percent": 9.683098591549296
+        },
+        {
+          "symbol": "<taikyoku_shogi::game_state::GameState>::make_move_for_search",
+          "samples": 42,
+          "percent": 7.394366197183099
+        },
+        {
+          "symbol": "[unknown]",
+          "samples": 38,
+          "percent": 6.690140845070423
+        },
+        {
+          "symbol": "taikyoku_shogi::search::generate_quiescence_captures_with_hang",
+          "samples": 35,
+          "percent": 6.161971830985915
+        },
+        {
+          "symbol": "<core::iter::adapters::filter_map::FilterMap<alloc::vec::into_iter::IntoIter<taikyoku_shogi::game_state::Move>, taikyoku_shogi::search::quiesce_impl::{closure#0}> as core::iter::traits::iterator::Iterator>::next",
+          "samples": 31,
+          "percent": 5.457746478873239
+        },
+        {
+          "symbol": "<taikyoku_shogi::movement::generator::MovementGenerator>::append_for_capability::<taikyoku_shogi::board::Board>",
+          "samples": 31,
+          "percent": 5.457746478873239
+        },
+        {
+          "symbol": "taikyoku_shogi::search::stm_has_large_hang_take",
+          "samples": 30,
+          "percent": 5.28169014084507
+        },
+        {
+          "symbol": "<taikyoku_shogi::game_state::GameState>::execute_single_move",
+          "samples": 14,
+          "percent": 2.464788732394366
+        },
+        {
+          "symbol": "taikyoku_shogi::search::quiesce",
+          "samples": 11,
+          "percent": 1.9366197183098592
+        },
+        {
+          "symbol": "taikyoku_shogi::search::order_moves_with_heuristics",
+          "samples": 10,
+          "percent": 1.7605633802816902
+        }
+      ],
+      "raw_profile": {
+        "sha256": "42982dec2f9896ee6036c93aea5904811b291852266b07fb58f2c587153c4b50",
+        "bytes": 34696
+      },
+      "metadata_sha256": "1e15d9138cb7f6fe395dbf64ae2d40ad79eb3bb2dd482e4995835d1c0ab7922d",
+      "request_sha256": "a23a6ba3ad869f16eb48f8de0e0915dfdf088c7b84b15c1f7b91a3f0647591fa"
+    }
+  ],
+  "dwarf_quality": {
+    "total_samples": 568,
+    "missing_chain_samples": 193,
+    "one_or_zero_known_frames": 475,
+    "contains_unknown_frame": 171,
+    "chain_length_counts": {
+      "2": 164,
+      "1": 151,
+      "5": 6,
+      "3": 35,
+      "4": 16,
+      "6": 1,
+      "7": 2,
+      "0": 193
+    },
+    "known_frame_count_distribution": {
+      "1": 281,
+      "2": 75,
+      "4": 4,
+      "3": 14,
+      "0": 194
+    },
+    "conclusion": "Reject inclusive caller attribution for this release; use flat self samples. Multiple frames do not prove valid unwind."
+  },
+  "observer_cost": {
+    "status": "complete",
+    "summary": {
+      "pairs": 16,
+      "metrics": {
+        "cpu_ms": {
+          "attached_over_detached": 1.0011511530122275,
+          "overhead_percent": 0.11511530122274571,
+          "total_ms": {
+            "detached": 5278.61,
+            "attached": 5279.916
+          },
+          "paired_bootstrap_95": [
+            0.9909608211577035,
+            1.0115195072831944
+          ],
+          "overhead_percent_95": [
+            -0.9039178842296547,
+            1.1519507283194397
+          ]
+        },
+        "ms": {
+          "attached_over_detached": 1.0056887132248178,
+          "overhead_percent": 0.5688713224817787,
+          "total_ms": {
+            "detached": 105121.171807,
+            "attached": 105544.782085
+          },
+          "paired_bootstrap_95": [
+            0.992231617374838,
+            1.0206781257985182
+          ],
+          "overhead_percent_95": [
+            -0.7768382625161996,
+            2.0678125798518243
+          ]
+        }
+      },
+      "method": "Equal-pair geometric mean attached/detached batch ratios; deterministic percentile bootstrap of whole paired batches.",
+      "uncertainty": "Serial pairs share models/roots and host load; this conditional paired interval is not a broad deployment guarantee.",
+      "interpretation": "An interval spanning 1.01 does not establish overhead below 1%; neither a noisy reduction nor exact search parity proves zero observer cost.",
+      "profiler_cpu_seconds": 4.208994,
+      "sampling_wall_seconds": 106.83116251695901,
+      "target_samples": 94,
+      "all_search_signatures_match": true,
+      "measured_searches": 160,
+      "limits": "Warm fixed-work replay while the tournament remains active; host contention/cgroup quotas and a small model/root sample limit generalization. No real-game strength or clock behavior measurement.",
+      "by_model": {
+        "BASE_C2S2_A0_Ldefense": {
+          "pairs": 8,
+          "metrics": {
+            "cpu_ms": {
+              "attached_over_detached": 0.9971425221139462,
+              "overhead_percent": -0.28574778860538386,
+              "total_ms": {
+                "detached": 3018.408,
+                "attached": 3009.142
+              },
+              "paired_bootstrap_95": [
+                0.9827404268397445,
+                1.0094072131909224
+              ],
+              "overhead_percent_95": [
+                -1.7259573160255504,
+                0.9407213190922414
+              ]
+            },
+            "ms": {
+              "attached_over_detached": 1.0005461224001517,
+              "overhead_percent": 0.05461224001517273,
+              "total_ms": {
+                "detached": 60235.102729,
+                "attached": 60222.499302
+              },
+              "paired_bootstrap_95": [
+                0.9842675652929898,
+                1.0189985462174211
+              ],
+              "overhead_percent_95": [
+                -1.5732434707010245,
+                1.8998546217421142
+              ]
+            }
+          },
+          "method": "Equal-pair geometric mean attached/detached batch ratios; deterministic percentile bootstrap of whole paired batches.",
+          "uncertainty": "Serial pairs share models/roots and host load; this conditional paired interval is not a broad deployment guarantee.",
+          "interpretation": "An interval spanning 1.01 does not establish overhead below 1%; neither a noisy reduction nor exact search parity proves zero observer cost.",
+          "profiler_cpu_seconds": 2.099631,
+          "sampling_wall_seconds": 60.76751876436174,
+          "target_samples": 56
+        },
+        "NNUE_W512_v3": {
+          "pairs": 8,
+          "metrics": {
+            "cpu_ms": {
+              "attached_over_detached": 1.0051758990809307,
+              "overhead_percent": 0.5175899080930746,
+              "total_ms": {
+                "detached": 2260.202,
+                "attached": 2270.774
+              },
+              "paired_bootstrap_95": [
+                0.9908482836069363,
+                1.0215213327985462
+              ],
+              "overhead_percent_95": [
+                -0.9151716393063669,
+                2.1521332798546178
+              ]
+            },
+            "ms": {
+              "attached_over_detached": 1.010857735854873,
+              "overhead_percent": 1.085773585487293,
+              "total_ms": {
+                "detached": 44886.069078,
+                "attached": 45322.282783
+              },
+              "paired_bootstrap_95": [
+                0.9894443921347836,
+                1.034542874590697
+              ],
+              "overhead_percent_95": [
+                -1.0555607865216365,
+                3.454287459069705
+              ]
+            }
+          },
+          "method": "Equal-pair geometric mean attached/detached batch ratios; deterministic percentile bootstrap of whole paired batches.",
+          "uncertainty": "Serial pairs share models/roots and host load; this conditional paired interval is not a broad deployment guarantee.",
+          "interpretation": "An interval spanning 1.01 does not establish overhead below 1%; neither a noisy reduction nor exact search parity proves zero observer cost.",
+          "profiler_cpu_seconds": 2.109363,
+          "sampling_wall_seconds": 46.06364375259727,
+          "target_samples": 38
+        }
+      }
+    },
+    "plan_sha256": "d8d63344f6916ebb1a72ad61a0eae3c4db1c469a80fdd345fc9332784e314994",
+    "binary_sha256": "e2fbe16008328ce6c553248429df71d21ded4c27fcf391eeaaf3e1086ec8d164",
+    "corpus_sha256": "c9fb2e75ea6dd0f4d9c59889c89fc8fa2b318e2db8407e743dd4046e263d125a",
+    "actual_samples": 94,
+    "zero_sample_batches": 0,
+    "per_batch_sample_counts": [
+      4,
+      10,
+      4,
+      10,
+      4,
+      10,
+      10,
+      4,
+      5,
+      5,
+      4,
+      5,
+      5,
+      4,
+      5,
+      5
+    ],
+    "paired_results_sha256": "8cc295a3639c3a9dd072a3d9cd6ee614b120017ac119f3966c8192d340c1f8d4",
+    "full_responses_sha256": "9ed167e86fd007e42b22b209555a3f59f42c021c47ef610d9c0bf91a207461ec",
+    "geometric_mean_batch_ms": {
+      "cpu_ms": {
+        "detached": 310.69190690125913,
+        "attached": 311.04956082576325
+      },
+      "ms": {
+        "detached": 6174.598218515557,
+        "attached": 6209.7237370591665
+      }
+    },
+    "workload": {
+      "models": [
+        0,
+        3
+      ],
+      "positions": [
+        0,
+        2
+      ],
+      "depth": 2,
+      "repeats": 4,
+      "batch_repeats": 5,
+      "frequency": 19,
+      "call_graph": "none"
+    },
+    "service": "taikyoku-profile-overhead-pilot3-20261031",
+    "resource_limits": {
+      "nice": 10,
+      "cpu_quota_percent_of_one_core": 5,
+      "memory_max_bytes": 1073741824,
+      "runtime_max_seconds": 900
+    },
+    "failed_initial_attempt": {
+      "directory": "overhead-flat-1",
+      "reason": "perf 7.0.14 emits an ACK followed by NUL; strict parser stopped safely before measured pairs; accepted exact optional NUL and added regression test."
+    },
+    "shortened_attempt": {
+      "directory": "overhead-flat-2",
+      "reason": "Stopped only the auxiliary replay unit after observing its wall-time cost under CPUQuota=5%; reduced eight repetitions/fifteen searches per batch to four/five for bounded pilot duration. Partial pairs retained and excluded from the reported completed experiment."
+    }
+  },
+  "tournament": {
+    "service": "ActiveState=active\nMainPID=1170015\n",
+    "completed_games": 5828,
+    "running_games": 8
+  },
+  "limits": [
+    "Short nonconcurrent captures, three game/model pairs; no exact side/ply attribution.",
+    "Flat samples are self user-CPU shares, not inclusive subsystem totals or speedup measurements.",
+    "Optimized symbols and unresolved libc samples limit detail.",
+    "Checkpoint digests were observed on disk under frozen-model policy, not extracted from loaded memory.",
+    "Recorder/report CPU excludes sampling cost charged to the target/kernel.",
+    "No daemon/timer installed; no new engine, checkpoint, coordinator or tournament setting was published."
+  ]
+}

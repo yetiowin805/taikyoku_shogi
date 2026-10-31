@@ -20,7 +20,9 @@ python3 deploy/profile_tourney.py --run-dir "$RUN" --out /private/NEW-profile \
 Choose an explicit `--pid PID` to sample a particular game/build. `auto` chooses
 the validated game with the most accumulated process CPU, which can be an older
 engine still finishing a game after publication. One collector may operate per
-run at a time. Outputs must be new directories; files are private (0600) within
+run at a time. On a busy host, `nice -n 10 python3 ...` lowers the collector's
+priority without changing the game's priority. Outputs must be new directories;
+files are private (0600) within
 a private directory (0700). Keep raw recordings on the host: DWARF mode copies
 userspace stack memory, which can include application data.
 
