@@ -12,11 +12,15 @@ import tourney_analysis as a
 
 
 def merge_bindings(old, current):
-    result = dict(old)
-    for path, binding in current.items():
-        if path in result and result[path] != binding:
-            raise ValueError("Existing teacher binding changed: " + path)
-        result[path] = binding
+    result = {}
+    for models in (old, current):
+        for path, binding in models.items():
+            # Keep the original key for saved requests and add the canonical
+            # spelling used by winner selection and position search.
+            for alias in (path, str(Path(path).resolve())):
+                if alias in result and result[alias] != binding:
+                    raise ValueError("Existing teacher binding changed: " + alias)
+                result[alias] = binding
     return result
 
 

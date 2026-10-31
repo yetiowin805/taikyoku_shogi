@@ -225,6 +225,7 @@ mod tests {
                     id: id.to_string(),
                     model: format!("{id}.json"),
                     engine: None,
+                    generation: None,
                 })
                 .collect(),
             ..Default::default()
@@ -452,6 +453,7 @@ mod tests {
             id: "new".into(),
             model: "new.json".into(),
             engine: None,
+            generation: None,
         });
         let fit = crate::training::order_neutral::from_state(&st);
         let selected = select(&st, &fit).unwrap();

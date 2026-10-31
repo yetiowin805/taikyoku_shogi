@@ -97,6 +97,7 @@ pub fn run_two_mob_grid(cfg: &TwoMobGridConfig) -> Result<(TourneyManifest, Grid
         id: seed_id.into(),
         model: seed_path.display().to_string(),
         engine: None,
+        generation: None,
     });
 
     for &curve in &CURVES {
@@ -121,6 +122,7 @@ pub fn run_two_mob_grid(cfg: &TwoMobGridConfig) -> Result<(TourneyManifest, Grid
                     id,
                     model,
                     engine: None,
+                    generation: None,
                 });
             }
         }

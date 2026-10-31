@@ -174,6 +174,7 @@ pub fn run_loud_grid(cfg: &LoudGridConfig) -> Result<(TourneyManifest, GridFile)
                     id,
                     model,
                     engine: None,
+                    generation: None,
                 });
             }
         }

@@ -945,6 +945,7 @@ mod tests {
                     id: format!("p{i}"),
                     model: format!("p{i}.json"),
                     engine: None,
+                    generation: None,
                 })
                 .collect(),
             format: TourneyFormat::Knockout,
