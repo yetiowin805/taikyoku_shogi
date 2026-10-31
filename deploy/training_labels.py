@@ -216,10 +216,9 @@ def scan_mates(a, db, run, state):
                 if old:
                     moment = json.loads(old["payload"])
                     moment["mate_recognitions"] = sample["mate_recognitions"]
+                    # Preserve labels (including normalized search references),
+                    # completion state and dual_paired while adding metadata.
                     db.execute("UPDATE moments SET payload=? WHERE id=?", (json.dumps(moment), old["id"]))
-                    # Preserve completed labels and state, including dual_paired.
-                    if old["status"] == "completed":
-                        a.atomic(run / "analysis/moments" / (old["id"] + ".json"), moment)
                 else:
                     key = a.digest(f"{POLICY}:{game_hash}:{sample['center_ply']}".encode())
                     sample.update(

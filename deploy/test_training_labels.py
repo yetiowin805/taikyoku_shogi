@@ -1,6 +1,7 @@
 import copy
 import unittest
 
+import label_storage
 import training_labels as labels
 from test_tourney_analysis import AnalyzerFixture, a
 
@@ -137,6 +138,65 @@ class SamplingTests(unittest.TestCase):
 
 
 class LabelSearchTests(AnalyzerFixture):
+    def test_mate_backfill_preserves_normalized_labels_without_moment_copies(self):
+        (self.run / "analysis/moments").rmdir()
+        game = SamplingTests().game()
+        game["game_id"] = "normalized-mate-fixture"
+        for move in game["moves"]:
+            move["eval"] = 0
+        game["moves"][40]["eval"] = 999999
+        path = self.run / "game.json"
+        a.atomic(path, game)
+        game_hash = a.digest(path.read_bytes())
+        search = dict(
+            key="saved-search",
+            score=23,
+            completed_depth=3,
+            model_sha256="frozen-model",
+            game_hash=game_hash,
+            ply=39,
+            original_move=game["moves"][38],
+        )
+        previous = dict(search, key="previous-search", model_sha256="previous-model", score=17)
+        existing = dict(
+            id="old",
+            center_ply=39,
+            game_hash=game_hash,
+            searches=[search],
+            previous_teacher_searches=[previous],
+        )
+        packed = label_storage.encode(self.db, existing)
+        self.db.execute("INSERT INTO moments VALUES('old',0,'completed',?,NULL)", (packed,))
+        self.db.execute("CREATE TABLE dual_paired(id TEXT PRIMARY KEY)")
+        self.db.execute("INSERT INTO dual_paired VALUES('old')")
+        self.db.execute("INSERT INTO files VALUES(?,?)", (str(path), game_hash))
+        self.db.commit()
+        a.atomic(self.run / "state.json", dict(slots=[dict(id=1, status="done", game_path=str(path))]))
+
+        for _ in range(2):
+            a.scan(self.db, self.run, labels=True, label_candidates=lambda _: [])
+
+        self.assertEqual(self.db.execute("SELECT count(*) FROM moments").fetchone()[0], 5)
+        row = self.db.execute("SELECT * FROM moments WHERE id='old'").fetchone()
+        self.assertEqual(row["status"], "completed")
+        self.assertIsNone(row["error"])
+        payload = a.json.loads(row["payload"])
+        self.assertEqual(payload["searches"], [{"search_ref": "saved-search"}])
+        self.assertEqual(payload["previous_teacher_searches"], [{"search_ref": "previous-search"}])
+        decoded = label_storage.decode(self.db, payload)
+        self.assertEqual(decoded["searches"], [search])
+        self.assertEqual(decoded["previous_teacher_searches"], [previous])
+        self.assertEqual(decoded["mate_recognitions"][0]["offset_plies"], -2)
+        self.assertEqual(self.db.execute("SELECT id FROM dual_paired").fetchall()[0]["id"], "old")
+        self.assertEqual(self.db.execute("SELECT count(*) FROM searches").fetchone()[0], 2)
+        self.assertEqual(
+            self.db.execute(
+                "SELECT count(*) FROM mate_scanned WHERE policy=? AND path=?", (labels.MATE_POLICY, str(path))
+            ).fetchone()[0],
+            1,
+        )
+        self.assertFalse((self.run / "analysis/moments").exists())
+
     def test_mate_backfill_reuses_completed_position_and_is_idempotent(self):
         g = SamplingTests().game()
         g["game_id"] = "mate-fixture"
