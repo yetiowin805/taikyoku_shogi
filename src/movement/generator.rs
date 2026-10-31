@@ -29,9 +29,7 @@ impl MovementGenerator {
         let mut targets = Vec::new();
 
         for capability in capabilities {
-            let mut new_targets =
-                Self::generate_for_capability(piece, board, capability, captures_only);
-            targets.append(&mut new_targets);
+            Self::append_for_capability(piece, board, capability, captures_only, &mut targets);
         }
 
         // Remove duplicates
@@ -48,6 +46,22 @@ impl MovementGenerator {
         capability: &MovementCapability,
     ) -> Vec<Position> {
         Self::generate_for_capability(piece, board, capability, false)
+    }
+
+    /// Count first-leg landings without allocating a target list for Range walks.
+    /// Other capabilities preserve their existing raw landing-list semantics.
+    pub fn capability_landing_count<B: BoardLike>(
+        piece: &Piece,
+        board: &B,
+        capability: &MovementCapability,
+    ) -> usize {
+        if matches!(capability, MovementCapability::Range { .. }) {
+            let mut count = 0;
+            Self::visit_range_landings(piece, board, capability, false, |_| count += 1);
+            count
+        } else {
+            Self::capability_landings(piece, board, capability).len()
+        }
     }
 
     /// Like [`capability_landings`], optionally restricted to capturing landings.
@@ -339,51 +353,71 @@ impl MovementGenerator {
         capability: &MovementCapability,
         captures_only: bool,
     ) -> Vec<Position> {
+        let mut targets = Vec::new();
+        Self::append_for_capability(piece, board, capability, captures_only, &mut targets);
+        targets
+    }
+
+    /// Common capabilities append directly to the caller's final target buffer.
+    /// Multi-leg capabilities retain their own intermediate lists and semantics.
+    fn append_for_capability<B: BoardLike>(
+        piece: &Piece,
+        board: &B,
+        capability: &MovementCapability,
+        captures_only: bool,
+        targets: &mut Vec<Position>,
+    ) {
         match capability {
             MovementCapability::Simple {
                 directions,
                 max_distance,
-            } => Self::generate_simple(piece, board, *directions, *max_distance, captures_only),
-            MovementCapability::Range {
-                directions,
-                blocking,
-                cannot_jump_over,
-            } => Self::generate_range(
+            } => Self::generate_simple_into(
                 piece,
                 board,
                 *directions,
-                *blocking,
-                cannot_jump_over,
+                *max_distance,
                 captures_only,
+                targets,
             ),
+            MovementCapability::Range { .. } => {
+                Self::visit_range_landings(piece, board, capability, captures_only, |target| {
+                    targets.push(target);
+                });
+            }
             MovementCapability::Jumping { offsets } => {
-                Self::generate_jumping(piece, board, offsets, captures_only)
+                Self::generate_jumping_into(piece, board, offsets, captures_only, targets);
             }
             MovementCapability::TwoStep { first, second } => {
-                Self::generate_two_step(piece, board, first, second, captures_only)
+                targets.extend(Self::generate_two_step(
+                    piece,
+                    board,
+                    first,
+                    second,
+                    captures_only,
+                ));
             }
             MovementCapability::ConditionalDiagonalJump {
                 directions,
                 base_jump,
                 conditional_jumps,
-            } => Self::generate_conditional_diagonal_jump(
+            } => targets.extend(Self::generate_conditional_diagonal_jump(
                 piece,
                 board,
                 *directions,
                 *base_jump,
                 conditional_jumps,
                 captures_only,
-            ),
+            )),
             MovementCapability::FreeEagleMultiMove {
                 max_distance_forward_diagonal,
                 max_distance_other,
-            } => Self::generate_free_eagle_multi_move(
+            } => targets.extend(Self::generate_free_eagle_multi_move(
                 piece,
                 board,
                 *max_distance_forward_diagonal,
                 *max_distance_other,
                 captures_only,
-            ),
+            )),
         }
     }
 
@@ -428,6 +462,7 @@ impl MovementGenerator {
     }
 
     /// Generate targets for simple movement
+    #[cfg(test)]
     fn generate_simple<B: BoardLike>(
         piece: &Piece,
         board: &B,
@@ -436,7 +471,25 @@ impl MovementGenerator {
         captures_only: bool,
     ) -> Vec<Position> {
         let mut targets = Vec::new();
+        Self::generate_simple_into(
+            piece,
+            board,
+            directions,
+            max_distance,
+            captures_only,
+            &mut targets,
+        );
+        targets
+    }
 
+    fn generate_simple_into<B: BoardLike>(
+        piece: &Piece,
+        board: &B,
+        directions: DirectionSet,
+        max_distance: u8,
+        captures_only: bool,
+        targets: &mut Vec<Position>,
+    ) {
         // Adjust directions for color (for pawn and gold general)
         let adjusted_directions = Self::adjust_directions_for_color(directions, piece.color);
 
@@ -470,23 +523,28 @@ impl MovementGenerator {
                 }
             }
         }
-
-        targets
     }
 
-    /// Generate targets for range movement
-    fn generate_range<B: BoardLike>(
+    /// Visit raw Range landings in generation order. Counting and collecting
+    /// share the same blocking/capture rules without requiring a temporary Vec.
+    fn visit_range_landings<B: BoardLike>(
         piece: &Piece,
         board: &B,
-        directions: DirectionSet,
-        blocking: BlockingMode,
-        cannot_jump_over: &crate::movement::types::PieceTypeSet,
+        capability: &MovementCapability,
         captures_only: bool,
-    ) -> Vec<Position> {
-        let mut targets = Vec::new();
+        mut visit: impl FnMut(Position),
+    ) {
+        let MovementCapability::Range {
+            directions,
+            blocking,
+            cannot_jump_over,
+        } = capability
+        else {
+            unreachable!("Range visitor requires a Range capability");
+        };
 
         // Adjust directions for color (for pieces that need it)
-        let adjusted_directions = Self::adjust_directions_for_color(directions, piece.color);
+        let adjusted_directions = Self::adjust_directions_for_color(*directions, piece.color);
 
         for direction in direction_iter(adjusted_directions) {
             let (file_delta, rank_delta) = direction.to_offset();
@@ -513,7 +571,7 @@ impl MovementGenerator {
                 match blocking {
                     BlockingMode::NoJump => {
                         if is_enemy || (is_empty && !captures_only) {
-                            targets.push(target);
+                            visit(target);
                         }
                         // Stop at first piece (whether we can capture it or not)
                         if !is_empty {
@@ -522,7 +580,7 @@ impl MovementGenerator {
                     }
                     BlockingMode::Jump => {
                         if is_enemy || (!is_friendly && !captures_only) {
-                            targets.push(target);
+                            visit(target);
                         }
                     }
                     BlockingMode::Capturing => {
@@ -537,7 +595,7 @@ impl MovementGenerator {
                         if !is_friendly
                             && (!captures_only || is_enemy || (is_empty && ray_has_enemy_capture))
                         {
-                            targets.push(target);
+                            visit(target);
                         }
                     }
                 }
@@ -545,13 +603,12 @@ impl MovementGenerator {
                 distance += 1;
             }
         }
-
-        targets
     }
 
     /// Generate targets for jumping movement
     /// Offsets are relative to Black's perspective (N is up, S is down)
     /// For White pieces, offsets are automatically flipped (rank_delta is negated)
+    #[cfg(test)]
     fn generate_jumping<B: BoardLike>(
         piece: &Piece,
         board: &B,
@@ -559,7 +616,17 @@ impl MovementGenerator {
         captures_only: bool,
     ) -> Vec<Position> {
         let mut targets = Vec::new();
+        Self::generate_jumping_into(piece, board, offsets, captures_only, &mut targets);
+        targets
+    }
 
+    fn generate_jumping_into<B: BoardLike>(
+        piece: &Piece,
+        board: &B,
+        offsets: &[(i8, i8)],
+        captures_only: bool,
+        targets: &mut Vec<Position>,
+    ) {
         for &(file_delta, rank_delta) in offsets {
             // Adjust rank_delta for White (flip vertically)
             let adjusted_rank_delta = if piece.color == Color::White {
@@ -579,8 +646,6 @@ impl MovementGenerator {
                 }
             }
         }
-
-        targets
     }
 
     /// Generate targets for two-step movement
@@ -997,6 +1062,303 @@ impl MovementGenerator {
 mod linear_simple_tests {
     use super::*;
     use crate::{board::Board, piece::PieceType};
+
+    #[test]
+    fn range_counts_and_raw_order_cover_forward_diagonal_and_edge_blockers() {
+        use crate::movement::types::PieceTypeSet;
+
+        for color in [Color::Black, Color::White] {
+            let enemy = color.opposite();
+            for (file, rank) in [(18, 18), (0, 0), (35, 35), (1, 34)] {
+                let piece = Piece::new(PieceType::Rook, color, Position::new(file, rank).unwrap());
+                for (direction, mut df, mut dr) in [
+                    (Direction::N, 0i8, 1i8),
+                    (Direction::NE, 1, 1),
+                    (Direction::SE, 1, -1),
+                    (Direction::E, 1, 0),
+                ] {
+                    // Preserve the generator's legacy convention: White reverses
+                    // these diagonal/forward rays, while E remains E.
+                    if color == Color::White && direction != Direction::E {
+                        df = -df;
+                        dr = -dr;
+                    }
+                    let ray: Vec<_> = (1..36)
+                        .filter_map(|distance| piece.position.offset(df * distance, dr * distance))
+                        .collect();
+                    for first in [
+                        None,
+                        Some((PieceType::Pawn, color)),
+                        Some((PieceType::Pawn, enemy)),
+                        Some((PieceType::King, color)),
+                        Some((PieceType::King, enemy)),
+                    ] {
+                        let mut board = Board::new();
+                        board.place_piece(piece);
+                        let occupants: Vec<_> = first
+                            .map(|(kind, occupant)| (1, kind, occupant))
+                            .into_iter()
+                            .chain([(3, PieceType::Pawn, enemy), (5, PieceType::Pawn, color)])
+                            .filter(|(distance, _, _)| *distance <= ray.len())
+                            .collect();
+                        for &(distance, kind, occupant) in &occupants {
+                            board.place_piece(Piece::new(kind, occupant, ray[distance - 1]));
+                        }
+                        for prohibit_king in [false, true] {
+                            let mut prohibited = PieceTypeSet::new();
+                            if prohibit_king {
+                                prohibited.insert(PieceType::King);
+                            }
+                            let first_occupied =
+                                occupants.first().map(|p| p.0).unwrap_or(usize::MAX);
+                            let first_enemy = occupants
+                                .iter()
+                                .find(|p| p.2 == enemy)
+                                .map(|p| p.0)
+                                .unwrap_or(usize::MAX);
+                            let first_prohibited = occupants
+                                .iter()
+                                .find(|p| prohibit_king && p.1 == PieceType::King)
+                                .map(|p| p.0)
+                                .unwrap_or(usize::MAX);
+                            for blocking in [
+                                BlockingMode::NoJump,
+                                BlockingMode::Jump,
+                                BlockingMode::Capturing,
+                            ] {
+                                let capability = MovementCapability::Range {
+                                    directions: direction.to_bit(),
+                                    blocking,
+                                    cannot_jump_over: prohibited,
+                                };
+                                for captures in [false, true] {
+                                    // Independently specify eligibility by distance
+                                    // and the known occupancy layout, without a ray
+                                    // walk that shares the generator's control flow.
+                                    let expected: Vec<_> = ray
+                                        .iter()
+                                        .copied()
+                                        .enumerate()
+                                        .filter_map(|(i, pos)| {
+                                            let distance = i + 1;
+                                            let occupant =
+                                                occupants.iter().find(|p| p.0 == distance);
+                                            let friendly = occupant.is_some_and(|p| p.2 == color);
+                                            let enemy_here = occupant.is_some_and(|p| p.2 == enemy);
+                                            let allowed = !friendly
+                                                && match blocking {
+                                                    BlockingMode::NoJump => {
+                                                        distance <= first_occupied
+                                                            && (!captures || enemy_here)
+                                                    }
+                                                    BlockingMode::Jump => !captures || enemy_here,
+                                                    BlockingMode::Capturing => {
+                                                        distance < first_prohibited
+                                                            && (!captures
+                                                                || distance >= first_enemy)
+                                                    }
+                                                };
+                                            allowed.then_some(pos)
+                                        })
+                                        .collect();
+                                    assert_eq!(
+                                        MovementGenerator::capability_landings_filtered(&piece, &board, &capability, captures),
+                                        expected,
+                                        "{piece:?}, {direction:?}, {first:?}, prohibit={prohibit_king}, {blocking:?}, captures={captures}"
+                                    );
+                                    if !captures {
+                                        assert_eq!(
+                                            MovementGenerator::capability_landing_count(
+                                                &piece,
+                                                &board,
+                                                &capability
+                                            ),
+                                            expected.len()
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn capability_append_preserves_prefix_and_mixed_fallback_union() {
+        use crate::movement::types::PieceTypeSet;
+
+        for color in [Color::Black, Color::White] {
+            let mut board = Board::new();
+            let piece = Piece::new(PieceType::FreeEagle, color, Position::new(18, 18).unwrap());
+            board.place_piece(piece);
+            for (file, rank, occupant) in [
+                (19, 18, color.opposite()),
+                (18, 19, color),
+                (20, 20, color.opposite()),
+            ] {
+                board.place_piece(Piece::new(
+                    PieceType::Pawn,
+                    occupant,
+                    Position::new(file, rank).unwrap(),
+                ));
+            }
+            let ordinary = vec![
+                MovementCapability::Simple {
+                    directions: 0,
+                    max_distance: 1,
+                },
+                MovementCapability::Jumping {
+                    offsets: vec![(-5, 0)],
+                },
+                MovementCapability::Simple {
+                    directions: Direction::E.to_bit(),
+                    max_distance: 2,
+                },
+                MovementCapability::Range {
+                    directions: Direction::E.to_bit(),
+                    blocking: BlockingMode::NoJump,
+                    cannot_jump_over: PieceTypeSet::new(),
+                },
+                MovementCapability::Jumping {
+                    offsets: vec![(1, 0), (-5, 0)],
+                },
+            ];
+            for fallback in [
+                MovementCapability::TwoStep {
+                    first: Box::new(MovementCapability::Simple {
+                        directions: Direction::W.to_bit(),
+                        max_distance: 1,
+                    }),
+                    second: Box::new(MovementCapability::Simple {
+                        directions: Direction::N.to_bit(),
+                        max_distance: 1,
+                    }),
+                },
+                MovementCapability::FreeEagleMultiMove {
+                    max_distance_forward_diagonal: 4,
+                    max_distance_other: 3,
+                },
+                MovementCapability::ConditionalDiagonalJump {
+                    directions: Direction::NE.to_bit(),
+                    base_jump: 3,
+                    conditional_jumps: vec![4, 5],
+                },
+            ] {
+                let mut capabilities = ordinary.clone();
+                capabilities.push(fallback);
+                for captures in [false, true] {
+                    let mut expected = Vec::new();
+                    for capability in &capabilities {
+                        let raw = MovementGenerator::capability_landings_filtered(
+                            &piece, &board, capability, captures,
+                        );
+                        let sentinel = Position::new(35, 35).unwrap();
+                        let mut appended = vec![sentinel];
+                        MovementGenerator::append_for_capability(
+                            &piece,
+                            &board,
+                            capability,
+                            captures,
+                            &mut appended,
+                        );
+                        assert_eq!(appended.first(), Some(&sentinel));
+                        assert_eq!(&appended[1..], raw.as_slice());
+                        expected.extend(raw);
+                    }
+                    expected.sort();
+                    expected.dedup();
+                    let actual = MovementGenerator::generate_targets_filtered(
+                        &piece,
+                        &board,
+                        &capabilities,
+                        captures,
+                    );
+                    assert_eq!(actual, expected, "{color:?}, captures={captures}");
+                    let overlapping_capture = Position::new(19, 18).unwrap();
+                    assert_eq!(
+                        actual.iter().filter(|&&p| p == overlapping_capture).count(),
+                        1
+                    );
+                    if !captures {
+                        assert!(actual.contains(&Position::new(13, 18).unwrap()));
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn range_visits_and_counts_preserve_blockers_and_capture_sweeps() {
+        use crate::movement::types::PieceTypeSet;
+
+        // A friendly pawn is passed by jumping/capturing ranges, an enemy pawn
+        // starts a capture sweep, and the king stops only the capturing range.
+        for color in [Color::Black, Color::White] {
+            let enemy = if color == Color::Black {
+                Color::White
+            } else {
+                Color::Black
+            };
+            let mut board = Board::new();
+            let piece = Piece::new(PieceType::Rook, color, Position::new(0, 0).unwrap());
+            for (file, kind, occupant) in [
+                (2, PieceType::Pawn, color),
+                (4, PieceType::Pawn, enemy),
+                (6, PieceType::King, enemy),
+            ] {
+                board.place_piece(Piece::new(kind, occupant, Position::new(file, 0).unwrap()));
+            }
+            let mut blockers = PieceTypeSet::new();
+            blockers.insert(PieceType::King);
+            for blocking in [
+                BlockingMode::NoJump,
+                BlockingMode::Jump,
+                BlockingMode::Capturing,
+            ] {
+                let capability = MovementCapability::Range {
+                    directions: Direction::E.to_bit(),
+                    blocking,
+                    cannot_jump_over: blockers,
+                };
+                for captures in [false, true] {
+                    let files: Vec<u8> = match (blocking, captures) {
+                        (BlockingMode::NoJump, false) => vec![1],
+                        (BlockingMode::NoJump, true) => vec![],
+                        (BlockingMode::Jump, false) => (1..36).filter(|file| *file != 2).collect(),
+                        (BlockingMode::Jump, true) => vec![4, 6],
+                        (BlockingMode::Capturing, false) => vec![1, 3, 4, 5],
+                        (BlockingMode::Capturing, true) => vec![4, 5],
+                    };
+                    let expected: Vec<_> = files
+                        .into_iter()
+                        .map(|file| Position::new(file, 0).unwrap())
+                        .collect();
+                    assert_eq!(
+                        MovementGenerator::capability_landings_filtered(
+                            &piece,
+                            &board,
+                            &capability,
+                            captures
+                        ),
+                        expected,
+                        "{color:?} {blocking:?} captures={captures}"
+                    );
+                    if !captures {
+                        assert_eq!(
+                            MovementGenerator::capability_landing_count(
+                                &piece,
+                                &board,
+                                &capability
+                            ),
+                            expected.len()
+                        );
+                    }
+                }
+            }
+        }
+    }
 
     // Original repeated-path implementation, including its duplicate capture.
     fn reference(
