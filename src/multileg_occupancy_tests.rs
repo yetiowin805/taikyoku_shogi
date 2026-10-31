@@ -18,7 +18,7 @@ fn snapshot(state: &GameState) -> BoardPosition {
 }
 
 #[test]
-fn slot5884_capricorn_can_capture_and_retreat_to_or_past_its_origin() {
+fn slot5884_capricorn_must_stop_after_capturing_the_woodland_demon() {
     // Reduced position before recorded ply121. Coordinates are internal (0..35).
     let from = p(17, 27);
     let victim = p(17, 33);
@@ -39,39 +39,42 @@ fn slot5884_capricorn_can_capture_and_retreat_to_or_past_its_origin() {
     let before = snapshot(&state);
     let hash = state.hash;
     let history = state.rep_history.clone();
-    for target in [from, p(17, 26), p(17, 20)] {
+    for target in [from, p(17, 26), p(17, 20), p(18, 33)] {
         let mv = Move::new_two_step(from, victim, target);
         for mode in [
             LegalMoveGen::All,
             LegalMoveGen::CapturesOnly,
             LegalMoveGen::WithoutQuietMultiLeg,
+            LegalMoveGen::QuietMultiLegOnly,
         ] {
             assert!(
-                state.generate_legal_moves_mode(mode).contains(&mv),
-                "missing {mv:?} in {mode:?}"
+                !state.generate_legal_moves_mode(mode).contains(&mv),
+                "illegal {mv:?} in {mode:?}"
             );
         }
-        assert!(!state
-            .generate_legal_moves_mode(LegalMoveGen::QuietMultiLegOnly)
-            .contains(&mv));
         let mut manual = state.clone();
         manual.make_move(mv.clone());
-        assert_eq!(manual.get_current_turn(), Color::White);
-        assert!(manual.get_board().get_piece(victim).is_none());
-        assert_eq!(
-            manual.get_board().get_piece(target).unwrap().base_type(),
-            PieceType::Capricorn
-        );
-        assert_eq!(manual.get_turns_without_capture_or_promotion(), 0);
+        assert_eq!(snapshot(&manual), before);
+        assert_eq!(manual.hash, hash);
+        assert_eq!(manual.rep_history, history);
         let mut searched = state.clone();
-        let undo = searched.make_move_for_search(mv).unwrap();
-        assert_eq!(snapshot(&searched), snapshot(&manual));
-        assert_eq!(searched.hash, crate::zobrist::compute(&searched));
-        searched.unmake_move_for_search(undo);
+        assert!(searched.make_move_for_search(mv).is_none());
         assert_eq!(snapshot(&searched), before);
         assert_eq!(searched.hash, hash);
         assert_eq!(searched.rep_history, history);
     }
+    let capture = Move::new(from, victim);
+    assert!(state
+        .generate_legal_moves_mode(LegalMoveGen::CapturesOnly)
+        .contains(&capture));
+    state.make_move(capture);
+    assert_eq!(state.get_current_turn(), Color::White);
+    assert!(state.get_board().get_piece(from).is_none());
+    assert_eq!(
+        state.get_board().get_piece(victim).unwrap().base_type(),
+        PieceType::Capricorn
+    );
+    assert_eq!(state.get_turns_without_capture_or_promotion(), 0);
 }
 
 #[test]
@@ -139,6 +142,11 @@ fn all_two_step_families_match_a_physically_updated_first_leg() {
                         if first_capture {
                             expected_capture_targets.insert(mid);
                         }
+                        let restricted = matches!(first.as_ref(), MovementCapability::Range { .. })
+                            && matches!(second.as_ref(), MovementCapability::Range { .. });
+                        if restricted && first_capture {
+                            continue;
+                        }
                         // Independent reference: mutate a real board, rather than use the overlay.
                         let mut physical = state.clone_board();
                         physical.move_piece(origin, mid);
@@ -157,6 +165,17 @@ fn all_two_step_families_match_a_physically_updated_first_leg() {
                         for target in
                             MovementGenerator::capability_landings(&moved, &physical, second)
                         {
+                            let a = (
+                                i16::from(mid.file()) - i16::from(origin.file()),
+                                i16::from(mid.rank()) - i16::from(origin.rank()),
+                            );
+                            let b = (
+                                i16::from(target.file()) - i16::from(mid.file()),
+                                i16::from(target.rank()) - i16::from(mid.rank()),
+                            );
+                            if restricted && (b == (0, 0) || a.0 * b.0 + a.1 * b.1 != 0) {
+                                continue;
+                            }
                             expected_targets.insert(target);
                             let capture = first_capture
                                 || physical.get_piece(target).is_some_and(|p| p.color != color);
@@ -235,20 +254,20 @@ fn all_two_step_families_match_a_physically_updated_first_leg() {
         }
     }
     assert!(
-        checked >= 48,
-        "expected all eight two-step families in both colors at three origins, got {checked}"
+        checked >= 42,
+        "expected all seven two-step families in both colors at three origins, got {checked}"
     );
 }
 
 #[test]
 fn return_capture_does_not_erase_real_friendly_blockers_or_accept_wrong_turn() {
     let from = p(18, 18);
-    let mid = p(18, 22);
+    let mid = p(18, 19);
     let mut state = GameState::new();
-    state.place_piece(Piece::new(PieceType::HookMover, Color::Black, from));
+    state.place_piece(Piece::new(PieceType::Lion, Color::Black, from));
     state.place_piece(Piece::new(PieceType::Pawn, Color::White, mid));
-    state.place_piece(Piece::new(PieceType::Pawn, Color::Black, p(18, 16)));
-    let blocked = Move::new_two_step(from, mid, p(18, 15));
+    state.place_piece(Piece::new(PieceType::Pawn, Color::Black, p(17, 18)));
+    let blocked = Move::new_two_step(from, mid, p(17, 18));
     assert!(!state.generate_legal_moves().contains(&blocked));
     let before = snapshot(&state);
     state.make_move(blocked);
@@ -353,11 +372,11 @@ fn invalid_free_eagle_route_is_rejected_before_any_capture() {
 #[test]
 fn capture_and_return_preserves_nnue_and_handcrafted_incremental_make_unmake() {
     let network = crate::nnue::tests::net(32, "multileg-return");
-    for kind in [PieceType::HookMover, PieceType::FreeEagle] {
+    for kind in [PieceType::Lion, PieceType::FreeEagle] {
         for neural in [false, true] {
             let from = p(18, 18);
-            let victim = if kind == PieceType::HookMover {
-                p(18, 22)
+            let victim = if kind == PieceType::Lion {
+                p(18, 19)
             } else {
                 p(19, 18)
             };
@@ -378,7 +397,7 @@ fn capture_and_return_preserves_nnue_and_handcrafted_incremental_make_unmake() {
             state.ensure_eval_inc(&weights);
             let before = snapshot(&state);
             let score = crate::eval::evaluate_with_ply(&state, &weights, 0);
-            let mv = if kind == PieceType::HookMover {
+            let mv = if kind == PieceType::Lion {
                 Move::new_two_step(from, victim, from)
             } else {
                 Move::new_free_eagle(from, from, vec![from, victim, from])
@@ -421,8 +440,14 @@ fn standard_moves_cannot_skip_a_turn_or_an_intermediate_capture() {
         );
     }
     let route = Move::new_two_step(from, p(18, 20), p(18, 22));
-    assert!(state.generate_legal_moves().contains(&route));
+    assert!(!state.generate_legal_moves().contains(&route));
+    let before = snapshot(&state);
     state.make_move(route);
+    assert_eq!(snapshot(&state), before);
+    state.make_move(Move::new(from, p(18, 20)));
     assert_eq!(state.get_current_turn(), Color::White);
-    assert!(state.get_board().get_piece(p(18, 20)).is_none());
+    assert_eq!(
+        state.get_board().get_piece(p(18, 20)).unwrap().piece_type,
+        PieceType::HookMover
+    );
 }

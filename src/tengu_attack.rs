@@ -11,25 +11,16 @@ pub fn can_tengu_attack_target<B: BoardLike>(tengu: &Piece, target: Position, bo
         return true;
     }
 
-    // Special case: If Tengu and target are on the same diagonal with exactly one enemy piece
-    // (same color as target) between them, Tengu can attack via two-step:
-    // First move: capture the intervening enemy piece
-    // Second move: capture the target/royal piece
-    if is_on_same_diagonal(tengu.position, target)
-        && find_single_enemy_blocker(tengu, target, board).is_some()
-    {
-        // The blocking piece is already verified to be:
-        // - An enemy of the Tengu (different color)
-        // - Same color as the target (if target has a piece)
-        // So this is a valid two-step attack: capture blocker, then capture target
-        return true;
-    }
-
-    // Third check: can reach via two-step move with calculated intermediate positions?
+    // Otherwise try a perpendicular turn through an empty corner.
     // Find the 2 potential intermediate positions
     let intermediates = find_potential_intermediates(tengu.position, target);
 
     for intermediate in intermediates.into_iter().flatten() {
+        if !board.is_empty(intermediate)
+            || !path_utils::is_perpendicular_turn(tengu.position, intermediate, target)
+        {
+            continue;
+        }
         // Check if first step (Tengu -> intermediate) is legal
         if !can_reach_via_diagonal_range(tengu, tengu.position, intermediate, board) {
             continue;
@@ -112,92 +103,6 @@ fn find_potential_intermediates(tengu_pos: Position, target: Position) -> [Optio
     intermediates
 }
 
-/// Find exactly one enemy piece (same color as target) blocking the diagonal path
-/// Returns Some(piece) if exactly one enemy piece is found, None otherwise
-/// The blocker must be:
-/// - An enemy of the Tengu (different color from Tengu)
-/// - Same color as the target piece (if target has a piece)
-fn find_single_enemy_blocker<B: BoardLike>(
-    tengu: &Piece,
-    target: Position,
-    board: &B,
-) -> Option<Piece> {
-    let file_diff = target.file() as i8 - tengu.position.file() as i8;
-    let rank_diff = target.rank() as i8 - tengu.position.rank() as i8;
-
-    // Must be diagonal
-    if file_diff.abs() != rank_diff.abs() {
-        return None;
-    }
-
-    // Normalize direction (step size 1 in both file and rank)
-    let file_step = if file_diff == 0 {
-        0
-    } else if file_diff > 0 {
-        1
-    } else {
-        -1
-    };
-    let rank_step = if rank_diff == 0 {
-        0
-    } else if rank_diff > 0 {
-        1
-    } else {
-        -1
-    };
-
-    // Get target piece color (if any) - blocker should be same color as target
-    let target_piece_color = board.get_piece(target).map(|p| p.color);
-
-    // Check each square along the path (excluding the destination)
-    let mut current_file = tengu.position.file() as i8 + file_step;
-    let mut current_rank = tengu.position.rank() as i8 + rank_step;
-    let mut blocker_count = 0;
-    let mut found_blocker: Option<Piece> = None;
-
-    while current_file != target.file() as i8 || current_rank != target.rank() as i8 {
-        {
-            let pos = Position::new(current_file as u8, current_rank as u8)?;
-            if let Some(piece) = board.get_piece(pos) {
-                // Found a piece in the path
-                blocker_count += 1;
-
-                if blocker_count > 1 {
-                    return None;
-                }
-
-                // Check if it's an enemy piece (different color from Tengu)
-                if piece.color == tengu.color {
-                    // Friendly piece blocks the path - invalid
-                    return None;
-                }
-
-                // Check if blocker is same color as target (if target has a piece)
-                if let Some(target_color) = target_piece_color {
-                    if piece.color == target_color {
-                        found_blocker = Some(piece);
-                    } else {
-                        // Enemy piece but wrong color - invalid
-                        return None;
-                    }
-                } else {
-                    // Target is empty, so any enemy piece works
-                    found_blocker = Some(piece);
-                }
-            }
-        }
-        current_file += file_step;
-        current_rank += rank_step;
-    }
-
-    // Must have exactly one blocker
-    if blocker_count == 1 {
-        found_blocker
-    } else {
-        None
-    }
-}
-
 /// Check if a piece can reach a target via single diagonal range move
 fn can_reach_via_diagonal_range<B: BoardLike>(
     piece: &Piece,
@@ -242,43 +147,16 @@ pub fn can_peacock_attack_target<B: BoardLike>(
         return true;
     }
 
-    // A forward first leg followed by a reversal can pass the vacated origin
-    // and continue arbitrarily far backwards. The turning-point intersections
-    // below exclude collinear paths, and the ordinary backwards move stops at 2.
-    if is_backwards_diagonal(peacock, peacock.position, target) {
-        let df = (peacock.position.file() as i8 - target.file() as i8).signum();
-        let dr = (peacock.position.rank() as i8 - target.rank() as i8).signum();
-        if let Some(intermediate) = peacock.position.offset(df, dr) {
-            if can_reach_via_forward_diagonal_range(peacock, peacock.position, intermediate, board)
-            {
-                let after_first = BoardAfterStep::new(board, *peacock, intermediate);
-                if can_reach_via_diagonal_range(peacock, intermediate, target, &after_first) {
-                    return true;
-                }
-            }
-        }
-    }
-
-    // Special case: If Peacock and target are on the same diagonal with exactly one enemy piece
-    // (same color as target) between them, Peacock can attack via two-step:
-    // First move: capture the intervening enemy piece
-    // Second move: capture the target/royal piece
-    if is_on_same_diagonal(peacock.position, target)
-        && is_forward_diagonal(peacock, peacock.position, target)
-        && find_single_enemy_blocker(peacock, target, board).is_some()
-    {
-        // The blocking piece is already verified to be:
-        // - An enemy of the Peacock (different color)
-        // - Same color as the target (if target has a piece)
-        // So this is a valid two-step attack: capture blocker, then capture target
-        return true;
-    }
-
-    // Third check: can reach via two-step move?
+    // Otherwise try a perpendicular turn through an empty corner.
     // Find the 2 potential intermediate positions
     let intermediates = find_potential_intermediates(peacock.position, target);
 
     for intermediate in intermediates.into_iter().flatten() {
+        if !board.is_empty(intermediate)
+            || !path_utils::is_perpendicular_turn(peacock.position, intermediate, target)
+        {
+            continue;
+        }
         // Check if first step (Peacock -> intermediate) is forward diagonal range
         if !can_reach_via_forward_diagonal_range(peacock, peacock.position, intermediate, board) {
             continue;
@@ -426,25 +304,16 @@ pub fn can_hook_mover_attack_target<B: BoardLike>(
         return true;
     }
 
-    // Special case: If Hook Mover and target are on the same orthogonal line with exactly one enemy piece
-    // (same color as target) between them, Hook Mover can attack via two-step:
-    // First move: capture the intervening enemy piece
-    // Second move: capture the target/royal piece
-    if is_on_same_orthogonal(hook_mover.position, target)
-        && find_single_enemy_blocker_orthogonal(hook_mover, target, board).is_some()
-    {
-        // The blocking piece is already verified to be:
-        // - An enemy of the Hook Mover (different color)
-        // - Same color as the target (if target has a piece)
-        // So this is a valid two-step attack: capture blocker, then capture target
-        return true;
-    }
-
-    // Third check: can reach via two-step move with calculated intermediate positions?
+    // Otherwise try a perpendicular turn through an empty corner.
     // Find the 2 potential intermediate positions
     let intermediates = find_potential_intermediates_orthogonal(hook_mover.position, target);
 
     for intermediate in intermediates.into_iter().flatten() {
+        if !board.is_empty(intermediate)
+            || !path_utils::is_perpendicular_turn(hook_mover.position, intermediate, target)
+        {
+            continue;
+        }
         // Check if first step (Hook Mover -> intermediate) is legal
         if !can_reach_via_orthogonal_range(hook_mover, hook_mover.position, intermediate, board) {
             continue;
@@ -478,7 +347,7 @@ fn is_on_same_orthogonal(from: Position, to: Position) -> bool {
 /// Find the 2 potential intermediate positions for a two-step orthogonal move
 /// Returns 0, 1, or 2 valid intermediate positions
 /// Only calculates intermediates for L-shaped paths (different file and rank)
-/// Same file/rank cases are handled by single-step or blocker-capture checks
+/// Same file/rank cases can only use a single slide.
 fn find_potential_intermediates_orthogonal(
     hook_mover_pos: Position,
     target: Position,
@@ -491,9 +360,7 @@ fn find_potential_intermediates_orthogonal(
     let r_t = target.rank() as i16;
 
     // Only handle L-shaped paths (different file and different rank)
-    // Same file/rank cases are already handled by:
-    // 1. Single-step orthogonal range (if path is clear)
-    // 2. Two-step via blocker capture (if exactly one enemy blocker exists)
+    // Same file/rank cases can only use the single-step orthogonal range.
     // For orthogonal moves, we can go: (f_h, r_h) -> (f_h, r_t) -> (f_t, r_t) OR (f_h, r_h) -> (f_t, r_h) -> (f_t, r_t)
     // So we have two potential intermediates: (f_h, r_t) and (f_t, r_h)
     if f_h != f_t && r_h != r_t {
@@ -516,95 +383,6 @@ fn find_potential_intermediates_orthogonal(
     }
 
     intermediates
-}
-
-/// Find exactly one enemy piece (same color as target) blocking the orthogonal path
-/// Returns Some(piece) if exactly one enemy piece is found, None otherwise
-/// The blocker must be:
-/// - An enemy of the Hook Mover (different color from Hook Mover)
-/// - Same color as the target piece (if target has a piece)
-fn find_single_enemy_blocker_orthogonal<B: BoardLike>(
-    hook_mover: &Piece,
-    target: Position,
-    board: &B,
-) -> Option<Piece> {
-    let file_diff = target.file() as i8 - hook_mover.position.file() as i8;
-    let rank_diff = target.rank() as i8 - hook_mover.position.rank() as i8;
-
-    // Must be orthogonal
-    if file_diff != 0 && rank_diff != 0 {
-        return None;
-    }
-    if file_diff == 0 && rank_diff == 0 {
-        return None; // Same position
-    }
-
-    // Normalize direction (step size 1 in either file or rank)
-    let file_step = if file_diff == 0 {
-        0
-    } else if file_diff > 0 {
-        1
-    } else {
-        -1
-    };
-    let rank_step = if rank_diff == 0 {
-        0
-    } else if rank_diff > 0 {
-        1
-    } else {
-        -1
-    };
-
-    // Get target piece color (if any) - blocker should be same color as target
-    let target_piece_color = BoardLike::get_piece(board, target).map(|p| p.color);
-
-    // Check each square along the path (excluding the destination)
-    let mut current_file = hook_mover.position.file() as i8 + file_step;
-    let mut current_rank = hook_mover.position.rank() as i8 + rank_step;
-    let mut blocker_count = 0;
-    let mut found_blocker: Option<Piece> = None;
-
-    while current_file != target.file() as i8 || current_rank != target.rank() as i8 {
-        {
-            let pos = Position::new(current_file as u8, current_rank as u8)?;
-            if let Some(piece) = BoardLike::get_piece(board, pos) {
-                // Found a piece in the path
-                blocker_count += 1;
-
-                if blocker_count > 1 {
-                    return None;
-                }
-
-                // Check if it's an enemy piece (different color from Hook Mover)
-                if piece.color == hook_mover.color {
-                    // Friendly piece blocks the path - invalid
-                    return None;
-                }
-
-                // Check if blocker is same color as target (if target has a piece)
-                if let Some(target_color) = target_piece_color {
-                    if piece.color == target_color {
-                        found_blocker = Some(piece);
-                    } else {
-                        // Enemy piece but wrong color - invalid
-                        return None;
-                    }
-                } else {
-                    // Target is empty, so any enemy piece works
-                    found_blocker = Some(piece);
-                }
-            }
-        }
-        current_file += file_step;
-        current_rank += rank_step;
-    }
-
-    // Must have exactly one blocker
-    if blocker_count == 1 {
-        found_blocker
-    } else {
-        None
-    }
 }
 
 /// Check if a piece can reach a target via single orthogonal range move

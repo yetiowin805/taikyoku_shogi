@@ -201,11 +201,7 @@ fn generated_destinations_are_detected_as_attacked_for_every_piece() {
 #[test]
 fn long_multileg_attacks_also_reach_victim_directed_capture_generation() {
     for color in [Color::Black, Color::White] {
-        for (kind, df, dr) in [
-            (PieceType::BuddhistSpirit, 10, 1),
-            (PieceType::LionHawk, 10, 8),
-            (PieceType::Peacock, -8, -8),
-        ] {
+        for (kind, df, dr) in [(PieceType::LionHawk, 10, 8), (PieceType::Peacock, 8, 0)] {
             let mut state = GameState::new();
             state.set_current_turn(color);
             let origin = p(18, 18);

@@ -797,6 +797,7 @@ pub fn treasure_turtle_movement() -> MovementConfig {
 /// Capricorn movement: Same as Tengu - two-step movement where both steps are range diagonal moves
 /// Directions are relative to piece color (Black moves up, White moves down)
 /// Diagonally: All 4 diagonals NE (2), SE (8), SW (32), NW (128) = 170 = 0xAA (same for both colors)
+/// A first-leg capture ends the move; otherwise the second slide must turn 90 degrees.
 pub fn capricorn_movement() -> MovementConfig {
     use crate::movement::direction::DIRECTION_SET_DIAGONAL;
     use crate::movement::types::BlockingMode;
@@ -824,6 +825,7 @@ pub fn capricorn_movement() -> MovementConfig {
 /// Hook Mover movement: Two-step movement where both steps are range orthogonal moves
 /// Directions are relative to piece color (Black moves up, White moves down)
 /// Orthogonally: N (1), E (4), S (16), W (64) = 85 = 0x55 (same for both colors)
+/// A first-leg capture ends the move; otherwise the second slide must turn 90 degrees.
 pub fn hook_mover_movement() -> MovementConfig {
     use crate::movement::direction::DIRECTION_SET_ORTHOGONAL;
     use crate::movement::types::BlockingMode;
@@ -2519,7 +2521,7 @@ pub fn side_monkey_movement() -> MovementConfig {
 /// Leftwards: For Black: W (64) = 0x40
 ///          For White: E (4) = 0x04 (mirrored)
 /// Straight forwards, forwards right, and backwards left: For Black: N (1) | NE (2) | SW (32) = 35 = 0x23
-///                                                      For White: S (16) | SE (8) | NW (128) = 152 = 0x98 (adjusted automatically)
+///                                                      For White: S (16) | SW (32) | NE (2) = 50 = 0x32 (adjusted automatically)
 pub fn left_chariot_movement() -> MovementConfig {
     use crate::movement::types::{BlockingMode, MovementCapability};
 
@@ -2534,7 +2536,7 @@ pub fn left_chariot_movement() -> MovementConfig {
             },
             // Range movement: straight forwards, forwards right, and backwards left
             // For Black: N (1) | NE (2) | SW (32) = 35 = 0x23
-            // For White: S (16) | SE (8) | NW (128) = 152 = 0x98 (adjusted automatically)
+            // For White: S (16) | SW (32) | NE (2) = 50 = 0x32 (adjusted automatically)
             MovementCapability::Range {
                 directions: 0x23, // N, NE, SW (for Black) - will be adjusted for White
                 blocking: BlockingMode::NoJump,
@@ -2579,7 +2581,7 @@ pub fn left_iron_chariot_movement() -> MovementConfig {
 /// Rightwards: For Black: E (4) = 0x04
 ///           For White: W (64) = 0x40 (mirrored)
 /// Straight forwards, forwards left, and backwards right: For Black: N (1) | NW (128) | SE (8) = 137 = 0x89
-///                                                       For White: S (16) | SW (32) | NE (2) = 50 = 0x32 (adjusted automatically)
+///                                                       For White: S (16) | SE (8) | NW (128) = 152 = 0x98 (adjusted automatically)
 pub fn right_chariot_movement() -> MovementConfig {
     use crate::movement::types::{BlockingMode, MovementCapability};
 
@@ -2594,7 +2596,7 @@ pub fn right_chariot_movement() -> MovementConfig {
             },
             // Range movement: straight forwards, forwards left, and backwards right
             // For Black: N (1) | NW (128) | SE (8) = 137 = 0x89
-            // For White: S (16) | SW (32) | NE (2) = 50 = 0x32 (adjusted automatically)
+            // For White: S (16) | SE (8) | NW (128) = 152 = 0x98 (adjusted automatically)
             MovementCapability::Range {
                 directions: 0x89, // N, NW, SE (for Black) - will be adjusted for White
                 blocking: BlockingMode::NoJump,
@@ -2609,7 +2611,7 @@ pub fn right_chariot_movement() -> MovementConfig {
 /// Rightwards: For Black: E (4) = 0x04
 ///           For White: W (64) = 0x40 (mirrored)
 /// Diagonally except forwards right: For Black: NW (128) | SE (8) | SW (32) = 168 = 0xA8 (excludes NE (2))
-///                                   For White: NE (2) | SW (32) | SE (8) = 42 = 0x2A (excludes NW (128), adjusted automatically)
+///                                   For White: NE (2) | NW (128) | SE (8) = 138 = 0x8A (excludes SW (32), adjusted automatically)
 pub fn right_iron_chariot_movement() -> MovementConfig {
     use crate::movement::types::{BlockingMode, MovementCapability};
 
@@ -2624,7 +2626,7 @@ pub fn right_iron_chariot_movement() -> MovementConfig {
             },
             // Range movement: diagonally except forwards right
             // For Black: NW (128) | SE (8) | SW (32) = 168 = 0xA8 (excludes NE (2))
-            // For White: NE (2) | SW (32) | SE (8) = 42 = 0x2A (excludes NW (128), adjusted automatically)
+            // For White: NE (2) | NW (128) | SE (8) = 138 = 0x8A (excludes SW (32), adjusted automatically)
             MovementCapability::Range {
                 directions: 0xA8, // NW, SE, SW (for Black) - will be adjusted for White
                 blocking: BlockingMode::NoJump,
@@ -3868,6 +3870,7 @@ pub fn running_horse_movement() -> MovementConfig {
 
 /// Tengu movement: Can move once (range diagonal) or twice (two range diagonal moves)
 /// In notation, two-step moves are written as two separate moves
+/// A first-leg capture ends the move; otherwise the second slide must turn 90 degrees.
 pub fn tengu_movement() -> MovementConfig {
     use crate::movement::direction::DIRECTION_SET_DIAGONAL;
     use crate::movement::types::BlockingMode;
@@ -5420,6 +5423,7 @@ pub fn water_dragon_movement() -> MovementConfig {
 
 /// Peacock movement: Simple 2 backwards diagonals, two-step: forward diagonal then any diagonal
 /// Directions are relative to piece color (Black moves up, White moves down)
+/// A first-leg capture ends the move; otherwise the second slide must turn 90 degrees.
 pub fn peacock_movement() -> MovementConfig {
     use crate::movement::direction::DIRECTION_SET_DIAGONAL;
     use crate::movement::types::BlockingMode;
@@ -7373,8 +7377,8 @@ pub fn dark_spirit_movement() -> MovementConfig {
     }
 }
 
-/// Buddhist Spirit movement: Jump to all squares 2 steps away, two-step: range all directions then 1 space any direction
-/// Same jumping move as Lion, but two-step first move is range in all directions (not just 1 space)
+/// Buddhist Spirit movement: Range in all directions plus jumps to all squares
+/// at Chebyshev distance two. A slide ends the move; it has no extra step.
 pub fn buddhist_spirit_movement() -> MovementConfig {
     use crate::movement::direction::DIRECTION_SET_ALL;
     use crate::movement::types::BlockingMode;
@@ -7401,28 +7405,13 @@ pub fn buddhist_spirit_movement() -> MovementConfig {
         (1, -2),
     ];
 
-    // Two-step: first move is range in all directions, second move is 1 space in any direction
-    let first_step = MovementCapability::Range {
-        directions: DIRECTION_SET_ALL, // All 8 directions
-        blocking: BlockingMode::NoJump,
-        cannot_jump_over: PieceTypeSet::new(),
-    };
-    let second_step = MovementCapability::Simple {
-        directions: DIRECTION_SET_ALL, // All 8 directions
-        max_distance: 1,
-    };
-
     MovementConfig {
         capabilities: vec![
             // Jump movement: all squares 2 steps away (same as Lion)
             MovementCapability::Jumping {
                 offsets: jump_offsets,
             },
-            // Two-step: range all directions, then 1 space any direction
-            MovementCapability::TwoStep {
-                first: Box::new(first_step),
-                second: Box::new(second_step),
-            },
+            range_capability(DIRECTION_SET_ALL, BlockingMode::NoJump),
         ],
     }
 }

@@ -43,7 +43,16 @@ fn abilities(piece: &Piece) -> BTreeSet<String> {
                 directions,
                 blocking: BlockingMode::NoJump,
                 ..
-            } => ordinary(&mut out, *directions, 255),
+            } => {
+                if piece.piece_type == PieceType::BuddhistSpirit {
+                    // Version 1's trained representation used the old extra-
+                    // step template. Keep its input channel stable after the
+                    // legal move correction; this is not a movement capability.
+                    out.insert("two:Range { directions: 255, blocking: NoJump, cannot_jump_over: {} }:Simple { directions: 255, max_distance: 1 }".into());
+                } else {
+                    ordinary(&mut out, *directions, 255);
+                }
+            }
             Cap::Range {
                 directions,
                 blocking: BlockingMode::Jump,

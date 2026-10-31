@@ -2,6 +2,19 @@
 use crate::board::Board;
 use crate::position::Position;
 
+/// True for two nonzero legs meeting at a right angle. Magnitudes may differ.
+pub fn is_perpendicular_turn(from: Position, via: Position, to: Position) -> bool {
+    let first = (
+        i16::from(via.file()) - i16::from(from.file()),
+        i16::from(via.rank()) - i16::from(from.rank()),
+    );
+    let second = (
+        i16::from(to.file()) - i16::from(via.file()),
+        i16::from(to.rank()) - i16::from(via.rank()),
+    );
+    first != (0, 0) && second != (0, 0) && first.0 * second.0 + first.1 * second.1 == 0
+}
+
 /// Get all positions along a path between two positions
 /// Returns positions excluding start, including end
 pub fn get_path_positions(from: Position, to: Position) -> Vec<Position> {

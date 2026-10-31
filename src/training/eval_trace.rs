@@ -1099,7 +1099,6 @@ mod tests {
             PieceType::PoisonousSerpent,
             PieceType::EasternBarbarian,
             PieceType::OldKite,
-            PieceType::DarkSpirit,
         ];
         for pt in non_big_into_big {
             let to = pt.promotes_to().expect("promotes");
@@ -1109,6 +1108,8 @@ mod tests {
             );
             assert!(!is_big_piece(pt), "{pt:?} should not already be big");
         }
+        assert!(!is_big_piece(PieceType::BuddhistSpirit));
+        assert!(!crate::eval::promotes_into_big_piece(PieceType::DarkSpirit));
         // Any promote-into-big counts as loud (includes big→big upgrades).
         let loud: Vec<_> = ALL_PIECE_TYPES
             .iter()
@@ -1123,7 +1124,6 @@ mod tests {
         assert!(!loud.is_empty());
         // Keep this list in sync with scale_sample::is_big_piece for docs/debugging.
         let expected_new_big = [
-            (PieceType::DarkSpirit, PieceType::BuddhistSpirit),
             (PieceType::FireGeneral, PieceType::GreatGeneral),
             (PieceType::FreeKing, PieceType::GreatGeneral),
             (PieceType::PoisonousSerpent, PieceType::HookMover),

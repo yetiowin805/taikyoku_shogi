@@ -151,7 +151,14 @@ mod two_step_dedup_tests {
                         &after_first,
                         second.as_ref(),
                     ) {
-                        state.push_two_step_moves(&mut out, piece, mid, target, None);
+                        if capability.allows_two_step_continuation(
+                            &state.board,
+                            piece.position,
+                            mid,
+                            target,
+                        ) {
+                            state.push_two_step_moves(&mut out, piece, mid, target, None);
+                        }
                     }
                 }
             }
@@ -1277,7 +1284,10 @@ impl GameState {
                                     .board
                                     .get_piece(intermediate)
                                     .is_some_and(|p| p.color != piece.color);
-                                if matches!(mode, LegalMoveGen::QuietMultiLegOnly) && inter_cap {
+                                if inter_cap
+                                    && (capability.is_range_two_step()
+                                        || matches!(mode, LegalMoveGen::QuietMultiLegOnly))
+                                {
                                     continue;
                                 }
                                 // If intermediate already captures, every continuation is loud —
@@ -1293,6 +1303,14 @@ impl GameState {
                                         second_captures_only,
                                     );
                                 for target in second_targets {
+                                    if !capability.allows_two_step_continuation(
+                                        &self.board,
+                                        piece.position,
+                                        intermediate,
+                                        target,
+                                    ) {
+                                        continue;
+                                    }
                                     let dest_cap = self
                                         .board
                                         .get_piece(target)
@@ -1405,6 +1423,15 @@ impl GameState {
         target: Position,
         moves: &mut Vec<Move>,
     ) {
+        if !MovementConfig::for_piece(piece)
+            .capabilities
+            .iter()
+            .any(|cap| {
+                cap.allows_two_step_continuation(&self.board, piece.position, intermediate, target)
+            })
+        {
+            return;
+        }
         if !self.is_legal_move_assuming_reachable(piece, piece.position, intermediate, false) {
             return;
         }
@@ -1882,17 +1909,33 @@ impl GameState {
         }
 
         if let Some(intermediate) = mv.intermediate() {
+            let config = MovementConfig::for_piece(&piece);
+            // Also enforce the route policy on the search fast path. It must
+            // never execute an old capture-and-continue range move, or a
+            // Buddhist Spirit two-step after that capability has been removed.
+            if !config.capabilities.iter().any(|cap| {
+                cap.allows_two_step_continuation(&self.board, mv.from, intermediate, mv.to)
+            }) {
+                return ApplyOutcome::Failed;
+            }
             if validate {
                 // Validate each leg via the TwoStep capability pair. Full
                 // `can_reach` from the intermediate is wrong: it would require
                 // starting a fresh multi-leg move (e.g. Peacock cannot
                 // `can_reach` a pure second-leg diagonal landing).
-                let config = MovementConfig::for_piece(&piece);
                 let after_first = BoardAfterStep::new(&self.board, piece, intermediate);
                 let legs_ok = config.capabilities.iter().any(|cap| {
                     if let crate::movement::types::MovementCapability::TwoStep { first, second } =
                         cap
                     {
+                        if !cap.allows_two_step_continuation(
+                            &self.board,
+                            mv.from,
+                            intermediate,
+                            mv.to,
+                        ) {
+                            return false;
+                        }
                         let mut at_mid = piece;
                         at_mid.position = intermediate;
                         crate::movement::MovementGenerator::can_reach_target(
@@ -3335,3 +3378,7 @@ mod multileg_occupancy_tests;
 #[cfg(test)]
 #[path = "move_generation_audit_tests.rs"]
 mod move_generation_audit_tests;
+
+#[cfg(test)]
+#[path = "range_two_mover_rules_tests.rs"]
+mod range_two_mover_rules_tests;

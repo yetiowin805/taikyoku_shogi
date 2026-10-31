@@ -391,12 +391,11 @@ impl MovementGenerator {
             MovementCapability::Jumping { offsets } => {
                 Self::generate_jumping_into(piece, board, offsets, captures_only, targets);
             }
-            MovementCapability::TwoStep { first, second } => {
+            MovementCapability::TwoStep { .. } => {
                 targets.extend(Self::generate_two_step(
                     piece,
                     board,
-                    first,
-                    second,
+                    capability,
                     captures_only,
                 ));
             }
@@ -626,10 +625,12 @@ impl MovementGenerator {
     fn generate_two_step<B: BoardLike>(
         piece: &Piece,
         board: &B,
-        first: &MovementCapability,
-        second: &MovementCapability,
+        capability: &MovementCapability,
         captures_only: bool,
     ) -> Vec<Position> {
+        let MovementCapability::TwoStep { first, second } = capability else {
+            unreachable!("two-step generator requires a TwoStep capability");
+        };
         let mut targets = Vec::new();
 
         // Intermediates need full first-leg targets even for captures_only.
@@ -652,23 +653,34 @@ impl MovementGenerator {
             let inter_captures = board
                 .get_piece(intermediate_pos)
                 .is_some_and(|p| p.color != piece.color);
+            if capability.is_range_two_step() && inter_captures {
+                continue;
+            }
             let second_targets = Self::generate_for_capability(
                 &temp_piece,
                 &after_first,
                 second,
                 captures_only && !inter_captures,
             );
-            if captures_only {
-                for t in second_targets {
+            for t in second_targets {
+                if !capability.allows_two_step_continuation(
+                    board,
+                    piece.position,
+                    intermediate_pos,
+                    t,
+                ) {
+                    continue;
+                }
+                if captures_only {
                     let dest_captures = after_first
                         .get_piece(t)
                         .is_some_and(|p| p.color != piece.color);
                     if inter_captures || dest_captures {
                         targets.push(t);
                     }
+                } else {
+                    targets.push(t);
                 }
-            } else {
-                targets.extend(second_targets);
             }
         }
 
