@@ -1141,6 +1141,13 @@
       "sha256": "f1c2c68fb2cde1951d4d65bdf6ad9d1e1759f91d7fa5d6672f714f5a2affe68e",
       "source": "/home/frank/taikyoku_shogi/data/derived/engine-speed-sweep-20261030/virtual-attack-micro-summary.json"
     },
+    "vps-pgo-20261031.json": {
+      "bytes": 7759,
+      "content_bytes": 7759,
+      "content_sha256": "33553de6a9e0e0cfc4f13c56cc43c2714da5e13dc3e43f70d3affceee8bc6697",
+      "sha256": "33553de6a9e0e0cfc4f13c56cc43c2714da5e13dc3e43f70d3affceee8bc6697",
+      "source": "Destination VPS aggregate paired-search validation and guarded deployment receipts; raw game/model inputs and profiles remain on the VPS"
+    },
     "warmups/attack-filter-screen-ab.jsonl.gz": {
       "bytes": 2796,
       "content_bytes": 21554,
