@@ -178,6 +178,7 @@ fn push_cell(
         id,
         model,
         engine: None,
+        generation: None,
     });
     Ok(())
 }
@@ -210,6 +211,7 @@ fn push_baseline(
         } else {
             None
         },
+        generation: None,
     });
     Ok(())
 }
