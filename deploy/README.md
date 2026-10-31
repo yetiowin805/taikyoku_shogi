@@ -413,6 +413,13 @@ a tournament CPU lease, so use an idle or maintenance CPU. Existing games and th
 coordinator are not restarted. See [rolling updates](ROLLING_ENGINES.md#host-local-pgo)
 for model/game controls, retained provenance and publication of prepared pairs.
 
+### Sample live tournament CPU use
+
+See [short CPU profiles](PROFILING.md) for the bounded live `perf` collector,
+private evidence, game/model-pair attribution and a matched replay experiment
+that measures observer cost. Sampling is separate from compiler PGO training;
+the tools do not install recurring collection or publish another engine.
+
 ### Tournament with continuous swing analysis (four Linux CPUs)
 
 Build with `cargo build --release --bins`. The combined Python launcher requires
