@@ -3,7 +3,7 @@ use crate::movement::MovementConfig;
 use crate::path_utils;
 use crate::piece::{Color, Piece, PieceType};
 use crate::position::Position;
-use std::sync::OnceLock;
+use std::sync::{Arc, OnceLock};
 
 /// Stage B only needs Free Eagles and pieces with a TwoStep capability.
 /// Base-type variants keep the dynamic path because their movement identity
@@ -374,9 +374,32 @@ pub struct GameState {
     hash: u64,
     /// Repetition keys after each position (including the current one).
     rep_history: Vec<u64>,
+    /// Immutable history prefix indexed once at a search root. The short
+    /// search suffix remains in `rep_history`, so make/unmake needs no map work.
+    rep_prefix: Option<Arc<RepetitionPrefix>>,
     /// Search-only incremental material/PST; `None` outside a bound search.
     eval_inc: Option<crate::eval::EvalInc>,
     pub(crate) nnue: Option<crate::nnue::Accumulator>,
+}
+
+struct RepetitionPrefix {
+    len: usize,
+    counts: Vec<(u64, usize)>,
+    /// Zobrist low bits cheaply rule out most keys before the binary search.
+    /// Collisions only cause a full-key lookup; they never establish a repeat.
+    present: [u64; 256],
+}
+
+impl RepetitionPrefix {
+    fn count(&self, key: u64) -> usize {
+        let bit = key as usize & (256 * 64 - 1);
+        if self.present[bit / 64] & (1 << (bit % 64)) == 0 {
+            return 0;
+        }
+        self.counts
+            .binary_search_by_key(&key, |&(hash, _)| hash)
+            .map_or(0, |index| self.counts[index].1)
+    }
 }
 
 enum ApplyOutcome {
@@ -402,6 +425,7 @@ impl GameState {
             turns_without_capture_or_promotion: 0,
             hash: 0,
             rep_history: Vec::new(),
+            rep_prefix: None,
             eval_inc: None,
             nnue: None,
         };
@@ -428,6 +452,7 @@ impl GameState {
 
     /// Clear and seed `rep_history` with the current position key.
     pub fn reset_rep_history(&mut self) {
+        self.rep_prefix = None;
         self.rep_history.clear();
         self.rep_history.push(self.repetition_key());
     }
@@ -440,12 +465,57 @@ impl GameState {
     /// Pop the last repetition key (search unmake / null-move undo).
     pub fn pop_repetition_key(&mut self) {
         self.rep_history.pop();
+        self.invalidate_shortened_repetition_prefix();
+    }
+
+    fn invalidate_shortened_repetition_prefix(&mut self) {
+        if self
+            .rep_prefix
+            .as_ref()
+            .is_some_and(|prefix| prefix.len > self.rep_history.len())
+        {
+            self.rep_prefix = None;
+        }
+    }
+
+    /// Index a long immutable game history before exploring a search tree.
+    /// This includes every prior position, irrespective of progress resets.
+    pub(crate) fn prepare_search_repetition(&mut self) {
+        if self.rep_history.len() < 128 {
+            return;
+        }
+        let mut keys = self.rep_history.clone();
+        keys.sort_unstable();
+        let mut counts: Vec<(u64, usize)> = Vec::with_capacity(keys.len());
+        let mut present = [0u64; 256];
+        for key in keys {
+            if let Some(last) = counts.last_mut().filter(|last| last.0 == key) {
+                last.1 += 1;
+            } else {
+                counts.push((key, 1));
+                let bit = key as usize & (256 * 64 - 1);
+                present[bit / 64] |= 1 << (bit % 64);
+            }
+        }
+        self.rep_prefix = Some(Arc::new(RepetitionPrefix {
+            len: self.rep_history.len(),
+            counts,
+            present,
+        }));
     }
 
     /// How many times the current position key appears in `rep_history`.
     pub fn repetition_count(&self) -> usize {
         let key = self.repetition_key();
-        self.rep_history.iter().filter(|&&k| k == key).count()
+        if let Some(prefix) = &self.rep_prefix {
+            prefix.count(key)
+                + self.rep_history[prefix.len..]
+                    .iter()
+                    .filter(|&&k| k == key)
+                    .count()
+        } else {
+            self.rep_history.iter().filter(|&&k| k == key).count()
+        }
     }
 
     /// Draw when the same position (pieces + STM) has occurred five times.
@@ -1720,11 +1790,9 @@ impl GameState {
         }
 
         let nnue_snapshot = if let Some(acc) = self.nnue.as_mut() {
-            let mut subs = Vec::with_capacity(removed.len() + 1);
-            subs.push(original_mover);
-            subs.extend(removed.iter().map(|(_, p)| *p));
+            let subs = std::iter::once(&original_mover).chain(removed.iter().map(|(_, p)| p));
             let added = self.board.get_piece(final_to);
-            Some(acc.save_and_apply(&subs, added.as_ref()))
+            Some(acc.save_and_apply(subs, added.as_ref()))
         } else {
             None
         };
@@ -1765,6 +1833,7 @@ impl GameState {
         self.turns_without_capture_or_promotion = undo.prev_draw;
         self.hash = undo.prev_hash;
         self.rep_history.truncate(undo.prev_rep_len);
+        self.invalidate_shortened_repetition_prefix();
         self.eval_inc = undo.prev_eval_inc;
     }
 
@@ -2073,6 +2142,7 @@ impl GameState {
             turns_without_capture_or_promotion: self.turns_without_capture_or_promotion, // Preserve counter
             hash: self.hash,
             rep_history: Vec::new(),
+            rep_prefix: None,
             eval_inc: None,
             nnue: None,
         };
@@ -2102,8 +2172,8 @@ impl GameState {
     }
 
     /// Draw when [`PROGRESS_DRAW_LIMIT`] consecutive turns had no
-    /// irreversible progress (capture, promotion, or a one-way directional /
-    /// jump move).
+    /// irreversible progress (capture, promotion, or permanent directional
+    /// advancement that the piece cannot undo by any quiet route).
     pub fn is_draw_by_progress_rule(&self) -> bool {
         self.turns_without_capture_or_promotion >= PROGRESS_DRAW_LIMIT
     }
@@ -2412,11 +2482,10 @@ impl GameState {
         let config = MovementConfig::for_piece(piece);
         for capability in &config.capabilities {
             if let crate::movement::types::MovementCapability::Range { .. } = capability {
-                let cap_vec = vec![capability.clone()];
                 let potential_targets = crate::movement::MovementGenerator::generate_targets(
                     piece,
                     &self.board,
-                    &cap_vec,
+                    std::slice::from_ref(capability),
                 );
 
                 for target in potential_targets {
@@ -3047,5 +3116,171 @@ mod tests {
         assert_eq!(state.rep_history.len(), before_len);
         assert_eq!(state.repetition_key(), before_key);
         assert_eq!(state.repetition_count(), 1);
+    }
+
+    #[test]
+    fn repetition_prefix_matches_full_history_including_filter_collisions() {
+        let mut state = GameState::new();
+        let current = state.repetition_key();
+        // Every key shares the absence-filter bit. Only exact keys count.
+        state.rep_history = (0..2000)
+            .map(|i| current.wrapping_add((i % 137) * 16384))
+            .collect();
+        state.prepare_search_repetition();
+        assert!(state.rep_prefix.is_some());
+        for extra in [current, current.wrapping_add(16384), current ^ 1] {
+            state.rep_history.push(extra);
+        }
+        for i in 0..140 {
+            let key = current.wrapping_add(i * 16384);
+            state.hash = key ^ crate::zobrist::draw_key(state.turns_without_capture_or_promotion);
+            assert_eq!(
+                state.repetition_count(),
+                state.rep_history.iter().filter(|&&k| k == key).count()
+            );
+        }
+        let mut branch = state.clone();
+        branch.pop_repetition_key();
+        branch.pop_repetition_key();
+        branch.pop_repetition_key();
+        assert!(branch.rep_prefix.is_some());
+        branch.pop_repetition_key();
+        assert!(branch.rep_prefix.is_none());
+        assert!(
+            state.rep_prefix.is_some(),
+            "a cloned branch must not invalidate its parent"
+        );
+        branch.reset_rep_history();
+        assert!(branch.rep_prefix.is_none());
+        assert_eq!(branch.repetition_count(), 1);
+    }
+
+    #[test]
+    fn repetition_prefix_rebuilt_in_child_is_invalidated_by_unmake() {
+        let mut state = GameState::new();
+        state.setup_initial_position();
+        let key = state.repetition_key();
+        state.rep_history = (0..200).map(|i| key.wrapping_add(i)).collect();
+        state.prepare_search_repetition();
+        let before = state.repetition_count();
+        let mv = state.generate_legal_moves()[0].clone();
+        let undo = state.make_move_for_search(mv).unwrap();
+        assert_eq!(
+            state.repetition_count(),
+            state
+                .rep_history
+                .iter()
+                .filter(|&&k| k == state.repetition_key())
+                .count()
+        );
+        state.prepare_search_repetition();
+        state.unmake_move_for_search(undo);
+        assert!(state.rep_prefix.is_none());
+        assert_eq!(state.repetition_count(), before);
+    }
+
+    #[test]
+    fn repetition_prefix_tracks_null_push_pop_and_independent_clone_suffixes() {
+        let mut state = GameState::new();
+        state.setup_initial_position();
+        let black = state.repetition_key();
+        state.set_current_turn(Color::White);
+        let white = state.repetition_key();
+        state.set_current_turn(Color::Black);
+        let mut filler = black.wrapping_add(1);
+        if filler == white {
+            filler = filler.wrapping_add(1);
+        }
+        state.rep_history = vec![filler; 180];
+        state.rep_history[0] = white;
+        state.rep_history[179] = black;
+        state.prepare_search_repetition();
+        let naive_count = |position: &GameState| {
+            position
+                .rep_history
+                .iter()
+                .filter(|&&key| key == position.repetition_key())
+                .count()
+        };
+        let before_history = state.rep_history.clone();
+        let before_hash = state.hash();
+        assert_eq!(state.repetition_count(), 1);
+
+        // Match the null-move protocol in alphabeta_impl: flip STM, push,
+        // probe the child, then pop before restoring the original STM.
+        let prev_turn = state.get_current_turn();
+        state.set_current_turn(prev_turn.opposite());
+        state.push_repetition_key();
+        assert_eq!(state.repetition_count(), naive_count(&state));
+        assert_eq!(state.repetition_count(), 2);
+        assert!(state.is_repetition_draw_for_search());
+        assert!(!state.is_draw_by_fivefold_repetition());
+        state.pop_repetition_key();
+        assert_eq!(state.repetition_count(), naive_count(&state));
+        assert_eq!(state.repetition_count(), 1);
+        state.set_current_turn(prev_turn);
+        assert_eq!(state.hash(), before_hash);
+        assert_eq!(state.rep_history, before_history);
+        assert_eq!(state.repetition_count(), naive_count(&state));
+
+        let mut branch = state.clone();
+        assert!(Arc::ptr_eq(
+            state.rep_prefix.as_ref().unwrap(),
+            branch.rep_prefix.as_ref().unwrap()
+        ));
+        // Shared immutable prefixes must not combine two independent suffixes.
+        state.push_repetition_key();
+        state.push_repetition_key();
+        branch.set_current_turn(Color::White);
+        branch.push_repetition_key();
+        assert_ne!(state.rep_history, branch.rep_history);
+        assert_eq!(state.repetition_count(), naive_count(&state));
+        assert_eq!(branch.repetition_count(), naive_count(&branch));
+        assert_eq!(state.repetition_count(), 3);
+        assert_eq!(branch.repetition_count(), 2);
+        branch.pop_repetition_key();
+        assert_eq!(branch.repetition_count(), naive_count(&branch));
+        assert_eq!(branch.repetition_count(), 1);
+        assert_eq!(state.repetition_count(), 3);
+        assert!(state.rep_prefix.is_some() && branch.rep_prefix.is_some());
+    }
+
+    #[test]
+    fn repetition_prefix_threshold_and_draw_counts_survive_suffix_push_pop() {
+        let mut state = GameState::new();
+        let current = state.repetition_key();
+        state.rep_history = vec![current.wrapping_add(1); 127];
+        state.rep_history[126] = current;
+        state.prepare_search_repetition();
+        assert!(state.rep_prefix.is_none());
+        assert_eq!(state.repetition_count(), 1);
+        assert!(!state.is_repetition_draw_for_search());
+
+        state.push_repetition_key();
+        state.prepare_search_repetition();
+        assert_eq!(state.rep_prefix.as_ref().unwrap().len, 128);
+        assert_eq!(state.repetition_count(), 2);
+        assert!(state.is_repetition_draw_for_search());
+        assert!(!state.is_draw_by_fivefold_repetition());
+        for expected in 3..=5 {
+            state.push_repetition_key();
+            assert_eq!(state.repetition_count(), expected);
+        }
+        assert!(state.is_draw_by_fivefold_repetition());
+        for expected in (2..=4).rev() {
+            state.pop_repetition_key();
+            assert_eq!(state.repetition_count(), expected);
+            assert!(!state.is_draw_by_fivefold_repetition());
+            assert!(state.rep_prefix.is_some());
+        }
+        state.pop_repetition_key();
+        assert!(state.rep_prefix.is_none());
+        assert_eq!(state.rep_history.len(), 127);
+        assert_eq!(state.repetition_count(), 1);
+        assert!(!state.is_repetition_draw_for_search());
+        state.push_repetition_key();
+        state.prepare_search_repetition();
+        assert_eq!(state.rep_prefix.as_ref().unwrap().len, 128);
+        assert_eq!(state.repetition_count(), 2);
     }
 }

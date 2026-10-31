@@ -1,0 +1,37 @@
+{
+  "selected_utc": "2026-10-31T04:56:52.875592+00:00",
+  "train_positions": [
+    0,
+    2,
+    6
+  ],
+  "train_models": [
+    0,
+    1,
+    4,
+    5,
+    6
+  ],
+  "train_repeats": 10,
+  "train_depth": 2,
+  "cpu": 2,
+  "held_out_positions": [
+    1,
+    4,
+    5,
+    8,
+    9,
+    10,
+    12,
+    13,
+    14
+  ],
+  "reason": "Reuse successful compiler-PGO workflow; include narrow and wide NNUE plus both handcrafted families; no confirmation or new-sequence roots in profile.",
+  "profile_corpus": "pgo-training-corpus.json",
+  "profile_request_position_indices": [
+    0,
+    1,
+    2
+  ],
+  "eager_replay_isolation": "Profile corpus physically contains only training roots, because helper replays every listed root at startup. Reserved games and new sequences are absent."
+}

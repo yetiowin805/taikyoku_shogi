@@ -1,0 +1,31 @@
+{
+  "patches": [
+    "repetition-state.patch",
+    "search-repetition-roots.patch",
+    "repetition-extra-tests.patch",
+    "iterator-storage.patch",
+    "iterator-state.patch",
+    "direct-append.patch",
+    "range-eval.patch",
+    "direct-append-extra-tests.patch",
+    "direction-bits.patch",
+    "search-ttmask.patch",
+    "search-odd-cluster-fix.patch",
+    "nnue-batched-reduction.patch"
+  ],
+  "patch_sha256": {
+    "repetition-state.patch": "84feb96c9ec1d029b5fabd1f244cf6549a544b4619628c5565c8b08079734fda",
+    "search-repetition-roots.patch": "ac2eaf53e080d019770174af92b90c5abc1231462dd90b867ff39a048d59b1f7",
+    "repetition-extra-tests.patch": "d006998d0d62c816e32166797c9e30daa96c14abe230adf4e447edaea1ad67df",
+    "iterator-storage.patch": "425694e662314698cf20407eefacfb8a8fdb2a02b208055669c199a48569c083",
+    "iterator-state.patch": "4af5b6651ecc7ad4ff104ff868c16b693aba659c95686c5558b71c29170ab0d0",
+    "direct-append.patch": "20429e7c1ed8b194a4afd04101e0864a44d1b313f1298d22f108ae0dfae55a70",
+    "range-eval.patch": "8e638e7dd9b6380b85fdf2784e4c68e152996cb00bbf85f3e8a01b53cd89a63f",
+    "direct-append-extra-tests.patch": "08fd517ca214f4d562d229925eb5813bb3452d6cace8d1cdbc47c30e6a9cc62f",
+    "direction-bits.patch": "86a2de5451038a5a8f75afd592bca5c4fb4df36f599f070ea56b43ba4228d1ec",
+    "search-ttmask.patch": "f064f45fba4200c6ff581a48d96e1c100bd48665d7f1045b07403898a0e72b1f",
+    "search-odd-cluster-fix.patch": "799943387331fde6a0cf80754b12e2c01743f1596efe602afd710ecf8adab95c",
+    "nnue-batched-reduction.patch": "c9ba7da7a50d5d5710d38a14d6a599ebcead3ffbb73c9a82bb07d0eaf455ea97"
+  },
+  "note": "Provisional exact bundle before late arithmetic/search ablations; no confirmation results observed."
+}
