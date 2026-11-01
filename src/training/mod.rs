@@ -3,6 +3,7 @@
 //! CLI and data layout: `src/training/README.md`. Cloud workers: `deploy/README.md`.
 
 pub mod cli;
+mod color_model;
 mod durable;
 pub mod eval_trace;
 pub mod featurize;

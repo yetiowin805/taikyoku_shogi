@@ -10,6 +10,10 @@ pub struct Fit {
     pub method: &'static str,
     pub status: &'static str,
     pub games: usize,
+    /// Shared nuisance parameter, jointly fitted across all start modes.
+    pub black_advantage_elo: f64,
+    pub color_fit_status: &'static str,
+    pub color_fit_games: usize,
     pub components: Vec<Vec<String>>,
     pub weak_components: Vec<Vec<String>>,
     pub component_edges: Vec<(usize, usize)>,
@@ -36,6 +40,21 @@ pub fn from_state(state: &TourneyState) -> Fit {
         ));
     }
     let mut result = fit(&names.into_iter().collect::<Vec<_>>(), &games);
+    if ["converged", "disconnected", "separated"].contains(&result.status) {
+        let mut model = super::color_model::Model::new(state, &result)
+            .expect("invalid color-aware rating input");
+        let (iterations, residual) = model.estimate().expect("joint strength/color fit failed");
+        result.ratings = model.ratings(&result);
+        result.black_advantage_elo = model.beta.last().unwrap() * super::color_model::SCALE;
+        result.color_fit_status = model.status;
+        result.color_fit_games = model.games;
+        result.iterations = iterations;
+        result.max_score_residual = Some(residual);
+        if result.components.len() > 1 {
+            result = embed_components(result);
+        }
+        result.method = "Bradley-Terry + shared Black advantage; within SCCs; minimum squared shifts, edge gap >=100; active mean=1500";
+    }
     if state.order_neutral_only {
         result.retirement = Some(
             super::retirement::evaluate(state, &result)
@@ -84,6 +103,9 @@ fn fit(names: &[String], games: &[(String, String, f64)]) -> Fit {
         method: "Bradley-Terry; equal game weights; draws=half; mean=1500",
         status: "disconnected",
         games: games.len(),
+        black_advantage_elo: 0.,
+        color_fit_status: "not_fitted",
+        color_fit_games: 0,
         components: vec![],
         weak_components: vec![],
         component_edges: vec![],
@@ -279,6 +301,10 @@ fn separated_fit(mut out: Fit, games: &[(String, String, f64)]) -> Fit {
         }
         out.ratings.extend(fitted.ratings);
     }
+    embed_components(out)
+}
+
+fn embed_components(mut out: Fit) -> Fit {
     let n = out.components.len();
     let weights: Vec<_> = out.components.iter().map(|g| g.len() as f64).collect();
     let edges: Vec<_> = out

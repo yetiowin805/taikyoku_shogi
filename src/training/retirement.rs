@@ -1,7 +1,8 @@
 //! Every-game rank pruning selected by the October 2026 ordering replay.
 //! These cluster-robust Wald bounds are empirical, not anytime-valid intervals.
-use super::order_neutral::{solve, Fit};
-use super::tournament::{SlotStartMode, SlotStatus, TourneyState};
+use super::color_model::{variance, Model};
+use super::order_neutral::Fit;
+use super::tournament::{SlotStatus, TourneyState};
 use serde::Serialize;
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -84,39 +85,6 @@ fn generations(
     Ok((groups, unclassified))
 }
 
-fn covariance(count: &[Vec<f64>], ratings: &[f64]) -> Result<Vec<Vec<f64>>, String> {
-    let n = count.len();
-    let mut information = vec![vec![0.0; n]; n];
-    for i in 0..n {
-        for j in i + 1..n {
-            let p = 1.0 / (1.0 + (-(ratings[i] - ratings[j]) / SCALE).exp());
-            let v = count[i][j] * p * (1.0 - p);
-            information[i][i] += v;
-            information[j][j] += v;
-            information[i][j] -= v;
-            information[j][i] -= v;
-        }
-    }
-    // Invert on the centered subspace. The added constant direction is removed
-    // afterwards; pairwise contrast variances are independent of the anchor.
-    let offset = 1.0 / n as f64;
-    for row in &mut information {
-        for v in row {
-            *v += offset;
-        }
-    }
-    let mut cov = vec![vec![0.0; n]; n];
-    for j in 0..n {
-        let mut unit = vec![0.0; n];
-        unit[j] = 1.0;
-        let column = solve(information.clone(), unit).ok_or("singular retirement information")?;
-        for (row, v) in cov.iter_mut().zip(column) {
-            row[j] = v - offset;
-        }
-    }
-    Ok(cov)
-}
-
 fn multiply(a: &[Vec<f64>], b: &[Vec<f64>]) -> Vec<Vec<f64>> {
     a.iter()
         .map(|row| {
@@ -184,12 +152,8 @@ pub(super) fn evaluate(state: &TourneyState, fit: &Fit) -> Result<Report, String
         .enumerate()
         .map(|(i, id)| (id, i))
         .collect();
-    let mut count = vec![vec![0.0; n]; n];
     let mut opponents = vec![BTreeMap::<&str, usize>::new(); n];
-    let mut blocks = BTreeMap::<(usize, usize, u64, bool), (usize, f64)>::new();
-    let mut total_games = 0;
     for slot in state.slots.iter().filter(|s| s.status == SlotStatus::Done) {
-        total_games += 1;
         let left = index.get(&slot.model_a).copied();
         let right = index.get(&slot.model_b).copied();
         if let Some(i) = left {
@@ -198,56 +162,19 @@ pub(super) fn evaluate(state: &TourneyState, fit: &Fit) -> Result<Report, String
         if let Some(j) = right {
             *opponents[j].entry(&slot.model_a).or_default() += 1;
         }
-        if let (Some(i), Some(j)) = (left, right) {
-            let score = slot.score_a.ok_or("completed slot missing score")?;
-            if i == j || ![0.0, 0.5, 1.0].contains(&score) {
-                return Err("invalid completed result".into());
-            }
-            count[i][j] += 1.0;
-            count[j][i] += 1.0;
-            let (a, b, score) = if i < j {
-                (i, j, score)
-            } else {
-                (j, i, 1.0 - score)
-            };
-            let block = blocks
-                .entry((
-                    a,
-                    b,
-                    slot.start_seed,
-                    slot.start_mode == SlotStartMode::Opening,
-                ))
-                .or_default();
-            block.0 += 1;
-            block.1 += score;
-        }
     }
-    let cov = covariance(&count, &ratings)?;
-    let mut meat = vec![vec![0.0; n]; n];
-    for (&(i, j, _, _), &(games, score)) in &blocks {
-        let p = 1.0 / (1.0 + (-(ratings[i] - ratings[j]) / SCALE).exp());
-        let v = (score - games as f64 * p).powi(2);
-        meat[i][i] += v;
-        meat[j][j] += v;
-        meat[i][j] -= v;
-        meat[j][i] -= v;
-    }
-    if blocks.len() > 1 && total_games > n - 1 {
-        let correction = blocks.len() as f64 / (blocks.len() - 1) as f64 * (total_games - 1) as f64
-            / (total_games - n + 1) as f64;
-        for row in &mut meat {
-            for v in row {
-                *v *= correction;
-            }
-        }
-    }
+    let mut model = Model::new(state, fit)?;
+    model.set_from_fit(fit);
+    let cov = model.covariance()?;
+    let meat = model.cluster_meat(state);
     let robust = multiply(&multiply(&cov, &meat), &cov);
     for i in 0..n {
         let lower = (0..n)
             .filter(|&j| j != i)
             .map(|j| {
-                let model_variance = cov[i][i] + cov[j][j] - 2.0 * cov[i][j];
-                let block_variance = robust[i][i] + robust[j][j] - 2.0 * robust[i][j];
+                let contrast = model.contrast(&report.core[i], &report.core[j]);
+                let model_variance = variance(&cov, &contrast);
+                let block_variance = variance(&robust, &contrast);
                 let se = SCALE * model_variance.max(block_variance).max(0.0).sqrt();
                 ratings[j] - ratings[i] - Z * se
             })
@@ -271,7 +198,8 @@ pub(super) fn evaluate(state: &TourneyState, fit: &Fit) -> Result<Report, String
 mod tests {
     use super::*;
     use crate::training::tournament::{
-        build_schedule, ensure_ratings, TourneyConfig, TourneyEntrant, TourneyFormat, TourneySlot,
+        build_schedule, ensure_ratings, SlotStartMode, TourneyConfig, TourneyEntrant,
+        TourneyFormat, TourneySlot,
     };
 
     fn fixture() -> TourneyState {
@@ -487,12 +415,5 @@ mod tests {
         boundary = bounds;
         boundary[7] = 0.0;
         assert!(!classify(20, 6, boundary.into_iter()).1);
-    }
-
-    #[test]
-    fn information_contrast_matches_binomial_variance() {
-        let c = covariance(&[vec![0.0, 100.0], vec![100.0, 0.0]], &[1500.0, 1500.0]).unwrap();
-        let variance = c[0][0] + c[1][1] - 2.0 * c[0][1];
-        assert!((variance - 0.04).abs() < 1e-10);
     }
 }

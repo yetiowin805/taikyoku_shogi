@@ -262,6 +262,11 @@ mod tests {
             slot.score_a = Some(score);
             state.slots.push(slot);
         }
+        // Balance the score/color association across this fixture so the
+        // ordering assertions test pairing, rather than a Black-only sample.
+        for slot in &mut state.slots {
+            slot.a_is_black = matches!(slot.id % 4, 0 | 3);
+        }
         state
     }
 
