@@ -66,6 +66,38 @@ sequence. A coordinator upgrade is required; updating only game-engine binaries
 does not change scheduling. Older coordinators can read the state but do not
 continue the new Thue–Morse policy.
 
+## Fitted ratings and color advantage
+
+Ratings jointly estimate agent strength and **one shared Black advantage across
+all start modes**. A game's expected score is logistic in the strength difference
+plus the Black bonus (minus the bonus when the first-listed agent plays White).
+Draws contribute half a point. The fit updates from completed results; it does
+not need a previously settled rating list.
+
+Only within-SCC results identify finite strength differences and color advantage.
+One-way edges retain the existing provisional 100-Elo component embedding. Active
+agents still define each connected group's displayed mean of 1500. Historical
+results against retired agents remain evidence. Rating JSON additionally exposes
+`black_advantage_elo`, `color_fit_status`, and `color_fit_games`.
+
+Neither agent strengths nor color advantage have a prior. The Black adjustment
+is fixed at zero if all contributing games were won by Black (or all by White),
+if no within-SCC games exist, or if a finite identifiable joint color fit cannot
+be obtained. `color_fit_status` labels the reason; strengths are then refitted
+with color fixed at zero. Ordinary identified fits use the unpenalized likelihood.
+
+Retirement retains its coverage thresholds, rank/gap criteria, and generation
+protections. Its model information and start-position-clustered sandwich
+calculation include the fitted color parameter and its uncertainty, including
+within-SCC evidence from other components. The finite-sample correction uses the
+joint model's contributing games and parameter count. These remain empirical Wald
+bounds, not anytime-valid guarantees. Results are deterministically aggregated;
+input order and swapping the first/second agent labels cannot change the fit.
+
+A coordinator upgrade recalculates ratings, retirements, generation representatives,
+and future scheduling under this model. Already committed games and bracket
+winners remain unchanged. Engine binaries and time controls are independent.
+
 ## Eval / search history
 
 Major eval or search-behavior merges need a `kind: logic` freeze (parent of the merge) via `./deploy/freeze_history.sh`. Weight-only bakes are `kind: weights`. Details: [`AGENTS.md`](../../AGENTS.md).
@@ -82,20 +114,20 @@ playing in another tree. Play-ins retain the existing combined first-round
 inactivity period. Glicko remains the seeding rating and is still order-dependent.
 
 Every state save also writes `order-neutral-ratings.json` and includes its results
-in `standings.md`. It fits an unregularized Bradley–Terry expected-score model to
-all completed scored games in this run with equal game weights; draws contribute
+in `standings.md`. It fits the shared-color Bradley–Terry model described above
+with equal game weights; draws contribute
 half a win in each direction. It does not model a separate draw probability,
 import prior ratings, weight recent results more, or change bracket seeding.
 Ratings use the conventional 400-point logistic scale, centered at mean 1500.
 Different engine revisions under one entrant name are deliberately pooled.
 
 Before fitting, wins create winner-to-loser edges and draws create both edges.
-The entire graph, including unplayed entrants, must be strongly connected for a
-unique finite global fit (up to its fixed mean). Otherwise the report includes
-strongly connected components and their directed edges and publishes no fitted
-ratings. Disconnected schedules can be unidentifiable without infinite estimates;
-one-way separation can send relative estimates to infinity. Neither is hidden
-using priors or caps. See the [BradleyTerryScalable documentation](https://ellakaye.github.io/BradleyTerryScalable/articles/BradleyTerryScalable.html).
+One-way separation can send cross-component strength differences to infinity.
+The report retains strongly connected components and directed edges, fits their
+internal results jointly with the shared color parameter, and embeds components
+provisionally using the existing minimum-shift 100-Elo gaps. Those cross-component
+display gaps are not finite MLE differences. Color-specific nonidentifiability
+uses the explicitly reported zero fallback described above. See the [BradleyTerryScalable documentation](https://ellakaye.github.io/BradleyTerryScalable/articles/BradleyTerryScalable.html).
 
 The deterministic Newton fit aggregates integer half-points first, verifies
 convergence of predicted versus observed score totals, and reports failure rather
