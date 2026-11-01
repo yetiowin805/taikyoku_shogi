@@ -50,6 +50,22 @@ Inspect: `cat data/run/status.json`, or `serve` + SSH tunnel → `GET /api/train
 
 Knockout is the tournament default (seeded 1v16 until stop). `--init-ratings` copies Glicko r/RD from a prior Swiss `ratings.json` or `state.json`.
 
+Knockout matches start with color-swapped pairs. After ten tied games, sudden
+death starts with a seeded random color for the first-listed agent, then follows
+the Thue–Morse pattern `B W W B W B B W ...` or its color-reversed counterpart.
+Every aligned two-game block swaps colors and reuses its start position. A
+decisive sudden-death game still ends the match immediately; four consecutive
+draws still favor the agent with the lower match-creation rating. The pattern
+does not remove first-move advantage from an individual game or adjust fitted
+ratings.
+
+The first color is stored in `sudden_death_first_black`, so restart preserves
+the sequence. Old states load without this optional field; a match that already
+entered sudden death under the old rule finishes its original alternating
+sequence. A coordinator upgrade is required; updating only game-engine binaries
+does not change scheduling. Older coordinators can read the state but do not
+continue the new Thue–Morse policy.
+
 ## Eval / search history
 
 Major eval or search-behavior merges need a `kind: logic` freeze (parent of the merge) via `./deploy/freeze_history.sh`. Weight-only bakes are `kind: weights`. Details: [`AGENTS.md`](../../AGENTS.md).

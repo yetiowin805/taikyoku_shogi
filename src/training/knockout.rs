@@ -38,6 +38,11 @@ pub struct KnockoutMatch {
     pub slot_ids: Vec<usize>,
     pub phase: MatchPhase,
     pub consecutive_draws: usize,
+    /// Persist the random orientation of the Thue–Morse sudden-death sequence.
+    /// None with existing singles identifies a legacy match; finish its old
+    /// alternating sequence without changing any committed game colors.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sudden_death_first_black: Option<bool>,
     pub winner: Option<String>,
     pub pair_start_seed: u64,
     pub pair_start_mode: SlotStartMode,
@@ -317,6 +322,7 @@ fn new_match(
         slot_ids: Vec::new(),
         phase: MatchPhase::Pairs,
         consecutive_draws: 0,
+        sudden_death_first_black: None,
         winner: None,
         pair_start_seed: 0,
         pair_start_mode: SlotStartMode::Opening,
@@ -616,7 +622,25 @@ fn enqueue_single(
         let m = &state.knockouts[tree_idx].matches[match_idx];
         (m.pair_start_seed, m.pair_start_mode)
     };
-    let a_black = singles_idx.is_multiple_of(2);
+    let a_black = if let Some(first_black) =
+        state.knockouts[tree_idx].matches[match_idx].sudden_death_first_black
+    {
+        thue_morse_color(first_black, singles_idx)
+    } else if singles_idx == 0 {
+        let first_black = pairing_u64(
+            state.seed_base,
+            state.knockouts[tree_idx].id,
+            state.knockouts[tree_idx].matches[match_idx].id as u64,
+            0x5355_4444_454E_434F,
+        ) & 1
+            != 0;
+        state.knockouts[tree_idx].matches[match_idx].sudden_death_first_black = Some(first_black);
+        first_black
+    } else {
+        // Matches that entered sudden death before this field existed retain
+        // their old policy. New matches randomize the initial orientation.
+        singles_idx.is_multiple_of(2)
+    };
     let sid = push_slot(
         state,
         a.to_string(),
@@ -629,6 +653,12 @@ fn enqueue_single(
     m.pair_start_seed = start_seed;
     m.pair_start_mode = start_mode;
     m.slot_ids.push(sid);
+}
+
+fn thue_morse_color(first_black: bool, index: usize) -> bool {
+    // Starting with Black gives B W W B W B B W ... . Every aligned pair
+    // swaps colors; four- and eight-game blocks also balance linear trends.
+    first_black ^ !index.count_ones().is_multiple_of(2)
 }
 
 fn push_slot(
@@ -1137,6 +1167,123 @@ mod tests {
             finish_slot(&mut st, pending[0], 0.5);
         }
         assert_eq!(st.knockouts[0].matches[0].winner.as_deref(), Some("p1"));
+    }
+
+    fn enter_sudden_death(seed: u64) -> TourneyState {
+        let mut cfg = cfg_n(2);
+        cfg.seed_base = seed;
+        let mut state = build_schedule(&cfg);
+        spawn_knockout(&mut state);
+        enqueue_needed_games(&mut state);
+        for _ in 0..5 {
+            let pending: Vec<_> = state
+                .slots
+                .iter()
+                .filter(|slot| slot.status == SlotStatus::Pending)
+                .map(|slot| slot.id)
+                .collect();
+            for id in pending {
+                finish_slot(&mut state, id, 0.5);
+            }
+        }
+        assert_eq!(state.knockouts[0].matches[0].phase, MatchPhase::Singles);
+        state
+    }
+
+    #[test]
+    fn sudden_death_sequence_balances_colors_and_position_trends() {
+        let colors: Vec<_> = (0..8).map(|i| thue_morse_color(true, i)).collect();
+        assert_eq!(colors, [true, false, false, true, false, true, true, false]);
+        for (i, color) in colors.iter().enumerate() {
+            assert_ne!(*color, thue_morse_color(false, i));
+        }
+        for block_size in [2, 4, 8, 16] {
+            for start in (0..64).step_by(block_size) {
+                let black = (start..start + block_size)
+                    .filter(|&i| thue_morse_color(true, i))
+                    .count();
+                assert_eq!(black, block_size / 2);
+            }
+        }
+        // Equal sums of game indices avoid the linear-position imbalance of
+        // plain B W B W; the eight-game block balances quadratic position too.
+        for (length, degree) in [(4, 1), (8, 2)] {
+            for power in 0..=degree {
+                let mut black = 0usize;
+                let mut white = 0usize;
+                for i in 0usize..length {
+                    if thue_morse_color(true, i) {
+                        black += i.pow(power);
+                    } else {
+                        white += i.pow(power);
+                    }
+                }
+                assert_eq!(black, white);
+            }
+        }
+    }
+
+    #[test]
+    fn sudden_death_random_orientation_and_resume_preserve_assignments() {
+        let mut orientations = BTreeSet::new();
+        for seed in 0..32 {
+            let state = enter_sudden_death(seed);
+            let first = state.knockouts[0].matches[0]
+                .sudden_death_first_black
+                .expect("new sudden death stores its first color");
+            orientations.insert(first);
+            assert_eq!(state.slots[PAIR_GAME_CAP].a_is_black, first);
+            assert_eq!(
+                first,
+                enter_sudden_death(seed).knockouts[0].matches[0]
+                    .sudden_death_first_black
+                    .unwrap()
+            );
+        }
+        assert_eq!(orientations.len(), 2);
+
+        let mut state = enter_sudden_death(7);
+        let first = state.knockouts[0].matches[0]
+            .sudden_death_first_black
+            .unwrap();
+        for index in 0..4 {
+            let pending = state.slots.last().unwrap();
+            assert_eq!(pending.status, SlotStatus::Pending);
+            assert_eq!(pending.a_is_black, thue_morse_color(first, index));
+            let id = pending.id;
+            let color = pending.a_is_black;
+            let seed = pending.start_seed;
+            state = serde_json::from_str(&serde_json::to_string(&state).unwrap()).unwrap();
+            assert_eq!(state.slots.last().unwrap().a_is_black, color);
+            assert_eq!(state.slots.last().unwrap().start_seed, seed);
+            if !index.is_multiple_of(2) {
+                assert_eq!(seed, state.slots[state.slots.len() - 2].start_seed);
+                assert_ne!(color, state.slots[state.slots.len() - 2].a_is_black);
+            }
+            finish_slot(&mut state, id, 0.5);
+        }
+    }
+
+    #[test]
+    fn legacy_sudden_death_finishes_its_already_started_color_policy() {
+        let state = enter_sudden_death(11);
+        let mut saved = serde_json::to_value(&state).unwrap();
+        saved["knockouts"][0]["matches"][0]
+            .as_object_mut()
+            .unwrap()
+            .remove("sudden_death_first_black");
+        saved["slots"][PAIR_GAME_CAP]["a_is_black"] = true.into();
+        let mut restored: TourneyState = serde_json::from_value(saved).unwrap();
+        for index in 0usize..4 {
+            let pending = restored.slots.last().unwrap();
+            assert_eq!(pending.a_is_black, index.is_multiple_of(2));
+            let id = pending.id;
+            finish_slot(&mut restored, id, 0.5);
+        }
+        assert!(restored.knockouts[0].matches[0].winner.is_some());
+        assert!(restored.knockouts[0].matches[0]
+            .sudden_death_first_black
+            .is_none());
     }
 
     #[test]
