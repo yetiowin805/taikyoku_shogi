@@ -381,9 +381,9 @@ mod iterator_parity {
             for b in 0..1296 {
                 let from = Position::from_index(a).unwrap();
                 let to = Position::from_index(b).unwrap();
-                assert_eq!(
-                    get_path_positions(from, to),
-                    path_positions(from, to).collect::<Vec<_>>()
+                assert!(
+                    path_positions(from, to).eq(get_path_positions(from, to)),
+                    "path mismatch: {from:?} -> {to:?}"
                 );
             }
         }

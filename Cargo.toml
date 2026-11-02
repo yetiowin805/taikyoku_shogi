@@ -27,6 +27,11 @@ royal-probes = []
 lto = "thin"
 codegen-units = 1
 
+# Integration tests hash real debug executables and NNUE checkpoints. Keep the
+# engine's debug checks while avoiding unoptimized SHA-256 compression loops.
+[profile.test.package.sha2]
+opt-level = 3
+
 # Fast production-like builds for the local web GUI. Keep `release` tuned for
 # tournaments and benchmarks; this profile favors short incremental links.
 [profile.gui]

@@ -52,13 +52,13 @@ class SidecarTests(unittest.TestCase):
                 p.wait()
         self.tmp.cleanup()
 
-    def config(self, delay=0.4, code=0):
+    def config(self, code=0):
         program = self.root / "fake_training.py"
         program.write_text(
             "import json,os,time\nfrom pathlib import Path\n"
             f"root=Path({str(self.root)!r})\n"
             '(root/"started.json").write_text(json.dumps(dict(pid=os.getpid(),cpu=sorted(os.sched_getaffinity(0)),time=time.monotonic())))\n'
-            f"time.sleep({delay})\n"
+            'while not (root/"training.release").exists(): time.sleep(.01)\n'
             '(root/"finished.json").write_text(json.dumps(dict(time=time.monotonic())))\n'
             f"raise SystemExit({code})\n"
         )
@@ -89,6 +89,49 @@ class SidecarTests(unittest.TestCase):
         self.procs.append(p)
         return p
 
+    def supervisor_command(self, *, finish_before_startup=False):
+        # Control the supervisor's startup boundary and polling independently of
+        # real child processes. No production sleep intervals are changed.
+        program = self.root / "supervisor.py"
+        program.write_text(f"""import signal
+import subprocess
+import sys
+import time
+from pathlib import Path
+from types import SimpleNamespace
+
+sys.path.insert(0, {str(Path(a.__file__).parent)!r})
+import tourney_analysis as a
+
+root = Path({str(self.root)!r})
+children = []
+
+def launch(*args, **kwargs):
+    child = subprocess.Popen(*args, **kwargs)
+    children.append(child)
+    return child
+
+def sleep(seconds):
+    if seconds == 2:
+        (root / "startup.waiting").touch()
+        deadline = time.monotonic() + 8
+        while not (root / "startup.release").exists():
+            if time.monotonic() >= deadline:
+                raise TimeoutError("fixture did not release supervisor startup")
+            time.sleep(.01)
+        if {finish_before_startup!r}:
+            children[-1].wait(timeout=8)
+    else:
+        time.sleep(.01)
+
+a.ROOT = root
+a.time = SimpleNamespace(sleep=sleep, monotonic=time.monotonic)
+a.subprocess = SimpleNamespace(Popen=launch, TimeoutExpired=subprocess.TimeoutExpired)
+signal.signal(signal.SIGTERM, a.stop_handler)
+a.supervise(a.read(root / "run/analysis/config.json"))
+""")
+        return [sys.executable, str(program)]
+
     def test_waits_for_game_boundary_and_releases_cpu_on_completion(self):
         self.config()
         with (self.control / "shared.lock").open("a+") as game:
@@ -101,6 +144,7 @@ class SidecarTests(unittest.TestCase):
             with self.assertRaises(BlockingIOError):
                 fcntl.flock(game, fcntl.LOCK_EX | fcntl.LOCK_NB)
             self.assertEqual(json.loads((self.root / "started.json").read_text())["cpu"], [self.cpus[3]])
+            (self.root / "training.release").touch()
             self.assertEqual(p.wait(timeout=5), 0)
             self.assertFalse((self.control / "analysis.request").exists())
             fcntl.flock(game, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -110,7 +154,7 @@ class SidecarTests(unittest.TestCase):
         for force in (False, True):
             with self.subTest(force=force):
                 (self.root / "started.json").unlink(missing_ok=True)
-                config = self.config(delay=20)
+                config = self.config()
                 # Exercise the actual middle supervisor too: sidecar ->
                 # continuation runner -> trainer, with the lease inherited twice.
                 (self.root / "train.py").write_bytes((self.root / "fake_training.py").read_bytes())
@@ -147,12 +191,19 @@ class SidecarTests(unittest.TestCase):
                 (self.control / "analysis.request").unlink(missing_ok=True)
 
     def test_supervisor_finite_success_and_failure_return_fourth_worker(self):
-        for code, delay in ((0, 0.1), (7, 0.1), (7, 2.5)):
-            with self.subTest(code=code, delay=delay):
-                for name in ("fourth.json", "started.json", "finished.json"):
+        for code, after_startup in ((0, False), (7, False), (7, True)):
+            with self.subTest(code=code, after_startup=after_startup):
+                for name in (
+                    "fourth.json",
+                    "started.json",
+                    "finished.json",
+                    "training.release",
+                    "startup.waiting",
+                    "startup.release",
+                ):
                     (self.root / name).unlink(missing_ok=True)
                 (self.control / "supervisor.json").unlink(missing_ok=True)
-                config = self.config(delay=delay, code=code)
+                config = self.config(code=code)
                 game = self.root / "fake_tournament.py"
                 game.write_text(
                     "import fcntl,json,os,time\nfrom pathlib import Path\n"
@@ -168,16 +219,22 @@ class SidecarTests(unittest.TestCase):
                 )
                 config["command"] = [sys.executable, str(game)]
                 a.atomic(self.control / "config.json", config)
-                wrapper = (
-                    "import sys,signal;from pathlib import Path;"
-                    f"sys.path.insert(0,{str(Path(a.__file__).parent)!r});import tourney_analysis as a;"
-                    f"a.ROOT=Path({str(self.root)!r});signal.signal(signal.SIGTERM,a.stop_handler);"
-                    f"a.supervise(a.read({str(self.control / 'config.json')!r}))"
-                )
                 p = subprocess.Popen(
-                    [sys.executable, "-c", wrapper], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                    self.supervisor_command(finish_before_startup=not after_startup),
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
                 )
                 self.procs.append(p)
+                wait_for(lambda: (self.root / "startup.waiting").exists() and (self.root / "started.json").exists())
+                self.assertFalse((self.root / "fourth.json").exists())
+                if not after_startup:
+                    (self.root / "training.release").touch()
+                (self.root / "startup.release").touch()
+                if after_startup:
+                    wait_for(lambda: (self.control / "supervisor.json").exists())
+                    self.assertEqual(a.read(self.control / "supervisor.json")["sidecar_state"], "running")
+                    self.assertFalse((self.root / "fourth.json").exists())
+                    (self.root / "training.release").touch()
                 wait_for(lambda: (self.root / "fourth.json").exists())
                 wait_for(
                     lambda: (
@@ -230,17 +287,18 @@ class SidecarTests(unittest.TestCase):
             run=str(self.run),
             cpus=self.cpus,
             sidecar="none",
-            command=[sys.executable, "-c", "import time; time.sleep(2.2)"],
+            command=[
+                sys.executable,
+                "-c",
+                "import time; from pathlib import Path; "
+                f"control=Path({str(self.control)!r}); "
+                "\nwhile not (control/'supervisor.json').exists(): time.sleep(.01)\n",
+            ],
         )
         a.atomic(self.control / "config.json", config)
-        wrapper = (
-            "import sys;from pathlib import Path;"
-            f"sys.path.insert(0,{str(Path(a.__file__).parent)!r});import tourney_analysis as a;"
-            f"a.ROOT=Path({str(self.root)!r});"
-            f"a.supervise(a.read({str(self.control / 'config.json')!r}))"
-        )
+        (self.root / "startup.release").touch()
         env = dict(os.environ, TAIKYOKU_STORAGE_CONFIG=str(self.root / "no-production-policy"))
-        result = subprocess.run([sys.executable, "-c", wrapper], env=env, capture_output=True, text=True, timeout=8)
+        result = subprocess.run(self.supervisor_command(), env=env, capture_output=True, text=True, timeout=8)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("tournament exited unexpectedly (0)", result.stderr)
         self.assertEqual(a.read(self.control / "supervisor.json")["state"], "failed")
