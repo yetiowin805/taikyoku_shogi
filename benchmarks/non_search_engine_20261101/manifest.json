@@ -71,6 +71,11 @@
       "bytes": 127
     },
     {
+      "path": "followup.json",
+      "sha256": "acb1e4e4619a67150260bb41bf622e17f1e2ab40f1983fef2babf18fd5d88f1f",
+      "bytes": 461885
+    },
+    {
       "path": "free-eagle-build.log",
       "sha256": "b1119f3a513e8070953228c051a7206c247b4d148b6618cca481834da1b15425",
       "bytes": 126
@@ -107,13 +112,13 @@
     },
     {
       "path": "report.html",
-      "sha256": "51b5456767f257070c60a00c680abdda2ac3b466e41108829df263104ade15a5",
-      "bytes": 382190
+      "sha256": "fde53a6c12777c40ec172423aa3d004c8658b0436deb420db963f8241fb0569b",
+      "bytes": 660257
     },
     {
       "path": "report.json",
-      "sha256": "e2cad8204ba689c5d94c785f512ffb110ce300773a876d7bace549e1ff97cc5c",
-      "bytes": 252894
+      "sha256": "41b45b8d1dff1840ed323810e02f214f61d9771f81804112db96f22094b782e6",
+      "bytes": 749608
     },
     {
       "path": "representation-copy.txt",
@@ -161,6 +166,36 @@
       "bytes": 14368
     },
     {
+      "path": "validation/followup-clippy.log",
+      "sha256": "c502d8134fbd0014b99570292d0c6568d862ff46700cda3af739e88f5698666a",
+      "bytes": 136
+    },
+    {
+      "path": "validation/followup-python.log",
+      "sha256": "9d807eacc4c241374f1191212467c49b9939e8afa86ead78b94b726febba0dfa",
+      "bytes": 14500
+    },
+    {
+      "path": "validation/followup-ruff-format.log",
+      "sha256": "7c344ade3f27e8ad26e2d83e2d3b89fcfa1f712d21eb8b204e24d7ad58cf9f63",
+      "bytes": 25
+    },
+    {
+      "path": "validation/followup-ruff-project.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "bytes": 19
+    },
+    {
+      "path": "validation/followup-rust.log",
+      "sha256": "a030d15efd8d49a197df549324fa7858fd29fe73e108c0106930b1adc20d215a",
+      "bytes": 49867
+    },
+    {
+      "path": "validation/followup-static.json",
+      "sha256": "66b513ae64ac5c435802860b06ff165eaaded4431d152f606d383c0fb45490f1",
+      "bytes": 313
+    },
+    {
       "path": "validation/ruff-format.log",
       "sha256": "7c344ade3f27e8ad26e2d83e2d3b89fcfa1f712d21eb8b204e24d7ad58cf9f63",
       "bytes": 25
@@ -191,5 +226,12 @@
     "Initial and final runs explicitly distinguished; final Copy and Cargo turn measurements are primary.",
     "Current probe source may add failure assertions after initial measurements; no timed algorithm changed.",
     "core.jsonl combines initial line timings with a later corrected sample-versus-quiet allocation census."
-  ]
+  ],
+  "followup": {
+    "date": "2026-11-02 UTC",
+    "performance_pr": "https://github.com/yetiowin805/taikyoku_shogi/pull/210",
+    "performance_revision": "94798a64583a6b93a57b70f228c5d18e9f28d9ae",
+    "coverage": "51originallypromising/speculative findings:44followupareas+7previousbugfixes; originalrawresultsremainunchanged",
+    "report_validation": "StaticHTML/JSON/anchors/JSsyntaxpassed; browserfileURLpreviewblocked; reportbranch570Rusttests+227Pythontests, Clippypass. CandidatePR210CIallpass."
+  }
 }
