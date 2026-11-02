@@ -1,0 +1,264 @@
+.{"archived_files": 1, "source_bytes": 3072, "archive_bytes": 505}
+{"archived_files": 1, "source_bytes": 25, "archive_bytes": 223}
+.{"archived_files": 1, "source_bytes": 3072, "archive_bytes": 505}
+.{"archived_files": 1, "source_bytes": 3072, "archive_bytes": 504}
+..{"archived_files": 1, "source_bytes": 3072, "archive_bytes": 504}
+.{"archived_files": 1, "source_bytes": 3072, "archive_bytes": 505}
+..{"archived_files": 1, "source_bytes": 3072, "archive_bytes": 505}
+.{"archived_files": 1, "source_bytes": 3072, "archive_bytes": 505}
+..{"archived_files": 1, "source_bytes": 3072, "archive_bytes": 505}
+.........................champion selection failed; retaining current teacher: conflicting frozen checkpoint aliases: /tmp/tmpjzbnesv9/challenger.json
+.champion selection failed; retaining current teacher: simulated post-commit interruption
+.teacher champion: current -> challenger, lead 100.0; existing labels retained
+.champion selection failed; retaining current teacher: leader challenger lacks its unchanged frozen checkpoint
+.teacher champion: current -> challenger, lead 100.0; existing labels retained
+.teacher champion: current -> challenger, lead 100.0; existing labels retained
+teacher champion: current -> challenger, lead 100.0; existing labels retained
+.champion selection failed; retaining current teacher: snapshot changed
+.teacher champion: current -> challenger, lead 0.0; existing labels retained
+......................./home/frank/miniconda3/lib/python3.13/unittest/mock.py:2245: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7561b3f96110>
+  def __init__(self, name, parent):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/home/frank/miniconda3/lib/python3.13/unittest/mock.py:2245: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7561b31cc040>
+  def __init__(self, name, parent):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/home/frank/miniconda3/lib/python3.13/unittest/mock.py:2245: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7561b31cc6d0>
+  def __init__(self, name, parent):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/home/frank/miniconda3/lib/python3.13/unittest/mock.py:2245: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7561b31cc4f0>
+  def __init__(self, name, parent):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+.......................................usage: profile_tourney.py [-h] --run-dir RUN_DIR --out OUT [--pid PID]
+                          [--seconds SECONDS] [--frequency FREQUENCY]
+                          [--call-graph {none,dwarf}]
+profile_tourney.py: error: seconds must be in 1..60 and frequency in 1..99
+usage: profile_tourney.py [-h] --run-dir RUN_DIR --out OUT [--pid PID]
+                          [--seconds SECONDS] [--frequency FREQUENCY]
+                          [--call-graph {none,dwarf}]
+profile_tourney.py: error: seconds must be in 1..60 and frequency in 1..99
+usage: profile_tourney.py [-h] --run-dir RUN_DIR --out OUT [--pid PID]
+                          [--seconds SECONDS] [--frequency FREQUENCY]
+                          [--call-graph {none,dwarf}]
+profile_tourney.py: error: seconds must be in 1..60 and frequency in 1..99
+usage: profile_tourney.py [-h] --run-dir RUN_DIR --out OUT [--pid PID]
+                          [--seconds SECONDS] [--frequency FREQUENCY]
+                          [--call-graph {none,dwarf}]
+profile_tourney.py: error: pid must be auto or a positive process ID
+.......................{
+  "build": "1d105a5b6bf0c41d0d9c1a51f088be4fe2775fcd8a562c7b8c0e565a9a47a0c5",
+  "selected": {
+    "protocol": 1,
+    "revision": "new",
+    "engine_bin": "/tmp/tmp6_f1a179/analysis/engine-builds/engine-fc3dabcf62ede34cca3fed8266e655fa8b03be7712b98a114290af2aaebd042b",
+    "engine_sha256": "fc3dabcf62ede34cca3fed8266e655fa8b03be7712b98a114290af2aaebd042b",
+    "analyzer_bin": "/tmp/tmp6_f1a179/analysis/engine-builds/analyzer-fc3dabcf62ede34cca3fed8266e655fa8b03be7712b98a114290af2aaebd042b",
+    "analyzer_sha256": "fc3dabcf62ede34cca3fed8266e655fa8b03be7712b98a114290af2aaebd042b"
+  },
+  "running_games": "unchanged"
+}
+{
+  "build": "e512794370462d4cdbb8c2fd2c25bed957e858f6500ea5baf747bc84d6c321ed",
+  "selected": {
+    "protocol": 1,
+    "revision": "new",
+    "engine_bin": "/tmp/tmpmegm0o45/analysis/engine-builds/engine-78b9da564cf3d26c7c4a40ec3ee30d9244c9d875ebe58d947ae1f8f4274b74d8",
+    "engine_sha256": "78b9da564cf3d26c7c4a40ec3ee30d9244c9d875ebe58d947ae1f8f4274b74d8",
+    "analyzer_bin": "/tmp/tmpmegm0o45/analysis/engine-builds/analyzer-78b9da564cf3d26c7c4a40ec3ee30d9244c9d875ebe58d947ae1f8f4274b74d8",
+    "analyzer_sha256": "78b9da564cf3d26c7c4a40ec3ee30d9244c9d875ebe58d947ae1f8f4274b74d8"
+  },
+  "running_games": "unchanged"
+}
+{
+  "build": "d0dedf5db9d2f804323b79a6569071afd72ea9fd822e311063e8245040376d58",
+  "selected": {
+    "protocol": 1,
+    "revision": "new",
+    "engine_bin": "/tmp/tmp8s8ss5wj/analysis/engine-builds/engine-44d9dceac5e4bb527d3ebe16eb332daa1a06ece7e90a4d4e90233d2fb37d5203",
+    "engine_sha256": "44d9dceac5e4bb527d3ebe16eb332daa1a06ece7e90a4d4e90233d2fb37d5203",
+    "analyzer_bin": "/tmp/tmp8s8ss5wj/analysis/engine-builds/analyzer-44d9dceac5e4bb527d3ebe16eb332daa1a06ece7e90a4d4e90233d2fb37d5203",
+    "analyzer_sha256": "44d9dceac5e4bb527d3ebe16eb332daa1a06ece7e90a4d4e90233d2fb37d5203"
+  },
+  "running_games": "unchanged"
+}
+{
+  "build": "0fdfda66d9dda46123fff694e4128b4ad9a3cff86e893f96bd82fe2bbee0940f",
+  "selected": {
+    "protocol": 1,
+    "revision": "old",
+    "engine_bin": "/tmp/tmp8s8ss5wj/analysis/engine-builds/engine-56d33bac6deaa378df1ea3b817972d079f0dfa879eba19b0509259ca83b8762e",
+    "engine_sha256": "56d33bac6deaa378df1ea3b817972d079f0dfa879eba19b0509259ca83b8762e",
+    "analyzer_bin": "/tmp/tmp8s8ss5wj/analysis/engine-builds/analyzer-56d33bac6deaa378df1ea3b817972d079f0dfa879eba19b0509259ca83b8762e",
+    "analyzer_sha256": "56d33bac6deaa378df1ea3b817972d079f0dfa879eba19b0509259ca83b8762e"
+  },
+  "running_games": "unchanged"
+}
+{
+  "build": "98bddba78e5e13b3a347f1ecf4ce8f933f4662e54caa2bbb3b5cd3ec981fa83a",
+  "selected": {
+    "protocol": 1,
+    "revision": "new",
+    "engine_bin": "/tmp/tmpd88kxgpi/analysis/engine-builds/engine-fd19062d79fdb56bc28816d73dd39a13b8907518ae712736bd2ebb32ccc630a9",
+    "engine_sha256": "fd19062d79fdb56bc28816d73dd39a13b8907518ae712736bd2ebb32ccc630a9",
+    "analyzer_bin": "/tmp/tmpd88kxgpi/analysis/engine-builds/analyzer-fd19062d79fdb56bc28816d73dd39a13b8907518ae712736bd2ebb32ccc630a9",
+    "analyzer_sha256": "fd19062d79fdb56bc28816d73dd39a13b8907518ae712736bd2ebb32ccc630a9"
+  },
+  "running_games": "unchanged"
+}
+{
+  "build": "56ebcb802394d2775e624957925ad443c54c858bc9e60339f8cd84e88bcfd5e2",
+  "selected": {
+    "protocol": 1,
+    "revision": "new",
+    "engine_bin": "/tmp/tmp7v0p5z40/analysis/engine-builds/engine-0dcf307606c0be21d02aaab2dee5976a59746bc4e2f7331b2e535862c3b21ec5",
+    "engine_sha256": "0dcf307606c0be21d02aaab2dee5976a59746bc4e2f7331b2e535862c3b21ec5",
+    "analyzer_bin": "/tmp/tmp7v0p5z40/analysis/engine-builds/analyzer-0dcf307606c0be21d02aaab2dee5976a59746bc4e2f7331b2e535862c3b21ec5",
+    "analyzer_sha256": "0dcf307606c0be21d02aaab2dee5976a59746bc4e2f7331b2e535862c3b21ec5"
+  },
+  "running_games": "unchanged"
+}
+{
+  "build": "8496c1519f60f48cbe3ede9fa93908e4073ac9ca19ace94f8a3478dd64a1ace4",
+  "selected": {
+    "protocol": 1,
+    "revision": "new",
+    "engine_bin": "/tmp/tmp7v0p5z40/analysis/engine-builds/engine-63125a5c87756a6a3363831efaf15542bfea20f95d79ee6997903e110896c342",
+    "engine_sha256": "63125a5c87756a6a3363831efaf15542bfea20f95d79ee6997903e110896c342",
+    "analyzer_bin": "/tmp/tmp7v0p5z40/analysis/engine-builds/analyzer-63125a5c87756a6a3363831efaf15542bfea20f95d79ee6997903e110896c342",
+    "analyzer_sha256": "63125a5c87756a6a3363831efaf15542bfea20f95d79ee6997903e110896c342"
+  },
+  "running_games": "unchanged"
+}
+{
+  "build": "3748262683b49639425fcd14ddc90f41f9c53574a5c45e591ed166fa41cc9ee6",
+  "selected": {
+    "protocol": 1,
+    "revision": "new",
+    "engine_bin": "/tmp/tmp5fnaogh9/analysis/engine-builds/engine-56d33bac6deaa378df1ea3b817972d079f0dfa879eba19b0509259ca83b8762e",
+    "engine_sha256": "56d33bac6deaa378df1ea3b817972d079f0dfa879eba19b0509259ca83b8762e",
+    "analyzer_bin": "/tmp/tmp5fnaogh9/analysis/engine-builds/analyzer-56d33bac6deaa378df1ea3b817972d079f0dfa879eba19b0509259ca83b8762e",
+    "analyzer_sha256": "56d33bac6deaa378df1ea3b817972d079f0dfa879eba19b0509259ca83b8762e"
+  },
+  "running_games": "unchanged"
+}
+4 searches; profiles in /tmp/tmp0l1rqxg_/output/profiles
+{"archived_files": 1, "source_bytes": 8192, "archive_bytes": 353}
+{"archived_files": 1, "source_bytes": 31, "archive_bytes": 230}
+{"archived_files": 1, "source_bytes": 135, "archive_bytes": 289}
+{"archived_files": 2, "source_bytes": 53, "archive_bytes": 304}
+{"archived_files": 2, "source_bytes": 73, "archive_bytes": 339}
+{"archived_files": 1, "source_bytes": 8, "archive_bytes": 207}
+{"archived_files": 1, "source_bytes": 203, "archive_bytes": 294}
+...{"archived_files": 2, "source_bytes": 321, "archive_bytes": 430}
+{"archived_files": 1, "source_bytes": 266, "archive_bytes": 372}
+/home/frank/miniconda3/lib/python3.13/json/encoder.py:252: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7561b3ae0040>
+  _iterencode = c_make_encoder(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/home/frank/miniconda3/lib/python3.13/json/encoder.py:252: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7561b3f96110>
+  _iterencode = c_make_encoder(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/home/frank/miniconda3/lib/python3.13/json/encoder.py:252: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7561b31cc8b0>
+  _iterencode = c_make_encoder(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/home/frank/miniconda3/lib/python3.13/json/encoder.py:252: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7561b31cc9a0>
+  _iterencode = c_make_encoder(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+{"archived_files": 1, "source_bytes": 24, "archive_bytes": 218}
+{"archived_files": 1, "source_bytes": 319, "archive_bytes": 406}
+{"archived_files": 1, "source_bytes": 74, "archive_bytes": 258}
+{"archived_files": 1, "source_bytes": 8, "archive_bytes": 205}
+.{"archived_files": 2, "source_bytes": 322, "archive_bytes": 396}
+{"archived_files": 1, "source_bytes": 8, "archive_bytes": 207}
+.backfill retirement: invalid has no valid saved label; left unchanged
+backfill retirement: invalid has no valid saved label; left unchanged
+teacher backfill retired: {"cancelled": 3, "without_saved_label": 1}
+.backfill retirement: invalid has no valid saved label; left unchanged
+teacher backfill retired: {"cancelled": 3, "without_saved_label": 1, "backup": "/tmp/tmpzhqpaeu4/analysis/teacher-backups/1793593860544337339"}
+..........................................<frozen posixpath>:82: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7561b31cc040>
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<frozen posixpath>:82: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7561b31cc6d0>
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<frozen posixpath>:82: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7561b31ce890>
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+..........................PGO prepared without publication; evidence=/tmp/tmpld48x5g9/prepared
+....usage: python3 -m unittest [-h] --compatible-speedup [--source-dir SOURCE_DIR]
+                           [--pgo] [--out OUT] [--llvm-profdata LLVM_PROFDATA]
+                           [--cpu CPU] [--models MODELS [MODELS ...]]
+                           [--max-models MAX_MODELS] [--games GAMES]
+                           [--verify-games VERIFY_GAMES]
+                           [--roots-per-game ROOTS_PER_GAME]
+                           [--recent-games RECENT_GAMES]
+                           [--profile-repeats PROFILE_REPEATS]
+                           [--verify-repeats VERIFY_REPEATS] [--depth DEPTH]
+                           [--nice NICE] [--prepare-only]
+                           run [ref]
+PGO published; evidence=/tmp/tmpw_ojs0w8/prepared
+........verified test-agent: 8 exact pairs
+.{
+  "pairs": 8,
+  "candidate_over_baseline": 1.0,
+  "geomean_cpu_ms": {
+    "baseline": 10.000000000000002,
+    "candidate": 10.000000000000002
+  },
+  "summed_cpu_ms": {
+    "baseline": 80,
+    "candidate": 80
+  },
+  "all_signatures_match": true,
+  "positions": 2,
+  "source_games": 1,
+  "by_model": {
+    "test-agent": {
+      "pairs": 8,
+      "candidate_over_baseline": 1.0,
+      "geomean_cpu_ms": {
+        "baseline": 10.000000000000002,
+        "candidate": 10.000000000000002
+      },
+      "summed_cpu_ms": {
+        "baseline": 80,
+        "candidate": 80
+      }
+    }
+  },
+  "method": "Equal-case geometric mean paired process CPU ratios; each model/root/repetition has equal weight.",
+  "limits": "Warm fixed-depth searches on one host; loading/replay excluded; no clock, cold-start or strength claim."
+}
+verified test-agent: 8 exact pairs
+...verified test-agent: 8 exact pairs
+.........
+----------------------------------------------------------------------
+Ran 227 tests in 20.367s
+
+OK
+{
+  "pairs": 8,
+  "candidate_over_baseline": 1.0,
+  "geomean_cpu_ms": {
+    "baseline": 10.000000000000002,
+    "candidate": 10.000000000000002
+  },
+  "summed_cpu_ms": {
+    "baseline": 80,
+    "candidate": 80
+  },
+  "all_signatures_match": true,
+  "positions": 2,
+  "source_games": 1,
+  "by_model": {
+    "test-agent": {
+      "pairs": 8,
+      "candidate_over_baseline": 1.0,
+      "geomean_cpu_ms": {
+        "baseline": 10.000000000000002,
+        "candidate": 10.000000000000002
+      },
+      "summed_cpu_ms": {
+        "baseline": 80,
+        "candidate": 80
+      }
+    }
+  },
+  "method": "Equal-case geometric mean paired process CPU ratios; each model/root/repetition has equal weight.",
+  "limits": "Warm fixed-depth searches on one host; loading/replay excluded; no clock, cold-start or strength claim."
+}
