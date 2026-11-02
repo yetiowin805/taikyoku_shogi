@@ -13,6 +13,7 @@ import numpy as np
 import torch
 
 from pilot_fit import PilotNet, reduce_learning_rates, training_snapshot
+from test_support import integration
 from train import export
 
 HERE = Path(__file__).parent
@@ -45,6 +46,7 @@ class FineTuneTest(unittest.TestCase):
         self.assertEqual(best["dense"]["param_groups"][0]["lr"], 0.00015)
         self.assertEqual(best["dense"]["state"][0]["step"].item(), 1)
 
+    @integration
     def test_early_and_post_reduction_resume_match_uninterrupted_run(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)

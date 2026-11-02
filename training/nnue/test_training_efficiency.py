@@ -3,16 +3,17 @@
 import copy
 import hashlib
 import json
-import subprocess
 import sys
 import tempfile
 import unittest
 from collections import Counter
 from pathlib import Path
+from unittest.mock import patch
 
 import numpy as np
 import torch
 
+import pilot_fit as fit
 from pilot_fit import PilotNet, backward_batch, evaluate, losses, training_loss, weights_for
 from train import batch, export
 
@@ -166,7 +167,7 @@ class EfficiencyTests(unittest.TestCase):
         )
         self.assertEqual(evaluate(net, self.samples, self.data, ids, 2, "wdl", 2000, 0.1), expected)
 
-    def test_cli_checkpoint_resume_matches_uninterrupted_training(self):
+    def test_checkpoint_resume_matches_uninterrupted_training(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             schema = dict(features=16, channels=92, hash="00" * 32, names_hash="11" * 32)
@@ -224,38 +225,34 @@ class EfficiencyTests(unittest.TestCase):
                 "1",
                 "--defer-test",
             ]
-            directory = Path(__file__).parent
-            subprocess.run(
-                [sys.executable, str(directory / "pilot_fit.py"), *options, "--out", str(root / "full")],
-                check=True,
-                capture_output=True,
-                timeout=60,
-            )
-            # Exit after the first checkpoint's atomic publication, at the normal log boundary.
-            runner = """import json,sys,pilot_fit as fit
-def checkpoint_exit(message, **kwargs):
-    if json.loads(message).get('epoch') == 1:
-        raise SystemExit(99)
-fit.print = checkpoint_exit
-fit.main()
-"""
-            interrupted = subprocess.run(
-                [sys.executable, "-c", runner, *options, "--out", str(root / "resumed")],
-                cwd=directory,
-                capture_output=True,
-                timeout=60,
-            )
-            self.assertEqual(interrupted.returncode, 99, interrupted.stderr)
-            subprocess.run(
-                [sys.executable, str(directory / "pilot_fit.py"), *options, "--out", str(root / "resumed"), "--resume"],
-                check=True,
-                capture_output=True,
-                timeout=60,
-            )
+
+            def run(name, *, resume=False, interrupt=False):
+                def checkpoint_exit(message, **_kwargs):
+                    if interrupt and json.loads(message).get("epoch") == 1:
+                        raise InterruptedError("checkpoint published")
+
+                command = ["pilot_fit", *options, "--out", str(root / name)]
+                if resume:
+                    command.append("--resume")
+                # Interop thread setup is process-global and can only run once.
+                # Keep all model, optimizer, checkpoint and export work real.
+                with (
+                    patch.object(sys, "argv", command),
+                    patch.object(torch, "set_num_interop_threads"),
+                    patch.object(fit, "print", checkpoint_exit, create=True),
+                ):
+                    fit.main()
+
+            run("full")
+            with self.assertRaisesRegex(InterruptedError, "checkpoint published"):
+                run("resumed", interrupt=True)
+            saved = torch.load(root / "resumed/training.pt", weights_only=True)
+            self.assertEqual(saved["epoch"], 1)
+            run("resumed", resume=True)
             full, resumed = [torch.load(root / name / "training.pt", weights_only=True) for name in ("full", "resumed")]
             self.assertEqual(full["epoch"], 4)
-            for name, value in full["net"].items():
-                self.assertTrue(torch.equal(value, resumed["net"][name]))
+            for key in ("net", "emb", "dense"):
+                torch.testing.assert_close(full[key], resumed[key], rtol=0, atol=0)
             self.assertEqual([m["validation"] for m in full["metrics"]], [m["validation"] for m in resumed["metrics"]])
             self.assertEqual(full["plateau"], resumed["plateau"])
             blobs = [
