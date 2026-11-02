@@ -1,0 +1,848 @@
+[
+  {
+    "kind": "DEDUP",
+    "board": "empty",
+    "piece": "Pawn",
+    "reps": 5,
+    "sort_ns": {
+      "median": 9.35,
+      "min": 8.81,
+      "max": 10.24
+    },
+    "unstable_ns": {
+      "median": 9.8,
+      "min": 9.14,
+      "max": 11.7
+    },
+    "bitmap_ns": {
+      "median": 21.46,
+      "min": 19.78,
+      "max": 27.91
+    },
+    "unstable_ns_speedup": {
+      "median": 0.9346534653465346,
+      "min": 0.8752136752136753,
+      "max": 1.022975929978118
+    },
+    "bitmap_ns_speedup": {
+      "median": 0.4318627450980393,
+      "min": 0.34753971328942274,
+      "max": 0.4726996966632962
+    },
+    "raw": 1.0,
+    "unique": 1.0
+  },
+  {
+    "kind": "DEDUP",
+    "board": "empty",
+    "piece": "Rook",
+    "reps": 5,
+    "sort_ns": {
+      "median": 440.0,
+      "min": 414.55,
+      "max": 549.95
+    },
+    "unstable_ns": {
+      "median": 559.12,
+      "min": 533.62,
+      "max": 674.14
+    },
+    "bitmap_ns": {
+      "median": 169.98,
+      "min": 168.87,
+      "max": 194.7
+    },
+    "unstable_ns_speedup": {
+      "median": 0.7768636857688992,
+      "min": 0.7463825889297891,
+      "max": 0.8322900271855773
+    },
+    "bitmap_ns_speedup": {
+      "median": 2.476105880262924,
+      "min": 2.2598870056497176,
+      "max": 3.2479919678714864
+    },
+    "raw": 70.0,
+    "unique": 70.0
+  },
+  {
+    "kind": "DEDUP",
+    "board": "empty",
+    "piece": "Lion",
+    "reps": 5,
+    "sort_ns": {
+      "median": 727.95,
+      "min": 718.69,
+      "max": 756.47
+    },
+    "unstable_ns": {
+      "median": 665.36,
+      "min": 656.42,
+      "max": 687.61
+    },
+    "bitmap_ns": {
+      "median": 129.19,
+      "min": 126.83,
+      "max": 131.88
+    },
+    "unstable_ns_speedup": {
+      "median": 1.0948630450016759,
+      "min": 1.0545587696814354,
+      "max": 1.143052308813261
+    },
+    "bitmap_ns_speedup": {
+      "median": 5.709887776766758,
+      "min": 5.563046675439276,
+      "max": 5.837410294004167
+    },
+    "raw": 88.0,
+    "unique": 25.0
+  },
+  {
+    "kind": "DEDUP",
+    "board": "empty",
+    "piece": "Tengu",
+    "reps": 5,
+    "sort_ns": {
+      "median": 16341.0,
+      "min": 16026.14,
+      "max": 16615.04
+    },
+    "unstable_ns": {
+      "median": 14783.26,
+      "min": 14588.15,
+      "max": 14955.07
+    },
+    "bitmap_ns": {
+      "median": 1896.36,
+      "min": 1843.77,
+      "max": 1937.85
+    },
+    "unstable_ns_speedup": {
+      "median": 1.1109971401003138,
+      "min": 1.0799518588001897,
+      "max": 1.1229796404852515
+    },
+    "bitmap_ns_speedup": {
+      "median": 8.451000864814699,
+      "min": 8.333944432968394,
+      "max": 9.00399724477565
+    },
+    "raw": 1294.0,
+    "unique": 647.0
+  },
+  {
+    "kind": "DEDUP",
+    "board": "empty",
+    "piece": "HookMover",
+    "reps": 5,
+    "sort_ns": {
+      "median": 35881.04,
+      "min": 35423.15,
+      "max": 36847.22
+    },
+    "unstable_ns": {
+      "median": 31217.42,
+      "min": 31018.7,
+      "max": 31634.66
+    },
+    "bitmap_ns": {
+      "median": 4035.33,
+      "min": 3984.68,
+      "max": 4505.57
+    },
+    "unstable_ns_speedup": {
+      "median": 1.15075332939109,
+      "min": 1.121817399854488,
+      "max": 1.1647737007446897
+    },
+    "bitmap_ns_speedup": {
+      "median": 8.778253575296198,
+      "min": 8.17814838078201,
+      "max": 9.00474818555066
+    },
+    "raw": 2590.0,
+    "unique": 1295.0
+  },
+  {
+    "kind": "DEDUP",
+    "board": "empty",
+    "piece": "FreeEagle",
+    "reps": 5,
+    "sort_ns": {
+      "median": 1558.62,
+      "min": 1493.06,
+      "max": 1763.49
+    },
+    "unstable_ns": {
+      "median": 1696.21,
+      "min": 1566.88,
+      "max": 1866.98
+    },
+    "bitmap_ns": {
+      "median": 327.35,
+      "min": 313.97,
+      "max": 353.55
+    },
+    "unstable_ns_speedup": {
+      "median": 0.9459310194148242,
+      "min": 0.8656021587506898,
+      "max": 1.039664899982903
+    },
+    "bitmap_ns_speedup": {
+      "median": 4.964232251488995,
+      "min": 4.404306784660767,
+      "max": 5.093355735451351
+    },
+    "raw": 165.0,
+    "unique": 139.0
+  },
+  {
+    "kind": "DEDUP",
+    "board": "sparse",
+    "piece": "Pawn",
+    "reps": 5,
+    "sort_ns": {
+      "median": 10.33,
+      "min": 9.15,
+      "max": 11.82
+    },
+    "unstable_ns": {
+      "median": 10.93,
+      "min": 10.3,
+      "max": 18.59
+    },
+    "bitmap_ns": {
+      "median": 23.58,
+      "min": 22.85,
+      "max": 48.91
+    },
+    "unstable_ns_speedup": {
+      "median": 0.9451052150045746,
+      "min": 0.6358257127487897,
+      "max": 1.0470809792843692
+    },
+    "bitmap_ns_speedup": {
+      "median": 0.43429556225764754,
+      "min": 0.24166837047638523,
+      "max": 0.4715860899067006
+    },
+    "raw": 1.0,
+    "unique": 1.0
+  },
+  {
+    "kind": "DEDUP",
+    "board": "sparse",
+    "piece": "Rook",
+    "reps": 5,
+    "sort_ns": {
+      "median": 354.86,
+      "min": 316.18,
+      "max": 437.07
+    },
+    "unstable_ns": {
+      "median": 399.65,
+      "min": 367.55,
+      "max": 458.93
+    },
+    "bitmap_ns": {
+      "median": 126.63,
+      "min": 123.21,
+      "max": 144.46
+    },
+    "unstable_ns_speedup": {
+      "median": 0.9020269351108693,
+      "min": 0.7732333907131806,
+      "max": 1.0027301092043681
+    },
+    "bitmap_ns_speedup": {
+      "median": 2.751445520762935,
+      "min": 2.4968806759851536,
+      "max": 3.0255434030181365
+    },
+    "raw": 50.0,
+    "unique": 50.0
+  },
+  {
+    "kind": "DEDUP",
+    "board": "sparse",
+    "piece": "Lion",
+    "reps": 5,
+    "sort_ns": {
+      "median": 784.33,
+      "min": 779.27,
+      "max": 1051.72
+    },
+    "unstable_ns": {
+      "median": 725.35,
+      "min": 699.6,
+      "max": 984.23
+    },
+    "bitmap_ns": {
+      "median": 149.19,
+      "min": 136.9,
+      "max": 204.96
+    },
+    "unstable_ns_speedup": {
+      "median": 1.0813124698421452,
+      "min": 0.8425171909963115,
+      "max": 1.1138793596340766
+    },
+    "bitmap_ns_speedup": {
+      "median": 5.2233393659092435,
+      "min": 3.813329430132709,
+      "max": 7.59200173247672
+    },
+    "raw": 88.0,
+    "unique": 25.0
+  },
+  {
+    "kind": "DEDUP",
+    "board": "sparse",
+    "piece": "Tengu",
+    "reps": 5,
+    "sort_ns": {
+      "median": 5901.93,
+      "min": 5551.88,
+      "max": 6131.48
+    },
+    "unstable_ns": {
+      "median": 5311.3,
+      "min": 5035.46,
+      "max": 5777.72
+    },
+    "bitmap_ns": {
+      "median": 854.47,
+      "min": 809.43,
+      "max": 880.86
+    },
+    "unstable_ns_speedup": {
+      "median": 1.089868095219629,
+      "min": 1.0452958785984598,
+      "max": 1.1831182454973264
+    },
+    "bitmap_ns_speedup": {
+      "median": 6.963907093292213,
+      "min": 6.700190722702813,
+      "max": 7.140837360973621
+    },
+    "raw": 488.0,
+    "unique": 349.0
+  },
+  {
+    "kind": "DEDUP",
+    "board": "sparse",
+    "piece": "HookMover",
+    "reps": 5,
+    "sort_ns": {
+      "median": 10487.95,
+      "min": 9534.35,
+      "max": 11374.4
+    },
+    "unstable_ns": {
+      "median": 10051.99,
+      "min": 9622.31,
+      "max": 11302.96
+    },
+    "bitmap_ns": {
+      "median": 1683.4,
+      "min": 1659.75,
+      "max": 1757.51
+    },
+    "unstable_ns_speedup": {
+      "median": 0.9910593883687768,
+      "min": 0.962178048935854,
+      "max": 1.131557034975164
+    },
+    "bitmap_ns_speedup": {
+      "median": 6.166734284689516,
+      "min": 5.703726968174205,
+      "max": 6.853080283175177
+    },
+    "raw": 806.0,
+    "unique": 595.0
+  },
+  {
+    "kind": "DEDUP",
+    "board": "sparse",
+    "piece": "FreeEagle",
+    "reps": 5,
+    "sort_ns": {
+      "median": 1026.25,
+      "min": 1007.26,
+      "max": 1073.36
+    },
+    "unstable_ns": {
+      "median": 1043.71,
+      "min": 965.77,
+      "max": 1276.41
+    },
+    "bitmap_ns": {
+      "median": 212.28,
+      "min": 211.83,
+      "max": 213.83
+    },
+    "unstable_ns_speedup": {
+      "median": 1.0016671297582662,
+      "min": 0.8040128171982356,
+      "max": 1.0610704412023566
+    },
+    "bitmap_ns_speedup": {
+      "median": 4.83760562715385,
+      "min": 4.74495948746938,
+      "max": 5.03404933871119
+    },
+    "raw": 112.0,
+    "unique": 88.0
+  },
+  {
+    "kind": "DEDUP",
+    "board": "dense",
+    "piece": "Pawn",
+    "reps": 5,
+    "sort_ns": {
+      "median": 10.33,
+      "min": 9.47,
+      "max": 10.92
+    },
+    "unstable_ns": {
+      "median": 10.91,
+      "min": 10.32,
+      "max": 11.01
+    },
+    "bitmap_ns": {
+      "median": 22.91,
+      "min": 22.08,
+      "max": 23.97
+    },
+    "unstable_ns_speedup": {
+      "median": 0.9382379654859219,
+      "min": 0.8680109990834097,
+      "max": 1.0581395348837208
+    },
+    "bitmap_ns_speedup": {
+      "median": 0.4438881935753025,
+      "min": 0.4096020761245675,
+      "max": 0.49233543733092877
+    },
+    "raw": 1.0,
+    "unique": 1.0
+  },
+  {
+    "kind": "DEDUP",
+    "board": "dense",
+    "piece": "Rook",
+    "reps": 5,
+    "sort_ns": {
+      "median": 17.61,
+      "min": 16.09,
+      "max": 18.86
+    },
+    "unstable_ns": {
+      "median": 17.2,
+      "min": 16.59,
+      "max": 19.59
+    },
+    "bitmap_ns": {
+      "median": 27.59,
+      "min": 27.41,
+      "max": 29.88
+    },
+    "unstable_ns_speedup": {
+      "median": 1.048444976076555,
+      "min": 0.898928024502297,
+      "max": 1.0886075949367089
+    },
+    "bitmap_ns_speedup": {
+      "median": 0.6353751359188112,
+      "min": 0.5870120394016782,
+      "max": 0.6569661695161877
+    },
+    "raw": 3.0,
+    "unique": 3.0
+  },
+  {
+    "kind": "DEDUP",
+    "board": "dense",
+    "piece": "Lion",
+    "reps": 5,
+    "sort_ns": {
+      "median": 572.05,
+      "min": 565.13,
+      "max": 615.8
+    },
+    "unstable_ns": {
+      "median": 396.93,
+      "min": 390.37,
+      "max": 500.18
+    },
+    "bitmap_ns": {
+      "median": 94.86,
+      "min": 93.85,
+      "max": 98.77
+    },
+    "unstable_ns_speedup": {
+      "median": 1.4239286524072254,
+      "min": 1.1436882722219999,
+      "max": 1.5774777774931474
+    },
+    "bitmap_ns_speedup": {
+      "median": 6.084343756647521,
+      "min": 5.7216766224562114,
+      "max": 6.561534363345764
+    },
+    "raw": 53.0,
+    "unique": 20.0
+  },
+  {
+    "kind": "DEDUP",
+    "board": "dense",
+    "piece": "Tengu",
+    "reps": 5,
+    "sort_ns": {
+      "median": 797.64,
+      "min": 774.8,
+      "max": 858.76
+    },
+    "unstable_ns": {
+      "median": 482.08,
+      "min": 457.19,
+      "max": 591.05
+    },
+    "bitmap_ns": {
+      "median": 121.07,
+      "min": 114.56,
+      "max": 167.85
+    },
+    "unstable_ns_speedup": {
+      "median": 1.680696150016595,
+      "min": 1.349530496573894,
+      "max": 1.8385715509120493
+    },
+    "bitmap_ns_speedup": {
+      "median": 6.692244156273231,
+      "min": 4.721894548704201,
+      "max": 7.277627118644068
+    },
+    "raw": 63.0,
+    "unique": 41.0
+  },
+  {
+    "kind": "DEDUP",
+    "board": "dense",
+    "piece": "HookMover",
+    "reps": 5,
+    "sort_ns": {
+      "median": 203.8,
+      "min": 199.54,
+      "max": 211.05
+    },
+    "unstable_ns": {
+      "median": 200.85,
+      "min": 197.84,
+      "max": 202.56
+    },
+    "bitmap_ns": {
+      "median": 63.09,
+      "min": 62.68,
+      "max": 65.31
+    },
+    "unstable_ns_speedup": {
+      "median": 1.0087627582773215,
+      "min": 1.0061216429699842,
+      "max": 1.0560860997423072
+    },
+    "bitmap_ns_speedup": {
+      "median": 3.226956924502084,
+      "min": 3.1627833254081468,
+      "max": 3.2514358647096366
+    },
+    "raw": 25.0,
+    "unique": 22.0
+  },
+  {
+    "kind": "DEDUP",
+    "board": "dense",
+    "piece": "FreeEagle",
+    "reps": 5,
+    "sort_ns": {
+      "median": 268.89,
+      "min": 258.83,
+      "max": 273.25
+    },
+    "unstable_ns": {
+      "median": 197.51,
+      "min": 190.92,
+      "max": 216.9
+    },
+    "bitmap_ns": {
+      "median": 80.89,
+      "min": 78.98,
+      "max": 150.8
+    },
+    "unstable_ns_speedup": {
+      "median": 1.3556987219777918,
+      "min": 1.25979714153988,
+      "max": 1.3734802036786864
+    },
+    "bitmap_ns_speedup": {
+      "median": 3.277158774373259,
+      "min": 1.8120026525198938,
+      "max": 3.356541129831516
+    },
+    "raw": 35.0,
+    "unique": 20.0
+  },
+  {
+    "kind": "REACH",
+    "board": "empty",
+    "piece": "Tengu",
+    "reps": 5,
+    "generic_ns": {
+      "median": 31374.49,
+      "min": 30019.98,
+      "max": 34488.24
+    },
+    "special_ns": {
+      "median": 33.4,
+      "min": 32.6,
+      "max": 45.93
+    },
+    "special_ns_speedup": {
+      "median": 920.0808666463228,
+      "min": 750.8870019595036,
+      "max": 963.7128834355829
+    }
+  },
+  {
+    "kind": "REACH",
+    "board": "sparse",
+    "piece": "Tengu",
+    "reps": 5,
+    "generic_ns": {
+      "median": 10116.81,
+      "min": 9774.91,
+      "max": 10595.91
+    },
+    "special_ns": {
+      "median": 35.35,
+      "min": 32.88,
+      "max": 66.29
+    },
+    "special_ns_speedup": {
+      "median": 292.9250824093497,
+      "min": 148.84718660431437,
+      "max": 313.21046228710463
+    }
+  },
+  {
+    "kind": "REACH",
+    "board": "dense",
+    "piece": "Tengu",
+    "reps": 5,
+    "generic_ns": {
+      "median": 1859.88,
+      "min": 1783.3,
+      "max": 2214.78
+    },
+    "special_ns": {
+      "median": 25.69,
+      "min": 24.77,
+      "max": 28.92
+    },
+    "special_ns_speedup": {
+      "median": 71.99434800161485,
+      "min": 64.68040166204986,
+      "max": 76.58298755186722
+    }
+  },
+  {
+    "kind": "REACH",
+    "board": "empty",
+    "piece": "HookMover",
+    "reps": 5,
+    "generic_ns": {
+      "median": 42635.68,
+      "min": 41767.7,
+      "max": 47426.06
+    },
+    "special_ns": {
+      "median": 52.71,
+      "min": 50.03,
+      "max": 55.47
+    },
+    "special_ns_speedup": {
+      "median": 835.7899642998809,
+      "min": 769.3442622950819,
+      "max": 854.9857580674238
+    }
+  },
+  {
+    "kind": "REACH",
+    "board": "sparse",
+    "piece": "HookMover",
+    "reps": 5,
+    "generic_ns": {
+      "median": 17741.27,
+      "min": 17406.08,
+      "max": 18211.71
+    },
+    "special_ns": {
+      "median": 52.74,
+      "min": 50.72,
+      "max": 55.32
+    },
+    "special_ns_speedup": {
+      "median": 337.2988217114158,
+      "min": 320.70263919016634,
+      "max": 344.0089116420174
+    }
+  },
+  {
+    "kind": "REACH",
+    "board": "dense",
+    "piece": "HookMover",
+    "reps": 5,
+    "generic_ns": {
+      "median": 493.67,
+      "min": 482.14,
+      "max": 495.17
+    },
+    "special_ns": {
+      "median": 19.55,
+      "min": 18.36,
+      "max": 22.48
+    },
+    "special_ns_speedup": {
+      "median": 25.251662404092073,
+      "min": 21.781138790035588,
+      "max": 26.97004357298475
+    }
+  },
+  {
+    "kind": "REACH",
+    "board": "empty",
+    "piece": "Peacock",
+    "reps": 5,
+    "generic_ns": {
+      "median": 15001.98,
+      "min": 14707.17,
+      "max": 15249.78
+    },
+    "special_ns": {
+      "median": 26.76,
+      "min": 25.84,
+      "max": 27.41
+    },
+    "special_ns_speedup": {
+      "median": 557.5337078651686,
+      "min": 549.5952914798206,
+      "max": 580.5719814241486
+    }
+  },
+  {
+    "kind": "REACH",
+    "board": "sparse",
+    "piece": "Peacock",
+    "reps": 5,
+    "generic_ns": {
+      "median": 6860.03,
+      "min": 6823.63,
+      "max": 7192.93
+    },
+    "special_ns": {
+      "median": 25.54,
+      "min": 25.4,
+      "max": 26.35
+    },
+    "special_ns_speedup": {
+      "median": 268.32992528509635,
+      "min": 259.32296015180265,
+      "max": 281.63390759592795
+    }
+  },
+  {
+    "kind": "REACH",
+    "board": "dense",
+    "piece": "Peacock",
+    "reps": 5,
+    "generic_ns": {
+      "median": 709.96,
+      "min": 684.85,
+      "max": 723.68
+    },
+    "special_ns": {
+      "median": 18.32,
+      "min": 17.78,
+      "max": 20.21
+    },
+    "special_ns_speedup": {
+      "median": 38.51799775028121,
+      "min": 35.18802572983671,
+      "max": 40.13754853022739
+    }
+  },
+  {
+    "kind": "REACH",
+    "board": "empty",
+    "piece": "LionHawk",
+    "reps": 5,
+    "generic_ns": {
+      "median": 6773.37,
+      "min": 6725.24,
+      "max": 7312.77
+    },
+    "special_ns": {
+      "median": 44.56,
+      "min": 43.59,
+      "max": 65.58
+    },
+    "special_ns_speedup": {
+      "median": 154.2132538408622,
+      "min": 102.66178713022263,
+      "max": 164.11063734290843
+    }
+  },
+  {
+    "kind": "REACH",
+    "board": "sparse",
+    "piece": "LionHawk",
+    "reps": 5,
+    "generic_ns": {
+      "median": 3827.91,
+      "min": 3733.05,
+      "max": 3909.89
+    },
+    "special_ns": {
+      "median": 44.47,
+      "min": 43.72,
+      "max": 45.6
+    },
+    "special_ns_speedup": {
+      "median": 85.38540713632206,
+      "min": 83.96206140350877,
+      "max": 87.92196986732628
+    }
+  },
+  {
+    "kind": "REACH",
+    "board": "dense",
+    "piece": "LionHawk",
+    "reps": 5,
+    "generic_ns": {
+      "median": 1593.51,
+      "min": 1580.78,
+      "max": 1735.61
+    },
+    "special_ns": {
+      "median": 38.89,
+      "min": 37.92,
+      "max": 40.21
+    },
+    "special_ns_speedup": {
+      "median": 40.85045317220544,
+      "min": 39.45411589156926,
+      "max": 45.77030590717299
+    }
+  }
+]

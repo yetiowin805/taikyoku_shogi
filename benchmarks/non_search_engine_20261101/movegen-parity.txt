@@ -1,0 +1,1 @@
+PARITY directed=401186 reached_filter=144048 special=134784 failures=0

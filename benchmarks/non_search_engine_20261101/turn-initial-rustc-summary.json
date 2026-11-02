@@ -1,0 +1,344 @@
+[
+  {
+    "density": "density=0",
+    "kind": "Tengu",
+    "baseline_median_ns": 43242.48,
+    "candidate_median_ns": 23186.31,
+    "paired_speedup_median": 1.9001307236899703,
+    "paired_speedup_range": [
+      1.6407570430710376,
+      2.2186768933711902
+    ],
+    "samples": [
+      {
+        "rep": 0.0,
+        "base_ns": 40634.71,
+        "candidate_ns": 24765.83
+      },
+      {
+        "rep": 1.0,
+        "base_ns": 43242.48,
+        "candidate_ns": 22456.74
+      },
+      {
+        "rep": 2.0,
+        "base_ns": 43159.34,
+        "candidate_ns": 24146.29
+      },
+      {
+        "rep": 3.0,
+        "base_ns": 44057.02,
+        "candidate_ns": 23186.31
+      },
+      {
+        "rep": 4.0,
+        "base_ns": 49800.0,
+        "candidate_ns": 22445.81
+      }
+    ]
+  },
+  {
+    "density": "density=0",
+    "kind": "HookMover",
+    "baseline_median_ns": 74091.05,
+    "candidate_median_ns": 48576.29,
+    "paired_speedup_median": 1.53781803215666,
+    "paired_speedup_range": [
+      1.4380186638940544,
+      1.640686280758559
+    ],
+    "samples": [
+      {
+        "rep": 0.0,
+        "base_ns": 77224.15,
+        "candidate_ns": 47068.2
+      },
+      {
+        "rep": 1.0,
+        "base_ns": 73683.29,
+        "candidate_ns": 47914.18
+      },
+      {
+        "rep": 2.0,
+        "base_ns": 72640.18,
+        "candidate_ns": 48576.29
+      },
+      {
+        "rep": 3.0,
+        "base_ns": 76083.6,
+        "candidate_ns": 49049.78
+      },
+      {
+        "rep": 4.0,
+        "base_ns": 74091.05,
+        "candidate_ns": 51523.01
+      }
+    ]
+  },
+  {
+    "density": "density=0",
+    "kind": "Peacock",
+    "baseline_median_ns": 20721.61,
+    "candidate_median_ns": 10283.62,
+    "paired_speedup_median": 2.0241328216566252,
+    "paired_speedup_range": [
+      1.5288626277459902,
+      2.0936208904116334
+    ],
+    "samples": [
+      {
+        "rep": 0.0,
+        "base_ns": 21252.89,
+        "candidate_ns": 10151.26
+      },
+      {
+        "rep": 1.0,
+        "base_ns": 19863.87,
+        "candidate_ns": 12992.58
+      },
+      {
+        "rep": 2.0,
+        "base_ns": 20721.61,
+        "candidate_ns": 11748.68
+      },
+      {
+        "rep": 3.0,
+        "base_ns": 20916.58,
+        "candidate_ns": 10283.62
+      },
+      {
+        "rep": 4.0,
+        "base_ns": 20654.98,
+        "candidate_ns": 10204.36
+      }
+    ]
+  },
+  {
+    "density": "density=100",
+    "kind": "Tengu",
+    "baseline_median_ns": 14928.82,
+    "candidate_median_ns": 8653.07,
+    "paired_speedup_median": 1.7763261841034772,
+    "paired_speedup_range": [
+      1.499279962273188,
+      1.923852459300572
+    ],
+    "samples": [
+      {
+        "rep": 0.0,
+        "base_ns": 14211.18,
+        "candidate_ns": 9478.67
+      },
+      {
+        "rep": 1.0,
+        "base_ns": 15065.2,
+        "candidate_ns": 8481.1
+      },
+      {
+        "rep": 2.0,
+        "base_ns": 14865.61,
+        "candidate_ns": 8700.83
+      },
+      {
+        "rep": 3.0,
+        "base_ns": 14928.82,
+        "candidate_ns": 8376.45
+      },
+      {
+        "rep": 4.0,
+        "base_ns": 16647.23,
+        "candidate_ns": 8653.07
+      }
+    ]
+  },
+  {
+    "density": "density=100",
+    "kind": "HookMover",
+    "baseline_median_ns": 26073.39,
+    "candidate_median_ns": 14468.09,
+    "paired_speedup_median": 1.8137991953326251,
+    "paired_speedup_range": [
+      1.6128070114170932,
+      1.8599927896647195
+    ],
+    "samples": [
+      {
+        "rep": 0.0,
+        "base_ns": 26242.21,
+        "candidate_ns": 14468.09
+      },
+      {
+        "rep": 1.0,
+        "base_ns": 26073.39,
+        "candidate_ns": 14247.57
+      },
+      {
+        "rep": 2.0,
+        "base_ns": 26570.09,
+        "candidate_ns": 14285.05
+      },
+      {
+        "rep": 3.0,
+        "base_ns": 25654.43,
+        "candidate_ns": 15213.32
+      },
+      {
+        "rep": 4.0,
+        "base_ns": 24938.48,
+        "candidate_ns": 15462.78
+      }
+    ]
+  },
+  {
+    "density": "density=100",
+    "kind": "Peacock",
+    "baseline_median_ns": 9459.6,
+    "candidate_median_ns": 6310.32,
+    "paired_speedup_median": 1.5382231012056442,
+    "paired_speedup_range": [
+      1.1265202310997962,
+      1.71881160773825
+    ],
+    "samples": [
+      {
+        "rep": 0.0,
+        "base_ns": 9133.06,
+        "candidate_ns": 8107.32
+      },
+      {
+        "rep": 1.0,
+        "base_ns": 9510.5,
+        "candidate_ns": 7141.69
+      },
+      {
+        "rep": 2.0,
+        "base_ns": 9249.85,
+        "candidate_ns": 5620.44
+      },
+      {
+        "rep": 3.0,
+        "base_ns": 9706.68,
+        "candidate_ns": 6310.32
+      },
+      {
+        "rep": 4.0,
+        "base_ns": 9459.6,
+        "candidate_ns": 5503.57
+      }
+    ]
+  },
+  {
+    "density": "density=400",
+    "kind": "Tengu",
+    "baseline_median_ns": 2461.0,
+    "candidate_median_ns": 1492.61,
+    "paired_speedup_median": 1.6461842811158798,
+    "paired_speedup_range": [
+      1.6110786552658136,
+      2.026000255828514
+    ],
+    "samples": [
+      {
+        "rep": 0.0,
+        "base_ns": 2461.0,
+        "candidate_ns": 1498.93
+      },
+      {
+        "rep": 1.0,
+        "base_ns": 2454.79,
+        "candidate_ns": 1491.2
+      },
+      {
+        "rep": 2.0,
+        "base_ns": 2426.8,
+        "candidate_ns": 1506.32
+      },
+      {
+        "rep": 3.0,
+        "base_ns": 2776.79,
+        "candidate_ns": 1492.61
+      },
+      {
+        "rep": 4.0,
+        "base_ns": 3009.36,
+        "candidate_ns": 1485.37
+      }
+    ]
+  },
+  {
+    "density": "density=400",
+    "kind": "HookMover",
+    "baseline_median_ns": 672.52,
+    "candidate_median_ns": 511.85,
+    "paired_speedup_median": 1.3060923268143947,
+    "paired_speedup_range": [
+      1.2919125575923929,
+      1.3463017461251718
+    ],
+    "samples": [
+      {
+        "rep": 0.0,
+        "base_ns": 658.94,
+        "candidate_ns": 510.05
+      },
+      {
+        "rep": 1.0,
+        "base_ns": 686.21,
+        "candidate_ns": 509.7
+      },
+      {
+        "rep": 2.0,
+        "base_ns": 672.52,
+        "candidate_ns": 514.91
+      },
+      {
+        "rep": 3.0,
+        "base_ns": 668.78,
+        "candidate_ns": 515.15
+      },
+      {
+        "rep": 4.0,
+        "base_ns": 686.14,
+        "candidate_ns": 511.85
+      }
+    ]
+  },
+  {
+    "density": "density=400",
+    "kind": "Peacock",
+    "baseline_median_ns": 850.38,
+    "candidate_median_ns": 475.73,
+    "paired_speedup_median": 1.8020117029000982,
+    "paired_speedup_range": [
+      1.3936213419978196,
+      1.8390683791226115
+    ],
+    "samples": [
+      {
+        "rep": 0.0,
+        "base_ns": 845.98,
+        "candidate_ns": 479.17
+      },
+      {
+        "rep": 1.0,
+        "base_ns": 843.81,
+        "candidate_ns": 468.26
+      },
+      {
+        "rep": 2.0,
+        "base_ns": 850.38,
+        "candidate_ns": 469.04
+      },
+      {
+        "rep": 3.0,
+        "base_ns": 874.9,
+        "candidate_ns": 475.73
+      },
+      {
+        "rep": 4.0,
+        "base_ns": 1303.9,
+        "candidate_ns": 935.62
+      }
+    ]
+  }
+]
