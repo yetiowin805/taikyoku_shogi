@@ -1,0 +1,150 @@
+DEDUP empty Pawn rep=0 raw=1 unique=1 sort_ns=8.81 unstable_ns=9.28 bitmap_ns=20.40
+DEDUP empty Pawn rep=1 raw=1 unique=1 sort_ns=9.35 unstable_ns=9.14 bitmap_ns=19.78
+DEDUP empty Pawn rep=2 raw=1 unique=1 sort_ns=8.97 unstable_ns=9.80 bitmap_ns=25.81
+DEDUP empty Pawn rep=3 raw=1 unique=1 sort_ns=10.24 unstable_ns=11.70 bitmap_ns=27.91
+DEDUP empty Pawn rep=4 raw=1 unique=1 sort_ns=9.44 unstable_ns=10.10 bitmap_ns=21.46
+DEDUP empty Rook rep=0 raw=70 unique=70 sort_ns=465.35 unstable_ns=559.12 bitmap_ns=169.98
+DEDUP empty Rook rep=1 raw=70 unique=70 sort_ns=414.55 unstable_ns=533.62 bitmap_ns=170.76
+DEDUP empty Rook rep=2 raw=70 unique=70 sort_ns=440.00 unstable_ns=589.51 bitmap_ns=194.70
+DEDUP empty Rook rep=3 raw=70 unique=70 sort_ns=418.14 unstable_ns=545.29 bitmap_ns=168.87
+DEDUP empty Rook rep=4 raw=70 unique=70 sort_ns=549.95 unstable_ns=674.14 bitmap_ns=169.32
+DEDUP empty Lion rep=0 raw=88 unique=25 sort_ns=727.95 unstable_ns=687.61 bitmap_ns=126.97
+DEDUP empty Lion rep=1 raw=88 unique=25 sort_ns=756.47 unstable_ns=665.36 bitmap_ns=129.59
+DEDUP empty Lion rep=2 raw=88 unique=25 sort_ns=718.69 unstable_ns=656.42 bitmap_ns=129.19
+DEDUP empty Lion rep=3 raw=88 unique=25 sort_ns=753.02 unstable_ns=658.78 bitmap_ns=131.88
+DEDUP empty Lion rep=4 raw=88 unique=25 sort_ns=720.00 unstable_ns=682.75 bitmap_ns=126.83
+DEDUP empty Tengu rep=0 raw=1294 unique=647 sort_ns=16137.85 unstable_ns=14632.18 bitmap_ns=1936.40
+DEDUP empty Tengu rep=1 raw=1294 unique=647 sort_ns=16026.14 unstable_ns=14839.68 bitmap_ns=1896.36
+DEDUP empty Tengu rep=2 raw=1294 unique=647 sort_ns=16601.30 unstable_ns=14783.26 bitmap_ns=1843.77
+DEDUP empty Tengu rep=3 raw=1294 unique=647 sort_ns=16341.00 unstable_ns=14588.15 bitmap_ns=1937.85
+DEDUP empty Tengu rep=4 raw=1294 unique=647 sort_ns=16615.04 unstable_ns=14955.07 bitmap_ns=1869.40
+DEDUP empty HookMover rep=0 raw=2590 unique=1295 sort_ns=35923.55 unstable_ns=31217.42 bitmap_ns=4027.46
+DEDUP empty HookMover rep=1 raw=2590 unique=1295 sort_ns=35881.04 unstable_ns=31161.31 bitmap_ns=3984.68
+DEDUP empty HookMover rep=2 raw=2590 unique=1295 sort_ns=35448.05 unstable_ns=31598.77 bitmap_ns=4077.17
+DEDUP empty HookMover rep=3 raw=2590 unique=1295 sort_ns=35423.15 unstable_ns=31018.70 bitmap_ns=4035.33
+DEDUP empty HookMover rep=4 raw=2590 unique=1295 sort_ns=36847.22 unstable_ns=31634.66 bitmap_ns=4505.57
+DEDUP empty FreeEagle rep=0 raw=165 unique=139 sort_ns=1763.49 unstable_ns=1696.21 bitmap_ns=353.55
+DEDUP empty FreeEagle rep=1 raw=165 unique=139 sort_ns=1493.06 unstable_ns=1566.88 bitmap_ns=339.00
+DEDUP empty FreeEagle rep=2 raw=165 unique=139 sort_ns=1552.57 unstable_ns=1793.63 bitmap_ns=317.53
+DEDUP empty FreeEagle rep=3 raw=165 unique=139 sort_ns=1667.31 unstable_ns=1866.98 bitmap_ns=327.35
+DEDUP empty FreeEagle rep=4 raw=165 unique=139 sort_ns=1558.62 unstable_ns=1647.71 bitmap_ns=313.97
+DEDUP sparse Pawn rep=0 raw=1 unique=1 sort_ns=9.15 unstable_ns=11.14 bitmap_ns=27.77
+DEDUP sparse Pawn rep=1 raw=1 unique=1 sort_ns=10.33 unstable_ns=10.93 bitmap_ns=22.85
+DEDUP sparse Pawn rep=2 raw=1 unique=1 sort_ns=10.08 unstable_ns=10.30 bitmap_ns=23.21
+DEDUP sparse Pawn rep=3 raw=1 unique=1 sort_ns=11.12 unstable_ns=10.62 bitmap_ns=23.58
+DEDUP sparse Pawn rep=4 raw=1 unique=1 sort_ns=11.82 unstable_ns=18.59 bitmap_ns=48.91
+DEDUP sparse Rook rep=0 raw=50 unique=50 sort_ns=437.07 unstable_ns=435.88 bitmap_ns=144.46
+DEDUP sparse Rook rep=1 raw=50 unique=50 sort_ns=366.41 unstable_ns=394.51 bitmap_ns=133.17
+DEDUP sparse Rook rep=2 raw=50 unique=50 sort_ns=316.18 unstable_ns=399.65 bitmap_ns=126.63
+DEDUP sparse Rook rep=3 raw=50 unique=50 sort_ns=354.86 unstable_ns=458.93 bitmap_ns=124.85
+DEDUP sparse Rook rep=4 raw=50 unique=50 sort_ns=331.54 unstable_ns=367.55 bitmap_ns=123.21
+DEDUP sparse Lion rep=0 raw=88 unique=25 sort_ns=784.33 unstable_ns=725.35 bitmap_ns=136.90
+DEDUP sparse Lion rep=1 raw=88 unique=25 sort_ns=1051.72 unstable_ns=984.23 bitmap_ns=138.53
+DEDUP sparse Lion rep=2 raw=88 unique=25 sort_ns=781.58 unstable_ns=708.92 bitmap_ns=204.96
+DEDUP sparse Lion rep=3 raw=88 unique=25 sort_ns=824.58 unstable_ns=978.71 bitmap_ns=200.51
+DEDUP sparse Lion rep=4 raw=88 unique=25 sort_ns=779.27 unstable_ns=699.60 bitmap_ns=149.19
+DEDUP sparse Tengu rep=0 raw=488 unique=349 sort_ns=5551.88 unstable_ns=5311.30 bitmap_ns=809.43
+DEDUP sparse Tengu rep=1 raw=488 unique=349 sort_ns=5780.60 unstable_ns=5035.46 bitmap_ns=830.08
+DEDUP sparse Tengu rep=2 raw=488 unique=349 sort_ns=5901.93 unstable_ns=5415.27 bitmap_ns=880.86
+DEDUP sparse Tengu rep=3 raw=488 unique=349 sort_ns=6011.27 unstable_ns=5080.87 bitmap_ns=854.47
+DEDUP sparse Tengu rep=4 raw=488 unique=349 sort_ns=6131.48 unstable_ns=5777.72 bitmap_ns=858.65
+DEDUP sparse HookMover rep=0 raw=806 unique=595 sort_ns=10230.27 unstable_ns=10322.56 bitmap_ns=1757.51
+DEDUP sparse HookMover rep=1 raw=806 unique=595 sort_ns=10875.46 unstable_ns=11302.96 bitmap_ns=1683.40
+DEDUP sparse HookMover rep=2 raw=806 unique=595 sort_ns=10487.95 unstable_ns=9938.24 bitmap_ns=1700.73
+DEDUP sparse HookMover rep=3 raw=806 unique=595 sort_ns=11374.40 unstable_ns=10051.99 bitmap_ns=1659.75
+DEDUP sparse HookMover rep=4 raw=806 unique=595 sort_ns=9534.35 unstable_ns=9622.31 bitmap_ns=1671.60
+DEDUP sparse FreeEagle rep=0 raw=112 unique=88 sort_ns=1007.26 unstable_ns=976.93 bitmap_ns=212.28
+DEDUP sparse FreeEagle rep=1 raw=112 unique=88 sort_ns=1045.45 unstable_ns=1043.71 bitmap_ns=213.83
+DEDUP sparse FreeEagle rep=2 raw=112 unique=88 sort_ns=1024.75 unstable_ns=965.77 bitmap_ns=211.83
+DEDUP sparse FreeEagle rep=3 raw=112 unique=88 sort_ns=1026.25 unstable_ns=1276.41 bitmap_ns=212.16
+DEDUP sparse FreeEagle rep=4 raw=112 unique=88 sort_ns=1073.36 unstable_ns=1113.28 bitmap_ns=213.22
+DEDUP dense Pawn rep=0 raw=1 unique=1 sort_ns=9.75 unstable_ns=10.72 bitmap_ns=22.08
+DEDUP dense Pawn rep=1 raw=1 unique=1 sort_ns=10.92 unstable_ns=10.32 bitmap_ns=22.18
+DEDUP dense Pawn rep=2 raw=1 unique=1 sort_ns=9.47 unstable_ns=10.91 bitmap_ns=23.12
+DEDUP dense Pawn rep=3 raw=1 unique=1 sort_ns=10.64 unstable_ns=11.00 bitmap_ns=23.97
+DEDUP dense Pawn rep=4 raw=1 unique=1 sort_ns=10.33 unstable_ns=11.01 bitmap_ns=22.91
+DEDUP dense Rook rep=0 raw=3 unique=3 sort_ns=16.09 unstable_ns=17.20 bitmap_ns=27.41
+DEDUP dense Rook rep=1 raw=3 unique=3 sort_ns=18.86 unstable_ns=17.85 bitmap_ns=29.88
+DEDUP dense Rook rep=2 raw=3 unique=3 sort_ns=18.06 unstable_ns=16.59 bitmap_ns=27.49
+DEDUP dense Rook rep=3 raw=3 unique=3 sort_ns=17.53 unstable_ns=16.72 bitmap_ns=27.59
+DEDUP dense Rook rep=4 raw=3 unique=3 sort_ns=17.61 unstable_ns=19.59 bitmap_ns=27.70
+DEDUP dense Lion rep=0 raw=53 unique=20 sort_ns=615.80 unstable_ns=390.37 bitmap_ns=93.85
+DEDUP dense Lion rep=1 raw=53 unique=20 sort_ns=572.05 unstable_ns=500.18 bitmap_ns=94.02
+DEDUP dense Lion rep=2 raw=53 unique=20 sort_ns=565.13 unstable_ns=452.16 bitmap_ns=98.77
+DEDUP dense Lion rep=3 raw=53 unique=20 sort_ns=592.17 unstable_ns=396.92 bitmap_ns=94.86
+DEDUP dense Lion rep=4 raw=53 unique=20 sort_ns=565.20 unstable_ns=396.93 bitmap_ns=94.89
+DEDUP dense Tengu rep=0 raw=63 unique=41 sort_ns=810.23 unstable_ns=482.08 bitmap_ns=121.07
+DEDUP dense Tengu rep=1 raw=63 unique=41 sort_ns=797.64 unstable_ns=591.05 bitmap_ns=125.07
+DEDUP dense Tengu rep=2 raw=63 unique=41 sort_ns=774.80 unstable_ns=457.19 bitmap_ns=114.56
+DEDUP dense Tengu rep=3 raw=63 unique=41 sort_ns=792.57 unstable_ns=557.94 bitmap_ns=167.85
+DEDUP dense Tengu rep=4 raw=63 unique=41 sort_ns=858.76 unstable_ns=467.08 bitmap_ns=118.00
+DEDUP dense HookMover rep=0 raw=25 unique=22 sort_ns=211.05 unstable_ns=202.30 bitmap_ns=65.31
+DEDUP dense HookMover rep=1 raw=25 unique=22 sort_ns=209.01 unstable_ns=197.91 bitmap_ns=64.77
+DEDUP dense HookMover rep=2 raw=25 unique=22 sort_ns=199.54 unstable_ns=197.84 bitmap_ns=63.09
+DEDUP dense HookMover rep=3 raw=25 unique=22 sort_ns=203.80 unstable_ns=202.56 bitmap_ns=62.68
+DEDUP dense HookMover rep=4 raw=25 unique=22 sort_ns=202.61 unstable_ns=200.85 bitmap_ns=62.98
+DEDUP dense FreeEagle rep=0 raw=35 unique=20 sort_ns=264.34 unstable_ns=192.46 bitmap_ns=126.53
+DEDUP dense FreeEagle rep=1 raw=35 unique=20 sort_ns=273.25 unstable_ns=216.90 bitmap_ns=150.80
+DEDUP dense FreeEagle rep=2 raw=35 unique=20 sort_ns=268.89 unstable_ns=197.51 bitmap_ns=80.89
+DEDUP dense FreeEagle rep=3 raw=35 unique=20 sort_ns=270.94 unstable_ns=205.92 bitmap_ns=80.72
+DEDUP dense FreeEagle rep=4 raw=35 unique=20 sort_ns=258.83 unstable_ns=190.92 bitmap_ns=78.98
+REACH empty Tengu rep=0 generic_ns=31374.49 special_ns=33.40
+REACH empty Tengu rep=1 generic_ns=34488.24 special_ns=45.93
+REACH empty Tengu rep=2 generic_ns=31417.04 special_ns=32.60
+REACH empty Tengu rep=3 generic_ns=30019.98 special_ns=33.54
+REACH empty Tengu rep=4 generic_ns=30151.05 special_ns=32.77
+REACH sparse Tengu rep=0 generic_ns=9774.91 special_ns=33.37
+REACH sparse Tengu rep=1 generic_ns=10298.36 special_ns=32.88
+REACH sparse Tengu rep=2 generic_ns=10595.91 special_ns=35.35
+REACH sparse Tengu rep=3 generic_ns=10116.81 special_ns=56.38
+REACH sparse Tengu rep=4 generic_ns=9867.08 special_ns=66.29
+REACH dense Tengu rep=0 generic_ns=2214.78 special_ns=28.92
+REACH dense Tengu rep=1 generic_ns=1867.97 special_ns=28.88
+REACH dense Tengu rep=2 generic_ns=1859.88 special_ns=25.23
+REACH dense Tengu rep=3 generic_ns=1783.30 special_ns=24.77
+REACH dense Tengu rep=4 generic_ns=1839.79 special_ns=25.69
+REACH empty HookMover rep=0 generic_ns=43006.88 special_ns=52.71
+REACH empty HookMover rep=1 generic_ns=42140.53 special_ns=50.42
+REACH empty HookMover rep=2 generic_ns=41767.70 special_ns=54.29
+REACH empty HookMover rep=3 generic_ns=47426.06 special_ns=55.47
+REACH empty HookMover rep=4 generic_ns=42635.68 special_ns=50.03
+REACH sparse HookMover rep=0 generic_ns=18143.03 special_ns=52.74
+REACH sparse HookMover rep=1 generic_ns=17406.08 special_ns=50.72
+REACH sparse HookMover rep=2 generic_ns=17741.27 special_ns=55.32
+REACH sparse HookMover rep=3 generic_ns=17461.96 special_ns=51.77
+REACH sparse HookMover rep=4 generic_ns=18211.71 special_ns=54.24
+REACH dense HookMover rep=0 generic_ns=482.14 special_ns=21.34
+REACH dense HookMover rep=1 generic_ns=493.67 special_ns=19.55
+REACH dense HookMover rep=2 generic_ns=489.64 special_ns=22.48
+REACH dense HookMover rep=3 generic_ns=495.17 special_ns=18.36
+REACH dense HookMover rep=4 generic_ns=493.70 special_ns=19.48
+REACH empty Peacock rep=0 generic_ns=15135.70 special_ns=27.07
+REACH empty Peacock rep=1 generic_ns=15249.78 special_ns=27.41
+REACH empty Peacock rep=2 generic_ns=14886.15 special_ns=26.70
+REACH empty Peacock rep=3 generic_ns=15001.98 special_ns=25.84
+REACH empty Peacock rep=4 generic_ns=14707.17 special_ns=26.76
+REACH sparse Peacock rep=0 generic_ns=6823.63 special_ns=25.43
+REACH sparse Peacock rep=1 generic_ns=7007.16 special_ns=25.40
+REACH sparse Peacock rep=2 generic_ns=6833.16 special_ns=26.35
+REACH sparse Peacock rep=3 generic_ns=7192.93 special_ns=25.54
+REACH sparse Peacock rep=4 generic_ns=6860.03 special_ns=26.27
+REACH dense Peacock rep=0 generic_ns=709.96 special_ns=19.79
+REACH dense Peacock rep=1 generic_ns=711.15 special_ns=20.21
+REACH dense Peacock rep=2 generic_ns=706.38 special_ns=18.32
+REACH dense Peacock rep=3 generic_ns=723.68 special_ns=18.03
+REACH dense Peacock rep=4 generic_ns=684.85 special_ns=17.78
+REACH empty LionHawk rep=0 generic_ns=6792.78 special_ns=43.59
+REACH empty LionHawk rep=1 generic_ns=7312.77 special_ns=44.56
+REACH empty LionHawk rep=2 generic_ns=6725.24 special_ns=43.61
+REACH empty LionHawk rep=3 generic_ns=6773.37 special_ns=44.58
+REACH empty LionHawk rep=4 generic_ns=6732.56 special_ns=65.58
+REACH sparse LionHawk rep=0 generic_ns=3733.05 special_ns=43.72
+REACH sparse LionHawk rep=1 generic_ns=3800.18 special_ns=44.56
+REACH sparse LionHawk rep=2 generic_ns=3909.89 special_ns=44.47
+REACH sparse LionHawk rep=3 generic_ns=3828.67 special_ns=45.60
+REACH sparse LionHawk rep=4 generic_ns=3827.91 special_ns=43.76
+REACH dense LionHawk rep=0 generic_ns=1622.58 special_ns=39.72
+REACH dense LionHawk rep=1 generic_ns=1586.45 special_ns=40.21
+REACH dense LionHawk rep=2 generic_ns=1735.61 special_ns=37.92
+REACH dense LionHawk rep=3 generic_ns=1580.78 special_ns=38.89
+REACH dense LionHawk rep=4 generic_ns=1593.51 special_ns=38.25

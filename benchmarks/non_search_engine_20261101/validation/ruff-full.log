@@ -1,0 +1,459 @@
+F821 Undefined name `fit`
+  --> data/analysis/color-bias-current-20261101/compare.py:40:34
+   |
+38 |         if color:
+39 |             x[row, len(index)] = 1 if slot["a_is_black"] else -1
+40 |     beta, iterations, residual = fit(x, y)
+   |                                  ^^^
+41 |     ratings = {}
+42 |     for group in components:
+   |
+
+B007 Loop control variable `projection_iteration` not used within loop body
+  --> data/analysis/color-bias-current-20261101/compare.py:53:9
+   |
+51 |     shifts = np.zeros(len(components))
+52 |     multipliers = np.zeros(len(edges))
+53 |     for projection_iteration in range(100000):
+   |         ^^^^^^^^^^^^^^^^^^^^
+54 |         change = 0.0
+55 |         for e, (a, b, gap) in enumerate(edges):
+   |
+help: Rename unused `projection_iteration` to `_projection_iteration`
+   |
+52 |     multipliers = np.zeros(len(edges))
+   -     for projection_iteration in range(100000):
+53 +     for _projection_iteration in range(100000):
+54 |         change = 0.0
+   |
+note: This is an unsafe fix and may change runtime behavior
+
+B905 `zip()` without an explicit `strict=` parameter
+  --> data/analysis/nnue-parity-20261019/summarize.py:65:25
+   |
+63 |             abs(b - a)
+64 |             for r in rs
+65 |             for a, b in zip(r["scores"][:3], r["scores"][1:4])
+   |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+66 |             if abs(a) < 900000 and abs(b) < 900000
+67 |         ]
+   |
+help: Add explicit value for parameter `strict=`
+   |
+64 |             for r in rs
+   -             for a, b in zip(r["scores"][:3], r["scores"][1:4])
+65 +             for a, b in zip(r["scores"][:3], r["scores"][1:4], strict=False)
+66 |             if abs(a) < 900000 and abs(b) < 900000
+   |
+note: This is an unsafe fix and may change runtime behavior
+
+B905 `zip()` without an explicit `strict=` parameter
+  --> data/analysis/nnue-parity-20261019/summarize.py:71:25
+   |
+69 |             abs(b - a)
+70 |             for r in rs
+71 |             for a, b in zip(r["scores"][:2], r["scores"][2:4])
+   |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+72 |             if abs(a) < 900000 and abs(b) < 900000
+73 |         ]
+   |
+help: Add explicit value for parameter `strict=`
+   |
+70 |             for r in rs
+   -             for a, b in zip(r["scores"][:2], r["scores"][2:4])
+71 +             for a, b in zip(r["scores"][:2], r["scores"][2:4], strict=False)
+72 |             if abs(a) < 900000 and abs(b) < 900000
+   |
+note: This is an unsafe fix and may change runtime behavior
+
+B007 Loop control variable `dirs` not used within loop body
+   --> data/analysis/old-training-cleanup-20261031/cleanup_training.py:207:23
+    |
+205 |     for root in map(Path, plan["roots"]):
+206 |         if root.is_dir():
+207 |             for base, dirs, files in os.walk(root, topdown=False):
+    |                       ^^^^
+208 |                 if not any(Path(base).iterdir()):
+209 |                     Path(base).rmdir()
+    |
+help: Rename unused `dirs` to `_dirs`
+    |
+206 |         if root.is_dir():
+    -             for base, dirs, files in os.walk(root, topdown=False):
+207 +             for base, _dirs, files in os.walk(root, topdown=False):
+208 |                 if not any(Path(base).iterdir()):
+    |
+note: This is an unsafe fix and may change runtime behavior
+
+B007 Loop control variable `files` not used within loop body
+   --> data/analysis/old-training-cleanup-20261031/cleanup_training.py:207:29
+    |
+205 |     for root in map(Path, plan["roots"]):
+206 |         if root.is_dir():
+207 |             for base, dirs, files in os.walk(root, topdown=False):
+    |                             ^^^^^
+208 |                 if not any(Path(base).iterdir()):
+209 |                     Path(base).rmdir()
+    |
+help: Rename unused `files` to `_files`
+    |
+206 |         if root.is_dir():
+    -             for base, dirs, files in os.walk(root, topdown=False):
+207 +             for base, dirs, _files in os.walk(root, topdown=False):
+208 |                 if not any(Path(base).iterdir()):
+    |
+note: This is an unsafe fix and may change runtime behavior
+
+E741 Ambiguous variable name: `l`
+  --> data/analysis/retirement-every-game-20261020/refresh_leader_report.py:64:11
+   |
+63 | def order(name):
+64 |     w, d, l = rec[name]
+   |           ^
+65 |     n, p = w + d + l, 2 * l + d
+66 |     group = 3 if n == 0 else 0 if p == 2 * n else 2 if p == 0 else 1
+   |
+
+E741 Ambiguous variable name: `l`
+  --> data/analysis/retirement-every-game-20261020/refresh_leader_report.py:77:11
+   |
+75 | rows = []
+76 | for i, name in enumerate(opponents):
+77 |     w, d, l = rec[name]
+   |           ^
+78 |     games = w + d + l
+79 |     target = float(weights[i] / normalizer)
+   |
+
+B904 Within an `except` clause, raise exceptions with `raise ... from err` or `raise ... from None` to distinguish them from errors in exception handling
+  --> data/analysis/search-generation3-20261030/live-preparation/operator-receipts/operational-support-reviewed/deploy/prepare_nnue_field.py:70:9
+   |
+68 |         print(json.dumps(prepare(a.source, a.models, a.out, a.validator), indent=2))
+69 |     except Exception as e:
+70 |         raise SystemExit(f"prepare_nnue_field failed: {e}; tournament did not start")
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+B905 `zip()` without an explicit `strict=` parameter
+  --> data/analysis/search-generation3-20261030/live-preparation/operator-receipts/operational-support-reviewed/deploy/scale_sample_corr.py:34:17
+   |
+32 |     dx2 = 0.0
+33 |     dy2 = 0.0
+34 |     for x, y in zip(xs, ys):
+   |                 ^^^^^^^^^^^
+35 |         dx = x - mx
+36 |         dy = y - my
+   |
+help: Add explicit value for parameter `strict=`
+   |
+33 |     dy2 = 0.0
+   -     for x, y in zip(xs, ys):
+34 +     for x, y in zip(xs, ys, strict=False):
+35 |         dx = x - mx
+   |
+note: This is an unsafe fix and may change runtime behavior
+
+B905 `zip()` without an explicit `strict=` parameter
+   --> data/analysis/search-generation3-20261030/live-preparation/operator-receipts/operational-support-reviewed/deploy/scale_sample_corr.py:162:22
+    |
+160 |         # mean target by multiplier level
+161 |         by_lvl: dict[float, list[float]] = defaultdict(list)
+162 |         for x, yi in zip(xs, y):
+    |                      ^^^^^^^^^^
+163 |             by_lvl[round(x, 3)].append(yi)
+164 |         levels = sorted(by_lvl)
+    |
+help: Add explicit value for parameter `strict=`
+    |
+161 |         by_lvl: dict[float, list[float]] = defaultdict(list)
+    -         for x, yi in zip(xs, y):
+162 +         for x, yi in zip(xs, y, strict=False):
+163 |             by_lvl[round(x, 3)].append(yi)
+    |
+note: This is an unsafe fix and may change runtime behavior
+
+B023 Function definition does not bind loop variable `level_means`
+   --> data/analysis/search-generation3-20261030/live-preparation/operator-receipts/operational-support-reviewed/deploy/scale_sample_corr.py:187:23
+    |
+186 |         def m(lv: float) -> str:
+187 |             return f"{level_means[lv]:7.2f}" if lv in level_means else "    n/a"
+    |                       ^^^^^^^^^^^
+188 |
+189 |         eff_s = f"{effect:+10.2f}" if effect is not None else "       n/a"
+    |
+
+B023 Function definition does not bind loop variable `level_means`
+   --> data/analysis/search-generation3-20261030/live-preparation/operator-receipts/operational-support-reviewed/deploy/scale_sample_corr.py:187:55
+    |
+186 |         def m(lv: float) -> str:
+187 |             return f"{level_means[lv]:7.2f}" if lv in level_means else "    n/a"
+    |                                                       ^^^^^^^^^^^
+188 |
+189 |         eff_s = f"{effect:+10.2f}" if effect is not None else "       n/a"
+    |
+
+B905 `zip()` without an explicit `strict=` parameter
+   --> data/analysis/search-generation3-20261030/live-preparation/operator-receipts/operational-support-reviewed/deploy/scale_sample_corr.py:201:21
+    |
+200 |     # Top / bottom agents quick dump
+201 |     ranked = sorted(zip(ids, y), key=lambda t: t[1], reverse=True)
+    |                     ^^^^^^^^^^^
+202 |     print()
+203 |     print(f"Top 3 by {y_label}:")
+    |
+help: Add explicit value for parameter `strict=`
+    |
+200 |     # Top / bottom agents quick dump
+    -     ranked = sorted(zip(ids, y), key=lambda t: t[1], reverse=True)
+201 +     ranked = sorted(zip(ids, y, strict=False), key=lambda t: t[1], reverse=True)
+202 |     print()
+    |
+note: This is an unsafe fix and may change runtime behavior
+
+B905 `zip()` without an explicit `strict=` parameter
+   --> data/analysis/search-generation3-20261030/live-preparation/operator-receipts/operational-support-reviewed/deploy/scale_sample_corr.py:206:39
+    |
+204 |     for sid, yi in ranked[:3]:
+205 |         s = by_id[sid]
+206 |         changed = [(n, m) for n, m in zip(names, s["multipliers"]) if abs(float(m) - 1.0) > 1e-6]
+    |                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+207 |         print(f"  {sid:6s}  {y_label}={yi:.1f}  changed={changed}")
+208 |     print(f"Bottom 3 by {y_label}:")
+    |
+help: Add explicit value for parameter `strict=`
+    |
+205 |         s = by_id[sid]
+    -         changed = [(n, m) for n, m in zip(names, s["multipliers"]) if abs(float(m) - 1.0) > 1e-6]
+206 +         changed = [(n, m) for n, m in zip(names, s["multipliers"], strict=False) if abs(float(m) - 1.0) > 1e-6]
+207 |         print(f"  {sid:6s}  {y_label}={yi:.1f}  changed={changed}")
+    |
+note: This is an unsafe fix and may change runtime behavior
+
+B905 `zip()` without an explicit `strict=` parameter
+   --> data/analysis/search-generation3-20261030/live-preparation/operator-receipts/operational-support-reviewed/deploy/scale_sample_corr.py:211:39
+    |
+209 |     for sid, yi in ranked[-3:]:
+210 |         s = by_id[sid]
+211 |         changed = [(n, m) for n, m in zip(names, s["multipliers"]) if abs(float(m) - 1.0) > 1e-6]
+    |                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+212 |         print(f"  {sid:6s}  {y_label}={yi:.1f}  changed={changed}")
+    |
+help: Add explicit value for parameter `strict=`
+    |
+210 |         s = by_id[sid]
+    -         changed = [(n, m) for n, m in zip(names, s["multipliers"]) if abs(float(m) - 1.0) > 1e-6]
+211 +         changed = [(n, m) for n, m in zip(names, s["multipliers"], strict=False) if abs(float(m) - 1.0) > 1e-6]
+212 |         print(f"  {sid:6s}  {y_label}={yi:.1f}  changed={changed}")
+    |
+note: This is an unsafe fix and may change runtime behavior
+
+UP031 Use format specifiers instead of percent format
+   --> data/analysis/search-generation3-20261030/live-preparation/operator-receipts/operational-support-reviewed/deploy/test_engine_updates.py:106:17
+    |
+104 | … helper(score):
+105 | … self.engine.write_text(
+106 | …     """#!/bin/sh\ncase "$1" in\n tournament-game-protocol) echo 1;;\n --validate-model|tournament-game-validate) exit 0;;\n *) echo '{"completed_depth":1,"score":%d}';;\nesac\n"""
+    |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+107 | …     % score
+108 | … )
+    |
+help: Replace with format specifiers
+
+B023 Function definition does not bind loop variable `pid`
+   --> data/analysis/search-generation3-20261030/live-preparation/operator-receipts/operational-support-reviewed/deploy/test_training_sidecar.py:141:53
+    |
+139 |                 p.send_signal(signal.SIGKILL if force else signal.SIGTERM)
+140 |                 p.wait(timeout=6)
+141 |                 wait_for(lambda: a.process_identity(pid) is None)
+    |                                                     ^^^
+142 |                 with (self.control / "shared.lock").open("a+") as game:
+143 |                     fcntl.flock(game, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    |
+
+B905 `zip()` without an explicit `strict=` parameter
+   --> data/analysis/search-generation3-20261030/mining/mine_candidates.py:226:21
+    |
+224 |     for x in subset:
+225 |         completed = [t for t in x["iteration_timings"] if t["completed"] and t["elapsed_us"] > 0]
+226 |         for a, b in zip(completed, completed[1:]):
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+227 |             if b["depth"] == a["depth"] + 1:
+228 |                 transitions[f"{a['depth']}to{b['depth']}"].append(b["elapsed_us"] / a["elapsed_us"])
+    |
+help: Add explicit value for parameter `strict=`
+    |
+225 |         completed = [t for t in x["iteration_timings"] if t["completed"] and t["elapsed_us"] > 0]
+    -         for a, b in zip(completed, completed[1:]):
+226 +         for a, b in zip(completed, completed[1:], strict=False):
+227 |             if b["depth"] == a["depth"] + 1:
+    |
+note: This is an unsafe fix and may change runtime behavior
+
+E741 Ambiguous variable name: `l`
+  --> data/analysis/search-generation3-20261030/tactical-probes/probe_children.py:12:31
+   |
+10 |     manifest = json.load(open(OUT / "manifest.json"))
+11 |     job = next(j for j in manifest["jobs"] if j["name"] == name)
+12 |     rows = [json.loads(l) for l in open(OUT / f"{name}.output.jsonl")]
+   |                               ^
+13 |     actual = next(x for x in rows if x.get("event") == "ready")["actual"][0]
+14 |     requests = [
+   |
+
+B007 Loop control variable `dirs` not used within loop body
+  --> data/analysis/storage-20261023/audit_storage.py:16:16
+   |
+14 | categories = collections.defaultdict(lambda: dict(allocated_bytes=0, files=0))
+15 | daily = collections.defaultdict(lambda: dict(allocated_bytes=0, files=0))
+16 | for directory, dirs, names in os.walk(ROOT):
+   |                ^^^^
+17 |     for name in names:
+18 |         path = Path(directory) / name
+   |
+help: Rename unused `dirs` to `_dirs`
+   |
+15 | daily = collections.defaultdict(lambda: dict(allocated_bytes=0, files=0))
+   - for directory, dirs, names in os.walk(ROOT):
+16 + for directory, _dirs, names in os.walk(ROOT):
+17 |     for name in names:
+   |
+note: This is an unsafe fix and may change runtime behavior
+
+E731 Do not assign a `lambda` expression, use a `def`
+  --> data/analysis/storage-20261023/build_report.py:10:1
+   |
+ 9 | HERE = Path(__file__).resolve().parent
+10 | read = lambda name: json.loads((HERE / name).read_text())
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+11 | audit = read("storage-audit.json")
+12 | manifest = read("manifest.json")
+   |
+help: Rewrite `read` as a `def`
+   |
+9  | HERE = Path(__file__).resolve().parent
+   - read = lambda name: json.loads((HERE / name).read_text())
+10 + def read(name):
+11 +     return json.loads((HERE / name).read_text())
+12 | audit = read("storage-audit.json")
+   |
+note: This is an unsafe fix and may change runtime behavior
+
+E731 Do not assign a `lambda` expression, use a `def`
+  --> data/analysis/storage-20261023/build_report.py:21:1
+   |
+19 | assert len(manifest["files"]) == 6 and all(f["local_evicted"] for f in manifest["files"])
+20 | assert restore["verified"] and health["service"] == "active"
+21 | gib = lambda size: f"{size / 2**30:.2f} GiB"
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+22 | mib = lambda size: f"{size / 2**20:.1f} MiB"
+23 | date = datetime.fromtimestamp(health["as_of"], ZoneInfo("America/Los_Angeles")).strftime("%b %d, %Y %I:%M %p %Z")
+   |
+help: Rewrite `gib` as a `def`
+   |
+20 | assert restore["verified"] and health["service"] == "active"
+   - gib = lambda size: f"{size / 2**30:.2f} GiB"
+21 + def gib(size):
+22 +     return f"{size / 2**30:.2f} GiB"
+23 | mib = lambda size: f"{size / 2**20:.1f} MiB"
+   |
+note: This is an unsafe fix and may change runtime behavior
+
+E731 Do not assign a `lambda` expression, use a `def`
+  --> data/analysis/storage-20261023/build_report.py:22:1
+   |
+20 | assert restore["verified"] and health["service"] == "active"
+21 | gib = lambda size: f"{size / 2**30:.2f} GiB"
+22 | mib = lambda size: f"{size / 2**20:.1f} MiB"
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+23 | date = datetime.fromtimestamp(health["as_of"], ZoneInfo("America/Los_Angeles")).strftime("%b %d, %Y %I:%M %p %Z")
+24 | source_bytes = manifest["source_bytes"]
+   |
+help: Rewrite `mib` as a `def`
+   |
+21 | gib = lambda size: f"{size / 2**30:.2f} GiB"
+   - mib = lambda size: f"{size / 2**20:.1f} MiB"
+22 + def mib(size):
+23 +     return f"{size / 2**20:.1f} MiB"
+24 | date = datetime.fromtimestamp(health["as_of"], ZoneInfo("America/Los_Angeles")).strftime("%b %d, %Y %I:%M %p %Z")
+   |
+note: This is an unsafe fix and may change runtime behavior
+
+B007 Loop control variable `attempt` not used within loop body
+  --> data/analysis/storage-20261023/final_check.py:40:5
+   |
+38 | assert service == "active"
+39 | target = dict(initial_ms=300000, increment_ms=2000)
+40 | for attempt in range(15):
+   |     ^^^^^^^
+41 |     state = json.loads((run / "state.json").read_text())
+42 |     assert state["time_control"] == target
+   |
+help: Rename unused `attempt` to `_attempt`
+   |
+39 | target = dict(initial_ms=300000, increment_ms=2000)
+   - for attempt in range(15):
+40 + for _attempt in range(15):
+41 |     state = json.loads((run / "state.json").read_text())
+   |
+note: This is an unsafe fix and may change runtime behavior
+
+E402 Module level import not at top of file
+  --> data/analysis/storage-lifecycle-20261024/deploy_live.py:50:1
+   |
+48 | )
+49 | sys.path.insert(0, str(repo / "deploy"))
+50 | import label_storage
+   | ^^^^^^^^^^^^^^^^^^^^
+help: Move module level imports to top of file
+
+E402 Module level import not at top of file
+  --> data/analysis/v5-tactical-depth-20261018/reproduce/run.py:16:1
+   |
+14 | PILOT = Path("/opt/tactical-tree-pilot-20261017")
+15 | sys.path.insert(0, str(PILOT / "runner-no-cutoff"))
+16 | from supervise import BoundaryLeases
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+help: Move module level imports to top of file
+
+B007 Loop control variable `field` not used within loop body
+  --> data/analysis/v5-tactical-depth-20261018/reproduce/summarize.py:61:25
+   |
+59 |             for detail in move["data"].values():
+60 |                 if isinstance(detail, dict):
+61 |                     for field, value in detail.items():
+   |                         ^^^^^
+62 |                         if isinstance(value, dict) and "file" in value:
+63 |                             label += " via " + square(value)
+   |
+help: Rename unused `field` to `_field`
+   |
+60 |                 if isinstance(detail, dict):
+   -                     for field, value in detail.items():
+61 +                     for _field, value in detail.items():
+62 |                         if isinstance(value, dict) and "file" in value:
+   |
+note: This is an unsafe fix and may change runtime behavior
+
+B023 Function definition does not bind loop variable `config`
+   --> data/backups/storage-lifecycle-20261024/deploy/adaptive_analysis.py:139:67
+    |
+137 |                             labels=True,
+138 |                             label_candidates=lambda game: (
+139 |                                 [] if winner_teacher.winner_agent(config, game) else a.training_labels.candidates(game)
+    |                                                                   ^^^^^^
+140 |                             ),
+141 |                         )
+    |
+
+B023 Function definition does not bind loop variable `config`
+   --> data/backups/storage-lifecycle-20261024/deploy/dual_label_sidecar.py:170:59
+    |
+168 |                     labels=True,
+169 |                     label_candidates=lambda game: (
+170 |                         [] if winner_teacher.winner_agent(config, game) else a.training_labels.candidates(game)
+    |                                                           ^^^^^^
+171 |                     ),
+172 |                 )
+    |
+
+Found 30 errors.
+17 unsafe fixes available with `--fix --unsafe-fixes`.

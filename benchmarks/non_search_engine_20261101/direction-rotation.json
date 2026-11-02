@@ -1,0 +1,50 @@
+{
+  "baseline_revision": "a28150ff16194682b6849491c673f0de0e7c67c6",
+  "probe_source": "examples/audit_direction_probe.rs",
+  "production_source": "src/attack_utils.rs:120",
+  "compiler_verbose": "rustc 1.92.0 (ded5c06cf 2025-12-08)\nbinary: rustc\ncommit-hash: ded5c06cf21d2b93bffd5d884aa6e96934ee4234\ncommit-date: 2025-12-08\nhost: x86_64-unknown-linux-gnu\nrelease: 1.92.0\nLLVM version: 21.1.3",
+  "build_profile": "Cargo release: optimized, thin LTO, codegen-units=1; default CPU target (no RUSTFLAGS override)",
+  "checks": {
+    "branch_body_checks": 256,
+    "failures": 0,
+    "masks": 256,
+    "production_color_checks": 512
+  },
+  "commands": [
+    "cargo run --release --example audit_direction_probe",
+    "cargo clippy --example audit_direction_probe -- -D warnings",
+    "cargo rustc --release --example audit_direction_probe -- --emit=asm"
+  ],
+  "clippy_result": "passed; no allow attributes",
+  "assembly": {
+    "audit_direction_current": {
+      "instruction_count_including_ret": 11,
+      "instructions": [
+        "movl\t%edi, %eax",
+        "andb\t$16, %al",
+        "movl\t%edi, %ecx",
+        "shlb\t$4, %cl",
+        "andb\t$16, %cl",
+        "shrb\t$4, %al",
+        "rolb\t$4, %dil",
+        "orb\t%cl, %al",
+        "andb\t$-18, %dil",
+        "orb\t%dil, %al",
+        "retq"
+      ],
+      "raw_body": "audit_direction_current:\n.Lfunc_begin12:\n\t.cfi_startproc\n\tmovl\t%edi, %eax\n\tandb\t$16, %al\n\tmovl\t%edi, %ecx\n\tshlb\t$4, %cl\n\tandb\t$16, %cl\n\tshrb\t$4, %al\n\trolb\t$4, %dil\n\torb\t%cl, %al\n\tandb\t$-18, %dil\n\torb\t%dil, %al\n\tretq\n",
+      "source_assembly": "target/release/examples/audit_direction_probe-df3ec12d4a407c00.audit_direction_probe.eb2c530fc4e88cf-cgu.0.rcgu.s"
+    },
+    "audit_direction_rotated": {
+      "instruction_count_including_ret": 3,
+      "instructions": [
+        "movl\t%edi, %eax",
+        "rolb\t$4, %al",
+        "retq"
+      ],
+      "raw_body": "audit_direction_rotated:\n.Lfunc_begin13:\n\t.cfi_startproc\n\tmovl\t%edi, %eax\n\trolb\t$4, %al\n\tretq\n",
+      "source_assembly": "target/release/examples/audit_direction_probe-df3ec12d4a407c00.audit_direction_probe.eb2c530fc4e88cf-cgu.0.rcgu.s"
+    }
+  },
+  "interpretation": "256 masks agree with production for both colors and copied baseline White branch.11 vs3 x86-64 instructions including ret for frozen exported bodies; assembly counts are not runtime or whole-engine speedups. Production function also branches on color; snippets isolate White transformation. Existing metadata caches limit frequency. Instructions are for this compiler/target; hardware/compiler changes may differ."
+}
