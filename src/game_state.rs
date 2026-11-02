@@ -391,6 +391,40 @@ pub struct GameState {
     pub(crate) nnue: Option<crate::nnue::Accumulator>,
 }
 
+/// Mutable board edit whose completion refreshes position-dependent state.
+/// Dereferences to [`Board`]; dropping a mutated guard rebuilds the hash and
+/// seeds repetition for the edited position, as [`GameState::place_piece`] does.
+pub struct BoardEdit<'a> {
+    state: &'a mut GameState,
+    dirty: bool,
+}
+
+impl std::ops::Deref for BoardEdit<'_> {
+    type Target = Board;
+
+    fn deref(&self) -> &Self::Target {
+        &self.state.board
+    }
+}
+
+impl std::ops::DerefMut for BoardEdit<'_> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.dirty = true;
+        &mut self.state.board
+    }
+}
+
+impl Drop for BoardEdit<'_> {
+    fn drop(&mut self) {
+        if self.dirty {
+            self.state.eval_inc = None;
+            self.state.nnue = None;
+            self.state.recompute_hash();
+            self.state.reset_rep_history();
+        }
+    }
+}
+
 struct RepetitionPrefix {
     len: usize,
     counts: Vec<(u64, usize)>,
@@ -541,10 +575,13 @@ impl GameState {
         &self.board
     }
 
-    pub fn get_board_mut(&mut self) -> &mut Board {
-        self.eval_inc = None;
-        self.nnue = None;
-        &mut self.board
+    /// Edit the board, refreshing caches/hash/repetition when the guard drops.
+    /// Keep the guard in a scope to batch multiple edits into one refresh.
+    pub fn get_board_mut(&mut self) -> BoardEdit<'_> {
+        BoardEdit {
+            state: self,
+            dirty: false,
+        }
     }
 
     /// Incremental eval cache used by search make/unmake.
@@ -646,6 +683,8 @@ impl GameState {
         self.current_turn = turn;
         self.move_history.clear();
         self.turns_without_capture_or_promotion = draw_counter;
+        self.eval_inc = None;
+        self.nnue = None;
         self.recompute_hash();
         self.reset_rep_history();
     }
@@ -1741,7 +1780,7 @@ impl GameState {
         }
     }
 
-    /// Make a move (assumes move is legal - caller should validate)
+    /// Apply a checked move, including route and promotion validation.
     /// Executes a move and returns the intermediate position if this was a two-step move, None otherwise
     pub fn make_move(&mut self, mv: Move) -> Option<Position> {
         match self.apply_move(mv, true, true, None) {
@@ -1890,7 +1929,13 @@ impl GameState {
             return ApplyOutcome::Failed;
         }
 
-        if piece.piece_type == PieceType::FreeEagle && !mv.is_free_eagle() {
+        if piece.piece_type == PieceType::FreeEagle && mv.is_two_step() {
+            // An explicit intermediate is part of the route, not a hint to
+            // choose any Free Eagle move with the same destination.
+            mv.data = MoveData::FreeEagle {
+                path: vec![mv.from, mv.intermediate().unwrap(), mv.to],
+            };
+        } else if piece.piece_type == PieceType::FreeEagle && !mv.is_free_eagle() {
             let free_eagle_moves = self.generate_free_eagle_moves(&piece);
             if let Some(matching_move) = free_eagle_moves.iter().find(|m| m.to == mv.to) {
                 if let Some(path) = matching_move.free_eagle_path() {
@@ -1906,6 +1951,22 @@ impl GameState {
             && !self.is_legal_move(mv.from, mv.to)
         {
             return ApplyOutcome::Failed;
+        }
+
+        if validate {
+            let can_promote = self.can_promote(&piece, mv.from, mv.to)
+                || mv
+                    .intermediate()
+                    .is_some_and(|via| self.can_promote(&piece, mv.from, via));
+            if (mv.promoted && !can_promote)
+                || (!mv.promoted
+                    && can_promote
+                    && piece
+                        .piece_type
+                        .must_promote_on_rank(mv.to.rank(), piece.color))
+            {
+                return ApplyOutcome::Failed;
+            }
         }
 
         if let Some(intermediate) = mv.intermediate() {
@@ -2046,16 +2107,14 @@ impl GameState {
             }
 
             if record_history {
-                for i in 1..path.len() {
-                    let pos = path[i];
-                    if i < path.len() - 1 || path[i] != mv.to {
-                        self.move_history.push(Move::new(path[i - 1], pos));
-                    }
-                }
-                if let Some(last_pos) = path.last() {
-                    if *last_pos != mv.to {
-                        self.move_history.push(Move::new(*last_pos, mv.to));
-                    }
+                // Like TwoStep history, record every physical leg, including
+                // the final landing or a capture-and-return to the origin.
+                for (i, leg) in path.windows(2).enumerate() {
+                    self.move_history.push(Move::new_with_promotion(
+                        leg[0],
+                        leg[1],
+                        mv.promoted && i + 2 == path.len(),
+                    ));
                 }
             }
 
@@ -2182,7 +2241,7 @@ impl GameState {
         (true, had_capture, had_promotion)
     }
 
-    /// Get move history
+    /// Executed physical legs (TwoStep and Free Eagle routes have multiple entries).
     pub fn get_move_history(&self) -> &Vec<Move> {
         &self.move_history
     }
@@ -2642,6 +2701,227 @@ mod free_eagle_gate_tests {
 mod tests {
     use super::*;
     use crate::piece::PieceType;
+
+    #[test]
+    fn mutable_board_edits_refresh_hash_repetition_and_both_caches() {
+        let mut state = GameState::new();
+        state.setup_initial_position();
+        let mv = state.generate_legal_moves()[0].clone();
+        state.make_move(mv);
+        let mut weights = crate::eval::EvalWeights::seed();
+        weights.nnue_runtime = Some(crate::nnue::tests::net(32, "board-edit"));
+        state.ensure_eval_inc(&weights);
+        let history = state.move_history.clone();
+        {
+            let mut board = state.get_board_mut();
+            board.remove_piece(Position::new(0, 0).unwrap());
+            board.place_piece(Piece::new(
+                PieceType::Rook,
+                Color::Black,
+                Position::new(15, 15).unwrap(),
+            ));
+        }
+        assert_eq!(state.hash(), crate::zobrist::compute(&state));
+        assert_eq!(state.rep_history, vec![state.repetition_key()]);
+        assert_eq!(state.move_history, history);
+        assert!(state.eval_inc.is_none());
+        assert!(state.nnue.is_none());
+        state.ensure_eval_inc(&weights);
+        assert_eq!(
+            state.eval_inc(),
+            Some(&crate::eval::EvalInc::from_board(
+                state.get_board(),
+                &weights
+            ))
+        );
+        assert!(state
+            .nnue
+            .as_ref()
+            .unwrap()
+            .matches_rebuild(state.get_board()));
+        let before_hash = state.hash();
+        let before_rep = state.rep_history.clone();
+        // A read through the guard does not erase valid caches/history.
+        assert!(state
+            .get_board_mut()
+            .get_piece(Position::new(15, 15).unwrap())
+            .is_some());
+        assert!(state.eval_inc.is_some());
+        assert!(state.nnue.is_some());
+        assert_eq!(state.hash(), before_hash);
+        assert_eq!(state.rep_history, before_rep);
+    }
+
+    #[test]
+    fn invalid_promotion_flags_are_rejected_without_mutating_state() {
+        for color in [Color::Black, Color::White] {
+            let rank = |black_rank| {
+                if color == Color::Black {
+                    black_rank
+                } else {
+                    35 - black_rank
+                }
+            };
+            for (kind, from_rank, to_rank, already_promoted, promote) in [
+                (PieceType::Pawn, 8, 9, false, true),
+                (PieceType::Pawn, 34, 35, false, false),
+                (PieceType::Knight, 32, 34, false, false),
+                (PieceType::Pawn, 26, 27, true, true),
+                (PieceType::King, 8, 9, false, true),
+            ] {
+                let from = Position::new(8, rank(from_rank)).unwrap();
+                let to =
+                    Position::new(if kind == PieceType::Knight { 9 } else { 8 }, rank(to_rank))
+                        .unwrap();
+                let mut piece = Piece::new(kind, color, from);
+                if already_promoted {
+                    piece.promote();
+                }
+                let mut state = GameState::new();
+                state.place_piece(piece);
+                state.set_current_turn(color);
+                state.set_turns_without_capture_or_promotion(99);
+                state.reset_rep_history();
+                state.ensure_eval_inc(&crate::eval::EvalWeights::seed());
+                let before = state.clone();
+                assert!(state
+                    .make_move(Move::new_with_promotion(from, to, promote))
+                    .is_none());
+                assert_eq!(state.current_turn, before.current_turn);
+                assert_eq!(state.hash, before.hash);
+                assert_eq!(state.turns_without_capture_or_promotion, 99);
+                assert_eq!(state.move_history, before.move_history);
+                assert_eq!(state.rep_history, before.rep_history);
+                assert_eq!(state.eval_inc, before.eval_inc);
+                assert_eq!(
+                    crate::board_position::BoardPosition::from_state(&state),
+                    crate::board_position::BoardPosition::from_state(&before)
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn two_step_promotion_can_use_an_intermediate_in_the_zone() {
+        for color in [Color::Black, Color::White] {
+            let rank = |black_rank| {
+                if color == Color::Black {
+                    black_rank
+                } else {
+                    35 - black_rank
+                }
+            };
+            let from = Position::new(18, rank(24)).unwrap();
+            let to = Position::new(19, rank(24)).unwrap();
+            let mut state = GameState::new();
+            state.place_piece(Piece::new(PieceType::Lion, color, from));
+            state.set_current_turn(color);
+            let mv = state
+                .generate_legal_moves()
+                .into_iter()
+                .find(|mv| mv.to == to && mv.promoted)
+                .expect("promotion through an intermediate in the zone");
+            let via = mv.intermediate().unwrap();
+            assert_eq!(via.rank(), rank(25));
+            assert_eq!(state.make_move(mv), Some(via));
+            let promoted = state.get_board().get_piece(to).unwrap();
+            assert_eq!(promoted.piece_type, PieceType::FuriousFiend);
+            assert!(promoted.is_promoted);
+        }
+    }
+
+    #[test]
+    fn free_eagle_history_records_every_executed_leg() {
+        for color in [Color::Black, Color::White] {
+            let mut state = GameState::new();
+            let from = Position::new(18, 18).unwrap();
+            let eagle = Piece::new(PieceType::FreeEagle, color, from);
+            state.place_piece(eagle);
+            state.place_piece(Piece::new(
+                PieceType::Pawn,
+                color.opposite(),
+                Position::new(19, 19).unwrap(),
+            ));
+            let prefix_from = Position::new(5, 5).unwrap();
+            let prefix_to = prefix_from
+                .offset(0, if color == Color::Black { -1 } else { 1 })
+                .unwrap();
+            state.place_piece(Piece::new(PieceType::Pawn, color.opposite(), prefix_from));
+            state.set_current_turn(color.opposite());
+            let prefix = Move::new(prefix_from, prefix_to);
+            state.make_move(prefix.clone());
+            assert_eq!(state.get_current_turn(), color);
+
+            let mut lengths = [false; 6];
+            let mut saw_return = false;
+            for mv in state.generate_free_eagle_moves(&eagle) {
+                let Some(path) = mv.free_eagle_path() else {
+                    continue;
+                };
+                lengths[path.len()] = true;
+                saw_return |= mv.to == from;
+                let mut child = state.clone();
+                child.make_move(mv.clone());
+                assert_eq!(child.get_current_turn(), color.opposite());
+                let history = child.get_move_history();
+                assert_eq!(history.len(), path.len(), "{mv:?}");
+                assert_eq!(history[0], prefix);
+                for (record, leg) in history[1..].iter().zip(path.windows(2)) {
+                    assert_eq!((record.from, record.to), (leg[0], leg[1]));
+                }
+                assert_eq!(history.last().unwrap().to, mv.to);
+                assert!(child.get_board().get_piece(mv.to).is_some());
+                assert_eq!(child.hash(), crate::zobrist::compute(&child));
+            }
+            assert!(lengths[2..=5].iter().all(|&seen| seen));
+            assert!(saw_return);
+        }
+    }
+
+    #[test]
+    fn restoring_a_position_invalidates_and_rebuilds_both_evaluators() {
+        let mut weights = crate::eval::EvalWeights::seed();
+        weights.noise_scale = 0.0;
+        weights.nnue_runtime = Some(crate::nnue::tests::net(32, "restore-position"));
+        let mut state = GameState::new();
+        state.setup_initial_position();
+        state.ensure_eval_inc(&weights);
+        assert!(state.eval_inc.is_some());
+        assert!(state.nnue.is_some());
+
+        let mut replacement = GameState::new();
+        for (kind, color, file, rank) in [
+            (PieceType::King, Color::Black, 0, 0),
+            (PieceType::King, Color::White, 35, 35),
+            (PieceType::Pawn, Color::White, 10, 20),
+        ] {
+            replacement.place_piece(Piece::new(kind, color, Position::new(file, rank).unwrap()));
+        }
+        replacement.set_current_turn(Color::White);
+        replacement.set_turns_without_capture_or_promotion(42);
+        replacement.reset_rep_history();
+        state.restore_position(replacement.clone_board(), Color::White, 42);
+        assert!(state.eval_inc.is_none());
+        assert!(state.nnue.is_none());
+        assert!(state.get_move_history().is_empty());
+        assert_eq!(state.hash(), replacement.hash());
+        assert_eq!(state.repetition_count(), 1);
+        let uncached = crate::eval::evaluate(&state, &weights);
+        state.ensure_eval_inc(&weights);
+        assert_eq!(
+            state.eval_inc(),
+            Some(&crate::eval::EvalInc::from_board(
+                state.get_board(),
+                &weights
+            ))
+        );
+        assert!(state
+            .nnue
+            .as_ref()
+            .unwrap()
+            .matches_rebuild(state.get_board()));
+        assert_eq!(crate::eval::evaluate(&state, &weights), uncached);
+    }
 
     #[test]
     fn test_initial_state() {
