@@ -263,9 +263,11 @@ completed.
 ### Dynamic active pool
 
 For order-neutral tournaments, `retired` is a recomputed inactive set, not a
-permanent exclusion. After completed games and on resume, entrants in the largest
-strongly connected component can become inactive after at least **20 games**
-against **six covered opponents** (each with at least two games). Require eight
+permanent exclusion. After completed games and on resume, retirement is evaluated
+independently in **every SCC with at least nine agents**; no majority of the field
+is required. Within that SCC, an entrant needs at least **20 completed games**
+against **six covered opponents** (each with at least two games). Cross-SCC games
+and opponents do not satisfy either coverage threshold. Require eight
 rivals with positive lower rating-gap bounds, including three whose bounds exceed
 50 Elo. For rival j and candidate i, the bound is
 `rating[j] - rating[i] - 1.959963985 * SE(j-i)`. The joint standard error is the
@@ -275,9 +277,11 @@ These are approximate pointwise bounds, not simultaneous or anytime-valid error
 guarantees. The October 2026 preserved-outcome replay selected this rule; its
 permanent-first-signal audit was more conservative than this reversible lifecycle.
 
-Every entrant outside the core remains eligible for connectivity repair.
-Equal-sized components use lexicographic membership. All historical results are
-retained. The active entrants define rating centering, so reactivation may
+Entrants in SCCs smaller than nine remain eligible for connectivity repair.
+Rival comparisons are restricted to the candidate's own SCC. The report exposes
+`minimum_scc_agents` and `eligible_components`; its legacy `core` field identifies
+the largest nontrivial SCC for older consumers. All historical results are
+retained; ordinary standings still count completed games against all opponents. The active entrants define rating centering, so reactivation may
 translate displayed ratings without changing relative strengths. No old retirement
 is grandfathered past the new evidence requirements. `tournament_ratings STATE`
 includes the policy ID, coverage and rival counts, and inactive set for inspection.
