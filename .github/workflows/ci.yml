@@ -4,6 +4,7 @@ on:
   pull_request:
   push:
     branches: [main]
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -47,6 +48,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Include the usual PR-merge/push base without downloading full model
+          # history. An unavailable base conservatively runs integrations.
+          fetch-depth: 2
+      - id: scope
+        run: python3 deploy/nnue_test_scope.py
       - uses: actions/setup-python@v5
         id: python
         with:
@@ -61,4 +68,8 @@ jobs:
       - if: steps.nnue-environment.outputs.cache-hit != 'true'
         run: python -m venv "$RUNNER_TEMP/nnue-test-venv"
       - run: '"$RUNNER_TEMP/nnue-test-venv/bin/python" -m pip install --disable-pip-version-check -r training/nnue/requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu'
-      - run: '"$RUNNER_TEMP/nnue-test-venv/bin/python" deploy/run_python_tests.py training/nnue --isolate-cpus'
+      - name: Fast NNUE tests
+        run: '"$RUNNER_TEMP/nnue-test-venv/bin/python" deploy/run_python_tests.py training/nnue --suite unit --jobs 1'
+      - name: NNUE process integrations
+        if: steps.scope.outputs.integration == 'true'
+        run: '"$RUNNER_TEMP/nnue-test-venv/bin/python" deploy/run_python_tests.py training/nnue --suite integration --isolate-cpus'

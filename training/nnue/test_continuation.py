@@ -11,6 +11,7 @@ import numpy as np
 import torch
 
 from plateau import Plateau, Policy
+from test_support import integration
 from train import Net, restore_net
 
 HERE = Path(__file__).resolve().parent
@@ -68,6 +69,7 @@ class ResumeTests(unittest.TestCase):
             torch.testing.assert_close(net.h1.weight, loaded.h1.weight)
             self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(), before)
 
+    @integration
     def test_tiny_training_fork_plateau_and_restart(self):
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)

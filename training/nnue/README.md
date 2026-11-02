@@ -16,14 +16,52 @@ perspective; shared feature table; head `2W -> 32 -> 32 -> 1`.
 
 ## Run tests
 
-With the pinned dependencies installed, run
-`python deploy/run_python_tests.py training/nnue --isolate-cpus`
-from the repository root. It discovers the full suite, balances modules across up to
-four processes, and assigns disjoint available CPU sets so benchmark helpers do
-not all select the same CPU. It verifies that every discovered test ID ran exactly
-once and fails if any worker fails or omits tests. `--jobs 1` runs the same tests
-serially with the full available CPU set. CI uses the parallel runner; ordinary
-`python -m unittest discover -s training/nnue -p 'test_*.py'` remains supported.
+With the pinned dependencies installed, run the fast checks from the repository root:
+
+```sh
+python deploy/run_python_tests.py training/nnue --suite unit --jobs 1
+```
+
+This includes network/export arithmetic, gradients, sampling and holdout rules,
+plateau policy, immutable checkpoint loading, real fresh-start checkpoint/resume
+comparisons, and preparation/cache integrity. Small filesystem fixtures and real
+PyTorch computations stay in process; `--jobs 1` avoids importing PyTorch again
+in a worker. The preparation check mocks CPU-affinity changes and one-time interop
+thread setup; the resume check mocks only interop setup and its interruption/log
+boundary. Training, optimizer updates, serialization and exports remain real.
+
+Five marked integration tests exercise separate-process continuation recovery,
+early/post-reduction recovery, archive hydration through preparation and one
+warm-start training CLI, and the benchmark/profile workers. Run them before
+trainer/deployment changes or an actual training launch:
+
+```sh
+python deploy/run_python_tests.py training/nnue --suite integration --isolate-cpus
+```
+
+CI always runs the fast suite. It also runs integrations when the tested diff
+changes Python under `training/nnue/` or `deploy/`, the NNUE requirements, Python
+configuration, or `.github/`. Documentation, model-weight and Rust-only changes
+keep the fast checks. Missing/unknown diffs run integrations; manually dispatching
+the CI workflow always runs them. Deployment Python is intentionally conservative
+because the trainers import shared storage and supervisor helpers from there.
+
+For the complete suite, omit `--suite`:
+
+```sh
+python deploy/run_python_tests.py training/nnue --isolate-cpus
+```
+
+The parallel runner balances modules across up to four processes and assigns
+disjoint available CPU sets so benchmark helpers do not all select the same CPU.
+It verifies that every selected test ID ran exactly once and fails on failed or
+incomplete workers. Selection does not mark tests skipped. Ordinary
+`python -m unittest discover -s training/nnue -p 'test_*.py'` also runs the full suite.
+
+The v5 CLI smoke test runs one mixture. All three mixtures' proportions and
+within-stratum weights are checked directly; we no longer train all three just
+to compare their initial validation metrics. Process-global recovery remains in
+the marked integration checks rather than the fast fresh-start resume test.
 
 The input uses the engine's movement abilities, occupancy and royal status. It
 reserves 92 channels per color/square, of which 85 currently occur. No separate

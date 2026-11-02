@@ -12,6 +12,7 @@ from unittest.mock import patch
 import numpy as np
 
 import benchmark_training as bench
+from test_support import integration
 
 
 def fixture(root):
@@ -152,6 +153,7 @@ class BenchmarkTests(unittest.TestCase):
         self.assertEqual(stats["paired_ratio"]["n"], 3)
         self.assertIsNone(bench.distribution([1.0])["sample_sd"])
 
+    @integration
     def test_profile_and_artifacts_use_real_reference_with_unchanged_inputs(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
@@ -176,6 +178,7 @@ class BenchmarkTests(unittest.TestCase):
                 self.assertEqual(bench.digest(root / name), sha)
             self.assertEqual(set(p.name for p in root.iterdir()), set(before) | {"result.json"})
 
+    @integration
     def test_sharded_input_and_corruption_rejection(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)

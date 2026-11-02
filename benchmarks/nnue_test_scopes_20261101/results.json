@@ -1,0 +1,328 @@
+{
+  "date": "2026-11-01",
+  "baseline_revision": "f7586be482b02c37296ffa386f35ea509c2d8bd5",
+  "candidate_revision": "9f3e0936629e030bd36eb0b903a16a1281afd57e",
+  "environment": {
+    "cpu": "12th Gen Intel(R) Core(TM) i7-1255U",
+    "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+    "python": "3.12.14",
+    "torch": "2.14.0+cpu",
+    "numpy": "2.5.2",
+    "available_cpus": [
+      0,
+      1,
+      2,
+      3
+    ]
+  },
+  "method": {
+    "timer": "perf_counter around complete test command: interpreter/imports, discovery, execution, and exit; dependencies already installed",
+    "baseline_command": "python deploy/run_python_tests.py training/nnue --isolate-cpus",
+    "candidate_unit_serial_command": "python deploy/run_python_tests.py training/nnue --suite unit --jobs 1",
+    "candidate_unit_parallel_command": "python deploy/run_python_tests.py training/nnue --suite unit --isolate-cpus",
+    "candidate_full_command": "python deploy/run_python_tests.py training/nnue --isolate-cpus",
+    "scheduling": "Same four logical CPUs available; parallel workers get disjoint affinity. Initial baseline precedes candidate trials; candidate mode order varied. Follow-up full-suite comparisons alternate baseline/candidate order, with original/candidate test and runner sources restored between complete commands.",
+    "workload": "Tiny synthetic networks/datasets in the existing tests, generally width 32 and 16/256 feature schemas, 32\u201360 fixture rows; no playing-strength workload"
+  },
+  "default_comparison": {
+    "baseline_full_49_tests": {
+      "n": 3,
+      "unit": "seconds",
+      "median": 30.413886996997462,
+      "min": 27.640101219996723,
+      "max": 30.618801385997358,
+      "sample_sd": 1.663757400306257
+    },
+    "candidate_unit_45_tests": {
+      "n": 3,
+      "unit": "seconds",
+      "median": 3.109704320999299,
+      "min": 2.837273045999609,
+      "max": 3.5773279370005184,
+      "sample_sd": 0.37429308648312404
+    },
+    "median_seconds_saved": 27.304182675998163,
+    "median_reduction_percent": 89.7753801698997,
+    "scope": "Intentional coverage selection: five separate-process tests are conditional; default unit tests retain real model/optimizer/checkpoint/export operations."
+  },
+  "unit_scheduling_comparison": {
+    "serial": {
+      "n": 3,
+      "unit": "seconds",
+      "median": 3.109704320999299,
+      "min": 2.837273045999609,
+      "max": 3.5773279370005184,
+      "sample_sd": 0.37429308648312404
+    },
+    "four_workers": {
+      "n": 3,
+      "unit": "seconds",
+      "median": 5.798901586000284,
+      "min": 5.718368181002006,
+      "max": 5.865361639000184,
+      "sample_sd": 0.07360892683593522
+    },
+    "choice": "One process: avoids redundant imports and worker startup for the fast suite"
+  },
+  "paired_full_suite": {
+    "baseline_49_tests": {
+      "n": 3,
+      "unit": "seconds",
+      "median": 37.33093078300226,
+      "min": 35.33610702200167,
+      "max": 40.28807247499935,
+      "sample_sd": 2.4915179667451235
+    },
+    "candidate_50_tests": {
+      "n": 3,
+      "unit": "seconds",
+      "median": 35.32803051400333,
+      "min": 34.29259611300222,
+      "max": 35.84750202799842,
+      "sample_sd": 0.7915920095098485
+    },
+    "candidate_over_baseline_ratios": [
+      0.9704689905894354,
+      0.8897795259439002,
+      0.946347432893077
+    ],
+    "median_paired_ratio": 0.946347432893077,
+    "raw": {
+      "cpus": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "candidate_source_sha256": {
+        "deploy/run_python_tests.py": "1e93a71c0a96955c634484948bfde1a7ed7e25cf9d76d4cb3cf4d9b8982c4965",
+        "training/nnue/test_continuation.py": "34373884c9a44a8400a6cbe1f0f2ea93393d680d623fcaa23257a33c388c1164",
+        "training/nnue/test_finetune.py": "ceca3994de9f8a53180cb90073664756e8e7f81a76a8041a9ee8756d02bf570e",
+        "training/nnue/test_benchmark_training.py": "b6f8a2411146d39ea3544c311ffd2581cdbfff332743e7a445097e36f93567b5",
+        "training/nnue/test_training_efficiency.py": "5bb48959f556c4c33df28c3bc1d2ff29cd5e42696cd06c9b02c7d6de71f1279e",
+        "training/nnue/test_v5.py": "abd73fca271654de29c0bd78a1219783396977b8123fd03130410d05609d6cc0"
+      },
+      "pairs": [
+        {
+          "baseline": {
+            "seconds": 35.33610702200167,
+            "returncode": 0
+          },
+          "candidate": {
+            "seconds": 34.29259611300222,
+            "returncode": 0
+          }
+        },
+        {
+          "candidate": {
+            "seconds": 35.84750202799842,
+            "returncode": 0
+          },
+          "baseline": {
+            "seconds": 40.28807247499935,
+            "returncode": 0
+          }
+        },
+        {
+          "baseline": {
+            "seconds": 37.33093078300226,
+            "returncode": 0
+          },
+          "candidate": {
+            "seconds": 35.32803051400333,
+            "returncode": 0
+          }
+        }
+      ]
+    }
+  },
+  "raw_initial_baseline": {
+    "revision": "f7586be482b02c37296ffa386f35ea509c2d8bd5",
+    "cpus": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "samples": [
+      {
+        "seconds": 27.640101219996723,
+        "returncode": 0
+      },
+      {
+        "seconds": 30.413886996997462,
+        "returncode": 0
+      },
+      {
+        "seconds": 30.618801385997358,
+        "returncode": 0
+      }
+    ]
+  },
+  "raw_candidate_trials": {
+    "cpus": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "samples": {
+      "unit_serial": [
+        {
+          "seconds": 2.837273045999609,
+          "returncode": 0
+        },
+        {
+          "seconds": 3.5773279370005184,
+          "returncode": 0
+        },
+        {
+          "seconds": 3.109704320999299,
+          "returncode": 0
+        }
+      ],
+      "unit_parallel": [
+        {
+          "seconds": 5.718368181002006,
+          "returncode": 0
+        },
+        {
+          "seconds": 5.798901586000284,
+          "returncode": 0
+        },
+        {
+          "seconds": 5.865361639000184,
+          "returncode": 0
+        }
+      ],
+      "full_parallel": [
+        {
+          "seconds": 36.91075079900111,
+          "returncode": 0
+        },
+        {
+          "seconds": 37.70783412799938,
+          "returncode": 0
+        },
+        {
+          "seconds": 61.14888532400073,
+          "returncode": 0
+        }
+      ]
+    }
+  },
+  "coverage": {
+    "unit_ids": [
+      "test_benchmark_training.BenchmarkTests.test_diagnostics_include_structure_and_nonfinite_rejection",
+      "test_benchmark_training.BenchmarkTests.test_different_sample_order_cannot_be_allowed",
+      "test_benchmark_training.BenchmarkTests.test_manifest_changed_for_both_workers_cannot_be_allowed",
+      "test_benchmark_training.BenchmarkTests.test_mismatch_is_saved_before_failure_and_can_be_explicitly_screened",
+      "test_benchmark_training.BenchmarkTests.test_summary_uses_paired_ratios_and_supported_variability",
+      "test_benchmark_training.BenchmarkTests.test_worker_failure_is_saved_and_existing_output_is_preserved",
+      "test_continuation.PolicyTests.test_minimum_halvings_plateau_and_resume",
+      "test_continuation.PolicyTests.test_small_gains_accumulate_and_cap_is_not_plateau",
+      "test_continuation.ResumeTests.test_mmap_assignment_and_optimizer_restore_leave_seed_immutable",
+      "test_difficulty_weights.DifficultyTests.test_invalid_source_cannot_publish_dataset",
+      "test_difficulty_weights.DifficultyTests.test_normalization_replaces_boost_holdouts_unchanged_and_idempotent",
+      "test_difficulty_weights.DifficultyTests.test_smooth_monotone_bounded_and_continuous_at_old_thresholds",
+      "test_finetune.FineTuneTest.test_reduction_restores_weights_and_moments_but_halves_current_rate",
+      "test_generation.GenerationTests.test_launch_failure_resumes_original_run",
+      "test_generation.GenerationTests.test_microbatch_preserves_effective_gradient",
+      "test_generation.GenerationTests.test_ranking_is_order_and_perspective_invariant",
+      "test_generation.GenerationTests.test_rollout_preserves_old_record_and_admits_eight",
+      "test_pilot.PilotTests.test_bucket_weights",
+      "test_pilot.PilotTests.test_calibration_does_not_read_held_out_outcomes",
+      "test_pilot.PilotTests.test_outcome_mixture_and_missing_draw_target",
+      "test_pilot.PilotTests.test_position_dedup_ignores_traversal_order_but_not_perspective",
+      "test_pilot.PilotTests.test_quantized_forward_after_updates_preserves_sparse_gradients",
+      "test_pilot.PilotTests.test_quantized_initialization_preserves_parent",
+      "test_pilot.PilotTests.test_sampler_is_spaced_and_reproducible",
+      "test_pilot.PilotTests.test_score_only_zero_and_huber_compatibility",
+      "test_pilot_vps.HandoffTest.test_pause_and_restore_preserves_process_identity",
+      "test_pilot_vps.HandoffTest.test_timeout_reaps_command",
+      "test_training.TrainingTests.test_export_matches_float_and_rejects_truncation",
+      "test_training.TrainingTests.test_sparse_input_gradient_and_learning",
+      "test_training_efficiency.EfficiencyTests.test_checkpoint_resume_matches_uninterrupted_training",
+      "test_training_efficiency.EfficiencyTests.test_objective_and_gradient_match_full_diagnostics",
+      "test_training_efficiency.EfficiencyTests.test_packing_preserves_repeats_empty_bags_and_clipped_targets",
+      "test_training_efficiency.EfficiencyTests.test_updates_and_touched_rows_match_with_and_without_prior_gradients",
+      "test_training_efficiency.EfficiencyTests.test_validation_preserves_source_metrics_and_summation_order",
+      "test_training_efficiency.EfficiencyTests.test_zero_gradients_retain_touched_rows",
+      "test_v4_data.V4DataTests.test_feature_shards_are_verified_and_never_joined_or_written",
+      "test_v4_data.V4DataTests.test_teacher_probability_mean_and_completed_mates",
+      "test_v4_data.V4DataTests.test_weighting_caps_targeted_and_long_games",
+      "test_v5.V5Tests.test_dense_weights_balance_related_games_and_episodes",
+      "test_v5.V5Tests.test_mates_are_claims_precursors_keep_finite_targets",
+      "test_v5.V5Tests.test_mixes_preserve_within_stratum_weights_and_holdout",
+      "test_v5.V5Tests.test_parent_exposure_pairs_and_conflicting_prefixes",
+      "test_v5.V5Tests.test_preparation_preserves_holdouts_and_reuses_scoring",
+      "test_v5.V5Tests.test_smooth_difficulty_and_unlimited_plateau",
+      "test_v5.V5Tests.test_snapshot_filters_teacher_identity_and_freezes_completed_games"
+    ],
+    "integration_ids": [
+      "test_benchmark_training.BenchmarkTests.test_profile_and_artifacts_use_real_reference_with_unchanged_inputs",
+      "test_benchmark_training.BenchmarkTests.test_sharded_input_and_corruption_rejection",
+      "test_continuation.ResumeTests.test_tiny_training_fork_plateau_and_restart",
+      "test_finetune.FineTuneTest.test_early_and_post_reduction_resume_match_uninterrupted_run",
+      "test_v5.V5Tests.test_shared_preparation_and_warm_started_cli_run"
+    ],
+    "replaced_ids": [
+      "test_training_efficiency.EfficiencyTests.test_cli_checkpoint_resume_matches_uninterrupted_training",
+      "test_v5.V5Tests.test_shared_preparation_and_three_warm_started_cli_runs"
+    ],
+    "replacement_ids": [
+      "test_training_efficiency.EfficiencyTests.test_checkpoint_resume_matches_uninterrupted_training",
+      "test_v5.V5Tests.test_preparation_preserves_holdouts_and_reuses_scoring",
+      "test_v5.V5Tests.test_shared_preparation_and_warm_started_cli_run"
+    ],
+    "unchanged_original_ids": 47,
+    "default_full_count": 50,
+    "unit_count": 45,
+    "integration_count": 5,
+    "selected_tests_run_exactly_once": true,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "changes": [
+      "Fresh-start checkpoint resume now calls the real trainer in process; adds exact SGD/Adam state comparisons. Process-global interop-thread initialization and the interruption/log boundary are mocked.",
+      "Three full v5 training arms become one CLI smoke run. Direct mixture tests retain all three proportion cases; a new direct preparation test covers held-out data, source immutability, cache reuse and changed-input/cache rejection.",
+      "Separate-process continuation, early/post-reduction recovery, archive hydration/warm start, and benchmark/profile workers remain in five integration tests."
+    ]
+  },
+  "mutation_probes": [
+    {
+      "mutation": "missing Adam-state restoration",
+      "test": "EfficiencyTests.test_checkpoint_resume_matches_uninterrupted_training",
+      "detected": true,
+      "failures": 1,
+      "errors": 0
+    },
+    {
+      "mutation": "preparation cache recomputed",
+      "test": "V5Tests.test_preparation_preserves_holdouts_and_reuses_scoring",
+      "detected": true,
+      "failures": 1,
+      "errors": 0
+    },
+    {
+      "mutation": "corrupt prepared view accepted",
+      "test": "V5Tests.test_preparation_preserves_holdouts_and_reuses_scoring",
+      "detected": true,
+      "failures": 1,
+      "errors": 0
+    }
+  ],
+  "validation": {
+    "rust": "cargo fmt, clippy all-targets/all-features with warnings denied, cargo test: 570 passed, four existing ignores",
+    "python": "Ruff all 161 tracked Python files; deployment serial and parallel: 227 passed; randomized-search: 3 passed; tactical-tree: 25 passed",
+    "integration": "Standalone --suite integration command: five passed, no skips; unit/full groups also passed in each of three candidate trials and each paired candidate trial"
+  },
+  "limits": [
+    "Small local sample; no confidence interval, tail latency or playing-strength claim.",
+    "The default 49-to-45 test comparison intentionally changes which coverage runs for unrelated changes. Relevant changes run the five integrations too; manual CI dispatch and --suite all run everything.",
+    "Whole CI runtime also includes checkout, environment restoration/install and other jobs; none is included in these command timings.",
+    "Host timing varied substantially: the initial unpaired candidate full suite ranged 36.91\u201361.15 seconds. Follow-up paired full-suite trials are more useful for assessing that path; no guaranteed full-suite/CI speedup is claimed.",
+    "CI diffs use a shallow two-generation checkout. Missing/unresolvable bases run integrations conservatively; new external dependency paths may require updating the selector.",
+    "The fresh-start check no longer tests independent interpreter recovery itself. Separate-process recovery remains covered by the continuation and parent fine-tuning tests. The three v5 CLI arms no longer have an end-to-end initial-metric equality assertion."
+  ]
+}

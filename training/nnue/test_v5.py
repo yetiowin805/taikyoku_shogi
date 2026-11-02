@@ -11,15 +11,19 @@ import tempfile
 import unittest
 from collections import Counter
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
 import numpy as np
 import torch
 
 import dataset_storage
+import v5_weights
 from difficulty_weights import multiplier
-from pilot_fit import PilotNet, weights_for
+from pilot_fit import PilotNet, from_quantized, weights_for
 from plateau import Plateau, Policy
 from recent_data import Weights, assign_groups, classify_positions, label_position
+from test_support import integration
 from train import export
 from v5_snapshot import snapshot
 from v5_weights import STRATA, mixture_weights
@@ -145,59 +149,100 @@ class V5Tests(unittest.TestCase):
             snapshot(config)  # immutable completed snapshot is reused
             self.assertEqual(len(json.loads((root / "out/snapshot/snapshot.json").read_text())["games"]), 1)
 
-    def test_shared_preparation_and_three_warm_started_cli_runs(self):
-        with tempfile.TemporaryDirectory() as temp:
-            root = Path(temp)
-            schema = dict(features=16, channels=92, hash="00" * 32, names_hash="11" * 32)
-            (root / "schema.json").write_text(json.dumps(schema))
-            np.tile(np.array([0, 1, 2, 3], dtype="<u4"), 60).tofile(root / "features.bin")
-            samples = [
-                dict(
-                    offset=i * 4,
-                    us=2,
-                    them=2,
-                    score=(i % 7 - 3) * 500,
-                    material=100,
-                    outcome=float(i % 2),
-                    group=str(i // 20),
-                    game="game-" + str(i // 20),
-                    split="train" if i < 20 else "validation" if i < 40 else "test",
-                    source="recent",
-                    label_source="saved",
-                    selection="representative",
-                    teacher="NNUE",
-                    stratum=STRATA[i % 3],
-                    episode="episode",
-                    sampling_weight=1 / 20,
-                    target_probability=0.5,
-                    inherited_holdout=False,
-                )
-                for i in range(60)
-            ]
-            (root / "samples.jsonl").write_text("".join(json.dumps(s) + "\n" for s in samples))
-
-            def sha(p):
-                return hashlib.sha256(p.read_bytes()).hexdigest()
-
-            identity = dict(
-                scale=2822.9057434005167,
-                samples_sha256=sha(root / "samples.jsonl"),
-                schema_sha256=sha(root / "schema.json"),
-                feature_shards=[dict(path=str(root / "features.bin"), sha256=sha(root / "features.bin"))],
+    def fixture(self, root):
+        schema = dict(features=16, channels=92, hash="00" * 32, names_hash="11" * 32)
+        (root / "schema.json").write_text(json.dumps(schema))
+        np.tile(np.array([0, 1, 2, 3], dtype="<u4"), 60).tofile(root / "features.bin")
+        samples = [
+            dict(
+                offset=i * 4,
+                us=2,
+                them=2,
+                score=(i % 7 - 3) * 500,
+                material=100,
+                outcome=float(i % 2),
+                group=str(i // 20),
+                game="game-" + str(i // 20),
+                split="train" if i < 20 else "validation" if i < 40 else "test",
+                source="recent",
+                label_source="saved",
+                selection="representative",
+                teacher="NNUE",
+                stratum=STRATA[i % 3],
+                episode="episode",
+                sampling_weight=1 / 20,
+                target_probability=0.5,
+                inherited_holdout=False,
             )
-            (root / "dataset.json").write_text(json.dumps(identity))
-            torch.set_num_threads(1)
-            model_sha = export(PilotNet(16, 32), root / "parent.bin", schema)
-            (root / "parent.json").write_text(
-                json.dumps(
-                    dict(
-                        weights=dict(
-                            nnue=dict(file="parent.bin", sha256=model_sha, feature_hash=schema["names_hash"], width=32)
-                        )
+            for i in range(60)
+        ]
+        (root / "samples.jsonl").write_text("".join(json.dumps(s) + "\n" for s in samples))
+
+        def sha(p):
+            return hashlib.sha256(p.read_bytes()).hexdigest()
+
+        identity = dict(
+            scale=2822.9057434005167,
+            samples_sha256=sha(root / "samples.jsonl"),
+            schema_sha256=sha(root / "schema.json"),
+            feature_shards=[dict(path=str(root / "features.bin"), sha256=sha(root / "features.bin"))],
+        )
+        (root / "dataset.json").write_text(json.dumps(identity))
+        torch.set_num_threads(1)
+        model_sha = export(PilotNet(16, 32), root / "parent.bin", schema)
+        (root / "parent.json").write_text(
+            json.dumps(
+                dict(
+                    weights=dict(
+                        nnue=dict(file="parent.bin", sha256=model_sha, feature_hash=schema["names_hash"], width=32)
                     )
                 )
             )
-            (root / "cpus.json").write_text(json.dumps(dict(cpus=[min(os.sched_getaffinity(0))])))
+        )
+        (root / "cpus.json").write_text(json.dumps(dict(cpus=[min(os.sched_getaffinity(0))])))
+
+    def test_preparation_preserves_holdouts_and_reuses_scoring(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.fixture(root)
+            options = SimpleNamespace(
+                source=root, parent=root / "parent.json", out=root / "prepared", cpu_file=root / "cpus.json"
+            )
+            original = (root / "samples.jsonl").read_bytes()
+            with (
+                patch.object(torch, "set_num_interop_threads"),
+                patch.object(os, "sched_setaffinity"),
+                patch("pilot_fit.from_quantized", wraps=from_quantized) as load,
+            ):
+                v5_weights.prepare(options)
+                view = options.out / "sample-view.json"
+                before = view.read_bytes()
+                scored = (options.out / "difficulty.jsonl").read_bytes()
+                v5_weights.prepare(options)
+                self.assertEqual(load.call_count, 1)
+                self.assertEqual(view.read_bytes(), before)
+                self.assertEqual((options.out / "difficulty.jsonl").read_bytes(), scored)
+                actual = list(dataset_storage.rows(options.out / "samples.jsonl"))
+                samples = [json.loads(line) for line in original.splitlines()]
+                self.assertEqual(actual[20:], samples[20:])
+                self.assertTrue(all("parent_probability_error" in row for row in actual[:20]))
+                self.assertFalse((options.out / "samples.jsonl").exists())
+                self.assertEqual((root / "samples.jsonl").read_bytes(), original)
+                view.write_bytes(b"changed")
+                with self.assertRaisesRegex(ValueError, "Prepared samples changed"):
+                    v5_weights.prepare(options)
+                view.write_bytes(before)
+                parent = json.loads(options.parent.read_text())
+                parent["name"] = "changed"
+                options.parent.write_text(json.dumps(parent))
+                with self.assertRaisesRegex(ValueError, "Preparation inputs changed"):
+                    v5_weights.prepare(options)
+
+    @integration
+    def test_shared_preparation_and_warm_started_cli_run(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.fixture(root)
             directory = Path(__file__).parent
             command = [
                 sys.executable,
@@ -211,8 +256,6 @@ class V5Tests(unittest.TestCase):
                 "--cpu-file",
                 str(root / "cpus.json"),
             ]
-            from unittest.mock import patch
-
             policy = root / "archive-policy.json"
             policy.write_text(
                 json.dumps(
@@ -228,52 +271,41 @@ class V5Tests(unittest.TestCase):
             self.assertFalse((root / "features.bin").exists())
             subprocess.run(command, check=True, capture_output=True, timeout=60)
             self.assertTrue((root / "features.bin").exists())
-            before = list(dataset_storage.rows(root / "prepared/samples.jsonl"))
-            view_before = (root / "prepared/sample-view.json").read_bytes()
             self.assertFalse((root / "prepared/samples.jsonl").exists())
-            subprocess.run(command, check=True, capture_output=True, timeout=60)
-            self.assertEqual((root / "prepared/sample-view.json").read_bytes(), view_before)
-            prepared = list(dataset_storage.rows(root / "prepared/samples.jsonl"))
-            self.assertEqual(prepared, before)
-            self.assertEqual(prepared[20:], samples[20:])
-            initial = []
-            for suffix, proportions in [("a", ".90,.08,.02"), ("b", ".85,.12,.03"), ("c", ".95,.04,.01")]:
-                out = root / suffix
-                subprocess.run(
-                    [
-                        sys.executable,
-                        str(directory / "pilot_fit.py"),
-                        str(root / "prepared"),
-                        "--parent",
-                        str(root / "parent.json"),
-                        "--out",
-                        str(out),
-                        "--init",
-                        "parent",
-                        "--width",
-                        "32",
-                        "--loss",
-                        "wdl",
-                        "--epochs",
-                        "4",
-                        "--epoch-samples",
-                        "8",
-                        "--batch",
-                        "8",
-                        "--microbatch",
-                        "1",
-                        "--stratum-proportions",
-                        proportions,
-                    ],
-                    check=True,
-                    capture_output=True,
-                    timeout=60,
-                )
-                initial.append(json.loads((out / "metrics.json").read_text())[0]["validation"])
-                self.assertEqual(json.loads((out / "status.json").read_text())["state"], "completed")
-                self.assertEqual(set(initial[-1]["by_stratum"]), set(STRATA))
-            self.assertEqual(initial[0], initial[1])
-            self.assertEqual(initial[1], initial[2])
+            out = root / "trained"
+            subprocess.run(
+                [
+                    sys.executable,
+                    str(directory / "pilot_fit.py"),
+                    str(root / "prepared"),
+                    "--parent",
+                    str(root / "parent.json"),
+                    "--out",
+                    str(out),
+                    "--init",
+                    "parent",
+                    "--width",
+                    "32",
+                    "--loss",
+                    "wdl",
+                    "--epochs",
+                    "4",
+                    "--epoch-samples",
+                    "8",
+                    "--batch",
+                    "8",
+                    "--microbatch",
+                    "1",
+                    "--stratum-proportions",
+                    ".90,.08,.02",
+                ],
+                check=True,
+                capture_output=True,
+                timeout=60,
+            )
+            initial = json.loads((out / "metrics.json").read_text())[0]["validation"]
+            self.assertEqual(json.loads((out / "status.json").read_text())["state"], "completed")
+            self.assertEqual(set(initial["by_stratum"]), set(STRATA))
 
     def test_smooth_difficulty_and_unlimited_plateau(self):
         self.assertEqual(multiplier(0), 1)

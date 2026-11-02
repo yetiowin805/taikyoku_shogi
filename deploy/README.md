@@ -10,10 +10,11 @@ Run `python deploy/run_python_tests.py deploy` from the repository root to disco
 the full deployment suite and run its modules across up to four processes. Workers
 retain the full allowed CPU set so process/lease tests that require four CPU IDs
 keep their existing coverage. Every child exit status and the complete set of
-test IDs are checked. Use `--jobs 1` for a serial run. For the CPU-bound NNUE suite,
-use `python deploy/run_python_tests.py training/nnue --isolate-cpus` with its pinned
-dependencies installed; disjoint CPU sets prevent its benchmark helpers from
-competing for the same first available CPU.
+test IDs are checked. Use `--jobs 1` to execute serially in the current process.
+For fast NNUE checks with the pinned dependencies installed, use
+`python deploy/run_python_tests.py training/nnue --suite unit --jobs 1`.
+The [NNUE testing guide](../training/nnue/README.md#run-tests) explains the
+conditional process integrations and how to run the complete suite.
 
 ## Host recommendation
 

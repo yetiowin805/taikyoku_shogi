@@ -103,6 +103,47 @@ class RunnerTests(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("worker exited 23 without a result", result.stderr)
 
+    def test_suite_selection_runs_marked_tests_without_skipping_or_hiding_failures(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.fixture(
+                root,
+                "test_groups",
+                "    def test_unit(self):\n        pass\n"
+                "    def test_process(self):\n        self.fail('integration sentinel')\n"
+                "    test_process.test_suite = 'integration'\n",
+            )
+            all_ids = {test.id() for test in runner.discover(root)}
+            unit_ids = {test.id() for test in runner.discover(root, "unit")}
+            integration_ids = {test.id() for test in runner.discover(root, "integration")}
+            self.assertEqual(all_ids, unit_ids | integration_ids)
+            self.assertFalse(unit_ids & integration_ids)
+            for suite, count, status in (("unit", 1, 0), ("integration", 1, 1), ("all", 2, 1)):
+                with self.subTest(suite=suite):
+                    # Exercise both direct execution and worker-side selection.
+                    jobs = "1" if suite == "unit" else "2"
+                    result = self.run_fixture(root, "--suite", suite, "--jobs", jobs)
+                    self.assertEqual(result.returncode, status, result.stdout + result.stderr)
+                    self.assertIn(f"Ran {count} tests", result.stdout)
+                    self.assertIn("skipped=0; coverage verified", result.stdout)
+            with self.assertRaisesRegex(ValueError, "No integration tests"):
+                self.fixture(root, "test_only_unit", "    def test_unit(self):\n        pass\n")
+                # A missing/typoed marker must not turn an intended integration run green.
+                (root / "test_groups.py").unlink()
+                runner.discover(root, "integration")
+
+    def test_unknown_suite_marker_is_fatal(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.fixture(
+                root,
+                "test_bad_group",
+                "    def test_bad(self):\n        pass\n    test_bad.test_suite = 'intergation'\n",
+            )
+            result = self.run_fixture(root, "--suite", "unit")
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("Unknown test suite", result.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -37,18 +37,28 @@ def cases(suite):
             yield test
 
 
-def discover(directory):
+def discover(directory, suite="all"):
     loader = unittest.TestLoader()
-    suite = loader.discover(str(directory), pattern="test_*.py")
+    discovered = loader.discover(str(directory), pattern="test_*.py")
     if loader.errors:
         raise RuntimeError("Test discovery failed:\n" + "\n".join(loader.errors))
-    tests = list(cases(suite))
+    tests = list(cases(discovered))
     if not tests:
         raise ValueError(f"No tests discovered in {directory}")
     ids = [test.id() for test in tests]
     if len(ids) != len(set(ids)):
         raise ValueError("Duplicate test IDs discovered")
-    return tests
+    selected = []
+    for test in tests:
+        method = getattr(test, test._testMethodName)
+        group = getattr(method, "test_suite", "unit")
+        if group not in ("unit", "integration"):
+            raise ValueError(f"Unknown test suite {group!r}: {test.id()}")
+        if suite == "all" or group == suite:
+            selected.append(test)
+    if not selected:
+        raise ValueError(f"No {suite} tests discovered in {directory}")
+    return selected
 
 
 def plan(modules, cpus, jobs, *, isolate_cpus=False):
@@ -72,29 +82,48 @@ def verify(expected, reports):
         raise ValueError("A worker did not run its complete discovered suite")
 
 
-def worker(directory, modules, cpus, result_path):
+def execute(tests):
+    result = unittest.TextTestRunner(verbosity=2).run(unittest.TestSuite(tests))
+    return dict(
+        ids=[test.id() for test in tests],
+        count=result.testsRun,
+        failures=len(result.failures),
+        errors=len(result.errors),
+        skipped=len(result.skipped),
+        successful=result.wasSuccessful(),
+    )
+
+
+def summary(reports, started, workers):
+    print(
+        f"Ran {sum(r['count'] for r in reports)} tests in {time.monotonic() - started:.3f}s "
+        f"across {workers} workers; "
+        f"failures={sum(r['failures'] for r in reports)}, errors={sum(r['errors'] for r in reports)}, "
+        f"skipped={sum(r['skipped'] for r in reports)}; coverage verified",
+        flush=True,
+    )
+
+
+def worker(directory, modules, cpus, result_path, suite):
     if hasattr(os, "sched_setaffinity"):
         os.sched_setaffinity(0, set(cpus))
-    tests = [test for test in discover(directory) if type(test).__module__ in modules]
-    result = unittest.TextTestRunner(verbosity=2).run(unittest.TestSuite(tests))
-    result_path.write_text(
-        json.dumps(
-            dict(
-                ids=[test.id() for test in tests],
-                count=result.testsRun,
-                failures=len(result.failures),
-                errors=len(result.errors),
-                skipped=len(result.skipped),
-                successful=result.wasSuccessful(),
-            )
-        )
-    )
-    return 0 if result.wasSuccessful() else 1
+    tests = [test for test in discover(directory, suite) if type(test).__module__ in modules]
+    report = execute(tests)
+    result_path.write_text(json.dumps(report))
+    return 0 if report["successful"] else 1
 
 
-def run(directory, jobs, *, isolate_cpus=False):
+def run(directory, jobs, *, isolate_cpus=False, suite="all"):
     started = time.monotonic()
-    tests = discover(directory)
+    tests = discover(directory, suite)
+    print(f"Selected suite: {suite}; {len(tests)} tests", flush=True)
+    if jobs == 1:
+        # Discovery has already imported the modules. Small suites need neither
+        # another interpreter/PyTorch import nor process isolation between modules.
+        report = execute(tests)
+        verify([test.id() for test in tests], [report])
+        summary([report], started, 1)
+        return 0 if report["successful"] else 1
     cpus = sorted(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else list(range(os.cpu_count() or 1))
     groups = plan({type(test).__module__ for test in tests}, cpus, jobs, isolate_cpus=isolate_cpus)
     processes = []
@@ -108,6 +137,8 @@ def run(directory, jobs, *, isolate_cpus=False):
                     sys.executable,
                     str(Path(__file__).resolve()),
                     str(directory),
+                    "--suite",
+                    suite,
                     "--worker",
                     *modules,
                     "--cpus",
@@ -130,13 +161,7 @@ def run(directory, jobs, *, isolate_cpus=False):
             successful = all(process.returncode == 0 for process, _, _ in processes) and all(
                 report["successful"] for report in reports
             )
-            print(
-                f"Ran {sum(r['count'] for r in reports)} tests in {time.monotonic() - started:.3f}s "
-                f"across {len(groups)} workers; "
-                f"failures={sum(r['failures'] for r in reports)}, errors={sum(r['errors'] for r in reports)}, "
-                f"skipped={sum(r['skipped'] for r in reports)}; coverage verified",
-                flush=True,
-            )
+            summary(reports, started, len(groups))
             return 0 if successful else 1
         finally:
             for process, _, _ in processes:
@@ -158,6 +183,9 @@ def main():
     )
     parser.add_argument("directory", type=Path, help="Unittest discovery directory, relative to the current directory")
     parser.add_argument(
+        "--suite", choices=("all", "unit", "integration"), default="all", help="Select marked tests (default: all)"
+    )
+    parser.add_argument(
         "--isolate-cpus", action="store_true", help="Give workers disjoint CPU sets (use for CPU-bound NNUE tests)"
     )
     parser.add_argument("--worker", nargs="+", help=argparse.SUPPRESS)
@@ -174,10 +202,10 @@ def main():
         if args.worker:
             if args.cpus is None or args.result is None:
                 parser.error("workers require --cpus and --result")
-            return worker(directory, args.worker, args.cpus, args.result)
+            return worker(directory, args.worker, args.cpus, args.result, args.suite)
         if os.name == "posix":
             signal.signal(signal.SIGTERM, stop)
-        return run(directory, args.jobs, isolate_cpus=args.isolate_cpus)
+        return run(directory, args.jobs, isolate_cpus=args.isolate_cpus, suite=args.suite)
     except (OSError, ValueError, RuntimeError) as error:
         parser.exit(1, f"Tests failed: {error}\n")
 
