@@ -1,0 +1,346 @@
+diff --git a/src/board_position.rs b/src/board_position.rs
+index 687c9d2..84043b6 100644
+--- a/src/board_position.rs
++++ b/src/board_position.rs
+@@ -1,5 +1,6 @@
+ //! Compact serializable board snapshot for start pools and game records.
+ 
++use crate::board::Board;
+ use crate::game_state::GameState;
+ use crate::piece::{Color, Piece};
+ use serde::{Deserialize, Serialize};
+@@ -68,12 +69,11 @@ impl BoardPosition {
+ 
+     pub fn from_state(state: &GameState) -> Self {
+         let board = state.get_board();
+-        let mut pieces = Vec::with_capacity(
+-            board.get_pieces_by_color(Color::Black).len()
+-                + board.get_pieces_by_color(Color::White).len(),
+-        );
++        let black = board.pieces_by_color(Color::Black);
++        let white = board.pieces_by_color(Color::White);
++        let mut pieces = Vec::with_capacity(black.len() + white.len());
+         for color in [Color::Black, Color::White] {
+-            pieces.extend(board.get_pieces_by_color(color).iter().copied());
++            pieces.extend_from_slice(board.pieces_by_color(color));
+         }
+         Self {
+             pieces,
+@@ -84,15 +84,12 @@ impl BoardPosition {
+ 
+     pub fn to_state(&self) -> Result<GameState, String> {
+         self.validate()?;
+-        let mut state = GameState::new();
+-        state.clear_board();
++        let mut board = Board::new();
+         for piece in &self.pieces {
+-            state.place_piece(*piece);
++            board.place_piece(*piece);
+         }
+-        state.set_current_turn(self.turn);
+-        state.set_turns_without_capture_or_promotion(self.draw_counter);
+-        state.recompute_hash();
+-        state.reset_rep_history();
++        let mut state = GameState::new();
++        state.restore_position(board, self.turn, self.draw_counter);
+         Ok(state)
+     }
+ 
+@@ -192,5 +189,29 @@ mod tests {
+                 assert_eq!(q.is_promoted, p.is_promoted);
+             }
+         }
++        assert_eq!(pos, BoardPosition::from_state(&back));
++        assert_eq!(back.hash(), state.hash());
++        assert_eq!(back.hash(), crate::zobrist::compute(&back));
++        assert_eq!(back.repetition_count(), 1);
++        assert!(back.get_move_history().is_empty());
++    }
++
++    #[test]
++    fn bulk_snapshot_load_preserves_turn_clock_and_promotion_origin() {
++        let mut piece = Piece::new(
++            PieceType::SilverRabbit,
++            Color::White,
++            Position::new(18, 12).unwrap(),
++        );
++        piece.promote();
++        let position = BoardPosition {
++            pieces: vec![piece],
++            turn: Color::White,
++            draw_counter: 42,
++        };
++        let state = position.to_state().unwrap();
++        assert_eq!(BoardPosition::from_state(&state), position);
++        assert_eq!(state.hash(), crate::zobrist::compute(&state));
++        assert_eq!(state.repetition_count(), 1);
+     }
+ }
+diff --git a/src/debug_tool.rs b/src/debug_tool.rs
+index 5ee78ef..ab5e6a5 100644
+--- a/src/debug_tool.rs
++++ b/src/debug_tool.rs
+@@ -74,6 +74,22 @@ impl DebugTool {
+         moves
+     }
+ 
++    /// Borrow one record without cloning the rest of the effective timeline.
++    pub(crate) fn effective_move_at(&self, index: usize) -> Option<&MoveRecord> {
++        let prefix_len = if self.setup.is_some() {
++            0
++        } else {
++            self.trunk
++                .as_ref()
++                .map_or(0, |trunk| self.branch_index.min(trunk.moves.len()))
++        };
++        if index < prefix_len {
++            self.trunk.as_ref()?.moves.get(index)
++        } else {
++            self.branch.get(index - prefix_len)
++        }
++    }
++
+     fn timeline_len(&self) -> usize {
+         if self.setup.is_some() {
+             self.branch.len()
+@@ -1088,6 +1104,48 @@ impl Default for DebugTool {
+ mod tests {
+     use super::*;
+ 
++    #[test]
++    fn borrowed_timeline_lookup_matches_owned_trunk_branch_and_setup() {
++        let mut tool = DebugTool::new();
++        let moves: Vec<_> = (0..6)
++            .map(|i| {
++                GameHistory::move_to_record(
++                    &Move::new(Position::new(i, 9).unwrap(), Position::new(i, 10).unwrap()),
++                    Color::Black,
++                    usize::from(i) + 1,
++                )
++            })
++            .collect();
++        tool.trunk = Some(GameRecord {
++            timestamp: 0,
++            moves: moves[..4].to_vec(),
++            result: None,
++        });
++        tool.branch = moves[4..].to_vec();
++        for prefix in [0, 2, 4, 100] {
++            tool.branch_index = prefix;
++            let owned = tool.effective_moves();
++            for i in 0..=owned.len() {
++                assert_eq!(
++                    serde_json::to_value(tool.effective_move_at(i)).unwrap(),
++                    serde_json::to_value(owned.get(i)).unwrap()
++                );
++            }
++        }
++        tool.setup = Some(SetupSnapshot {
++            board: Board::new(),
++            turn: Color::Black,
++            draw_counter: 0,
++        });
++        let owned = tool.effective_moves();
++        for i in 0..=owned.len() {
++            assert_eq!(
++                serde_json::to_value(tool.effective_move_at(i)).unwrap(),
++                serde_json::to_value(owned.get(i)).unwrap()
++            );
++        }
++    }
++
+     #[test]
+     fn test_rebuild_to_idempotent_on_initial() {
+         let mut tool = DebugTool::new();
+diff --git a/src/game_state.rs b/src/game_state.rs
+index 24d6402..066246e 100644
+--- a/src/game_state.rs
++++ b/src/game_state.rs
+@@ -1890,7 +1890,15 @@ impl GameState {
+             return ApplyOutcome::Failed;
+         }
+ 
+-        if piece.piece_type == PieceType::FreeEagle && !mv.is_free_eagle() {
++        // Generated Standard Free Eagle moves are ordinary range moves: they
++        // stop at the first victim, so any equivalent short multi-leg prefix
++        // has empty intermediate squares. Trusted search application can apply
++        // that direct move without regenerating the entire route list. Keep
++        // destination-only normalization for checked/recorded legacy callers.
++        if piece.piece_type == PieceType::FreeEagle
++            && !mv.is_free_eagle()
++            && (validate || record_history || mv.is_two_step())
++        {
+             let free_eagle_moves = self.generate_free_eagle_moves(&piece);
+             if let Some(matching_move) = free_eagle_moves.iter().find(|m| m.to == mv.to) {
+                 if let Some(path) = matching_move.free_eagle_path() {
+@@ -2242,8 +2250,8 @@ impl GameState {
+     /// Draw occurs when only Kings, Crown Princes, and Great Generals (including pieces that promote into these) remain
+     /// Note: This only applies if there are pieces on the board (empty board is a win, not a draw)
+     pub fn is_draw_by_insufficient_material(&self) -> bool {
+-        let black_pieces = self.board.get_pieces_by_color(Color::Black);
+-        let white_pieces = self.board.get_pieces_by_color(Color::White);
++        let black_pieces = self.board.pieces_by_color(Color::Black);
++        let white_pieces = self.board.pieces_by_color(Color::White);
+ 
+         // If either side has no pieces, it's not a draw (game would have ended already)
+         if black_pieces.is_empty() || white_pieces.is_empty() {
+@@ -2582,6 +2590,126 @@ impl GameState {
+ mod free_eagle_gate_tests {
+     use super::*;
+ 
++    #[test]
++    fn trusted_free_eagle_ranges_match_legacy_normalization_on_seeded_boards() {
++        use rand::{Rng, SeedableRng};
++        let mut rng = rand::rngs::StdRng::seed_from_u64(0x000f_4eee_a61e);
++        for color in [Color::Black, Color::White] {
++            for fixture in 0..64 {
++                let mut board = Board::new();
++                let from = Position::new(rng.gen_range(0..36), rng.gen_range(0..36)).unwrap();
++                let eagle = Piece::new(PieceType::FreeEagle, color, from);
++                board.place_piece(eagle);
++                for _ in 0..if fixture % 2 == 0 { 32 } else { 800 } {
++                    let square = Position::new(rng.gen_range(0..36), rng.gen_range(0..36)).unwrap();
++                    if square != from {
++                        board.place_piece(Piece::new(
++                            PieceType::Pawn,
++                            if rng.gen_bool(0.5) {
++                                color
++                            } else {
++                                color.opposite()
++                            },
++                            square,
++                        ));
++                    }
++                }
++                let mut state = GameState::new();
++                state.restore_position(board, color, 17);
++                let generated = state.generate_free_eagle_moves(&eagle);
++                for mv in generated.iter().filter(|mv| !mv.is_free_eagle()) {
++                    // Reproduce the previous trusted endpoint normalization,
++                    // including the first matching route rather than choosing
++                    // an arbitrary route with the same endpoint.
++                    let mut legacy = mv.clone();
++                    if let Some(path) = generated
++                        .iter()
++                        .find(|candidate| candidate.to == mv.to)
++                        .and_then(Move::free_eagle_path)
++                    {
++                        legacy.data = MoveData::FreeEagle { path: path.clone() };
++                    }
++                    let mut reference = state.clone();
++                    reference.make_move_for_search(legacy).unwrap();
++                    let before_hash = state.hash();
++                    let undo = state.make_move_for_search(mv.clone()).unwrap();
++                    assert_eq!(state.hash(), reference.hash());
++                    assert_eq!(state.hash(), crate::zobrist::compute(&state));
++                    assert_eq!(
++                        crate::notation::tsfen_encode(
++                            &crate::board_position::BoardPosition::from_state(&state),
++                        ),
++                        crate::notation::tsfen_encode(
++                            &crate::board_position::BoardPosition::from_state(&reference),
++                        )
++                    );
++                    state.unmake_move_for_search(undo);
++                    assert_eq!(state.hash(), before_hash);
++                    assert_eq!(state.hash(), crate::zobrist::compute(&state));
++                }
++            }
++        }
++    }
++
++    #[test]
++    fn trusted_free_eagle_standard_ranges_match_checked_route_normalization() {
++        for color in [Color::Black, Color::White] {
++            for origin in [(0, 0), (18, 18), (35, 35)] {
++                for pattern in 0..16 {
++                    let mut state = GameState::new();
++                    let from = Position::new(origin.0, origin.1).unwrap();
++                    state.place_piece(Piece::new(PieceType::FreeEagle, color, from));
++                    for (bit, (df, dr)) in [(1, 1), (2, 2), (-1, 0), (0, 4)].into_iter().enumerate()
++                    {
++                        if let Some(to) = from.offset(df, dr) {
++                            state.place_piece(Piece::new(
++                                PieceType::Pawn,
++                                if pattern & (1 << bit) == 0 {
++                                    color.opposite()
++                                } else {
++                                    color
++                                },
++                                to,
++                            ));
++                        }
++                    }
++                    state.set_current_turn(color);
++                    state.set_turns_without_capture_or_promotion(17);
++                    state.reset_rep_history();
++                    let snapshot = crate::notation::tsfen_encode(
++                        &crate::board_position::BoardPosition::from_state(&state),
++                    );
++                    let before_hash = state.hash();
++                    for mv in state
++                        .generate_legal_moves()
++                        .into_iter()
++                        .filter(|mv| mv.from == from && !mv.is_free_eagle() && !mv.is_two_step())
++                    {
++                        let mut checked = state.clone();
++                        checked.make_move(mv.clone());
++                        assert_eq!(checked.get_current_turn(), color.opposite());
++                        let undo = state.make_move_for_search(mv).expect("generated range");
++                        assert_eq!(
++                            crate::board_position::BoardPosition::from_state(&state),
++                            crate::board_position::BoardPosition::from_state(&checked)
++                        );
++                        assert_eq!(state.hash(), checked.hash());
++                        assert_eq!(state.hash(), crate::zobrist::compute(&state));
++                        assert_eq!(state.repetition_count(), checked.repetition_count());
++                        state.unmake_move_for_search(undo);
++                        assert_eq!(state.hash(), before_hash);
++                        assert_eq!(
++                            crate::notation::tsfen_encode(
++                                &crate::board_position::BoardPosition::from_state(&state),
++                            ),
++                            snapshot
++                        );
++                    }
++                }
++            }
++        }
++    }
++
+     #[test]
+     fn constructed_free_eagle_paths_apply_including_capture_and_return() {
+         let origins = [(0, 0), (1, 34), (18, 18), (30, 5)];
+diff --git a/src/session_api.rs b/src/session_api.rs
+index 0851796..2c9eb09 100644
+--- a/src/session_api.rs
++++ b/src/session_api.rs
+@@ -185,7 +185,7 @@ impl DebugTool {
+         let board = self.game_state_ref().get_board();
+         let mut pieces = Vec::new();
+         for color in [Color::Black, Color::White] {
+-            for piece in board.get_pieces_by_color(color) {
++            for piece in board.pieces_by_color(color) {
+                 pieces.push(PieceDto {
+                     file: Self::to_shogi_file(piece.position.file()),
+                     rank: Self::to_shogi_rank(piece.position.rank()),
+@@ -250,13 +250,13 @@ impl DebugTool {
+     }
+ 
+     pub fn recorded_evals(&self) -> RecordedEvals {
+-        let moves = self.effective_moves();
+         let cursor = self.cursor_ply();
+-        let last = cursor
+-            .checked_sub(1)
+-            .and_then(|i| moves.get(i).map(|m| self.recorded_from_move(m, cursor)));
+-        let next = moves
+-            .get(cursor)
++        let last = cursor.checked_sub(1).and_then(|i| {
++            self.effective_move_at(i)
++                .map(|m| self.recorded_from_move(m, cursor))
++        });
++        let next = self
++            .effective_move_at(cursor)
+             .map(|m| self.recorded_from_move(m, cursor + 1));
+         RecordedEvals { last, next }
+     }

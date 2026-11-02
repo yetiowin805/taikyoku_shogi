@@ -1,0 +1,2620 @@
+{
+  "title": "Movement optimization experiments",
+  "trial_patch_sha256": "92a8ea89d78ef2dbbc72865d00ae88e76a08f90982a61063ae0cab82af2937d7",
+  "baseline": "a28150ff16194682b6849491c673f0de0e7c67c6",
+  "method": "Generic Cargo release (ThinLTO, codegen-units1) for engine APIs; rustc -O for isolated speculative kernels. taskset CPU2, no concurrent compilers or sibling timing. Engine API screen two arm-order passes (B,C then C,B),5 batchmeans per arm per pass,minimum20ms per batch. Target/direct query kernels cover7families x3densities; legal4modes on opening+6VPSpositions. Standalone kernels5batchmeans per arm minimum12ms per batch. Primary geometry covers all5041unique deltas with equal-noinline function boundaries; diagonal-only/unequal-boundary versions are diagnostics excluded from general comparisons. Ranges are batch means, not request tail latencies or confidence intervals.",
+  "parity": {
+    "engine_api_cases": 91,
+    "all_case_counts_and_order_checksums_match": true,
+    "speculative_pairs": 28,
+    "all_kernel_checksums_match": true
+  },
+  "findings": [
+    {
+      "id": "C01",
+      "status": "Promising / proven",
+      "decision": "Ship measured allocation removals",
+      "result": "Across all6VPS positions,4modes,outputreuse and freshoutput, move counts match. Reused All output: opening97->92allocations; plies24/701/161/1400/420/931 respectively192->184,192->192,168->164,261->53,199->198,194->194. Late1400 requested bytes11504->1344.",
+      "limits": "Cumulative requested bytes and alloc/realloc call counts, not peak/live memory; warm single-thread global allocator census, no latency measured under counting allocator. Aggregate bundle attribution.",
+      "measurements": [
+        {
+          "case": "opening",
+          "mode": "All",
+          "reused_output": false,
+          "moves": 280,
+          "baseline_allocations": 105,
+          "candidate_allocations": 100,
+          "baseline_requested_bytes": 34120,
+          "candidate_requested_bytes": 34092
+        },
+        {
+          "case": "opening",
+          "mode": "All",
+          "reused_output": true,
+          "moves": 280,
+          "baseline_allocations": 97,
+          "candidate_allocations": 92,
+          "baseline_requested_bytes": 1480,
+          "candidate_requested_bytes": 1452
+        },
+        {
+          "case": "opening",
+          "mode": "CapturesOnly",
+          "reused_output": false,
+          "moves": 80,
+          "baseline_allocations": 44,
+          "candidate_allocations": 39,
+          "baseline_requested_bytes": 8408,
+          "candidate_requested_bytes": 8380
+        },
+        {
+          "case": "opening",
+          "mode": "CapturesOnly",
+          "reused_output": true,
+          "moves": 80,
+          "baseline_allocations": 38,
+          "candidate_allocations": 33,
+          "baseline_requested_bytes": 344,
+          "candidate_requested_bytes": 316
+        },
+        {
+          "case": "opening",
+          "mode": "WithoutQuietMultiLeg",
+          "reused_output": false,
+          "moves": 280,
+          "baseline_allocations": 105,
+          "candidate_allocations": 100,
+          "baseline_requested_bytes": 34120,
+          "candidate_requested_bytes": 34092
+        },
+        {
+          "case": "opening",
+          "mode": "WithoutQuietMultiLeg",
+          "reused_output": true,
+          "moves": 280,
+          "baseline_allocations": 97,
+          "candidate_allocations": 92,
+          "baseline_requested_bytes": 1480,
+          "candidate_requested_bytes": 1452
+        },
+        {
+          "case": "opening",
+          "mode": "QuietMultiLegOnly",
+          "reused_output": false,
+          "moves": 0,
+          "baseline_allocations": 22,
+          "candidate_allocations": 18,
+          "baseline_requested_bytes": 60,
+          "candidate_requested_bytes": 36
+        },
+        {
+          "case": "opening",
+          "mode": "QuietMultiLegOnly",
+          "reused_output": true,
+          "moves": 0,
+          "baseline_allocations": 22,
+          "candidate_allocations": 18,
+          "baseline_requested_bytes": 60,
+          "candidate_requested_bytes": 36
+        },
+        {
+          "case": "corpus-0",
+          "mode": "All",
+          "reused_output": false,
+          "moves": 517,
+          "baseline_allocations": 201,
+          "candidate_allocations": 193,
+          "baseline_requested_bytes": 68984,
+          "candidate_requested_bytes": 68932
+        },
+        {
+          "case": "corpus-0",
+          "mode": "All",
+          "reused_output": true,
+          "moves": 517,
+          "baseline_allocations": 192,
+          "candidate_allocations": 184,
+          "baseline_requested_bytes": 3576,
+          "candidate_requested_bytes": 3524
+        },
+        {
+          "case": "corpus-0",
+          "mode": "CapturesOnly",
+          "reused_output": false,
+          "moves": 112,
+          "baseline_allocations": 67,
+          "candidate_allocations": 62,
+          "baseline_requested_bytes": 9456,
+          "candidate_requested_bytes": 9428
+        },
+        {
+          "case": "corpus-0",
+          "mode": "CapturesOnly",
+          "reused_output": true,
+          "moves": 112,
+          "baseline_allocations": 61,
+          "candidate_allocations": 56,
+          "baseline_requested_bytes": 1392,
+          "candidate_requested_bytes": 1364
+        },
+        {
+          "case": "corpus-0",
+          "mode": "WithoutQuietMultiLeg",
+          "reused_output": false,
+          "moves": 498,
+          "baseline_allocations": 192,
+          "candidate_allocations": 187,
+          "baseline_requested_bytes": 36144,
+          "candidate_requested_bytes": 36116
+        },
+        {
+          "case": "corpus-0",
+          "mode": "WithoutQuietMultiLeg",
+          "reused_output": true,
+          "moves": 498,
+          "baseline_allocations": 184,
+          "candidate_allocations": 179,
+          "baseline_requested_bytes": 3504,
+          "candidate_requested_bytes": 3476
+        },
+        {
+          "case": "corpus-0",
+          "mode": "QuietMultiLegOnly",
+          "reused_output": false,
+          "moves": 19,
+          "baseline_allocations": 54,
+          "candidate_allocations": 47,
+          "baseline_requested_bytes": 3076,
+          "candidate_requested_bytes": 3028
+        },
+        {
+          "case": "corpus-0",
+          "mode": "QuietMultiLegOnly",
+          "reused_output": true,
+          "moves": 19,
+          "baseline_allocations": 50,
+          "candidate_allocations": 43,
+          "baseline_requested_bytes": 1156,
+          "candidate_requested_bytes": 1108
+        },
+        {
+          "case": "corpus-1",
+          "mode": "All",
+          "reused_output": false,
+          "moves": 654,
+          "baseline_allocations": 201,
+          "candidate_allocations": 201,
+          "baseline_requested_bytes": 68528,
+          "candidate_requested_bytes": 68528
+        },
+        {
+          "case": "corpus-1",
+          "mode": "All",
+          "reused_output": true,
+          "moves": 654,
+          "baseline_allocations": 192,
+          "candidate_allocations": 192,
+          "baseline_requested_bytes": 3120,
+          "candidate_requested_bytes": 3120
+        },
+        {
+          "case": "corpus-1",
+          "mode": "CapturesOnly",
+          "reused_output": false,
+          "moves": 15,
+          "baseline_allocations": 9,
+          "candidate_allocations": 9,
+          "baseline_requested_bytes": 952,
+          "candidate_requested_bytes": 952
+        },
+        {
+          "case": "corpus-1",
+          "mode": "CapturesOnly",
+          "reused_output": true,
+          "moves": 15,
+          "baseline_allocations": 6,
+          "candidate_allocations": 6,
+          "baseline_requested_bytes": 56,
+          "candidate_requested_bytes": 56
+        },
+        {
+          "case": "corpus-1",
+          "mode": "WithoutQuietMultiLeg",
+          "reused_output": false,
+          "moves": 654,
+          "baseline_allocations": 201,
+          "candidate_allocations": 201,
+          "baseline_requested_bytes": 68528,
+          "candidate_requested_bytes": 68528
+        },
+        {
+          "case": "corpus-1",
+          "mode": "WithoutQuietMultiLeg",
+          "reused_output": true,
+          "moves": 654,
+          "baseline_allocations": 192,
+          "candidate_allocations": 192,
+          "baseline_requested_bytes": 3120,
+          "candidate_requested_bytes": 3120
+        },
+        {
+          "case": "corpus-1",
+          "mode": "QuietMultiLegOnly",
+          "reused_output": false,
+          "moves": 0,
+          "baseline_allocations": 0,
+          "candidate_allocations": 0,
+          "baseline_requested_bytes": 0,
+          "candidate_requested_bytes": 0
+        },
+        {
+          "case": "corpus-1",
+          "mode": "QuietMultiLegOnly",
+          "reused_output": true,
+          "moves": 0,
+          "baseline_allocations": 0,
+          "candidate_allocations": 0,
+          "baseline_requested_bytes": 0,
+          "candidate_requested_bytes": 0
+        },
+        {
+          "case": "corpus-2",
+          "mode": "All",
+          "reused_output": false,
+          "moves": 571,
+          "baseline_allocations": 177,
+          "candidate_allocations": 173,
+          "baseline_requested_bytes": 68348,
+          "candidate_requested_bytes": 68312
+        },
+        {
+          "case": "corpus-2",
+          "mode": "All",
+          "reused_output": true,
+          "moves": 571,
+          "baseline_allocations": 168,
+          "candidate_allocations": 164,
+          "baseline_requested_bytes": 2940,
+          "candidate_requested_bytes": 2904
+        },
+        {
+          "case": "corpus-2",
+          "mode": "CapturesOnly",
+          "reused_output": false,
+          "moves": 74,
+          "baseline_allocations": 23,
+          "candidate_allocations": 22,
+          "baseline_requested_bytes": 8292,
+          "candidate_requested_bytes": 8288
+        },
+        {
+          "case": "corpus-2",
+          "mode": "CapturesOnly",
+          "reused_output": true,
+          "moves": 74,
+          "baseline_allocations": 17,
+          "candidate_allocations": 16,
+          "baseline_requested_bytes": 228,
+          "candidate_requested_bytes": 224
+        },
+        {
+          "case": "corpus-2",
+          "mode": "WithoutQuietMultiLeg",
+          "reused_output": false,
+          "moves": 566,
+          "baseline_allocations": 174,
+          "candidate_allocations": 173,
+          "baseline_requested_bytes": 68316,
+          "candidate_requested_bytes": 68312
+        },
+        {
+          "case": "corpus-2",
+          "mode": "WithoutQuietMultiLeg",
+          "reused_output": true,
+          "moves": 566,
+          "baseline_allocations": 165,
+          "candidate_allocations": 164,
+          "baseline_requested_bytes": 2908,
+          "candidate_requested_bytes": 2904
+        },
+        {
+          "case": "corpus-2",
+          "mode": "QuietMultiLegOnly",
+          "reused_output": false,
+          "moves": 5,
+          "baseline_allocations": 7,
+          "candidate_allocations": 4,
+          "baseline_requested_bytes": 432,
+          "candidate_requested_bytes": 400
+        },
+        {
+          "case": "corpus-2",
+          "mode": "QuietMultiLegOnly",
+          "reused_output": true,
+          "moves": 5,
+          "baseline_allocations": 5,
+          "candidate_allocations": 2,
+          "baseline_requested_bytes": 48,
+          "candidate_requested_bytes": 16
+        },
+        {
+          "case": "corpus-3",
+          "mode": "All",
+          "reused_output": false,
+          "moves": 1030,
+          "baseline_allocations": 271,
+          "candidate_allocations": 63,
+          "baseline_requested_bytes": 142448,
+          "candidate_requested_bytes": 132288
+        },
+        {
+          "case": "corpus-3",
+          "mode": "All",
+          "reused_output": true,
+          "moves": 1030,
+          "baseline_allocations": 261,
+          "candidate_allocations": 53,
+          "baseline_requested_bytes": 11504,
+          "candidate_requested_bytes": 1344
+        },
+        {
+          "case": "corpus-3",
+          "mode": "CapturesOnly",
+          "reused_output": false,
+          "moves": 33,
+          "baseline_allocations": 55,
+          "candidate_allocations": 13,
+          "baseline_requested_bytes": 4576,
+          "candidate_requested_bytes": 4240
+        },
+        {
+          "case": "corpus-3",
+          "mode": "CapturesOnly",
+          "reused_output": true,
+          "moves": 33,
+          "baseline_allocations": 50,
+          "candidate_allocations": 8,
+          "baseline_requested_bytes": 608,
+          "candidate_requested_bytes": 272
+        },
+        {
+          "case": "corpus-3",
+          "mode": "WithoutQuietMultiLeg",
+          "reused_output": false,
+          "moves": 275,
+          "baseline_allocations": 103,
+          "candidate_allocations": 61,
+          "baseline_requested_bytes": 34320,
+          "candidate_requested_bytes": 33984
+        },
+        {
+          "case": "corpus-3",
+          "mode": "WithoutQuietMultiLeg",
+          "reused_output": true,
+          "moves": 275,
+          "baseline_allocations": 95,
+          "candidate_allocations": 53,
+          "baseline_requested_bytes": 1680,
+          "candidate_requested_bytes": 1344
+        },
+        {
+          "case": "corpus-3",
+          "mode": "QuietMultiLegOnly",
+          "reused_output": false,
+          "moves": 755,
+          "baseline_allocations": 222,
+          "candidate_allocations": 14,
+          "baseline_requested_bytes": 75816,
+          "candidate_requested_bytes": 65656
+        },
+        {
+          "case": "corpus-3",
+          "mode": "QuietMultiLegOnly",
+          "reused_output": true,
+          "moves": 755,
+          "baseline_allocations": 213,
+          "candidate_allocations": 5,
+          "baseline_requested_bytes": 10408,
+          "candidate_requested_bytes": 248
+        },
+        {
+          "case": "corpus-4",
+          "mode": "All",
+          "reused_output": false,
+          "moves": 618,
+          "baseline_allocations": 208,
+          "candidate_allocations": 207,
+          "baseline_requested_bytes": 68256,
+          "candidate_requested_bytes": 68248
+        },
+        {
+          "case": "corpus-4",
+          "mode": "All",
+          "reused_output": true,
+          "moves": 618,
+          "baseline_allocations": 199,
+          "candidate_allocations": 198,
+          "baseline_requested_bytes": 2848,
+          "candidate_requested_bytes": 2840
+        },
+        {
+          "case": "corpus-4",
+          "mode": "CapturesOnly",
+          "reused_output": false,
+          "moves": 29,
+          "baseline_allocations": 13,
+          "candidate_allocations": 13,
+          "baseline_requested_bytes": 2016,
+          "candidate_requested_bytes": 2016
+        },
+        {
+          "case": "corpus-4",
+          "mode": "CapturesOnly",
+          "reused_output": true,
+          "moves": 29,
+          "baseline_allocations": 9,
+          "candidate_allocations": 9,
+          "baseline_requested_bytes": 96,
+          "candidate_requested_bytes": 96
+        },
+        {
+          "case": "corpus-4",
+          "mode": "WithoutQuietMultiLeg",
+          "reused_output": false,
+          "moves": 608,
+          "baseline_allocations": 198,
+          "candidate_allocations": 198,
+          "baseline_requested_bytes": 68144,
+          "candidate_requested_bytes": 68144
+        },
+        {
+          "case": "corpus-4",
+          "mode": "WithoutQuietMultiLeg",
+          "reused_output": true,
+          "moves": 608,
+          "baseline_allocations": 189,
+          "candidate_allocations": 189,
+          "baseline_requested_bytes": 2736,
+          "candidate_requested_bytes": 2736
+        },
+        {
+          "case": "corpus-4",
+          "mode": "QuietMultiLegOnly",
+          "reused_output": false,
+          "moves": 10,
+          "baseline_allocations": 16,
+          "candidate_allocations": 15,
+          "baseline_requested_bytes": 1040,
+          "candidate_requested_bytes": 1032
+        },
+        {
+          "case": "corpus-4",
+          "mode": "QuietMultiLegOnly",
+          "reused_output": true,
+          "moves": 10,
+          "baseline_allocations": 13,
+          "candidate_allocations": 12,
+          "baseline_requested_bytes": 144,
+          "candidate_requested_bytes": 136
+        },
+        {
+          "case": "corpus-5",
+          "mode": "All",
+          "reused_output": false,
+          "moves": 595,
+          "baseline_allocations": 203,
+          "candidate_allocations": 203,
+          "baseline_requested_bytes": 68272,
+          "candidate_requested_bytes": 68272
+        },
+        {
+          "case": "corpus-5",
+          "mode": "All",
+          "reused_output": true,
+          "moves": 595,
+          "baseline_allocations": 194,
+          "candidate_allocations": 194,
+          "baseline_requested_bytes": 2864,
+          "candidate_requested_bytes": 2864
+        },
+        {
+          "case": "corpus-5",
+          "mode": "CapturesOnly",
+          "reused_output": false,
+          "moves": 8,
+          "baseline_allocations": 10,
+          "candidate_allocations": 10,
+          "baseline_requested_bytes": 464,
+          "candidate_requested_bytes": 464
+        },
+        {
+          "case": "corpus-5",
+          "mode": "CapturesOnly",
+          "reused_output": true,
+          "moves": 8,
+          "baseline_allocations": 8,
+          "candidate_allocations": 8,
+          "baseline_requested_bytes": 80,
+          "candidate_requested_bytes": 80
+        },
+        {
+          "case": "corpus-5",
+          "mode": "WithoutQuietMultiLeg",
+          "reused_output": false,
+          "moves": 575,
+          "baseline_allocations": 178,
+          "candidate_allocations": 178,
+          "baseline_requested_bytes": 67976,
+          "candidate_requested_bytes": 67976
+        },
+        {
+          "case": "corpus-5",
+          "mode": "WithoutQuietMultiLeg",
+          "reused_output": true,
+          "moves": 575,
+          "baseline_allocations": 169,
+          "candidate_allocations": 169,
+          "baseline_requested_bytes": 2568,
+          "candidate_requested_bytes": 2568
+        },
+        {
+          "case": "corpus-5",
+          "mode": "QuietMultiLegOnly",
+          "reused_output": false,
+          "moves": 20,
+          "baseline_allocations": 33,
+          "candidate_allocations": 33,
+          "baseline_requested_bytes": 2264,
+          "candidate_requested_bytes": 2264
+        },
+        {
+          "case": "corpus-5",
+          "mode": "QuietMultiLegOnly",
+          "reused_output": true,
+          "moves": 20,
+          "baseline_allocations": 29,
+          "candidate_allocations": 29,
+          "baseline_requested_bytes": 344,
+          "candidate_requested_bytes": 344
+        }
+      ]
+    },
+    {
+      "id": "M-adaptive-bitmap-union",
+      "status": "Promising / proven with small-list regression rejected",
+      "decision": "Keep bitmap only for large lists; preserve baseline stable sort below64 and skip lists smaller than2",
+      "result": "Empty Rook70targets595.8->363.1ns (39.1%faster), directly exposing large-union policy. Trial used unstable sort below64: sparse Rook50targets472.1->584.9ns (+23.9%) and Pawn0/1targets+5\u201316%; reject that small-list unstable-sort variant. Legal generation all6VPS ordered checksums match.",
+      "limits": "Whole Tengu/Hook results combine ray streaming+bitmap and cannot be attributed to bitmap alone. Final lean source differs from timed trial by retaining stable small-list sorting and skipping already ordered singleton/empty lists. Parent whole-search bitmap ablation decides inclusion.",
+      "measurements": [
+        {
+          "case": "targets-Rook-0-false",
+          "baseline_ns": 595.8410513802767,
+          "candidate_ns": 363.08400816395937,
+          "candidate_over_baseline": 0.6093638686405857,
+          "baseline_range_ns": [
+            569.2194969269292,
+            615.8937192118227
+          ],
+          "candidate_range_ns": [
+            348.2803837581836,
+            374.9787979904019
+          ],
+          "batches_per_arm": 10,
+          "result_count": 70,
+          "checksum": 14017795473547156777
+        },
+        {
+          "case": "targets-Rook-100-false",
+          "baseline_ns": 472.0686254980861,
+          "candidate_ns": 584.8657032816488,
+          "candidate_over_baseline": 1.2389421191983454,
+          "baseline_range_ns": [
+            470.0093515037594,
+            482.6595801158301
+          ],
+          "candidate_range_ns": [
+            565.7007635746606,
+            631.2544496339308
+          ],
+          "batches_per_arm": 10,
+          "result_count": 50,
+          "checksum": 10102816426978933404
+        },
+        {
+          "case": "targets-Pawn-0-false",
+          "baseline_ns": 22.733188186546737,
+          "candidate_ns": 24.361607541061574,
+          "candidate_over_baseline": 1.0716318072569564,
+          "baseline_range_ns": [
+            21.112114609986573,
+            23.71325998292706
+          ],
+          "candidate_range_ns": [
+            23.766396500432457,
+            29.508120101973372
+          ],
+          "batches_per_arm": 10,
+          "result_count": 1,
+          "checksum": 8840684942640456976
+        },
+        {
+          "case": "targets-Pawn-0-true",
+          "baseline_ns": 8.788382142859284,
+          "candidate_ns": 10.204436125235334,
+          "candidate_over_baseline": 1.16112794816582,
+          "baseline_range_ns": [
+            8.462632224760938,
+            9.15377007374102
+          ],
+          "candidate_range_ns": [
+            9.887771254444282,
+            11.103387598861401
+          ],
+          "batches_per_arm": 10,
+          "result_count": 0,
+          "checksum": 675868731199239589
+        }
+      ]
+    },
+    {
+      "id": "M-perpendicular-second-rays",
+      "status": "Promising / proven",
+      "decision": "Ship narrow RangeRange visitor",
+      "result": "Narrow perpendicular second directions before traversal, use original board because neither ray crosses vacated origin/occupied corner. Raw-order parity against physically moved Board passes. Empty Tengu39.48->7.60us; empty Hook67.60->14.89us. Late1400 legalAll25.17->14.18us and captures8.52->3.60us for bundle.",
+      "limits": "Numbers combine narrowing+streaming+union. Applies only RangeRange through empty corner; short TwoStep and othercapabilities retain existing occupancy semantics.",
+      "measurements": [
+        {
+          "case": "targets-Tengu-0-false",
+          "baseline_ns": 39484.10094246032,
+          "candidate_ns": 7599.488401426808,
+          "candidate_over_baseline": 0.19246958193378766,
+          "baseline_range_ns": [
+            37809.03544776119,
+            40640.81653225807
+          ],
+          "candidate_range_ns": [
+            7432.045623145401,
+            7682.669095092025
+          ],
+          "batches_per_arm": 10,
+          "result_count": 647,
+          "checksum": 1710051654868312499
+        },
+        {
+          "case": "targets-Tengu-0-true",
+          "baseline_ns": 10916.902648593466,
+          "candidate_ns": 4261.438351788756,
+          "candidate_over_baseline": 0.39035232693384875,
+          "baseline_range_ns": [
+            10571.468354430379,
+            11339.253393665158
+          ],
+          "candidate_range_ns": [
+            4124.9227759472815,
+            4435.08399822695
+          ],
+          "batches_per_arm": 10,
+          "result_count": 0,
+          "checksum": 675868731199239589
+        },
+        {
+          "case": "targets-HookMover-0-false",
+          "baseline_ns": 67603.35673008535,
+          "candidate_ns": 14894.256044836573,
+          "candidate_over_baseline": 0.22031829135798253,
+          "baseline_range_ns": [
+            66018.45394736843,
+            111386.07608695653
+          ],
+          "candidate_range_ns": [
+            14751.795588235294,
+            15111.989457831325
+          ],
+          "batches_per_arm": 10,
+          "result_count": 1295,
+          "checksum": 12276866673723569939
+        },
+        {
+          "case": "targets-HookMover-0-true",
+          "baseline_ns": 20208.37222104112,
+          "candidate_ns": 8476.849137881505,
+          "candidate_over_baseline": 0.4194721398220952,
+          "baseline_range_ns": [
+            15161.347727272727,
+            26402.744736842105
+          ],
+          "candidate_range_ns": [
+            8389.967281879195,
+            8681.263020833334
+          ],
+          "batches_per_arm": 10,
+          "result_count": 0,
+          "checksum": 675868731199239589
+        },
+        {
+          "case": "targets-Tengu-100-false",
+          "baseline_ns": 13063.445956724478,
+          "candidate_ns": 3059.9319635491656,
+          "candidate_over_baseline": 0.23423620181733515,
+          "baseline_range_ns": [
+            12891.55219072165,
+            13487.541666666666
+          ],
+          "candidate_range_ns": [
+            2972.2767220902615,
+            3184.0682251908397
+          ],
+          "batches_per_arm": 10,
+          "result_count": 349,
+          "checksum": 8753481058511346787
+        },
+        {
+          "case": "targets-Tengu-100-true",
+          "baseline_ns": 3696.150007200319,
+          "candidate_ns": 2107.4252694199167,
+          "candidate_over_baseline": 0.5701676786154587,
+          "baseline_range_ns": [
+            3653.9921532846715,
+            3832.1500765696783
+          ],
+          "candidate_range_ns": [
+            2058.012242798354,
+            2207.8124448367166
+          ],
+          "batches_per_arm": 10,
+          "result_count": 17,
+          "checksum": 11969196094779419614
+        },
+        {
+          "case": "targets-HookMover-100-false",
+          "baseline_ns": 23427.208693958804,
+          "candidate_ns": 4753.115584934452,
+          "candidate_over_baseline": 0.20288868584502526,
+          "baseline_range_ns": [
+            22484.918526785714,
+            24479.52427184466
+          ],
+          "candidate_range_ns": [
+            4691.953564727955,
+            4793.44228927203
+          ],
+          "batches_per_arm": 10,
+          "result_count": 595,
+          "checksum": 17817496906058303313
+        },
+        {
+          "case": "targets-HookMover-100-true",
+          "baseline_ns": 7100.753710059409,
+          "candidate_ns": 3411.257808085633,
+          "candidate_over_baseline": 0.48040784786733465,
+          "baseline_range_ns": [
+            6855.541780821918,
+            7273.723473837209
+          ],
+          "candidate_range_ns": [
+            3352.177446380697,
+            3603.7319884726226
+          ],
+          "batches_per_arm": 10,
+          "result_count": 31,
+          "checksum": 4632502616741104620
+        },
+        {
+          "case": "targets-Tengu-400-false",
+          "baseline_ns": 2248.634508982776,
+          "candidate_ns": 978.5246520876465,
+          "candidate_over_baseline": 0.4351639397948694,
+          "baseline_range_ns": [
+            2153.1932013769365,
+            2522.10546875
+          ],
+          "candidate_range_ns": [
+            962.5998845265589,
+            1002.0165264423077
+          ],
+          "batches_per_arm": 10,
+          "result_count": 41,
+          "checksum": 12413801872566571911
+        },
+        {
+          "case": "targets-Tengu-400-true",
+          "baseline_ns": 968.6309725547915,
+          "candidate_ns": 513.2978467800538,
+          "candidate_over_baseline": 0.5299209516563529,
+          "baseline_range_ns": [
+            910.6451656955571,
+            1004.0220794861501
+          ],
+          "candidate_range_ns": [
+            499.1154422040327,
+            526.0057858194824
+          ],
+          "batches_per_arm": 10,
+          "result_count": 10,
+          "checksum": 4093898164229920849
+        },
+        {
+          "case": "targets-HookMover-400-false",
+          "baseline_ns": 622.6037457041845,
+          "candidate_ns": 423.23169417133835,
+          "candidate_over_baseline": 0.6797769802888833,
+          "baseline_range_ns": [
+            604.890088292211,
+            637.3443793015549
+          ],
+          "candidate_range_ns": [
+            411.4079315451703,
+            438.03186317449195
+          ],
+          "batches_per_arm": 10,
+          "result_count": 22,
+          "checksum": 12517800317177349318
+        },
+        {
+          "case": "targets-HookMover-400-true",
+          "baseline_ns": 251.31988802442984,
+          "candidate_ns": 168.90580116325725,
+          "candidate_over_baseline": 0.6720749499412421,
+          "baseline_range_ns": [
+            246.41932781391682,
+            258.89617634876254
+          ],
+          "candidate_range_ns": [
+            167.36444805194805,
+            171.61847027732014
+          ],
+          "batches_per_arm": 10,
+          "result_count": 4,
+          "checksum": 16119323411393626165
+        },
+        {
+          "case": "legal-corpus-3-All",
+          "baseline_ns": 25165.392077020202,
+          "candidate_ns": 14175.024011299436,
+          "candidate_over_baseline": 0.5632745147747319,
+          "baseline_range_ns": [
+            24585.386029411766,
+            25595.10841836735
+          ],
+          "candidate_range_ns": [
+            13864.556629834255,
+            14430.225574712644
+          ],
+          "batches_per_arm": 10,
+          "result_count": 1030,
+          "checksum": 17616807204847560101
+        },
+        {
+          "case": "legal-corpus-3-CapturesOnly",
+          "baseline_ns": 8520.740858843537,
+          "candidate_ns": 3598.192606889099,
+          "candidate_over_baseline": 0.4222863559046739,
+          "baseline_range_ns": [
+            8381.94983277592,
+            8612.573024054982
+          ],
+          "candidate_range_ns": [
+            3563.4478276353275,
+            3688.683075221239
+          ],
+          "batches_per_arm": 10,
+          "result_count": 33,
+          "checksum": 15176190937615032643
+        },
+        {
+          "case": "legal-corpus-3-WithoutQuietMultiLeg",
+          "baseline_ns": 10688.018239679943,
+          "candidate_ns": 5831.349849217562,
+          "candidate_over_baseline": 0.5455969215666481,
+          "baseline_range_ns": [
+            10579.117088607594,
+            10776.671336206897
+          ],
+          "candidate_range_ns": [
+            5726.522597254005,
+            5962.651488095238
+          ],
+          "batches_per_arm": 10,
+          "result_count": 275,
+          "checksum": 5404756118770241860
+        },
+        {
+          "case": "legal-corpus-3-QuietMultiLegOnly",
+          "baseline_ns": 21726.816538605697,
+          "candidate_ns": 10895.663840366002,
+          "candidate_over_baseline": 0.5014845972029929,
+          "baseline_range_ns": [
+            21442.42628205128,
+            22230.736725663715
+          ],
+          "candidate_range_ns": [
+            10639.971808510638,
+            11265.475788288288
+          ],
+          "batches_per_arm": 10,
+          "result_count": 755,
+          "checksum": 4094953598638572994
+        }
+      ]
+    },
+    {
+      "id": "M-stream-multileg-targets",
+      "status": "Promising / proven (partial)",
+      "decision": "Ship direct RangeRange second-ray visitor",
+      "result": "Nested second Range targets now visit caller output directly, removing per-corner secondVec allocations. Late1400 reusedAll261->53allocations; all4legalmode ordered checksums preserved for7fixtures.",
+      "limits": "First-leg Vecs and short/non-range nested capability Vecs remain. Broader recursive visitor conversion was not attempted; measured benefit only for scoped RangeRange streaming.",
+      "measurements": [
+        {
+          "case": "corpus-3",
+          "mode": "All",
+          "reused_output": false,
+          "moves": 1030,
+          "baseline_allocations": 271,
+          "candidate_allocations": 63,
+          "baseline_requested_bytes": 142448,
+          "candidate_requested_bytes": 132288
+        },
+        {
+          "case": "corpus-3",
+          "mode": "All",
+          "reused_output": true,
+          "moves": 1030,
+          "baseline_allocations": 261,
+          "candidate_allocations": 53,
+          "baseline_requested_bytes": 11504,
+          "candidate_requested_bytes": 1344
+        },
+        {
+          "case": "corpus-3",
+          "mode": "CapturesOnly",
+          "reused_output": false,
+          "moves": 33,
+          "baseline_allocations": 55,
+          "candidate_allocations": 13,
+          "baseline_requested_bytes": 4576,
+          "candidate_requested_bytes": 4240
+        },
+        {
+          "case": "corpus-3",
+          "mode": "CapturesOnly",
+          "reused_output": true,
+          "moves": 33,
+          "baseline_allocations": 50,
+          "candidate_allocations": 8,
+          "baseline_requested_bytes": 608,
+          "candidate_requested_bytes": 272
+        },
+        {
+          "case": "corpus-3",
+          "mode": "WithoutQuietMultiLeg",
+          "reused_output": false,
+          "moves": 275,
+          "baseline_allocations": 103,
+          "candidate_allocations": 61,
+          "baseline_requested_bytes": 34320,
+          "candidate_requested_bytes": 33984
+        },
+        {
+          "case": "corpus-3",
+          "mode": "WithoutQuietMultiLeg",
+          "reused_output": true,
+          "moves": 275,
+          "baseline_allocations": 95,
+          "candidate_allocations": 53,
+          "baseline_requested_bytes": 1680,
+          "candidate_requested_bytes": 1344
+        },
+        {
+          "case": "corpus-3",
+          "mode": "QuietMultiLegOnly",
+          "reused_output": false,
+          "moves": 755,
+          "baseline_allocations": 222,
+          "candidate_allocations": 14,
+          "baseline_requested_bytes": 75816,
+          "candidate_requested_bytes": 65656
+        },
+        {
+          "case": "corpus-3",
+          "mode": "QuietMultiLegOnly",
+          "reused_output": true,
+          "moves": 755,
+          "baseline_allocations": 213,
+          "candidate_allocations": 5,
+          "baseline_requested_bytes": 10408,
+          "candidate_requested_bytes": 248
+        }
+      ]
+    },
+    {
+      "id": "M-white-direction-rotation",
+      "status": "Promising / proven",
+      "decision": "Ship u8.rotate_left(4)",
+      "result": "Eight source-direction branches become exact half-byte rotation. Prior audit exhaustively tested256masks/2colors and release assembly11->3instructions includingret. Current all-piece rotation tests and full lib suite pass.",
+      "limits": "No isolated whole-search latency attribution; included in movement bundle. Cached descriptors already avoid many rotations.",
+      "measurements": []
+    },
+    {
+      "id": "R17",
+      "status": "Promising / proven",
+      "decision": "Ship fixed Direction arrays and delete unread target-onlyFEpath",
+      "result": "Direction::ALL fixed array preserves order and compatibility Vec API; legal FE fixed forward2/other6lists, fallback pattern scans and conditional diagonal lists avoid heap direction storage. Target-onlyFE discarded path Vec removed; route-bearing legalFE paths remain. Opening generation105->100allocationcalls with same280moves.",
+      "limits": "Opening allocation reduction is combined cleanup attribution; do not claim route paths disappeared or all array sites individually allocate in optimized machine code.",
+      "measurements": [
+        {
+          "case": "opening",
+          "mode": "All",
+          "reused_output": false,
+          "moves": 280,
+          "baseline_allocations": 105,
+          "candidate_allocations": 100,
+          "baseline_requested_bytes": 34120,
+          "candidate_requested_bytes": 34092
+        },
+        {
+          "case": "opening",
+          "mode": "All",
+          "reused_output": true,
+          "moves": 280,
+          "baseline_allocations": 97,
+          "candidate_allocations": 92,
+          "baseline_requested_bytes": 1480,
+          "candidate_requested_bytes": 1452
+        },
+        {
+          "case": "opening",
+          "mode": "CapturesOnly",
+          "reused_output": false,
+          "moves": 80,
+          "baseline_allocations": 44,
+          "candidate_allocations": 39,
+          "baseline_requested_bytes": 8408,
+          "candidate_requested_bytes": 8380
+        },
+        {
+          "case": "opening",
+          "mode": "CapturesOnly",
+          "reused_output": true,
+          "moves": 80,
+          "baseline_allocations": 38,
+          "candidate_allocations": 33,
+          "baseline_requested_bytes": 344,
+          "candidate_requested_bytes": 316
+        },
+        {
+          "case": "opening",
+          "mode": "WithoutQuietMultiLeg",
+          "reused_output": false,
+          "moves": 280,
+          "baseline_allocations": 105,
+          "candidate_allocations": 100,
+          "baseline_requested_bytes": 34120,
+          "candidate_requested_bytes": 34092
+        },
+        {
+          "case": "opening",
+          "mode": "WithoutQuietMultiLeg",
+          "reused_output": true,
+          "moves": 280,
+          "baseline_allocations": 97,
+          "candidate_allocations": 92,
+          "baseline_requested_bytes": 1480,
+          "candidate_requested_bytes": 1452
+        },
+        {
+          "case": "opening",
+          "mode": "QuietMultiLegOnly",
+          "reused_output": false,
+          "moves": 0,
+          "baseline_allocations": 22,
+          "candidate_allocations": 18,
+          "baseline_requested_bytes": 60,
+          "candidate_requested_bytes": 36
+        },
+        {
+          "case": "opening",
+          "mode": "QuietMultiLegOnly",
+          "reused_output": true,
+          "moves": 0,
+          "baseline_allocations": 22,
+          "candidate_allocations": 18,
+          "baseline_requested_bytes": 60,
+          "candidate_requested_bytes": 36
+        }
+      ]
+    },
+    {
+      "id": "M-reuse-existing-direct-probes",
+      "status": "Dubious / rejected for naive exported dispatch",
+      "decision": "Reject src/piece.rs dispatch change",
+      "result": "Specialized reach saves huge query fanout (emptyTengu1015.02->0.900us per42queries), but ordinaryPawn42queries0.223->0.282us (+26.5%),Rook0.332->0.384us (+15.5%). Board attack dispatcher already uses these specialized probes, limiting workflow gain. Independent review found legacy OldKite-is_promoted classifier mismatch with MovementConfig.",
+      "limits": "Naive CannonSoldier dispatch also recurses via its existing fallback and was removed before final validation. Future capability-driven dispatch could avoid common-case cost, but no such implementation measured. Reject trial Piece change even though selected proper-promotion fixtures passed.",
+      "measurements": [
+        {
+          "case": "reach-Pawn-0",
+          "baseline_ns": 222.9529503329374,
+          "candidate_ns": 282.09761178907064,
+          "candidate_over_baseline": 1.2652786669466003,
+          "baseline_range_ns": [
+            215.59887255324654,
+            240.52020007695268
+          ],
+          "candidate_range_ns": [
+            275.0908515788316,
+            288.50281239183107
+          ],
+          "batches_per_arm": 10,
+          "result_count": 0,
+          "checksum": 15844863391813232289
+        },
+        {
+          "case": "reach-Rook-0",
+          "baseline_ns": 332.28900540914594,
+          "candidate_ns": 383.69140748586534,
+          "candidate_over_baseline": 1.154691853296283,
+          "baseline_range_ns": [
+            326.0383850567219,
+            350.88085882683134
+          ],
+          "candidate_range_ns": [
+            374.4576344166542,
+            390.65974609375
+          ],
+          "batches_per_arm": 10,
+          "result_count": 3,
+          "checksum": 15904527030521438300
+        },
+        {
+          "case": "reach-Tengu-0",
+          "baseline_ns": 1015020.7916666667,
+          "candidate_ns": 900.1795652125884,
+          "candidate_over_baseline": 0.0008868582521688952,
+          "baseline_range_ns": [
+            980933.7083333334,
+            1039477.375
+          ],
+          "candidate_range_ns": [
+            886.3326834455867,
+            922.8709870848709
+          ],
+          "batches_per_arm": 10,
+          "result_count": 20,
+          "checksum": 14820466298423048943
+        },
+        {
+          "case": "reach-HookMover-0",
+          "baseline_ns": 1443432.5,
+          "candidate_ns": 1331.111707161484,
+          "candidate_over_baseline": 0.0009221849356734617,
+          "baseline_range_ns": [
+            1421451.75,
+            2457509.625
+          ],
+          "candidate_range_ns": [
+            1312.9603674540683,
+            1362.0965413943354
+          ],
+          "batches_per_arm": 10,
+          "result_count": 42,
+          "checksum": 7619270895914568221
+        },
+        {
+          "case": "reach-LionHawk-0",
+          "baseline_ns": 248656.78068181817,
+          "candidate_ns": 1508.968395099645,
+          "candidate_over_baseline": 0.0060684787720730795,
+          "baseline_range_ns": [
+            243358.64772727274,
+            483080.0416666667
+          ],
+          "candidate_range_ns": [
+            1469.919165196943,
+            1567.3224467418547
+          ],
+          "batches_per_arm": 10,
+          "result_count": 11,
+          "checksum": 1935409584854382670
+        },
+        {
+          "case": "reach-Pawn-100",
+          "baseline_ns": 226.45970980728958,
+          "candidate_ns": 288.308360288505,
+          "candidate_over_baseline": 1.2731110559747991,
+          "baseline_range_ns": [
+            222.35153192813945,
+            233.20265575452342
+          ],
+          "candidate_range_ns": [
+            274.97036181678214,
+            305.46284815538723
+          ],
+          "batches_per_arm": 10,
+          "result_count": 0,
+          "checksum": 15844863391813232289
+        },
+        {
+          "case": "reach-Rook-100",
+          "baseline_ns": 309.2719616556559,
+          "candidate_ns": 374.0426174456353,
+          "candidate_over_baseline": 1.2094294466373101,
+          "baseline_range_ns": [
+            305.02284372331343,
+            314.02331386586286
+          ],
+          "candidate_range_ns": [
+            358.2594032096289,
+            404.70315533980585
+          ],
+          "batches_per_arm": 10,
+          "result_count": 2,
+          "checksum": 18365759891028268191
+        },
+        {
+          "case": "reach-Tengu-100",
+          "baseline_ns": 323381.09375,
+          "candidate_ns": 952.6710562978532,
+          "candidate_over_baseline": 0.002945970171757616,
+          "baseline_range_ns": [
+            319005.15625,
+            346490.015625
+          ],
+          "candidate_range_ns": [
+            931.4388268156424,
+            957.0499425947187
+          ],
+          "batches_per_arm": 10,
+          "result_count": 11,
+          "checksum": 7911637971715969864
+        },
+        {
+          "case": "reach-HookMover-100",
+          "baseline_ns": 586349.375,
+          "candidate_ns": 1455.9898650800642,
+          "candidate_over_baseline": 0.0024831438851283232,
+          "baseline_range_ns": [
+            559490.375,
+            607389.45
+          ],
+          "candidate_range_ns": [
+            1418.5558706749857,
+            1521.2881690997567
+          ],
+          "batches_per_arm": 10,
+          "result_count": 19,
+          "checksum": 7919772642972313580
+        },
+        {
+          "case": "reach-LionHawk-100",
+          "baseline_ns": 145339.04513888888,
+          "candidate_ns": 1665.6066042666637,
+          "candidate_over_baseline": 0.011460145500990301,
+          "baseline_range_ns": [
+            139995.29861111112,
+            148169.49264705883
+          ],
+          "candidate_range_ns": [
+            1609.4333976833977,
+            1838.2105069801617
+          ],
+          "batches_per_arm": 10,
+          "result_count": 6,
+          "checksum": 1003497063547347207
+        },
+        {
+          "case": "reach-Pawn-400",
+          "baseline_ns": 233.23233477612436,
+          "candidate_ns": 289.03720145889406,
+          "candidate_over_baseline": 1.239267281427062,
+          "baseline_range_ns": [
+            227.70048952641164,
+            241.4775975280031
+          ],
+          "candidate_range_ns": [
+            281.5291493075104,
+            310.0224426534408
+          ],
+          "batches_per_arm": 10,
+          "result_count": 0,
+          "checksum": 15844863391813232289
+        },
+        {
+          "case": "reach-Rook-400",
+          "baseline_ns": 240.19851997580335,
+          "candidate_ns": 288.8174144217905,
+          "candidate_over_baseline": 1.202411298999198,
+          "baseline_range_ns": [
+            230.2512777419652,
+            383.09004902711814
+          ],
+          "candidate_range_ns": [
+            283.0397373485792,
+            296.9981735566643
+          ],
+          "batches_per_arm": 10,
+          "result_count": 0,
+          "checksum": 15844863391813232289
+        },
+        {
+          "case": "reach-Tengu-400",
+          "baseline_ns": 59718.97504844961,
+          "candidate_ns": 752.1957218349844,
+          "candidate_over_baseline": 0.01259558994816527,
+          "baseline_range_ns": [
+            58446.107558139534,
+            61465.243902439026
+          ],
+          "candidate_range_ns": [
+            726.823909883721,
+            791.807789740342
+          ],
+          "batches_per_arm": 10,
+          "result_count": 1,
+          "checksum": 5191259478145509138
+        },
+        {
+          "case": "reach-HookMover-400",
+          "baseline_ns": 17229.517991261222,
+          "candidate_ns": 578.6118129731915,
+          "candidate_over_baseline": 0.03358258851272927,
+          "baseline_range_ns": [
+            16897.65962837838,
+            17542.428321678322
+          ],
+          "candidate_range_ns": [
+            572.839547537228,
+            587.7889339445228
+          ],
+          "batches_per_arm": 10,
+          "result_count": 1,
+          "checksum": 9480697572621409866
+        },
+        {
+          "case": "reach-LionHawk-400",
+          "baseline_ns": 61261.339176829264,
+          "candidate_ns": 1269.2862350491046,
+          "candidate_over_baseline": 0.020719204837905073,
+          "baseline_range_ns": [
+            59971.96130952381,
+            63587.034375
+          ],
+          "candidate_range_ns": [
+            1236.015756302521,
+            1339.540974825924
+          ],
+          "batches_per_arm": 10,
+          "result_count": 2,
+          "checksum": 11664905279250900519
+        }
+      ]
+    },
+    {
+      "id": "M-conditional-directed-probe",
+      "status": "Promising / proven",
+      "decision": "Ship guarded WoodenDove direct probe",
+      "result": "Direct geometry tests only requested diagonal/distance and required empty3/4steps. 42query batches empty4.762->0.810us; sparse5.045->0.804us; dense3.935->0.787us.",
+      "limits": "Guarded to actual base3/conditional4or5 configurations; arbitrary public capabilities fall back unchanged. New custom [6]/[1,2,9] tests preserve old generated semantics. Search attribution not isolated.",
+      "measurements": [
+        {
+          "case": "reach-WoodenDove-0",
+          "baseline_ns": 4762.488128023784,
+          "candidate_ns": 810.016242393582,
+          "candidate_over_baseline": 0.17008257461624413,
+          "baseline_range_ns": [
+            4667.111473880597,
+            4888.0859375
+          ],
+          "candidate_range_ns": [
+            773.4399938137952,
+            923.010147601476
+          ],
+          "batches_per_arm": 10,
+          "result_count": 3,
+          "checksum": 9251892727972124928
+        },
+        {
+          "case": "reach-WoodenDove-100",
+          "baseline_ns": 5045.00954845233,
+          "candidate_ns": 803.7949772461726,
+          "candidate_over_baseline": 0.15932476827377953,
+          "baseline_range_ns": [
+            4900.747553816047,
+            5095.867362525459
+          ],
+          "candidate_range_ns": [
+            785.5609880615772,
+            825.685394649934
+          ],
+          "batches_per_arm": 10,
+          "result_count": 1,
+          "checksum": 4669064439680258112
+        },
+        {
+          "case": "reach-WoodenDove-400",
+          "baseline_ns": 3935.355286044896,
+          "candidate_ns": 787.1101597327524,
+          "candidate_over_baseline": 0.2000099362118363,
+          "baseline_range_ns": [
+            3876.732558139535,
+            4107.475369458128
+          ],
+          "candidate_range_ns": [
+            772.2488418777023,
+            806.7749273959341
+          ],
+          "batches_per_arm": 10,
+          "result_count": 0,
+          "checksum": 15844863391813232289
+        }
+      ]
+    },
+    {
+      "id": "M-fe-directed-probe",
+      "status": "Promising / proven",
+      "decision": "Ship scoped FreeEagle4/3 direct probe",
+      "result": "For actual4forward/3other configuration, all non-origin special-return destinations already lie on the ordinary traversable multi-move rays. Directed probe scans only target ray through enemy chain, blocks on friendly. 42query batches16.27->0.610us empty;17.76->0.569us sparse;15.89->0.468us dense.",
+      "limits": "Only target reach, not complete path or victim identity; legal FE route builder remains unchanged. Other max-distance configurations preserve fallback. Ordinary clear-range capability still short-circuits first.",
+      "measurements": [
+        {
+          "case": "reach-FreeEagle-0",
+          "baseline_ns": 16268.986177733557,
+          "candidate_ns": 610.166169192564,
+          "candidate_over_baseline": 0.03750486739165493,
+          "baseline_range_ns": [
+            16011.683121019109,
+            16558.039735099337
+          ],
+          "candidate_range_ns": [
+            593.5445051032518,
+            622.9676444942701
+          ],
+          "batches_per_arm": 10,
+          "result_count": 6,
+          "checksum": 6417837568650434579
+        },
+        {
+          "case": "reach-FreeEagle-100",
+          "baseline_ns": 17761.614804964538,
+          "candidate_ns": 568.526214705237,
+          "candidate_over_baseline": 0.03200870083875079,
+          "baseline_range_ns": [
+            17448.85763888889,
+            17992.051258992808
+          ],
+          "candidate_range_ns": [
+            560.3083968182837,
+            579.0113741606854
+          ],
+          "batches_per_arm": 10,
+          "result_count": 3,
+          "checksum": 1048163661979753494
+        },
+        {
+          "case": "reach-FreeEagle-400",
+          "baseline_ns": 15893.428185734321,
+          "candidate_ns": 467.8195796095482,
+          "candidate_over_baseline": 0.029434781102132223,
+          "baseline_range_ns": [
+            15423.796779141105,
+            29553.507352941175
+          ],
+          "candidate_range_ns": [
+            457.4415477497256,
+            470.92318738229756
+          ],
+          "batches_per_arm": 10,
+          "result_count": 1,
+          "checksum": 4669064439680258112
+        }
+      ]
+    },
+    {
+      "id": "M-batch-short-pieces",
+      "status": "Dubious / rejected for current Pawn workloads",
+      "decision": "Do not integrate21word pawn batching",
+      "result": "Destination count+sum kernel:2pawns2.12->16.33ns (7.69xslower),16pawns10.85->21.65ns (2.00xslower),36pawns23.38->27.17ns (16.2%slower),96pawns70.30->43.65ns (37.9%faster).",
+      "limits": "Mask construction, mutation, output order restoration, promotions and actual Move emission excluded. Normal36pawn workload already loses; unusually dense96pawn case insufficient justification.",
+      "measurements": [
+        {
+          "baseline_case": "pawn-list-2",
+          "candidate_case": "pawn-batch21-2",
+          "baseline_ns": 2.123924421732876,
+          "candidate_ns": 16.33357605618467,
+          "candidate_over_baseline": 7.690281202594942,
+          "baseline_range_ns": [
+            2.101549453043566,
+            2.1378454723736118
+          ],
+          "candidate_range_ns": [
+            15.750234932801344,
+            16.74442841355599
+          ],
+          "batches_per_arm": 5
+        },
+        {
+          "baseline_case": "pawn-list-16",
+          "candidate_case": "pawn-batch21-16",
+          "baseline_ns": 10.846702905362411,
+          "candidate_ns": 21.652147084295613,
+          "candidate_over_baseline": 1.9961961965042103,
+          "baseline_range_ns": [
+            10.671529971259462,
+            10.95350745560229
+          ],
+          "candidate_range_ns": [
+            20.974257200782997,
+            22.001604115334978
+          ],
+          "batches_per_arm": 5
+        },
+        {
+          "baseline_case": "pawn-list-36",
+          "candidate_case": "pawn-batch21-36",
+          "baseline_ns": 23.379422537406484,
+          "candidate_ns": 27.168728267168937,
+          "candidate_over_baseline": 1.1620786708354178,
+          "baseline_range_ns": [
+            23.249978688778672,
+            23.831977630910014
+          ],
+          "candidate_range_ns": [
+            26.581161840799545,
+            27.269106311809193
+          ],
+          "batches_per_arm": 5
+        },
+        {
+          "baseline_case": "pawn-list-96",
+          "candidate_case": "pawn-batch21-96",
+          "baseline_ns": 70.29859093890555,
+          "candidate_ns": 43.65219826582868,
+          "candidate_over_baseline": 0.6209540999728648,
+          "baseline_range_ns": [
+            69.78978647190175,
+            71.44785119047619
+          ],
+          "candidate_range_ns": [
+            43.27432999653819,
+            44.132020034125674
+          ],
+          "batches_per_arm": 5
+        }
+      ]
+    },
+    {
+      "id": "M-compiled-movement-signatures",
+      "status": "Speculative / possible",
+      "decision": "Retain as future common-class visitor experiment",
+      "result": "One-step common movement kernel: precompiled offsets ~19\u201321%faster for5directions,~24\u201325%for8directions,1direction unchanged (~1.75ns).",
+      "limits": "Only center-square target-count/hash primitive. Setup, classification, descriptor footprint, bounds, multi-step blockers, Move emission and cache effects excluded; existing configs cached. No engine-level benefit established.",
+      "measurements": [
+        {
+          "baseline_case": "signature-mask-0-1",
+          "candidate_case": "signature-offsets-0-1",
+          "baseline_ns": 1.7517271903436162,
+          "candidate_ns": 1.7609343303311482,
+          "candidate_over_baseline": 1.00525603532233,
+          "baseline_range_ns": [
+            1.737343379368815,
+            1.7574960808252178
+          ],
+          "candidate_range_ns": [
+            1.755888786007267,
+            1.782702448468311
+          ],
+          "batches_per_arm": 5
+        },
+        {
+          "baseline_case": "signature-mask-0-31",
+          "candidate_case": "signature-offsets-0-31",
+          "baseline_ns": 5.660660982218331,
+          "candidate_ns": 4.588775054452901,
+          "candidate_over_baseline": 0.8106429741804864,
+          "baseline_range_ns": [
+            5.608576737855946,
+            5.746412906068035
+          ],
+          "candidate_range_ns": [
+            4.466537584268325,
+            4.615602460983655
+          ],
+          "batches_per_arm": 5
+        },
+        {
+          "baseline_case": "signature-mask-0-255",
+          "candidate_case": "signature-offsets-0-255",
+          "baseline_ns": 9.4556511598588,
+          "candidate_ns": 7.12475657369761,
+          "candidate_over_baseline": 0.7534919016411772,
+          "baseline_range_ns": [
+            9.422542399497488,
+            9.466565639672844
+          ],
+          "candidate_range_ns": [
+            7.000746158944106,
+            7.175994584561216
+          ],
+          "batches_per_arm": 5
+        },
+        {
+          "baseline_case": "signature-mask-10-1",
+          "candidate_case": "signature-offsets-10-1",
+          "baseline_ns": 1.7838362540552368,
+          "candidate_ns": 1.7984213293336786,
+          "candidate_over_baseline": 1.0081762410901143,
+          "baseline_range_ns": [
+            1.774673255390236,
+            1.8029392692647936
+          ],
+          "candidate_range_ns": [
+            1.783641097809233,
+            1.8050832619327262
+          ],
+          "batches_per_arm": 5
+        },
+        {
+          "baseline_case": "signature-mask-10-31",
+          "candidate_case": "signature-offsets-10-31",
+          "baseline_ns": 5.866916653629537,
+          "candidate_ns": 4.660866150662457,
+          "candidate_over_baseline": 0.7944319692660091,
+          "baseline_range_ns": [
+            5.794264717243511,
+            5.90175149900853
+          ],
+          "candidate_range_ns": [
+            4.629243022294094,
+            4.7281497434248685
+          ],
+          "batches_per_arm": 5
+        },
+        {
+          "baseline_case": "signature-mask-10-255",
+          "candidate_case": "signature-offsets-10-255",
+          "baseline_ns": 9.752107225516202,
+          "candidate_ns": 7.360583953246447,
+          "candidate_over_baseline": 0.7547685626330708,
+          "baseline_range_ns": [
+            9.621420072608785,
+            9.902839483760232
+          ],
+          "candidate_range_ns": [
+            7.08427452489799,
+            7.384044692434923
+          ],
+          "batches_per_arm": 5
+        },
+        {
+          "baseline_case": "signature-mask-40-1",
+          "candidate_case": "signature-offsets-40-1",
+          "baseline_ns": 1.7896396571060418,
+          "candidate_ns": 1.7893790678144026,
+          "candidate_over_baseline": 0.9998543900775754,
+          "baseline_range_ns": [
+            1.7636573616833155,
+            1.813613966427763
+          ],
+          "candidate_range_ns": [
+            1.7849166273989034,
+            1.8057948219737463
+          ],
+          "batches_per_arm": 5
+        },
+        {
+          "baseline_case": "signature-mask-40-31",
+          "candidate_case": "signature-offsets-40-31",
+          "baseline_ns": 5.75321407750606,
+          "candidate_ns": 4.5495736327129785,
+          "candidate_over_baseline": 0.7907881701292709,
+          "baseline_range_ns": [
+            5.633750976503816,
+            5.825546319166123
+          ],
+          "candidate_range_ns": [
+            4.5161161155133795,
+            4.673948622155196
+          ],
+          "batches_per_arm": 5
+        },
+        {
+          "baseline_case": "signature-mask-40-255",
+          "candidate_case": "signature-offsets-40-255",
+          "baseline_ns": 9.612858703732185,
+          "candidate_ns": 7.2226007280151,
+          "candidate_over_baseline": 0.7513478508958975,
+          "baseline_range_ns": [
+            9.449716825420824,
+            9.705475219979297
+          ],
+          "candidate_range_ns": [
+            7.1899504869818625,
+            7.433866163818736
+          ],
+          "batches_per_arm": 5
+        }
+      ]
+    },
+    {
+      "id": "M-const-generic-capture-mode",
+      "status": "Dubious / rejected for universal specialization",
+      "decision": "Do not multiply generator implementations yet",
+      "result": "Same-boundary NoJump ray-count kernels range from8.5%faster to4.9%slower; several arms unchanged within small batch spread. Generic compiler already removes/unswitches much work.",
+      "limits": "Primitive NoJump count only, not allblockingmodes/Vecemission. Mixed results and code-size tradeoff prevent confident positive workflow claim.",
+      "measurements": [
+        {
+          "baseline_case": "capture-runtime-0-false",
+          "candidate_case": "capture-const-0-false",
+          "baseline_ns": 33.18770188053097,
+          "candidate_ns": 32.69377615062761,
+          "candidate_over_baseline": 0.985117206015608,
+          "baseline_range_ns": [
+            32.65895757140369,
+            35.860328217632436
+          ],
+          "candidate_range_ns": [
+            32.43627562272963,
+            34.0191882483672
+          ],
+          "batches_per_arm": 5
+        },
+        {
+          "baseline_case": "capture-runtime-0-true",
+          "candidate_case": "capture-const-0-true",
+          "baseline_ns": 60.078550544697215,
+          "candidate_ns": 63.04189600840336,
+          "candidate_over_baseline": 1.0493245166010035,
+          "baseline_range_ns": [
+            58.942322045883095,
+            60.499717741935484
+          ],
+          "candidate_range_ns": [
+            62.26872198705179,
+            63.59387186334351
+          ],
+          "batches_per_arm": 5
+        },
+        {
+          "baseline_case": "capture-runtime-10-false",
+          "candidate_case": "capture-const-10-false",
+          "baseline_ns": 18.11637077294686,
+          "candidate_ns": 18.060463723271045,
+          "candidate_over_baseline": 0.9969140038931363,
+          "baseline_range_ns": [
+            18.069698913462464,
+            18.89456903718259
+          ],
+          "candidate_range_ns": [
+            18.028328105470628,
+            18.341651484397925
+          ],
+          "batches_per_arm": 5
+        },
+        {
+          "baseline_case": "capture-runtime-10-true",
+          "candidate_case": "capture-const-10-true",
+          "baseline_ns": 36.5907743902439,
+          "candidate_ns": 33.48308314732143,
+          "candidate_over_baseline": 0.9150689949936925,
+          "baseline_range_ns": [
+            35.83183940856105,
+            41.83444542057117
+          ],
+          "candidate_range_ns": [
+            32.87807677976504,
+            33.896813426428054
+          ],
+          "batches_per_arm": 5
+        },
+        {
+          "baseline_case": "capture-runtime-40-false",
+          "candidate_case": "capture-const-40-false",
+          "baseline_ns": 4.446658894988972,
+          "candidate_ns": 4.17871822836576,
+          "candidate_over_baseline": 0.9397433729569049,
+          "baseline_range_ns": [
+            4.392626534460947,
+            4.734416425739824
+          ],
+          "candidate_range_ns": [
+            4.144862750624489,
+            4.205973110139076
+          ],
+          "batches_per_arm": 5
+        },
+        {
+          "baseline_case": "capture-runtime-40-true",
+          "candidate_case": "capture-const-40-true",
+          "baseline_ns": 9.055198725068818,
+          "candidate_ns": 8.981745634939644,
+          "candidate_over_baseline": 0.9918882961755634,
+          "baseline_range_ns": [
+            9.031420843167478,
+            9.344488967656734
+          ],
+          "candidate_range_ns": [
+            8.755053666479899,
+            8.991845447897186
+          ],
+          "batches_per_arm": 5
+        }
+      ]
+    },
+    {
+      "id": "M-delta-geometry-table",
+      "status": "Speculative / possible",
+      "decision": "Retain mixed-delta hot-table primitive as speculative; no engine integration",
+      "result": "Fair full5041unique-delta batch 7006.39->4709.29ns, candidate/base0.672; per-query1.390->0.934ns. Both functions equalnoinline boundaries and sameblackbox inputs; checksums match. Table10082bytes for direction+distance. Prior diagonal-only and unequal-boundary results excluded from general claim.",
+      "limits": "Uniform coordinate-difference primitive; warm10082byte direction+distance table, not engine query distribution. Main current direction-only inlined helper and engine cache pressure can differ.",
+      "measurements": [
+        {
+          "baseline_case": "geometry-algebra-5041-mixed",
+          "candidate_case": "geometry-table-5041-mixed",
+          "baseline_ns": 7006.386574074074,
+          "candidate_ns": 4709.291015625,
+          "candidate_over_baseline": 0.6721426181436976,
+          "baseline_range_ns": [
+            6843.5546875,
+            7094.601851851852
+          ],
+          "candidate_range_ns": [
+            4550.433407738095,
+            4794.435546875
+          ],
+          "batches_per_arm": 5,
+          "queries_per_call": 5041,
+          "unique_deltas": 5041,
+          "checksum": 1291500,
+          "method": "Both algebra and table functions #[inline(never)] with identical black_box on coordinate inputs and dataset. idx=(i*173)%5041 enumerates all5041 deltas; table reference blackboxed; tasksetCPU2quietwindow. Prior diagonal-only result retained as diagnostic, not general measurement.",
+          "limits": "Uniform coordinate-difference primitive; warm10082byte direction+distance table, not engine query distribution. Main current direction-only inlined helper and engine cache pressure can differ."
+        }
+      ]
+    },
+    {
+      "id": "M-disjoint-capability-union",
+      "status": "Speculative / possible",
+      "decision": "Keep as narrow metadata/proof opportunity",
+      "result": "Removing dedup after sorting an already unique list saves~2\u201322%in1..64target clone+sortkernels; representative8/16targets19.74->15.41ns and40.74->34.82ns.",
+      "limits": "Requires disjointness proof and still sorting for file-major output. CurrentSimple raw duplicate semantics and overlapping capabilities prevent blanket skip. Classification/guard cost and existing bitmap large-list policy excluded.",
+      "measurements": [
+        {
+          "baseline_case": "union-sort-dedup-1",
+          "candidate_case": "union-sort-only-1",
+          "baseline_ns": 11.933366281104817,
+          "candidate_ns": 11.649573263543738,
+          "candidate_over_baseline": 0.976218527875874,
+          "baseline_range_ns": [
+            11.786756270429972,
+            12.052454926725801
+          ],
+          "candidate_range_ns": [
+            11.518171417163217,
+            11.852202512642226
+          ],
+          "batches_per_arm": 5
+        },
+        {
+          "baseline_case": "union-sort-dedup-8",
+          "candidate_case": "union-sort-only-8",
+          "baseline_ns": 19.735144655825703,
+          "candidate_ns": 15.410467003616041,
+          "candidate_over_baseline": 0.7808641523722989,
+          "baseline_range_ns": [
+            19.199616334732745,
+            20.013585361297896
+          ],
+          "candidate_range_ns": [
+            15.274682306940372,
+            16.02279196573528
+          ],
+          "batches_per_arm": 5
+        },
+        {
+          "baseline_case": "union-sort-dedup-16",
+          "candidate_case": "union-sort-only-16",
+          "baseline_ns": 40.742538833369544,
+          "candidate_ns": 34.81958433902711,
+          "candidate_over_baseline": 0.8546248058186464,
+          "baseline_range_ns": [
+            40.35456006563374,
+            42.84922017824497
+          ],
+          "candidate_range_ns": [
+            34.613043327796234,
+            35.18654707731282
+          ],
+          "batches_per_arm": 5
+        },
+        {
+          "baseline_case": "union-sort-dedup-32",
+          "candidate_case": "union-sort-only-32",
+          "baseline_ns": 107.99951424870466,
+          "candidate_ns": 88.92323079658605,
+          "candidate_over_baseline": 0.8233669513717521,
+          "baseline_range_ns": [
+            105.79966864072195,
+            109.56136828271028
+          ],
+          "candidate_range_ns": [
+            88.53831739848914,
+            89.51194063245823
+          ],
+          "batches_per_arm": 5
+        },
+        {
+          "baseline_case": "union-sort-dedup-64",
+          "candidate_case": "union-sort-only-64",
+          "baseline_ns": 231.75237268518518,
+          "candidate_ns": 204.31156386165577,
+          "candidate_over_baseline": 0.8815942701876658,
+          "baseline_range_ns": [
+            230.29704754601227,
+            232.52375697026022
+          ],
+          "candidate_range_ns": [
+            202.96080221861473,
+            207.9893812361419
+          ],
+          "batches_per_arm": 5
+        }
+      ]
+    },
+    {
+      "id": "M-independent-rules-oracle",
+      "status": "Correctness validation (no speed claim)",
+      "decision": "Add focused physical-board and custom-capability tests",
+      "result": "New narrowed-ray test compares to physically moving a cloned Board, then unrestricted raw second fanout filtered by perpendicular geometry:96family/color/origin/density fixtures and bothcapturemodes. New directed-probe tests compare all1296targets on108blocked/edge/center positions (139968checks);24customconditional configurations add31104checks. Adaptive union7size/ordercases.",
+      "limits": "Rules descriptors still shared for each individual leg; physically updated occupancy and independent perpendicular geometry avoid relying on the optimized overlay/mask. No new rulebug asserted. Four new tests bring lib total552passed4ignored.",
+      "measurements": []
+    },
+    {
+      "id": "M-small-buffer-scratch",
+      "status": "Speculative / possible",
+      "decision": "Retain scoped small-buffer/visitor option",
+      "result": "Inline16u16 target scratch vs fresh Vec:1target13.08->3.51ns,8targets25.27->4.54ns,16targets48.31->4.73ns.",
+      "limits": "Only scratch construction/consumption primitive; no overflow, recursive ownership or public Vec return conversion. Returning Vec after inline fill could reintroduce allocation and copy; hot common generation already appends into final output. Do not size per-search stack for worst fanout.",
+      "measurements": [
+        {
+          "baseline_case": "scratch-heap-1",
+          "candidate_case": "scratch-inline16-1",
+          "baseline_ns": 13.080829264039066,
+          "candidate_ns": 3.5099188521368,
+          "candidate_over_baseline": 0.2683254082205654,
+          "baseline_range_ns": [
+            12.828545130336618,
+            13.491647854007772
+          ],
+          "candidate_range_ns": [
+            3.406832562639679,
+            3.839851029571379
+          ],
+          "batches_per_arm": 5
+        },
+        {
+          "baseline_case": "scratch-heap-8",
+          "candidate_case": "scratch-inline16-8",
+          "baseline_ns": 25.27489806577706,
+          "candidate_ns": 4.536906591013574,
+          "candidate_over_baseline": 0.1795024683860813,
+          "baseline_range_ns": [
+            24.709816428383185,
+            25.386040735851612
+          ],
+          "candidate_range_ns": [
+            4.318478085630715,
+            4.829559357613847
+          ],
+          "batches_per_arm": 5
+        },
+        {
+          "baseline_case": "scratch-heap-16",
+          "candidate_case": "scratch-inline16-16",
+          "baseline_ns": 48.313204554238595,
+          "candidate_ns": 4.734180111599253,
+          "candidate_over_baseline": 0.09798936243784963,
+          "baseline_range_ns": [
+            47.29610655737705,
+            49.04807252157991
+          ],
+          "candidate_range_ns": [
+            4.656750589842295,
+            5.098421312912962
+          ],
+          "batches_per_arm": 5
+        }
+      ]
+    },
+    {
+      "id": "M-stream-capture-paths",
+      "status": "Promising / proven structural reduction",
+      "decision": "Ship two remaining immediate MI capture-ray consumers",
+      "result": "Replaced two get_path_positions Vec constructions in MinimalIntelligencePlayer with existing path_positions iterator, including early-exit attacker hit check. Main GameState, MoveDelta and search victim walks already stream.",
+      "limits": "No whole-search speed attribution; NNUE benchmark agents do not use MI decision path. Existing exhaustive1296x1296path iterator parity test and full lib tests pass. Removes Vec allocation/storage without changing geometry/off-ray behavior.",
+      "measurements": []
+    }
+  ],
+  "allocation_comparisons": [
+    {
+      "case": "opening",
+      "mode": "All",
+      "reused_output": false,
+      "moves": 280,
+      "baseline_allocations": 105,
+      "candidate_allocations": 100,
+      "baseline_requested_bytes": 34120,
+      "candidate_requested_bytes": 34092
+    },
+    {
+      "case": "opening",
+      "mode": "All",
+      "reused_output": true,
+      "moves": 280,
+      "baseline_allocations": 97,
+      "candidate_allocations": 92,
+      "baseline_requested_bytes": 1480,
+      "candidate_requested_bytes": 1452
+    },
+    {
+      "case": "opening",
+      "mode": "CapturesOnly",
+      "reused_output": false,
+      "moves": 80,
+      "baseline_allocations": 44,
+      "candidate_allocations": 39,
+      "baseline_requested_bytes": 8408,
+      "candidate_requested_bytes": 8380
+    },
+    {
+      "case": "opening",
+      "mode": "CapturesOnly",
+      "reused_output": true,
+      "moves": 80,
+      "baseline_allocations": 38,
+      "candidate_allocations": 33,
+      "baseline_requested_bytes": 344,
+      "candidate_requested_bytes": 316
+    },
+    {
+      "case": "opening",
+      "mode": "WithoutQuietMultiLeg",
+      "reused_output": false,
+      "moves": 280,
+      "baseline_allocations": 105,
+      "candidate_allocations": 100,
+      "baseline_requested_bytes": 34120,
+      "candidate_requested_bytes": 34092
+    },
+    {
+      "case": "opening",
+      "mode": "WithoutQuietMultiLeg",
+      "reused_output": true,
+      "moves": 280,
+      "baseline_allocations": 97,
+      "candidate_allocations": 92,
+      "baseline_requested_bytes": 1480,
+      "candidate_requested_bytes": 1452
+    },
+    {
+      "case": "opening",
+      "mode": "QuietMultiLegOnly",
+      "reused_output": false,
+      "moves": 0,
+      "baseline_allocations": 22,
+      "candidate_allocations": 18,
+      "baseline_requested_bytes": 60,
+      "candidate_requested_bytes": 36
+    },
+    {
+      "case": "opening",
+      "mode": "QuietMultiLegOnly",
+      "reused_output": true,
+      "moves": 0,
+      "baseline_allocations": 22,
+      "candidate_allocations": 18,
+      "baseline_requested_bytes": 60,
+      "candidate_requested_bytes": 36
+    },
+    {
+      "case": "corpus-0",
+      "mode": "All",
+      "reused_output": false,
+      "moves": 517,
+      "baseline_allocations": 201,
+      "candidate_allocations": 193,
+      "baseline_requested_bytes": 68984,
+      "candidate_requested_bytes": 68932
+    },
+    {
+      "case": "corpus-0",
+      "mode": "All",
+      "reused_output": true,
+      "moves": 517,
+      "baseline_allocations": 192,
+      "candidate_allocations": 184,
+      "baseline_requested_bytes": 3576,
+      "candidate_requested_bytes": 3524
+    },
+    {
+      "case": "corpus-0",
+      "mode": "CapturesOnly",
+      "reused_output": false,
+      "moves": 112,
+      "baseline_allocations": 67,
+      "candidate_allocations": 62,
+      "baseline_requested_bytes": 9456,
+      "candidate_requested_bytes": 9428
+    },
+    {
+      "case": "corpus-0",
+      "mode": "CapturesOnly",
+      "reused_output": true,
+      "moves": 112,
+      "baseline_allocations": 61,
+      "candidate_allocations": 56,
+      "baseline_requested_bytes": 1392,
+      "candidate_requested_bytes": 1364
+    },
+    {
+      "case": "corpus-0",
+      "mode": "WithoutQuietMultiLeg",
+      "reused_output": false,
+      "moves": 498,
+      "baseline_allocations": 192,
+      "candidate_allocations": 187,
+      "baseline_requested_bytes": 36144,
+      "candidate_requested_bytes": 36116
+    },
+    {
+      "case": "corpus-0",
+      "mode": "WithoutQuietMultiLeg",
+      "reused_output": true,
+      "moves": 498,
+      "baseline_allocations": 184,
+      "candidate_allocations": 179,
+      "baseline_requested_bytes": 3504,
+      "candidate_requested_bytes": 3476
+    },
+    {
+      "case": "corpus-0",
+      "mode": "QuietMultiLegOnly",
+      "reused_output": false,
+      "moves": 19,
+      "baseline_allocations": 54,
+      "candidate_allocations": 47,
+      "baseline_requested_bytes": 3076,
+      "candidate_requested_bytes": 3028
+    },
+    {
+      "case": "corpus-0",
+      "mode": "QuietMultiLegOnly",
+      "reused_output": true,
+      "moves": 19,
+      "baseline_allocations": 50,
+      "candidate_allocations": 43,
+      "baseline_requested_bytes": 1156,
+      "candidate_requested_bytes": 1108
+    },
+    {
+      "case": "corpus-1",
+      "mode": "All",
+      "reused_output": false,
+      "moves": 654,
+      "baseline_allocations": 201,
+      "candidate_allocations": 201,
+      "baseline_requested_bytes": 68528,
+      "candidate_requested_bytes": 68528
+    },
+    {
+      "case": "corpus-1",
+      "mode": "All",
+      "reused_output": true,
+      "moves": 654,
+      "baseline_allocations": 192,
+      "candidate_allocations": 192,
+      "baseline_requested_bytes": 3120,
+      "candidate_requested_bytes": 3120
+    },
+    {
+      "case": "corpus-1",
+      "mode": "CapturesOnly",
+      "reused_output": false,
+      "moves": 15,
+      "baseline_allocations": 9,
+      "candidate_allocations": 9,
+      "baseline_requested_bytes": 952,
+      "candidate_requested_bytes": 952
+    },
+    {
+      "case": "corpus-1",
+      "mode": "CapturesOnly",
+      "reused_output": true,
+      "moves": 15,
+      "baseline_allocations": 6,
+      "candidate_allocations": 6,
+      "baseline_requested_bytes": 56,
+      "candidate_requested_bytes": 56
+    },
+    {
+      "case": "corpus-1",
+      "mode": "WithoutQuietMultiLeg",
+      "reused_output": false,
+      "moves": 654,
+      "baseline_allocations": 201,
+      "candidate_allocations": 201,
+      "baseline_requested_bytes": 68528,
+      "candidate_requested_bytes": 68528
+    },
+    {
+      "case": "corpus-1",
+      "mode": "WithoutQuietMultiLeg",
+      "reused_output": true,
+      "moves": 654,
+      "baseline_allocations": 192,
+      "candidate_allocations": 192,
+      "baseline_requested_bytes": 3120,
+      "candidate_requested_bytes": 3120
+    },
+    {
+      "case": "corpus-1",
+      "mode": "QuietMultiLegOnly",
+      "reused_output": false,
+      "moves": 0,
+      "baseline_allocations": 0,
+      "candidate_allocations": 0,
+      "baseline_requested_bytes": 0,
+      "candidate_requested_bytes": 0
+    },
+    {
+      "case": "corpus-1",
+      "mode": "QuietMultiLegOnly",
+      "reused_output": true,
+      "moves": 0,
+      "baseline_allocations": 0,
+      "candidate_allocations": 0,
+      "baseline_requested_bytes": 0,
+      "candidate_requested_bytes": 0
+    },
+    {
+      "case": "corpus-2",
+      "mode": "All",
+      "reused_output": false,
+      "moves": 571,
+      "baseline_allocations": 177,
+      "candidate_allocations": 173,
+      "baseline_requested_bytes": 68348,
+      "candidate_requested_bytes": 68312
+    },
+    {
+      "case": "corpus-2",
+      "mode": "All",
+      "reused_output": true,
+      "moves": 571,
+      "baseline_allocations": 168,
+      "candidate_allocations": 164,
+      "baseline_requested_bytes": 2940,
+      "candidate_requested_bytes": 2904
+    },
+    {
+      "case": "corpus-2",
+      "mode": "CapturesOnly",
+      "reused_output": false,
+      "moves": 74,
+      "baseline_allocations": 23,
+      "candidate_allocations": 22,
+      "baseline_requested_bytes": 8292,
+      "candidate_requested_bytes": 8288
+    },
+    {
+      "case": "corpus-2",
+      "mode": "CapturesOnly",
+      "reused_output": true,
+      "moves": 74,
+      "baseline_allocations": 17,
+      "candidate_allocations": 16,
+      "baseline_requested_bytes": 228,
+      "candidate_requested_bytes": 224
+    },
+    {
+      "case": "corpus-2",
+      "mode": "WithoutQuietMultiLeg",
+      "reused_output": false,
+      "moves": 566,
+      "baseline_allocations": 174,
+      "candidate_allocations": 173,
+      "baseline_requested_bytes": 68316,
+      "candidate_requested_bytes": 68312
+    },
+    {
+      "case": "corpus-2",
+      "mode": "WithoutQuietMultiLeg",
+      "reused_output": true,
+      "moves": 566,
+      "baseline_allocations": 165,
+      "candidate_allocations": 164,
+      "baseline_requested_bytes": 2908,
+      "candidate_requested_bytes": 2904
+    },
+    {
+      "case": "corpus-2",
+      "mode": "QuietMultiLegOnly",
+      "reused_output": false,
+      "moves": 5,
+      "baseline_allocations": 7,
+      "candidate_allocations": 4,
+      "baseline_requested_bytes": 432,
+      "candidate_requested_bytes": 400
+    },
+    {
+      "case": "corpus-2",
+      "mode": "QuietMultiLegOnly",
+      "reused_output": true,
+      "moves": 5,
+      "baseline_allocations": 5,
+      "candidate_allocations": 2,
+      "baseline_requested_bytes": 48,
+      "candidate_requested_bytes": 16
+    },
+    {
+      "case": "corpus-3",
+      "mode": "All",
+      "reused_output": false,
+      "moves": 1030,
+      "baseline_allocations": 271,
+      "candidate_allocations": 63,
+      "baseline_requested_bytes": 142448,
+      "candidate_requested_bytes": 132288
+    },
+    {
+      "case": "corpus-3",
+      "mode": "All",
+      "reused_output": true,
+      "moves": 1030,
+      "baseline_allocations": 261,
+      "candidate_allocations": 53,
+      "baseline_requested_bytes": 11504,
+      "candidate_requested_bytes": 1344
+    },
+    {
+      "case": "corpus-3",
+      "mode": "CapturesOnly",
+      "reused_output": false,
+      "moves": 33,
+      "baseline_allocations": 55,
+      "candidate_allocations": 13,
+      "baseline_requested_bytes": 4576,
+      "candidate_requested_bytes": 4240
+    },
+    {
+      "case": "corpus-3",
+      "mode": "CapturesOnly",
+      "reused_output": true,
+      "moves": 33,
+      "baseline_allocations": 50,
+      "candidate_allocations": 8,
+      "baseline_requested_bytes": 608,
+      "candidate_requested_bytes": 272
+    },
+    {
+      "case": "corpus-3",
+      "mode": "WithoutQuietMultiLeg",
+      "reused_output": false,
+      "moves": 275,
+      "baseline_allocations": 103,
+      "candidate_allocations": 61,
+      "baseline_requested_bytes": 34320,
+      "candidate_requested_bytes": 33984
+    },
+    {
+      "case": "corpus-3",
+      "mode": "WithoutQuietMultiLeg",
+      "reused_output": true,
+      "moves": 275,
+      "baseline_allocations": 95,
+      "candidate_allocations": 53,
+      "baseline_requested_bytes": 1680,
+      "candidate_requested_bytes": 1344
+    },
+    {
+      "case": "corpus-3",
+      "mode": "QuietMultiLegOnly",
+      "reused_output": false,
+      "moves": 755,
+      "baseline_allocations": 222,
+      "candidate_allocations": 14,
+      "baseline_requested_bytes": 75816,
+      "candidate_requested_bytes": 65656
+    },
+    {
+      "case": "corpus-3",
+      "mode": "QuietMultiLegOnly",
+      "reused_output": true,
+      "moves": 755,
+      "baseline_allocations": 213,
+      "candidate_allocations": 5,
+      "baseline_requested_bytes": 10408,
+      "candidate_requested_bytes": 248
+    },
+    {
+      "case": "corpus-4",
+      "mode": "All",
+      "reused_output": false,
+      "moves": 618,
+      "baseline_allocations": 208,
+      "candidate_allocations": 207,
+      "baseline_requested_bytes": 68256,
+      "candidate_requested_bytes": 68248
+    },
+    {
+      "case": "corpus-4",
+      "mode": "All",
+      "reused_output": true,
+      "moves": 618,
+      "baseline_allocations": 199,
+      "candidate_allocations": 198,
+      "baseline_requested_bytes": 2848,
+      "candidate_requested_bytes": 2840
+    },
+    {
+      "case": "corpus-4",
+      "mode": "CapturesOnly",
+      "reused_output": false,
+      "moves": 29,
+      "baseline_allocations": 13,
+      "candidate_allocations": 13,
+      "baseline_requested_bytes": 2016,
+      "candidate_requested_bytes": 2016
+    },
+    {
+      "case": "corpus-4",
+      "mode": "CapturesOnly",
+      "reused_output": true,
+      "moves": 29,
+      "baseline_allocations": 9,
+      "candidate_allocations": 9,
+      "baseline_requested_bytes": 96,
+      "candidate_requested_bytes": 96
+    },
+    {
+      "case": "corpus-4",
+      "mode": "WithoutQuietMultiLeg",
+      "reused_output": false,
+      "moves": 608,
+      "baseline_allocations": 198,
+      "candidate_allocations": 198,
+      "baseline_requested_bytes": 68144,
+      "candidate_requested_bytes": 68144
+    },
+    {
+      "case": "corpus-4",
+      "mode": "WithoutQuietMultiLeg",
+      "reused_output": true,
+      "moves": 608,
+      "baseline_allocations": 189,
+      "candidate_allocations": 189,
+      "baseline_requested_bytes": 2736,
+      "candidate_requested_bytes": 2736
+    },
+    {
+      "case": "corpus-4",
+      "mode": "QuietMultiLegOnly",
+      "reused_output": false,
+      "moves": 10,
+      "baseline_allocations": 16,
+      "candidate_allocations": 15,
+      "baseline_requested_bytes": 1040,
+      "candidate_requested_bytes": 1032
+    },
+    {
+      "case": "corpus-4",
+      "mode": "QuietMultiLegOnly",
+      "reused_output": true,
+      "moves": 10,
+      "baseline_allocations": 13,
+      "candidate_allocations": 12,
+      "baseline_requested_bytes": 144,
+      "candidate_requested_bytes": 136
+    },
+    {
+      "case": "corpus-5",
+      "mode": "All",
+      "reused_output": false,
+      "moves": 595,
+      "baseline_allocations": 203,
+      "candidate_allocations": 203,
+      "baseline_requested_bytes": 68272,
+      "candidate_requested_bytes": 68272
+    },
+    {
+      "case": "corpus-5",
+      "mode": "All",
+      "reused_output": true,
+      "moves": 595,
+      "baseline_allocations": 194,
+      "candidate_allocations": 194,
+      "baseline_requested_bytes": 2864,
+      "candidate_requested_bytes": 2864
+    },
+    {
+      "case": "corpus-5",
+      "mode": "CapturesOnly",
+      "reused_output": false,
+      "moves": 8,
+      "baseline_allocations": 10,
+      "candidate_allocations": 10,
+      "baseline_requested_bytes": 464,
+      "candidate_requested_bytes": 464
+    },
+    {
+      "case": "corpus-5",
+      "mode": "CapturesOnly",
+      "reused_output": true,
+      "moves": 8,
+      "baseline_allocations": 8,
+      "candidate_allocations": 8,
+      "baseline_requested_bytes": 80,
+      "candidate_requested_bytes": 80
+    },
+    {
+      "case": "corpus-5",
+      "mode": "WithoutQuietMultiLeg",
+      "reused_output": false,
+      "moves": 575,
+      "baseline_allocations": 178,
+      "candidate_allocations": 178,
+      "baseline_requested_bytes": 67976,
+      "candidate_requested_bytes": 67976
+    },
+    {
+      "case": "corpus-5",
+      "mode": "WithoutQuietMultiLeg",
+      "reused_output": true,
+      "moves": 575,
+      "baseline_allocations": 169,
+      "candidate_allocations": 169,
+      "baseline_requested_bytes": 2568,
+      "candidate_requested_bytes": 2568
+    },
+    {
+      "case": "corpus-5",
+      "mode": "QuietMultiLegOnly",
+      "reused_output": false,
+      "moves": 20,
+      "baseline_allocations": 33,
+      "candidate_allocations": 33,
+      "baseline_requested_bytes": 2264,
+      "candidate_requested_bytes": 2264
+    },
+    {
+      "case": "corpus-5",
+      "mode": "QuietMultiLegOnly",
+      "reused_output": true,
+      "moves": 20,
+      "baseline_allocations": 29,
+      "candidate_allocations": 29,
+      "baseline_requested_bytes": 344,
+      "candidate_requested_bytes": 344
+    }
+  ],
+  "measurements_file": "/tmp/speed-movement-measurements.json",
+  "raw_files": [
+    "/tmp/speed-movement-base-pass1.jsonl",
+    "/tmp/speed-movement-candidate-pass1.jsonl",
+    "/tmp/speed-movement-candidate-pass2.jsonl",
+    "/tmp/speed-movement-base-pass2.jsonl",
+    "/tmp/speed-movement-spec.jsonl",
+    "/tmp/speed-movement-alloc-base.jsonl",
+    "/tmp/speed-movement-alloc-candidate.jsonl",
+    "/tmp/speed-movement-geometry-fair.jsonl",
+    "/tmp/speed-movement-geometry-mixed.jsonl"
+  ],
+  "limits": [
+    "Engine API timing trial included rejected src/piece.rs dispatch and rejected small-list unstable sort. All raw results are retained and clearly labeled trial, not final lean source.",
+    "Batchmeans from two counterbalanced passes are not independent request samples or confidence intervals.",
+    "VPS corpus consists of six board snapshots at plies24,701,161,1400,420,931 from3games; restore resets prior history/repetition."
+  ],
+  "standalone_spec_source": "examples/speed_movement_spec.rs",
+  "standalone_spec_reproduction": "rustc -O examples/speed_movement_spec.rs -o /tmp/movement-spec; taskset -c 2 /tmp/movement-spec; taskset -c 2 /tmp/movement-spec geometry. Optional geometry-diagonal reproduces prior diagnostic.",
+  "final_ablation": {
+    "server": "/tmp/speed-movement-no-bitmap-search",
+    "sha256": "f59633f5cb350cd2b429977de5a26475c338c4962032c9745448f181569e3e26",
+    "contents": "Trial production movement changes with Piece dispatch restored to HEAD and final target union restored to baseline stable-sort+dedup. Rays/streaming/fixed arrays/rotation/guarded WoodenDove+FEprobes/MI iterator preserved."
+  }
+}

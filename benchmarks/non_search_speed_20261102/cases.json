@@ -1,0 +1,92 @@
+[
+  {
+    "position": 0,
+    "model": 0,
+    "depth": 2
+  },
+  {
+    "position": 1,
+    "model": 0,
+    "depth": 3
+  },
+  {
+    "position": 2,
+    "model": 0,
+    "depth": 2
+  },
+  {
+    "position": 3,
+    "model": 0,
+    "depth": 2
+  },
+  {
+    "position": 4,
+    "model": 0,
+    "depth": 2
+  },
+  {
+    "position": 5,
+    "model": 0,
+    "depth": 3
+  },
+  {
+    "position": 0,
+    "model": 1,
+    "depth": 2
+  },
+  {
+    "position": 1,
+    "model": 1,
+    "depth": 3
+  },
+  {
+    "position": 2,
+    "model": 1,
+    "depth": 2
+  },
+  {
+    "position": 3,
+    "model": 1,
+    "depth": 2
+  },
+  {
+    "position": 4,
+    "model": 1,
+    "depth": 3
+  },
+  {
+    "position": 5,
+    "model": 1,
+    "depth": 3
+  },
+  {
+    "position": 0,
+    "model": 2,
+    "depth": 2
+  },
+  {
+    "position": 1,
+    "model": 2,
+    "depth": 3
+  },
+  {
+    "position": 2,
+    "model": 2,
+    "depth": 2
+  },
+  {
+    "position": 3,
+    "model": 2,
+    "depth": 2
+  },
+  {
+    "position": 4,
+    "model": 2,
+    "depth": 3
+  },
+  {
+    "position": 5,
+    "model": 2,
+    "depth": 3
+  }
+]

@@ -146,7 +146,7 @@ pub fn move_decode(token: &str) -> Result<Move, String> {
     let to = *squares.last().unwrap();
     let data = match squares.len() {
         n if n >= 3 && squares[1] == from => MoveData::FreeEagle {
-            path: squares[1..].to_vec(),
+            path: squares[1..].into(),
         },
         2 => MoveData::Standard,
         3 => MoveData::TwoStep {
@@ -155,8 +155,9 @@ pub fn move_decode(token: &str) -> Result<Move, String> {
         _ => {
             // Also accept documented unmarked routes with three or more
             // legs. Internal Free Eagle paths include both endpoints.
-            let path = squares.clone();
-            MoveData::FreeEagle { path }
+            MoveData::FreeEagle {
+                path: squares.into(),
+            }
         }
     };
     Ok(Move {
