@@ -1,0 +1,192 @@
+{
+  "date": "2026-11-01",
+  "timezone": "America/Los_Angeles",
+  "title": "Test suite runtime comparison",
+  "baseline_revision": "a734502fdcc70edd6a0f8198374d84e514d5692e",
+  "implementation_revision": "2a1082f22a3f940d0b28840cf3222a3eac767884",
+  "environment": {
+    "cpu": "Intel Core i7-1255U; 12 logical CPUs",
+    "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+    "rustc": "1.92.0",
+    "deploy_python": "3.13.2",
+    "nnue_python": "3.12.14",
+    "torch": "2.14.0+cpu",
+    "numpy": "2.5.2"
+  },
+  "method": "Monotonic perf_counter around subprocesses. No investigation workloads ran concurrently with timed samples. Shared developer laptop, not an isolated benchmark host. Baseline measurements preceded candidate measurements and are not randomized paired observations.",
+  "comparisons": {
+    "rust": {
+      "before": {
+        "unit": "seconds",
+        "n": 2,
+        "samples": [
+          16.94892733099914,
+          17.100471861000187
+        ],
+        "median": 17.024699595999664,
+        "min": 16.94892733099914,
+        "max": 17.100471861000187,
+        "sample_sd": 0.1071581648154685
+      },
+      "after": {
+        "unit": "seconds",
+        "n": 3,
+        "samples": [
+          6.264149800999803,
+          6.202645695999308,
+          6.2009263090003515
+        ],
+        "median": 6.202645695999308,
+        "min": 6.2009263090003515,
+        "max": 6.264149800999803,
+        "sample_sd": 0.03601601764994938
+      },
+      "median_seconds_saved": 10.822053900000355,
+      "median_reduction_percent": 63.566783301969345,
+      "baseline_revision": "a734502fdcc70edd6a0f8198374d84e514d5692e",
+      "candidate_revision": "a31be0d868190897a6938e473465f30fc96e7459",
+      "baseline_command": [
+        "cargo",
+        "test",
+        "--no-fail-fast"
+      ],
+      "candidate_command": [
+        "cargo",
+        "test",
+        "--no-fail-fast"
+      ],
+      "scope": "Warm complete cargo test command, including cached-build check, all default test targets, doctests, and process startup/exit. Excludes clippy and rustfmt.",
+      "validation": {
+        "original_passed": 567,
+        "candidate_passed": 570,
+        "ignored_before": 4,
+        "ignored_after": 4,
+        "failures": 0,
+        "note": "One exhaustive attack-map test is partitioned into four disjoint groups. All piece types, colors, promotion flags, board origins, and target squares remain covered. All other tests retain their names and status."
+      },
+      "warmup_build_note": "The candidate was built and tested by cargo fmt && cargo clippy --all-targets --all-features -- -D warnings && cargo test before these samples. Recompilation is excluded; no cold-build or whole-CI speedup is inferred."
+    },
+    "deploy": {
+      "before": {
+        "unit": "seconds",
+        "n": 1,
+        "samples": [
+          28.302454200000284
+        ],
+        "median": 28.302454200000284,
+        "min": 28.302454200000284,
+        "max": 28.302454200000284,
+        "sample_sd": null
+      },
+      "after": {
+        "unit": "seconds",
+        "n": 3,
+        "samples": [
+          6.776131463000638,
+          7.081556484998146,
+          6.980867385998863
+        ],
+        "median": 6.980867385998863,
+        "min": 6.776131463000638,
+        "max": 7.081556484998146,
+        "sample_sd": 0.15563822200078847
+      },
+      "median_seconds_saved": 21.32158681400142,
+      "median_reduction_percent": 75.33476306800704,
+      "baseline_revision": "904adeb8c6b0a228c29f900df53bd08cce056e6a",
+      "candidate_revision": "2a1082f22a3f940d0b28840cf3222a3eac767884",
+      "baseline_command": [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "deploy",
+        "-p",
+        "test_*.py"
+      ],
+      "candidate_command": [
+        "python3",
+        "deploy/run_python_tests.py",
+        "deploy"
+      ],
+      "scope": "Baseline measures unittest discovery plus test execution; candidate measures the complete parallel-runner process including startup/exit. The baseline excludes a small interpreter startup/exit overhead. Both use the full allowed CPU set. Baseline deployment source is identical at a734502.",
+      "validation": {
+        "original_tests": 214,
+        "candidate_tests": 220,
+        "additional_runner_regressions": 6,
+        "all_original_test_ids_preserved": true,
+        "each_id_appears_once": true,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "notes": "The two fixed supervisor waits are controlled by fixture barriers; production wait durations are unchanged. Parallel stress exposed an existing PID-file publication race, fixed by atomic fixture writes."
+    },
+    "nnue": {
+      "before": {
+        "unit": "seconds",
+        "n": 2,
+        "samples": [
+          68.49372758699974,
+          70.55222505399979
+        ],
+        "median": 69.52297632049977,
+        "min": 68.49372758699974,
+        "max": 70.55222505399979,
+        "sample_sd": 1.4555775179710682
+      },
+      "after": {
+        "unit": "seconds",
+        "n": 3,
+        "samples": [
+          26.375240153996856,
+          27.147570750999876,
+          27.484833389000414
+        ],
+        "median": 27.147570750999876,
+        "min": 26.375240153996856,
+        "max": 27.484833389000414,
+        "sample_sd": 0.5688347424375239
+      },
+      "median_seconds_saved": 42.37540556949989,
+      "median_reduction_percent": 60.95165629007304,
+      "baseline_revision": "a734502fdcc70edd6a0f8198374d84e514d5692e",
+      "candidate_revision": "2a1082f22a3f940d0b28840cf3222a3eac767884",
+      "baseline_command": "taskset -c 0-3 <Python 3.12.14 with pinned CPU dependencies> <serial unittest module runner>",
+      "candidate_command": [
+        "taskset",
+        "-c",
+        "0-3",
+        "/tmp/taikyoku-test-profile-venv/bin/python",
+        "deploy/run_python_tests.py",
+        "training/nnue",
+        "--isolate-cpus"
+      ],
+      "scope": "Complete serial and parallel processes including discovery/imports, startup, and exit. Both variants have CPUs 0-3 available; the candidate partitions these four logical CPUs across four processes.",
+      "validation": {
+        "original_tests": 49,
+        "candidate_tests": 49,
+        "all_original_test_ids_preserved": true,
+        "each_id_appears_once": true,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "notes": "The complete discovered ID set is checked by the runner and was also compared against the baseline profile in all three candidate samples. No NNUE test bodies changed."
+    }
+  },
+  "cache": {
+    "scope": "CI installed NNUE virtual environment, keyed by runner OS/architecture, exact Python version, and requirements hash.",
+    "local_already_installed_pip_verification_seconds": 0.36,
+    "note": "This verifies requirements in an already installed local environment. It does not measure GitHub cache download/extraction or claim a CI setup speedup. First use and changed keys install the pinned dependencies normally; cache hits retain existing transitive dependency versions."
+  },
+  "limits": [
+    "Small sample counts: report min/max and sample standard deviation only; no latency percentiles or confidence intervals.",
+    "Rust data measured a31be0d; the Rust/Cargo source is identical at the final implementation revision.",
+    "Deployment has one baseline observation, so its baseline variability is unknown. Its baseline timing boundary is slightly narrower than the candidate.",
+    "Local runtime reductions cannot be multiplied directly into CI job durations, which include build/setup and different hardware/toolchains.",
+    "The full-suite serial deployment command also passed after implementation; randomized-search and tactical-tree Python suites passed.",
+    "Whole-tree Ruff sees pre-existing untracked analysis scripts with lint failures. All 158 tracked Python files pass format and lint checks."
+  ]
+}
