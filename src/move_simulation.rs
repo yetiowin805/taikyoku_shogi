@@ -153,55 +153,32 @@ impl UndoDelta {
 /// This allows simulating moves without cloning the entire board
 pub struct VirtualBoard<'a> {
     base_board: &'a Board,
+    previous: Option<&'a VirtualBoard<'a>>,
     delta: MoveDelta,
 }
 
 impl<'a> VirtualBoard<'a> {
     /// Create a new virtual board from a base board and delta
     pub fn new(base_board: &'a Board, delta: MoveDelta) -> Self {
-        VirtualBoard { base_board, delta }
+        VirtualBoard {
+            base_board,
+            previous: None,
+            delta,
+        }
     }
 
-    /// Compose with another delta (for nested simulations)
-    /// Returns a new VirtualBoard with both deltas applied
-    /// Note: The other delta is applied on top of this one
-    pub fn compose(&self, other_delta: MoveDelta) -> VirtualBoard<'a> {
-        // For now, we'll create a combined delta
-        // This is a simplified composition - in practice, we might want more sophisticated merging
-        let mut combined = self.delta.clone();
-
-        // If other delta moves a piece, update our delta
-        if let Some((from, to, piece)) = other_delta.piece_moved {
-            // Check if this conflicts with our delta
-            if let Some((our_from, our_to, _)) = &combined.piece_moved {
-                // If other move is from our destination, chain the moves
-                if *our_to == from {
-                    combined.piece_moved = Some((*our_from, to, piece));
-                } else {
-                    // Different piece or conflicting move - other takes precedence
-                    combined.piece_moved = Some((from, to, piece));
-                }
-            } else {
-                combined.piece_moved = Some((from, to, piece));
-            }
+    /// Apply a delta describing the next move on this view. Borrow the earlier
+    /// view: a single MoveDelta cannot represent moves by distinct pieces or
+    /// promotions/captures at several different stages.
+    pub fn compose(&self, other_delta: MoveDelta) -> VirtualBoard<'_> {
+        VirtualBoard {
+            base_board: self.base_board,
+            previous: Some(self),
+            delta: other_delta,
         }
-
-        // Merge removed pieces (avoid duplicates)
-        for (pos, piece) in other_delta.pieces_removed {
-            if !combined.pieces_removed.iter().any(|(p, _)| *p == pos) {
-                combined.pieces_removed.push((pos, piece));
-            }
-        }
-
-        // Other promotion takes precedence
-        if other_delta.piece_promoted.is_some() {
-            combined.piece_promoted = other_delta.piece_promoted;
-        }
-
-        VirtualBoard::new(self.base_board, combined)
     }
 
-    /// Get the underlying delta (for future undo/redo)
+    /// Latest delta only; earlier composed changes belong to the borrowed parent.
     pub fn delta(&self) -> &MoveDelta {
         &self.delta
     }
@@ -358,7 +335,10 @@ impl<'a> BoardLike for VirtualBoard<'a> {
         }
 
         // 3. Fall back to base board
-        self.base_board.get_piece(pos)
+        match self.previous {
+            Some(previous) => previous.get_piece(pos),
+            None => self.base_board.get_piece(pos),
+        }
     }
 
     fn is_empty(&self, pos: Position) -> bool {
@@ -373,7 +353,10 @@ impl<'a> BoardLike for VirtualBoard<'a> {
 
     fn get_pieces_by_color(&self, color: Color) -> Vec<Piece> {
         // Get pieces from base board
-        let mut pieces = self.base_board.get_pieces_by_color(color);
+        let mut pieces = match self.previous {
+            Some(previous) => previous.get_pieces_by_color(color),
+            None => self.base_board.get_pieces_by_color(color),
+        };
 
         // Remove pieces that were moved or removed
         if let Some((from, to, original_piece)) = &self.delta.piece_moved {
@@ -499,6 +482,73 @@ pub fn simulate_move<'a>(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn composed_views_preserve_distinct_movers_promotions_and_later_captures() {
+        use crate::game_state::GameState;
+
+        fn advance(state: &mut GameState, mv: Move) -> MoveDelta {
+            let mover = state.get_board().get_piece(mv.from).unwrap();
+            let delta = move_to_delta(state.get_board(), &mv, &mover);
+            let turn = state.get_current_turn();
+            state.make_move(mv);
+            assert_eq!(state.get_current_turn(), turn.opposite());
+            delta
+        }
+
+        fn compare(view: &impl BoardLike, actual: &GameState) {
+            for i in 0..1296 {
+                let square = Position::from_index(i).unwrap();
+                assert_eq!(view.get_piece(square), actual.get_board().get_piece(square));
+            }
+            for color in [Color::Black, Color::White] {
+                let mut virtual_pieces = view.get_pieces_by_color(color);
+                let mut real_pieces = actual.get_board().get_pieces_by_color(color);
+                virtual_pieces.sort_by_key(|p| p.position);
+                real_pieces.sort_by_key(|p| p.position);
+                assert_eq!(virtual_pieces, real_pieces);
+                for square in [
+                    Position::new(18, 24).unwrap(),
+                    Position::new(18, 25).unwrap(),
+                    Position::new(18, 26).unwrap(),
+                ] {
+                    assert_eq!(
+                        view.is_position_attacked_by_color(square, color),
+                        actual
+                            .get_board()
+                            .is_position_attacked_by_color(square, color)
+                    );
+                }
+            }
+        }
+
+        let p = |rank| Position::new(18, rank).unwrap();
+        let mut base = GameState::new();
+        base.place_piece(Piece::new(PieceType::Pawn, Color::Black, p(24)));
+        base.place_piece(Piece::new(PieceType::Rook, Color::White, p(30)));
+        let mut actual = base.clone();
+        let first = VirtualBoard::new(
+            base.get_board(),
+            advance(&mut actual, Move::new_with_promotion(p(24), p(25), true)),
+        );
+        compare(&first, &actual);
+        let second = first.compose(advance(&mut actual, Move::new(p(30), p(29))));
+        compare(&second, &actual);
+        assert!(second.get_piece(p(24)).is_none());
+        assert_eq!(
+            second.get_piece(p(25)).unwrap().piece_type,
+            PieceType::GoldGeneral
+        );
+        let third = second.compose(advance(&mut actual, Move::new(p(25), p(26))));
+        compare(&third, &actual);
+        let promoted = third.get_piece(p(26)).unwrap();
+        assert_eq!(promoted.base_piece_type, Some(PieceType::Pawn));
+        assert!(promoted.is_promoted);
+        let fourth = third.compose(advance(&mut actual, Move::new(p(29), p(26))));
+        compare(&fourth, &actual);
+        assert!(fourth.get_pieces_by_color(Color::Black).is_empty());
+        assert!(std::ptr::eq(fourth.base_board(), base.get_board()));
+    }
     use crate::piece::PieceType;
 
     #[test]

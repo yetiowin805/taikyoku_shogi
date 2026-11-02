@@ -102,7 +102,11 @@ pub fn move_encode(mv: &Move) -> String {
             squares.push(mv.to);
         }
         MoveData::FreeEagle { path } => {
-            squares.extend_from_slice(path);
+            // A repeated origin identifies Free Eagle routes of any length;
+            // retain the encoding already emitted for generated paths.
+            squares.push(mv.from);
+            let landings = path.strip_prefix(&[mv.from]).unwrap_or(path);
+            squares.extend_from_slice(landings);
             if path.last() != Some(&mv.to) {
                 squares.push(mv.to);
             }
@@ -141,13 +145,17 @@ pub fn move_decode(token: &str) -> Result<Move, String> {
     let from = squares[0];
     let to = *squares.last().unwrap();
     let data = match squares.len() {
+        n if n >= 3 && squares[1] == from => MoveData::FreeEagle {
+            path: squares[1..].to_vec(),
+        },
         2 => MoveData::Standard,
         3 => MoveData::TwoStep {
             intermediate: squares[1],
         },
         _ => {
-            // from + path (path should end at `to`)
-            let path = squares[1..].to_vec();
+            // Also accept documented unmarked routes with three or more
+            // legs. Internal Free Eagle paths include both endpoints.
+            let path = squares.clone();
             MoveData::FreeEagle { path }
         }
     };
@@ -387,6 +395,7 @@ mod tests {
     #[test]
     fn move_free_eagle() {
         let path = vec![
+            Position::new(0, 0).unwrap(),
             Position::new(1, 0).unwrap(),
             Position::new(2, 0).unwrap(),
             Position::new(3, 0).unwrap(),
@@ -397,13 +406,68 @@ mod tests {
             path.clone(),
         );
         let s = move_encode(&mv);
-        assert_eq!(s, "0,0-1,0-2,0-3,0");
+        assert_eq!(s, "0,0-0,0-1,0-2,0-3,0");
         let back = move_decode(&s).unwrap();
         match back.data {
             MoveData::FreeEagle { path: p } => assert_eq!(p, path),
             other => panic!("expected FreeEagle, got {:?}", other),
         }
         assert_eq!(back.to, Position::new(3, 0).unwrap());
+    }
+
+    #[test]
+    fn generated_free_eagle_tokens_preserve_every_route_and_apply() {
+        for color in [Color::Black, Color::White] {
+            let mut state = GameState::new();
+            let from = Position::new(18, 18).unwrap();
+            state.place_piece(Piece::new(PieceType::FreeEagle, color, from));
+            for (file, rank) in [(19, 19), (20, 20), (19, 18)] {
+                state.place_piece(Piece::new(
+                    PieceType::Pawn,
+                    color.opposite(),
+                    Position::new(file, rank).unwrap(),
+                ));
+            }
+            state.set_current_turn(color);
+            for mv in state.generate_legal_moves() {
+                let decoded = move_decode(&move_encode(&mv)).unwrap();
+                assert_eq!(decoded, mv);
+                let mut original = state.clone();
+                let mut roundtrip = state.clone();
+                original.make_move(mv);
+                roundtrip.make_move(decoded);
+                assert_eq!(roundtrip.get_current_turn(), color.opposite());
+                assert_eq!(
+                    BoardPosition::from_state(&roundtrip),
+                    BoardPosition::from_state(&original)
+                );
+                assert_eq!(roundtrip.hash(), original.hash());
+                assert_eq!(roundtrip.get_move_history(), original.get_move_history());
+            }
+        }
+    }
+
+    #[test]
+    fn documented_unmarked_free_eagle_routes_apply_with_their_actual_path() {
+        let mut state = GameState::new();
+        let from = Position::new(18, 18).unwrap();
+        let victim = Position::new(19, 19).unwrap();
+        state.place_piece(Piece::new(PieceType::FreeEagle, Color::Black, from));
+        state.place_piece(Piece::new(PieceType::Pawn, Color::White, victim));
+        for token in ["18,18-19,19-20,20", "18,18-19,19-20,20-21,21"] {
+            let mut child = state.clone();
+            let decoded = move_decode(token).unwrap();
+            child.make_move(decoded.clone());
+            assert_eq!(child.get_current_turn(), Color::White, "{token}");
+            assert!(child.get_board().get_piece(victim).is_none());
+            assert_eq!(child.get_move_history()[0].to, victim);
+            assert_eq!(child.get_move_history().last().unwrap().to, decoded.to);
+        }
+        // An explicit illegal corner must not silently select a legal route
+        // which happens to end on the same square.
+        let before = BoardPosition::from_state(&state);
+        state.make_move(move_decode("18,18-10,10-20,20").unwrap());
+        assert_eq!(BoardPosition::from_state(&state), before);
     }
     #[test]
     fn tsfen_rejects_duplicate_squares_and_oversized_piece_count() {

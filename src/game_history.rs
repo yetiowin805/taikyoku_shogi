@@ -372,6 +372,10 @@ impl GameHistory {
 
         let game: GameRecord = serde_json::from_str(&contents)
             .map_err(|e| format!("Failed to parse game file: {}", e))?;
+        for (index, record) in game.moves.iter().enumerate() {
+            Self::record_to_move(record)
+                .map_err(|error| format!("Invalid move record {}: {error}", index + 1))?;
+        }
 
         Ok(game)
     }
@@ -635,8 +639,18 @@ impl GameHistory {
             };
 
             // Get piece type before applying the move (for shogi-style notation)
-            let from = Position::new(mv.from_file, mv.from_rank).unwrap();
-            let to = Position::new(mv.to_file, mv.to_rank).unwrap();
+            let move_obj = match Self::record_to_move(mv) {
+                Ok(mv) => mv,
+                Err(error) => {
+                    result.push_str(&format!(
+                        "ERROR: Invalid move record {}: {error}\n",
+                        idx + 1
+                    ));
+                    return result;
+                }
+            };
+            let from = move_obj.from;
+            let to = move_obj.to;
             let piece = current_state.get_board().get_piece(from);
 
             // Track how many moves will be displayed for this MoveRecord
@@ -661,13 +675,10 @@ impl GameHistory {
 
                 if has_two_step {
                     // Check if this is a two-step move by checking stored intermediate position
-                    if let MoveRecordData::TwoStep {
-                        intermediate_file: inter_file,
-                        intermediate_rank: inter_rank,
-                    } = &mv.data
-                    {
+                    if let MoveRecordData::TwoStep { .. } = &mv.data {
                         // This is a two-step move - format as two lines showing the two steps
-                        let intermediate = Position::new(*inter_file, *inter_rank).unwrap();
+                        let intermediate =
+                            move_obj.intermediate().expect("checked two-step record");
                         let piece_symbol = {
                             let symbol = p.base_symbol();
                             if p.is_promoted {
@@ -896,19 +907,6 @@ impl GameHistory {
             }
 
             // Apply move to current state
-            // Create Move from MoveRecordData
-            let move_obj = match &mv.data {
-                MoveRecordData::Standard => Move::new_with_promotion(from, to, mv.promoted),
-                MoveRecordData::TwoStep {
-                    intermediate_file,
-                    intermediate_rank,
-                } => {
-                    let intermediate =
-                        Position::new(*intermediate_file, *intermediate_rank).unwrap();
-                    Move::new_two_step_with_promotion(from, intermediate, to, mv.promoted)
-                }
-                MoveRecordData::FreeEagle { path } => Move::new_free_eagle(from, to, path.clone()),
-            };
             let turn_before = current_state.get_current_turn();
             let move_result = current_state.make_move(move_obj);
             let turn_after = current_state.get_current_turn();
@@ -968,6 +966,54 @@ mod tests {
         let _ = fs::remove_dir_all(&p);
         fs::create_dir_all(&p).unwrap();
         p
+    }
+
+    #[test]
+    fn malformed_legacy_coordinates_are_rejected_and_format_without_panicking() {
+        let temp = crate::test_support::TempDir::new();
+        let history = GameHistory::new(temp.path().to_str().unwrap());
+        let from = Position::new(0, 10).unwrap();
+        let to = Position::new(0, 11).unwrap();
+        for bad_coordinate in 0..3 {
+            let mut record = GameHistory::move_to_record(&Move::new(from, to), Color::Black, 1);
+            match bad_coordinate {
+                0 => record.from_file = 255,
+                1 => record.to_rank = 36,
+                _ => {
+                    record.data = MoveRecordData::TwoStep {
+                        intermediate_file: 36,
+                        intermediate_rank: 10,
+                    }
+                }
+            }
+            let game = GameRecord {
+                timestamp: 0,
+                moves: vec![record],
+                result: None,
+            };
+            assert!(history
+                .format_game(&game)
+                .contains("ERROR: Invalid move record 1:"));
+            let path = temp.path().join("malformed.json");
+            fs::write(&path, serde_json::to_vec(&game).unwrap()).unwrap();
+            assert!(history
+                .load_game(path.to_str().unwrap())
+                .unwrap_err()
+                .contains("Invalid move record 1:"));
+        }
+        let game = GameRecord {
+            timestamp: 0,
+            moves: vec![GameHistory::move_to_record(
+                &Move::new(from, to),
+                Color::Black,
+                1,
+            )],
+            result: None,
+        };
+        let path = temp.path().join("valid.json");
+        fs::write(&path, serde_json::to_vec(&game).unwrap()).unwrap();
+        assert!(history.load_game(path.to_str().unwrap()).is_ok());
+        assert!(!history.format_game(&game).contains("ERROR:"));
     }
 
     #[test]
