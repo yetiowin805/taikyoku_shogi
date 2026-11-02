@@ -639,19 +639,19 @@ mod tests {
                 } else {
                     Vec::new()
                 };
-                assert_eq!(
+                assert!(
                     find_potential_intermediates(from, to)
                         .into_iter()
                         .flatten()
-                        .collect::<Vec<_>>(),
-                    diagonal
+                        .eq(diagonal),
+                    "diagonal intermediates: {from:?} -> {to:?}"
                 );
-                assert_eq!(
+                assert!(
                     find_potential_intermediates_orthogonal(from, to)
                         .into_iter()
                         .flatten()
-                        .collect::<Vec<_>>(),
-                    orthogonal
+                        .eq(orthogonal),
+                    "orthogonal intermediates: {from:?} -> {to:?}"
                 );
             }
         }

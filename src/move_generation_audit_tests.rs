@@ -232,11 +232,12 @@ fn long_multileg_attacks_also_reach_victim_directed_capture_generation() {
     }
 }
 
-#[test]
-fn attack_maps_match_generated_reach_with_blockers_and_at_edges() {
+fn check_attack_maps_with_blockers_and_at_edges(group: usize) {
     use crate::move_simulation::{BoardLike, MoveDelta, VirtualBoard};
 
-    for &kind in crate::eval::ALL_PIECE_TYPES {
+    // Disjoint groups retain the complete matrix and let libtest schedule this
+    // long audit alongside the other tests instead of leaving a serial tail.
+    for &kind in crate::eval::ALL_PIECE_TYPES.iter().skip(group).step_by(4) {
         for color in [Color::Black, Color::White] {
             for promoted in [false, true] {
                 for origin in [p(18, 18), p(1, 34)] {
@@ -316,6 +317,22 @@ fn attack_maps_match_generated_reach_with_blockers_and_at_edges() {
             }
         }
     }
+}
+
+macro_rules! attack_map_groups {
+    ($($name:ident: $group:expr),+ $(,)?) => {
+        $(#[test]
+        fn $name() {
+            check_attack_maps_with_blockers_and_at_edges($group);
+        })+
+    };
+}
+
+attack_map_groups! {
+    attack_maps_match_generated_reach_with_blockers_and_at_edges_group_0: 0,
+    attack_maps_match_generated_reach_with_blockers_and_at_edges_group_1: 1,
+    attack_maps_match_generated_reach_with_blockers_and_at_edges_group_2: 2,
+    attack_maps_match_generated_reach_with_blockers_and_at_edges_group_3: 3,
 }
 
 #[test]

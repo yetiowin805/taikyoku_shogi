@@ -14,6 +14,17 @@ and aspiration 500), but replace positional evaluation with a trained residual
 on **fixed material**. Accumulator widths: **512, 768, 1024, 1536, 2048** per
 perspective; shared feature table; head `2W -> 32 -> 32 -> 1`.
 
+## Run tests
+
+With the pinned dependencies installed, run
+`python deploy/run_python_tests.py training/nnue --isolate-cpus`
+from the repository root. It discovers the full suite, balances modules across up to
+four processes, and assigns disjoint available CPU sets so benchmark helpers do
+not all select the same CPU. It verifies that every discovered test ID ran exactly
+once and fails if any worker fails or omits tests. `--jobs 1` runs the same tests
+serially with the full available CPU set. CI uses the parallel runner; ordinary
+`python -m unittest discover -s training/nnue -p 'test_*.py'` remains supported.
+
 The input uses the engine's movement abilities, occupancy and royal status. It
 reserves 92 channels per color/square, of which 85 currently occur. No separate
 piece identity or ray-blocking channels are added. Promotions and the special
