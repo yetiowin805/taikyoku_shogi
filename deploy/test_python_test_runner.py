@@ -9,8 +9,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-SCRIPT = Path(__file__).resolve().parents[1] / "training/nnue/run_tests.py"
-spec = importlib.util.spec_from_file_location("nnue_test_runner", SCRIPT)
+SCRIPT = Path(__file__).with_name("run_python_tests.py")
+spec = importlib.util.spec_from_file_location("python_test_runner", SCRIPT)
 runner = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(runner)
 
@@ -18,11 +18,12 @@ spec.loader.exec_module(runner)
 class RunnerTests(unittest.TestCase):
     def test_new_modules_and_sparse_cpu_ids_are_partitioned_once(self):
         modules = {"test_continuation", "test_benchmark_training", "test_finetune", "test_v5", "test_new"}
-        groups = runner.plan(modules, [3, 7, 11, 19], 4)
+        groups = runner.plan(modules, [3, 7, 11, 19], 4, isolate_cpus=True)
         self.assertEqual(sorted(m for names, _ in groups for m in names), sorted(modules))
         self.assertEqual(sorted(cpu for _, cpus in groups for cpu in cpus), [3, 7, 11, 19])
         self.assertTrue(all(names and cpus for names, cpus in groups))
         self.assertEqual(len(runner.plan(modules, [7], 4)), 1)
+        self.assertTrue(all(cpus == [3, 7, 11, 19] for _, cpus in runner.plan(modules, [3, 7, 11, 19], 4)))
         with self.assertRaises(ValueError):
             runner.plan(modules, [7], 0)
 
@@ -37,7 +38,7 @@ class RunnerTests(unittest.TestCase):
 
     def run_fixture(self, root, *args):
         return subprocess.run(
-            [sys.executable, str(SCRIPT), "--directory", str(root), *args],
+            [sys.executable, str(SCRIPT), str(root), *args],
             cwd=root,
             capture_output=True,
             text=True,
@@ -70,7 +71,7 @@ class RunnerTests(unittest.TestCase):
                     "        from pathlib import Path\n"
                     f"        Path({str(output)!r}).write_text(json.dumps(sorted(os.sched_getaffinity(0))))\n",
                 )
-            result = self.run_fixture(root, "--jobs", "2")
+            result = self.run_fixture(root, "--jobs", "2", "--isolate-cpus")
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             cpus = [json.loads((root / (name + ".json")).read_text()) for name in ("test_alpha", "test_beta")]
             allowed = os.sched_getaffinity(0)

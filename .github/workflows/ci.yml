@@ -39,7 +39,7 @@ jobs:
       - run: pip install ruff==0.16.8
       - run: ruff format --check .
       - run: ruff check .
-      - run: python -m unittest discover -s deploy -p 'test_*.py'
+      - run: python deploy/run_python_tests.py deploy
       - run: python -m unittest discover -s benchmarks/randomized_search -p 'test_*.py'
       - run: python -m unittest discover -s training/tactical_tree -p 'test_*.py'
 
@@ -61,4 +61,4 @@ jobs:
       - if: steps.nnue-environment.outputs.cache-hit != 'true'
         run: python -m venv "$RUNNER_TEMP/nnue-test-venv"
       - run: '"$RUNNER_TEMP/nnue-test-venv/bin/python" -m pip install --disable-pip-version-check -r training/nnue/requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu'
-      - run: '"$RUNNER_TEMP/nnue-test-venv/bin/python" training/nnue/run_tests.py'
+      - run: '"$RUNNER_TEMP/nnue-test-venv/bin/python" deploy/run_python_tests.py training/nnue --isolate-cpus'

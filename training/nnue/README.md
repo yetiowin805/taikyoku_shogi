@@ -16,7 +16,8 @@ perspective; shared feature table; head `2W -> 32 -> 32 -> 1`.
 
 ## Run tests
 
-With the pinned dependencies installed, run `python training/nnue/run_tests.py`
+With the pinned dependencies installed, run
+`python deploy/run_python_tests.py training/nnue --isolate-cpus`
 from the repository root. It discovers the full suite, balances modules across up to
 four processes, and assigns disjoint available CPU sets so benchmark helpers do
 not all select the same CPU. It verifies that every discovered test ID ran exactly

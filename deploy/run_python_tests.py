@@ -1,4 +1,4 @@
-"""Run every NNUE unittest in balanced processes with disjoint CPU affinity."""
+"""Run a discovered unittest suite in balanced processes and verify coverage."""
 
 import argparse
 import json
@@ -12,10 +12,9 @@ import unittest
 from collections import Counter
 from pathlib import Path
 
-HERE = Path(__file__).resolve().parent
-ROOT = HERE.parents[1]
+ROOT = Path(__file__).resolve().parents[1]
 
-# Approximate relative costs from the November 2026 suite profile, used only for
+# Approximate relative costs from the November 2026 suite profiles, used only for
 # scheduling. Unlisted/new modules are always discovered and get a default cost.
 MODULE_COST = {
     "test_continuation": 20,
@@ -23,6 +22,10 @@ MODULE_COST = {
     "test_finetune": 13,
     "test_v5": 11,
     "test_training_efficiency": 8,
+    "test_tournament_launch": 6,
+    "test_build_pgo": 3,
+    "test_training_sidecar": 2,
+    "test_tourney_analysis": 2,
 }
 
 
@@ -48,7 +51,7 @@ def discover(directory):
     return tests
 
 
-def plan(modules, cpus, jobs):
+def plan(modules, cpus, jobs, *, isolate_cpus=False):
     count = min(jobs, len(modules), len(cpus))
     if count < 1:
         raise ValueError("Need tests, available CPUs, and a positive job count")
@@ -58,7 +61,7 @@ def plan(modules, cpus, jobs):
         index = min(range(count), key=costs.__getitem__)
         groups[index].append(module)
         costs[index] += MODULE_COST.get(module, 1)
-    return [(sorted(group), cpus[index::count]) for index, group in enumerate(groups)]
+    return [(sorted(group), cpus[index::count] if isolate_cpus else cpus) for index, group in enumerate(groups)]
 
 
 def verify(expected, reports):
@@ -89,14 +92,14 @@ def worker(directory, modules, cpus, result_path):
     return 0 if result.wasSuccessful() else 1
 
 
-def run(directory, jobs):
+def run(directory, jobs, *, isolate_cpus=False):
     started = time.monotonic()
     tests = discover(directory)
     cpus = sorted(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else list(range(os.cpu_count() or 1))
-    groups = plan({type(test).__module__ for test in tests}, cpus, jobs)
+    groups = plan({type(test).__module__ for test in tests}, cpus, jobs, isolate_cpus=isolate_cpus)
     processes = []
     reports = []
-    with tempfile.TemporaryDirectory(prefix="nnue-tests-") as temp:
+    with tempfile.TemporaryDirectory(prefix="python-tests-") as temp:
         try:
             for index, (modules, affinity) in enumerate(groups):
                 log = Path(temp) / f"worker-{index}.log"
@@ -104,7 +107,6 @@ def run(directory, jobs):
                 command = [
                     sys.executable,
                     str(Path(__file__).resolve()),
-                    "--directory",
                     str(directory),
                     "--worker",
                     *modules,
@@ -154,7 +156,10 @@ def main():
     parser.add_argument(
         "--jobs", type=int, default=4, help="Maximum test processes (default: 4; capped by available CPUs)"
     )
-    parser.add_argument("--directory", type=Path, default=HERE, help=argparse.SUPPRESS)
+    parser.add_argument("directory", type=Path, help="Unittest discovery directory, relative to the current directory")
+    parser.add_argument(
+        "--isolate-cpus", action="store_true", help="Give workers disjoint CPU sets (use for CPU-bound NNUE tests)"
+    )
     parser.add_argument("--worker", nargs="+", help=argparse.SUPPRESS)
     parser.add_argument("--cpus", type=int, nargs="+", help=argparse.SUPPRESS)
     parser.add_argument("--result", type=Path, help=argparse.SUPPRESS)
@@ -163,15 +168,16 @@ def main():
         parser.error("--jobs must be positive")
     # Benchmark workers inspect source paths; use the same cwd as CI's existing
     # unittest discovery command, including when invoked from another directory.
+    directory = args.directory.resolve()
     os.chdir(ROOT)
     try:
         if args.worker:
             if args.cpus is None or args.result is None:
                 parser.error("workers require --cpus and --result")
-            return worker(args.directory.resolve(), args.worker, args.cpus, args.result)
+            return worker(directory, args.worker, args.cpus, args.result)
         if os.name == "posix":
             signal.signal(signal.SIGTERM, stop)
-        return run(args.directory.resolve(), args.jobs)
+        return run(directory, args.jobs, isolate_cpus=args.isolate_cpus)
     except (OSError, ValueError, RuntimeError) as error:
         parser.exit(1, f"Tests failed: {error}\n")
 

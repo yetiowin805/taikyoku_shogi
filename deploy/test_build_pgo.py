@@ -195,7 +195,9 @@ class BuildPGOTests(WorkloadFixture):
             "import os,signal,time\n"
             "from pathlib import Path\n"
             "signal.signal(signal.SIGTERM,signal.SIG_IGN)\n"
-            f"Path({str(pidfile)!r}).write_text(str(os.getpid()))\n"
+            f"pidfile=Path({str(pidfile)!r})\n"
+            "pidfile.with_suffix('.tmp').write_text(str(os.getpid()))\n"
+            "pidfile.with_suffix('.tmp').replace(pidfile)\n"
             "time.sleep(30)\n"
         )
         parent = self.root / "parent.py"
@@ -204,7 +206,9 @@ class BuildPGOTests(WorkloadFixture):
             "from pathlib import Path\n"
             f"subprocess.Popen([sys.executable,{str(descendant)!r}])\n"
             f"while not Path({str(pidfile)!r}).exists(): time.sleep(0.01)\n"
-            f"Path({str(parent_pidfile)!r}).write_text(str(os.getpid()))\n"
+            f"pidfile=Path({str(parent_pidfile)!r})\n"
+            "pidfile.with_suffix('.tmp').write_text(str(os.getpid()))\n"
+            "pidfile.with_suffix('.tmp').replace(pidfile)\n"
         )
         wrapper = self.root / "wrapper.py"
         wrapper.write_text(

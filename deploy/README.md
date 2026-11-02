@@ -4,6 +4,17 @@ Run self-play on a cheap Linux VPS (Hetzner first), accumulate games under `data
 
 Local worker / Texel / tournament CLI: [`src/training/README.md`](../src/training/README.md).
 
+## Run deployment tests
+
+Run `python deploy/run_python_tests.py deploy` from the repository root to discover
+the full deployment suite and run its modules across up to four processes. Workers
+retain the full allowed CPU set so process/lease tests that require four CPU IDs
+keep their existing coverage. Every child exit status and the complete set of
+test IDs are checked. Use `--jobs 1` for a serial run. For the CPU-bound NNUE suite,
+use `python deploy/run_python_tests.py training/nnue --isolate-cpus` with its pinned
+dependencies installed; disjoint CPU sets prevent its benchmark helpers from
+competing for the same first available CPU.
+
 ## Host recommendation
 
 **Primary: Hetzner Cloud** (~€6–12/mo, under $20):

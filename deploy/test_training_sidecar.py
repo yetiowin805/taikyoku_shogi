@@ -57,9 +57,14 @@ class SidecarTests(unittest.TestCase):
         program.write_text(
             "import json,os,time\nfrom pathlib import Path\n"
             f"root=Path({str(self.root)!r})\n"
-            '(root/"started.json").write_text(json.dumps(dict(pid=os.getpid(),cpu=sorted(os.sched_getaffinity(0)),time=time.monotonic())))\n'
+            "def save(name, payload):\n"
+            "    path = root / name\n"
+            "    temporary = path.with_suffix('.tmp')\n"
+            "    temporary.write_text(json.dumps(payload))\n"
+            "    temporary.replace(path)\n"
+            'save("started.json", dict(pid=os.getpid(),cpu=sorted(os.sched_getaffinity(0)),time=time.monotonic()))\n'
             'while not (root/"training.release").exists(): time.sleep(.01)\n'
-            '(root/"finished.json").write_text(json.dumps(dict(time=time.monotonic())))\n'
+            'save("finished.json", dict(time=time.monotonic()))\n'
             f"raise SystemExit({code})\n"
         )
         config_path = self.root / "training.json"
@@ -213,7 +218,10 @@ a.supervise(a.read(root / "run/analysis/config.json"))
                     '  with (control/"shared.lock").open("a+") as f:\n'
                     "   try:\n"
                     "    fcntl.flock(f,fcntl.LOCK_EX|fcntl.LOCK_NB)\n"
-                    '    if not (root/"fourth.json").exists():(root/"fourth.json").write_text(json.dumps(dict(time=time.monotonic())))\n'
+                    '    if not (root/"fourth.json").exists():\n'
+                    '     temporary=root/"fourth.tmp"\n'
+                    "     temporary.write_text(json.dumps(dict(time=time.monotonic())))\n"
+                    '     temporary.replace(root/"fourth.json")\n'
                     "   except BlockingIOError:pass\n"
                     " time.sleep(.02)\n"
                 )
