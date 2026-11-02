@@ -1,0 +1,5 @@
+{
+  "rust": "cargo fmt; cargo clippy --all-targets --all-features -- -D warnings; cargo test:579 passed,4existing ignored",
+  "python": "227 deployment unittests pass; Ruff full reports30existing errors in untrackeddata/analysis anddata/backups; repository scope excludingthese passes. Benchmark preparer passed real hash validation and rejected intentionally mismatched material hash.",
+  "scope": "No live VPS deployment or tournament changes; only six board snapshots plus policy settings/hashes exported. Prior move/repetition history reset. No strength or per-request tail latency claim."
+}

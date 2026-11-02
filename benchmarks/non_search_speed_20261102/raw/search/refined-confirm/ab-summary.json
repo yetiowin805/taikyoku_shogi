@@ -1,0 +1,432 @@
+{
+  "all_signatures_match": true,
+  "cpu": {
+    "pairs": 180,
+    "positions": 6,
+    "source_games": 3,
+    "metric": "cpu_ms",
+    "geomean_ms": {
+      "baseline": 94.73153552739379,
+      "candidate": 94.20187936245988
+    },
+    "candidate_over_baseline": 0.9944088717449246,
+    "total_ms": {
+      "baseline": 23859.4,
+      "candidate": 23567.297
+    },
+    "total_ratio": 0.9877573199661348,
+    "ratio_by_repetition": {
+      "0": 0.9883107121879681,
+      "1": 1.0241369610692126,
+      "2": 0.9785566912836425,
+      "3": 0.9848464547254605,
+      "4": 0.9957182417977688,
+      "5": 0.9927494296027334,
+      "6": 0.9830298429910846,
+      "7": 1.0174001738404455,
+      "8": 1.0021144949671612,
+      "9": 0.9783446611207073
+    },
+    "peak_rss_kib": {
+      "baseline": 302920,
+      "candidate": 302804
+    },
+    "total_nodes_each_arm": 5390730,
+    "q_nodes_each_arm": 3076000,
+    "nodes_include_q_nodes": true,
+    "source_game_cluster_bootstrap_95": [
+      0.9904751143198206,
+      1.000086019524349
+    ],
+    "position_cluster_bootstrap_95": [
+      0.9818763056352843,
+      1.0058089462869702
+    ]
+  },
+  "wall": {
+    "pairs": 180,
+    "positions": 6,
+    "source_games": 3,
+    "metric": "ms",
+    "geomean_ms": {
+      "baseline": 94.82814965478958,
+      "candidate": 94.24741726628591
+    },
+    "candidate_over_baseline": 0.9938759493819314,
+    "total_ms": {
+      "baseline": 23954.465381,
+      "candidate": 23575.001938
+    },
+    "total_ratio": 0.9841589684025684,
+    "ratio_by_repetition": {
+      "0": 0.9889429035793468,
+      "1": 1.0239167619442218,
+      "2": 0.9776366473893572,
+      "3": 0.984921403310868,
+      "4": 0.9957706996161106,
+      "5": 0.9928664927708714,
+      "6": 0.9829602714801834,
+      "7": 1.017522085188708,
+      "8": 1.0021082957577487,
+      "9": 0.9733347515678015
+    },
+    "peak_rss_kib": {
+      "baseline": 302920,
+      "candidate": 302804
+    },
+    "total_nodes_each_arm": 5390730,
+    "q_nodes_each_arm": 3076000,
+    "nodes_include_q_nodes": true,
+    "source_game_cluster_bootstrap_95": [
+      0.9906037116117292,
+      0.9999959638662159
+    ],
+    "position_cluster_bootstrap_95": [
+      0.979995502981801,
+      1.0057374218655055
+    ]
+  },
+  "by_model": {
+    "NNUE_W512_v3_HLF_G3ATK": {
+      "pairs": 60,
+      "positions": 6,
+      "source_games": 3,
+      "metric": "cpu_ms",
+      "geomean_ms": {
+        "baseline": 92.55739289568719,
+        "candidate": 92.80864058045529
+      },
+      "candidate_over_baseline": 1.0027145069335657,
+      "total_ms": {
+        "baseline": 8923.109,
+        "candidate": 8803.754
+      },
+      "total_ratio": 0.9866240567048996,
+      "ratio_by_repetition": {
+        "0": 0.9959268535187105,
+        "1": 1.0940667987806267,
+        "2": 0.9859739254190812,
+        "3": 1.0048598230897419,
+        "4": 0.9765588232843015,
+        "5": 1.0009435274404122,
+        "6": 1.0008582415469787,
+        "7": 0.9889298092187918,
+        "8": 1.0081449702957428,
+        "9": 0.9758021690128927
+      },
+      "peak_rss_kib": {
+        "baseline": 302920,
+        "candidate": 302804
+      },
+      "total_nodes_each_arm": 2089540,
+      "q_nodes_each_arm": 1340210,
+      "nodes_include_q_nodes": true,
+      "source_game_cluster_bootstrap_95": [
+        0.9899915246354614,
+        1.0245851022611328
+      ],
+      "position_cluster_bootstrap_95": [
+        0.9861042432125275,
+        1.0253557119248844
+      ]
+    },
+    "NNUE_W512_v3_HLF_G3FP": {
+      "pairs": 60,
+      "positions": 6,
+      "source_games": 3,
+      "metric": "cpu_ms",
+      "geomean_ms": {
+        "baseline": 94.15209151954717,
+        "candidate": 93.42836560040016
+      },
+      "candidate_over_baseline": 0.9923132252564271,
+      "total_ms": {
+        "baseline": 7358.201,
+        "candidate": 7283.752
+      },
+      "total_ratio": 0.9898821736454332,
+      "ratio_by_repetition": {
+        "0": 0.9930692885373679,
+        "1": 0.9915915616352828,
+        "2": 0.9679073675764629,
+        "3": 0.9821269433480587,
+        "4": 1.0198456032785284,
+        "5": 0.9916877577444446,
+        "6": 0.9767921606830802,
+        "7": 1.0088405622809982,
+        "8": 0.9946629039955657,
+        "9": 0.9976173617887916
+      },
+      "peak_rss_kib": {
+        "baseline": 300484,
+        "candidate": 300320
+      },
+      "total_nodes_each_arm": 1632010,
+      "q_nodes_each_arm": 862870,
+      "nodes_include_q_nodes": true,
+      "source_game_cluster_bootstrap_95": [
+        0.987710339274541,
+        0.998276961099895
+      ],
+      "position_cluster_bootstrap_95": [
+        0.9791073016974102,
+        1.0087376770240157
+      ]
+    },
+    "NNUE_W512_v3_HLFS_G3PT": {
+      "pairs": 60,
+      "positions": 6,
+      "source_games": 3,
+      "metric": "cpu_ms",
+      "geomean_ms": {
+        "baseline": 97.55345287091596,
+        "candidate": 96.40765931651082
+      },
+      "candidate_over_baseline": 0.9882547104106988,
+      "total_ms": {
+        "baseline": 7578.09,
+        "candidate": 7479.791
+      },
+      "total_ratio": 0.9870285256575205,
+      "ratio_by_repetition": {
+        "0": 0.9760532552702854,
+        "1": 0.9901419458423072,
+        "2": 0.9818807535653281,
+        "3": 0.9679044125321974,
+        "4": 0.9912348315837411,
+        "5": 0.9856765196184892,
+        "6": 0.9716847170231602,
+        "7": 1.0555709241233242,
+        "8": 1.0035826000663428,
+        "9": 0.9619441555340632
+      },
+      "peak_rss_kib": {
+        "baseline": 301560,
+        "candidate": 301448
+      },
+      "total_nodes_each_arm": 1669180,
+      "q_nodes_each_arm": 872920,
+      "nodes_include_q_nodes": true,
+      "source_game_cluster_bootstrap_95": [
+        0.9865353086454033,
+        0.9898277240773946
+      ],
+      "position_cluster_bootstrap_95": [
+        0.9732614567921594,
+        1.004594018786323
+      ]
+    }
+  },
+  "by_position": {
+    "early development-slot0703-ply24": {
+      "pairs": 30,
+      "positions": 1,
+      "source_games": 1,
+      "metric": "cpu_ms",
+      "geomean_ms": {
+        "baseline": 271.00676208167073,
+        "candidate": 262.50431683585333
+      },
+      "candidate_over_baseline": 0.9686264461428634,
+      "total_ms": {
+        "baseline": 8844.503,
+        "candidate": 8554.925
+      },
+      "total_ratio": 0.9672589856094795,
+      "ratio_by_repetition": {
+        "0": 0.9999488357849197,
+        "1": 0.9614232468179742,
+        "2": 0.976207231907865,
+        "3": 0.9502068682854351,
+        "4": 0.9916739472166373,
+        "5": 0.9791277719931275,
+        "6": 0.9832544289199597,
+        "7": 0.9845606129600479,
+        "8": 1.012513989122715,
+        "9": 0.8566293783498763
+      },
+      "peak_rss_kib": {
+        "baseline": 302896,
+        "candidate": 302704
+      },
+      "total_nodes_each_arm": 1879190,
+      "q_nodes_each_arm": 1518080,
+      "nodes_include_q_nodes": true
+    },
+    "late middlegame-slot0703-ply701": {
+      "pairs": 30,
+      "positions": 1,
+      "source_games": 1,
+      "metric": "cpu_ms",
+      "geomean_ms": {
+        "baseline": 127.36137860079309,
+        "candidate": 129.57151046195543
+      },
+      "candidate_over_baseline": 1.0173532344376541,
+      "total_ms": {
+        "baseline": 3826.724,
+        "candidate": 3900.049
+      },
+      "total_ratio": 1.0191612982801999,
+      "ratio_by_repetition": {
+        "0": 1.0003661266964585,
+        "1": 1.0628036480759797,
+        "2": 1.0173321767727412,
+        "3": 0.9868698467035614,
+        "4": 1.0136601424192397,
+        "5": 0.9796157544264971,
+        "6": 0.9874442635020945,
+        "7": 1.1038902595518134,
+        "8": 1.0118851072298438,
+        "9": 1.0159333087579046
+      },
+      "peak_rss_kib": {
+        "baseline": 302920,
+        "candidate": 302800
+      },
+      "total_nodes_each_arm": 1302730,
+      "q_nodes_each_arm": 478030,
+      "nodes_include_q_nodes": true
+    },
+    "development-slot0700-ply161": {
+      "pairs": 30,
+      "positions": 1,
+      "source_games": 1,
+      "metric": "cpu_ms",
+      "geomean_ms": {
+        "baseline": 183.45672108195959,
+        "candidate": 182.56762412654984
+      },
+      "candidate_over_baseline": 0.9951536419588978,
+      "total_ms": {
+        "baseline": 5513.467,
+        "candidate": 5486.275
+      },
+      "total_ratio": 0.9950680760399945,
+      "ratio_by_repetition": {
+        "0": 1.0174082061844094,
+        "1": 0.9695219361246195,
+        "2": 0.9877066349202294,
+        "3": 1.0131351752821627,
+        "4": 0.9649862161195661,
+        "5": 1.0077034806959333,
+        "6": 1.0063800305690787,
+        "7": 1.0024874438694535,
+        "8": 0.9941475576023829,
+        "9": 0.98948099101153
+      },
+      "peak_rss_kib": {
+        "baseline": 302920,
+        "candidate": 302800
+      },
+      "total_nodes_each_arm": 1181230,
+      "q_nodes_each_arm": 717470,
+      "nodes_include_q_nodes": true
+    },
+    "endgame-slot0700-ply1400": {
+      "pairs": 30,
+      "positions": 1,
+      "source_games": 1,
+      "metric": "cpu_ms",
+      "geomean_ms": {
+        "baseline": 37.011925486854786,
+        "candidate": 37.19857085012757
+      },
+      "candidate_over_baseline": 1.0050428439163226,
+      "total_ms": {
+        "baseline": 1111.988,
+        "candidate": 1127.112
+      },
+      "total_ratio": 1.0136008661963978,
+      "ratio_by_repetition": {
+        "0": 0.9363269008457195,
+        "1": 1.1710420836757023,
+        "2": 1.0250987674877496,
+        "3": 0.9753786951136405,
+        "4": 0.9758172150534752,
+        "5": 1.0006304751065835,
+        "6": 0.9573758466032216,
+        "7": 1.0071899913419706,
+        "8": 1.0174600980935935,
+        "9": 1.0012748807892795
+      },
+      "peak_rss_kib": {
+        "baseline": 302920,
+        "candidate": 302804
+      },
+      "total_nodes_each_arm": 218400,
+      "q_nodes_each_arm": 31290,
+      "nodes_include_q_nodes": true
+    },
+    "middlegame-slot0633-ply420": {
+      "pairs": 30,
+      "positions": 1,
+      "source_games": 1,
+      "metric": "cpu_ms",
+      "geomean_ms": {
+        "baseline": 105.95863476068342,
+        "candidate": 104.91338464847688
+      },
+      "candidate_over_baseline": 0.990135300303111,
+      "total_ms": {
+        "baseline": 3683.319,
+        "candidate": 3628.622
+      },
+      "total_ratio": 0.9851500779595793,
+      "ratio_by_repetition": {
+        "0": 1.0171011980940978,
+        "1": 0.9985585899485842,
+        "2": 0.9102900901975532,
+        "3": 1.0179472698091339,
+        "4": 1.0041302118187774,
+        "5": 0.9854114933981459,
+        "6": 0.9917190456735709,
+        "7": 0.9928754166112058,
+        "8": 0.9661842637792398,
+        "9": 1.0222370063528348
+      },
+      "peak_rss_kib": {
+        "baseline": 302920,
+        "candidate": 302800
+      },
+      "total_nodes_each_arm": 718930,
+      "q_nodes_each_arm": 330840,
+      "nodes_include_q_nodes": true
+    },
+    "late endgame-slot0633-ply931": {
+      "pairs": 30,
+      "positions": 1,
+      "source_games": 1,
+      "metric": "cpu_ms",
+      "geomean_ms": {
+        "baseline": 29.103010952325345,
+        "candidate": 28.83570110521583
+      },
+      "candidate_over_baseline": 0.9908150449605572,
+      "total_ms": {
+        "baseline": 879.399,
+        "candidate": 870.314
+      },
+      "total_ratio": 0.9896690808154205,
+      "ratio_by_repetition": {
+        "0": 0.9614735826586833,
+        "1": 0.9960402550892584,
+        "2": 0.9592628970257568,
+        "3": 0.9673133226733545,
+        "4": 1.025363580713254,
+        "5": 1.0044276039432531,
+        "6": 0.9727216477462582,
+        "7": 1.0178818834926193,
+        "8": 1.011448166279493,
+        "9": 0.9949029918403328
+      },
+      "peak_rss_kib": {
+        "baseline": 302828,
+        "candidate": 302704
+      },
+      "total_nodes_each_arm": 90250,
+      "q_nodes_each_arm": 290,
+      "nodes_include_q_nodes": true
+    }
+  }
+}

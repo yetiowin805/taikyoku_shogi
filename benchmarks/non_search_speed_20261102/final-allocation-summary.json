@@ -1,0 +1,562 @@
+[
+  {
+    "case": "opening",
+    "mode": "All",
+    "reused_output": false,
+    "moves": 280,
+    "baseline_calls": 105,
+    "final_calls": 82,
+    "baseline_requested_bytes": 34120,
+    "final_requested_bytes": 25896
+  },
+  {
+    "case": "opening",
+    "mode": "All",
+    "reused_output": true,
+    "moves": 280,
+    "baseline_calls": 97,
+    "final_calls": 74,
+    "baseline_requested_bytes": 1480,
+    "final_requested_bytes": 1416
+  },
+  {
+    "case": "opening",
+    "mode": "CapturesOnly",
+    "reused_output": false,
+    "moves": 80,
+    "baseline_calls": 44,
+    "final_calls": 21,
+    "baseline_requested_bytes": 8408,
+    "final_requested_bytes": 6328
+  },
+  {
+    "case": "opening",
+    "mode": "CapturesOnly",
+    "reused_output": true,
+    "moves": 80,
+    "baseline_calls": 38,
+    "final_calls": 15,
+    "baseline_requested_bytes": 344,
+    "final_requested_bytes": 280
+  },
+  {
+    "case": "opening",
+    "mode": "WithoutQuietMultiLeg",
+    "reused_output": false,
+    "moves": 280,
+    "baseline_calls": 105,
+    "final_calls": 82,
+    "baseline_requested_bytes": 34120,
+    "final_requested_bytes": 25896
+  },
+  {
+    "case": "opening",
+    "mode": "WithoutQuietMultiLeg",
+    "reused_output": true,
+    "moves": 280,
+    "baseline_calls": 97,
+    "final_calls": 74,
+    "baseline_requested_bytes": 1480,
+    "final_requested_bytes": 1416
+  },
+  {
+    "case": "opening",
+    "mode": "QuietMultiLegOnly",
+    "reused_output": false,
+    "moves": 0,
+    "baseline_calls": 22,
+    "final_calls": 0,
+    "baseline_requested_bytes": 60,
+    "final_requested_bytes": 0
+  },
+  {
+    "case": "opening",
+    "mode": "QuietMultiLegOnly",
+    "reused_output": true,
+    "moves": 0,
+    "baseline_calls": 22,
+    "final_calls": 0,
+    "baseline_requested_bytes": 60,
+    "final_requested_bytes": 0
+  },
+  {
+    "case": "corpus-0",
+    "mode": "All",
+    "reused_output": false,
+    "moves": 517,
+    "baseline_calls": 201,
+    "final_calls": 163,
+    "baseline_requested_bytes": 68984,
+    "final_requested_bytes": 52240
+  },
+  {
+    "case": "corpus-0",
+    "mode": "All",
+    "reused_output": true,
+    "moves": 517,
+    "baseline_calls": 192,
+    "final_calls": 154,
+    "baseline_requested_bytes": 3576,
+    "final_requested_bytes": 3184
+  },
+  {
+    "case": "corpus-0",
+    "mode": "CapturesOnly",
+    "reused_output": false,
+    "moves": 112,
+    "baseline_calls": 67,
+    "final_calls": 32,
+    "baseline_requested_bytes": 9456,
+    "final_requested_bytes": 7072
+  },
+  {
+    "case": "corpus-0",
+    "mode": "CapturesOnly",
+    "reused_output": true,
+    "moves": 112,
+    "baseline_calls": 61,
+    "final_calls": 26,
+    "baseline_requested_bytes": 1392,
+    "final_requested_bytes": 1024
+  },
+  {
+    "case": "corpus-0",
+    "mode": "WithoutQuietMultiLeg",
+    "reused_output": false,
+    "moves": 498,
+    "baseline_calls": 192,
+    "final_calls": 157,
+    "baseline_requested_bytes": 36144,
+    "final_requested_bytes": 27616
+  },
+  {
+    "case": "corpus-0",
+    "mode": "WithoutQuietMultiLeg",
+    "reused_output": true,
+    "moves": 498,
+    "baseline_calls": 184,
+    "final_calls": 149,
+    "baseline_requested_bytes": 3504,
+    "final_requested_bytes": 3136
+  },
+  {
+    "case": "corpus-0",
+    "mode": "QuietMultiLegOnly",
+    "reused_output": false,
+    "moves": 19,
+    "baseline_calls": 54,
+    "final_calls": 17,
+    "baseline_requested_bytes": 3076,
+    "final_requested_bytes": 2208
+  },
+  {
+    "case": "corpus-0",
+    "mode": "QuietMultiLegOnly",
+    "reused_output": true,
+    "moves": 19,
+    "baseline_calls": 50,
+    "final_calls": 13,
+    "baseline_requested_bytes": 1156,
+    "final_requested_bytes": 768
+  },
+  {
+    "case": "corpus-1",
+    "mode": "All",
+    "reused_output": false,
+    "moves": 654,
+    "baseline_calls": 201,
+    "final_calls": 201,
+    "baseline_requested_bytes": 68528,
+    "final_requested_bytes": 52176
+  },
+  {
+    "case": "corpus-1",
+    "mode": "All",
+    "reused_output": true,
+    "moves": 654,
+    "baseline_calls": 192,
+    "final_calls": 192,
+    "baseline_requested_bytes": 3120,
+    "final_requested_bytes": 3120
+  },
+  {
+    "case": "corpus-1",
+    "mode": "CapturesOnly",
+    "reused_output": false,
+    "moves": 15,
+    "baseline_calls": 9,
+    "final_calls": 9,
+    "baseline_requested_bytes": 952,
+    "final_requested_bytes": 728
+  },
+  {
+    "case": "corpus-1",
+    "mode": "CapturesOnly",
+    "reused_output": true,
+    "moves": 15,
+    "baseline_calls": 6,
+    "final_calls": 6,
+    "baseline_requested_bytes": 56,
+    "final_requested_bytes": 56
+  },
+  {
+    "case": "corpus-1",
+    "mode": "WithoutQuietMultiLeg",
+    "reused_output": false,
+    "moves": 654,
+    "baseline_calls": 201,
+    "final_calls": 201,
+    "baseline_requested_bytes": 68528,
+    "final_requested_bytes": 52176
+  },
+  {
+    "case": "corpus-1",
+    "mode": "WithoutQuietMultiLeg",
+    "reused_output": true,
+    "moves": 654,
+    "baseline_calls": 192,
+    "final_calls": 192,
+    "baseline_requested_bytes": 3120,
+    "final_requested_bytes": 3120
+  },
+  {
+    "case": "corpus-1",
+    "mode": "QuietMultiLegOnly",
+    "reused_output": false,
+    "moves": 0,
+    "baseline_calls": 0,
+    "final_calls": 0,
+    "baseline_requested_bytes": 0,
+    "final_requested_bytes": 0
+  },
+  {
+    "case": "corpus-1",
+    "mode": "QuietMultiLegOnly",
+    "reused_output": true,
+    "moves": 0,
+    "baseline_calls": 0,
+    "final_calls": 0,
+    "baseline_requested_bytes": 0,
+    "final_requested_bytes": 0
+  },
+  {
+    "case": "corpus-2",
+    "mode": "All",
+    "reused_output": false,
+    "moves": 571,
+    "baseline_calls": 177,
+    "final_calls": 173,
+    "baseline_requested_bytes": 68348,
+    "final_requested_bytes": 51960
+  },
+  {
+    "case": "corpus-2",
+    "mode": "All",
+    "reused_output": true,
+    "moves": 571,
+    "baseline_calls": 168,
+    "final_calls": 164,
+    "baseline_requested_bytes": 2940,
+    "final_requested_bytes": 2904
+  },
+  {
+    "case": "corpus-2",
+    "mode": "CapturesOnly",
+    "reused_output": false,
+    "moves": 74,
+    "baseline_calls": 23,
+    "final_calls": 22,
+    "baseline_requested_bytes": 8292,
+    "final_requested_bytes": 6272
+  },
+  {
+    "case": "corpus-2",
+    "mode": "CapturesOnly",
+    "reused_output": true,
+    "moves": 74,
+    "baseline_calls": 17,
+    "final_calls": 16,
+    "baseline_requested_bytes": 228,
+    "final_requested_bytes": 224
+  },
+  {
+    "case": "corpus-2",
+    "mode": "WithoutQuietMultiLeg",
+    "reused_output": false,
+    "moves": 566,
+    "baseline_calls": 174,
+    "final_calls": 173,
+    "baseline_requested_bytes": 68316,
+    "final_requested_bytes": 51960
+  },
+  {
+    "case": "corpus-2",
+    "mode": "WithoutQuietMultiLeg",
+    "reused_output": true,
+    "moves": 566,
+    "baseline_calls": 165,
+    "final_calls": 164,
+    "baseline_requested_bytes": 2908,
+    "final_requested_bytes": 2904
+  },
+  {
+    "case": "corpus-2",
+    "mode": "QuietMultiLegOnly",
+    "reused_output": false,
+    "moves": 5,
+    "baseline_calls": 7,
+    "final_calls": 4,
+    "baseline_requested_bytes": 432,
+    "final_requested_bytes": 304
+  },
+  {
+    "case": "corpus-2",
+    "mode": "QuietMultiLegOnly",
+    "reused_output": true,
+    "moves": 5,
+    "baseline_calls": 5,
+    "final_calls": 2,
+    "baseline_requested_bytes": 48,
+    "final_requested_bytes": 16
+  },
+  {
+    "case": "corpus-3",
+    "mode": "All",
+    "reused_output": false,
+    "moves": 1030,
+    "baseline_calls": 271,
+    "final_calls": 63,
+    "baseline_requested_bytes": 142448,
+    "final_requested_bytes": 99552
+  },
+  {
+    "case": "corpus-3",
+    "mode": "All",
+    "reused_output": true,
+    "moves": 1030,
+    "baseline_calls": 261,
+    "final_calls": 53,
+    "baseline_requested_bytes": 11504,
+    "final_requested_bytes": 1344
+  },
+  {
+    "case": "corpus-3",
+    "mode": "CapturesOnly",
+    "reused_output": false,
+    "moves": 33,
+    "baseline_calls": 55,
+    "final_calls": 13,
+    "baseline_requested_bytes": 4576,
+    "final_requested_bytes": 3248
+  },
+  {
+    "case": "corpus-3",
+    "mode": "CapturesOnly",
+    "reused_output": true,
+    "moves": 33,
+    "baseline_calls": 50,
+    "final_calls": 8,
+    "baseline_requested_bytes": 608,
+    "final_requested_bytes": 272
+  },
+  {
+    "case": "corpus-3",
+    "mode": "WithoutQuietMultiLeg",
+    "reused_output": false,
+    "moves": 275,
+    "baseline_calls": 103,
+    "final_calls": 61,
+    "baseline_requested_bytes": 34320,
+    "final_requested_bytes": 25824
+  },
+  {
+    "case": "corpus-3",
+    "mode": "WithoutQuietMultiLeg",
+    "reused_output": true,
+    "moves": 275,
+    "baseline_calls": 95,
+    "final_calls": 53,
+    "baseline_requested_bytes": 1680,
+    "final_requested_bytes": 1344
+  },
+  {
+    "case": "corpus-3",
+    "mode": "QuietMultiLegOnly",
+    "reused_output": false,
+    "moves": 755,
+    "baseline_calls": 222,
+    "final_calls": 14,
+    "baseline_requested_bytes": 75816,
+    "final_requested_bytes": 49304
+  },
+  {
+    "case": "corpus-3",
+    "mode": "QuietMultiLegOnly",
+    "reused_output": true,
+    "moves": 755,
+    "baseline_calls": 213,
+    "final_calls": 5,
+    "baseline_requested_bytes": 10408,
+    "final_requested_bytes": 248
+  },
+  {
+    "case": "corpus-4",
+    "mode": "All",
+    "reused_output": false,
+    "moves": 618,
+    "baseline_calls": 208,
+    "final_calls": 207,
+    "baseline_requested_bytes": 68256,
+    "final_requested_bytes": 51896
+  },
+  {
+    "case": "corpus-4",
+    "mode": "All",
+    "reused_output": true,
+    "moves": 618,
+    "baseline_calls": 199,
+    "final_calls": 198,
+    "baseline_requested_bytes": 2848,
+    "final_requested_bytes": 2840
+  },
+  {
+    "case": "corpus-4",
+    "mode": "CapturesOnly",
+    "reused_output": false,
+    "moves": 29,
+    "baseline_calls": 13,
+    "final_calls": 13,
+    "baseline_requested_bytes": 2016,
+    "final_requested_bytes": 1536
+  },
+  {
+    "case": "corpus-4",
+    "mode": "CapturesOnly",
+    "reused_output": true,
+    "moves": 29,
+    "baseline_calls": 9,
+    "final_calls": 9,
+    "baseline_requested_bytes": 96,
+    "final_requested_bytes": 96
+  },
+  {
+    "case": "corpus-4",
+    "mode": "WithoutQuietMultiLeg",
+    "reused_output": false,
+    "moves": 608,
+    "baseline_calls": 198,
+    "final_calls": 198,
+    "baseline_requested_bytes": 68144,
+    "final_requested_bytes": 51792
+  },
+  {
+    "case": "corpus-4",
+    "mode": "WithoutQuietMultiLeg",
+    "reused_output": true,
+    "moves": 608,
+    "baseline_calls": 189,
+    "final_calls": 189,
+    "baseline_requested_bytes": 2736,
+    "final_requested_bytes": 2736
+  },
+  {
+    "case": "corpus-4",
+    "mode": "QuietMultiLegOnly",
+    "reused_output": false,
+    "moves": 10,
+    "baseline_calls": 16,
+    "final_calls": 15,
+    "baseline_requested_bytes": 1040,
+    "final_requested_bytes": 808
+  },
+  {
+    "case": "corpus-4",
+    "mode": "QuietMultiLegOnly",
+    "reused_output": true,
+    "moves": 10,
+    "baseline_calls": 13,
+    "final_calls": 12,
+    "baseline_requested_bytes": 144,
+    "final_requested_bytes": 136
+  },
+  {
+    "case": "corpus-5",
+    "mode": "All",
+    "reused_output": false,
+    "moves": 595,
+    "baseline_calls": 203,
+    "final_calls": 203,
+    "baseline_requested_bytes": 68272,
+    "final_requested_bytes": 51920
+  },
+  {
+    "case": "corpus-5",
+    "mode": "All",
+    "reused_output": true,
+    "moves": 595,
+    "baseline_calls": 194,
+    "final_calls": 194,
+    "baseline_requested_bytes": 2864,
+    "final_requested_bytes": 2864
+  },
+  {
+    "case": "corpus-5",
+    "mode": "CapturesOnly",
+    "reused_output": false,
+    "moves": 8,
+    "baseline_calls": 10,
+    "final_calls": 10,
+    "baseline_requested_bytes": 464,
+    "final_requested_bytes": 368
+  },
+  {
+    "case": "corpus-5",
+    "mode": "CapturesOnly",
+    "reused_output": true,
+    "moves": 8,
+    "baseline_calls": 8,
+    "final_calls": 8,
+    "baseline_requested_bytes": 80,
+    "final_requested_bytes": 80
+  },
+  {
+    "case": "corpus-5",
+    "mode": "WithoutQuietMultiLeg",
+    "reused_output": false,
+    "moves": 575,
+    "baseline_calls": 178,
+    "final_calls": 178,
+    "baseline_requested_bytes": 67976,
+    "final_requested_bytes": 51624
+  },
+  {
+    "case": "corpus-5",
+    "mode": "WithoutQuietMultiLeg",
+    "reused_output": true,
+    "moves": 575,
+    "baseline_calls": 169,
+    "final_calls": 169,
+    "baseline_requested_bytes": 2568,
+    "final_requested_bytes": 2568
+  },
+  {
+    "case": "corpus-5",
+    "mode": "QuietMultiLegOnly",
+    "reused_output": false,
+    "moves": 20,
+    "baseline_calls": 33,
+    "final_calls": 33,
+    "baseline_requested_bytes": 2264,
+    "final_requested_bytes": 1784
+  },
+  {
+    "case": "corpus-5",
+    "mode": "QuietMultiLegOnly",
+    "reused_output": true,
+    "moves": 20,
+    "baseline_calls": 29,
+    "final_calls": 29,
+    "baseline_requested_bytes": 344,
+    "final_requested_bytes": 344
+  }
+]

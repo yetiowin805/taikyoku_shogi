@@ -247,11 +247,123 @@ fn is_boxed_in(piece: &Piece, board: &Board) -> bool {
     true
 }
 
+/// Generated Free Eagle routes fit inline. The boxed fallback retains the
+/// existing ability to deserialize or construct arbitrarily long routes.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MovePath {
+    storage: MovePathStorage,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+// Inline padding is zero-filled and private; overflow starts strictly above
+// five squares. These canonical forms make derived equality logical equality.
+enum MovePathStorage {
+    Inline {
+        positions: [Position; 5],
+        len: u8,
+    },
+    // A single pointer keeps Move at 24 B. Vec or Box<[Position]> would enlarge
+    // the common inline variant and every Move to 32 B; the lint assumption
+    // that this extra indirection is wasteful does not apply to this fallback.
+    #[allow(clippy::box_collection)]
+    Overflow(Box<Vec<Position>>),
+}
+
+impl MovePath {
+    fn push(&mut self, position: Position) {
+        match &mut self.storage {
+            MovePathStorage::Inline { positions, len } if (*len as usize) < positions.len() => {
+                positions[*len as usize] = position;
+                *len += 1;
+            }
+            MovePathStorage::Overflow(positions) => positions.push(position),
+            MovePathStorage::Inline { .. } => {
+                let mut positions = self.to_vec();
+                positions.push(position);
+                self.storage = MovePathStorage::Overflow(Box::new(positions));
+            }
+        }
+    }
+}
+
+impl std::ops::Deref for MovePath {
+    type Target = [Position];
+    fn deref(&self) -> &[Position] {
+        match &self.storage {
+            MovePathStorage::Inline { positions, len } => &positions[..*len as usize],
+            MovePathStorage::Overflow(positions) => positions,
+        }
+    }
+}
+
+impl From<&[Position]> for MovePath {
+    fn from(path: &[Position]) -> Self {
+        if path.len() <= 5 {
+            let mut positions = [Position::new(0, 0).unwrap(); 5];
+            positions[..path.len()].copy_from_slice(path);
+            Self {
+                storage: MovePathStorage::Inline {
+                    positions,
+                    len: path.len() as u8,
+                },
+            }
+        } else {
+            Self {
+                storage: MovePathStorage::Overflow(Box::new(path.to_vec())),
+            }
+        }
+    }
+}
+
+impl<const N: usize> From<[Position; N]> for MovePath {
+    fn from(path: [Position; N]) -> Self {
+        Self::from(path.as_slice())
+    }
+}
+
+impl From<Vec<Position>> for MovePath {
+    fn from(path: Vec<Position>) -> Self {
+        if path.len() <= 5 {
+            Self::from(path.as_slice())
+        } else {
+            Self {
+                storage: MovePathStorage::Overflow(Box::new(path)),
+            }
+        }
+    }
+}
+
+impl<'a> IntoIterator for &'a MovePath {
+    type Item = &'a Position;
+    type IntoIter = std::slice::Iter<'a, Position>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl serde::Serialize for MovePath {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        self[..].serialize(serializer)
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for MovePath {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        Vec::<Position>::deserialize(deserializer).map(Self::from)
+    }
+}
+
+impl PartialEq<Vec<Position>> for MovePath {
+    fn eq(&self, other: &Vec<Position>) -> bool {
+        &self[..] == other.as_slice()
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum MoveData {
     Standard,
     TwoStep { intermediate: Position },
-    FreeEagle { path: Vec<Position> },
+    FreeEagle { path: MovePath },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -304,12 +416,12 @@ impl Move {
         }
     }
 
-    pub fn new_free_eagle(from: Position, to: Position, path: Vec<Position>) -> Move {
+    pub fn new_free_eagle(from: Position, to: Position, path: impl Into<MovePath>) -> Move {
         Move {
             from,
             to,
             promoted: false,
-            data: MoveData::FreeEagle { path },
+            data: MoveData::FreeEagle { path: path.into() },
         }
     }
 
@@ -321,7 +433,7 @@ impl Move {
         }
     }
 
-    pub fn free_eagle_path(&self) -> Option<&Vec<Position>> {
+    pub fn free_eagle_path(&self) -> Option<&[Position]> {
         match &self.data {
             MoveData::FreeEagle { path } => Some(path),
             _ => None,
@@ -1234,7 +1346,7 @@ impl GameState {
                 let mut seen_empty_routes = [0u8; 36 * 36];
 
                 for capability in &config.capabilities {
-                    if let crate::movement::types::MovementCapability::TwoStep { first, second } =
+                    if let crate::movement::types::MovementCapability::TwoStep { first, .. } =
                         capability
                     {
                         let first_targets = crate::movement::MovementGenerator::capability_landings(
@@ -1276,10 +1388,6 @@ impl GameState {
 
                         if emit_two_step_captures || emit_two_step_quiets {
                             for intermediate in first_targets {
-                                let mut temp_piece = *piece;
-                                temp_piece.position = intermediate;
-                                let after_first =
-                                    BoardAfterStep::new(&self.board, *piece, intermediate);
                                 let inter_cap = self
                                     .board
                                     .get_piece(intermediate)
@@ -1295,53 +1403,55 @@ impl GameState {
                                 let second_captures_only = !inter_cap
                                     && (captures_only
                                         || matches!(mode, LegalMoveGen::WithoutQuietMultiLeg));
-                                let second_targets =
-                                    crate::movement::MovementGenerator::capability_landings_filtered(
-                                        &temp_piece,
-                                        &after_first,
-                                        second.as_ref(),
-                                        second_captures_only,
-                                    );
-                                for target in second_targets {
-                                    if !capability.allows_two_step_continuation(
-                                        &self.board,
-                                        piece.position,
-                                        intermediate,
-                                        target,
-                                    ) {
-                                        continue;
-                                    }
-                                    let dest_cap = self
-                                        .board
-                                        .get_piece(target)
-                                        .is_some_and(|p| p.color != piece.color);
-                                    let is_capture = inter_cap || dest_cap;
-                                    if is_capture && !emit_two_step_captures {
-                                        continue;
-                                    }
-                                    if !is_capture && !emit_two_step_quiets {
-                                        continue;
-                                    }
-                                    if matches!(mode, LegalMoveGen::CapturesOnly) && !is_capture {
-                                        continue;
-                                    }
-                                    if matches!(mode, LegalMoveGen::WithoutQuietMultiLeg)
-                                        && !is_capture
-                                    {
-                                        continue;
-                                    }
-                                    if matches!(mode, LegalMoveGen::QuietMultiLegOnly) && is_capture
-                                    {
-                                        continue;
-                                    }
-                                    self.push_two_step_moves(
-                                        moves,
-                                        piece,
-                                        intermediate,
-                                        target,
-                                        Some(&mut seen_empty_routes),
-                                    );
-                                }
+                                crate::movement::MovementGenerator::visit_second_leg_landings(
+                                    piece,
+                                    &self.board,
+                                    capability,
+                                    intermediate,
+                                    second_captures_only,
+                                    |target| {
+                                        if !capability.allows_two_step_continuation(
+                                            &self.board,
+                                            piece.position,
+                                            intermediate,
+                                            target,
+                                        ) {
+                                            return;
+                                        }
+                                        let dest_cap = self
+                                            .board
+                                            .get_piece(target)
+                                            .is_some_and(|p| p.color != piece.color);
+                                        let is_capture = inter_cap || dest_cap;
+                                        if is_capture && !emit_two_step_captures {
+                                            return;
+                                        }
+                                        if !is_capture && !emit_two_step_quiets {
+                                            return;
+                                        }
+                                        if matches!(mode, LegalMoveGen::CapturesOnly) && !is_capture
+                                        {
+                                            return;
+                                        }
+                                        if matches!(mode, LegalMoveGen::WithoutQuietMultiLeg)
+                                            && !is_capture
+                                        {
+                                            return;
+                                        }
+                                        if matches!(mode, LegalMoveGen::QuietMultiLegOnly)
+                                            && is_capture
+                                        {
+                                            return;
+                                        }
+                                        self.push_two_step_moves(
+                                            moves,
+                                            piece,
+                                            intermediate,
+                                            target,
+                                            Some(&mut seen_empty_routes),
+                                        );
+                                    },
+                                );
                             }
                         }
                     }
@@ -1890,11 +2000,19 @@ impl GameState {
             return ApplyOutcome::Failed;
         }
 
-        if piece.piece_type == PieceType::FreeEagle && !mv.is_free_eagle() {
+        // Generated Standard Free Eagle moves are ordinary range moves: they
+        // stop at the first victim, so any equivalent short multi-leg prefix
+        // has empty intermediate squares. Trusted search application can apply
+        // that direct move without regenerating the entire route list. Keep
+        // destination-only normalization for checked/recorded legacy callers.
+        if piece.piece_type == PieceType::FreeEagle
+            && !mv.is_free_eagle()
+            && (validate || record_history || mv.is_two_step())
+        {
             let free_eagle_moves = self.generate_free_eagle_moves(&piece);
             if let Some(matching_move) = free_eagle_moves.iter().find(|m| m.to == mv.to) {
                 if let Some(path) = matching_move.free_eagle_path() {
-                    mv.data = MoveData::FreeEagle { path: path.clone() };
+                    mv.data = MoveData::FreeEagle { path: path.into() };
                 }
             } else {
                 return ApplyOutcome::Failed;
@@ -2242,8 +2360,8 @@ impl GameState {
     /// Draw occurs when only Kings, Crown Princes, and Great Generals (including pieces that promote into these) remain
     /// Note: This only applies if there are pieces on the board (empty board is a win, not a draw)
     pub fn is_draw_by_insufficient_material(&self) -> bool {
-        let black_pieces = self.board.get_pieces_by_color(Color::Black);
-        let white_pieces = self.board.get_pieces_by_color(Color::White);
+        let black_pieces = self.board.pieces_by_color(Color::Black);
+        let white_pieces = self.board.pieces_by_color(Color::White);
 
         // If either side has no pieces, it's not a draw (game would have ended already)
         if black_pieces.is_empty() || white_pieces.is_empty() {
@@ -2308,13 +2426,13 @@ impl GameState {
 
         // Forward diagonals for this color
         let forward_diagonals = match piece.color {
-            Color::Black => vec![Direction::NE, Direction::NW],
-            Color::White => vec![Direction::SE, Direction::SW],
+            Color::Black => [Direction::NE, Direction::NW],
+            Color::White => [Direction::SE, Direction::SW],
         };
 
         // Other directions (orthogonal and backward diagonals)
         let other_directions = match piece.color {
-            Color::Black => vec![
+            Color::Black => [
                 Direction::N,
                 Direction::S,
                 Direction::E,
@@ -2322,7 +2440,7 @@ impl GameState {
                 Direction::SE,
                 Direction::SW,
             ],
-            Color::White => vec![
+            Color::White => [
                 Direction::N,
                 Direction::S,
                 Direction::E,
@@ -2335,7 +2453,7 @@ impl GameState {
         // Pattern 1: Forward diagonal multi-move (up to 4 spaces)
         for direction in &forward_diagonals {
             let (file_delta, rank_delta) = direction.to_offset();
-            let mut path = vec![piece.position];
+            let mut path = MovePath::from([piece.position]);
             let mut current = piece.position;
 
             for _ in 1..=4 {
@@ -2369,7 +2487,7 @@ impl GameState {
         // Pattern 2: Other directions multi-move (up to 3 spaces)
         for direction in &other_directions {
             let (file_delta, rank_delta) = direction.to_offset();
-            let mut path = vec![piece.position];
+            let mut path = MovePath::from([piece.position]);
             let mut current = piece.position;
 
             for _ in 1..=3 {
@@ -2406,7 +2524,7 @@ impl GameState {
             let back_delta = (-file_delta, -rank_delta);
 
             // Build forward path
-            let mut forward_path = vec![piece.position];
+            let mut forward_path = MovePath::from([piece.position]);
             let mut pos3 = piece.position;
             let mut valid = true;
 
@@ -2452,13 +2570,13 @@ impl GameState {
         }
 
         // Pattern 4: Any direction special (2 forward + 1 back) - only if capture on 2nd space
-        let all_directions = Direction::all();
+        let all_directions = Direction::ALL;
         for direction in all_directions {
             let (file_delta, rank_delta) = direction.to_offset();
             let back_delta = (-file_delta, -rank_delta);
 
             // Build forward path
-            let mut forward_path = vec![piece.position];
+            let mut forward_path = MovePath::from([piece.position]);
             let mut pos2 = piece.position;
             let mut valid = true;
 
@@ -2505,7 +2623,7 @@ impl GameState {
 
         // Pattern 5: Every adjacent capture-and-return route matters: identical
         // endpoints can remove different victims. Do not stop at the first one.
-        for direction in Direction::all() {
+        for direction in Direction::ALL {
             let (df, dr) = direction.to_offset();
             let Some(victim) = piece.position.offset(df, dr) else {
                 continue;
@@ -2519,7 +2637,7 @@ impl GameState {
                 moves.push(Move::new_free_eagle(
                     piece.position,
                     piece.position,
-                    vec![piece.position, victim, piece.position],
+                    [piece.position, victim, piece.position],
                 ));
             }
         }
@@ -2550,7 +2668,7 @@ impl GameState {
                 moves.push(Move::new_free_eagle(
                     piece.position,
                     piece.position,
-                    vec![piece.position, first, second, piece.position],
+                    [piece.position, first, second, piece.position],
                 ));
             }
         }
@@ -2581,6 +2699,126 @@ impl GameState {
 #[cfg(test)]
 mod free_eagle_gate_tests {
     use super::*;
+
+    #[test]
+    fn trusted_free_eagle_ranges_match_legacy_normalization_on_seeded_boards() {
+        use rand::{Rng, SeedableRng};
+        let mut rng = rand::rngs::StdRng::seed_from_u64(0x000f_4eee_a61e);
+        for color in [Color::Black, Color::White] {
+            for fixture in 0..64 {
+                let mut board = Board::new();
+                let from = Position::new(rng.gen_range(0..36), rng.gen_range(0..36)).unwrap();
+                let eagle = Piece::new(PieceType::FreeEagle, color, from);
+                board.place_piece(eagle);
+                for _ in 0..if fixture % 2 == 0 { 32 } else { 800 } {
+                    let square = Position::new(rng.gen_range(0..36), rng.gen_range(0..36)).unwrap();
+                    if square != from {
+                        board.place_piece(Piece::new(
+                            PieceType::Pawn,
+                            if rng.gen_bool(0.5) {
+                                color
+                            } else {
+                                color.opposite()
+                            },
+                            square,
+                        ));
+                    }
+                }
+                let mut state = GameState::new();
+                state.restore_position(board, color, 17);
+                let generated = state.generate_free_eagle_moves(&eagle);
+                for mv in generated.iter().filter(|mv| !mv.is_free_eagle()) {
+                    // Reproduce the previous trusted endpoint normalization,
+                    // including the first matching route rather than choosing
+                    // an arbitrary route with the same endpoint.
+                    let mut legacy = mv.clone();
+                    if let Some(path) = generated
+                        .iter()
+                        .find(|candidate| candidate.to == mv.to)
+                        .and_then(Move::free_eagle_path)
+                    {
+                        legacy.data = MoveData::FreeEagle { path: path.into() };
+                    }
+                    let mut reference = state.clone();
+                    reference.make_move_for_search(legacy).unwrap();
+                    let before_hash = state.hash();
+                    let undo = state.make_move_for_search(mv.clone()).unwrap();
+                    assert_eq!(state.hash(), reference.hash());
+                    assert_eq!(state.hash(), crate::zobrist::compute(&state));
+                    assert_eq!(
+                        crate::notation::tsfen_encode(
+                            &crate::board_position::BoardPosition::from_state(&state),
+                        ),
+                        crate::notation::tsfen_encode(
+                            &crate::board_position::BoardPosition::from_state(&reference),
+                        )
+                    );
+                    state.unmake_move_for_search(undo);
+                    assert_eq!(state.hash(), before_hash);
+                    assert_eq!(state.hash(), crate::zobrist::compute(&state));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn trusted_free_eagle_standard_ranges_match_checked_route_normalization() {
+        for color in [Color::Black, Color::White] {
+            for origin in [(0, 0), (18, 18), (35, 35)] {
+                for pattern in 0..16 {
+                    let mut state = GameState::new();
+                    let from = Position::new(origin.0, origin.1).unwrap();
+                    state.place_piece(Piece::new(PieceType::FreeEagle, color, from));
+                    for (bit, (df, dr)) in [(1, 1), (2, 2), (-1, 0), (0, 4)].into_iter().enumerate()
+                    {
+                        if let Some(to) = from.offset(df, dr) {
+                            state.place_piece(Piece::new(
+                                PieceType::Pawn,
+                                if pattern & (1 << bit) == 0 {
+                                    color.opposite()
+                                } else {
+                                    color
+                                },
+                                to,
+                            ));
+                        }
+                    }
+                    state.set_current_turn(color);
+                    state.set_turns_without_capture_or_promotion(17);
+                    state.reset_rep_history();
+                    let snapshot = crate::notation::tsfen_encode(
+                        &crate::board_position::BoardPosition::from_state(&state),
+                    );
+                    let before_hash = state.hash();
+                    for mv in state
+                        .generate_legal_moves()
+                        .into_iter()
+                        .filter(|mv| mv.from == from && !mv.is_free_eagle() && !mv.is_two_step())
+                    {
+                        let mut checked = state.clone();
+                        checked.make_move(mv.clone());
+                        assert_eq!(checked.get_current_turn(), color.opposite());
+                        let undo = state.make_move_for_search(mv).expect("generated range");
+                        assert_eq!(
+                            crate::board_position::BoardPosition::from_state(&state),
+                            crate::board_position::BoardPosition::from_state(&checked)
+                        );
+                        assert_eq!(state.hash(), checked.hash());
+                        assert_eq!(state.hash(), crate::zobrist::compute(&state));
+                        assert_eq!(state.repetition_count(), checked.repetition_count());
+                        state.unmake_move_for_search(undo);
+                        assert_eq!(state.hash(), before_hash);
+                        assert_eq!(
+                            crate::notation::tsfen_encode(
+                                &crate::board_position::BoardPosition::from_state(&state),
+                            ),
+                            snapshot
+                        );
+                    }
+                }
+            }
+        }
+    }
 
     #[test]
     fn constructed_free_eagle_paths_apply_including_capture_and_return() {
@@ -3382,3 +3620,38 @@ mod move_generation_audit_tests;
 #[cfg(test)]
 #[path = "range_two_mover_rules_tests.rs"]
 mod range_two_mover_rules_tests;
+
+#[cfg(test)]
+mod move_path_storage_tests {
+    use super::*;
+    #[test]
+    fn inline_and_overflow_routes_preserve_the_existing_json_shape() {
+        for len in [0, 1, 5, 6, 40] {
+            let positions: Vec<_> = (0..len).map(|i| Position::from_index(i).unwrap()).collect();
+            let path = MovePath::from(positions.clone());
+            assert_eq!(&path[..], positions.as_slice());
+            let json = serde_json::to_string(&path).unwrap();
+            assert_eq!(json, serde_json::to_string(&positions).unwrap());
+            assert_eq!(serde_json::from_str::<MovePath>(&json).unwrap(), path);
+            assert_eq!(path.clone(), path);
+            if let Some(&first) = positions.first() {
+                let mut pushed = MovePath::from([first]);
+                for &position in &positions[1..] {
+                    pushed.push(position);
+                }
+                assert_eq!(pushed, path);
+            }
+            assert_eq!(
+                matches!(path.storage, MovePathStorage::Inline { .. }),
+                len <= 5
+            );
+        }
+        let from = Position::new(18, 18).unwrap();
+        let mut path = MovePath::from([from]);
+        for i in 0..12 {
+            path.push(Position::from_index(i).unwrap());
+        }
+        assert!(matches!(path.storage, MovePathStorage::Overflow(_)));
+        assert_eq!(path.len(), 13);
+    }
+}

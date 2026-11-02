@@ -1,0 +1,42 @@
+diff --git a/src/board.rs b/src/board.rs
+index f86481a..0772980 100644
+--- a/src/board.rs
++++ b/src/board.rs
+@@ -7,15 +7,15 @@ use crate::tengu_attack;
+ /// Uses a flat vector for efficient access
+ /// Maintains separate piece lists by color for fast iteration
+ pub struct Board {
+-    piece_slots: Box<[u16]>, // square → index in its color list; empty = u16::MAX
+-    occupied: [[u64; 21]; 2], // occupied squares by color
++    piece_slots: Box<[u16; 1296]>, // square → index in its color list; empty = u16::MAX
++    occupied: [[u64; 21]; 2],      // occupied squares by color
+     global_attackers: [[u64; 21]; 2], // movers that need unaligned attack probes
+-    royal_count: [u16; 2],   // kings and crown princes by color
++    royal_count: [u16; 2],         // kings and crown princes by color
+     royal_squares: [Vec<Position>; 2], // sparse index for royal-only queries
+     single_royal: [Option<Position>; 2], // royal square when count is exactly one
+-    squares: Vec<Option<Piece>>, // 36 * 36 = 1296 squares
+-    black_pieces: Vec<Piece>, // Fast iteration over black pieces
+-    white_pieces: Vec<Piece>, // Fast iteration over white pieces
++    squares: Box<[Option<Piece>; 1296]>, // 36 * 36 = 1296 squares
++    black_pieces: Vec<Piece>,      // Fast iteration over black pieces
++    white_pieces: Vec<Piece>,      // Fast iteration over white pieces
+ }
+ 
+ impl Default for Board {
+@@ -27,13 +27,13 @@ impl Default for Board {
+ impl Board {
+     pub fn new() -> Board {
+         Board {
+-            piece_slots: vec![u16::MAX; 1296].into_boxed_slice(),
++            piece_slots: vec![u16::MAX; 1296].into_boxed_slice().try_into().unwrap(),
+             occupied: [[0; 21]; 2],
+             global_attackers: [[0; 21]; 2],
+             royal_count: [0; 2],
+             royal_squares: [Vec::new(), Vec::new()],
+             single_royal: [None; 2],
+-            squares: vec![None; 1296],
++            squares: vec![None; 1296].into_boxed_slice().try_into().unwrap(),
+             black_pieces: Vec::new(),
+             white_pieces: Vec::new(),
+         }

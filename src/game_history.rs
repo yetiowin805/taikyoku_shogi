@@ -119,7 +119,9 @@ impl GameHistory {
                     intermediate_file: intermediate.file(),
                     intermediate_rank: intermediate.rank(),
                 },
-                MoveData::FreeEagle { path } => MoveRecordData::FreeEagle { path: path.clone() },
+                MoveData::FreeEagle { path } => MoveRecordData::FreeEagle {
+                    path: path.to_vec(),
+                },
             };
 
             game.moves.push(MoveRecord {
@@ -188,7 +190,9 @@ impl GameHistory {
                 intermediate_file: intermediate.file(),
                 intermediate_rank: intermediate.rank(),
             },
-            MoveData::FreeEagle { path } => MoveRecordData::FreeEagle { path: path.clone() },
+            MoveData::FreeEagle { path } => MoveRecordData::FreeEagle {
+                path: path.to_vec(),
+            },
         };
 
         MoveRecord {
