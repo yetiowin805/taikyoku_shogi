@@ -30,7 +30,10 @@ pub struct Report {
     pub z: f64,
     pub minimum_games: usize,
     pub minimum_covered_opponents: usize,
+    /// Largest nontrivial SCC, retained for report compatibility.
     pub core: Vec<String>,
+    pub minimum_scc_agents: usize,
+    pub eligible_components: Vec<Vec<String>>,
     pub candidates: BTreeMap<String, Candidate>,
     pub generations: BTreeMap<String, Generation>,
     /// Ordinary retirement candidates kept eligible by their generation.
@@ -114,8 +117,8 @@ fn classify(games: usize, covered: usize, lower: impl Iterator<Item = f64>) -> (
 }
 
 pub(super) fn evaluate(state: &TourneyState, fit: &Fit) -> Result<Report, String> {
-    // Match the replay's largest SCC, including deterministic equal-size ties.
-    // New/separated agents stay eligible for connectivity repair.
+    // Retain the largest SCC label for older consumers. Retirement is evaluated
+    // independently in every SCC with at least nine agents.
     let core = fit
         .components
         .iter()
@@ -125,70 +128,72 @@ pub(super) fn evaluate(state: &TourneyState, fit: &Fit) -> Result<Report, String
         .unwrap_or_default();
     let (generations, unclassified) = generations(state, fit)?;
     let mut report = Report {
-        policy: "rank8-three50-z1.96-g20o6-generations-v3",
+        policy: "rank8-three50-z1.96-g20o6-scc9-generations-v4",
         z: Z,
         minimum_games: 20,
         minimum_covered_opponents: 6,
         core,
+        minimum_scc_agents: 9,
+        eligible_components: fit
+            .components
+            .iter()
+            .filter(|g| g.len() >= 9)
+            .cloned()
+            .collect(),
         candidates: BTreeMap::new(),
         generations,
         retained_by_generation: BTreeSet::new(),
         unclassified,
         inactive: BTreeSet::new(),
     };
-    let n = report.core.len();
-    if n < 9 {
+    if report.eligible_components.is_empty() {
         report.protect_generations();
         return Ok(report);
-    }
-    let ratings = report
-        .core
-        .iter()
-        .map(|id| fit.ratings.get(id).copied().ok_or("missing core rating"))
-        .collect::<Result<Vec<_>, _>>()?;
-    let index: BTreeMap<_, _> = report
-        .core
-        .iter()
-        .enumerate()
-        .map(|(i, id)| (id, i))
-        .collect();
-    let mut opponents = vec![BTreeMap::<&str, usize>::new(); n];
-    for slot in state.slots.iter().filter(|s| s.status == SlotStatus::Done) {
-        let left = index.get(&slot.model_a).copied();
-        let right = index.get(&slot.model_b).copied();
-        if let Some(i) = left {
-            *opponents[i].entry(&slot.model_b).or_default() += 1;
-        }
-        if let Some(j) = right {
-            *opponents[j].entry(&slot.model_a).or_default() += 1;
-        }
     }
     let mut model = Model::new(state, fit)?;
     model.set_from_fit(fit);
     let cov = model.covariance()?;
     let meat = model.cluster_meat(state);
     let robust = multiply(&multiply(&cov, &meat), &cov);
-    for i in 0..n {
-        let lower = (0..n)
-            .filter(|&j| j != i)
-            .map(|j| {
-                let contrast = model.contrast(&report.core[i], &report.core[j]);
-                let model_variance = variance(&cov, &contrast);
-                let block_variance = variance(&robust, &contrast);
-                let se = SCALE * model_variance.max(block_variance).max(0.0).sqrt();
-                ratings[j] - ratings[i] - Z * se
-            })
-            .collect::<Vec<_>>();
-        if lower.iter().any(|v| !v.is_finite()) {
-            return Err("nonfinite retirement bound".into());
+    for group in &report.eligible_components {
+        let n = group.len();
+        let ratings = group
+            .iter()
+            .map(|id| fit.ratings.get(id).copied().ok_or("missing SCC rating"))
+            .collect::<Result<Vec<_>, _>>()?;
+        let index: BTreeMap<_, _> = group.iter().enumerate().map(|(i, id)| (id, i)).collect();
+        let mut opponents = vec![BTreeMap::<&str, usize>::new(); n];
+        for slot in state.slots.iter().filter(|s| s.status == SlotStatus::Done) {
+            // Cross-SCC games remain historical rating evidence, but cannot
+            // satisfy this SCC's retirement exposure/coverage requirements.
+            let (Some(&i), Some(&j)) = (index.get(&slot.model_a), index.get(&slot.model_b)) else {
+                continue;
+            };
+            *opponents[i].entry(&slot.model_b).or_default() += 1;
+            *opponents[j].entry(&slot.model_a).or_default() += 1;
         }
-        let games = opponents[i].values().sum();
-        let covered = opponents[i].values().filter(|&&v| v >= 2).count();
-        let (candidate, inactive) = classify(games, covered, lower.into_iter());
-        if inactive {
-            report.inactive.insert(report.core[i].clone());
+        for i in 0..n {
+            let lower = (0..n)
+                .filter(|&j| j != i)
+                .map(|j| {
+                    let contrast = model.contrast(&group[i], &group[j]);
+                    let model_variance = variance(&cov, &contrast);
+                    let block_variance = variance(&robust, &contrast);
+                    let se = SCALE * model_variance.max(block_variance).max(0.0).sqrt();
+                    ratings[j] - ratings[i] - Z * se
+                })
+                .collect::<Vec<_>>();
+            if lower.iter().any(|v| !v.is_finite()) {
+                return Err("nonfinite retirement bound".into());
+            }
+            let games = opponents[i].values().sum();
+            let covered = opponents[i].values().filter(|&&v| v >= 2).count();
+            let (candidate, inactive) = classify(games, covered, lower.into_iter());
+            if inactive {
+                report.inactive.insert(group[i].clone());
+            }
+            report.candidates.insert(group[i].clone(), candidate);
         }
-        report.candidates.insert(report.core[i].clone(), candidate);
     }
     report.protect_generations();
     Ok(report)
@@ -400,6 +405,92 @@ mod tests {
             ["agent00", "agent01"]
         );
         assert_eq!(report.unclassified.len(), 9);
+    }
+
+    fn nine_agent_scc() -> TourneyState {
+        let mut state = fixture();
+        state
+            .entrants
+            .retain(|e| e.id != "agent08" && e.id != "agent10");
+        state
+            .slots
+            .retain(|s| s.model_a != "agent08" && s.model_b != "agent08");
+        state
+    }
+
+    #[test]
+    fn every_nine_agent_scc_can_retire_without_a_majority() {
+        let mut state = nine_agent_scc();
+        let mut second = state.clone();
+        for entrant in &mut second.entrants {
+            entrant.id = entrant.id.replace("agent", "other");
+        }
+        for slot in &mut second.slots {
+            slot.model_a = slot.model_a.replace("agent", "other");
+            slot.model_b = slot.model_b.replace("agent", "other");
+            slot.id += state.slots.len();
+        }
+        state.entrants.extend(second.entrants);
+        state.slots.extend(second.slots);
+        // Neither 9-agent SCC is more than half this 19-agent field.
+        state.entrants.push(TourneyEntrant {
+            id: "unplayed".into(),
+            model: "unused.json".into(),
+            engine: None,
+            generation: None,
+        });
+        let fit = super::super::order_neutral::from_state(&state);
+        let report = fit.retirement.unwrap();
+        assert_eq!(report.minimum_scc_agents, 9);
+        assert_eq!(report.eligible_components.len(), 2);
+        assert_eq!(report.candidates.len(), 18);
+        assert_eq!(
+            report.inactive,
+            BTreeSet::from(["agent09".into(), "other09".into()])
+        );
+        assert!(!report.candidates.contains_key("unplayed"));
+    }
+
+    #[test]
+    fn fewer_than_nine_agents_cannot_retire() {
+        let mut state = nine_agent_scc();
+        state.entrants.retain(|e| e.id != "agent07");
+        state
+            .slots
+            .retain(|s| s.model_a != "agent07" && s.model_b != "agent07");
+        state.retired.insert("agent09".into());
+        ensure_ratings(&mut state);
+        let fit = super::super::order_neutral::from_state(&state);
+        let report = fit.retirement.unwrap();
+        assert_eq!(report.core.len(), 8);
+        assert!(report.eligible_components.is_empty());
+        assert!(report.candidates.is_empty());
+        assert!(state.retired.is_empty());
+    }
+
+    #[test]
+    fn outside_scc_games_cannot_satisfy_retirement_coverage() {
+        let mut state = fixture();
+        // Keep one win each way against every core opponent: 18 SCC games.
+        state
+            .slots
+            .retain(|slot| slot.model_b != "agent09" || matches!(slot.id % 20, 0 | 18));
+        for _ in 0..20 {
+            let mut slot = state.slots[0].clone();
+            slot.id = state.slots.iter().map(|s| s.id).max().unwrap() + 1;
+            slot.model_a = "agent09".into();
+            slot.model_b = "agent10".into();
+            slot.score_a = Some(0.);
+            state.slots.push(slot);
+        }
+        let fit = super::super::order_neutral::from_state(&state);
+        let report = fit.retirement.unwrap();
+        let candidate = &report.candidates["agent09"];
+        assert_eq!(candidate.games, 18);
+        assert_eq!(candidate.covered_opponents, 9);
+        assert!(!candidate.coverage_met);
+        assert!(!report.inactive.contains("agent09"));
+        assert!(!report.candidates.contains_key("agent10"));
     }
 
     #[test]
