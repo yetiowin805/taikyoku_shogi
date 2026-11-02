@@ -329,10 +329,10 @@ macro_rules! attack_map_groups {
 }
 
 attack_map_groups! {
-    attack_maps_with_blockers_and_at_edges_group_0: 0,
-    attack_maps_with_blockers_and_at_edges_group_1: 1,
-    attack_maps_with_blockers_and_at_edges_group_2: 2,
-    attack_maps_with_blockers_and_at_edges_group_3: 3,
+    attack_maps_match_generated_reach_with_blockers_and_at_edges_group_0: 0,
+    attack_maps_match_generated_reach_with_blockers_and_at_edges_group_1: 1,
+    attack_maps_match_generated_reach_with_blockers_and_at_edges_group_2: 2,
+    attack_maps_match_generated_reach_with_blockers_and_at_edges_group_3: 3,
 }
 
 #[test]

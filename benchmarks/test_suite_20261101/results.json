@@ -183,7 +183,7 @@
   },
   "limits": [
     "Small sample counts: report min/max and sample standard deviation only; no latency percentiles or confidence intervals.",
-    "Rust data measured a31be0d; the Rust/Cargo source is identical at the final implementation revision.",
+    "Rust data measured a31be0d. The only later Rust change preserves the original audit test-name filter by expanding the four wrapper names; test bodies, matrix partitions and Cargo settings are unchanged.",
     "Deployment has one baseline observation, so its baseline variability is unknown. Its baseline timing boundary is slightly narrower than the candidate.",
     "Local runtime reductions cannot be multiplied directly into CI job durations, which include build/setup and different hardware/toolchains.",
     "The full-suite serial deployment command also passed after implementation; randomized-search and tactical-tree Python suites passed.",
