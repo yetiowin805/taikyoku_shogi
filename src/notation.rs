@@ -148,7 +148,7 @@ pub fn move_decode(token: &str) -> Result<Move, String> {
         _ => {
             // from + path (path should end at `to`)
             let path = squares[1..].to_vec();
-            MoveData::FreeEagle { path }
+            MoveData::FreeEagle { path: path.into() }
         }
     };
     Ok(Move {

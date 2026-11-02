@@ -16,6 +16,16 @@ pub enum Direction {
 pub type DirectionSet = u8;
 
 impl Direction {
+    pub const ALL: [Direction; 8] = [
+        Direction::N,
+        Direction::NE,
+        Direction::E,
+        Direction::SE,
+        Direction::S,
+        Direction::SW,
+        Direction::W,
+        Direction::NW,
+    ];
     /// Opposite direction on the board (N↔S, NE↔SW, E↔W, NW↔SE).
     pub fn opposite(self) -> Direction {
         match self {
@@ -75,16 +85,7 @@ impl Direction {
 
     /// Get all 8 directions
     pub fn all() -> Vec<Direction> {
-        vec![
-            Direction::N,
-            Direction::NE,
-            Direction::E,
-            Direction::SE,
-            Direction::S,
-            Direction::SW,
-            Direction::W,
-            Direction::NW,
-        ]
+        Self::ALL.to_vec()
     }
 }
 
@@ -112,10 +113,7 @@ pub fn direction_set_remove(set: &mut DirectionSet, direction: Direction) {
 }
 
 pub fn direction_set_to_directions(set: DirectionSet) -> Vec<Direction> {
-    Direction::all()
-        .into_iter()
-        .filter(|&dir| direction_set_contains(set, dir))
-        .collect()
+    direction_iter(set).collect()
 }
 
 pub fn direction_set_is_empty(set: DirectionSet) -> bool {

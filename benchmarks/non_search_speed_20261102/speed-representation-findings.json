@@ -1,0 +1,1203 @@
+{
+  "baseline": "a28150ff16194682b6849491c673f0de0e7c67c6",
+  "build": "Rust release thinLTO codegen-units1 generic x86_64; no native target flag",
+  "method": "7 samples x128 batches; timings ns per batch; corpus all1296 square queries unless stated; kernel-only results do not establish search gains",
+  "findings": {
+    "R03": {
+      "status": "integrated candidate; paired-search measurement pending",
+      "candidate_patch": "/tmp/speed-r03-inline-path.patch",
+      "binary": "/tmp/speed-r03-inline-path",
+      "binary_sha256": "4868537db400fcdffbb6bd943ddafeb5d70f0ec33dd19d3a7373a4ff2715e3d1",
+      "implementation": "Inline five-square Free Eagle routes plus boxed-Vec overflow; generator running paths also inline. Move32\u219224B and MoveData24\u219216B; arbitrary JSON route lengths and encoded route order preserved. Clone not Copy.",
+      "validation": "548 library tests pass plus new empty/1/5/6/40-square JSON and overflow storage regression pass. Final all-target/all-feature Clippy passes with one documented compact-layout box_collection exception.",
+      "limits": "Rust FreeEagle path variant now MovePath; accessor returns slice. Overflow has extra box indirection. Must measure whole search before accepting broad representation API change.",
+      "search_binary": "/tmp/speed-r03-search",
+      "search_binary_sha256": "4e06034dbf56d56bcb276a826aeede15c2c1675d2f09d54539e3f63c04a6c1eb",
+      "source_sha256": {
+        "src/game_state.rs": "e5ca9174643af33ddc401c663aec5e3081f51bacffab6e5865108236a333658c",
+        "src/game_history.rs": "2ad1ce89e484f692f0487d8a19376adda922297133bec5ee26a69c270cfe424d",
+        "src/notation.rs": "b3286f1fd2beac17bc74feab9927d81cac7544816b5c75ca06c0a687268af781"
+      },
+      "patch_sha256": "6a777a7e48ec7a366e74cf05679dc0da4532ce604bad74a28419c8c177269588"
+    },
+    "R08": {
+      "status": "integrated candidate; paired-search measurement pending",
+      "candidate_patch": "/tmp/speed-r08-fixed-arrays.patch",
+      "binary": "/tmp/speed-r08-fixed-arrays",
+      "binary_sha256": "ed35de764f7142f9adecd52efce1f89cc4d8509d6c0f1aa2688dd061cf23021f",
+      "implementation": "Fixed heap Box<[Option<Piece>;1296]> squares and Box<[u16;1296]> slots; saves24B Board header.",
+      "validation": "31 board tests pass.",
+      "limits": "Fixed Box clone code generation can differ from Vec memcpy; less metadata is not itself proof of search saving.",
+      "search_binary": "/tmp/speed-r08-search",
+      "search_binary_sha256": "aa68d142f73486cca24d3fadde93ec87e984c46b8def95a774a5f6cad74f6112",
+      "source_sha256": {
+        "src/board.rs": "8a70b1dc59a58a8fff04ed319d9a06aff0855e0b010e22a62622bd84ee2d3818"
+      },
+      "patch_sha256": "b5ea6fb70ce3340927be01e0d98e397b1374f59ade6d01151863605a38c71fe1"
+    },
+    "R04": {
+      "status": "measured kernel; not selected for production without integrated evidence",
+      "implementation": "Packed u64 endpoint clone/decode kernel plus prior complete ordered-route encoding parity.",
+      "limits": "New timing kernel isolates endpoint-only access, not full route identity/promotion spill/serde and public API migration. Cannot infer integrated gain from list copying.",
+      "kernel_ratios": {
+        "R04clone": 0.06580660739137087,
+        "R04decode": 0.2821489078630376
+      },
+      "correctness": "All paired checksums match at all6 corpus roots; geometry next/full-ray/mailbox also asserts ordinary blocker parity.",
+      "disposition": "Speculative / possible. Copying packed endpoints costs6.58% and endpoint decoding28.21% of the current Move-list kernels. Full ordered-route packing has prior parity evidence but is not integrated; no search saving claimed."
+    },
+    "R06": {
+      "status": "measured kernel; not selected for production without integrated evidence",
+      "implementation": "Actual-position direct square reads compared with color-tagged slots plus dependent army lookup; same type checksum.",
+      "limits": "No integrated mutator/clone implementation; swap-remove and occupied/royal index maintenance must remain exact.",
+      "kernel_ratios": {
+        "R06": 1.0213580459224578
+      },
+      "correctness": "All paired checksums match at all6 corpus roots; geometry next/full-ray/mailbox also asserts ordinary blocker parity.",
+      "disposition": "Dubious as a general read optimization: tagged-slot reads2.14% slower geometrically, with per-position ratios0.865\u20131.181. Sparsity changes the winner. Clone/mutation savings might offset this, but current search primarily makes/unmakes."
+    },
+    "R07": {
+      "status": "measured kernel; not selected for production without integrated evidence",
+      "implementation": "Coordinate offsets\u2192linear index versus u16 linear offset with explicit file/rank boundary checks; parity.",
+      "limits": "Both Position forms2B. Index encoding accelerates some indexing but makes file/rank reads, serde and file-major Ord compatibility costlier; kernel only one offset mix. All6runs repeat the same1296-square offset workload; differences across reported rows are timing variation, not board-phase effects.",
+      "kernel_ratios": {
+        "R07": 0.7528335648752401
+      },
+      "correctness": "All paired checksums match at all6 corpus roots; geometry next/full-ray/mailbox also asserts ordinary blocker parity.",
+      "disposition": "Speculative / possible: linear-u16 offset/index kernel24.72% faster; same2B storage. Coordinate-heavy consumers, ordering and wire format must be accounted for before migration."
+    },
+    "R09": {
+      "status": "measured kernel; not selected for production without integrated evidence",
+      "implementation": "Actual-position8B Piece AoS versus split position/type arrays; complete-use and position-only scans.",
+      "limits": "Detached scan kernel excludes multiple-array synchronization, promotions, swap-remove and lookup locality.",
+      "kernel_ratios": {
+        "R09complete": 1.0342481714706486,
+        "R09positions": 0.9837630578451529
+      },
+      "correctness": "All paired checksums match at all6 corpus roots; geometry next/full-ray/mailbox also asserts ordinary blocker parity.",
+      "disposition": "Dubious for movement-like position+type access: SoA scans3.42% slower even though color/promotion/origin fields are omitted, favoring SoA. Position-only scans1.62% faster with mixed per-position direction. No evidence supporting whole-board representation migration."
+    },
+    "R10": {
+      "status": "measured kernel; not selected for production without integrated evidence",
+      "implementation": "All1296 squares x8 rays; repeated coordinate bounds vs20,736B next-index table vs300,720B full-ray payload, ordinary blocker parity.",
+      "limits": "Excludes Move emission, jumping/capturing-range restrictions, virtual overlays and added cache pressure during NNUE/search. No full engine claim. Counts include first occupied blocker irrespective of color; this is not legal-move enumeration.",
+      "kernel_ratios": {
+        "R10next": 0.7201472430975329,
+        "R10full": 0.6897834358806311
+      },
+      "correctness": "All paired checksums match at all6 corpus roots; geometry next/full-ray/mailbox also asserts ordinary blocker parity.",
+      "disposition": "Speculative / possible: next-square28.0% faster; full-ray31.0% faster for ordinary blocker counting. Actual generator emission, specialized captures, extra cache traffic and VirtualBoard semantics remain unmeasured. Incremental ray stepping is a smaller follow-up option."
+    },
+    "R11": {
+      "status": "measured kernel; not selected for production without integrated evidence",
+      "implementation": "38x38 sentinel mailbox ordinary ray walk with coordinate translation, checksum matches eight-direction baseline.",
+      "limits": "Excludes API coordinate conversion, large-jump padding, piece payload and existing sparse army/royal indexes; not a replacement implementation. Counts include first occupied blocker irrespective of color; this is not legal-move enumeration.",
+      "kernel_ratios": {
+        "R11": 0.3589055267131402
+      },
+      "correctness": "All paired checksums match at all6 corpus roots; geometry next/full-ray/mailbox also asserts ordinary blocker parity.",
+      "disposition": "Speculative / possible: sentinel mailbox64.1% faster for ordinary occupancy-only ray walking. Kernel uses1B occupancy1444-slot mailbox; a real Piece payload board is larger and must preserve APIs, sparse lists and long jumps."
+    },
+    "R12": {
+      "status": "measured kernel; not selected for production without integrated evidence",
+      "implementation": "Orthogonal visited-square counts using row/file occupancy u64 words versus square-by-square stepping; both include the first occupied blocker irrespective of color, with equal checksums.",
+      "limits": "Excludes occupancy maintenance, diagonals, capture class restrictions, virtual overlay updates, and Move emission. Large count-only wins remain speculative whole-engine savings.",
+      "kernel_ratios": {
+        "R12": 0.0499009513191779
+      },
+      "correctness": "All paired checksums match at all6 corpus roots; geometry next/full-ray/mailbox also asserts ordinary blocker parity.",
+      "disposition": "Promising geometry kernel / production speculative: rank/file occupancy visited-square counts95.0% faster, with exact count parity including the first blocker. This is not a legal-move count: friendly/enemy endpoint eligibility is not modeled. Excludes update/overlay/piece-class/Move-emission cost. Existing rank-major occupied bitsets might support a smaller rank-only experiment without a full extra occupancy mirror."
+    },
+    "R15": {
+      "status": "compiled complete descriptor-layout prototype + actual-position config-walk measurement",
+      "implementation": "Alternative enum mirrors every movement descriptor and recursively converts real configs, boxing40B Range blocker sets. Compiled enum shrinks48\u219232B, and full descriptor-walk checksums match at all6roots.",
+      "limits": "Current configs initialized once and borrowed. Moving blocker data adds indirection on capturing rays; no evidence yet that config footprint dominates. Full flatten rewrite beyond a quick safe trial. The workload uses for_piece_type, so promoted RainDragon/Whale origin dispatch is not modeled.",
+      "kernel_ratios": {
+        "R15": 1.2115961961003632
+      },
+      "correctness": "All paired checksums match at all6 corpus roots; geometry next/full-ray/mailbox also asserts ordinary blocker parity.",
+      "disposition": "Reject simple blocker boxing: despite33% descriptor shrink, config walks21.16% slower (per-position14.7\u201330.4% slower). Full interning/static flattening might differ but is still speculative and needs a movement profile."
+    },
+    "R16": {
+      "status": "measured kernel; not selected for production without integrated evidence",
+      "implementation": "Warm per-piece OnceLock lookup versus preinitialized direct config references on actual piece-type mix.",
+      "limits": "Direct-reference kernel is idealized. One global OnceLock still has an acquire check, while eliminating all runtime checks requires static tables/slices and special RainDragon/Whale handling; no startup or whole-engine claim.",
+      "kernel_ratios": {
+        "R16": 0.7415963906755708
+      },
+      "correctness": "All paired checksums match at all6 corpus roots; geometry next/full-ray/mailbox also asserts ordinary blocker parity.",
+      "disposition": "Speculative / possible: preloaded config-reference lookup25.84% faster than warm per-entry OnceLock in the isolated lookup kernel. A single global runtime OnceLock still checks readiness, and building all configs eagerly adds startup work; it does not achieve this idealized path."
+    },
+    "R18": {
+      "status": "measured kernel; not selected for production without integrated evidence",
+      "implementation": "One-capture Vec allocation versus inline Option payload for1296 captures per batch.",
+      "limits": "Kernel is best-case ordinary capture only. Correct production storage needs arbitrary capturing-ray spill; proposed inline-one/boxed spill may shrink Delta48\u219240B but needs real capture mix/whole-search parity and performance validation. All6runs repeat the same one-Pawn/1296-position workload; variation is timing replication, not capture-mix coverage.",
+      "kernel_ratios": {
+        "R18": 0.0710255093619906
+      },
+      "correctness": "All paired checksums match at all6 corpus roots; geometry next/full-ray/mailbox also asserts ordinary blocker parity.",
+      "disposition": "Speculative / possible: inline ordinary one-capture payload costs7.1% of allocating Vec in the kernel. Production fallback for capturing rays, real capture frequency, clone/move size and API consumers are not measured; no search saving claimed."
+    }
+  },
+  "corpus_sha256": "d64ce5eedc1e972be8b991b9dca211a833f38fb0eeb0ec53530c505b24944986",
+  "source_corpus": "/home/frank/taikyoku_shogi/data/derived/non-search-speed-20261102/positions.jsonl",
+  "corpus_positions": [
+    {
+      "ply": 24,
+      "pieces": 706,
+      "source_game": "/mnt/HC_Volume_107032879/taikyoku/tourney/corrected-rules-20261031/slot0703-NNUE_W512_v3_HLF_G3GA-vs-NNUE_W512_v3_HLF_G3ATK-a-black.json",
+      "source_game_sha256": "9c9108f56ae681b83562af99c477b28959c0519873eb50186b8bd5940828605c",
+      "replay_engine_sha256": "d38d9c545df75fb871e358fb99be3562b0fe19ad39918f4088db31da92b98550"
+    },
+    {
+      "ply": 701,
+      "pieces": 412,
+      "source_game": "/mnt/HC_Volume_107032879/taikyoku/tourney/corrected-rules-20261031/slot0703-NNUE_W512_v3_HLF_G3GA-vs-NNUE_W512_v3_HLF_G3ATK-a-black.json",
+      "source_game_sha256": "9c9108f56ae681b83562af99c477b28959c0519873eb50186b8bd5940828605c",
+      "replay_engine_sha256": "d38d9c545df75fb871e358fb99be3562b0fe19ad39918f4088db31da92b98550"
+    },
+    {
+      "ply": 161,
+      "pieces": 660,
+      "source_game": "/mnt/HC_Volume_107032879/taikyoku/tourney/corrected-rules-20261031/slot0700-NNUE_W512_v3-vs-NNUE_W512_v3_HLF_G3FP-a-white.json",
+      "source_game_sha256": "37de679e5090e022e8ead138d0bb102eb4282370ce23d44d438e8e35d13aa010",
+      "replay_engine_sha256": "d38d9c545df75fb871e358fb99be3562b0fe19ad39918f4088db31da92b98550"
+    },
+    {
+      "ply": 1400,
+      "pieces": 167,
+      "source_game": "/mnt/HC_Volume_107032879/taikyoku/tourney/corrected-rules-20261031/slot0700-NNUE_W512_v3-vs-NNUE_W512_v3_HLF_G3FP-a-white.json",
+      "source_game_sha256": "37de679e5090e022e8ead138d0bb102eb4282370ce23d44d438e8e35d13aa010",
+      "replay_engine_sha256": "d38d9c545df75fb871e358fb99be3562b0fe19ad39918f4088db31da92b98550"
+    },
+    {
+      "ply": 420,
+      "pieces": 482,
+      "source_game": "/mnt/HC_Volume_107032879/taikyoku/tourney/corrected-rules-20261031/slot0633-NNUE_W512_v3_HLFS_G3PT-vs-NNUE_W512_v3_HLF_CH-a-white.json",
+      "source_game_sha256": "fc7256c8362cac638344336d11ec42521a793956de08a4eeeb02a0e3956b0943",
+      "replay_engine_sha256": "d38d9c545df75fb871e358fb99be3562b0fe19ad39918f4088db31da92b98550"
+    },
+    {
+      "ply": 931,
+      "pieces": 254,
+      "source_game": "/mnt/HC_Volume_107032879/taikyoku/tourney/corrected-rules-20261031/slot0633-NNUE_W512_v3_HLFS_G3PT-vs-NNUE_W512_v3_HLF_CH-a-white.json",
+      "source_game_sha256": "fc7256c8362cac638344336d11ec42521a793956de08a4eeeb02a0e3956b0943",
+      "replay_engine_sha256": "d38d9c545df75fb871e358fb99be3562b0fe19ad39918f4088db31da92b98550"
+    }
+  ],
+  "kernel_probe": {
+    "binary": "/tmp/speed-representation-probe",
+    "binary_sha256": "9fa4b9d62cda016e2e06b6657324985e9dac7d00afb311f08986cef57689ac35",
+    "source": "/home/frank/.codex/worktrees/speed-representation/taikyoku_shogi/examples/non_search_representation_probe.rs",
+    "source_sha256": "3372fc27e7849a2f589a59f6469ffc5e5a59c0058a44b7e3e2c55249c0352af6",
+    "source_patch": "/tmp/speed-representation-probe.patch",
+    "cpu_affinity": 2,
+    "quiet_wall_seconds": 3.260610560999339,
+    "repetitions": 7,
+    "batches_per_repetition": 128,
+    "per_sample_statistic": "mean ns per batch; reported value median of7 samples; ranges are min/max sample batch means",
+    "layouts": {
+      "Board": 800,
+      "Move": 32,
+      "MoveData": 24,
+      "MoveDelta": 48,
+      "Piece": 8,
+      "Position": 2,
+      "MovementCapability": 48,
+      "CompactCapability": 32
+    },
+    "note": "Probe built against R08 fixed-array candidate, with original32-byte Move. Both sides of each kernel use identical board state. This isolates representation access/geometry; no whole-search claim.",
+    "geometry_semantics": "Visited squares along ordinary rays, including the first occupied blocker regardless of color. Counts model geometric ray traversal work and are not legal-move counts. Queries cover every square, not just current-turn pieces.",
+    "replication_limits": "R07 coordinate-offset and R18 capture-allocation inputs are identical across all6 runs: all1296 squares and the same single Pawn payload. Their six reported position rows are repeat runs, not independent phase-dependent workloads. Other kernel inputs vary with board occupancy, piece mix, or move list."
+  },
+  "kernel_measurements": [
+    {
+      "name": "R06",
+      "baseline": "R06_direct_square_reads",
+      "candidate": "R06_slot_only_reads",
+      "geomean_candidate_over_baseline": 1.0213580459224578,
+      "min_position_ratio": 0.8645638874746446,
+      "max_position_ratio": 1.1806268428524627,
+      "positions": [
+        {
+          "position": 0,
+          "baseline_ns": 1001.546875,
+          "candidate_ns": 1182.453125,
+          "ratio": 1.1806268428524627,
+          "baseline_sample_min_ns": 833.640625,
+          "baseline_sample_max_ns": 1054.609375,
+          "candidate_sample_min_ns": 1110.9453125,
+          "candidate_sample_max_ns": 1274.0390625,
+          "checksum": 94988
+        },
+        {
+          "position": 1,
+          "baseline_ns": 1030.28125,
+          "candidate_ns": 992.671875,
+          "ratio": 0.9634960114046529,
+          "baseline_sample_min_ns": 956.453125,
+          "baseline_sample_max_ns": 1120.296875,
+          "candidate_sample_min_ns": 967.2890625,
+          "candidate_sample_max_ns": 1100.3046875,
+          "checksum": 53979
+        },
+        {
+          "position": 2,
+          "baseline_ns": 931.6875,
+          "candidate_ns": 1070.3828125,
+          "ratio": 1.1488646273562755,
+          "baseline_sample_min_ns": 929.578125,
+          "baseline_sample_max_ns": 1020.078125,
+          "candidate_sample_min_ns": 1067.2734375,
+          "candidate_sample_max_ns": 1222.890625,
+          "checksum": 86335
+        },
+        {
+          "position": 3,
+          "baseline_ns": 966.7265625,
+          "candidate_ns": 835.796875,
+          "ratio": 0.8645638874746446,
+          "baseline_sample_min_ns": 807.015625,
+          "baseline_sample_max_ns": 998.328125,
+          "candidate_sample_min_ns": 829.59375,
+          "candidate_sample_max_ns": 855.078125,
+          "checksum": 19456
+        },
+        {
+          "position": 4,
+          "baseline_ns": 925.3984375,
+          "candidate_ns": 989.4453125,
+          "ratio": 1.0692100531021267,
+          "baseline_sample_min_ns": 912.78125,
+          "baseline_sample_max_ns": 1028.3125,
+          "candidate_sample_min_ns": 968.484375,
+          "candidate_sample_max_ns": 1013.546875,
+          "checksum": 64451
+        },
+        {
+          "position": 5,
+          "baseline_ns": 931.375,
+          "candidate_ns": 875.1875,
+          "ratio": 0.9396725271775601,
+          "baseline_sample_min_ns": 879.0625,
+          "baseline_sample_max_ns": 1027.625,
+          "candidate_sample_min_ns": 868.359375,
+          "candidate_sample_max_ns": 950.734375,
+          "checksum": 30599
+        }
+      ]
+    },
+    {
+      "name": "R07",
+      "baseline": "R07_coordinate_offsets",
+      "candidate": "R07_linear_offsets",
+      "geomean_candidate_over_baseline": 0.7528335648752401,
+      "min_position_ratio": 0.6529367393417178,
+      "max_position_ratio": 0.8956582206962493,
+      "positions": [
+        {
+          "position": 0,
+          "baseline_ns": 1077.140625,
+          "candidate_ns": 703.3046875,
+          "ratio": 0.6529367393417178,
+          "baseline_sample_min_ns": 1063.6796875,
+          "baseline_sample_max_ns": 1096.1171875,
+          "candidate_sample_min_ns": 700.3203125,
+          "candidate_sample_max_ns": 831.3046875,
+          "checksum": 771750
+        },
+        {
+          "position": 1,
+          "baseline_ns": 1075.7890625,
+          "candidate_ns": 806.2578125,
+          "ratio": 0.7494571571738767,
+          "baseline_sample_min_ns": 1033.796875,
+          "baseline_sample_max_ns": 1082.9140625,
+          "candidate_sample_min_ns": 804.25,
+          "candidate_sample_max_ns": 807.8515625,
+          "checksum": 771750
+        },
+        {
+          "position": 2,
+          "baseline_ns": 898.7890625,
+          "candidate_ns": 805.0078125,
+          "ratio": 0.8956582206962493,
+          "baseline_sample_min_ns": 807.03125,
+          "baseline_sample_max_ns": 984.671875,
+          "candidate_sample_min_ns": 801.6171875,
+          "candidate_sample_max_ns": 834.2421875,
+          "checksum": 771750
+        },
+        {
+          "position": 3,
+          "baseline_ns": 1076.9140625,
+          "candidate_ns": 803.1875,
+          "ratio": 0.7458232072255069,
+          "baseline_sample_min_ns": 866.578125,
+          "baseline_sample_max_ns": 1129.2109375,
+          "candidate_sample_min_ns": 801.1875,
+          "candidate_sample_max_ns": 865.65625,
+          "checksum": 771750
+        },
+        {
+          "position": 4,
+          "baseline_ns": 1078.796875,
+          "candidate_ns": 804.8359375,
+          "ratio": 0.7460495633156149,
+          "baseline_sample_min_ns": 1074.9921875,
+          "baseline_sample_max_ns": 1142.90625,
+          "candidate_sample_min_ns": 801.3984375,
+          "candidate_sample_max_ns": 866.0390625,
+          "checksum": 771750
+        },
+        {
+          "position": 5,
+          "baseline_ns": 1048.6640625,
+          "candidate_ns": 782.828125,
+          "ratio": 0.7465003836726788,
+          "baseline_sample_min_ns": 786.296875,
+          "baseline_sample_max_ns": 1055.7265625,
+          "candidate_sample_min_ns": 782.5234375,
+          "candidate_sample_max_ns": 982.046875,
+          "checksum": 771750
+        }
+      ]
+    },
+    {
+      "name": "R09complete",
+      "baseline": "R09_AoS_position_type",
+      "candidate": "R09_SoA_position_type",
+      "geomean_candidate_over_baseline": 1.0342481714706486,
+      "min_position_ratio": 0.996957287639267,
+      "max_position_ratio": 1.147362705319839,
+      "positions": [
+        {
+          "position": 0,
+          "baseline_ns": 517.9609375,
+          "candidate_ns": 594.2890625,
+          "ratio": 1.147362705319839,
+          "baseline_sample_min_ns": 517.765625,
+          "baseline_sample_max_ns": 576.9296875,
+          "candidate_sample_min_ns": 543.0546875,
+          "candidate_sample_max_ns": 596.4453125,
+          "checksum": 532574
+        },
+        {
+          "position": 1,
+          "baseline_ns": 341.4921875,
+          "candidate_ns": 340.453125,
+          "ratio": 0.996957287639267,
+          "baseline_sample_min_ns": 340.03125,
+          "baseline_sample_max_ns": 358.875,
+          "candidate_sample_min_ns": 340.2734375,
+          "candidate_sample_max_ns": 340.921875,
+          "checksum": 299595
+        },
+        {
+          "position": 2,
+          "baseline_ns": 553.8203125,
+          "candidate_ns": 552.515625,
+          "ratio": 0.997644204319429,
+          "baseline_sample_min_ns": 553.6640625,
+          "baseline_sample_max_ns": 554.4609375,
+          "candidate_sample_min_ns": 552.1875,
+          "candidate_sample_max_ns": 569.9765625,
+          "checksum": 520950
+        },
+        {
+          "position": 3,
+          "baseline_ns": 126.34375,
+          "candidate_ns": 126.796875,
+          "ratio": 1.0035864457086323,
+          "baseline_sample_min_ns": 125.6953125,
+          "baseline_sample_max_ns": 127.6640625,
+          "candidate_sample_min_ns": 125.890625,
+          "candidate_sample_max_ns": 130.8515625,
+          "checksum": 187335
+        },
+        {
+          "position": 4,
+          "baseline_ns": 391.9609375,
+          "candidate_ns": 400.0859375,
+          "ratio": 1.0207291064559207,
+          "baseline_sample_min_ns": 390.421875,
+          "baseline_sample_max_ns": 409.8984375,
+          "candidate_sample_min_ns": 390.3828125,
+          "candidate_sample_max_ns": 405.9296875,
+          "checksum": 366246
+        },
+        {
+          "position": 5,
+          "baseline_ns": 195.4765625,
+          "candidate_ns": 204.65625,
+          "ratio": 1.0469605531353663,
+          "baseline_sample_min_ns": 195.1015625,
+          "baseline_sample_max_ns": 195.96875,
+          "candidate_sample_min_ns": 200.3125,
+          "candidate_sample_max_ns": 227.2734375,
+          "checksum": 207105
+        }
+      ]
+    },
+    {
+      "name": "R09positions",
+      "baseline": "R09_AoS_positions_only",
+      "candidate": "R09_SoA_positions_only",
+      "geomean_candidate_over_baseline": 0.9837630578451529,
+      "min_position_ratio": 0.8739640075543554,
+      "max_position_ratio": 1.044811320754717,
+      "positions": [
+        {
+          "position": 0,
+          "baseline_ns": 500.5390625,
+          "candidate_ns": 437.453125,
+          "ratio": 0.8739640075543554,
+          "baseline_sample_min_ns": 436.59375,
+          "baseline_sample_max_ns": 517.390625,
+          "candidate_sample_min_ns": 437.2734375,
+          "candidate_sample_max_ns": 504.0234375,
+          "checksum": 438292
+        },
+        {
+          "position": 1,
+          "baseline_ns": 280.578125,
+          "candidate_ns": 283.6015625,
+          "ratio": 1.010775742050454,
+          "baseline_sample_min_ns": 278.546875,
+          "baseline_sample_max_ns": 284.1328125,
+          "candidate_sample_min_ns": 283.265625,
+          "candidate_sample_max_ns": 285.6171875,
+          "checksum": 246028
+        },
+        {
+          "position": 2,
+          "baseline_ns": 465.1875,
+          "candidate_ns": 466.03125,
+          "ratio": 1.001813784764208,
+          "baseline_sample_min_ns": 464.9296875,
+          "baseline_sample_max_ns": 465.8125,
+          "candidate_sample_min_ns": 465.5703125,
+          "candidate_sample_max_ns": 487.296875,
+          "checksum": 435275
+        },
+        {
+          "position": 3,
+          "baseline_ns": 99.375,
+          "candidate_ns": 103.828125,
+          "ratio": 1.044811320754717,
+          "baseline_sample_min_ns": 99.09375,
+          "baseline_sample_max_ns": 103.6171875,
+          "candidate_sample_min_ns": 103.5078125,
+          "candidate_sample_max_ns": 175.6328125,
+          "checksum": 168046
+        },
+        {
+          "position": 4,
+          "baseline_ns": 327.3046875,
+          "candidate_ns": 327.15625,
+          "ratio": 0.999546485260771,
+          "baseline_sample_min_ns": 322.2890625,
+          "baseline_sample_max_ns": 362.8046875,
+          "candidate_sample_min_ns": 326.9765625,
+          "candidate_sample_max_ns": 328.125,
+          "checksum": 302277
+        },
+        {
+          "position": 5,
+          "baseline_ns": 166.96875,
+          "candidate_ns": 163.7578125,
+          "ratio": 0.9807692307692307,
+          "baseline_sample_min_ns": 162.6640625,
+          "baseline_sample_max_ns": 173.2890625,
+          "candidate_sample_min_ns": 163.59375,
+          "candidate_sample_max_ns": 163.84375,
+          "checksum": 176760
+        }
+      ]
+    },
+    {
+      "name": "R10next",
+      "baseline": "R10_arithmetic_rays",
+      "candidate": "R10_next_square_table",
+      "geomean_candidate_over_baseline": 0.7201472430975329,
+      "min_position_ratio": 0.6677670972711959,
+      "max_position_ratio": 0.7677844848806528,
+      "positions": [
+        {
+          "position": 0,
+          "baseline_ns": 99700.5546875,
+          "candidate_ns": 66576.75,
+          "ratio": 0.6677670972711959,
+          "baseline_sample_min_ns": 95760.359375,
+          "baseline_sample_max_ns": 116884.140625,
+          "candidate_sample_min_ns": 65749.2578125,
+          "candidate_sample_max_ns": 69285.4765625,
+          "checksum": 44052
+        },
+        {
+          "position": 1,
+          "baseline_ns": 181379.5234375,
+          "candidate_ns": 129152.34375,
+          "ratio": 0.7120558114957419,
+          "baseline_sample_min_ns": 169895.40625,
+          "baseline_sample_max_ns": 191510.6171875,
+          "candidate_sample_min_ns": 127948.3125,
+          "candidate_sample_max_ns": 132528.6796875,
+          "checksum": 63592
+        },
+        {
+          "position": 2,
+          "baseline_ns": 122094.53125,
+          "candidate_ns": 82493.15625,
+          "ratio": 0.6756498870624068,
+          "baseline_sample_min_ns": 115737.7421875,
+          "baseline_sample_max_ns": 124888.0078125,
+          "candidate_sample_min_ns": 80294.046875,
+          "candidate_sample_max_ns": 87962.265625,
+          "checksum": 46014
+        },
+        {
+          "position": 3,
+          "baseline_ns": 269875.5390625,
+          "candidate_ns": 201946.6953125,
+          "ratio": 0.7482956625636661,
+          "baseline_sample_min_ns": 265309.03125,
+          "baseline_sample_max_ns": 290147.359375,
+          "candidate_sample_min_ns": 199766.6796875,
+          "candidate_sample_max_ns": 203968.6171875,
+          "checksum": 100260
+        },
+        {
+          "position": 4,
+          "baseline_ns": 147074.078125,
+          "candidate_ns": 112921.1953125,
+          "ratio": 0.7677844848806528,
+          "baseline_sample_min_ns": 146110.265625,
+          "baseline_sample_max_ns": 154419.7109375,
+          "candidate_sample_min_ns": 111267.1953125,
+          "candidate_sample_max_ns": 116740.3828125,
+          "checksum": 56442
+        },
+        {
+          "position": 5,
+          "baseline_ns": 236735.5859375,
+          "candidate_ns": 178903.171875,
+          "ratio": 0.7557088266494578,
+          "baseline_sample_min_ns": 234684.265625,
+          "baseline_sample_max_ns": 246787.703125,
+          "candidate_sample_min_ns": 175122.6875,
+          "candidate_sample_max_ns": 181931.9921875,
+          "checksum": 87222
+        }
+      ]
+    },
+    {
+      "name": "R10full",
+      "baseline": "R10_arithmetic_rays",
+      "candidate": "R10_full_ray_table",
+      "geomean_candidate_over_baseline": 0.6897834358806311,
+      "min_position_ratio": 0.6185111545487012,
+      "max_position_ratio": 0.7843165981088824,
+      "positions": [
+        {
+          "position": 0,
+          "baseline_ns": 99700.5546875,
+          "candidate_ns": 67850.7734375,
+          "ratio": 0.680545596262433,
+          "baseline_sample_min_ns": 95760.359375,
+          "baseline_sample_max_ns": 116884.140625,
+          "candidate_sample_min_ns": 65506.8359375,
+          "candidate_sample_max_ns": 77484.2265625,
+          "checksum": 44052
+        },
+        {
+          "position": 1,
+          "baseline_ns": 181379.5234375,
+          "candidate_ns": 128679.40625,
+          "ratio": 0.7094483644640324,
+          "baseline_sample_min_ns": 169895.40625,
+          "baseline_sample_max_ns": 191510.6171875,
+          "candidate_sample_min_ns": 128109.015625,
+          "candidate_sample_max_ns": 130106.5625,
+          "checksum": 63592
+        },
+        {
+          "position": 2,
+          "baseline_ns": 122094.53125,
+          "candidate_ns": 81876.84375,
+          "ratio": 0.6706020565519801,
+          "baseline_sample_min_ns": 115737.7421875,
+          "baseline_sample_max_ns": 124888.0078125,
+          "candidate_sample_min_ns": 78801.6015625,
+          "candidate_sample_max_ns": 100513.28125,
+          "checksum": 46014
+        },
+        {
+          "position": 3,
+          "baseline_ns": 269875.5390625,
+          "candidate_ns": 166921.03125,
+          "ratio": 0.6185111545487012,
+          "baseline_sample_min_ns": 265309.03125,
+          "baseline_sample_max_ns": 290147.359375,
+          "candidate_sample_min_ns": 165585.1171875,
+          "candidate_sample_max_ns": 171076.1171875,
+          "checksum": 100260
+        },
+        {
+          "position": 4,
+          "baseline_ns": 147074.078125,
+          "candidate_ns": 115352.640625,
+          "ratio": 0.7843165981088824,
+          "baseline_sample_min_ns": 146110.265625,
+          "baseline_sample_max_ns": 154419.7109375,
+          "candidate_sample_min_ns": 113869.71875,
+          "candidate_sample_max_ns": 120504.0234375,
+          "checksum": 56442
+        },
+        {
+          "position": 5,
+          "baseline_ns": 236735.5859375,
+          "candidate_ns": 162352.234375,
+          "ratio": 0.6857956472072696,
+          "baseline_sample_min_ns": 234684.265625,
+          "baseline_sample_max_ns": 246787.703125,
+          "candidate_sample_min_ns": 161834.8203125,
+          "candidate_sample_max_ns": 164170,
+          "checksum": 87222
+        }
+      ]
+    },
+    {
+      "name": "R11",
+      "baseline": "R10_arithmetic_rays",
+      "candidate": "R11_padded_mailbox",
+      "geomean_candidate_over_baseline": 0.3589055267131402,
+      "min_position_ratio": 0.33528282380399366,
+      "max_position_ratio": 0.3966424870290174,
+      "positions": [
+        {
+          "position": 0,
+          "baseline_ns": 99700.5546875,
+          "candidate_ns": 35713.46875,
+          "ratio": 0.3582073225363669,
+          "baseline_sample_min_ns": 95760.359375,
+          "baseline_sample_max_ns": 116884.140625,
+          "candidate_sample_min_ns": 35347.171875,
+          "candidate_sample_max_ns": 38365.5390625,
+          "checksum": 44052
+        },
+        {
+          "position": 1,
+          "baseline_ns": 181379.5234375,
+          "candidate_ns": 63983.7109375,
+          "ratio": 0.3527614899680095,
+          "baseline_sample_min_ns": 169895.40625,
+          "baseline_sample_max_ns": 191510.6171875,
+          "candidate_sample_min_ns": 60733.109375,
+          "candidate_sample_max_ns": 68634.84375,
+          "checksum": 63592
+        },
+        {
+          "position": 2,
+          "baseline_ns": 122094.53125,
+          "candidate_ns": 44923.3984375,
+          "ratio": 0.3679394808070079,
+          "baseline_sample_min_ns": 115737.7421875,
+          "baseline_sample_max_ns": 124888.0078125,
+          "candidate_sample_min_ns": 40614.2734375,
+          "candidate_sample_max_ns": 45624.4296875,
+          "checksum": 46014
+        },
+        {
+          "position": 3,
+          "baseline_ns": 269875.5390625,
+          "candidate_ns": 90484.6328125,
+          "ratio": 0.33528282380399366,
+          "baseline_sample_min_ns": 265309.03125,
+          "baseline_sample_max_ns": 290147.359375,
+          "candidate_sample_min_ns": 89188.6015625,
+          "candidate_sample_max_ns": 94147.484375,
+          "checksum": 100260
+        },
+        {
+          "position": 4,
+          "baseline_ns": 147074.078125,
+          "candidate_ns": 58335.828125,
+          "ratio": 0.3966424870290174,
+          "baseline_sample_min_ns": 146110.265625,
+          "baseline_sample_max_ns": 154419.7109375,
+          "candidate_sample_min_ns": 55777.625,
+          "candidate_sample_max_ns": 61429.4453125,
+          "checksum": 56442
+        },
+        {
+          "position": 5,
+          "baseline_ns": 236735.5859375,
+          "candidate_ns": 81835.5234375,
+          "ratio": 0.3456832360602736,
+          "baseline_sample_min_ns": 234684.265625,
+          "baseline_sample_max_ns": 246787.703125,
+          "candidate_sample_min_ns": 80357.0390625,
+          "candidate_sample_max_ns": 85282.6484375,
+          "checksum": 87222
+        }
+      ]
+    },
+    {
+      "name": "R12",
+      "baseline": "R12_arithmetic_rook",
+      "candidate": "R12_line_occupancy_rook",
+      "geomean_candidate_over_baseline": 0.0499009513191779,
+      "min_position_ratio": 0.029450806097213372,
+      "max_position_ratio": 0.08035562846531437,
+      "positions": [
+        {
+          "position": 0,
+          "baseline_ns": 52785.953125,
+          "candidate_ns": 4241.6484375,
+          "ratio": 0.08035562846531437,
+          "baseline_sample_min_ns": 50798.9921875,
+          "baseline_sample_max_ns": 59284.921875,
+          "candidate_sample_min_ns": 4230.1015625,
+          "candidate_sample_max_ns": 4355.5625,
+          "checksum": 25664
+        },
+        {
+          "position": 1,
+          "baseline_ns": 86321.8203125,
+          "candidate_ns": 4247.875,
+          "ratio": 0.04920974771641694,
+          "baseline_sample_min_ns": 84066.2421875,
+          "baseline_sample_max_ns": 88381.53125,
+          "candidate_sample_min_ns": 4232.078125,
+          "candidate_sample_max_ns": 4331.28125,
+          "checksum": 35426
+        },
+        {
+          "position": 2,
+          "baseline_ns": 52190.734375,
+          "candidate_ns": 3884.5234375,
+          "ratio": 0.07442936919777726,
+          "baseline_sample_min_ns": 50579.9375,
+          "baseline_sample_max_ns": 55234.609375,
+          "candidate_sample_min_ns": 3775.1640625,
+          "candidate_sample_max_ns": 4229.3828125,
+          "checksum": 26546
+        },
+        {
+          "position": 3,
+          "baseline_ns": 129617.1015625,
+          "candidate_ns": 3817.328125,
+          "ratio": 0.029450806097213372,
+          "baseline_sample_min_ns": 128157.6015625,
+          "baseline_sample_max_ns": 132325.109375,
+          "candidate_sample_min_ns": 3758.875,
+          "candidate_sample_max_ns": 4092.03125,
+          "checksum": 57150
+        },
+        {
+          "position": 4,
+          "baseline_ns": 70297.8125,
+          "candidate_ns": 3780.6484375,
+          "ratio": 0.05378045636199562,
+          "baseline_sample_min_ns": 68714.1875,
+          "baseline_sample_max_ns": 75318.5,
+          "candidate_sample_min_ns": 3742.2734375,
+          "candidate_sample_max_ns": 3990.21875,
+          "checksum": 31570
+        },
+        {
+          "position": 5,
+          "baseline_ns": 114448.03125,
+          "candidate_ns": 3790.7734375,
+          "ratio": 0.03312222496182082,
+          "baseline_sample_min_ns": 112629.171875,
+          "baseline_sample_max_ns": 115593.625,
+          "candidate_sample_min_ns": 3682.4140625,
+          "candidate_sample_max_ns": 3993.9375,
+          "checksum": 49410
+        }
+      ]
+    },
+    {
+      "name": "R15",
+      "baseline": "R15_wide_config_walk",
+      "candidate": "R15_compact_config_walk",
+      "geomean_candidate_over_baseline": 1.2115961961003632,
+      "min_position_ratio": 1.1466328351685706,
+      "max_position_ratio": 1.3038258917004923,
+      "positions": [
+        {
+          "position": 0,
+          "baseline_ns": 3256.578125,
+          "candidate_ns": 4025.28125,
+          "ratio": 1.2360462717288565,
+          "baseline_sample_min_ns": 3126.515625,
+          "baseline_sample_max_ns": 3591.8125,
+          "candidate_sample_min_ns": 3979.328125,
+          "candidate_sample_max_ns": 4255.796875,
+          "checksum": 177782
+        },
+        {
+          "position": 1,
+          "baseline_ns": 1727.671875,
+          "candidate_ns": 2100.984375,
+          "ratio": 1.2160783568928561,
+          "baseline_sample_min_ns": 1717.9296875,
+          "baseline_sample_max_ns": 1857.203125,
+          "candidate_sample_min_ns": 1858.34375,
+          "candidate_sample_max_ns": 2157.859375,
+          "checksum": 79437
+        },
+        {
+          "position": 2,
+          "baseline_ns": 2937.7421875,
+          "candidate_ns": 3477.09375,
+          "ratio": 1.1835939058215945,
+          "baseline_sample_min_ns": 2634.640625,
+          "baseline_sample_max_ns": 3085.59375,
+          "candidate_sample_min_ns": 3280.828125,
+          "candidate_sample_max_ns": 3765.6171875,
+          "checksum": 148578
+        },
+        {
+          "position": 3,
+          "baseline_ns": 643.5078125,
+          "candidate_ns": 737.8671875,
+          "ratio": 1.1466328351685706,
+          "baseline_sample_min_ns": 622.2578125,
+          "baseline_sample_max_ns": 703.6484375,
+          "candidate_sample_min_ns": 732.0390625,
+          "candidate_sample_max_ns": 762.453125,
+          "checksum": 36072
+        },
+        {
+          "position": 4,
+          "baseline_ns": 1899.6796875,
+          "candidate_ns": 2476.8515625,
+          "ratio": 1.3038258917004923,
+          "baseline_sample_min_ns": 1875.9609375,
+          "baseline_sample_max_ns": 2002.2734375,
+          "candidate_sample_min_ns": 2247.3359375,
+          "candidate_sample_max_ns": 2586.75,
+          "checksum": 106023
+        },
+        {
+          "position": 5,
+          "baseline_ns": 996.453125,
+          "candidate_ns": 1185.1171875,
+          "ratio": 1.189335612249698,
+          "baseline_sample_min_ns": 993.1171875,
+          "baseline_sample_max_ns": 1129.5078125,
+          "candidate_sample_min_ns": 1160.078125,
+          "candidate_sample_max_ns": 1321.0703125,
+          "checksum": 58476
+        }
+      ]
+    },
+    {
+      "name": "R16",
+      "baseline": "R16_warm_OnceLock_configs",
+      "candidate": "R16_flat_config_references",
+      "geomean_candidate_over_baseline": 0.7415963906755708,
+      "min_position_ratio": 0.6736239246603245,
+      "max_position_ratio": 0.7811913089925392,
+      "positions": [
+        {
+          "position": 0,
+          "baseline_ns": 451.6484375,
+          "candidate_ns": 325.3046875,
+          "ratio": 0.7202608500112435,
+          "baseline_sample_min_ns": 449.25,
+          "baseline_sample_max_ns": 453.390625,
+          "candidate_sample_min_ns": 302.203125,
+          "candidate_sample_max_ns": 350.84375,
+          "checksum": 1260
+        },
+        {
+          "position": 1,
+          "baseline_ns": 268.5859375,
+          "candidate_ns": 207.359375,
+          "ratio": 0.7720410715843975,
+          "baseline_sample_min_ns": 266.75,
+          "baseline_sample_max_ns": 270.9453125,
+          "candidate_sample_min_ns": 179.1015625,
+          "candidate_sample_max_ns": 207.4921875,
+          "checksum": 727
+        },
+        {
+          "position": 2,
+          "baseline_ns": 453.4140625,
+          "candidate_ns": 354.203125,
+          "ratio": 0.7811913089925392,
+          "baseline_sample_min_ns": 445.578125,
+          "baseline_sample_max_ns": 463.3515625,
+          "candidate_sample_min_ns": 304.8359375,
+          "candidate_sample_max_ns": 354.359375,
+          "checksum": 1174
+        },
+        {
+          "position": 3,
+          "baseline_ns": 104.0234375,
+          "candidate_ns": 79.8046875,
+          "ratio": 0.7671798723244461,
+          "baseline_sample_min_ns": 102.1640625,
+          "baseline_sample_max_ns": 104.6875,
+          "candidate_sample_min_ns": 69.2890625,
+          "candidate_sample_max_ns": 81.1640625,
+          "checksum": 282
+        },
+        {
+          "position": 4,
+          "baseline_ns": 326.0234375,
+          "candidate_ns": 219.6171875,
+          "ratio": 0.6736239246603245,
+          "baseline_sample_min_ns": 321.2265625,
+          "baseline_sample_max_ns": 329.0078125,
+          "candidate_sample_min_ns": 218.890625,
+          "candidate_sample_max_ns": 254.40625,
+          "checksum": 848
+        },
+        {
+          "position": 5,
+          "baseline_ns": 170.7421875,
+          "candidate_ns": 126.515625,
+          "ratio": 0.740974605353466,
+          "baseline_sample_min_ns": 163.484375,
+          "baseline_sample_max_ns": 178.2734375,
+          "candidate_sample_min_ns": 110.4375,
+          "candidate_sample_max_ns": 126.8671875,
+          "checksum": 457
+        }
+      ]
+    },
+    {
+      "name": "R04clone",
+      "baseline": "R04_Move_list_clone",
+      "candidate": "R04_packed_list_clone",
+      "geomean_candidate_over_baseline": 0.06580660739137087,
+      "min_position_ratio": 0.044822390412026535,
+      "max_position_ratio": 0.08178895612708018,
+      "positions": [
+        {
+          "position": 0,
+          "baseline_ns": 705.1328125,
+          "candidate_ns": 48.90625,
+          "ratio": 0.06935750135723545,
+          "baseline_sample_min_ns": 688.8046875,
+          "baseline_sample_max_ns": 731.609375,
+          "candidate_sample_min_ns": 48.0078125,
+          "candidate_sample_max_ns": 51.6328125,
+          "checksum": 517
+        },
+        {
+          "position": 1,
+          "baseline_ns": 726.1640625,
+          "candidate_ns": 41.8046875,
+          "ratio": 0.05756920461758599,
+          "baseline_sample_min_ns": 725.9453125,
+          "baseline_sample_max_ns": 744.4296875,
+          "candidate_sample_min_ns": 41.7265625,
+          "candidate_sample_max_ns": 43.0859375,
+          "checksum": 654
+        },
+        {
+          "position": 2,
+          "baseline_ns": 661,
+          "candidate_ns": 54.0625,
+          "ratio": 0.08178895612708018,
+          "baseline_sample_min_ns": 648.921875,
+          "baseline_sample_max_ns": 710.4375,
+          "candidate_sample_min_ns": 51.2578125,
+          "candidate_sample_max_ns": 55.9296875,
+          "checksum": 571
+        },
+        {
+          "position": 3,
+          "baseline_ns": 1353.2578125,
+          "candidate_ns": 60.65625,
+          "ratio": 0.044822390412026535,
+          "baseline_sample_min_ns": 1325.859375,
+          "baseline_sample_max_ns": 1444.234375,
+          "candidate_sample_min_ns": 60.1328125,
+          "candidate_sample_max_ns": 61.828125,
+          "checksum": 1030
+        },
+        {
+          "position": 4,
+          "baseline_ns": 876.34375,
+          "candidate_ns": 61.5,
+          "ratio": 0.07017794101914916,
+          "baseline_sample_min_ns": 769.5,
+          "baseline_sample_max_ns": 880.7890625,
+          "candidate_sample_min_ns": 60.546875,
+          "candidate_sample_max_ns": 63.4140625,
+          "checksum": 618
+        },
+        {
+          "position": 5,
+          "baseline_ns": 707.5546875,
+          "candidate_ns": 55.9375,
+          "ratio": 0.07905749334746652,
+          "baseline_sample_min_ns": 697.859375,
+          "baseline_sample_max_ns": 731.40625,
+          "candidate_sample_min_ns": 54.0625,
+          "candidate_sample_max_ns": 56.671875,
+          "checksum": 595
+        }
+      ]
+    },
+    {
+      "name": "R04decode",
+      "baseline": "R04_Move_endpoint_decode",
+      "candidate": "R04_packed_endpoint_decode",
+      "geomean_candidate_over_baseline": 0.2821489078630376,
+      "min_position_ratio": 0.27576058129757003,
+      "max_position_ratio": 0.291541612397833,
+      "positions": [
+        {
+          "position": 0,
+          "baseline_ns": 376.9453125,
+          "candidate_ns": 105.875,
+          "ratio": 0.28087628759145267,
+          "baseline_sample_min_ns": 376.75,
+          "baseline_sample_max_ns": 419.2265625,
+          "candidate_sample_min_ns": 105.6796875,
+          "candidate_sample_max_ns": 111.9140625,
+          "checksum": 439615
+        },
+        {
+          "position": 1,
+          "baseline_ns": 478.5625,
+          "candidate_ns": 137.6875,
+          "ratio": 0.2877105916155152,
+          "baseline_sample_min_ns": 478.3125,
+          "baseline_sample_max_ns": 488.421875,
+          "candidate_sample_min_ns": 137.3828125,
+          "candidate_sample_max_ns": 163.1171875,
+          "checksum": 1173213
+        },
+        {
+          "position": 2,
+          "baseline_ns": 416.46875,
+          "candidate_ns": 116.5546875,
+          "ratio": 0.2798641854881069,
+          "baseline_sample_min_ns": 416.1484375,
+          "baseline_sample_max_ns": 435.2109375,
+          "candidate_sample_min_ns": 116.28125,
+          "candidate_sample_max_ns": 117.5234375,
+          "checksum": 974946
+        },
+        {
+          "position": 3,
+          "baseline_ns": 724.671875,
+          "candidate_ns": 199.8359375,
+          "ratio": 0.27576058129757003,
+          "baseline_sample_min_ns": 703.875,
+          "baseline_sample_max_ns": 780.828125,
+          "candidate_sample_min_ns": 199.3203125,
+          "candidate_sample_max_ns": 201.53125,
+          "checksum": 1474799
+        },
+        {
+          "position": 4,
+          "baseline_ns": 501.1484375,
+          "candidate_ns": 139.0546875,
+          "ratio": 0.27747205637052397,
+          "baseline_sample_min_ns": 500.2265625,
+          "baseline_sample_max_ns": 524.34375,
+          "candidate_sample_min_ns": 136.453125,
+          "candidate_sample_max_ns": 161.109375,
+          "checksum": 495877
+        },
+        {
+          "position": 5,
+          "baseline_ns": 413.8828125,
+          "candidate_ns": 120.6640625,
+          "ratio": 0.291541612397833,
+          "baseline_sample_min_ns": 413.5703125,
+          "baseline_sample_max_ns": 469.1015625,
+          "candidate_sample_min_ns": 120.34375,
+          "candidate_sample_max_ns": 123.3515625,
+          "checksum": 1274750
+        }
+      ]
+    },
+    {
+      "name": "R18",
+      "baseline": "R18_Vec_one_capture",
+      "candidate": "R18_inline_one_capture",
+      "geomean_candidate_over_baseline": 0.0710255093619906,
+      "min_position_ratio": 0.06923653292519659,
+      "max_position_ratio": 0.07377588704176924,
+      "positions": [
+        {
+          "position": 0,
+          "baseline_ns": 9452.1796875,
+          "candidate_ns": 677.78125,
+          "ratio": 0.07170634418813782,
+          "baseline_sample_min_ns": 8994.21875,
+          "baseline_sample_max_ns": 9811.46875,
+          "candidate_sample_min_ns": 676.59375,
+          "candidate_sample_max_ns": 699.015625,
+          "checksum": 1296
+        },
+        {
+          "position": 1,
+          "baseline_ns": 9174.8515625,
+          "candidate_ns": 676.8828125,
+          "ratio": 0.07377588704176924,
+          "baseline_sample_min_ns": 9063.9765625,
+          "baseline_sample_max_ns": 9987.0390625,
+          "candidate_sample_min_ns": 676.359375,
+          "candidate_sample_max_ns": 690.109375,
+          "checksum": 1296
+        },
+        {
+          "position": 2,
+          "baseline_ns": 9478.0234375,
+          "candidate_ns": 661.28125,
+          "ratio": 0.06976995302455434,
+          "baseline_sample_min_ns": 9271.3671875,
+          "baseline_sample_max_ns": 9604.2734375,
+          "candidate_sample_min_ns": 660.296875,
+          "candidate_sample_max_ns": 678.4296875,
+          "checksum": 1296
+        },
+        {
+          "position": 3,
+          "baseline_ns": 9362.3046875,
+          "candidate_ns": 676.8046875,
+          "ratio": 0.07229039324084698,
+          "baseline_sample_min_ns": 8587.9609375,
+          "baseline_sample_max_ns": 9703.6328125,
+          "candidate_sample_min_ns": 676.5703125,
+          "candidate_sample_max_ns": 678.4375,
+          "checksum": 1296
+        },
+        {
+          "position": 4,
+          "baseline_ns": 9747.75,
+          "candidate_ns": 677.3828125,
+          "ratio": 0.06949119668641482,
+          "baseline_sample_min_ns": 9416.25,
+          "baseline_sample_max_ns": 10043.6015625,
+          "candidate_sample_min_ns": 676.53125,
+          "candidate_sample_max_ns": 698.625,
+          "checksum": 1296
+        },
+        {
+          "position": 5,
+          "baseline_ns": 9780.21875,
+          "candidate_ns": 677.1484375,
+          "ratio": 0.06923653292519659,
+          "baseline_sample_min_ns": 8824.6875,
+          "baseline_sample_max_ns": 10123.6875,
+          "candidate_sample_min_ns": 676.40625,
+          "candidate_sample_max_ns": 699.4140625,
+          "checksum": 1296
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,294 @@
+diff --git a/src/game_history.rs b/src/game_history.rs
+index 19cd8a1..84b3676 100644
+--- a/src/game_history.rs
++++ b/src/game_history.rs
+@@ -119,7 +119,9 @@ impl GameHistory {
+                     intermediate_file: intermediate.file(),
+                     intermediate_rank: intermediate.rank(),
+                 },
+-                MoveData::FreeEagle { path } => MoveRecordData::FreeEagle { path: path.clone() },
++                MoveData::FreeEagle { path } => MoveRecordData::FreeEagle {
++                    path: path.to_vec(),
++                },
+             };
+ 
+             game.moves.push(MoveRecord {
+@@ -188,7 +190,9 @@ impl GameHistory {
+                 intermediate_file: intermediate.file(),
+                 intermediate_rank: intermediate.rank(),
+             },
+-            MoveData::FreeEagle { path } => MoveRecordData::FreeEagle { path: path.clone() },
++            MoveData::FreeEagle { path } => MoveRecordData::FreeEagle {
++                path: path.to_vec(),
++            },
+         };
+ 
+         MoveRecord {
+diff --git a/src/game_state.rs b/src/game_state.rs
+index 24d6402..8c93c1e 100644
+--- a/src/game_state.rs
++++ b/src/game_state.rs
+@@ -247,11 +247,123 @@ fn is_boxed_in(piece: &Piece, board: &Board) -> bool {
+     true
+ }
+ 
++/// Generated Free Eagle routes fit inline. The boxed fallback retains the
++/// existing ability to deserialize or construct arbitrarily long routes.
++#[derive(Debug, Clone, PartialEq, Eq)]
++pub struct MovePath {
++    storage: MovePathStorage,
++}
++
++#[derive(Debug, Clone, PartialEq, Eq)]
++// Inline padding is zero-filled and private; overflow starts strictly above
++// five squares. These canonical forms make derived equality logical equality.
++enum MovePathStorage {
++    Inline {
++        positions: [Position; 5],
++        len: u8,
++    },
++    // A single pointer keeps Move at24B. Vec or Box<[Position]> would enlarge
++    // the common inline variant and every Move to32B; the lint assumption
++    // that this extra indirection is wasteful does not apply to this fallback.
++    #[allow(clippy::box_collection)]
++    Overflow(Box<Vec<Position>>),
++}
++
++impl MovePath {
++    fn push(&mut self, position: Position) {
++        match &mut self.storage {
++            MovePathStorage::Inline { positions, len } if (*len as usize) < positions.len() => {
++                positions[*len as usize] = position;
++                *len += 1;
++            }
++            MovePathStorage::Overflow(positions) => positions.push(position),
++            MovePathStorage::Inline { .. } => {
++                let mut positions = self.to_vec();
++                positions.push(position);
++                self.storage = MovePathStorage::Overflow(Box::new(positions));
++            }
++        }
++    }
++}
++
++impl std::ops::Deref for MovePath {
++    type Target = [Position];
++    fn deref(&self) -> &[Position] {
++        match &self.storage {
++            MovePathStorage::Inline { positions, len } => &positions[..*len as usize],
++            MovePathStorage::Overflow(positions) => positions,
++        }
++    }
++}
++
++impl From<&[Position]> for MovePath {
++    fn from(path: &[Position]) -> Self {
++        if path.len() <= 5 {
++            let mut positions = [Position::new(0, 0).unwrap(); 5];
++            positions[..path.len()].copy_from_slice(path);
++            Self {
++                storage: MovePathStorage::Inline {
++                    positions,
++                    len: path.len() as u8,
++                },
++            }
++        } else {
++            Self {
++                storage: MovePathStorage::Overflow(Box::new(path.to_vec())),
++            }
++        }
++    }
++}
++
++impl<const N: usize> From<[Position; N]> for MovePath {
++    fn from(path: [Position; N]) -> Self {
++        Self::from(path.as_slice())
++    }
++}
++
++impl From<Vec<Position>> for MovePath {
++    fn from(path: Vec<Position>) -> Self {
++        if path.len() <= 5 {
++            Self::from(path.as_slice())
++        } else {
++            Self {
++                storage: MovePathStorage::Overflow(Box::new(path)),
++            }
++        }
++    }
++}
++
++impl<'a> IntoIterator for &'a MovePath {
++    type Item = &'a Position;
++    type IntoIter = std::slice::Iter<'a, Position>;
++    fn into_iter(self) -> Self::IntoIter {
++        self.iter()
++    }
++}
++
++impl serde::Serialize for MovePath {
++    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
++        self[..].serialize(serializer)
++    }
++}
++
++impl<'de> serde::Deserialize<'de> for MovePath {
++    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
++        Vec::<Position>::deserialize(deserializer).map(Self::from)
++    }
++}
++
++impl PartialEq<Vec<Position>> for MovePath {
++    fn eq(&self, other: &Vec<Position>) -> bool {
++        &self[..] == other.as_slice()
++    }
++}
++
+ #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+ pub enum MoveData {
+     Standard,
+     TwoStep { intermediate: Position },
+-    FreeEagle { path: Vec<Position> },
++    FreeEagle { path: MovePath },
+ }
+ 
+ #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+@@ -304,12 +416,12 @@ impl Move {
+         }
+     }
+ 
+-    pub fn new_free_eagle(from: Position, to: Position, path: Vec<Position>) -> Move {
++    pub fn new_free_eagle(from: Position, to: Position, path: impl Into<MovePath>) -> Move {
+         Move {
+             from,
+             to,
+             promoted: false,
+-            data: MoveData::FreeEagle { path },
++            data: MoveData::FreeEagle { path: path.into() },
+         }
+     }
+ 
+@@ -321,7 +433,7 @@ impl Move {
+         }
+     }
+ 
+-    pub fn free_eagle_path(&self) -> Option<&Vec<Position>> {
++    pub fn free_eagle_path(&self) -> Option<&[Position]> {
+         match &self.data {
+             MoveData::FreeEagle { path } => Some(path),
+             _ => None,
+@@ -1894,7 +2006,7 @@ impl GameState {
+             let free_eagle_moves = self.generate_free_eagle_moves(&piece);
+             if let Some(matching_move) = free_eagle_moves.iter().find(|m| m.to == mv.to) {
+                 if let Some(path) = matching_move.free_eagle_path() {
+-                    mv.data = MoveData::FreeEagle { path: path.clone() };
++                    mv.data = MoveData::FreeEagle { path: path.into() };
+                 }
+             } else {
+                 return ApplyOutcome::Failed;
+@@ -2335,7 +2447,7 @@ impl GameState {
+         // Pattern 1: Forward diagonal multi-move (up to 4 spaces)
+         for direction in &forward_diagonals {
+             let (file_delta, rank_delta) = direction.to_offset();
+-            let mut path = vec![piece.position];
++            let mut path = MovePath::from([piece.position]);
+             let mut current = piece.position;
+ 
+             for _ in 1..=4 {
+@@ -2369,7 +2481,7 @@ impl GameState {
+         // Pattern 2: Other directions multi-move (up to 3 spaces)
+         for direction in &other_directions {
+             let (file_delta, rank_delta) = direction.to_offset();
+-            let mut path = vec![piece.position];
++            let mut path = MovePath::from([piece.position]);
+             let mut current = piece.position;
+ 
+             for _ in 1..=3 {
+@@ -2406,7 +2518,7 @@ impl GameState {
+             let back_delta = (-file_delta, -rank_delta);
+ 
+             // Build forward path
+-            let mut forward_path = vec![piece.position];
++            let mut forward_path = MovePath::from([piece.position]);
+             let mut pos3 = piece.position;
+             let mut valid = true;
+ 
+@@ -2458,7 +2570,7 @@ impl GameState {
+             let back_delta = (-file_delta, -rank_delta);
+ 
+             // Build forward path
+-            let mut forward_path = vec![piece.position];
++            let mut forward_path = MovePath::from([piece.position]);
+             let mut pos2 = piece.position;
+             let mut valid = true;
+ 
+@@ -2519,7 +2631,7 @@ impl GameState {
+                 moves.push(Move::new_free_eagle(
+                     piece.position,
+                     piece.position,
+-                    vec![piece.position, victim, piece.position],
++                    [piece.position, victim, piece.position],
+                 ));
+             }
+         }
+@@ -2550,7 +2662,7 @@ impl GameState {
+                 moves.push(Move::new_free_eagle(
+                     piece.position,
+                     piece.position,
+-                    vec![piece.position, first, second, piece.position],
++                    [piece.position, first, second, piece.position],
+                 ));
+             }
+         }
+@@ -3382,3 +3494,38 @@ mod move_generation_audit_tests;
+ #[cfg(test)]
+ #[path = "range_two_mover_rules_tests.rs"]
+ mod range_two_mover_rules_tests;
++
++#[cfg(test)]
++mod move_path_storage_tests {
++    use super::*;
++    #[test]
++    fn inline_and_overflow_routes_preserve_the_existing_json_shape() {
++        for len in [0, 1, 5, 6, 40] {
++            let positions: Vec<_> = (0..len).map(|i| Position::from_index(i).unwrap()).collect();
++            let path = MovePath::from(positions.clone());
++            assert_eq!(&path[..], positions.as_slice());
++            let json = serde_json::to_string(&path).unwrap();
++            assert_eq!(json, serde_json::to_string(&positions).unwrap());
++            assert_eq!(serde_json::from_str::<MovePath>(&json).unwrap(), path);
++            assert_eq!(path.clone(), path);
++            if let Some(&first) = positions.first() {
++                let mut pushed = MovePath::from([first]);
++                for &position in &positions[1..] {
++                    pushed.push(position);
++                }
++                assert_eq!(pushed, path);
++            }
++            assert_eq!(
++                matches!(path.storage, MovePathStorage::Inline { .. }),
++                len <= 5
++            );
++        }
++        let from = Position::new(18, 18).unwrap();
++        let mut path = MovePath::from([from]);
++        for i in 0..12 {
++            path.push(Position::from_index(i).unwrap());
++        }
++        assert!(matches!(path.storage, MovePathStorage::Overflow(_)));
++        assert_eq!(path.len(), 13);
++    }
++}
+diff --git a/src/notation.rs b/src/notation.rs
+index 6602794..b29fbc1 100644
+--- a/src/notation.rs
++++ b/src/notation.rs
+@@ -148,7 +148,7 @@ pub fn move_decode(token: &str) -> Result<Move, String> {
+         _ => {
+             // from + path (path should end at `to`)
+             let path = squares[1..].to_vec();
+-            MoveData::FreeEagle { path }
++            MoveData::FreeEagle { path: path.into() }
+         }
+     };
+     Ok(Move {

@@ -1,5 +1,6 @@
 //! Compact serializable board snapshot for start pools and game records.
 
+use crate::board::Board;
 use crate::game_state::GameState;
 use crate::piece::{Color, Piece};
 use serde::{Deserialize, Serialize};
@@ -68,12 +69,11 @@ impl BoardPosition {
 
     pub fn from_state(state: &GameState) -> Self {
         let board = state.get_board();
-        let mut pieces = Vec::with_capacity(
-            board.get_pieces_by_color(Color::Black).len()
-                + board.get_pieces_by_color(Color::White).len(),
-        );
+        let black = board.pieces_by_color(Color::Black);
+        let white = board.pieces_by_color(Color::White);
+        let mut pieces = Vec::with_capacity(black.len() + white.len());
         for color in [Color::Black, Color::White] {
-            pieces.extend(board.get_pieces_by_color(color).iter().copied());
+            pieces.extend_from_slice(board.pieces_by_color(color));
         }
         Self {
             pieces,
@@ -84,15 +84,12 @@ impl BoardPosition {
 
     pub fn to_state(&self) -> Result<GameState, String> {
         self.validate()?;
-        let mut state = GameState::new();
-        state.clear_board();
+        let mut board = Board::new();
         for piece in &self.pieces {
-            state.place_piece(*piece);
+            board.place_piece(*piece);
         }
-        state.set_current_turn(self.turn);
-        state.set_turns_without_capture_or_promotion(self.draw_counter);
-        state.recompute_hash();
-        state.reset_rep_history();
+        let mut state = GameState::new();
+        state.restore_position(board, self.turn, self.draw_counter);
         Ok(state)
     }
 
@@ -192,5 +189,29 @@ mod tests {
                 assert_eq!(q.is_promoted, p.is_promoted);
             }
         }
+        assert_eq!(pos, BoardPosition::from_state(&back));
+        assert_eq!(back.hash(), state.hash());
+        assert_eq!(back.hash(), crate::zobrist::compute(&back));
+        assert_eq!(back.repetition_count(), 1);
+        assert!(back.get_move_history().is_empty());
+    }
+
+    #[test]
+    fn bulk_snapshot_load_preserves_turn_clock_and_promotion_origin() {
+        let mut piece = Piece::new(
+            PieceType::SilverRabbit,
+            Color::White,
+            Position::new(18, 12).unwrap(),
+        );
+        piece.promote();
+        let position = BoardPosition {
+            pieces: vec![piece],
+            turn: Color::White,
+            draw_counter: 42,
+        };
+        let state = position.to_state().unwrap();
+        assert_eq!(BoardPosition::from_state(&state), position);
+        assert_eq!(state.hash(), crate::zobrist::compute(&state));
+        assert_eq!(state.repetition_count(), 1);
     }
 }

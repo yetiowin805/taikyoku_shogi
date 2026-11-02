@@ -32,10 +32,33 @@ impl MovementGenerator {
             Self::append_for_capability(piece, board, capability, captures_only, &mut targets);
         }
 
-        // Remove duplicates
-        targets.sort();
-        targets.dedup();
+        Self::deduplicate_targets(&mut targets);
         targets
+    }
+
+    /// Preserve Position's file-major order without sorting large target unions.
+    fn deduplicate_targets(targets: &mut Vec<Position>) {
+        if targets.len() < 2 {
+            return;
+        }
+        if targets.len() < 64 {
+            targets.sort();
+            targets.dedup();
+            return;
+        }
+        let mut squares = [0u64; 21];
+        for target in targets.iter() {
+            let index = usize::from(target.file()) * 36 + usize::from(target.rank());
+            squares[index / 64] |= 1u64 << (index % 64);
+        }
+        targets.clear();
+        for (word_index, mut word) in squares.into_iter().enumerate() {
+            while word != 0 {
+                let index = word_index * 64 + word.trailing_zeros() as usize;
+                targets.push(Position::new((index / 36) as u8, (index % 36) as u8).unwrap());
+                word &= word - 1;
+            }
+        }
     }
 
     /// Landing squares for a single capability (empty + enemy). Used by eval
@@ -77,8 +100,8 @@ impl MovementGenerator {
 
     /// Directed probe: can `piece` reach `target` without materializing full fan-out.
     ///
-    /// Simple / Range / Jumping walk only the relevant ray or offset. TwoStep,
-    /// ConditionalDiagonalJump, and FreeEagle fall back to full generation.
+    /// Simple / Range / Jumping / conditional jumps walk only the relevant ray
+    /// or offset. TwoStep and custom Free Eagle configurations use full generation.
     pub fn can_reach_target<B: BoardLike>(
         piece: &Piece,
         board: &B,
@@ -342,9 +365,76 @@ impl MovementGenerator {
                         .get_piece(target)
                         .is_some_and(|p| p.color == piece.color)
             }
+            MovementCapability::ConditionalDiagonalJump {
+                directions,
+                base_jump,
+                conditional_jumps,
+            } if *base_jump == 3 && conditional_jumps.iter().all(|jump| matches!(jump, 4 | 5)) => {
+                let Some(direction) =
+                    crate::attack_utils::get_direction_toward(piece.position, target)
+                else {
+                    return false;
+                };
+                let adjusted = Self::adjust_directions_for_color(*directions, piece.color);
+                if direction.to_bit() & adjusted & 0xaa == 0
+                    || board
+                        .get_piece(target)
+                        .is_some_and(|p| p.color == piece.color)
+                {
+                    return false;
+                }
+                let distance = target.file().abs_diff(piece.position.file());
+                if distance == *base_jump {
+                    return true;
+                }
+                if !conditional_jumps.contains(&distance) {
+                    return false;
+                }
+                let (df, dr) = direction.to_offset();
+                piece
+                    .position
+                    .offset(3 * df, 3 * dr)
+                    .is_some_and(|p| board.is_empty(p))
+                    && (distance != 5
+                        || piece
+                            .position
+                            .offset(4 * df, 4 * dr)
+                            .is_some_and(|p| board.is_empty(p)))
+            }
+            MovementCapability::FreeEagleMultiMove {
+                max_distance_forward_diagonal: 4,
+                max_distance_other: 3,
+            } => {
+                // Non-origin return-pattern landings are already within the
+                // ordinary multi-move rays. Enemies are traversable; a friendly
+                // square blocks the rest of the ray.
+                let Some(direction) =
+                    crate::attack_utils::get_direction_toward(piece.position, target)
+                else {
+                    return false;
+                };
+                let (df, dr) = direction.to_offset();
+                let distance = target
+                    .file()
+                    .abs_diff(piece.position.file())
+                    .max(target.rank().abs_diff(piece.position.rank()));
+                let forward_diagonal =
+                    df != 0 && dr == if piece.color == Color::Black { 1 } else { -1 };
+                if distance > if forward_diagonal { 4 } else { 3 } {
+                    return false;
+                }
+                (1..=distance).all(|n| {
+                    piece
+                        .position
+                        .offset(df * n as i8, dr * n as i8)
+                        .is_some_and(|p| {
+                            !board.get_piece(p).is_some_and(|p| p.color == piece.color)
+                        })
+                })
+            }
             MovementCapability::TwoStep { .. }
-            | MovementCapability::ConditionalDiagonalJump { .. }
-            | MovementCapability::FreeEagleMultiMove { .. } => {
+            | MovementCapability::FreeEagleMultiMove { .. }
+            | MovementCapability::ConditionalDiagonalJump { .. } => {
                 Self::generate_for_capability(piece, board, capability, false).contains(&target)
             }
         }
@@ -628,7 +718,7 @@ impl MovementGenerator {
         capability: &MovementCapability,
         captures_only: bool,
     ) -> Vec<Position> {
-        let MovementCapability::TwoStep { first, second } = capability else {
+        let MovementCapability::TwoStep { first, .. } = capability else {
             unreachable!("two-step generator requires a TwoStep capability");
         };
         let mut targets = Vec::new();
@@ -647,8 +737,6 @@ impl MovementGenerator {
         }
 
         for intermediate_pos in first_targets {
-            let mut temp_piece = *piece;
-            temp_piece.position = intermediate_pos;
             let after_first = BoardAfterStep::new(board, *piece, intermediate_pos);
             let inter_captures = board
                 .get_piece(intermediate_pos)
@@ -656,35 +744,88 @@ impl MovementGenerator {
             if capability.is_range_two_step() && inter_captures {
                 continue;
             }
-            let second_targets = Self::generate_for_capability(
-                &temp_piece,
-                &after_first,
-                second,
+            Self::visit_second_leg_landings(
+                piece,
+                board,
+                capability,
+                intermediate_pos,
                 captures_only && !inter_captures,
-            );
-            for t in second_targets {
-                if !capability.allows_two_step_continuation(
-                    board,
-                    piece.position,
-                    intermediate_pos,
-                    t,
-                ) {
-                    continue;
-                }
-                if captures_only {
-                    let dest_captures = after_first
-                        .get_piece(t)
-                        .is_some_and(|p| p.color != piece.color);
-                    if inter_captures || dest_captures {
+                |t| {
+                    if !capability.allows_two_step_continuation(
+                        board,
+                        piece.position,
+                        intermediate_pos,
+                        t,
+                    ) {
+                        return;
+                    }
+                    if captures_only {
+                        let dest_captures = after_first
+                            .get_piece(t)
+                            .is_some_and(|p| p.color != piece.color);
+                        if inter_captures || dest_captures {
+                            targets.push(t);
+                        }
+                    } else {
                         targets.push(t);
                     }
-                } else {
-                    targets.push(t);
-                }
-            }
+                },
+            );
         }
 
         targets
+    }
+
+    /// Range-range movers turn through an empty corner. Walk only the two
+    /// perpendicular second rays, which cannot cross the vacated origin or
+    /// occupied corner; the original board is therefore sufficient.
+    pub(crate) fn visit_second_leg_landings<B: BoardLike>(
+        piece: &Piece,
+        board: &B,
+        capability: &MovementCapability,
+        intermediate: Position,
+        captures_only: bool,
+        mut visit: impl FnMut(Position),
+    ) {
+        let MovementCapability::TwoStep { first, second } = capability else {
+            unreachable!("second leg requires a TwoStep capability");
+        };
+        let mut at_via = *piece;
+        at_via.position = intermediate;
+        if matches!(first.as_ref(), MovementCapability::Range { .. }) {
+            if let MovementCapability::Range {
+                directions,
+                blocking,
+                cannot_jump_over,
+            } = second.as_ref()
+            {
+                if !board.is_empty(intermediate) {
+                    return;
+                }
+                let df = i16::from(intermediate.file()) - i16::from(piece.position.file());
+                let dr = i16::from(intermediate.rank()) - i16::from(piece.position.rank());
+                let perpendicular = if df == 0 {
+                    0x44
+                } else if dr == 0 {
+                    0x11
+                } else if df * dr > 0 {
+                    0x88
+                } else {
+                    0x22
+                };
+                let narrowed = MovementCapability::Range {
+                    directions: directions & perpendicular,
+                    blocking: *blocking,
+                    cannot_jump_over: *cannot_jump_over,
+                };
+                Self::visit_range_landings(&at_via, board, &narrowed, captures_only, visit);
+                return;
+            }
+        }
+        let after_first = BoardAfterStep::new(board, *piece, intermediate);
+        for target in Self::generate_for_capability(&at_via, &after_first, second, captures_only) {
+            visit(target);
+        }
     }
 
     /// Generate targets for conditional diagonal jump movement
@@ -705,7 +846,7 @@ impl MovementGenerator {
         let adjusted_directions = Self::adjust_directions_for_color(directions, piece.color);
 
         // Only process diagonal directions
-        let diagonal_directions = vec![Direction::NE, Direction::SE, Direction::SW, Direction::NW];
+        let diagonal_directions = [Direction::NE, Direction::SE, Direction::SW, Direction::NW];
 
         for direction in diagonal_directions {
             // Check if this direction is allowed
@@ -802,13 +943,13 @@ impl MovementGenerator {
 
         // Forward diagonals for this color
         let forward_diagonals = match piece.color {
-            Color::Black => vec![Direction::NE, Direction::NW],
-            Color::White => vec![Direction::SE, Direction::SW],
+            Color::Black => [Direction::NE, Direction::NW],
+            Color::White => [Direction::SE, Direction::SW],
         };
 
         // Other directions (orthogonal and backward diagonals)
         let other_directions = match piece.color {
-            Color::Black => vec![
+            Color::Black => [
                 Direction::N,
                 Direction::S,
                 Direction::E,
@@ -816,7 +957,7 @@ impl MovementGenerator {
                 Direction::SE,
                 Direction::SW,
             ],
-            Color::White => vec![
+            Color::White => [
                 Direction::N,
                 Direction::S,
                 Direction::E,
@@ -830,7 +971,6 @@ impl MovementGenerator {
         // Generate all possible final destinations for forward diagonals (up to max_distance_forward_diagonal)
         for direction in &forward_diagonals {
             let (file_delta, rank_delta) = direction.to_offset();
-            let mut path = vec![piece.position];
             let mut current = piece.position;
             let mut has_capture = false;
 
@@ -844,12 +984,10 @@ impl MovementGenerator {
                         break; // Blocked by friendly piece
                     }
                     // Enemy piece - can capture and continue
-                    path.push(next);
                     current = next;
                     has_capture = true;
                     targets.push(next);
                 } else {
-                    path.push(next);
                     current = next;
                     if !captures_only || has_capture {
                         targets.push(next);
@@ -932,7 +1070,7 @@ impl MovementGenerator {
         }
 
         // Pattern 4: Special any direction (2 forward + 1 back) - only if capture on 2nd space
-        let all_directions = Direction::all();
+        let all_directions = Direction::ALL;
         for direction in all_directions {
             let (file_delta, rank_delta) = direction.to_offset();
             let back_delta = (-file_delta, -rank_delta);
@@ -997,7 +1135,7 @@ impl MovementGenerator {
     pub fn check_pattern5<B: BoardLike>(piece: &Piece, board: &B) -> Option<Position> {
         use crate::movement::direction::Direction;
 
-        for direction in Direction::all() {
+        for direction in Direction::ALL {
             let (file_delta, rank_delta) = direction.to_offset();
 
             if let Some(capture_pos) = piece.position.offset(file_delta, rank_delta) {
@@ -1021,8 +1159,8 @@ impl MovementGenerator {
         use crate::movement::direction::Direction;
 
         let forward_diagonals = match piece.color {
-            Color::Black => vec![Direction::NE, Direction::NW],
-            Color::White => vec![Direction::SE, Direction::SW],
+            Color::Black => [Direction::NE, Direction::NW],
+            Color::White => [Direction::SE, Direction::SW],
         };
 
         for direction in &forward_diagonals {
@@ -1059,6 +1197,194 @@ impl MovementGenerator {
 mod linear_simple_tests {
     use super::*;
     use crate::{board::Board, piece::PieceType};
+
+    #[test]
+    fn custom_conditional_jump_capabilities_keep_generation_semantics() {
+        for base_jump in [1, 2, 3, 6] {
+            for conditional_jumps in [vec![4, 5], vec![6], vec![1, 2, 9]] {
+                let cap = MovementCapability::ConditionalDiagonalJump {
+                    directions: 0xaa,
+                    base_jump,
+                    conditional_jumps,
+                };
+                for color in [Color::Black, Color::White] {
+                    let piece =
+                        Piece::new(PieceType::WoodenDove, color, Position::new(18, 18).unwrap());
+                    let mut board = Board::new();
+                    board.place_piece(piece);
+                    board.place_piece(Piece::new(
+                        PieceType::Pawn,
+                        color.opposite(),
+                        Position::new(21, 21).unwrap(),
+                    ));
+                    let generated = MovementGenerator::capability_landings(&piece, &board, &cap);
+                    for index in 0..1296 {
+                        let target = Position::from_index(index).unwrap();
+                        assert_eq!(
+                            MovementGenerator::can_reach_target(
+                                &piece,
+                                &board,
+                                std::slice::from_ref(&cap),
+                                target
+                            ),
+                            target != piece.position && generated.contains(&target)
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn directed_multi_leg_probes_match_generated_landings_with_blockers() {
+        for color in [Color::Black, Color::White] {
+            for origin in [(0, 0), (18, 18), (35, 35)] {
+                for kind in [
+                    PieceType::WoodenDove,
+                    PieceType::FreeEagle,
+                    PieceType::Tengu,
+                    PieceType::HookMover,
+                    PieceType::Peacock,
+                    PieceType::LionHawk,
+                ] {
+                    for density in [0, 10, 40] {
+                        let mut board = Board::new();
+                        for index in 0..1296 {
+                            if (index * 173 + 3612) % 100 < density {
+                                board.place_piece(Piece::new(
+                                    PieceType::Pawn,
+                                    if index % 2 == 0 {
+                                        color
+                                    } else {
+                                        color.opposite()
+                                    },
+                                    Position::from_index(index).unwrap(),
+                                ));
+                            }
+                        }
+                        let piece =
+                            Piece::new(kind, color, Position::new(origin.0, origin.1).unwrap());
+                        board.place_piece(piece);
+                        let config = crate::movement::MovementConfig::for_piece(&piece);
+                        let generated = MovementGenerator::generate_targets(
+                            &piece,
+                            &board,
+                            &config.capabilities,
+                        );
+                        for index in 0..1296 {
+                            let target = Position::from_index(index).unwrap();
+                            let expected = target != piece.position && generated.contains(&target);
+                            assert_eq!(
+                                piece.can_reach(target, &board),
+                                expected,
+                                "{kind:?} {color:?} {origin:?} {target:?} {density}"
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn adaptive_target_union_preserves_file_major_order_and_unique_squares() {
+        for count in [0, 1, 63, 64, 65, 1296, 2592] {
+            let mut targets: Vec<_> = (0..count)
+                .map(|i| Position::from_index((i * 173) % 1296).unwrap())
+                .collect();
+            let mut expected = targets.clone();
+            expected.sort();
+            expected.dedup();
+            MovementGenerator::deduplicate_targets(&mut targets);
+            assert_eq!(targets, expected);
+        }
+    }
+
+    #[test]
+    fn narrowed_second_rays_match_a_physically_moved_board_in_raw_order() {
+        let mut checked = 0;
+        for density in [0, 10, 40] {
+            for origin in [(0, 0), (18, 18), (35, 35), (1, 34)] {
+                for kind in [
+                    PieceType::Tengu,
+                    PieceType::HookMover,
+                    PieceType::Peacock,
+                    PieceType::Capricorn,
+                ] {
+                    for color in [Color::Black, Color::White] {
+                        let mut board = Board::new();
+                        for index in 0..1296 {
+                            if (index * 173 + 3612) % 100 < density {
+                                board.place_piece(Piece::new(
+                                    PieceType::Pawn,
+                                    if index % 2 == 0 {
+                                        color
+                                    } else {
+                                        color.opposite()
+                                    },
+                                    Position::from_index(index).unwrap(),
+                                ));
+                            }
+                        }
+                        let piece =
+                            Piece::new(kind, color, Position::new(origin.0, origin.1).unwrap());
+                        board.place_piece(piece);
+                        for cap in &crate::movement::MovementConfig::for_piece(&piece).capabilities
+                        {
+                            let MovementCapability::TwoStep { first, second } = cap else {
+                                continue;
+                            };
+                            if !cap.is_range_two_step() {
+                                continue;
+                            }
+                            for via in MovementGenerator::capability_landings(&piece, &board, first)
+                            {
+                                if !board.is_empty(via) {
+                                    continue;
+                                }
+                                let mut moved = board.clone();
+                                moved.move_piece(piece.position, via);
+                                let at_via = moved.get_piece(via).unwrap();
+                                for captures_only in [false, true] {
+                                    let expected: Vec<_> =
+                                        MovementGenerator::capability_landings_filtered(
+                                            &at_via,
+                                            &moved,
+                                            second,
+                                            captures_only,
+                                        )
+                                        .into_iter()
+                                        .filter(|&to| {
+                                            crate::path_utils::is_perpendicular_turn(
+                                                piece.position,
+                                                via,
+                                                to,
+                                            )
+                                        })
+                                        .collect();
+                                    let mut actual = Vec::new();
+                                    MovementGenerator::visit_second_leg_landings(
+                                        &piece,
+                                        &board,
+                                        cap,
+                                        via,
+                                        captures_only,
+                                        |to| actual.push(to),
+                                    );
+                                    assert_eq!(
+                                        actual, expected,
+                                        "{kind:?} {color:?} {origin:?} {via:?} {captures_only}"
+                                    );
+                                    checked += 1;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        assert!(checked > 1000);
+    }
 
     #[test]
     fn range_counts_and_raw_order_cover_forward_diagonal_and_edge_blockers() {
