@@ -1,0 +1,20 @@
+[Unit]
+Description=Frozen NNUE v6 evidence collection on one CPU
+After=local-fs.target
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/taikyoku/nnue-v6.env
+ExecStart=/usr/bin/python3 ${COLLECTOR} run ${CONFIG}
+CPUQuota=100%
+CPUAccounting=yes
+MemoryAccounting=yes
+KillMode=control-group
+TimeoutStopSec=30
+Restart=on-abnormal
+RestartSec=10
+Nice=10
+Environment=OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1
+
+[Install]
+WantedBy=multi-user.target

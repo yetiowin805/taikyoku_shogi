@@ -52,6 +52,8 @@ def record_runner(data, config):
 
 class Oracle:
     def __init__(self, config, case, out, model=None):
+        self.timeout = config.get("request_timeout_seconds")
+        started = time.monotonic()
         self.events = queue.Queue()
         self.log = (out / "engine.log").open("ab")
         self.proc = subprocess.Popen(
@@ -62,6 +64,7 @@ class Oracle:
             text=True,
             start_new_session=True,
             pass_fds=([int(os.environ["TACTICAL_LEASE_FD"])] if "TACTICAL_LEASE_FD" in os.environ else []),
+            env=config.get("environment"),
         )
 
         def read():
@@ -76,6 +79,9 @@ class Oracle:
         self.reader = threading.Thread(target=read, daemon=True)
         self.reader.start()
         while True:
+            if self.timeout and time.monotonic() - started > self.timeout:
+                self.close()
+                raise TimeoutError("oracle startup watchdog expired")
             if STOP.is_set():
                 self.close()
                 raise InterruptedError("pilot paused during startup")
@@ -89,10 +95,13 @@ class Oracle:
             raise RuntimeError(f"oracle startup failed: {self.ready}")
 
     def call(self, request, receive):
+        started = time.monotonic()
         request = dict(version=1, id=str(time.time_ns()), **request)
         self.proc.stdin.write(json.dumps(request) + "\n")
         self.proc.stdin.flush()
         while True:
+            if self.timeout and time.monotonic() - started > self.timeout:
+                raise TimeoutError("oracle request watchdog expired")
             if STOP.is_set():
                 raise InterruptedError("pilot paused")
             try:

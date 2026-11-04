@@ -1,5 +1,9 @@
 # Ability NNUE starter models
 
+The [v6 evidence collector](V6_COLLECTION.md) freezes corrected-rule games and
+collects static, search, paired-teacher and alternative-move evidence on one CPU.
+It does not launch training or admit models.
+
 For the expanded training recipe, see [generation v3](GENERATION.md). Future
 data collection and mate-position experiments are recorded in the
 [NNUE data-quality roadmap](DATA_ROADMAP.md); these proposals are not enabled by
