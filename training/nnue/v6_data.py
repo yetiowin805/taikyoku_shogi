@@ -410,11 +410,28 @@ def plan_deep(db, config):
     db.commit()
 
 
+def lease_indices(config):
+    return config.get("lease_indices", [config["lease_index"]])
+
+
 def validate_config(config):
-    if config.get("policy") != POLICY or config.get("workers") != 1:
-        raise ValueError("v6 collection requires policy v1 and exactly one worker")
-    if config["lease_index"] in (0, 2) or config["lease_index"] not in range(len(config["cpus"])):
-        raise ValueError("invalid or reserved tournament lease")
+    if config.get("policy") != POLICY or not 1 <= config.get("workers", 0) <= 6:
+        raise ValueError("v6 collection requires policy v1 and one to six workers")
+    indices = lease_indices(config)
+    if (
+        len(indices) != config["workers"]
+        or len(set(indices)) != len(indices)
+        or any(i in (0, 2) or i not in range(len(config["cpus"])) for i in indices)
+        or len({config["cpus"][i] for i in indices}) != len(indices)
+    ):
+        raise ValueError("invalid, duplicate or reserved tournament leases")
+    for name in ("audit_roots", "deep_roots", "branch_roots", "branch_audit_roots", "branch_deep_roots"):
+        if config[name] < 0:
+            raise ValueError("negative collection quota")
+    if config["deep_roots"] > config["audit_roots"] or not (
+        config["branch_deep_roots"] <= config["branch_audit_roots"] <= config["branch_roots"]
+    ):
+        raise ValueError("verification quotas exceed their source pools")
     if config["primary"] == config["challenger"] or not config["parent_samples"]:
         raise ValueError("two teachers and parent exposure manifests are required")
     if config["representative"] <= 0 or config["representative"] % 2 or config["challenge"] < 2:

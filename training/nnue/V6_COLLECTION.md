@@ -39,11 +39,12 @@ for every binding. Invalid/stale fits retain the previous verified set and
 report an error in `teacher-status.json`. A selected entrant requiring a
 historical engine cannot silently run under the current worker.
 
-The runner copies complete game records and queues for the selected
-flexible worker's existing CPU lease, allowing its current game to finish.
-It pins itself and its single engine child to that worker's actual CPU ID and
-passes the lease descriptor to the child. It yields between requests when
-maintenance holds the allocation lock. Workers 0 and 2 cannot be selected.
+The runner copies complete game records and queues for the selected flexible
+workers' existing CPU leases, allowing their current games to finish. It supports
+one to six workers. Each engine is pinned to its own leased CPU and receives only
+its own lease descriptor. The supervisor owns SQLite and all teacher bindings;
+engine threads send iteration events back for durable commits. It yields between
+jobs when maintenance holds the allocation lock. Workers 0 and 2 cannot be selected.
 
 For a durable service, install `deploy/systemd/taikyoku-nnue-v6.service` and create
 `/etc/taikyoku/nnue-v6.env` with absolute `COLLECTOR` and `CONFIG` paths. The unit
@@ -52,7 +53,41 @@ verify both the service state and advancing committed rows. Explicit failures
 do not automatically restart; abnormal termination can resume committed work.
 Stopping kills the process group and releases the CPU lease.
 
-## Collection stages
+## Resizing an existing collection
+
+Stop the service before resizing; the collector lock rejects live changes. The
+`resize` command is deliberately limited to the broad phase, before audit/deep
+jobs are planned. It preserves completed jobs, positions, splits and teacher
+bindings, creates `before-resize.sqlite`, retains the original config, and writes
+`config-resized.json` with explicit revision history and new code identities.
+
+For the November 4 workload revision:
+
+```sh
+python3 training/nnue/v6_collect.py resize /absolute/collection/config.json \
+  --lease-indices 7 1 3 4 5 6 --revision FULL_COMMIT_SHA \
+  --audit-roots 5000 --deep-roots 1000 --branch-roots 1000 \
+  --branch-audit-roots 500 --branch-deep-roots 100
+```
+
+Point the service environment at the new collector and `config-resized.json`.
+For six workers, install a service override with `[Service]` and `CPUQuota=600%`,
+then reload systemd and restart. The shipped unit defaults to one CPU. Verify
+`acquired_cpus`, the `active` job list and advancing committed rows; workers may
+arrive at different game boundaries. Status now reports a list of active jobs.
+
+This revision keeps all 65,359 broad roots. It reduces the paired audit to 6,000
+positions (5,000 roots plus 1,000 children), the deep core to 1,200 positions
+(1,000 roots plus 200 children), and generated children to at most 3,000. With
+roughly 4,500 searches already completed, the remaining nominal search allocation
+is about 357 CPU-hours. Earlier ten-second jobs used about 8.4 seconds of measured
+search time on average, so the operational target is approximately 50–60 more
+elapsed hours with six workers. Later stages and lease availability can differ.
+**This is an estimate, not an overall time limit. No elapsed deadline or automatic
+time-based collection cancellation is configured.** The finite workload completes
+naturally, preserving normal per-search analysis budgets.
+
+## Initial collection stages
 
 - Up to 32 representative and 8 challenge roots per game. Representative roots
   span progress and color with eight-ply spacing. At least two challenge slots

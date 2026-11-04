@@ -56,6 +56,8 @@ class Oracle:
         started = time.monotonic()
         self.events = queue.Queue()
         self.log = (out / "engine.log").open("ab")
+        environment = config.get("environment", os.environ)
+        lease_fd = environment.get("TACTICAL_LEASE_FD")
         self.proc = subprocess.Popen(
             [config["binary"], case["game"], str(case["start_ply"]), model or config["model"]],
             stdin=subprocess.PIPE,
@@ -63,8 +65,8 @@ class Oracle:
             stderr=self.log,
             text=True,
             start_new_session=True,
-            pass_fds=([int(os.environ["TACTICAL_LEASE_FD"])] if "TACTICAL_LEASE_FD" in os.environ else []),
-            env=config.get("environment"),
+            pass_fds=([int(lease_fd)] if lease_fd is not None else []),
+            env=environment,
         )
 
         def read():

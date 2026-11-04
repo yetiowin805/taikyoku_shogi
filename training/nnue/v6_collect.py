@@ -1,4 +1,4 @@
-"""Collect frozen v6 evidence on one game-boundary CPU; never trains or admits models."""
+"""Collect frozen v6 evidence on bounded game-boundary CPUs; never trains or admits models."""
 
 import argparse
 import fcntl
@@ -6,6 +6,7 @@ import json
 import os
 import shutil
 import signal
+import sqlite3
 import sys
 import time
 from collections import Counter
@@ -16,6 +17,7 @@ import v6_data as data
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tactical_tree"))
 from supervise import BoundaryLeases, allocation_busy
 
+import v6_runtime as runtime
 import v6_teachers as teachers
 from run import STOP, Oracle, atomic
 
@@ -167,7 +169,7 @@ def plan_children(db, config, position, moves):
                 data.add_job(db, key, teacher, "child_deep", config["budgets"]["deep"], 41)
 
 
-def cache_probe(db, config, job, position, oracle):
+def probe_steps(db, config, job, position):
     for row in db.execute(
         "SELECT result FROM jobs WHERE position_id=? AND teacher=? AND status='completed'",
         (position["id"], job["teacher"]),
@@ -175,7 +177,7 @@ def cache_probe(db, config, job, position, oracle):
         previous = json.loads(row[0])
         if previous.get("probe"):
             return previous["probe"]
-    probe = oracle.call(
+    probe = yield (
         dict(
             op="collection_probe",
             root_ply=position["ply"],
@@ -213,14 +215,14 @@ def cache_probe(db, config, job, position, oracle):
     return probe
 
 
-def execute(db, config, job, position, oracle):
+def execute_steps(db, config, job, position, oracle):
     if job["tier"] == "alternatives":
         source = db.execute(
             "SELECT result FROM jobs WHERE position_id=? AND teacher=? AND tier='broad' AND status='completed'",
             (position["id"], config["primary"]),
         ).fetchone()
         label = json.loads(source[0])["label"]
-        result = oracle.call(
+        result = yield (
             dict(
                 op="rank_candidates",
                 root_ply=position["ply"],
@@ -232,7 +234,7 @@ def execute(db, config, job, position, oracle):
         moves = choose_alternatives(label["best"], result["candidates"])
         plan_children(db, config, position, moves)
         return dict(moves=moves, static_candidates=result["candidates"])
-    probe = cache_probe(db, config, job, position, oracle)
+    probe = yield from probe_steps(db, config, job, position)
     if job["tier"] == "outcome":
         game = json.loads(db.execute("SELECT payload FROM games WHERE id=?", (position["game_id"],)).fetchone()[0])
         expected = {"BlackWins": 1, "WhiteWins": -1, "Draw": 0}[game["result"]]
@@ -254,7 +256,7 @@ def execute(db, config, job, position, oracle):
             )
             db.commit()
 
-    final = oracle.call(
+    final = yield (
         dict(
             op="search",
             root_ply=position["ply"],
@@ -280,6 +282,25 @@ def execute(db, config, job, position, oracle):
         termination="deadline" if final.get("aborted") else "completed_or_iteration_budget_guard",
         budget_scope="search only; replay, static and standalone quiescence separate",
     )
+
+
+def drive_steps(steps, oracle):
+    """Synchronous adapter for fixtures; production schedules the same steps concurrently."""
+    response = None
+    while True:
+        try:
+            request, receive = steps.send(response)
+        except StopIteration as done:
+            return done.value
+        response = oracle.call(request, receive)
+
+
+def cache_probe(db, config, job, position, oracle):
+    return drive_steps(probe_steps(db, config, job, position), oracle)
+
+
+def execute(db, config, job, position, oracle):
+    return drive_steps(execute_steps(db, config, job, position, oracle), oracle)
 
 
 def pilot_summary(db, config):
@@ -310,14 +331,17 @@ def pilot_summary(db, config):
         raise ValueError("pilot did not produce enough usable evidence; inspect pilot-summary.json")
 
 
-def status(db, config, state, **extra):
+def status(db, config, state, workers=None, **extra):
     counts = {row[0]: row[1] for row in db.execute("SELECT status,count(*) FROM jobs GROUP BY status")}
     report = dict(
         state=state,
         updated=time.time(),
         pid=os.getpid(),
-        workers=1,
-        cpu=config["cpus"][config["lease_index"]],
+        workers=config["workers"],
+        lease_indices=data.lease_indices(config),
+        cpus=[config["cpus"][i] for i in data.lease_indices(config)],
+        acquired_cpus=[worker.cpu for worker in (workers or {}).values()],
+        active=[worker.active for worker in (workers or {}).values() if worker.active],
         jobs=counts,
         stages={key: data.get_meta(db, key) for key in ("initialized", "audit_planned", "deep_planned")},
         **extra,
@@ -332,150 +356,187 @@ def run(config_path):
     for model in config.get("initial_teachers", {}).get("models", {}).values():
         teachers.validate(model)
     out = Path(config["out"])
-    cpu = config["cpus"][config["lease_index"]]
-    os.sched_setaffinity(0, {cpu})
+    indices = data.lease_indices(config)
+    os.sched_setaffinity(0, {config["cpus"][indices[0]]})
     for name in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS"):
         os.environ[name] = "1"
     for name in list(os.environ):
-        if name.startswith("TAIKYOKU_AB_"):
+        if name.startswith("TAIKYOKU_AB_") or name == "TACTICAL_LEASE_FD":
             del os.environ[name]
+    STOP.clear()
     for sig in (signal.SIGINT, signal.SIGTERM):
         signal.signal(sig, lambda *_: STOP.set())
     with (out / "collector.lock").open("a+") as own:
         fcntl.flock(own, fcntl.LOCK_EX | fcntl.LOCK_NB)
         db = data.connect(out)
-        lease = None
+        workers = {}
         waiters = None
-        oracle = None
-        binding = None
+        end_state = "stopped"
+        last_status = 0
         try:
-            status(db, config, "waiting_for_cpu")
-            # Queue on one flexible worker lock. Existing game is allowed to finish.
+            expected = data.get_meta(db, "config_sha256")
+            if expected and expected != data.file_hash(config_path):
+                raise ValueError("collection configuration changed; use resize with the service stopped")
+            # Recover only once, before any dispatch. Live jobs must never be reclaimed.
+            db.execute("UPDATE jobs SET status='pending',attempts=max(0,attempts-1) WHERE status='running'")
+            db.commit()
+            status(db, config, "waiting_for_cpu", workers)
             while not STOP.is_set():
-                if lease is None:
-                    if waiters is None:
-                        waiters = BoundaryLeases(Path(config["control"]), [config["lease_index"]], 1)
-                    acquired = waiters.take()
-                    if acquired is None:
-                        STOP.wait(1)
-                        continue
-                    _, lease = acquired
+                maintenance = allocation_busy(Path(config["control"]))
+                if maintenance and waiters:
                     waiters.close()
                     waiters = None
-                    os.environ["TACTICAL_LEASE_FD"] = str(lease.fileno())
-                if allocation_busy(Path(config["control"])):
-                    if oracle:
-                        oracle.close()
-                        oracle = None
-                        binding = None
-                    lease.close()
-                    lease = None
-                    status(db, config, "yielding_to_maintenance")
-                    STOP.wait(1)
+                if not maintenance and len(workers) < len(indices):
+                    if waiters is None:
+                        candidates = [i for i in indices if i not in workers]
+                        waiters = BoundaryLeases(Path(config["control"]), candidates, len(candidates))
+                    acquired = waiters.take()
+                    if acquired:
+                        index, lease = acquired
+                        workers[index] = runtime.Worker(index, lease, config, db, execute_steps, Oracle)
+                        os.sched_setaffinity(0, {next(iter(workers.values())).cpu})
+                    if len(workers) == len(indices):
+                        waiters.close()
+                        waiters = None
+                if not workers:
+                    if time.monotonic() - last_status >= 2:
+                        status(db, config, "yielding_to_maintenance" if maintenance else "waiting_for_cpu", workers)
+                        last_status = time.monotonic()
+                    STOP.wait(0.2)
                     continue
                 if shutil.disk_usage(out).free < config["minimum_free_bytes"]:
                     raise ValueError("storage headroom exhausted; collection stopped")
                 if not data.get_meta(db, "initialized"):
-                    status(db, config, "preparing_snapshot")
+                    status(db, config, "preparing_snapshot", workers)
                     data.set_meta(db, "config_sha256", data.file_hash(config_path))
                     data.initialize(db, config)
                     db.commit()
-                elif data.get_meta(db, "config_sha256") != data.file_hash(config_path):
-                    raise ValueError("collection configuration changed")
-                # An interrupted request is retried; completed rows are immutable.
-                db.execute("UPDATE jobs SET status='pending' WHERE status='running'")
-                db.commit()
+                for worker in list(workers.values()):
+                    worker.poll()
+                    if maintenance and worker.idle:
+                        worker.close()
+                        del workers[worker.index]
                 pilot_summary(db, config)
-                job = db.execute(
-                    "SELECT j.* FROM jobs j JOIN positions p ON p.id=j.position_id "
-                    "WHERE j.status='pending' ORDER BY j.priority,j.teacher,p.game_id,p.ply,j.id LIMIT 1"
-                ).fetchone()
-                if job is None:
+                for worker in workers.values():
+                    if not worker.idle or maintenance:
+                        continue
+                    job = db.execute(
+                        "SELECT j.* FROM jobs j JOIN positions p ON p.id=j.position_id "
+                        "WHERE j.status='pending' ORDER BY j.priority,j.teacher,p.game_id,p.ply,j.id LIMIT 1"
+                    ).fetchone()
+                    if job is None:
+                        break
+                    # Finish the entire pilot before allowing broad non-pilot dispatch.
+                    if job["priority"] >= 10 and not data.get_meta(db, "pilot_summary"):
+                        break
+                    position = json.loads(
+                        db.execute("SELECT payload FROM positions WHERE id=?", (job["position_id"],)).fetchone()[0]
+                    )
+                    game = json.loads(
+                        db.execute("SELECT payload FROM games WHERE id=?", (position["game_id"],)).fetchone()[0]
+                    )
+                    job_config = teachers.bind(db, config, position)
+                    db.execute("UPDATE jobs SET status='running',attempts=attempts+1 WHERE id=?", (job["id"],))
+                    db.commit()
+                    worker.assign(job, position, game, job_config)
+                outstanding = db.execute("SELECT count(*) FROM jobs WHERE status IN ('pending','running')").fetchone()[
+                    0
+                ]
+                if not outstanding:
                     if not data.get_meta(db, "audit_planned"):
                         data.plan_audits(db, config)
                         continue
                     if not data.get_meta(db, "deep_planned"):
                         data.plan_deep(db, config)
                         continue
-                    counts = status(db, config, "completed")
-                    if counts["jobs"].get("failed"):
-                        status(db, config, "finished_with_failures")
+                    if db.execute("SELECT count(*) FROM jobs WHERE status='failed'").fetchone()[0]:
                         raise ValueError("collection has failed jobs; inspect catalogue errors")
+                    end_state = "completed"
                     break
-                position = json.loads(
-                    db.execute("SELECT payload FROM positions WHERE id=?", (job["position_id"],)).fetchone()[0]
-                )
-                game = json.loads(
-                    db.execute("SELECT payload FROM games WHERE id=?", (position["game_id"],)).fetchone()[0]
-                )
-                job_config = teachers.bind(db, config, position)
-                teacher = job_config["models"][job["teacher"]]
-                key = (game["id"], job["teacher"], teacher.get("sha256"))
-                if binding != key:
-                    if oracle:
-                        oracle.close()
-                        oracle = None
-                    if data.file_hash(game["path"]) != game["id"]:
-                        raise ValueError("frozen game changed")
-                    teachers.validate(teacher)
-                    oracle = Oracle(
-                        dict(config, environment=dict(os.environ)),
-                        dict(game=game["path"], start_ply=1),
-                        out,
-                        teacher["path"],
-                    )
-                    if oracle.ready.get("collection_protocol") != 1:
-                        raise ValueError("worker lacks v6 collection protocol")
-                    binding = key
-                status(
-                    db,
-                    config,
-                    "collecting",
-                    active=dict(
-                        job=job["id"],
-                        tier=job["tier"],
-                        teacher=job["teacher"],
-                        teacher_id=teacher.get("id"),
-                        teacher_epoch=job_config.get("teacher_epoch"),
-                        game=game["id"],
-                        ply=position["ply"],
-                    ),
-                )
-                db.execute("UPDATE jobs SET status='running',attempts=attempts+1 WHERE id=?", (job["id"],))
-                db.commit()
-                try:
-                    result = execute(db, job_config, job, position, oracle)
-                    db.execute(
-                        "UPDATE jobs SET status='completed',result=?,error=NULL WHERE id=?",
-                        (data.encoded(result), job["id"]),
-                    )
-                    db.commit()
-                except InterruptedError:
-                    db.rollback()
-                    db.execute("UPDATE jobs SET status='pending',attempts=attempts-1 WHERE id=?", (job["id"],))
-                    db.commit()
-                    break
-                except Exception as error:
-                    db.rollback()
-                    state = "failed" if job["attempts"] + 1 >= config["max_attempts"] else "pending"
-                    db.execute("UPDATE jobs SET status=?,error=? WHERE id=?", (state, str(error), job["id"]))
-                    db.commit()
-                    oracle.close()
-                    oracle = None
-                    binding = None
-                    print(f"job {job['id']} {state}: {error}", file=sys.stderr, flush=True)
-            if STOP.is_set():
-                status(db, config, "stopped")
+                if time.monotonic() - last_status >= 2:
+                    state = "yielding_to_maintenance" if maintenance else "collecting"
+                    status(db, config, state, workers)
+                    last_status = time.monotonic()
+                STOP.wait(0.05)
         except Exception as error:
-            status(db, config, "failed", error=str(error))
+            end_state = "failed"
+            status(db, config, end_state, workers, error=str(error))
             raise
         finally:
-            if oracle:
-                oracle.close()
+            # Stop readers first; close all children before releasing their CPU leases.
+            STOP.set()
             if waiters:
                 waiters.close()
-            if lease:
-                lease.close()
+            for worker in workers.values():
+                worker.close()
+            db.execute("UPDATE jobs SET status='pending',attempts=max(0,attempts-1) WHERE status='running'")
+            db.commit()
+            if end_state != "failed":
+                status(db, config, end_state)
+            db.close()
+
+
+def resize(args):
+    """Explicit, backed-up execution revision; leaves all evidence and root bindings intact."""
+    old = json.loads(args.config.read_text())
+    data.validate_config(old)
+    out = Path(old["out"])
+    target = out / "config-resized.json"
+    if target.exists():
+        raise ValueError("resized configuration exists; inspect it instead of overwriting")
+    with (out / "collector.lock").open("a+") as own:
+        fcntl.flock(own, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        db = data.connect(out)
+        try:
+            old_hash = data.file_hash(args.config)
+            if data.get_meta(db, "config_sha256") != old_hash or not data.get_meta(db, "initialized"):
+                raise ValueError("resize requires the matching initialized catalogue")
+            if data.get_meta(db, "audit_planned") or data.get_meta(db, "deep_planned"):
+                raise ValueError("resize quotas before later stages have been planned")
+            new = dict(
+                old,
+                workers=len(args.lease_indices),
+                lease_indices=args.lease_indices,
+                audit_roots=args.audit_roots,
+                deep_roots=args.deep_roots,
+                branch_roots=args.branch_roots,
+                branch_audit_roots=args.branch_audit_roots,
+                branch_deep_roots=args.branch_deep_roots,
+                runner_revision=args.revision,
+                previous_config=str(args.config.resolve()),
+                previous_config_sha256=old_hash,
+                identities=dict(old["identities"]),
+            )
+            code = [
+                *Path(__file__).parent.glob("*.py"),
+                *Path(__file__).resolve().parents[1].joinpath("tactical_tree").glob("*.py"),
+            ]
+            new["identities"].update({str(p.resolve()): data.file_hash(p) for p in code})
+            data.validate_config(new)
+            backup = out / "before-resize.sqlite"
+            if backup.exists():
+                raise ValueError("resize backup exists; inspect the previous resize attempt")
+            dest = sqlite3.connect(backup)
+            try:
+                db.backup(dest)
+            finally:
+                dest.close()
+            atomic(target, new)
+            data.set_meta(
+                db,
+                "config_revision",
+                dict(
+                    previous=old_hash,
+                    current=data.file_hash(target),
+                    backup=str(backup),
+                    created=time.time(),
+                    completed=db.execute("SELECT count(*) FROM jobs WHERE status='completed'").fetchone()[0],
+                ),
+            )
+            data.set_meta(db, "config_sha256", data.file_hash(target))
+            db.commit()
+            print(json.dumps(dict(config=str(target), workers=new["workers"])))
+        finally:
             db.close()
 
 
@@ -488,12 +549,20 @@ def main():
     prepare_parser.add_argument("--parent-samples", type=Path, action="append", required=True)
     prepare_parser.add_argument("--lease-index", type=int, default=7)
     prepare_parser.add_argument("--revision", required=True)
+    resize_parser = commands.add_parser("resize")
+    resize_parser.add_argument("config", type=Path)
+    resize_parser.add_argument("--lease-indices", type=int, nargs="+", required=True)
+    resize_parser.add_argument("--revision", required=True)
+    for name in ("audit-roots", "deep-roots", "branch-roots", "branch-audit-roots", "branch-deep-roots"):
+        resize_parser.add_argument("--" + name, type=int, required=True)
     commands.add_parser("run").add_argument("config", type=Path)
     commands.add_parser("status").add_argument("config", type=Path)
     args = parser.parse_args()
     try:
         if args.command == "prepare":
             prepare(args)
+        elif args.command == "resize":
+            resize(args)
         elif args.command == "run":
             run(args.config)
         else:

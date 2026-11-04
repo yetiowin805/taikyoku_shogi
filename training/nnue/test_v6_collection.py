@@ -3,8 +3,10 @@
 import json
 import signal
 import tempfile
+import threading
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import v6_collect as collect
@@ -139,14 +141,28 @@ class CollectionTests(unittest.TestCase):
         position = self.position()
         position["outcome"] = "WhiteWins"
         self.db.execute("INSERT INTO games VALUES(?,?)", ("g", data.encoded(dict(id="g", result="WhiteWins"))))
-        with patch.object(collect, "cache_probe", return_value=dict(terminal=1)):
+
+        def probe(value):
+            yield from ()
+            return dict(terminal=value)
+
+        with patch.object(collect, "probe_steps", return_value=probe(1)):
             result = collect.execute(self.db, self.config, dict(tier="outcome"), position, None)
         self.assertFalse(result["outcome_eligible"])
-        with patch.object(collect, "cache_probe", return_value=dict(terminal=-1)):
+        with patch.object(collect, "probe_steps", return_value=probe(-1)):
             result = collect.execute(self.db, self.config, dict(tier="outcome"), position, None)
         self.assertTrue(result["outcome_eligible"])
 
     def test_complete_queue_and_restart_keep_committed_work(self):
+        self.exercise_queue(1)
+
+    def test_six_workers_overlap_without_duplicate_jobs_and_resume_cleanly(self):
+        self.exercise_queue(6)
+
+    def test_explicit_stop_retains_iteration_evidence_and_requeues_interrupted_work(self):
+        self.exercise_queue(2, stop_early=True)
+
+    def exercise_queue(self, workers, stop_early=False):
         source = self.root / "source.json"
         source.write_text(data.encoded(dict(game(80), format_version=2, start=dict(kind="opening"))))
         state = dict(run_id="test", slots=[dict(id=1, status="done", start_seed=9, game_path=str(source))])
@@ -166,6 +182,9 @@ class CollectionTests(unittest.TestCase):
             identities={str(binary): data.file_hash(binary)},
             models={"p": dict(path="p"), "c": dict(path="c")},
             diagnostic=None,
+            workers=workers,
+            cpus=list(range(8)),
+            lease_indices=[7, 1, 3, 4, 5, 6][:workers],
             minimum_free_bytes=0,
             representative=4,
             challenge=2,
@@ -185,12 +204,16 @@ class CollectionTests(unittest.TestCase):
         config_path = self.root / "config.json"
         config_path.write_text(data.encoded(config))
         calls = []
+        lock = threading.Lock()
+        activity = dict(active=0, maximum=0)
+        lease_fds = set()
 
         class Oracle:
             ready = dict(collection_protocol=1, search_config="teacher")
 
-            def __init__(self, *args):
-                pass
+            def __init__(self, config, *args):
+                with lock:
+                    lease_fds.add(config["environment"]["TACTICAL_LEASE_FD"])
 
             def close(self):
                 pass
@@ -220,7 +243,18 @@ class CollectionTests(unittest.TestCase):
                     nodes=100,
                     candidates=[dict(move=move, score_black=20)],
                 )
-                receive(event)
+                with lock:
+                    activity["active"] += 1
+                    activity["maximum"] = max(activity["maximum"], activity["active"])
+                try:
+                    receive(event)
+                    if stop_early:
+                        threading.Timer(0.3, collect.STOP.set).start()
+                    if collect.STOP.wait(5 if stop_early else 0.08):
+                        raise InterruptedError("fixture interrupted")
+                finally:
+                    with lock:
+                        activity["active"] -= 1
                 return dict(event="complete", completed_depth=2, aborted=False)
 
         prior_handlers = {sig: signal.getsignal(sig) for sig in (signal.SIGTERM, signal.SIGINT)}
@@ -228,10 +262,24 @@ class CollectionTests(unittest.TestCase):
             with patch.object(collect, "Oracle", Oracle), patch.object(collect.os, "sched_setaffinity"):
                 collect.run(config_path)
                 before = len(calls)
-                collect.run(config_path)
+                if not stop_early:
+                    collect.run(config_path)
             self.assertEqual(len(calls), before)
             status = json.loads((self.root / "status.json").read_text())
+            if stop_early:
+                self.assertEqual(status["state"], "stopped")
+                self.assertEqual(
+                    self.db.execute("SELECT count(*) FROM jobs WHERE status IN ('running','failed')").fetchone()[0], 0
+                )
+                self.assertGreater(self.db.execute("SELECT count(*) FROM iterations").fetchone()[0], 0)
+                self.assertGreater(status["jobs"]["pending"], 0)
+                return
             self.assertEqual(status["state"], "completed")
+            if workers > 1:
+                self.assertGreater(activity["maximum"], 1)
+                self.assertGreater(len(lease_fds), 1)
+            self.assertLessEqual(activity["maximum"], workers)
+            self.assertEqual(self.db.execute("SELECT max(attempts) FROM jobs").fetchone()[0], 1)
             self.assertGreater(status["jobs"]["completed"], 15)
             self.assertEqual(self.db.execute("SELECT count(*) FROM jobs WHERE status!='completed'").fetchone()[0], 0)
             self.assertTrue(data.get_meta(self.db, "pilot_summary")["passed"])
@@ -241,6 +289,46 @@ class CollectionTests(unittest.TestCase):
         finally:
             for sig, handler in prior_handlers.items():
                 signal.signal(sig, handler)
+
+    def test_resize_preserves_evidence_and_backs_up_original_catalogue(self):
+        config = dict(self.config, cpus=list(range(8)), parent_samples=["fixture"], identities={}, minimum_free_bytes=0)
+        config_path = self.root / "config.json"
+        config_path.write_text(data.encoded(config))
+        old_hash = data.file_hash(config_path)
+        position = self.position()
+        data.add_job(self.db, position["id"], "p", "broad", 10, 0)
+        self.db.execute(
+            "UPDATE jobs SET status='completed',result=?,attempts=1", (data.encoded(dict(evidence="preserve")),)
+        )
+        data.set_meta(self.db, "initialized", dict(games=1))
+        data.set_meta(self.db, "config_sha256", old_hash)
+        data.set_meta(self.db, "teacher_root:" + position["id"], "immutable-binding")
+        self.db.commit()
+        args = SimpleNamespace(
+            config=config_path,
+            lease_indices=[7, 1, 3, 4, 5, 6],
+            revision="test",
+            audit_roots=5000,
+            deep_roots=1000,
+            branch_roots=1000,
+            branch_audit_roots=500,
+            branch_deep_roots=100,
+        )
+        collect.resize(args)
+        new_path = self.root / "config-resized.json"
+        new = json.loads(new_path.read_text())
+        self.assertEqual(data.file_hash(config_path), old_hash)
+        self.assertEqual(new["workers"], 6)
+        self.assertNotIn("stop_at", new)
+        self.assertEqual(data.get_meta(self.db, "config_sha256"), data.file_hash(new_path))
+        self.assertEqual(data.get_meta(self.db, "teacher_root:" + position["id"]), "immutable-binding")
+        self.assertEqual(
+            json.loads(self.db.execute("SELECT result FROM jobs").fetchone()[0]), dict(evidence="preserve")
+        )
+        self.assertTrue((self.root / "before-resize.sqlite").is_file())
+        for indices in ([0], [2], [1, 1], [1, 3, 4, 5, 6, 7, 8]):
+            with self.assertRaises(ValueError):
+                data.validate_config(dict(new, workers=len(indices), lease_indices=indices))
 
     def teacher_fixture(self):
         run = self.root / "tournament"
