@@ -187,7 +187,7 @@ class CollectionTests(unittest.TestCase):
         calls = []
 
         class Oracle:
-            ready = dict(collection_protocol=1, collection_policy="common")
+            ready = dict(collection_protocol=1, search_config="teacher")
 
             def __init__(self, *args):
                 pass
@@ -235,9 +235,91 @@ class CollectionTests(unittest.TestCase):
             self.assertGreater(status["jobs"]["completed"], 15)
             self.assertEqual(self.db.execute("SELECT count(*) FROM jobs WHERE status!='completed'").fetchone()[0], 0)
             self.assertTrue(data.get_meta(self.db, "pilot_summary")["passed"])
+            searches = [request for request in calls if request["op"] == "search"]
+            self.assertTrue(searches)
+            self.assertTrue(all("quiescence_depth" not in r and "collection_policy" not in r for r in searches))
         finally:
             for sig, handler in prior_handlers.items():
                 signal.signal(sig, handler)
+
+    def teacher_fixture(self):
+        run = self.root / "tournament"
+        run.joinpath("analysis").mkdir(parents=True)
+        entrants = []
+        registry = {}
+        for name, network in (("leader", "net1"), ("same-net", "net1"), ("other-net", "net2"), ("handcrafted", None)):
+            model = run / (name + ".json")
+            weights = {}
+            if network:
+                blob = run / (network + ".nnue")
+                blob.write_text(network)
+                weights["nnue"] = dict(file=blob.name, sha256=data.file_hash(blob))
+            model.write_text(data.encoded(dict(name=name, weights=weights, search_defaults=dict(trial=name))))
+            entrants.append(dict(id=name, model=str(model)))
+            registry[str(model)] = dict(sha256=data.file_hash(model))
+        (run / "state.json").write_text(data.encoded(dict(entrants=entrants, retired=[], slots=[])))
+        (run / "order-neutral-ratings.json").write_text(
+            data.encoded(
+                dict(
+                    status="converged",
+                    games=0,
+                    ratings={"leader": 1700, "same-net": 1690, "other-net": 1650, "handcrafted": 1400},
+                )
+            )
+        )
+        (run / "analysis/config.json").write_text(data.encoded(dict(models=registry)))
+        config = dict(
+            self.config, teacher_policy=collect.teachers.POLICY, teacher_run=str(run), teacher_refresh_seconds=60
+        )
+        config["initial_teachers"] = collect.teachers.snapshot(config)
+        return config, run
+
+    def test_standings_select_search_agent_and_distinct_network_not_parent(self):
+        config, run = self.teacher_fixture()
+        models = config["initial_teachers"]["models"]
+        self.assertEqual(models["primary"]["id"], "leader")
+        self.assertEqual(models["challenger"]["id"], "other-net")
+        self.assertEqual(models["diagnostic"]["id"], "handcrafted")
+        self.assertEqual(
+            json.loads(Path(models["primary"]["path"]).read_text())["search_defaults"], dict(trial="leader")
+        )
+        fit_path = run / "order-neutral-ratings.json"
+        fit = json.loads(fit_path.read_text())
+        fit["ratings"]["same-net"] = 1700
+        fit_path.write_text(data.encoded(fit))
+        current = collect.teachers.snapshot(config, config["initial_teachers"])
+        self.assertEqual(current["models"]["primary"]["id"], "leader")
+        state_path = run / "state.json"
+        state = json.loads(state_path.read_text())
+        state["retired"] = ["leader"]
+        state_path.write_text(data.encoded(state))
+        self.assertEqual(collect.teachers.snapshot(config, current)["models"]["primary"]["id"], "same-net")
+
+    def test_champion_changes_only_rebind_new_root_families(self):
+        config, run = self.teacher_fixture()
+        first = self.position(ply=10)
+        bound = collect.teachers.bind(self.db, config, first)
+        fit_path = run / "order-neutral-ratings.json"
+        fit = json.loads(fit_path.read_text())
+        fit["ratings"]["other-net"] = 1800
+        fit_path.write_text(data.encoded(fit))
+        data.set_meta(self.db, "teacher_refresh_after", 0)
+        second = collect.teachers.bind(self.db, config, self.position(ply=20))
+        self.assertEqual(second["models"]["primary"]["id"], "other-net")
+        self.assertEqual(collect.teachers.bind(self.db, config, first)["teacher_epoch"], bound["teacher_epoch"])
+        child = dict(first, id="child", parent=first["id"], path=[{}])
+        self.assertEqual(collect.teachers.bind(self.db, config, child)["teacher_epoch"], bound["teacher_epoch"])
+        # A stale/error fit retains the last verified teachers for future work and reports it.
+        fit["games"] = 100
+        fit_path.write_text(data.encoded(fit))
+        data.set_meta(self.db, "teacher_refresh_after", 0)
+        third = collect.teachers.bind(self.db, config, self.position(ply=30))
+        self.assertEqual(third["teacher_epoch"], second["teacher_epoch"])
+        self.assertEqual(json.loads((self.root / "teacher-status.json").read_text())["state"], "retained_after_error")
+        frozen = Path(bound["models"]["primary"]["path"])
+        frozen.write_text("tampered")
+        with self.assertRaisesRegex(ValueError, "frozen teacher changed"):
+            collect.teachers.validate(bound["models"]["primary"])
 
 
 if __name__ == "__main__":

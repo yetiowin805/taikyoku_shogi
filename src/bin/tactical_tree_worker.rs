@@ -53,9 +53,6 @@ struct Request {
     include_pieces: bool,
     /// Collection requests reuse a process and advance through the original game.
     root_ply: Option<usize>,
-    /// Freeze a common baseline search policy independently of teacher defaults.
-    #[serde(default)]
-    collection_policy: bool,
     #[serde(default)]
     candidates: Vec<Move>,
 }
@@ -531,11 +528,7 @@ fn handle(
             );
             return Ok(());
         }
-        let mut config = if req.collection_policy {
-            SearchConfig::default()
-        } else {
-            player.config().clone()
-        };
+        let mut config = player.config().clone();
         config.depth = req.depth;
         config.max_time_ms = if req.fixed_depth {
             None
@@ -561,6 +554,7 @@ fn handle(
         let result = search_with_progress(&state, player.weights(), &config, &mut progress);
         emit(
             json!({"version":1,"id":req.id,"event":"complete","op":"search",
+            "search_config":format!("{:?}",config),
             "completed_depth":result.completed_depth,"nodes":result.nodes,"q_nodes":result.q_nodes,
             "partial_root_depth":result.partial_root_depth,
             "selected_depth":result.partial_root_depth.unwrap_or(result.completed_depth),
@@ -607,7 +601,7 @@ fn run() -> Result<(), String> {
     emit(
         json!({"version":1,"event":"ready","actual":actual,"history_len":base.get_move_history().len(),
         "search_config":format!("{:?}",player.config()),
-        "collection_policy":format!("{:?}",SearchConfig::default()),"collection_protocol":1}),
+        "collection_protocol":1}),
     );
     let original = base.clone();
     let mut current_ply = ply;

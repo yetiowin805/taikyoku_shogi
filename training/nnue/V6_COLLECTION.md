@@ -18,17 +18,28 @@ python3 training/nnue/v6_collect.py prepare \
   --run /absolute/corrected-rule-run \
   --source-repo /absolute/original-repository \
   --binary /absolute/frozen/tactical_tree_worker \
-  --primary /absolute/384v4.5/model.json \
-  --challenger /absolute/512v3/model.json \
-  --diagnostic /absolute/handcrafted/model.json \
   --parent-samples /absolute/v45/samples.jsonl \
   --parent-samples /absolute/v3/samples.jsonl \
   --lease-index 7 --revision FULL_COMMIT_SHA
 python3 training/nnue/v6_collect.py run /absolute/new-collection/config.json
 ```
 
-Preparation freezes the completed-game roster, teacher copies and code/binary
-hashes. The runner copies complete game records and queues for the selected
+Preparation freezes the completed-game roster, initial teacher copies and code/binary
+hashes. Teacher selection follows the existing current order-neutral standings:
+use the highest-rated active entrant, retaining the incumbent on exact ties,
+with no promotion margin. The audit challenger is the highest-rated entrant
+with a different NNUE blob (or different handcrafted evaluator); the diagnostic
+is the highest-rated handcrafted entrant. Training parents do not select teachers.
+
+Standings are checked at most once per minute when binding a new root. Each
+root, its children and every later search budget keep that original teacher
+set. Changes apply to new roots only; completed evidence is never reinterpreted.
+The catalogue stores the exact ranking snapshot and immutable model identities
+for every binding. Invalid/stale fits retain the previous verified set and
+report an error in `teacher-status.json`. A selected entrant requiring a
+historical engine cannot silently run under the current worker.
+
+The runner copies complete game records and queues for the selected
 flexible worker's existing CPU lease, allowing its current game to finish.
 It pins itself and its single engine child to that worker's actual CPU ID and
 passes the lease descriptor to the child. It yields between requests when
@@ -50,10 +61,10 @@ Stopping kills the process group and releases the CPU lease.
   Holdout challenges are random. At most one explicit mate-claim challenge is
   selected per game. There is no special range two-mover oversampling.
 - First, up to 1,000 representative training roots, generally one per game, get
-  primary 10-second searches. Up to 100 get challenger and optional handcrafted
+  primary 10-second searches. Up to 100 get challenger and handcrafted
   searches too. The pilot reports depth coverage, usable labels and q timeouts.
   Its gate catches operational failure; passing does not establish teacher
-  strength or adequate search depth. Teachers stay fixed throughout collection.
+  strength or adequate search depth. Teacher identity stays fixed per root family.
 - Remaining broad labels use the primary teacher. Then 6,000 roots get both
   teachers at 30 seconds. Half the audit is random; the rest targets fresh
   discrepancies in training groups, with at most eight roots from one game.
@@ -68,8 +79,9 @@ Stopping kills the process group and releases the CPU lease.
   ineligible unless the replayed rule-terminal result agrees. Nonterminal
   timeouts, move limits and unknown adjudications do not become outcome labels.
 
-All fresh searches use one common baseline search policy with q-depth 2,
-independent of teacher descriptor search experiments. Scores remain
+Fresh searches preserve the selected entrant's checkpoint search policy, including
+its experiment, trial and q settings. Only depth/time limits and irrelevant clock/trace
+controls are overridden; both the base policy and overrides are recorded. Scores remain
 Black-absolute, with side to move recorded separately. Each scalar job records
 static/material scores, a bounded standalone quiescence probe, completed
 iterations, final telemetry, model/binary hashes, budgets and full-route moves.
@@ -102,6 +114,8 @@ position/branch rows deliberately do not inherit it automatically.
 - `catalogue.sqlite`: games, positions, exposure, jobs and iteration checkpoints.
 - `status.json`: active job, CPU, stages and committed counts.
 - `pilot-summary.json`: early operational quality audit.
+- `teacher-status.json`: current standings selection or retained-teacher error.
+- Catalogue `teacher_root:*` / `teacher_epoch:*` metadata: permanent family bindings and ranking snapshots.
 - `engine.log` and the service journal: diagnostics and errors.
 
 SQLite commits preserve completed jobs. Interrupted work is retried, retaining

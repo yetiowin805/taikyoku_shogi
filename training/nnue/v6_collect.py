@@ -16,6 +16,7 @@ import v6_data as data
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tactical_tree"))
 from supervise import BoundaryLeases, allocation_busy
 
+import v6_teachers as teachers
 from run import STOP, Oracle, atomic
 
 
@@ -41,36 +42,6 @@ def defaults():
     )
 
 
-def freeze_model(source, out, name):
-    source = source.resolve(strict=True)
-    manifest = json.loads(source.read_text())
-    target = out / "models" / name
-    target.mkdir(parents=True, exist_ok=True)
-    network = manifest.get("weights", {}).get("nnue")
-    identities = {}
-    if network:
-        blob = (source.parent / network["file"]).resolve(strict=True)
-        if data.file_hash(blob) != network["sha256"]:
-            raise ValueError("NNUE checksum mismatch: " + str(blob))
-        dest = target / "network.nnue"
-        if not dest.exists():
-            shutil.copyfile(blob, dest)
-        if data.file_hash(dest) != network["sha256"]:
-            raise ValueError("frozen NNUE checksum mismatch")
-        network["file"] = dest.name
-        identities[str(dest)] = network["sha256"]
-    path = target / "model.json"
-    atomic(path, manifest)
-    identities[str(path)] = data.file_hash(path)
-    return dict(
-        path=str(path),
-        original=str(source),
-        original_sha256=data.file_hash(source),
-        sha256=identities[str(path)],
-        network_sha256=network["sha256"] if network else None,
-    ), identities
-
-
 def prepare(args):
     out = args.out.resolve()
     out.mkdir(parents=True, exist_ok=True)
@@ -86,13 +57,7 @@ def prepare(args):
     os.sched_setaffinity(0, {cpus[args.lease_index]})
     snapshot = out / "source-state.json"
     shutil.copyfile(args.run / "state.json", snapshot)
-    models = {}
     identities = {str(snapshot): data.file_hash(snapshot)}
-    for name in ("primary", "challenger", "diagnostic"):
-        source = getattr(args, name)
-        if source:
-            models[name], pinned = freeze_model(source, out, name)
-            identities.update(pinned)
     binary = args.binary.resolve(strict=True)
     if not os.access(binary, os.X_OK):
         raise ValueError("worker is not executable")
@@ -111,16 +76,19 @@ def prepare(args):
         cpus=cpus,
         binary=str(binary),
         state_sha256=identities[str(snapshot)],
-        models=models,
+        teacher_policy=teachers.POLICY,
+        teacher_run=str(args.run.resolve()),
+        teacher_refresh_seconds=60,
         primary="primary",
         challenger="challenger",
-        diagnostic="diagnostic" if args.diagnostic else None,
+        diagnostic="diagnostic",
         identities=identities,
         parent_samples=[str(path.resolve()) for path in args.parent_samples],
         revision=args.revision,
         current_rules_confirmed=True,
         created=time.time(),
     )
+    config["initial_teachers"] = teachers.snapshot(config)
     data.validate_config(config)
     atomic(out / "config.json", config)
     print(json.dumps(dict(config=str(out / "config.json"), state_sha256=config["state_sha256"], workers=1)))
@@ -293,8 +261,6 @@ def execute(db, config, job, position, oracle):
             path=position["path"],
             depth=64,
             time_ms=job["budget_ms"],
-            quiescence_depth=2,
-            collection_policy=True,
         ),
         receive,
     )
@@ -303,7 +269,9 @@ def execute(db, config, job, position, oracle):
         probe=probe,
         label=label,
         final=final,
-        search_policy=oracle.ready["collection_policy"],
+        search_policy=oracle.ready["search_config"],
+        search_overrides=dict(depth=64, max_time_ms=job["budget_ms"], fischer_soft_ms=None, collect_trace=False),
+        teacher_epoch=config.get("teacher_epoch"),
         teacher=config["models"][job["teacher"]],
         worker_sha256=config["identities"][config["binary"]],
         source_state_sha256=config["state_sha256"],
@@ -361,6 +329,8 @@ def status(db, config, state, **extra):
 def run(config_path):
     config = json.loads(config_path.read_text())
     data.validate_config(config)
+    for model in config.get("initial_teachers", {}).get("models", {}).values():
+        teachers.validate(model)
     out = Path(config["out"])
     cpu = config["cpus"][config["lease_index"]]
     os.sched_setaffinity(0, {cpu})
@@ -438,18 +408,21 @@ def run(config_path):
                 game = json.loads(
                     db.execute("SELECT payload FROM games WHERE id=?", (position["game_id"],)).fetchone()[0]
                 )
-                key = (game["id"], job["teacher"])
+                job_config = teachers.bind(db, config, position)
+                teacher = job_config["models"][job["teacher"]]
+                key = (game["id"], job["teacher"], teacher.get("sha256"))
                 if binding != key:
                     if oracle:
                         oracle.close()
                         oracle = None
                     if data.file_hash(game["path"]) != game["id"]:
                         raise ValueError("frozen game changed")
+                    teachers.validate(teacher)
                     oracle = Oracle(
                         dict(config, environment=dict(os.environ)),
                         dict(game=game["path"], start_ply=1),
                         out,
-                        config["models"][job["teacher"]]["path"],
+                        teacher["path"],
                     )
                     if oracle.ready.get("collection_protocol") != 1:
                         raise ValueError("worker lacks v6 collection protocol")
@@ -459,13 +432,19 @@ def run(config_path):
                     config,
                     "collecting",
                     active=dict(
-                        job=job["id"], tier=job["tier"], teacher=job["teacher"], game=game["id"], ply=position["ply"]
+                        job=job["id"],
+                        tier=job["tier"],
+                        teacher=job["teacher"],
+                        teacher_id=teacher.get("id"),
+                        teacher_epoch=job_config.get("teacher_epoch"),
+                        game=game["id"],
+                        ply=position["ply"],
                     ),
                 )
                 db.execute("UPDATE jobs SET status='running',attempts=attempts+1 WHERE id=?", (job["id"],))
                 db.commit()
                 try:
-                    result = execute(db, config, job, position, oracle)
+                    result = execute(db, job_config, job, position, oracle)
                     db.execute(
                         "UPDATE jobs SET status='completed',result=?,error=NULL WHERE id=?",
                         (data.encoded(result), job["id"]),
@@ -504,9 +483,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
     prepare_parser = commands.add_parser("prepare")
-    for name in ("out", "run", "source-repo", "binary", "primary", "challenger"):
+    for name in ("out", "run", "source-repo", "binary"):
         prepare_parser.add_argument("--" + name, type=Path, required=True)
-    prepare_parser.add_argument("--diagnostic", type=Path)
     prepare_parser.add_argument("--parent-samples", type=Path, action="append", required=True)
     prepare_parser.add_argument("--lease-index", type=int, default=7)
     prepare_parser.add_argument("--revision", required=True)

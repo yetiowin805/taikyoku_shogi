@@ -30,8 +30,15 @@ fn collection_worker_reuses_history_and_checks_branches() {
         "result":"Draw"});
     let game = root.join("game.json");
     std::fs::write(&game, serde_json::to_vec(&record).unwrap()).unwrap();
+    let mut model: Value =
+        serde_json::from_slice(&std::fs::read("models/ab-seed.json").unwrap()).unwrap();
+    model["search_defaults"]["quiescence_depth"] = json!(0);
+    model["search_defaults"]["experiment"] = json!("history_tactical_lmr_q_fix");
+    model["search_defaults"]["trial"] = json!("growth_aware");
+    let checkpoint = root.join("model.json");
+    std::fs::write(&checkpoint, serde_json::to_vec(&model).unwrap()).unwrap();
     let mut child = Command::new(env!("CARGO_BIN_EXE_tactical_tree_worker"))
-        .args([game.to_str().unwrap(), "1", "models/ab-seed.json"])
+        .args([game.to_str().unwrap(), "1", checkpoint.to_str().unwrap()])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
@@ -78,10 +85,13 @@ fn collection_worker_reuses_history_and_checks_branches() {
     assert_eq!(bad.last().unwrap()["event"], "error");
     let searched = call(
         json!({"version":1,"id":"search","op":"search","root_ply":1,"depth":1,
-        "time_ms":1000,"quiescence_depth":0,"collection_policy":true}),
+        "time_ms":1000}),
     );
     assert!(searched.iter().any(|event| event["event"] == "iteration"));
     assert_eq!(searched.last().unwrap()["completed_depth"], 1);
+    let policy = searched.last().unwrap()["search_config"].as_str().unwrap();
+    assert!(policy.contains("GrowthAware"), "{policy}");
+    assert!(policy.contains("quiescence_depth: 0"), "{policy}");
     drop(input);
     assert!(child.wait().unwrap().success());
     std::fs::remove_dir_all(root).unwrap();
