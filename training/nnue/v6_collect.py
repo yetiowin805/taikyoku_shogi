@@ -412,12 +412,16 @@ def run(config_path):
                     data.initialize(db, config)
                     db.commit()
                 for worker in list(workers.values()):
+                    if STOP.is_set():
+                        break
                     worker.poll()
                     if maintenance and worker.idle:
                         worker.close()
                         del workers[worker.index]
                 pilot_summary(db, config)
                 for worker in workers.values():
+                    if STOP.is_set():
+                        break
                     if not worker.idle or maintenance:
                         continue
                     job = db.execute(

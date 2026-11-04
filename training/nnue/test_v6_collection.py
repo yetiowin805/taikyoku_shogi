@@ -207,6 +207,7 @@ class CollectionTests(unittest.TestCase):
         lock = threading.Lock()
         activity = dict(active=0, maximum=0)
         lease_fds = set()
+        timers = []
 
         class Oracle:
             ready = dict(collection_protocol=1, search_config="teacher")
@@ -249,7 +250,10 @@ class CollectionTests(unittest.TestCase):
                 try:
                     receive(event)
                     if stop_early:
-                        threading.Timer(0.3, collect.STOP.set).start()
+                        timer = threading.Timer(0.3, collect.STOP.set)
+                        with lock:
+                            timers.append(timer)
+                        timer.start()
                     if collect.STOP.wait(5 if stop_early else 0.08):
                         raise InterruptedError("fixture interrupted")
                 finally:
@@ -287,6 +291,11 @@ class CollectionTests(unittest.TestCase):
             self.assertTrue(searches)
             self.assertTrue(all("quiescence_depth" not in r and "collection_policy" not in r for r in searches))
         finally:
+            # A request dispatched during shutdown can schedule a second test signal.
+            # Never let that delayed fixture signal interrupt the following test/run.
+            for timer in timers:
+                timer.cancel()
+                timer.join()
             for sig, handler in prior_handlers.items():
                 signal.signal(sig, handler)
 
