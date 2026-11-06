@@ -1,6 +1,8 @@
 [Unit]
 Description=Frozen NNUE v6 evidence collection on one CPU
 After=local-fs.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
 
 [Service]
 Type=simple
@@ -11,7 +13,7 @@ CPUAccounting=yes
 MemoryAccounting=yes
 KillMode=control-group
 TimeoutStopSec=30
-Restart=on-abnormal
+Restart=on-failure
 RestartSec=10
 Nice=10
 Environment=OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1

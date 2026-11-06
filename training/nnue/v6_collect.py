@@ -370,7 +370,7 @@ def run(config_path):
         fcntl.flock(own, fcntl.LOCK_EX | fcntl.LOCK_NB)
         db = data.connect(out)
         workers = {}
-        waiters = None
+        waiters = runtime.LeasePool(Path(config["control"]), BoundaryLeases)
         end_state = "stopped"
         last_status = 0
         try:
@@ -383,21 +383,12 @@ def run(config_path):
             status(db, config, "waiting_for_cpu", workers)
             while not STOP.is_set():
                 maintenance = allocation_busy(Path(config["control"]))
-                if maintenance and waiters:
-                    waiters.close()
-                    waiters = None
-                if not maintenance and len(workers) < len(indices):
-                    if waiters is None:
-                        candidates = [i for i in indices if i not in workers]
-                        waiters = BoundaryLeases(Path(config["control"]), candidates, len(candidates))
-                    acquired = waiters.take()
-                    if acquired:
-                        index, lease = acquired
-                        workers[index] = runtime.Worker(index, lease, config, db, execute_steps, Oracle)
-                        os.sched_setaffinity(0, {next(iter(workers.values())).cpu})
-                    if len(workers) == len(indices):
-                        waiters.close()
-                        waiters = None
+                candidates = [i for i in indices if i not in workers]
+                acquired = waiters.update(candidates, maintenance)
+                if acquired:
+                    index, lease = acquired
+                    workers[index] = runtime.Worker(index, lease, config, db, execute_steps, Oracle)
+                    os.sched_setaffinity(0, {next(iter(workers.values())).cpu})
                 if not workers:
                     if time.monotonic() - last_status >= 2:
                         status(db, config, "yielding_to_maintenance" if maintenance else "waiting_for_cpu", workers)
@@ -469,8 +460,7 @@ def run(config_path):
         finally:
             # Stop readers first; close all children before releasing their CPU leases.
             STOP.set()
-            if waiters:
-                waiters.close()
+            waiters.close()
             for worker in workers.values():
                 worker.close()
             db.execute("UPDATE jobs SET status='pending',attempts=max(0,attempts-1) WHERE status='running'")
@@ -544,6 +534,21 @@ def resize(args):
             db.close()
 
 
+def read_status(config):
+    report = json.loads((Path(config["out"]) / "status.json").read_text())
+    age = max(0, time.time() - report["updated"])
+    report["status_age_seconds"] = round(age, 1)
+    try:
+        os.kill(report["pid"], 0)
+        alive = True
+    except ProcessLookupError:
+        alive = False
+    if report["state"] not in ("completed", "failed", "stopped") and (not alive or age > 60):
+        report["last_reported_state"] = report["state"]
+        report["state"] = "stale"
+    return report
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
@@ -571,7 +576,7 @@ def main():
             run(args.config)
         else:
             config = json.loads(args.config.read_text())
-            print((Path(config["out"]) / "status.json").read_text())
+            print(json.dumps(read_status(config)))
     except (OSError, ValueError, RuntimeError) as error:
         parser.exit(1, f"v6 collection: {error}; collector did not complete successfully\n")
 

@@ -10,6 +10,45 @@ import v6_data as data
 import v6_teachers as teachers
 
 
+class LeasePool:
+    """Never replace a cancelled blocking waiter until its thread has exited."""
+
+    def __init__(self, control, factory):
+        self.control = control
+        self.factory = factory
+        self.waiting = {}
+        self.retired = {}
+
+    def update(self, candidates, maintenance):
+        self.retired = {
+            index: waiter
+            for index, waiter in self.retired.items()
+            if any(thread.is_alive() for thread in waiter.threads)
+        }
+        for index in list(self.waiting):
+            if maintenance or index not in candidates:
+                waiter = self.waiting.pop(index)
+                waiter.close()
+                self.retired[index] = waiter
+        if maintenance:
+            return None
+        for index in candidates:
+            if index not in self.waiting and index not in self.retired:
+                self.waiting[index] = self.factory(self.control, [index], 1)
+        for index, waiter in list(self.waiting.items()):
+            acquired = waiter.take()
+            if acquired:
+                del self.waiting[index]
+                waiter.close()
+                self.retired[index] = waiter
+                return acquired
+        return None
+
+    def close(self):
+        for waiter in (*self.waiting.values(), *self.retired.values()):
+            waiter.close()
+
+
 class Worker:
     def __init__(self, index, lease, config, db, steps, oracle_factory):
         self.index = index

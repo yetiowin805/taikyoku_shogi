@@ -1,9 +1,11 @@
 """Collection provenance, split isolation, bounded selection and resume contracts."""
 
 import json
+import os
 import signal
 import tempfile
 import threading
+import time
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -23,6 +25,64 @@ def game(count=800):
 
 
 class CollectionTests(unittest.TestCase):
+    def test_maintenance_churn_keeps_one_blocked_waiter_per_cpu(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            control = Path(tmp)
+            game_lease = (control / "cpu-3.lock").open("a+")
+            collect.fcntl.flock(game_lease, collect.fcntl.LOCK_EX)
+            created = []
+
+            def factory(*args):
+                waiter = collect.BoundaryLeases(*args)
+                created.append(waiter)
+                return waiter
+
+            baseline = len(os.listdir("/proc/self/fd"))
+            pool = collect.runtime.LeasePool(control, factory)
+            acquired = None
+            try:
+                pool.update([3], False)
+                deadline = time.monotonic() + 3
+                while len(os.listdir("/proc/self/fd")) < baseline + 1 and time.monotonic() < deadline:
+                    time.sleep(0.01)
+                self.assertEqual(len(os.listdir("/proc/self/fd")), baseline + 1)
+                for _ in range(250):
+                    self.assertIsNone(pool.update([3], False))
+                    self.assertIsNone(pool.update([3], True))
+                self.assertEqual(len(created), 1)
+                self.assertLessEqual(len(os.listdir("/proc/self/fd")), baseline + 1)
+                game_lease.close()
+                deadline = time.monotonic() + 3
+                while acquired is None and time.monotonic() < deadline:
+                    acquired = pool.update([3], False)
+                    time.sleep(0.01)
+                self.assertIsNotNone(acquired)
+                self.assertEqual(acquired[0], 3)
+            finally:
+                game_lease.close()
+                if acquired:
+                    acquired[1].close()
+                pool.close()
+                for waiter in created:
+                    for thread in waiter.threads:
+                        thread.join(timeout=3)
+                        self.assertFalse(thread.is_alive())
+            self.assertEqual(len(os.listdir("/proc/self/fd")), baseline - 1)
+
+    def test_status_does_not_present_dead_or_stale_collector_as_running(self):
+        path = self.root / "status.json"
+        report = dict(state="collecting", pid=os.getpid(), updated=time.time())
+        path.write_text(data.encoded(report))
+        self.assertEqual(collect.read_status(self.config)["state"], "collecting")
+        with patch.object(collect.os, "kill", side_effect=ProcessLookupError):
+            self.assertEqual(collect.read_status(self.config)["state"], "stale")
+        report["updated"] -= 120
+        path.write_text(data.encoded(report))
+        self.assertEqual(collect.read_status(self.config)["state"], "stale")
+        report["state"] = "completed"
+        path.write_text(data.encoded(report))
+        self.assertEqual(collect.read_status(self.config)["state"], "completed")
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)

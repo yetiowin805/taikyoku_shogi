@@ -160,6 +160,19 @@ scheduled jobs to complete. A 900-second watchdog catches stuck workers,
 separately from search budgets. A free-space floor stops optional writes. Stop
 and restart to resume; do not edit the frozen config or delete failure records.
 
+CPU reservation cancellation retains each blocked waiter until its thread exits;
+maintenance churn cannot create another waiter for that CPU in the meantime.
+This bounds pending reservations to one per configured CPU even behind long games.
+The service restarts on failure, with at most five starts in five minutes before
+systemd leaves a persistent failure visible. Successful completion and explicit
+stops do not restart. There is no overall collection runtime limit.
+
+Use the `status` command together with `systemctl status taikyoku-nnue-v6`.
+The command includes status age and marks an active report `stale` when its PID
+has exited or its heartbeat is over 60 seconds old. A stale report does not imply
+lost evidence; inspect the journal. Reading raw `status.json` alone does not check
+liveness. Automatic restart is recovery, not an external notification service.
+
 ```sh
 python3 training/nnue/v6_collect.py status /absolute/new-collection/config.json
 python3 -m unittest discover -s training/nnue -p test_v6_collection.py
