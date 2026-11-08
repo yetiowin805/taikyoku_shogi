@@ -139,14 +139,16 @@ def validate(net, samples, data, ids, batch_size):
     )
 
 
-def export(net, path, schema):
+def export(net, path, schema, output_mode="residual"):
     """Bounded-memory export: int16 /4096 feature weights, int8 /64 heads."""
+    if output_mode not in ("residual", "total"):
+        raise ValueError("unknown NNUE output mode")
     tmp = path.with_suffix(".tmp")
     with tmp.open("wb") as f:
         f.write(b"TKNNUE01")
         f.write(struct.pack("<III", 1, net.width, schema["channels"]))
         f.write(bytes.fromhex(schema["hash"]))
-        f.write(struct.pack("<III", 4096, 64, 1))
+        f.write(struct.pack("<III", 4096, 64, int(output_mode == "residual")))
         w = net.embedding.weight.detach().numpy()
         for start in range(0, len(w), 256):
             f.write(np.rint(w[start : start + 256] * 4096).clip(-2048, 2048).astype("<i2").tobytes())

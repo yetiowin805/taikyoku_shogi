@@ -71,6 +71,15 @@ fn collection_worker_reuses_history_and_checks_branches() {
     let start = call(request("first", 1)).pop().unwrap();
     assert_eq!(start["history_len"], 0);
     assert_eq!(start["turn"], 1);
+    let exported = call(json!({"version":1,"id":"features","op":"training_features","root_ply":1}))
+        .pop()
+        .unwrap();
+    assert_eq!(
+        exported["canonical_position_hash"],
+        start["canonical_position_hash"]
+    );
+    assert_eq!(exported["state_history_hash"], start["state_history_hash"]);
+    assert!(!exported["us"].as_array().unwrap().is_empty());
     let later = call(request("later", 3)).pop().unwrap();
     assert_eq!(later["history_len"], 2);
     let back = call(request("back", 2)).pop().unwrap();

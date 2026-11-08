@@ -1,4 +1,4 @@
-//! Versioned, content-verified NNUE residual on a fixed material baseline.
+//! Versioned, content-verified NNUE with explicit residual or total-score output.
 pub mod features;
 mod packed;
 mod storage;
@@ -16,15 +16,27 @@ use std::{
 };
 pub(crate) use storage::Snapshot;
 
+/// v6 representation experiment: legacy residual or learned total score.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum OutputMode {
+    #[default]
+    Residual,
+    Total,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Descriptor {
+    #[serde(default)]
+    pub output_mode: OutputMode,
     pub file: String,
     pub sha256: String,
     pub width: usize,
     pub feature_hash: String,
 }
 pub struct Network {
+    pub output_mode: OutputMode,
     pub width: usize,
     pub sha256: String,
     weights: Vec<i16>,
@@ -109,13 +121,13 @@ impl Network {
         // megabytes after the previous AlphaBetaPlayer was dropped. Retaining
         // just the most recently used network avoids unbounded RAM growth when
         // users switch among the large NNUE models.
-        type CacheEntry = ((std::path::PathBuf, String), Arc<Network>);
+        type CacheEntry = ((std::path::PathBuf, String, OutputMode), Arc<Network>);
         static CACHE: OnceLock<Mutex<Option<CacheEntry>>> = OnceLock::new();
         let mut cache = CACHE
             .get_or_init(Default::default)
             .lock()
             .map_err(|_| "NNUE cache poisoned")?;
-        let key = (path.clone(), d.sha256.clone());
+        let key = (path.clone(), d.sha256.clone(), d.output_mode);
         if let Some((cached_key, network)) = cache.as_ref() {
             if cached_key == &key {
                 return Ok(Arc::clone(network));
@@ -149,7 +161,10 @@ impl Network {
         if bytes::<32>(&mut r)? != features::schema().hash {
             return Err("NNUE feature schema mismatch".into());
         }
-        if u32le(&mut r)? != 4096 || u32le(&mut r)? != 64 || u32le(&mut r)? != 1 {
+        if u32le(&mut r)? != 4096
+            || u32le(&mut r)? != 64
+            || u32le(&mut r)? != u32::from(d.output_mode == OutputMode::Residual)
+        {
             return Err("unsupported NNUE quantization or baseline".into());
         }
         let w = d.width;
@@ -174,6 +189,7 @@ impl Network {
             }
         }
         let net = Arc::new(Self {
+            output_mode: d.output_mode,
             width: w,
             sha256: d.sha256.clone(),
             weights,
@@ -292,6 +308,7 @@ pub(crate) mod tests {
     impl Network {
         pub(crate) fn clone_for_test(&self) -> Network {
             Network {
+                output_mode: self.output_mode,
                 width: self.width,
                 sha256: self.sha256.clone(),
                 weights: self.weights.clone(),
@@ -307,6 +324,7 @@ pub(crate) mod tests {
     }
     pub(crate) fn net(width: usize, tag: &str) -> Arc<Network> {
         Arc::new(Network {
+            output_mode: OutputMode::Residual,
             width,
             sha256: tag.into(),
             weights: (0..features::FEATURES * width)
@@ -392,6 +410,27 @@ pub(crate) mod tests {
         s.ensure_eval_inc(&w);
         assert!(s.nnue.is_none());
     }
+    #[test]
+    fn total_score_omits_material_for_both_evaluation_paths() {
+        let mut s = state();
+        let mut w = EvalWeights::seed();
+        let mut total = net(32, "total").clone_for_test();
+        total.output_mode = OutputMode::Total;
+        w.nnue_runtime = Some(Arc::new(total));
+        s.ensure_eval_inc(&w);
+        let expected = s.nnue.as_ref().unwrap().residual(Color::Black);
+        assert_eq!(eval::evaluate(&s, &w), expected);
+        assert_eq!(
+            eval::evaluate_absolute_black(s.get_board(), &w, 0),
+            expected
+        );
+        s.set_current_turn(Color::White);
+        assert_eq!(
+            eval::evaluate(&s, &w),
+            s.nnue.as_ref().unwrap().residual(Color::White)
+        );
+    }
+
     #[test]
     fn score_replaces_handcrafted_terms_but_preserves_rules_and_timeout() {
         let mut s = state();
@@ -535,6 +574,7 @@ pub(crate) mod tests {
         f.flush().unwrap();
         drop(f);
         let d = Descriptor {
+            output_mode: OutputMode::Residual,
             file: "net.bin".into(),
             sha256: hash_file(&path).unwrap(),
             width: 32,
@@ -554,6 +594,9 @@ pub(crate) mod tests {
         assert!(Arc::ptr_eq(&still_cached, &loaded_again));
         drop(still_cached);
         drop(loaded_again);
+        let mut wrong_mode = d.clone();
+        wrong_mode.output_mode = OutputMode::Total;
+        assert!(Network::load(&dir.join("model.json"), &wrong_mode).is_err());
         let mut wrong = d.clone();
         wrong.sha256 = "wrong".into();
         assert!(Network::load(&dir.join("model.json"), &wrong)
@@ -573,6 +616,24 @@ pub(crate) mod tests {
         assert!(Network::load(&dir.join("model.json"), &wrong)
             .unwrap_err()
             .contains("length mismatch"));
+        let mut blob = std::fs::read(&path).unwrap();
+        blob.pop(); // Undo the deliberately appended invalid byte.
+        blob[60..64].copy_from_slice(&0u32.to_le_bytes());
+        std::fs::write(&path, blob).unwrap();
+        let mut total = d.clone();
+        total.output_mode = OutputMode::Total;
+        total.sha256 = hash_file(&path).unwrap();
+        assert_eq!(
+            Network::load(&dir.join("model.json"), &total)
+                .unwrap()
+                .output_mode,
+            OutputMode::Total
+        );
+        let legacy: Descriptor = serde_json::from_value(serde_json::json!({
+            "file":d.file,"sha256":d.sha256,"width":d.width,"feature_hash":d.feature_hash
+        }))
+        .unwrap();
+        assert_eq!(legacy.output_mode, OutputMode::Residual);
         std::fs::remove_dir_all(dir).unwrap();
     }
 }

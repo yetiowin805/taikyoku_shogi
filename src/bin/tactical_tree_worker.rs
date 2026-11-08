@@ -406,7 +406,23 @@ fn handle(
     }
     let state = position(base, &req.path)?;
     let pov = sign(&state);
-    if req.op == "collection_probe" {
+    if req.op == "training_features" {
+        use taikyoku_shogi::nnue::features;
+        let mut info = collection_metadata(&state);
+        let mut us = features::active(state.get_board(), state.get_current_turn());
+        let mut them = features::active(state.get_board(), state.get_current_turn().opposite());
+        us.sort_unstable();
+        them.sort_unstable();
+        info["event"] = json!("complete");
+        info["id"] = json!(req.id);
+        info["us"] = json!(us);
+        info["them"] = json!(them);
+        info["material_black"] = json!(taikyoku_shogi::nnue::material(
+            state.get_board(),
+            player.weights()
+        ));
+        emit(info);
+    } else if req.op == "collection_probe" {
         if req.time_ms == 0 || req.depth > 8 {
             return Err("collection probe needs a positive budget and q depth <= 8".into());
         }

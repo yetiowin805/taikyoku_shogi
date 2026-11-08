@@ -1,3 +1,5 @@
+The [v6 automatic training pipeline](V6_TRAINING.md) prepares completed evidence and runs four regimes at widths 384 and 512.
+
 # Ability NNUE starter models
 
 The [v6 evidence collector](V6_COLLECTION.md) freezes corrected-rule games and
