@@ -1,0 +1,19 @@
+[Unit]
+Description=Admit each completed NNUE v6 candidate to the live tournament
+After=local-fs.target taikyoku-coordinator.service
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/taikyoku/nnue-v6-admission.env
+ExecStart=/usr/bin/python3 ${ADMISSION} ${CONFIG} --watch
+CPUQuota=100%
+AllowedCPUs=1 3-7
+KillMode=control-group
+Restart=on-failure
+RestartSec=10
+Nice=10
+
+[Install]
+WantedBy=multi-user.target

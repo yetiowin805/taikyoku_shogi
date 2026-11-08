@@ -3,7 +3,8 @@
 `v6_pipeline.py CONFIG` waits for a completed collector status, every planned
 collection stage, zero unfinished/failed catalogue jobs, and release of the
 collector lock. It then prepares one immutable dataset and runs four regimes at
-384 and 512 widths. It never admits a model to a tournament.
+384 and 512 widths. A separate admission service adds each finished candidate
+to the live tournament immediately after its checks, without waiting for all eight.
 
 The VPS service is `taikyoku-nnue-v6-training.service`. Its environment file is
 `/etc/taikyoku/nnue-v6-training.env` with absolute `PIPELINE` and `CONFIG` paths.
@@ -108,3 +109,32 @@ prevents expensive repeated retries; inspect the per-job log and deliberately
 clear the block only after addressing its cause. `ready.json` lists the eight
 candidates only after all runs complete and their model hashes/modes validate.
 This is training readiness, not a claim of playing strength or automatic promotion.
+
+## Automatic tournament admission
+
+Enable `deploy/systemd/taikyoku-nnue-v6-admission.service` after publishing an
+engine/analyzer bundle that supports both residual and total NNUE output. Its
+environment file `/etc/taikyoku/nnue-v6-admission.env` supplies absolute `ADMISSION`
+(`deploy/training_admission.py`) and `CONFIG` paths. The separate configuration
+contains `run`, training `out`, the eight `admission_models`,
+`completion_policy: "nnue-v6"`, `lease_indices: [7,1,3,4,5,6]`, and `smoke` with a
+frozen nonterminal training game path, its SHA-256 and a one-based `ply`.
+This does not modify the immutable training configuration.
+
+The watcher checks every ten seconds. Each model must have completed status,
+a plateau completion marker matching its dispatched recipe, the expected width,
+regime and output mode, unchanged parent/prelude/dataset identities, an intact
+export, and recorded quantization parity for the validation-selected checkpoint.
+It borrows one flexible CPU for validation; trainers may briefly checkpoint and
+yield at a batch boundary. Existing games retain their leases and continue.
+The active engine and analyzer must load the frozen model, and a depth-one search
+on the pinned training position must complete with a move. Test labels are unused.
+
+Admission uses the existing content-pinned live coordinator transaction and records
+its receipt. Models join the `v6` retirement cohort; existing retirement rules and
+match scheduling apply. Admission makes a model eligible immediately; its first
+game still depends on an available slot and scheduler selection. Acknowledged
+admissions survive service restarts, including if a model is later retired.
+Failures are persisted and reported loudly, with bounded service restart attempts.
+There is no overall runtime deadline. This admits experimental entrants for playing
+evaluation; it does not declare a winner or replace the best network automatically.
