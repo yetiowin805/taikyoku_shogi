@@ -113,12 +113,17 @@ def validate_entries(bundle, entries, bindings, smoke=None):
 
 def validate_v6(model):
     """Only a converged, parity-checked final export; never an intermediate best."""
-    match = re.fullmatch(r"NNUE_W(384|512)_v6([ABCD])", model.name)
+    match = re.fullmatch(r"NNUE_W(384|512)_v6([ABCD])(m?)", model.name)
     if match is None:
         raise ValueError("Invalid v6 model name")
     width, regime = int(match[1]), match[2]
-    mode = "residual" if regime == "A" else "total"
+    retained = bool(match[3])
+    if retained and regime not in "CD":
+        raise ValueError("Material-retaining suffix requires C or D")
+    mode = "residual" if regime == "A" or retained else "total"
     recipe = a.read(model / "recipe.json")
+    if recipe.get("retain_material", False) is not retained:
+        raise ValueError("v6 material policy differs from model name")
     complete = a.read(model / "complete.json")
     recipe_hash = a.digest(json.dumps(recipe, sort_keys=True, separators=(",", ":")).encode())
     if complete["recipe"] != recipe_hash or complete.get("reason") != "plateau" or recipe.get("prelude"):
@@ -132,7 +137,7 @@ def validate_v6(model):
         raise ValueError("v6 recipe differs from dispatched training configuration")
     pipeline = a.read(model.parent / "pipeline-config.json")
     parent = Path(pipeline["parents"][str(width)])
-    start = model.parent / f"prelude-{width}-{'A' if regime == 'A' else 'B'}" / "start.pt"
+    start = model.parent / f"prelude-{width}-{'A' if regime == 'A' or retained else 'B'}" / "start.pt"
     dataset = model.parent / "dataset/dataset.json"
     if Path(recipe["parent"]) != parent or Path(recipe["start"]) != start:
         raise ValueError("v6 parent or prelude differs")
@@ -154,6 +159,8 @@ def validate_v6(model):
     if a.file_digest(model / descriptor["file"]) != descriptor["sha256"]:
         raise ValueError("v6 exported network changed")
     metrics = a.read(model / "metrics.json")
+    if retained and any(row.get("alpha") != 1 for row in metrics):
+        raise ValueError("v6 retained-material run removed its material baseline")
     if len(metrics) != complete["windows"] or not metrics:
         raise ValueError("v6 completion metrics missing")
     best = min(metrics, key=lambda r: r["validation"]["selection"])

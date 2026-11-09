@@ -152,6 +152,9 @@ def fit(config):
         raise ValueError("missing training or representative validation")
     conversion = config.get("prelude", False)
     regime = config["regime"]
+    retain_material = config.get("retain_material", False)
+    if not isinstance(retain_material, bool) or (retain_material and (regime not in "CD" or conversion)):
+        raise ValueError("retain_material is only supported for main C/D runs")
     width = config["width"]
     if regime not in "ABCD" or len(regime) != 1:
         raise ValueError("unknown regime")
@@ -251,7 +254,7 @@ def fit(config):
     while not tracker.stopped and (not conversion or window < 4):
         if STOP:
             raise InterruptedError("training paused at a resumable window boundary")
-        alpha = 1 if regime == "A" else max(0, 1 - (window + 1) / 4) if conversion else 0
+        alpha = 1 if regime == "A" or retain_material else max(0, 1 - (window + 1) / 4) if conversion else 0
         rng = random.Random(config["seed"] + window)
         draws = rng.choices(train_ids, weights=weights, k=window_draws)
         running = resume_loss
@@ -280,7 +283,7 @@ def fit(config):
             if regime == "D":
                 pair = rng.choices(pairs, weights=pair_weights, k=1)[0]
                 ids = [pair["a"], pair["b"]]
-                u = prediction(net, samples, features, ids, 0, scale)
+                u = prediction(net, samples, features, ids, alpha, scale)
                 delta = u[0] * samples[ids[0]]["turn"] - u[1] * samples[ids[1]]["turn"]
                 loss = (
                     0.10
@@ -333,7 +336,7 @@ def fit(config):
                 samples,
                 features,
                 val,
-                "residual" if regime == "A" else "total",
+                "residual" if regime == "A" or retain_material else "total",
                 scale,
             )
         decision = tracker.observe(window + 1, validation["selection"], policy) if not conversion else "continue"

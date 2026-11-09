@@ -24,6 +24,22 @@ from train import export
 
 
 class TrainingTests(unittest.TestCase):
+    def test_selected_campaign_uses_original_a_and_distinct_material_runs(self):
+        config = dict(out="/training", parents={"384": "/p384", "512": "/p512"})
+        self.assertEqual(len(pipeline.tasks(config)), 12)
+        names = ["NNUE_W512_v6A", "NNUE_W384_v6Cm", "NNUE_W384_v6Dm", "NNUE_W512_v6Cm"]
+        jobs = pipeline.tasks(dict(config, training_models=names))
+        self.assertEqual([j["name"] for j in jobs], ["prelude-512-A", names[0], "prelude-384-A", *names[1:]])
+        for job in jobs:
+            if job["name"].endswith("m"):
+                self.assertTrue(job["fit"]["retain_material"])
+                self.assertTrue(job["fit"]["start"].endswith("-A/start.pt"))
+        original = next(j for j in pipeline.tasks(config) if j["name"] == names[0])
+        self.assertEqual(jobs[1], original)
+        for invalid in ([], names + [names[0]], ["NNUE_W512_v6Bm"], ["prelude-512-A"]):
+            with self.assertRaises(ValueError):
+                pipeline.tasks(dict(config, training_models=invalid))
+
     def test_confident_error_has_correct_gradient_in_all_regimes(self):
         for regime in "ABCD":
             value = torch.tensor([12.0], requires_grad=True)
@@ -303,7 +319,7 @@ class TrainingTests(unittest.TestCase):
             self.assertEqual(report["excluded"]["feature_split_or_history_conflict"], 2)
 
     @integration
-    def test_eight_run_handoff_and_idempotent_restart(self):
+    def test_legacy_and_material_runs_handoff_and_idempotent_restart(self):
         allowed = set(os.sched_getaffinity(0))
         if not {1, 3, 4, 5, 6, 7} <= allowed:
             self.skipTest("integration requires configured Linux CPUs 1,3-7")
@@ -392,6 +408,9 @@ class TrainingTests(unittest.TestCase):
                 identities={},
                 python=sys.executable,
                 window_draws=8,
+                training_models=[
+                    f"NNUE_W{width}_v6{regime}" for width in (384, 512) for regime in ("A", "B", "C", "D", "Cm", "Dm")
+                ],
             )
             config_path = root / "config.json"
             config_path.write_text(json.dumps(config))
@@ -415,13 +434,17 @@ class TrainingTests(unittest.TestCase):
                     process.terminate()
                     process.communicate(timeout=30)
             ready = json.loads((out / "ready.json").read_text())
-            self.assertEqual(len(ready["models"]), 8)
+            self.assertEqual(len(ready["models"]), 12)
             before = {p: data.file_hash(p) for p in out.glob("*/complete.json")}
             subprocess.run(command, check=True, timeout=30, capture_output=True)
             self.assertEqual(before, {p: data.file_hash(p) for p in before})
             for model in ready["models"]:
                 desc = json.loads(Path(model).read_text())["weights"]["nnue"]
-                self.assertEqual(desc["output_mode"], "residual" if "v6A" in model else "total")
+                retained = Path(model).parent.name.endswith("m")
+                self.assertEqual(desc["output_mode"], "residual" if "v6A" in model or retained else "total")
+                if retained:
+                    metrics = json.loads((Path(model).parent / "metrics.json").read_text())
+                    self.assertTrue(all(row["alpha"] == 1 for row in metrics))
 
 
 if __name__ == "__main__":

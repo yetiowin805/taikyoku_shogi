@@ -100,6 +100,7 @@ class V6AdmissionTests(unittest.TestCase):
         a.atomic(self.model / "model.json", wrong)
         with self.assertRaisesRegex(ValueError, "output mode"):
             admission.validate_v6(self.model)
+
         a.atomic(self.model / "model.json", self.checkpoint)
         for error in (3, float("nan")):
             changed = copy.deepcopy(self.metrics)
@@ -109,6 +110,42 @@ class V6AdmissionTests(unittest.TestCase):
                 admission.validate_v6(self.model)
         (self.model / "network.bin").write_bytes(b"corruption")
         with self.assertRaisesRegex(ValueError, "network changed"):
+            admission.validate_v6(self.model)
+
+    def test_material_variant_requires_residual_export_and_a_start(self):
+        old = self.model
+        self.model = self.out / "NNUE_W384_v6Cm"
+        old.rename(self.model)
+        start = self.out / "prelude-384-A/start.pt"
+        start.parent.mkdir()
+        start.write_bytes(b"matched A prelude")
+        recipe = dict(
+            self.recipe,
+            regime="C",
+            retain_material=True,
+            out=str(self.model),
+            start=str(start),
+            start_sha256=a.file_digest(start),
+        )
+        a.atomic(self.model / "recipe.json", recipe)
+        dispatched = {k: v for k, v in recipe.items() if k not in ("dataset_sha256", "parent_sha256", "start_sha256")}
+        a.atomic(self.out / (self.model.name + ".json"), dispatched)
+        complete = dict(
+            self.complete, recipe=a.digest(json.dumps(recipe, sort_keys=True, separators=(",", ":")).encode())
+        )
+        a.atomic(self.model / "complete.json", complete)
+        checkpoint = copy.deepcopy(self.checkpoint)
+        checkpoint["name"] = self.model.name
+        checkpoint["weights"]["nnue"]["output_mode"] = "residual"
+        a.atomic(self.model / "model.json", checkpoint)
+        metrics = copy.deepcopy(self.metrics)
+        metrics[0].update(alpha=1)
+        metrics[0]["export"]["output_mode"] = "residual"
+        a.atomic(self.model / "metrics.json", metrics)
+        admission.validate_v6(self.model)
+        metrics[0]["alpha"] = 0
+        a.atomic(self.model / "metrics.json", metrics)
+        with self.assertRaisesRegex(ValueError, "removed its material"):
             admission.validate_v6(self.model)
 
     def test_ready_model_is_admitted_without_waiting_for_other_widths_or_regimes(self):

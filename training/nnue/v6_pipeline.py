@@ -50,7 +50,39 @@ def tasks(config):
                     ),
                 )
             )
-    return result
+    # Explicit campaign selection preserves old recipes/checkpoints while allowing
+    # pure-NNUE experiments to be replaced by distinct material-retaining runs.
+    selected = config.get("training_models")
+    if selected is None:
+        return result
+    if not selected or len(selected) != len(set(selected)):
+        raise ValueError("training_models must be nonempty and distinct")
+    for width in (384, 512):
+        for regime in "CD":
+            start = f"prelude-{width}-A"
+            result.append(
+                dict(
+                    name=f"NNUE_W{width}_v6{regime}m",
+                    dependencies=[start],
+                    fit=dict(
+                        width=width,
+                        regime=regime,
+                        retain_material=True,
+                        parent=config["parents"][str(width)],
+                        start=str(out / start / "start.pt"),
+                    ),
+                )
+            )
+    by_name = {job["name"]: job for job in result}
+    plan = []
+    for name in selected:
+        if name not in by_name or by_name[name]["fit"].get("prelude"):
+            raise ValueError("unknown training model: " + name)
+        for dependency in by_name[name]["dependencies"]:
+            if by_name[dependency] not in plan:
+                plan.append(by_name[dependency])
+        plan.append(by_name[name])
+    return plan
 
 
 def finished(out, job):
@@ -64,7 +96,7 @@ def finished(out, job):
         d = json.loads(cp.read_text())["weights"]["nnue"]
         if data.file_hash(cp.parent / d["file"]) != d["sha256"]:
             raise ValueError("completed model changed")
-        expected = "residual" if job["fit"]["regime"] == "A" else "total"
+        expected = "residual" if job["fit"]["regime"] == "A" or job["fit"].get("retain_material") else "total"
         if d.get("output_mode") != expected:
             raise ValueError("completed model output mode differs")
     return True

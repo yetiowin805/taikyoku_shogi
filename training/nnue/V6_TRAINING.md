@@ -149,3 +149,24 @@ admissions survive service restarts, including if a model is later retired.
 Failures are persisted and reported loudly, with bounded service restart attempts.
 There is no overall runtime deadline. This admits experimental entrants for playing
 evaluation; it does not declare a winner or replace the best network automatically.
+
+## Material-retaining follow-up (2026-11-08)
+
+The pure 384 B/C runs deteriorated during conversion and were withdrawn from
+active tournament membership; their completed games and exported models remain
+historical evidence. Pure D and the remaining pure 512 jobs are deferred.
+The selected campaign keeps 384v6A, prioritizes 512v6A, and adds
+384/512v6Cm and 384/512v6Dm. The `m` suffix is a distinct immutable model identity.
+
+`training_models` optionally selects and orders final jobs; the pipeline includes
+only their required preludes. Omitting it preserves the original eight-run plan.
+Cm/Dm set `retain_material: true`, start from their corresponding A prelude,
+and retain material with coefficient one for optimization, validation, and D's
+sibling-ranking predictions. They export residual networks. They do not reuse
+pure B/C/D weights. Their losses, data, optimization and stopping otherwise match
+C/D. Existing A recipes and optimizer checkpoints are unchanged.
+
+Admission checks the suffix against the pinned material policy, the A-prelude
+identity, coefficient-one training metrics, and residual export/parity evidence.
+Each selected model is admitted as soon as its own training completes. This is
+still experiment admission, not a claim of improved playing strength.
