@@ -94,6 +94,13 @@ legacy residual; `total` requires flag 0. Older engines reject total models rath
 than double-adding material. Search material heuristics and terminal rules remain
 unchanged. Use this revision's engine for evaluating v6 candidates.
 
+Activation rounding uses integer accumulators and integer affine layers in the
+forward pass, with floating surrogate gradients. This avoids float32 rounding-tie
+differences from the deployed evaluator; export tolerance remains two score units.
+Integer-valued embedding rows are summed in float64 because Torch's embedding-bag
+kernel does not accept integer weights. This adds forward-pass work and temporary
+memory compared with the old floating approximation; no training-speed gain is claimed.
+
 ## Recovery and outputs
 
 Each run has immutable recipe, status, metrics, complete checkpoint and completion
@@ -102,6 +109,10 @@ guard baseline at batch boundaries. Abrupt termination replays only work since t
 last committed checkpoint. Atomic model export and complete markers make restart
 idempotent. Finished optimizer files are removed; parent, prelude start weights,
 metrics and all eight inference models remain.
+The trainer also checkpoints the full-window offset before validation and export.
+If either check fails, resume retries it without replaying that window's optimizer
+updates. This adds one checkpoint write per window; the prior checkpoint is replaced
+atomically, rather than retaining another permanent optimizer copy.
 
 The pipeline service restarts unexpected process failures, with five starts in
 five minutes. A failed child or dataset prerequisite writes `blocked.json` and

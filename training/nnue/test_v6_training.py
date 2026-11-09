@@ -94,7 +94,29 @@ class TrainingTests(unittest.TestCase):
             off = torch.tensor([0, 2, 4])
             self.assertLessEqual(abs(q.residual([1, 2], [3, 4]) - net(x, off).item() * 1000), 1)
 
-    def test_batch_boundary_pause_resumes_exact_optimizer_and_sampler(self):
+    def test_integer_activation_ties_match_exports_at_both_production_widths(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            for width in (32, 384, 512):
+                torch.manual_seed(23)
+                net = PilotNet(64, width)
+                with torch.no_grad():
+                    net.embedding.weight.uniform_(-0.03, 0.03)
+                    for layer in (net.h1, net.h2):
+                        layer.weight.copy_(torch.randint(-4, 5, layer.weight.shape) / 64)
+                        layer.bias.copy_(torch.randint(0, 4000, layer.bias.shape) / 8128)
+                    net.output.weight.uniform_(-2, 2)
+                path = Path(tmp) / "network.bin"
+                export(net, path, dict(channels=92, hash="00" * 32))
+                q = Quantized(path, 64)
+                for _ in range(64):
+                    x = torch.randint(64, (64,))
+                    off = torch.tensor([0, 32, 64])
+                    expected = q.residual(x[:32].numpy(), x[32:].numpy())
+                    with torch.no_grad():
+                        actual = net(x, off).item() * 1000
+                    self.assertLessEqual(abs(expected - actual), 0.51, (width, expected, actual))
+
+    def test_batch_and_export_failure_resume_exact_optimizer_and_sampler(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             source = root / "data"
@@ -181,6 +203,36 @@ class TrainingTests(unittest.TestCase):
                 fit.fit(dict(config, out=str(root / "uninterrupted")))
             a = torch.load(root / "resumed/start.pt", weights_only=True)
             b = torch.load(root / "uninterrupted/start.pt", weights_only=True)
+            for key in a:
+                self.assertTrue(torch.equal(a[key], b[key]), key)
+            main_config = dict(config, prelude=False, start=str(root / "uninterrupted/start.pt"))
+            main_config["out"] = str(root / "export-resumed")
+            publish = fit.publish
+            retry_pending = True
+
+            def count_draws(*args):
+                self.assertFalse(retry_pending, "replayed optimization before retrying failed export")
+                return original(*args)
+
+            def retry_export(*args):
+                nonlocal retry_pending
+                retry_pending = False
+                return publish(*args)
+
+            with patch.object(torch, "set_num_interop_threads"), patch.object(fit.signal, "signal"):
+                with patch.object(fit, "publish", side_effect=ValueError("export failed")):
+                    with self.assertRaisesRegex(ValueError, "export failed"):
+                        fit.fit(main_config)
+                saved = torch.load(root / "export-resumed/training.pt", weights_only=True)
+                self.assertEqual((saved["window"], saved["offset"]), (0, 16))
+                with (
+                    patch.object(fit, "objective", side_effect=count_draws),
+                    patch.object(fit, "publish", side_effect=retry_export),
+                ):
+                    fit.fit(main_config)
+                fit.fit(dict(main_config, out=str(root / "export-uninterrupted")))
+            a = torch.load(root / "export-resumed/training.pt", weights_only=True)["net"]
+            b = torch.load(root / "export-uninterrupted/training.pt", weights_only=True)["net"]
             for key in a:
                 self.assertTrue(torch.equal(a[key], b[key]), key)
 

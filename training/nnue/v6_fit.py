@@ -306,6 +306,9 @@ def fit(config):
                     out / "status.json",
                     dict(state="training", window=window, draws=first, alpha=alpha, updated=time.time()),
                 )
+        # Validation/export can fail independently of optimization. A full-window
+        # offset resumes directly at those checks without repeating the draws.
+        persist(window, window_draws, running, rng.getstate())
         resume_offset, resume_loss, sampler_state = 0, 0.0, None
         validation = evaluate(net, samples, features, val, alpha, scale)
         guard = evaluate(net, samples, features, guard_ids, alpha, scale)["teacher"] if conversion else None
