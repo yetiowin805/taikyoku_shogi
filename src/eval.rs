@@ -1110,6 +1110,8 @@ pub enum SearchExperiment {
     Baseline,
     History,
     TacticalLmr,
+    /// November 2026 v6 transfer: tactical LMR with the now-default q corrections.
+    TacticalLmrQFix,
     GuardedNull,
     Sacrifice,
     ThreatQ,
@@ -1131,10 +1133,11 @@ pub enum SearchExperiment {
 
 impl SearchExperiment {
     /// Supported checkpoint policies, also exposed by the engine admission probe.
-    pub const ALL: [Self; 18] = [
+    pub const ALL: [Self; 19] = [
         Self::Baseline,
         Self::History,
         Self::TacticalLmr,
+        Self::TacticalLmrQFix,
         Self::GuardedNull,
         Self::Sacrifice,
         Self::ThreatQ,
@@ -1230,7 +1233,7 @@ pub struct SearchDefaults {
     /// Missing → false.
     #[serde(default)]
     pub q_own_large_only: bool,
-    /// October 2026 W512-v3 search experiment; absent means unchanged production.
+    /// New checkpoints use QFix; absent in serialized old checkpoints preserves Baseline.
     #[serde(default)]
     pub experiment: SearchExperiment,
     /// Third-wave search trial; missing preserves the checkpoint's old search.
@@ -1260,7 +1263,7 @@ impl Default for SearchDefaults {
             q_open_any_capture: false,
             q_recapture_only: false,
             q_own_large_only: true,
-            experiment: SearchExperiment::Baseline,
+            experiment: SearchExperiment::QFix,
             trial: SearchTrial::None,
         }
     }
