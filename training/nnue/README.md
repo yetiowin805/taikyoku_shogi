@@ -1,4 +1,10 @@
+The [v6 automatic training pipeline](V6_TRAINING.md) prepares completed evidence and runs four regimes at widths 384 and 512.
+
 # Ability NNUE starter models
+
+The [v6 evidence collector](V6_COLLECTION.md) freezes corrected-rule games and
+collects static, search, paired-teacher and alternative-move evidence on one to six CPUs.
+It does not launch training or admit models.
 
 For the expanded training recipe, see [generation v3](GENERATION.md). Future
 data collection and mate-position experiments are recorded in the

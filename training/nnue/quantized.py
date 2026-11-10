@@ -12,7 +12,9 @@ class Quantized:
         assert bytes(b[:8]) == b"TKNNUE01"
         version, self.width, channels = struct.unpack("<III", b[8:20])
         assert version == 1 and channels == 92
-        assert struct.unpack("<III", b[52:64]) == (4096, 64, 1)
+        first, second, baseline = struct.unpack("<III", b[52:64])
+        assert (first, second) == (4096, 64) and baseline in (0, 1)
+        self.output_mode = "residual" if baseline else "total"
         self.offset = 64
 
         def take(dtype, shape):

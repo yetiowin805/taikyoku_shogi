@@ -1851,7 +1851,9 @@ pub fn evaluate_with_ply(state: &GameState, weights: &EvalWeights, ply: usize) -
             .filter(|i| i.matches(weights))
             .map(|i| i.mat[0] - i.mat[1])
             .unwrap_or_else(|| crate::nnue::material(state.get_board(), weights));
-        let signed = if stm == Color::Black {
+        let signed = if net.output_mode == crate::nnue::OutputMode::Total {
+            0.0
+        } else if stm == Color::Black {
             material
         } else {
             -material
@@ -1897,7 +1899,12 @@ pub fn evaluate_absolute_black(board: &Board, weights: &EvalWeights, ply: usize)
 
     if let Some(net) = &weights.nnue_runtime {
         let a = crate::nnue::Accumulator::new(net.clone(), board);
-        return (crate::nnue::material(board, weights).round() as i32 + a.residual(Color::Black))
+        let baseline = if net.output_mode == crate::nnue::OutputMode::Total {
+            0
+        } else {
+            crate::nnue::material(board, weights).round() as i32
+        };
+        return (baseline + a.residual(Color::Black))
             .clamp(-weights.mate_score / 2, weights.mate_score / 2);
     }
     assert!(
@@ -2514,6 +2521,7 @@ mod tests {
         fs::write(root.join("manifest.json"), r#"{"entrants": []}"#).unwrap();
         fs::write(root.join("invalid.json"), "invalid").unwrap();
         cp.weights.nnue = Some(crate::nnue::Descriptor {
+            output_mode: crate::nnue::OutputMode::Residual,
             file: "weights.bin".into(),
             sha256: "unused-by-discovery".into(),
             feature_hash: "unused".into(),

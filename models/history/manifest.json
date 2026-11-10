@@ -180,6 +180,12 @@
       "git": "8f033dd642125828baa2da3f031273f83a723e32",
       "kind": "logic",
       "summary": "Before third-wave opt-in NNUE search trials (PR197); parent includes second-wave search policies, combined retirement cohorts and bounded disagreement sampling."
+    },
+    {
+      "id": "LOGIC_PRE_NNUE_TOTAL_OUTPUT",
+      "git": "cd848f3706594c5b1aa865367e2b11944e258d28",
+      "kind": "logic",
+      "summary": "Parent of PR212: residual-only NNUE evaluation before explicit residual/total output modes and the v6 training pipeline. Existing residual evaluation/search remains compatible."
     }
   ]
 }
