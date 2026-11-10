@@ -116,6 +116,8 @@ class ResumeTests(unittest.TestCase):
             command(
                 HERE / "train.py", dataset, "--base", base, "--out", seed, "--width", 32, "--threads", 1, "--epochs", 2
             )
+            checkpoint = json.loads((seed / "NNUE_W32_v1.json").read_text())
+            self.assertEqual(checkpoint["search_defaults"]["experiment"], "q_fix")
             original = {p.name: sha(p) for p in seed.iterdir() if p.suffix in (".pt", ".bin", ".json")}
             # Stop during epoch 4 validation, then compare the resumed result with
             # uninterrupted training, including sparse updates and Adam state.

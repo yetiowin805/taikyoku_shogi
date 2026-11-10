@@ -43,10 +43,9 @@ def freeze_models(models, control, *, search_variants=False):
             a.atomic(target, frozen)
         bindings[str(target)] = a.snapshot_model(target, target.read_bytes(), control)
         entry = dict(id=name, model=str(target))
-        # Generation-three names are deliberately outside the legacy roster's
-        # ID inference. Pin their retirement cohort with the admission identity.
-        # Ordinary training and legacy trial=None admissions keep their metadata.
-        if search_variants and checkpoint.get("search_defaults", {}).get("trial", "none") != "none":
+        # Transferred packages are search experiments, including trial=None on
+        # new network generations whose IDs have no legacy search inference.
+        if search_variants:
             entry["generation"] = "search"
         entries.append(entry)
     return entries, bindings
@@ -201,8 +200,8 @@ def prepare_search_variants(config, *, bundle=None):
             raise ValueError("Search variants require a current-engine NNUE baseline")
         source = Path(base["model"])
         checkpoint = a.read(source)
-        if checkpoint.get("search_defaults", {}).get("experiment", "baseline") != "baseline":
-            raise ValueError("Search baseline must use the unchanged policy")
+        if checkpoint.get("search_defaults", {}).get("experiment", "baseline") not in ("baseline", "q_fix"):
+            raise ValueError("Search baseline must use the baseline or corrected baseline policy")
         if checkpoint.get("search_defaults", {}).get("trial", "none") != "none":
             raise ValueError("Search baseline must use the unchanged trial")
         descriptor = checkpoint["weights"]["nnue"]

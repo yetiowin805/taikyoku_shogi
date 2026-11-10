@@ -111,39 +111,12 @@ pub fn adjust_directions_for_color(
     directions: crate::movement::direction::DirectionSet,
     color: Color,
 ) -> crate::movement::direction::DirectionSet {
-    use crate::movement::direction::Direction;
-
     if color == Color::Black {
         // No adjustment needed for Black (N is forward)
         directions
     } else {
-        // For White, flip all directions in 180-degree rotation: N<->S, E<->W, NE<->SW, SE<->NW
-        let mut adjusted = 0u8;
-        if directions & Direction::N.to_bit() != 0 {
-            adjusted |= Direction::S.to_bit();
-        }
-        if directions & Direction::S.to_bit() != 0 {
-            adjusted |= Direction::N.to_bit();
-        }
-        if directions & Direction::E.to_bit() != 0 {
-            adjusted |= Direction::W.to_bit();
-        }
-        if directions & Direction::W.to_bit() != 0 {
-            adjusted |= Direction::E.to_bit();
-        }
-        if directions & Direction::NE.to_bit() != 0 {
-            adjusted |= Direction::SW.to_bit();
-        }
-        if directions & Direction::SW.to_bit() != 0 {
-            adjusted |= Direction::NE.to_bit();
-        }
-        if directions & Direction::SE.to_bit() != 0 {
-            adjusted |= Direction::NW.to_bit();
-        }
-        if directions & Direction::NW.to_bit() != 0 {
-            adjusted |= Direction::SE.to_bit();
-        }
-        adjusted
+        // Opposite directions occupy opposite halves of the eight-bit mask.
+        directions.rotate_left(4)
     }
 }
 

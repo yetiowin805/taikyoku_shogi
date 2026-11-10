@@ -62,7 +62,13 @@ Alias: `startpos` = opening setup.
 |---|---|
 | Standard | `12,3-15,6` or `12,3-15,6+` (promote) |
 | Two-step | `12,3-13,4-15,6[+]` |
-| Free Eagle | `12,3-13,4-14,5-15,6[+]` (from + path) |
+| Free Eagle | `12,3-12,3-13,4-14,5-15,6[+]` (repeated origin marks the route) |
+
+Free Eagle tokens repeat the origin so even one- and two-leg paths retain their
+move kind. Existing unmarked routes with three or more legs remain accepted;
+an unmarked two-leg token uses the two-step syntax and its exact intermediate
+is respected when the mover is a Free Eagle. Internal Free Eagle paths include
+the origin and final landing.
 
 ```bash
 cargo run --release -- position tsfen --start opening

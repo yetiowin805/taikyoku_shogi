@@ -368,18 +368,18 @@ impl MinimalIntelligencePlayer {
 
         // Fast check: Count friendly and enemy pieces in the path
         // If capturing at least 1 friendly piece, must capture at least 1 more enemy piece
-        let path_positions = path_utils::get_path_positions(mv.from, mv.to);
+        let path_positions = path_utils::path_positions(mv.from, mv.to);
         let mut friendly_count = 0;
         let mut enemy_count = 0;
         let mut captured_two_step_piece = false;
 
         // Count pieces in the path (excluding both start and destination)
-        for pos in &path_positions {
-            if pos == &mv.from || pos == &mv.to {
+        for pos in path_positions {
+            if pos == mv.from || pos == mv.to {
                 continue; // Skip start and destination positions
             }
 
-            if let Some(piece) = board.get_piece(*pos) {
+            if let Some(piece) = board.get_piece(pos) {
                 if piece.color == moving_piece.color {
                     friendly_count += 1;
                 } else {
@@ -590,7 +590,7 @@ impl MinimalIntelligencePlayer {
         let uses_capturing = MovementConfig::uses_capturing_range(&moving_piece, mv.from, mv.to);
 
         if uses_capturing {
-            let path_positions = path_utils::get_path_positions(mv.from, mv.to);
+            let path_positions = path_utils::path_positions(mv.from, mv.to);
             for pos in path_positions {
                 if attacking_positions.contains(&pos) {
                     return true;

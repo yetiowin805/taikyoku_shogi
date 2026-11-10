@@ -1,0 +1,632 @@
+[
+  {
+    "aborted": true,
+    "agent": "NNUE_W512_v3_HLF_G3ATK",
+    "best": {
+      "data": "Standard",
+      "from": {
+        "file": 13,
+        "rank": 9
+      },
+      "promoted": true,
+      "to": {
+        "file": 13,
+        "rank": 26
+      }
+    },
+    "completed_depth": 1,
+    "cpu_ms": 200.127,
+    "depth": 3,
+    "hash": 5843905854117615521,
+    "legal": 517,
+    "model": 0,
+    "ms": 200.120284,
+    "name": "early development-slot0703-ply24",
+    "nnue": true,
+    "nodes": 36602,
+    "pieces": 706,
+    "ply": 0,
+    "position": 0,
+    "q_nodes": 28718,
+    "score": -4756,
+    "signature": "6bc4ee71e109a020c49e18c294766f707100f31f3a96debda8f87b80461ddea7",
+    "pid": 5,
+    "rss_kib": 290044,
+    "peak_rss_kib": 290044
+  },
+  {
+    "aborted": false,
+    "agent": "NNUE_W512_v3_HLF_G3ATK",
+    "best": {
+      "data": "Standard",
+      "from": {
+        "file": 25,
+        "rank": 30
+      },
+      "promoted": false,
+      "to": {
+        "file": 25,
+        "rank": 29
+      }
+    },
+    "completed_depth": 3,
+    "cpu_ms": 132.84,
+    "depth": 3,
+    "hash": 2522453451552237802,
+    "legal": 654,
+    "model": 0,
+    "ms": 132.835762,
+    "name": "late middlegame-slot0703-ply701",
+    "nnue": true,
+    "nodes": 44293,
+    "pieces": 412,
+    "ply": 0,
+    "position": 1,
+    "q_nodes": 15928,
+    "score": -4938,
+    "signature": "e62b52a126dd0ad3c5a3a480d22d7351e2197cc7ae4f0d8495533b122341382a",
+    "pid": 5,
+    "rss_kib": 293492,
+    "peak_rss_kib": 293492
+  },
+  {
+    "aborted": false,
+    "agent": "NNUE_W512_v3_HLF_G3ATK",
+    "best": {
+      "data": "Standard",
+      "from": {
+        "file": 4,
+        "rank": 19
+      },
+      "promoted": false,
+      "to": {
+        "file": 9,
+        "rank": 24
+      }
+    },
+    "completed_depth": 2,
+    "cpu_ms": 180.203,
+    "depth": 3,
+    "hash": 7854230961524654674,
+    "legal": 571,
+    "model": 0,
+    "ms": 180.196383,
+    "name": "development-slot0700-ply161",
+    "nnue": true,
+    "nodes": 35466,
+    "pieces": 660,
+    "ply": 0,
+    "position": 2,
+    "q_nodes": 21498,
+    "score": -1947,
+    "signature": "91c25434d7cc0598432d1d13b40f3a584905ae0a5456de6a154b155e4cb8f460",
+    "pid": 5,
+    "rss_kib": 295852,
+    "peak_rss_kib": 295852
+  },
+  {
+    "aborted": true,
+    "agent": "NNUE_W512_v3_HLF_G3ATK",
+    "best": {
+      "data": "Standard",
+      "from": {
+        "file": 34,
+        "rank": 7
+      },
+      "promoted": false,
+      "to": {
+        "file": 34,
+        "rank": 25
+      }
+    },
+    "completed_depth": 2,
+    "cpu_ms": 200.094,
+    "depth": 3,
+    "hash": 17303791666749100124,
+    "legal": 1030,
+    "model": 0,
+    "ms": 200.112448,
+    "name": "endgame-slot0700-ply1400",
+    "nnue": true,
+    "nodes": 32319,
+    "pieces": 167,
+    "ply": 0,
+    "position": 3,
+    "q_nodes": 9709,
+    "score": -5304,
+    "signature": "3286565d1c3a147183c4c2e9704e68b8373a8005b48afe86fe4cfb14d1dd6549",
+    "pid": 5,
+    "rss_kib": 299732,
+    "peak_rss_kib": 299732
+  },
+  {
+    "aborted": true,
+    "agent": "NNUE_W512_v3_HLF_G3ATK",
+    "best": {
+      "data": "Standard",
+      "from": {
+        "file": 8,
+        "rank": 4
+      },
+      "promoted": false,
+      "to": {
+        "file": 8,
+        "rank": 3
+      }
+    },
+    "completed_depth": 2,
+    "cpu_ms": 200.131,
+    "depth": 3,
+    "hash": 13253047500511786039,
+    "legal": 618,
+    "model": 0,
+    "ms": 200.13468500000002,
+    "name": "middlegame-slot0633-ply420",
+    "nnue": true,
+    "nodes": 31367,
+    "pieces": 482,
+    "ply": 0,
+    "position": 4,
+    "q_nodes": 17215,
+    "score": -1059,
+    "signature": "b16f1f5bf653ce921a396790fb120da5b9621d6702585478f42f2e0efa2e5709",
+    "pid": 5,
+    "rss_kib": 301148,
+    "peak_rss_kib": 301148
+  },
+  {
+    "aborted": false,
+    "agent": "NNUE_W512_v3_HLF_G3ATK",
+    "best": {
+      "data": "Standard",
+      "from": {
+        "file": 21,
+        "rank": 30
+      },
+      "promoted": false,
+      "to": {
+        "file": 22,
+        "rank": 30
+      }
+    },
+    "completed_depth": 3,
+    "cpu_ms": 39.692,
+    "depth": 3,
+    "hash": 10094030215718197736,
+    "legal": 595,
+    "model": 0,
+    "ms": 39.724412,
+    "name": "late endgame-slot0633-ply931",
+    "nnue": true,
+    "nodes": 3235,
+    "pieces": 254,
+    "ply": 0,
+    "position": 5,
+    "q_nodes": 11,
+    "score": 201,
+    "signature": "c70e6c68406e01f0a09d66b9f640e8ed6c94ed7e9af6be5377ce5881be868d7d",
+    "pid": 5,
+    "rss_kib": 301196,
+    "peak_rss_kib": 301196
+  },
+  {
+    "aborted": true,
+    "agent": "NNUE_W512_v3_HLF_G3FP",
+    "best": {
+      "data": "Standard",
+      "from": {
+        "file": 13,
+        "rank": 9
+      },
+      "promoted": true,
+      "to": {
+        "file": 13,
+        "rank": 26
+      }
+    },
+    "completed_depth": 1,
+    "cpu_ms": 200.088,
+    "depth": 3,
+    "hash": 5843905854117615521,
+    "legal": 517,
+    "model": 1,
+    "ms": 200.095784,
+    "name": "early development-slot0703-ply24",
+    "nnue": true,
+    "nodes": 37411,
+    "pieces": 706,
+    "ply": 0,
+    "position": 0,
+    "q_nodes": 28956,
+    "score": -4756,
+    "signature": "7088f002418e154aee9e88db1cd9b0bb77e1ed51ab9a66681297293ada79571b",
+    "pid": 5,
+    "rss_kib": 301312,
+    "peak_rss_kib": 301312
+  },
+  {
+    "aborted": false,
+    "agent": "NNUE_W512_v3_HLF_G3FP",
+    "best": {
+      "data": "Standard",
+      "from": {
+        "file": 25,
+        "rank": 30
+      },
+      "promoted": false,
+      "to": {
+        "file": 25,
+        "rank": 29
+      }
+    },
+    "completed_depth": 3,
+    "cpu_ms": 129.708,
+    "depth": 3,
+    "hash": 2522453451552237802,
+    "legal": 654,
+    "model": 1,
+    "ms": 129.701393,
+    "name": "late middlegame-slot0703-ply701",
+    "nnue": true,
+    "nodes": 41486,
+    "pieces": 412,
+    "ply": 0,
+    "position": 1,
+    "q_nodes": 15818,
+    "score": -4912,
+    "signature": "0ede73e2c83af83a22e3892c2d91748929eac84d56e955765461d041129f2b30",
+    "pid": 5,
+    "rss_kib": 301320,
+    "peak_rss_kib": 301320
+  },
+  {
+    "aborted": false,
+    "agent": "NNUE_W512_v3_HLF_G3FP",
+    "best": {
+      "data": "Standard",
+      "from": {
+        "file": 21,
+        "rank": 27
+      },
+      "promoted": false,
+      "to": {
+        "file": 22,
+        "rank": 26
+      }
+    },
+    "completed_depth": 2,
+    "cpu_ms": 190.883,
+    "depth": 3,
+    "hash": 7854230961524654674,
+    "legal": 571,
+    "model": 1,
+    "ms": 190.876039,
+    "name": "development-slot0700-ply161",
+    "nnue": true,
+    "nodes": 40823,
+    "pieces": 660,
+    "ply": 0,
+    "position": 2,
+    "q_nodes": 24753,
+    "score": -2106,
+    "signature": "b0724321f76ffe2572a06eaf5e59ee36e3deb49adbb6767047b72a48be2cbf38",
+    "pid": 5,
+    "rss_kib": 301328,
+    "peak_rss_kib": 301328
+  },
+  {
+    "aborted": true,
+    "agent": "NNUE_W512_v3_HLF_G3FP",
+    "best": {
+      "data": "Standard",
+      "from": {
+        "file": 34,
+        "rank": 7
+      },
+      "promoted": false,
+      "to": {
+        "file": 34,
+        "rank": 25
+      }
+    },
+    "completed_depth": 2,
+    "cpu_ms": 200.079,
+    "depth": 3,
+    "hash": 17303791666749100124,
+    "legal": 1030,
+    "model": 1,
+    "ms": 200.083178,
+    "name": "endgame-slot0700-ply1400",
+    "nnue": true,
+    "nodes": 37122,
+    "pieces": 167,
+    "ply": 0,
+    "position": 3,
+    "q_nodes": 9284,
+    "score": -5304,
+    "signature": "908fae120c0ac295b36db431ff8e56c71ae150b9ddaba7416e3d151a50a1fab8",
+    "pid": 5,
+    "rss_kib": 301512,
+    "peak_rss_kib": 301512
+  },
+  {
+    "aborted": false,
+    "agent": "NNUE_W512_v3_HLF_G3FP",
+    "best": {
+      "data": "Standard",
+      "from": {
+        "file": 8,
+        "rank": 4
+      },
+      "promoted": false,
+      "to": {
+        "file": 8,
+        "rank": 3
+      }
+    },
+    "completed_depth": 3,
+    "cpu_ms": 163.764,
+    "depth": 3,
+    "hash": 13253047500511786039,
+    "legal": 618,
+    "model": 1,
+    "ms": 163.76348700000003,
+    "name": "middlegame-slot0633-ply420",
+    "nnue": true,
+    "nodes": 32228,
+    "pieces": 482,
+    "ply": 0,
+    "position": 4,
+    "q_nodes": 14882,
+    "score": -1132,
+    "signature": "1238f62a805ee5f1aabb6d7a132bb586b3486c1865a7617d9ded87d62f7c2303",
+    "pid": 5,
+    "rss_kib": 301544,
+    "peak_rss_kib": 301544
+  },
+  {
+    "aborted": false,
+    "agent": "NNUE_W512_v3_HLF_G3FP",
+    "best": {
+      "data": "Standard",
+      "from": {
+        "file": 21,
+        "rank": 30
+      },
+      "promoted": false,
+      "to": {
+        "file": 22,
+        "rank": 30
+      }
+    },
+    "completed_depth": 3,
+    "cpu_ms": 25.825,
+    "depth": 3,
+    "hash": 10094030215718197736,
+    "legal": 595,
+    "model": 1,
+    "ms": 25.820853,
+    "name": "late endgame-slot0633-ply931",
+    "nnue": true,
+    "nodes": 2869,
+    "pieces": 254,
+    "ply": 0,
+    "position": 5,
+    "q_nodes": 7,
+    "score": 201,
+    "signature": "2d2c6e17823be46a4be46a31191cdacf663001890e0e7864e5032e7035705176",
+    "pid": 5,
+    "rss_kib": 301544,
+    "peak_rss_kib": 301544
+  },
+  {
+    "aborted": true,
+    "agent": "NNUE_W512_v3_HLFS_G3PT",
+    "best": {
+      "data": "Standard",
+      "from": {
+        "file": 13,
+        "rank": 9
+      },
+      "promoted": true,
+      "to": {
+        "file": 13,
+        "rank": 26
+      }
+    },
+    "completed_depth": 1,
+    "cpu_ms": 200.166,
+    "depth": 3,
+    "hash": 5843905854117615521,
+    "legal": 517,
+    "model": 2,
+    "ms": 200.168362,
+    "name": "early development-slot0703-ply24",
+    "nnue": true,
+    "nodes": 39408,
+    "pieces": 706,
+    "ply": 0,
+    "position": 0,
+    "q_nodes": 30198,
+    "score": -4756,
+    "signature": "e545883ac1b5b16a85f90b695dc60e56cdd6f68c116b762ca4019776fc6509a5",
+    "pid": 5,
+    "rss_kib": 302132,
+    "peak_rss_kib": 302132
+  },
+  {
+    "aborted": false,
+    "agent": "NNUE_W512_v3_HLFS_G3PT",
+    "best": {
+      "data": "Standard",
+      "from": {
+        "file": 25,
+        "rank": 30
+      },
+      "promoted": false,
+      "to": {
+        "file": 25,
+        "rank": 29
+      }
+    },
+    "completed_depth": 3,
+    "cpu_ms": 125.084,
+    "depth": 3,
+    "hash": 2522453451552237802,
+    "legal": 654,
+    "model": 2,
+    "ms": 125.07870300000002,
+    "name": "late middlegame-slot0703-ply701",
+    "nnue": true,
+    "nodes": 44494,
+    "pieces": 412,
+    "ply": 0,
+    "position": 1,
+    "q_nodes": 16057,
+    "score": -4938,
+    "signature": "d96a72a0c4c7f99d78350fbb3bfd903e7483ee0d9432de05263edfb5082810c8",
+    "pid": 5,
+    "rss_kib": 302128,
+    "peak_rss_kib": 302128
+  },
+  {
+    "aborted": false,
+    "agent": "NNUE_W512_v3_HLFS_G3PT",
+    "best": {
+      "data": "Standard",
+      "from": {
+        "file": 21,
+        "rank": 27
+      },
+      "promoted": false,
+      "to": {
+        "file": 22,
+        "rank": 26
+      }
+    },
+    "completed_depth": 2,
+    "cpu_ms": 193.701,
+    "depth": 3,
+    "hash": 7854230961524654674,
+    "legal": 571,
+    "model": 2,
+    "ms": 193.70717000000002,
+    "name": "development-slot0700-ply161",
+    "nnue": true,
+    "nodes": 41834,
+    "pieces": 660,
+    "ply": 0,
+    "position": 2,
+    "q_nodes": 25496,
+    "score": -2106,
+    "signature": "17e6b6939cceb8513ceb921038d7d7377c56537b1d6512f9e4c1de22cecae6d2",
+    "pid": 5,
+    "rss_kib": 302404,
+    "peak_rss_kib": 302404
+  },
+  {
+    "aborted": true,
+    "agent": "NNUE_W512_v3_HLFS_G3PT",
+    "best": {
+      "data": "Standard",
+      "from": {
+        "file": 34,
+        "rank": 7
+      },
+      "promoted": false,
+      "to": {
+        "file": 34,
+        "rank": 25
+      }
+    },
+    "completed_depth": 2,
+    "cpu_ms": 200.091,
+    "depth": 3,
+    "hash": 17303791666749100124,
+    "legal": 1030,
+    "model": 2,
+    "ms": 200.09518,
+    "name": "endgame-slot0700-ply1400",
+    "nnue": true,
+    "nodes": 38658,
+    "pieces": 167,
+    "ply": 0,
+    "position": 3,
+    "q_nodes": 9920,
+    "score": -5304,
+    "signature": "5bcaba9cec9c7e78a2ac542078056f7bcfdb0cf67e4ac6b98f1f5009c8f49b94",
+    "pid": 5,
+    "rss_kib": 302988,
+    "peak_rss_kib": 302988
+  },
+  {
+    "aborted": false,
+    "agent": "NNUE_W512_v3_HLFS_G3PT",
+    "best": {
+      "data": "Standard",
+      "from": {
+        "file": 8,
+        "rank": 4
+      },
+      "promoted": false,
+      "to": {
+        "file": 8,
+        "rank": 3
+      }
+    },
+    "completed_depth": 3,
+    "cpu_ms": 151.917,
+    "depth": 3,
+    "hash": 13253047500511786039,
+    "legal": 618,
+    "model": 2,
+    "ms": 151.930817,
+    "name": "middlegame-slot0633-ply420",
+    "nnue": true,
+    "nodes": 30395,
+    "pieces": 482,
+    "ply": 0,
+    "position": 4,
+    "q_nodes": 14265,
+    "score": -1132,
+    "signature": "2556d7292660eaf864e58fee8dffcc2a53aa24bef478f4d672a6577be8da0845",
+    "pid": 5,
+    "rss_kib": 303064,
+    "peak_rss_kib": 303064
+  },
+  {
+    "aborted": false,
+    "agent": "NNUE_W512_v3_HLFS_G3PT",
+    "best": {
+      "data": "Standard",
+      "from": {
+        "file": 21,
+        "rank": 30
+      },
+      "promoted": false,
+      "to": {
+        "file": 22,
+        "rank": 30
+      }
+    },
+    "completed_depth": 3,
+    "cpu_ms": 26.711,
+    "depth": 3,
+    "hash": 10094030215718197736,
+    "legal": 595,
+    "model": 2,
+    "ms": 26.707700000000003,
+    "name": "late endgame-slot0633-ply931",
+    "nnue": true,
+    "nodes": 2921,
+    "pieces": 254,
+    "ply": 0,
+    "position": 5,
+    "q_nodes": 11,
+    "score": 201,
+    "signature": "1da27c79624b47f8477c33e828ed8c49ef2016ae52340ec66e1a91eacc0eb748",
+    "pid": 5,
+    "rss_kib": 303064,
+    "peak_rss_kib": 303064
+  }
+]

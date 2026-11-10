@@ -1,0 +1,1549 @@
+[
+  {
+    "case": "targets-Pawn-0-false",
+    "count": 1,
+    "checksum": 8840684942640456976,
+    "samples_each": 10,
+    "baseline_ns": 22.921310770099684,
+    "final_ns": 23.512692112979614,
+    "ratio": 1.0258005028076917,
+    "baseline_range_ns": [
+      20.78235299007465,
+      23.74247419792824
+    ],
+    "final_range_ns": [
+      22.692440525355575,
+      24.26464457989188
+    ]
+  },
+  {
+    "case": "targets-Pawn-0-true",
+    "count": 0,
+    "checksum": 675868731199239589,
+    "samples_each": 10,
+    "baseline_ns": 8.97506065911819,
+    "final_ns": 9.411963926060427,
+    "ratio": 1.0486797007325366,
+    "baseline_range_ns": [
+      8.078692004937537,
+      9.109769317096989
+    ],
+    "final_range_ns": [
+      9.223179403464114,
+      9.578568117208034
+    ]
+  },
+  {
+    "case": "reach-Pawn-0",
+    "count": 0,
+    "checksum": 15844863391813232289,
+    "samples_each": 10,
+    "baseline_ns": 213.1368632828986,
+    "final_ns": 205.12198531062785,
+    "ratio": 0.9623956276318446,
+    "baseline_range_ns": [
+      199.55422419985632,
+      228.78233665812593
+    ],
+    "final_range_ns": [
+      202.63630653266333,
+      211.85352058973055
+    ]
+  },
+  {
+    "case": "targets-Rook-0-false",
+    "count": 70,
+    "checksum": 14017795473547156777,
+    "samples_each": 10,
+    "baseline_ns": 568.6283464979174,
+    "final_ns": 340.88428928140024,
+    "ratio": 0.5994852197939955,
+    "baseline_range_ns": [
+      545.7996343593102,
+      594.0405678308387
+    ],
+    "final_range_ns": [
+      333.8517492322072,
+      354.0457554517134
+    ]
+  },
+  {
+    "case": "targets-Rook-0-true",
+    "count": 0,
+    "checksum": 675868731199239589,
+    "samples_each": 10,
+    "baseline_ns": 126.19155644012147,
+    "final_ns": 131.02776852236377,
+    "ratio": 1.0383243714450665,
+    "baseline_range_ns": [
+      119.60283318982013,
+      132.46802479601567
+    ],
+    "final_range_ns": [
+      126.8899279297569,
+      138.16316451149424
+    ]
+  },
+  {
+    "case": "reach-Rook-0",
+    "count": 3,
+    "checksum": 15904527030521438300,
+    "samples_each": 10,
+    "baseline_ns": 309.91472743173085,
+    "final_ns": 307.23166195894197,
+    "ratio": 0.9913425686638918,
+    "baseline_range_ns": [
+      299.64405560882074,
+      335.46543338253053
+    ],
+    "final_range_ns": [
+      301.54472684515196,
+      320.1823376872839
+    ]
+  },
+  {
+    "case": "targets-Tengu-0-false",
+    "count": 647,
+    "checksum": 1710051654868312499,
+    "samples_each": 10,
+    "baseline_ns": 37417.683305462655,
+    "final_ns": 7153.229821428571,
+    "ratio": 0.19117244012764045,
+    "baseline_range_ns": [
+      35763.74285714285,
+      40855.10887096774
+    ],
+    "final_range_ns": [
+      7085.328611898017,
+      7223.156700288185
+    ]
+  },
+  {
+    "case": "targets-Tengu-0-true",
+    "count": 0,
+    "checksum": 675868731199239589,
+    "samples_each": 10,
+    "baseline_ns": 10563.59998130608,
+    "final_ns": 4086.435151143791,
+    "ratio": 0.3868411486969753,
+    "baseline_range_ns": [
+      10031.041,
+      10676.39255319149
+    ],
+    "final_range_ns": [
+      3994.714057507987,
+      4292.468267581475
+    ]
+  },
+  {
+    "case": "reach-Tengu-0",
+    "count": 20,
+    "checksum": 14820466298423048943,
+    "samples_each": 10,
+    "baseline_ns": 954422.0,
+    "final_ns": 233798.4375,
+    "ratio": 0.24496337835883916,
+    "baseline_range_ns": [
+      920782.5,
+      988266.0
+    ],
+    "final_range_ns": [
+      224408.80208333334,
+      252501.0340909091
+    ]
+  },
+  {
+    "case": "targets-HookMover-0-false",
+    "count": 1295,
+    "checksum": 12276866673723569939,
+    "samples_each": 10,
+    "baseline_ns": 64817.93889802632,
+    "final_ns": 14267.524147727272,
+    "ratio": 0.22011690575618895,
+    "baseline_range_ns": [
+      62368.66463414634,
+      66369.20394736843
+    ],
+    "final_range_ns": [
+      13945.713194444445,
+      14402.94683908046
+    ]
+  },
+  {
+    "case": "targets-HookMover-0-true",
+    "count": 0,
+    "checksum": 675868731199239589,
+    "samples_each": 10,
+    "baseline_ns": 14553.341137081596,
+    "final_ns": 8175.769175395457,
+    "ratio": 0.5617795321628086,
+    "baseline_range_ns": [
+      14198.23163841808,
+      15032.855538922156
+    ],
+    "final_range_ns": [
+      8068.712096774194,
+      8297.949917218542
+    ]
+  },
+  {
+    "case": "reach-HookMover-0",
+    "count": 42,
+    "checksum": 7619270895914568221,
+    "samples_each": 10,
+    "baseline_ns": 1354776.6875,
+    "final_ns": 416076.7410714286,
+    "ratio": 0.3071183206135798,
+    "baseline_range_ns": [
+      1284934.5,
+      1405695.5625
+    ],
+    "final_range_ns": [
+      408493.6964285714,
+      422053.2291666667
+    ]
+  },
+  {
+    "case": "targets-LionHawk-0-false",
+    "count": 334,
+    "checksum": 12183674722657695319,
+    "samples_each": 10,
+    "baseline_ns": 11841.166779891304,
+    "final_ns": 6042.698738819164,
+    "ratio": 0.5103127800784707,
+    "baseline_range_ns": [
+      11407.369318181818,
+      12424.33353960396
+    ],
+    "final_range_ns": [
+      5950.91122327791,
+      6147.004606879607
+    ]
+  },
+  {
+    "case": "targets-LionHawk-0-true",
+    "count": 0,
+    "checksum": 675868731199239589,
+    "samples_each": 10,
+    "baseline_ns": 2366.8610515532578,
+    "final_ns": 2404.0512674457805,
+    "ratio": 1.015712885159911,
+    "baseline_range_ns": [
+      2256.432310469314,
+      2490.2166334661356
+    ],
+    "final_range_ns": [
+      2391.1228489483747,
+      2439.2031707317074
+    ]
+  },
+  {
+    "case": "reach-LionHawk-0",
+    "count": 11,
+    "checksum": 1935409584854382670,
+    "samples_each": 10,
+    "baseline_ns": 237709.1534090909,
+    "final_ns": 242958.74431818182,
+    "ratio": 1.022084092403697,
+    "baseline_range_ns": [
+      229155.54545454544,
+      247207.55681818182
+    ],
+    "final_range_ns": [
+      238045.7840909091,
+      246112.27272727274
+    ]
+  },
+  {
+    "case": "targets-FreeEagle-0-false",
+    "count": 139,
+    "checksum": 248083313330420069,
+    "samples_each": 10,
+    "baseline_ns": 2250.153263522724,
+    "final_ns": 981.9452038252584,
+    "ratio": 0.4363903649336204,
+    "baseline_range_ns": [
+      2133.476962457338,
+      2413.9598214285716
+    ],
+    "final_range_ns": [
+      968.3121611154144,
+      1136.2871990004544
+    ]
+  },
+  {
+    "case": "targets-FreeEagle-0-true",
+    "count": 0,
+    "checksum": 675868731199239589,
+    "samples_each": 10,
+    "baseline_ns": 409.2117249386972,
+    "final_ns": 355.89652509640973,
+    "ratio": 0.8697124334590499,
+    "baseline_range_ns": [
+      393.01450015718325,
+      437.0364228281769
+    ],
+    "final_range_ns": [
+      346.03598615916957,
+      364.67032526254377
+    ]
+  },
+  {
+    "case": "reach-FreeEagle-0",
+    "count": 6,
+    "checksum": 6417837568650434579,
+    "samples_each": 10,
+    "baseline_ns": 15879.921030625326,
+    "final_ns": 508.47365736196457,
+    "ratio": 0.03201991095430162,
+    "baseline_range_ns": [
+      14978.228293413174,
+      16204.852419354838
+    ],
+    "final_range_ns": [
+      497.73195799323116,
+      534.0681866723622
+    ]
+  },
+  {
+    "case": "targets-WoodenDove-0-false",
+    "count": 77,
+    "checksum": 16046628619604383643,
+    "samples_each": 10,
+    "baseline_ns": 1157.7691314556255,
+    "final_ns": 501.95418447007444,
+    "ratio": 0.43355291727201584,
+    "baseline_range_ns": [
+      1126.7073569175304,
+      1201.900348390197
+    ],
+    "final_range_ns": [
+      496.2275004961302,
+      560.163558467742
+    ]
+  },
+  {
+    "case": "targets-WoodenDove-0-true",
+    "count": 0,
+    "checksum": 675868731199239589,
+    "samples_each": 10,
+    "baseline_ns": 200.42014340829985,
+    "final_ns": 199.30132210605035,
+    "ratio": 0.9944176204885243,
+    "baseline_range_ns": [
+      193.01724503975913,
+      207.68735462701446
+    ],
+    "final_range_ns": [
+      195.97936427059653,
+      215.87262562597132
+    ]
+  },
+  {
+    "case": "reach-WoodenDove-0",
+    "count": 3,
+    "checksum": 9251892727972124928,
+    "samples_each": 10,
+    "baseline_ns": 4627.648892289155,
+    "final_ns": 765.2000998625426,
+    "ratio": 0.1653539664898868,
+    "baseline_range_ns": [
+      4453.413923487545,
+      4758.0838878326995
+    ],
+    "final_range_ns": [
+      752.6480282962071,
+      788.2795554854981
+    ]
+  },
+  {
+    "case": "targets-Pawn-100-false",
+    "count": 1,
+    "checksum": 8840684942640456976,
+    "samples_each": 10,
+    "baseline_ns": 22.382938917791687,
+    "final_ns": 23.239464240910436,
+    "ratio": 1.038266883820065,
+    "baseline_range_ns": [
+      21.47524180525014,
+      23.010594799815923
+    ],
+    "final_range_ns": [
+      22.92547179759929,
+      24.66166758732257
+    ]
+  },
+  {
+    "case": "targets-Pawn-100-true",
+    "count": 0,
+    "checksum": 675868731199239589,
+    "samples_each": 10,
+    "baseline_ns": 8.651616409648145,
+    "final_ns": 9.466010245773685,
+    "ratio": 1.0941319861589496,
+    "baseline_range_ns": [
+      8.435946362713043,
+      8.970450623064696
+    ],
+    "final_range_ns": [
+      9.269037264432507,
+      10.047780628749853
+    ]
+  },
+  {
+    "case": "reach-Pawn-100",
+    "count": 0,
+    "checksum": 15844863391813232289,
+    "samples_each": 10,
+    "baseline_ns": 218.04064998342227,
+    "final_ns": 208.62112765893187,
+    "ratio": 0.9567992375494818,
+    "baseline_range_ns": [
+      208.0849875156055,
+      228.82499313563977
+    ],
+    "final_range_ns": [
+      204.32753759398497,
+      209.95441090023513
+    ]
+  },
+  {
+    "case": "targets-Rook-100-false",
+    "count": 50,
+    "checksum": 10102816426978933404,
+    "samples_each": 10,
+    "baseline_ns": 462.10779110697956,
+    "final_ns": 442.6560774601011,
+    "ratio": 0.9579065447040356,
+    "baseline_range_ns": [
+      447.2120819173672,
+      474.570625355855
+    ],
+    "final_range_ns": [
+      432.8180716634932,
+      455.8998222100656
+    ]
+  },
+  {
+    "case": "targets-Rook-100-true",
+    "count": 1,
+    "checksum": 1377120923335733594,
+    "samples_each": 10,
+    "baseline_ns": 107.14752444507559,
+    "final_ns": 115.02690281395124,
+    "ratio": 1.0735376613662657,
+    "baseline_range_ns": [
+      102.55809779710383,
+      115.04368932038835
+    ],
+    "final_range_ns": [
+      112.60564450749898,
+      120.41256682560324
+    ]
+  },
+  {
+    "case": "reach-Rook-100",
+    "count": 2,
+    "checksum": 18365759891028268191,
+    "samples_each": 10,
+    "baseline_ns": 297.0717508255253,
+    "final_ns": 287.5229275940905,
+    "ratio": 0.9678568453415721,
+    "baseline_range_ns": [
+      285.4368221258134,
+      311.08035269967655
+    ],
+    "final_range_ns": [
+      283.6319058423142,
+      303.22041348369106
+    ]
+  },
+  {
+    "case": "targets-Tengu-100-false",
+    "count": 349,
+    "checksum": 8753481058511346787,
+    "samples_each": 10,
+    "baseline_ns": 12798.155949824286,
+    "final_ns": 2816.2643156424583,
+    "ratio": 0.22005235181410057,
+    "baseline_range_ns": [
+      12104.638285024155,
+      13131.0804973822
+    ],
+    "final_range_ns": [
+      2757.488699007718,
+      2895.587528935185
+    ]
+  },
+  {
+    "case": "targets-Tengu-100-true",
+    "count": 17,
+    "checksum": 11969196094779419614,
+    "samples_each": 10,
+    "baseline_ns": 3717.7264465695202,
+    "final_ns": 1984.3580716972297,
+    "ratio": 0.5337558048490276,
+    "baseline_range_ns": [
+      3497.936013986014,
+      3930.1501177394034
+    ],
+    "final_range_ns": [
+      1950.9779641185648,
+      2099.160654362416
+    ]
+  },
+  {
+    "case": "reach-Tengu-100",
+    "count": 11,
+    "checksum": 7911637971715969864,
+    "samples_each": 10,
+    "baseline_ns": 310462.5954861111,
+    "final_ns": 94900.83796296296,
+    "ratio": 0.3056755929466178,
+    "baseline_range_ns": [
+      302109.59722222225,
+      320791.03125
+    ],
+    "final_range_ns": [
+      92431.70982142857,
+      98011.85096153847
+    ]
+  },
+  {
+    "case": "targets-HookMover-100-false",
+    "count": 595,
+    "checksum": 17817496906058303313,
+    "samples_each": 10,
+    "baseline_ns": 22633.06813063063,
+    "final_ns": 4589.866038182099,
+    "ratio": 0.20279469012733498,
+    "baseline_range_ns": [
+      21436.32371794872,
+      23106.952981651375
+    ],
+    "final_range_ns": [
+      4539.632032667877,
+      4636.80949074074
+    ]
+  },
+  {
+    "case": "targets-HookMover-100-true",
+    "count": 31,
+    "checksum": 4632502616741104620,
+    "samples_each": 10,
+    "baseline_ns": 6709.674398443663,
+    "final_ns": 3405.1352441638674,
+    "ratio": 0.5074963466116482,
+    "baseline_range_ns": [
+      6432.907776349614,
+      6954.228472222222
+    ],
+    "final_range_ns": [
+      3338.5989652870494,
+      3700.4735576923076
+    ]
+  },
+  {
+    "case": "reach-HookMover-100",
+    "count": 19,
+    "checksum": 7919772642972313580,
+    "samples_each": 10,
+    "baseline_ns": 552857.7625,
+    "final_ns": 141791.23263888888,
+    "ratio": 0.25646964238634323,
+    "baseline_range_ns": [
+      531699.375,
+      575482.85
+    ],
+    "final_range_ns": [
+      139998.9375,
+      145499.14583333334
+    ]
+  },
+  {
+    "case": "targets-LionHawk-100-false",
+    "count": 175,
+    "checksum": 4924086822227296113,
+    "samples_each": 10,
+    "baseline_ns": 6607.064911346037,
+    "final_ns": 3505.45285821973,
+    "ratio": 0.5305612863285121,
+    "baseline_range_ns": [
+      6418.616987179487,
+      6817.332084468665
+    ],
+    "final_range_ns": [
+      3478.2642559109877,
+      3560.4802631578946
+    ]
+  },
+  {
+    "case": "targets-LionHawk-100-true",
+    "count": 32,
+    "checksum": 7895903167582571977,
+    "samples_each": 10,
+    "baseline_ns": 2142.524194104225,
+    "final_ns": 2221.2334353248543,
+    "ratio": 1.0367366872389217,
+    "baseline_range_ns": [
+      2080.3492096505825,
+      2220.0773070097603
+    ],
+    "final_range_ns": [
+      2199.217238346526,
+      2258.839205058717
+    ]
+  },
+  {
+    "case": "reach-LionHawk-100",
+    "count": 6,
+    "checksum": 1003497063547347207,
+    "samples_each": 10,
+    "baseline_ns": 137078.7311769006,
+    "final_ns": 141962.92361111112,
+    "ratio": 1.035630563489149,
+    "baseline_range_ns": [
+      131729.55263157896,
+      149349.14705882352
+    ],
+    "final_range_ns": [
+      140816.04166666666,
+      143633.71527777778
+    ]
+  },
+  {
+    "case": "targets-FreeEagle-100-false",
+    "count": 88,
+    "checksum": 13263906752777214428,
+    "samples_each": 10,
+    "baseline_ns": 1675.8882466329967,
+    "final_ns": 781.6460336214302,
+    "ratio": 0.4664070144246337,
+    "baseline_range_ns": [
+      1567.4254385964912,
+      1777.2093105899075
+    ],
+    "final_range_ns": [
+      773.0038253477588,
+      816.8099068931722
+    ]
+  },
+  {
+    "case": "targets-FreeEagle-100-true",
+    "count": 7,
+    "checksum": 7129064845229515658,
+    "samples_each": 10,
+    "baseline_ns": 367.20057224093205,
+    "final_ns": 313.6966561913581,
+    "ratio": 0.8542923946903103,
+    "baseline_range_ns": [
+      353.7024331588626,
+      382.5301407588739
+    ],
+    "final_range_ns": [
+      309.6142260061919,
+      317.0461418970327
+    ]
+  },
+  {
+    "case": "reach-FreeEagle-100",
+    "count": 3,
+    "checksum": 1048163661979753494,
+    "samples_each": 10,
+    "baseline_ns": 17102.11166234428,
+    "final_ns": 474.40228105318386,
+    "ratio": 0.02773939794216938,
+    "baseline_range_ns": [
+      16367.174836601307,
+      17878.707142857143
+    ],
+    "final_range_ns": [
+      468.4186493068565,
+      495.06454167491586
+    ]
+  },
+  {
+    "case": "targets-WoodenDove-100-false",
+    "count": 46,
+    "checksum": 7057945973727741936,
+    "samples_each": 10,
+    "baseline_ns": 862.1220984003915,
+    "final_ns": 826.6238886053923,
+    "ratio": 0.958824614447462,
+    "baseline_range_ns": [
+      822.0698964497042,
+      881.9179012345679
+    ],
+    "final_range_ns": [
+      821.6613539270456,
+      831.3413397606383
+    ]
+  },
+  {
+    "case": "targets-WoodenDove-100-true",
+    "count": 3,
+    "checksum": 6112157555395373873,
+    "samples_each": 10,
+    "baseline_ns": 157.26239432930635,
+    "final_ns": 153.67463811543428,
+    "ratio": 0.9771861783665882,
+    "baseline_range_ns": [
+      152.7474340175953,
+      161.3978197017623
+    ],
+    "final_range_ns": [
+      152.05729990268824,
+      155.86769014962593
+    ]
+  },
+  {
+    "case": "reach-WoodenDove-100",
+    "count": 1,
+    "checksum": 4669064439680258112,
+    "samples_each": 10,
+    "baseline_ns": 4761.408606145404,
+    "final_ns": 780.0603856980886,
+    "ratio": 0.16382975086223195,
+    "baseline_range_ns": [
+      4590.595183486239,
+      4923.4739173228345
+    ],
+    "final_range_ns": [
+      768.9412284747848,
+      800.4286971830986
+    ]
+  },
+  {
+    "case": "targets-Pawn-400-false",
+    "count": 1,
+    "checksum": 8840684942640456976,
+    "samples_each": 10,
+    "baseline_ns": 22.27604613317976,
+    "final_ns": 23.221863110630053,
+    "ratio": 1.0424589252417427,
+    "baseline_range_ns": [
+      21.404384128696428,
+      22.97511395383032
+    ],
+    "final_range_ns": [
+      22.820059784592917,
+      24.229183020787904
+    ]
+  },
+  {
+    "case": "targets-Pawn-400-true",
+    "count": 0,
+    "checksum": 675868731199239589,
+    "samples_each": 10,
+    "baseline_ns": 8.681863256706595,
+    "final_ns": 9.59454618563882,
+    "ratio": 1.1051252365933306,
+    "baseline_range_ns": [
+      8.37157316934328,
+      8.92475921807453
+    ],
+    "final_range_ns": [
+      9.377029120314457,
+      9.8080847708308
+    ]
+  },
+  {
+    "case": "reach-Pawn-400",
+    "count": 0,
+    "checksum": 15844863391813232289,
+    "samples_each": 10,
+    "baseline_ns": 217.36233601334172,
+    "final_ns": 209.3329448808405,
+    "ratio": 0.9630598783590163,
+    "baseline_range_ns": [
+      206.66023309637956,
+      296.68236149009374
+    ],
+    "final_range_ns": [
+      207.96403468640824,
+      211.01444336596893
+    ]
+  },
+  {
+    "case": "targets-Rook-400-false",
+    "count": 3,
+    "checksum": 12908328563392533711,
+    "samples_each": 10,
+    "baseline_ns": 35.408978363820154,
+    "final_ns": 35.88247595370781,
+    "ratio": 1.013372246581716,
+    "baseline_range_ns": [
+      34.01881012641004,
+      38.502973990575626
+    ],
+    "final_range_ns": [
+      35.4148298722271,
+      37.52603752345216
+    ]
+  },
+  {
+    "case": "targets-Rook-400-true",
+    "count": 0,
+    "checksum": 675868731199239589,
+    "samples_each": 10,
+    "baseline_ns": 22.802222734589655,
+    "final_ns": 23.66463193261856,
+    "ratio": 1.0378212776915243,
+    "baseline_range_ns": [
+      21.25577819059846,
+      23.47414327147805
+    ],
+    "final_range_ns": [
+      23.314687450457424,
+      24.85933398623926
+    ]
+  },
+  {
+    "case": "reach-Rook-400",
+    "count": 0,
+    "checksum": 15844863391813232289,
+    "samples_each": 10,
+    "baseline_ns": 226.39085937705056,
+    "final_ns": 212.46697516954197,
+    "ratio": 0.9384962615283041,
+    "baseline_range_ns": [
+      213.06188751597784,
+      239.17519609718767
+    ],
+    "final_range_ns": [
+      210.12823583795597,
+      222.28600320028448
+    ]
+  },
+  {
+    "case": "targets-Tengu-400-false",
+    "count": 41,
+    "checksum": 12413801872566571911,
+    "samples_each": 10,
+    "baseline_ns": 2120.218191556545,
+    "final_ns": 1125.1195028513996,
+    "ratio": 0.5306621305920406,
+    "baseline_range_ns": [
+      2058.79341563786,
+      2182.672229493892
+    ],
+    "final_range_ns": [
+      1107.2390389725422,
+      1202.3480769230769
+    ]
+  },
+  {
+    "case": "targets-Tengu-400-true",
+    "count": 10,
+    "checksum": 4093898164229920849,
+    "samples_each": 10,
+    "baseline_ns": 911.981629497267,
+    "final_ns": 481.2703246579453,
+    "ratio": 0.5277193192183567,
+    "baseline_range_ns": [
+      872.2115015695849,
+      954.2918416030534
+    ],
+    "final_range_ns": [
+      475.3623574144487,
+      494.9046664687253
+    ]
+  },
+  {
+    "case": "reach-Tengu-400",
+    "count": 1,
+    "checksum": 5191259478145509138,
+    "samples_each": 10,
+    "baseline_ns": 56389.61585968379,
+    "final_ns": 17511.88986013986,
+    "ratio": 0.3105516785876906,
+    "baseline_range_ns": [
+      53993.60638297872,
+      59656.568452380954
+    ],
+    "final_range_ns": [
+      17222.41352739726,
+      17790.12854609929
+    ]
+  },
+  {
+    "case": "targets-HookMover-400-false",
+    "count": 22,
+    "checksum": 12517800317177349318,
+    "samples_each": 10,
+    "baseline_ns": 591.5707413172406,
+    "final_ns": 387.30164796900317,
+    "ratio": 0.6547004794500233,
+    "baseline_range_ns": [
+      571.3293532906764,
+      609.7978963414635
+    ],
+    "final_range_ns": [
+      376.7529573538276,
+      390.329612862941
+    ]
+  },
+  {
+    "case": "targets-HookMover-400-true",
+    "count": 4,
+    "checksum": 16119323411393626165,
+    "samples_each": 10,
+    "baseline_ns": 238.2176161281388,
+    "final_ns": 163.4008400739071,
+    "ratio": 0.6859309682035133,
+    "baseline_range_ns": [
+      225.0110026100261,
+      257.44529962932455
+    ],
+    "final_range_ns": [
+      160.59478577852005,
+      165.97840735577242
+    ]
+  },
+  {
+    "case": "reach-HookMover-400",
+    "count": 1,
+    "checksum": 9480697572621409866,
+    "samples_each": 10,
+    "baseline_ns": 16083.83630756579,
+    "final_ns": 8568.730448751667,
+    "ratio": 0.5327541442784369,
+    "baseline_range_ns": [
+      15588.521739130434,
+      16643.360927152316
+    ],
+    "final_range_ns": [
+      8425.257996632996,
+      8713.88980836237
+    ]
+  },
+  {
+    "case": "targets-LionHawk-400-false",
+    "count": 62,
+    "checksum": 10590482331895656741,
+    "samples_each": 10,
+    "baseline_ns": 2567.5009962924487,
+    "final_ns": 1564.6726405551171,
+    "ratio": 0.6094146186562549,
+    "baseline_range_ns": [
+      2472.584115612648,
+      2672.196047008547
+    ],
+    "final_range_ns": [
+      1538.1369157441575,
+      1613.5647580645161
+    ]
+  },
+  {
+    "case": "targets-LionHawk-400-true",
+    "count": 19,
+    "checksum": 14690198562664890477,
+    "samples_each": 10,
+    "baseline_ns": 1072.055615616841,
+    "final_ns": 1086.7453744513155,
+    "ratio": 1.0137024223561595,
+    "baseline_range_ns": [
+      1034.5628878775342,
+      1165.8682983682984
+    ],
+    "final_range_ns": [
+      1073.5018248175184,
+      1108.4299091312057
+    ]
+  },
+  {
+    "case": "reach-LionHawk-400",
+    "count": 2,
+    "checksum": 11664905279250900519,
+    "samples_each": 10,
+    "baseline_ns": 58392.687037526426,
+    "final_ns": 60229.357142857145,
+    "ratio": 1.0314537692733745,
+    "baseline_range_ns": [
+      56165.13333333333,
+      61310.88719512195
+    ],
+    "final_range_ns": [
+      59663.25892857143,
+      63055.434375
+    ]
+  },
+  {
+    "case": "targets-FreeEagle-400-false",
+    "count": 20,
+    "checksum": 12719741224123917674,
+    "samples_each": 10,
+    "baseline_ns": 710.8131430928241,
+    "final_ns": 644.0852841289138,
+    "ratio": 0.9061246128995727,
+    "baseline_range_ns": [
+      689.5948359073359,
+      728.9227040816327
+    ],
+    "final_range_ns": [
+      635.7418319349098,
+      649.6167835801507
+    ]
+  },
+  {
+    "case": "targets-FreeEagle-400-true",
+    "count": 5,
+    "checksum": 4183244054928587734,
+    "samples_each": 10,
+    "baseline_ns": 265.8054209700544,
+    "final_ns": 205.9914386124131,
+    "ratio": 0.774970795782303,
+    "baseline_range_ns": [
+      257.8135053619303,
+      272.10157270352636
+    ],
+    "final_range_ns": [
+      200.0571337120909,
+      218.09831864968598
+    ]
+  },
+  {
+    "case": "reach-FreeEagle-400",
+    "count": 1,
+    "checksum": 4669064439680258112,
+    "samples_each": 10,
+    "baseline_ns": 15303.119534300055,
+    "final_ns": 396.892597130193,
+    "ratio": 0.025935404623913916,
+    "baseline_range_ns": [
+      14802.244822485207,
+      15625.5859375
+    ],
+    "final_range_ns": [
+      389.35717066334473,
+      406.312296880078
+    ]
+  },
+  {
+    "case": "targets-WoodenDove-400-false",
+    "count": 18,
+    "checksum": 14666530711010133111,
+    "samples_each": 10,
+    "baseline_ns": 365.08763822844867,
+    "final_ns": 352.5263333522108,
+    "ratio": 0.965593727201528,
+    "baseline_range_ns": [
+      354.2973997449341,
+      370.81606851549753
+    ],
+    "final_range_ns": [
+      348.2282381615599,
+      356.0993626264065
+    ]
+  },
+  {
+    "case": "targets-WoodenDove-400-true",
+    "count": 2,
+    "checksum": 11196039055261140615,
+    "samples_each": 10,
+    "baseline_ns": 129.06228195544128,
+    "final_ns": 125.6774499800371,
+    "ratio": 0.9737736546718367,
+    "baseline_range_ns": [
+      125.47155726186891,
+      133.02728264339683
+    ],
+    "final_range_ns": [
+      123.6928742826044,
+      127.71828386800163
+    ]
+  },
+  {
+    "case": "reach-WoodenDove-400",
+    "count": 0,
+    "checksum": 15844863391813232289,
+    "samples_each": 10,
+    "baseline_ns": 3813.433101590917,
+    "final_ns": 752.7798373703245,
+    "ratio": 0.19740213537672238,
+    "baseline_range_ns": [
+      3669.921737536657,
+      4022.8038585209
+    ],
+    "final_range_ns": [
+      741.1974873999407,
+      767.9341984029484
+    ]
+  },
+  {
+    "case": "legal-opening-All",
+    "count": 280,
+    "checksum": 10740255988278605290,
+    "samples_each": 10,
+    "baseline_ns": 10263.421750067191,
+    "final_ns": 9880.167367573373,
+    "ratio": 0.9626582253144464,
+    "baseline_range_ns": [
+      9932.860615079366,
+      10830.897186147185
+    ],
+    "final_range_ns": [
+      9758.267509727626,
+      10076.194779116466
+    ]
+  },
+  {
+    "case": "legal-opening-CapturesOnly",
+    "count": 80,
+    "checksum": 2405137497372315237,
+    "samples_each": 10,
+    "baseline_ns": 7736.365558890795,
+    "final_ns": 7557.286029344652,
+    "ratio": 0.9768522404761056,
+    "baseline_range_ns": [
+      7528.651276276276,
+      8328.576411960134
+    ],
+    "final_range_ns": [
+      7380.134218289086,
+      7850.71355799373
+    ]
+  },
+  {
+    "case": "legal-opening-WithoutQuietMultiLeg",
+    "count": 280,
+    "checksum": 10740255988278605290,
+    "samples_each": 10,
+    "baseline_ns": 10344.821362704919,
+    "final_ns": 9897.825098814228,
+    "ratio": 0.9567903351620746,
+    "baseline_range_ns": [
+      9964.66733067729,
+      10726.31623931624
+    ],
+    "final_range_ns": [
+      9763.696011673152,
+      10035.191
+    ]
+  },
+  {
+    "case": "legal-opening-QuietMultiLegOnly",
+    "count": 0,
+    "checksum": 675868731199239589,
+    "samples_each": 10,
+    "baseline_ns": 1021.9749307230852,
+    "final_ns": 917.8658497007191,
+    "ratio": 0.8981295158104269,
+    "baseline_range_ns": [
+      988.7403618030842,
+      1048.0915234702431
+    ],
+    "final_range_ns": [
+      898.4969906575637,
+      976.688330078125
+    ]
+  },
+  {
+    "case": "legal-corpus-0-All",
+    "count": 517,
+    "checksum": 14886607293432720216,
+    "samples_each": 10,
+    "baseline_ns": 13702.41228718638,
+    "final_ns": 12843.502564102564,
+    "ratio": 0.9373168968293989,
+    "baseline_range_ns": [
+      13250.597222222223,
+      14204.267655367232
+    ],
+    "final_range_ns": [
+      12685.369318181818,
+      13129.679973821989
+    ]
+  },
+  {
+    "case": "legal-corpus-0-CapturesOnly",
+    "count": 112,
+    "checksum": 5378405040368944048,
+    "samples_each": 10,
+    "baseline_ns": 8625.575907568753,
+    "final_ns": 8339.318096589963,
+    "ratio": 0.9668129045473236,
+    "baseline_range_ns": [
+      8366.431856187291,
+      8897.02969858156
+    ],
+    "final_range_ns": [
+      8132.814529220779,
+      8776.464912280702
+    ]
+  },
+  {
+    "case": "legal-corpus-0-WithoutQuietMultiLeg",
+    "count": 498,
+    "checksum": 9916084624404594333,
+    "samples_each": 10,
+    "baseline_ns": 13543.258405986631,
+    "final_ns": 12754.62954683777,
+    "ratio": 0.9417696365595256,
+    "baseline_range_ns": [
+      13092.01832460733,
+      13788.0625
+    ],
+    "final_range_ns": [
+      12547.5725,
+      13159.555921052632
+    ]
+  },
+  {
+    "case": "legal-corpus-0-QuietMultiLegOnly",
+    "count": 19,
+    "checksum": 6230319629305901866,
+    "samples_each": 10,
+    "baseline_ns": 1904.1349359750657,
+    "final_ns": 1574.6292279166992,
+    "ratio": 0.8269525432084812,
+    "baseline_range_ns": [
+      1807.1073880057804,
+      2025.1002024291497
+    ],
+    "final_range_ns": [
+      1537.9566420664207,
+      1598.4947250639386
+    ]
+  },
+  {
+    "case": "legal-corpus-1-All",
+    "count": 654,
+    "checksum": 14063576202200360881,
+    "samples_each": 10,
+    "baseline_ns": 12813.90519192527,
+    "final_ns": 11650.917066917635,
+    "ratio": 0.9092401490733287,
+    "baseline_range_ns": [
+      12299.362745098038,
+      13052.262369791666
+    ],
+    "final_range_ns": [
+      11435.028538812785,
+      11918.940476190477
+    ]
+  },
+  {
+    "case": "legal-corpus-1-CapturesOnly",
+    "count": 15,
+    "checksum": 16636343024368763066,
+    "samples_each": 10,
+    "baseline_ns": 5385.202541563356,
+    "final_ns": 5204.655279722925,
+    "ratio": 0.9664734500797407,
+    "baseline_range_ns": [
+      5185.668737060041,
+      5504.123901098901
+    ],
+    "final_range_ns": [
+      5097.980906313645,
+      5297.206832627118
+    ]
+  },
+  {
+    "case": "legal-corpus-1-WithoutQuietMultiLeg",
+    "count": 654,
+    "checksum": 14063576202200360881,
+    "samples_each": 10,
+    "baseline_ns": 12846.305057888541,
+    "final_ns": 11584.576133319044,
+    "ratio": 0.901782736834923,
+    "baseline_range_ns": [
+      12285.751838235294,
+      13059.331380208334
+    ],
+    "final_range_ns": [
+      11412.101136363637,
+      11746.43133802817
+    ]
+  },
+  {
+    "case": "legal-corpus-1-QuietMultiLegOnly",
+    "count": 0,
+    "checksum": 675868731199239589,
+    "samples_each": 10,
+    "baseline_ns": 266.2323931917301,
+    "final_ns": 258.18538171786713,
+    "ratio": 0.9697744839484358,
+    "baseline_range_ns": [
+      256.3215786776012,
+      276.19152490887
+    ],
+    "final_range_ns": [
+      252.50791346930532,
+      274.96839601891566
+    ]
+  },
+  {
+    "case": "legal-corpus-2-All",
+    "count": 571,
+    "checksum": 15137101425323378314,
+    "samples_each": 10,
+    "baseline_ns": 13940.156944444443,
+    "final_ns": 12741.970812182743,
+    "ratio": 0.9140478735614801,
+    "baseline_range_ns": [
+      13577.379054054054,
+      14185.125
+    ],
+    "final_range_ns": [
+      12567.601130653265,
+      13119.98560209424
+    ]
+  },
+  {
+    "case": "legal-corpus-2-CapturesOnly",
+    "count": 74,
+    "checksum": 10264462739413302021,
+    "samples_each": 10,
+    "baseline_ns": 7585.477494735878,
+    "final_ns": 7336.683329033368,
+    "ratio": 0.9672012518822755,
+    "baseline_range_ns": [
+      7431.972922848665,
+      7899.375788643533
+    ],
+    "final_range_ns": [
+      7215.864553314121,
+      7668.798547400612
+    ]
+  },
+  {
+    "case": "legal-corpus-2-WithoutQuietMultiLeg",
+    "count": 566,
+    "checksum": 15004794294613325471,
+    "samples_each": 10,
+    "baseline_ns": 13673.80863922547,
+    "final_ns": 12638.791982323233,
+    "ratio": 0.9243066299806822,
+    "baseline_range_ns": [
+      13385.713903743315,
+      13891.553472222222
+    ],
+    "final_range_ns": [
+      12509.625,
+      13033.932942708334
+    ]
+  },
+  {
+    "case": "legal-corpus-2-QuietMultiLegOnly",
+    "count": 5,
+    "checksum": 16023928125904777276,
+    "samples_each": 10,
+    "baseline_ns": 738.0758663882272,
+    "final_ns": 688.7937752691741,
+    "ratio": 0.933228962816228,
+    "baseline_range_ns": [
+      709.8715928449744,
+      770.0881582999692
+    ],
+    "final_range_ns": [
+      675.5758711507293,
+      712.6959960102594
+    ]
+  },
+  {
+    "case": "legal-corpus-3-All",
+    "count": 1030,
+    "checksum": 17616807204847560101,
+    "samples_each": 10,
+    "baseline_ns": 24333.332524271846,
+    "final_ns": 13684.632300204918,
+    "ratio": 0.562382168022192,
+    "baseline_range_ns": [
+      23683.637971698114,
+      24866.01608910891
+    ],
+    "final_range_ns": [
+      13505.059139784946,
+      14882.579613095239
+    ]
+  },
+  {
+    "case": "legal-corpus-3-CapturesOnly",
+    "count": 33,
+    "checksum": 15176190937615032643,
+    "samples_each": 10,
+    "baseline_ns": 8452.243032094595,
+    "final_ns": 3498.0456822743063,
+    "ratio": 0.4138600450781687,
+    "baseline_range_ns": [
+      7935.369462025316,
+      8627.283620689655
+    ],
+    "final_range_ns": [
+      3456.4431975138123,
+      3571.046362339515
+    ]
+  },
+  {
+    "case": "legal-corpus-3-WithoutQuietMultiLeg",
+    "count": 275,
+    "checksum": 5404756118770241860,
+    "samples_each": 10,
+    "baseline_ns": 10347.244519041928,
+    "final_ns": 5444.448505434782,
+    "ratio": 0.5261737552848412,
+    "baseline_range_ns": [
+      9916.021245059288,
+      10657.746808510637
+    ],
+    "final_range_ns": [
+      5423.318058568329,
+      5596.788870246085
+    ]
+  },
+  {
+    "case": "legal-corpus-3-QuietMultiLegOnly",
+    "count": 755,
+    "checksum": 4094953598638572994,
+    "samples_each": 10,
+    "baseline_ns": 21214.067645224517,
+    "final_ns": 10487.520076155462,
+    "ratio": 0.49436629747507665,
+    "baseline_range_ns": [
+      20207.94556451613,
+      31821.416139240508
+    ],
+    "final_range_ns": [
+      10310.718106995884,
+      10616.662605932202
+    ]
+  },
+  {
+    "case": "legal-corpus-4-All",
+    "count": 618,
+    "checksum": 2303348101911482134,
+    "samples_each": 10,
+    "baseline_ns": 12767.077802784974,
+    "final_ns": 12259.783527618365,
+    "ratio": 0.9602654355990571,
+    "baseline_range_ns": [
+      12375.474137931034,
+      13275.07142857143
+    ],
+    "final_range_ns": [
+      12206.853658536585,
+      12373.290024630542
+    ]
+  },
+  {
+    "case": "legal-corpus-4-CapturesOnly",
+    "count": 29,
+    "checksum": 15396041993625177496,
+    "samples_each": 10,
+    "baseline_ns": 6436.5764781491,
+    "final_ns": 6329.01396550075,
+    "ratio": 0.9832888627963168,
+    "baseline_range_ns": [
+      6167.321428571428,
+      6813.784059945504
+    ],
+    "final_range_ns": [
+      6287.190326633166,
+      6496.062012987013
+    ]
+  },
+  {
+    "case": "legal-corpus-4-WithoutQuietMultiLeg",
+    "count": 608,
+    "checksum": 3021913499296313895,
+    "samples_each": 10,
+    "baseline_ns": 12522.001206370636,
+    "final_ns": 12005.047248803829,
+    "ratio": 0.9587163466088947,
+    "baseline_range_ns": [
+      12265.026960784313,
+      12805.00318877551
+    ],
+    "final_range_ns": [
+      11856.60308056872,
+      12138.54186893204
+    ]
+  },
+  {
+    "case": "legal-corpus-4-QuietMultiLegOnly",
+    "count": 10,
+    "checksum": 16468781008847540094,
+    "samples_each": 10,
+    "baseline_ns": 1040.6192829272768,
+    "final_ns": 1000.6212085456043,
+    "ratio": 0.9615632008382957,
+    "baseline_range_ns": [
+      991.7614537881793,
+      1080.6011235955057
+    ],
+    "final_range_ns": [
+      977.858916699257,
+      1037.8509236197592
+    ]
+  },
+  {
+    "case": "legal-corpus-5-All",
+    "count": 595,
+    "checksum": 4751019907471511717,
+    "samples_each": 10,
+    "baseline_ns": 11732.505721966207,
+    "final_ns": 10755.015557939914,
+    "ratio": 0.9166853025951495,
+    "baseline_range_ns": [
+      11424.262557077625,
+      12228.63231707317
+    ],
+    "final_range_ns": [
+      10500.069560669455,
+      11324.601244343892
+    ]
+  },
+  {
+    "case": "legal-corpus-5-CapturesOnly",
+    "count": 8,
+    "checksum": 9110400031414357335,
+    "samples_each": 10,
+    "baseline_ns": 4946.416610999777,
+    "final_ns": 4815.593534394917,
+    "ratio": 0.9735519494427668,
+    "baseline_range_ns": [
+      4832.548986486487,
+      5137.905287474333
+    ],
+    "final_range_ns": [
+      4726.496928166352,
+      5026.874246987952
+    ]
+  },
+  {
+    "case": "legal-corpus-5-WithoutQuietMultiLeg",
+    "count": 575,
+    "checksum": 10237056402126989091,
+    "samples_each": 10,
+    "baseline_ns": 10881.246739130434,
+    "final_ns": 10029.7785,
+    "ratio": 0.9217490183300008,
+    "baseline_range_ns": [
+      10446.8140625,
+      11054.250550660792
+    ],
+    "final_range_ns": [
+      9767.16845703125,
+      10406.433609958507
+    ]
+  },
+  {
+    "case": "legal-corpus-5-QuietMultiLegOnly",
+    "count": 20,
+    "checksum": 12721934576104187445,
+    "samples_each": 10,
+    "baseline_ns": 1570.5298524542227,
+    "final_ns": 1556.3153623164415,
+    "ratio": 0.9909492391274393,
+    "baseline_range_ns": [
+      1514.517857142857,
+      1606.0578837508028
+    ],
+    "final_range_ns": [
+      1522.1476719415703,
+      1585.5547717184527
+    ]
+  }
+]

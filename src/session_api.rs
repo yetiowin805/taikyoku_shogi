@@ -185,7 +185,7 @@ impl DebugTool {
         let board = self.game_state_ref().get_board();
         let mut pieces = Vec::new();
         for color in [Color::Black, Color::White] {
-            for piece in board.get_pieces_by_color(color) {
+            for piece in board.pieces_by_color(color) {
                 pieces.push(PieceDto {
                     file: Self::to_shogi_file(piece.position.file()),
                     rank: Self::to_shogi_rank(piece.position.rank()),
@@ -250,13 +250,13 @@ impl DebugTool {
     }
 
     pub fn recorded_evals(&self) -> RecordedEvals {
-        let moves = self.effective_moves();
         let cursor = self.cursor_ply();
-        let last = cursor
-            .checked_sub(1)
-            .and_then(|i| moves.get(i).map(|m| self.recorded_from_move(m, cursor)));
-        let next = moves
-            .get(cursor)
+        let last = cursor.checked_sub(1).and_then(|i| {
+            self.effective_move_at(i)
+                .map(|m| self.recorded_from_move(m, cursor))
+        });
+        let next = self
+            .effective_move_at(cursor)
             .map(|m| self.recorded_from_move(m, cursor + 1));
         RecordedEvals { last, next }
     }

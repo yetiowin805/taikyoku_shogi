@@ -1,0 +1,5 @@
+{
+  "stage": "AA only",
+  "both_actual_executable_sha256": "7a24e66dc833517a9a455a199e3f5d91f0036a53ffe81fb8f1ce9c05839e3ea4",
+  "method": "run_stage(...,candidate=args.baseline); original plan candidate is ignored for the AA stage. No AB comparison was produced in this directory."
+}

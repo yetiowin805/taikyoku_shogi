@@ -5,6 +5,11 @@ data collection and mate-position experiments are recorded in the
 [NNUE data-quality roadmap](DATA_ROADMAP.md); these proposals are not enabled by
 this document.
 
+The [v6 research proposal](V6_RESEARCH.md) compares external NNUE data practices,
+proposes one shared collection plan for the corrected-rule games, and specifies
+four training regimes for 384- and 512-wide continuations. It is a research plan,
+not an enabled training recipe.
+
 The [GPU setup and optimization plan](GPU_PLAN.md) records the rental setup,
 correctness gates, bounded experiments, recovery requirements and CPU improvements
 to complete before the next GPU training session. CUDA training is not yet enabled.

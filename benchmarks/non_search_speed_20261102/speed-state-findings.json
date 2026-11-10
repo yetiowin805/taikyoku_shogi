@@ -1,0 +1,2397 @@
+{
+  "group": "state-and-ui",
+  "baseline_revision": "a28150ff16194682b6849491c673f0de0e7c67c6",
+  "worktree": "/home/frank/.codex/worktrees/speed-state/taikyoku_shogi",
+  "patch": "/tmp/speed-state.patch",
+  "probe_source": "/home/frank/.codex/worktrees/speed-state/taikyoku_shogi/examples/state_speed_probe.rs",
+  "raw_measurements": "/tmp/speed-state-corpus-kernels.jsonl",
+  "method": "Rust release thin-LTO, no target-cpu override for these subsystem kernels; pinned CPU2 during parent-coordinated quiet window.32 warmup calls then7 alternating-order batches; count/round stored with each probe. Medians are repeated batch means, not per-request percentiles or confidence intervals. Actual snapshots replayed by parent from recent VPSgames, then loaded here with snapshot history/repetition reset; see corpus metadata. No additional compilation or timings running.",
+  "experiments": [
+    {
+      "id": "R01",
+      "status": "implemented; strictly removes allocations/copies",
+      "finding": "Draw-material checks borrow both existing army slices instead of cloning two Vecs; predicate/order/empty-side behavior preserved.",
+      "limitations": "Not used inside src/search.rs. Opening result is a per-query API kernel, not whole-search saving. Existing draw tests plus full parent checks cover behavior.",
+      "measurements": [
+        {
+          "count_per_round": 20000,
+          "new_ns": [
+            0.89895,
+            0.89795,
+            1.09215,
+            0.8963,
+            0.9098,
+            0.8982,
+            0.90155
+          ],
+          "old_ns": [
+            101.2285,
+            100.37855,
+            101.2851,
+            101.4078,
+            101.89795,
+            101.4322,
+            100.94655
+          ],
+          "probe": "R01_position_0_pieces_804",
+          "rounds": 7,
+          "old_median_ns": 101.2851,
+          "new_median_ns": 0.89895,
+          "reduction_percent": 99.11245583012703,
+          "old_range_ns": [
+            100.37855,
+            101.89795
+          ],
+          "new_range_ns": [
+            0.8963,
+            1.09215
+          ]
+        },
+        {
+          "count_per_round": 20000,
+          "new_ns": [
+            0.9703,
+            0.96895,
+            0.94305,
+            0.9441,
+            0.9235,
+            0.9191,
+            0.93355
+          ],
+          "old_ns": [
+            105.5931,
+            102.5505,
+            101.55685,
+            101.15055,
+            98.6054,
+            102.32445,
+            101.38115
+          ],
+          "probe": "R01_position_1_pieces_706",
+          "rounds": 7,
+          "old_median_ns": 101.55685,
+          "new_median_ns": 0.94305,
+          "reduction_percent": 99.07140680318462,
+          "old_range_ns": [
+            98.6054,
+            105.5931
+          ],
+          "new_range_ns": [
+            0.9191,
+            0.9703
+          ]
+        },
+        {
+          "count_per_round": 20000,
+          "new_ns": [
+            0.9709,
+            0.9674,
+            0.94305,
+            0.9437,
+            0.9447,
+            0.94255,
+            0.91955
+          ],
+          "old_ns": [
+            74.89505,
+            71.7741,
+            71.02735,
+            69.7324,
+            69.45385,
+            70.8028,
+            70.00785
+          ],
+          "probe": "R01_position_2_pieces_412",
+          "rounds": 7,
+          "old_median_ns": 70.8028,
+          "new_median_ns": 0.9437,
+          "reduction_percent": 98.66714310733472,
+          "old_range_ns": [
+            69.45385,
+            74.89505
+          ],
+          "new_range_ns": [
+            0.91955,
+            0.9709
+          ]
+        },
+        {
+          "count_per_round": 20000,
+          "new_ns": [
+            0.9215,
+            0.9203,
+            0.9295,
+            0.9196,
+            0.92135,
+            0.91935,
+            1.28425
+          ],
+          "old_ns": [
+            97.6978,
+            93.67725,
+            94.1612,
+            93.57375,
+            93.1891,
+            92.58205,
+            92.2386
+          ],
+          "probe": "R01_position_3_pieces_660",
+          "rounds": 7,
+          "old_median_ns": 93.57375,
+          "new_median_ns": 0.92135,
+          "reduction_percent": 99.01537557274342,
+          "old_range_ns": [
+            92.2386,
+            97.6978
+          ],
+          "new_range_ns": [
+            0.91935,
+            1.28425
+          ]
+        },
+        {
+          "count_per_round": 20000,
+          "new_ns": [
+            0.99785,
+            0.99415,
+            0.96815,
+            0.9689,
+            0.9692,
+            0.96735,
+            0.9684
+          ],
+          "old_ns": [
+            48.85615,
+            45.9203,
+            44.54515,
+            44.05665,
+            45.06275,
+            43.7305,
+            44.68305
+          ],
+          "probe": "R01_position_4_pieces_167",
+          "rounds": 7,
+          "old_median_ns": 44.68305,
+          "new_median_ns": 0.9689,
+          "reduction_percent": 97.83161623926746,
+          "old_range_ns": [
+            43.7305,
+            48.85615
+          ],
+          "new_range_ns": [
+            0.96735,
+            0.99785
+          ]
+        },
+        {
+          "count_per_round": 20000,
+          "new_ns": [
+            0.95965,
+            0.95325,
+            0.99875,
+            1.00285,
+            0.996,
+            0.99715,
+            0.9769
+          ],
+          "old_ns": [
+            85.7617,
+            80.2879,
+            81.2822,
+            84.80405,
+            82.5357,
+            81.5278,
+            83.1852
+          ],
+          "probe": "R01_position_5_pieces_482",
+          "rounds": 7,
+          "old_median_ns": 82.5357,
+          "new_median_ns": 0.996,
+          "reduction_percent": 98.79324946659446,
+          "old_range_ns": [
+            80.2879,
+            85.7617
+          ],
+          "new_range_ns": [
+            0.95325,
+            1.00285
+          ]
+        },
+        {
+          "count_per_round": 20000,
+          "new_ns": [
+            0.99675,
+            0.99375,
+            0.99595,
+            0.9935,
+            0.968,
+            0.96885,
+            0.9676
+          ],
+          "old_ns": [
+            52.5518,
+            48.14925,
+            47.01755,
+            48.50005,
+            51.61265,
+            47.93355,
+            46.8503
+          ],
+          "probe": "R01_position_6_pieces_254",
+          "rounds": 7,
+          "old_median_ns": 48.14925,
+          "new_median_ns": 0.9935,
+          "reduction_percent": 97.93662414263983,
+          "old_range_ns": [
+            46.8503,
+            52.5518
+          ],
+          "new_range_ns": [
+            0.9676,
+            0.99675
+          ]
+        }
+      ]
+    },
+    {
+      "id": "R02",
+      "status": "implemented; strictly removes allocations/copies",
+      "finding": "BoardPosition::from_state reads borrowed lengths and extends borrowed armies into the single necessary owned snapshot Vec. Session snapshot DTO piece enumeration also borrows.",
+      "limitations": "Owned snapshot vector/DTO strings remain necessary; no search hot-path claim. Both snapshot orders and serde representation unchanged.",
+      "measurements": [
+        {
+          "count_per_round": 2000,
+          "new_ns": [
+            78.2715,
+            80.8715,
+            77.615,
+            83.7935,
+            77.568,
+            77.5705,
+            79.394
+          ],
+          "old_ns": [
+            299.517,
+            307.157,
+            294.2335,
+            297.1915,
+            303.616,
+            302.747,
+            296.2975
+          ],
+          "probe": "R02_position_0_pieces_804",
+          "rounds": 7,
+          "old_median_ns": 299.517,
+          "new_median_ns": 78.2715,
+          "reduction_percent": 73.86742655675637,
+          "old_range_ns": [
+            294.2335,
+            307.157
+          ],
+          "new_range_ns": [
+            77.568,
+            83.7935
+          ]
+        },
+        {
+          "count_per_round": 2000,
+          "new_ns": [
+            67.5465,
+            69.863,
+            69.1835,
+            66.172,
+            65.6905,
+            65.685,
+            65.614
+          ],
+          "old_ns": [
+            292.2905,
+            290.893,
+            283.8305,
+            280.065,
+            287.507,
+            288.1425,
+            286.8515
+          ],
+          "probe": "R02_position_1_pieces_706",
+          "rounds": 7,
+          "old_median_ns": 287.507,
+          "new_median_ns": 66.172,
+          "reduction_percent": 76.98421255830293,
+          "old_range_ns": [
+            280.065,
+            292.2905
+          ],
+          "new_range_ns": [
+            65.614,
+            69.863
+          ]
+        },
+        {
+          "count_per_round": 2000,
+          "new_ns": [
+            45.5995,
+            45.4725,
+            45.2,
+            45.243,
+            45.2575,
+            45.2535,
+            45.051
+          ],
+          "old_ns": [
+            198.1075,
+            199.0245,
+            202.53,
+            209.1405,
+            201.317,
+            199.2455,
+            200.592
+          ],
+          "probe": "R02_position_2_pieces_412",
+          "rounds": 7,
+          "old_median_ns": 200.592,
+          "new_median_ns": 45.2535,
+          "reduction_percent": 77.44002751854511,
+          "old_range_ns": [
+            198.1075,
+            209.1405
+          ],
+          "new_range_ns": [
+            45.051,
+            45.5995
+          ]
+        },
+        {
+          "count_per_round": 2000,
+          "new_ns": [
+            72.8515,
+            74.775,
+            72.399,
+            72.3735,
+            71.898,
+            71.9025,
+            71.897
+          ],
+          "old_ns": [
+            267.2585,
+            269.6735,
+            266.593,
+            268.078,
+            263.1805,
+            267.5595,
+            261.245
+          ],
+          "probe": "R02_position_3_pieces_660",
+          "rounds": 7,
+          "old_median_ns": 267.2585,
+          "new_median_ns": 72.3735,
+          "reduction_percent": 72.92003809046298,
+          "old_range_ns": [
+            261.245,
+            269.6735
+          ],
+          "new_range_ns": [
+            71.897,
+            74.775
+          ]
+        },
+        {
+          "count_per_round": 2000,
+          "new_ns": [
+            35.98,
+            36.3125,
+            36.684,
+            35.0525,
+            35.618,
+            35.573,
+            35.323
+          ],
+          "old_ns": [
+            123.077,
+            122.3315,
+            124.1295,
+            122.746,
+            123.8655,
+            125.612,
+            122.873
+          ],
+          "probe": "R02_position_4_pieces_167",
+          "rounds": 7,
+          "old_median_ns": 123.077,
+          "new_median_ns": 35.618,
+          "reduction_percent": 71.06039308725431,
+          "old_range_ns": [
+            122.3315,
+            125.612
+          ],
+          "new_range_ns": [
+            35.0525,
+            36.684
+          ]
+        },
+        {
+          "count_per_round": 2000,
+          "new_ns": [
+            54.293,
+            54.165,
+            54.2125,
+            57.052,
+            54.9095,
+            54.063,
+            54.043
+          ],
+          "old_ns": [
+            252.9855,
+            238.397,
+            250.493,
+            241.868,
+            251.5655,
+            257.7265,
+            242.497
+          ],
+          "probe": "R02_position_5_pieces_482",
+          "rounds": 7,
+          "old_median_ns": 250.493,
+          "new_median_ns": 54.2125,
+          "reduction_percent": 78.35767865768705,
+          "old_range_ns": [
+            238.397,
+            257.7265
+          ],
+          "new_range_ns": [
+            54.043,
+            57.052
+          ]
+        },
+        {
+          "count_per_round": 2000,
+          "new_ns": [
+            44.2425,
+            44.3215,
+            45.2055,
+            45.2385,
+            44.451,
+            44.327,
+            44.4595
+          ],
+          "old_ns": [
+            156.068,
+            162.2095,
+            157.5205,
+            155.268,
+            162.774,
+            156.641,
+            155.6855
+          ],
+          "probe": "R02_position_6_pieces_254",
+          "rounds": 7,
+          "old_median_ns": 156.641,
+          "new_median_ns": 44.451,
+          "reduction_percent": 71.62237217586711,
+          "old_range_ns": [
+            155.268,
+            162.774
+          ],
+          "new_range_ns": [
+            44.2425,
+            45.2385
+          ]
+        }
+      ]
+    },
+    {
+      "id": "S01",
+      "status": "implemented; asymptotically reduces work",
+      "finding": "Validate BoardPosition once, place directly into a new Board, and restore position once; removes full-board rehash/repetition reseed for every piece.",
+      "limitations": "Snapshot loading only. State is new, so restore cache-invalidating fixes in PR209 are not required for this optimization. Seeded history/repetition is snapshot semantics.",
+      "measurements": [
+        {
+          "count_per_round": 100,
+          "new_ns": [
+            6056.42,
+            6075.44,
+            5949.7,
+            5889.73,
+            6083.04,
+            5944.94,
+            6016.54
+          ],
+          "old_ns": [
+            488590.0,
+            492105.59,
+            487167.62,
+            487526.5,
+            490481.91,
+            491376.91,
+            487159.19
+          ],
+          "probe": "S01_position_0_pieces_804",
+          "rounds": 7,
+          "old_median_ns": 488590.0,
+          "new_median_ns": 6016.54,
+          "reduction_percent": 98.7685912523793,
+          "old_range_ns": [
+            487159.19,
+            492105.59
+          ],
+          "new_range_ns": [
+            5889.73,
+            6083.04
+          ]
+        },
+        {
+          "count_per_round": 100,
+          "new_ns": [
+            5649.03,
+            5656.85,
+            5592.19,
+            5563.27,
+            5507.86,
+            5539.4,
+            5485.7
+          ],
+          "old_ns": [
+            382397.65,
+            383549.77,
+            374345.53,
+            376644.27,
+            373884.45,
+            373059.37,
+            370163.8
+          ],
+          "probe": "S01_position_1_pieces_706",
+          "rounds": 7,
+          "old_median_ns": 374345.53,
+          "new_median_ns": 5563.27,
+          "reduction_percent": 98.51386765590603,
+          "old_range_ns": [
+            370163.8,
+            383549.77
+          ],
+          "new_range_ns": [
+            5485.7,
+            5656.85
+          ]
+        },
+        {
+          "count_per_round": 100,
+          "new_ns": [
+            3406.03,
+            3402.09,
+            3362.71,
+            3414.76,
+            3430.0,
+            3337.86,
+            3400.1
+          ],
+          "old_ns": [
+            128056.59,
+            128630.86,
+            126650.93,
+            126783.93,
+            126446.66,
+            127219.81,
+            128851.99
+          ],
+          "probe": "S01_position_2_pieces_412",
+          "rounds": 7,
+          "old_median_ns": 127219.81,
+          "new_median_ns": 3402.09,
+          "reduction_percent": 97.32581741790057,
+          "old_range_ns": [
+            126446.66,
+            128851.99
+          ],
+          "new_range_ns": [
+            3337.86,
+            3430.0
+          ]
+        },
+        {
+          "count_per_round": 100,
+          "new_ns": [
+            5181.91,
+            6501.26,
+            5095.39,
+            4977.93,
+            5312.88,
+            5219.03,
+            5165.93
+          ],
+          "old_ns": [
+            334982.6,
+            330370.85,
+            321243.77,
+            333914.25,
+            333372.26,
+            335779.05,
+            335890.41
+          ],
+          "probe": "S01_position_3_pieces_660",
+          "rounds": 7,
+          "old_median_ns": 333914.25,
+          "new_median_ns": 5181.91,
+          "reduction_percent": 98.44813151879563,
+          "old_range_ns": [
+            321243.77,
+            335890.41
+          ],
+          "new_range_ns": [
+            4977.93,
+            6501.26
+          ]
+        },
+        {
+          "count_per_round": 100,
+          "new_ns": [
+            1896.55,
+            1924.85,
+            1879.02,
+            1810.79,
+            1825.08,
+            1833.42,
+            1877.94
+          ],
+          "old_ns": [
+            25081.44,
+            23703.21,
+            23754.07,
+            23948.97,
+            23178.09,
+            23285.4,
+            23262.15
+          ],
+          "probe": "S01_position_4_pieces_167",
+          "rounds": 7,
+          "old_median_ns": 23703.21,
+          "new_median_ns": 1877.94,
+          "reduction_percent": 92.07727560950606,
+          "old_range_ns": [
+            23178.09,
+            25081.44
+          ],
+          "new_range_ns": [
+            1810.79,
+            1924.85
+          ]
+        },
+        {
+          "count_per_round": 100,
+          "new_ns": [
+            4001.25,
+            4010.99,
+            4122.64,
+            4100.94,
+            4370.56,
+            4077.17,
+            4048.63
+          ],
+          "old_ns": [
+            183558.98,
+            178795.02,
+            183389.18,
+            183462.02,
+            178524.13,
+            178906.05,
+            178027.05
+          ],
+          "probe": "S01_position_5_pieces_482",
+          "rounds": 7,
+          "old_median_ns": 178906.05,
+          "new_median_ns": 4077.17,
+          "reduction_percent": 97.7210552689526,
+          "old_range_ns": [
+            178027.05,
+            183558.98
+          ],
+          "new_range_ns": [
+            4001.25,
+            4370.56
+          ]
+        },
+        {
+          "count_per_round": 100,
+          "new_ns": [
+            2592.57,
+            2596.26,
+            2468.82,
+            2467.76,
+            2406.35,
+            2373.87,
+            2494.02
+          ],
+          "old_ns": [
+            55070.79,
+            52891.78,
+            52181.88,
+            51491.99,
+            51548.32,
+            51977.5,
+            51449.1
+          ],
+          "probe": "S01_position_6_pieces_254",
+          "rounds": 7,
+          "old_median_ns": 51977.5,
+          "new_median_ns": 2468.82,
+          "reduction_percent": 95.25021403491895,
+          "old_range_ns": [
+            51449.1,
+            55070.79
+          ],
+          "new_range_ns": [
+            2373.87,
+            2596.26
+          ]
+        }
+      ]
+    },
+    {
+      "id": "S09",
+      "status": "implemented; whole-search measurement pending parent",
+      "finding": "Generated Standard Free Eagle ranges skip full route-list regeneration only on trusted unrecorded application. Ordinary FE ranges are NoJump; short matching multi-leg prefixes have empty intermediate squares. Checked destination-only route normalization and explicit paths unchanged.",
+      "limitations": "Kernel old arm emulates existing normalization via public single-piece generation, then trusted apply, so includes public generation-wrapper overhead. Do not equate 98% FE fixture saving to whole-search speedup. Exact legacy first-match normalization tested on every generated Standard FE move in 128 seeded sparse/dense boards, both colors; also 96 corner/center blocker fixtures, board/hash/draw/repetition/undo parity.",
+      "measurements": [
+        {
+          "count_per_round": 20000,
+          "new_ns": [
+            81.07125,
+            79.4414,
+            77.92885,
+            75.7775,
+            76.1197,
+            75.9418,
+            75.8115
+          ],
+          "old_ns": [
+            3629.46345,
+            3615.55965,
+            3581.1387,
+            3509.41195,
+            3525.81965,
+            3597.4214,
+            3567.06335
+          ],
+          "probe": "S09_FE_standard_make_unmake",
+          "rounds": 7,
+          "old_median_ns": 3581.1387,
+          "new_median_ns": 76.1197,
+          "reduction_percent": 97.8744274830796,
+          "old_range_ns": [
+            3509.41195,
+            3629.46345
+          ],
+          "new_range_ns": [
+            75.7775,
+            81.07125
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C02",
+      "status": "implemented; strictly avoids full timeline copies",
+      "finding": "Added borrowed effective_move_at(index), used for recorded_evals last/next, replacing clone of entire effective timeline. Trunk prefix/branch/setup ownership unchanged.",
+      "limitations": "Timing isolates cloning versus two indexed references, excludes DTO formatting/check/legal-generation. Full timeline cloning remains where owned timeline export/rebuild requires it. Trunk/branch/setup edge lookup regression passes. Synthetic records have empty iteration_timings; actual telemetry-bearing record clones may cost more. No entire-session latency claim.",
+      "measurements": [
+        {
+          "count_per_round": 1000,
+          "new_ns": [
+            0.931,
+            0.891,
+            0.914,
+            0.875,
+            0.901,
+            0.901,
+            0.901
+          ],
+          "old_ns": [
+            74.936,
+            72.523,
+            74.458,
+            75.157,
+            76.604,
+            76.215,
+            76.887
+          ],
+          "probe": "C02_timeline_last_next_len_10",
+          "rounds": 7,
+          "old_median_ns": 75.157,
+          "new_median_ns": 0.901,
+          "reduction_percent": 98.80117620447864,
+          "old_range_ns": [
+            72.523,
+            76.887
+          ],
+          "new_range_ns": [
+            0.875,
+            0.931
+          ]
+        },
+        {
+          "count_per_round": 1000,
+          "new_ns": [
+            1.032,
+            0.911,
+            0.965,
+            0.928,
+            1.161,
+            0.856,
+            0.999
+          ],
+          "old_ns": [
+            7584.587,
+            7108.113,
+            7013.83,
+            7011.637,
+            6978.452,
+            7026.607,
+            7130.519
+          ],
+          "probe": "C02_timeline_last_next_len_1000",
+          "rounds": 7,
+          "old_median_ns": 7026.607,
+          "new_median_ns": 0.965,
+          "reduction_percent": 99.98626648679796,
+          "old_range_ns": [
+            6978.452,
+            7584.587
+          ],
+          "new_range_ns": [
+            0.856,
+            1.161
+          ]
+        },
+        {
+          "count_per_round": 1000,
+          "new_ns": [
+            1.032,
+            0.874,
+            0.865,
+            0.858,
+            0.901,
+            0.866,
+            0.929
+          ],
+          "old_ns": [
+            83356.915,
+            81685.557,
+            83208.853,
+            85265.421,
+            84297.201,
+            81546.611,
+            81051.299
+          ],
+          "probe": "C02_timeline_last_next_len_10000",
+          "rounds": 7,
+          "old_median_ns": 83208.853,
+          "new_median_ns": 0.874,
+          "reduction_percent": 99.99894963099659,
+          "old_range_ns": [
+            81051.299,
+            85265.421
+          ],
+          "new_range_ns": [
+            0.858,
+            1.032
+          ]
+        }
+      ]
+    },
+    {
+      "id": "S12",
+      "status": "unintegrated prototype bound; possible",
+      "finding": "Measured full canonical hash recompute versus existing cached hash as a ceiling for non-search incremental hashing. Search make/unmake already uses incremental hash.",
+      "limitations": "Cached-hash access is not an implementation of canonical move effects or non-search incremental updates. Shared effects across capture rules/simulation/application is an invasive rewrite requiring detailed exotic-route parity. No production change or whole-search gain claimed. External checked make occurs once per played/root move rather than per search node, limiting whole-agent benefit of the measured ~1.4us full-opening hash cost.",
+      "measurements": [
+        {
+          "count_per_round": 20000,
+          "new_ns": [
+            0.2876,
+            0.2834,
+            0.33885,
+            0.33815,
+            0.2903,
+            0.2891,
+            0.32575
+          ],
+          "old_ns": [
+            1195.5175,
+            1215.0506,
+            1205.6127,
+            1200.77185,
+            1197.54225,
+            1171.7981,
+            1174.24015
+          ],
+          "probe": "S12_full_hash_lower_bound_position_0_pieces_804",
+          "rounds": 7,
+          "old_median_ns": 1197.54225,
+          "new_median_ns": 0.2903,
+          "reduction_percent": 99.97575868408819,
+          "old_range_ns": [
+            1171.7981,
+            1215.0506
+          ],
+          "new_range_ns": [
+            0.2834,
+            0.33885
+          ]
+        },
+        {
+          "count_per_round": 20000,
+          "new_ns": [
+            0.3336,
+            0.33225,
+            0.3285,
+            0.33735,
+            0.33025,
+            0.33535,
+            0.32555
+          ],
+          "old_ns": [
+            1024.63435,
+            1023.87,
+            1023.8895,
+            1027.14595,
+            1031.54025,
+            1041.73795,
+            1036.94465
+          ],
+          "probe": "S12_full_hash_lower_bound_position_1_pieces_706",
+          "rounds": 7,
+          "old_median_ns": 1027.14595,
+          "new_median_ns": 0.33225,
+          "reduction_percent": 99.9676530876649,
+          "old_range_ns": [
+            1023.87,
+            1041.73795
+          ],
+          "new_range_ns": [
+            0.32555,
+            0.33735
+          ]
+        },
+        {
+          "count_per_round": 20000,
+          "new_ns": [
+            0.3231,
+            0.32695,
+            0.27955,
+            0.298,
+            0.34815,
+            0.34315,
+            0.34015
+          ],
+          "old_ns": [
+            589.42725,
+            614.5481,
+            619.11935,
+            610.3121,
+            613.3018,
+            633.3467,
+            648.9049
+          ],
+          "probe": "S12_full_hash_lower_bound_position_2_pieces_412",
+          "rounds": 7,
+          "old_median_ns": 614.5481,
+          "new_median_ns": 0.32695,
+          "reduction_percent": 99.94679830594221,
+          "old_range_ns": [
+            589.42725,
+            648.9049
+          ],
+          "new_range_ns": [
+            0.27955,
+            0.34815
+          ]
+        },
+        {
+          "count_per_round": 20000,
+          "new_ns": [
+            0.28065,
+            0.2755,
+            0.2834,
+            0.2822,
+            0.2797,
+            0.2832,
+            0.28335
+          ],
+          "old_ns": [
+            1004.09475,
+            1003.3467,
+            998.44595,
+            999.74855,
+            996.65865,
+            993.19955,
+            1009.6868
+          ],
+          "probe": "S12_full_hash_lower_bound_position_3_pieces_660",
+          "rounds": 7,
+          "old_median_ns": 999.74855,
+          "new_median_ns": 0.2822,
+          "reduction_percent": 99.9717729022963,
+          "old_range_ns": [
+            993.19955,
+            1009.6868
+          ],
+          "new_range_ns": [
+            0.2755,
+            0.2834
+          ]
+        },
+        {
+          "count_per_round": 20000,
+          "new_ns": [
+            0.33935,
+            0.3431,
+            0.34935,
+            0.3446,
+            0.3397,
+            0.3364,
+            0.2788
+          ],
+          "old_ns": [
+            253.50355,
+            254.0602,
+            252.54915,
+            276.4836,
+            253.2223,
+            263.66535,
+            267.69895
+          ],
+          "probe": "S12_full_hash_lower_bound_position_4_pieces_167",
+          "rounds": 7,
+          "old_median_ns": 254.0602,
+          "new_median_ns": 0.3397,
+          "reduction_percent": 99.86629153247932,
+          "old_range_ns": [
+            252.54915,
+            276.4836
+          ],
+          "new_range_ns": [
+            0.2788,
+            0.34935
+          ]
+        },
+        {
+          "count_per_round": 20000,
+          "new_ns": [
+            0.2825,
+            0.2829,
+            0.28385,
+            0.28105,
+            0.24685,
+            0.2456,
+            0.3434
+          ],
+          "old_ns": [
+            733.71615,
+            719.41095,
+            717.22875,
+            720.35525,
+            723.51875,
+            721.63535,
+            720.89535
+          ],
+          "probe": "S12_full_hash_lower_bound_position_5_pieces_482",
+          "rounds": 7,
+          "old_median_ns": 720.89535,
+          "new_median_ns": 0.2825,
+          "reduction_percent": 99.96081262002869,
+          "old_range_ns": [
+            717.22875,
+            733.71615
+          ],
+          "new_range_ns": [
+            0.2456,
+            0.3434
+          ]
+        },
+        {
+          "count_per_round": 20000,
+          "new_ns": [
+            0.34845,
+            0.34085,
+            0.32605,
+            0.33525,
+            0.3465,
+            0.34305,
+            0.28725
+          ],
+          "old_ns": [
+            369.0298,
+            371.38435,
+            370.92715,
+            374.14275,
+            375.4772,
+            372.7134,
+            377.7347
+          ],
+          "probe": "S12_full_hash_lower_bound_position_6_pieces_254",
+          "rounds": 7,
+          "old_median_ns": 372.7134,
+          "new_median_ns": 0.34085,
+          "reduction_percent": 99.90854903526409,
+          "old_range_ns": [
+            369.0298,
+            377.7347
+          ],
+          "new_range_ns": [
+            0.28725,
+            0.34845
+          ]
+        }
+      ]
+    },
+    {
+      "id": "S16",
+      "status": "unintegrated favorable bound; possible",
+      "finding": "Measured arithmetic piece_key reduction across real current pieces versus a precomputed key list for those exact piece/square identities.",
+      "limitations": "This key list omits real identity-to-form-table indexing, misses, memory pressure and maintenance; it is an optimistic cache upper bound, not a production bounded-Zobrist implementation. Full 303x2x2x1296x8 table is 12,566,016 bytes before origin metadata; search already only hashes changed pieces.",
+      "measurements": [
+        {
+          "count_per_round": 20000,
+          "new_ns": [
+            64.6467,
+            64.74505,
+            73.5214,
+            63.01315,
+            69.4104,
+            72.35505,
+            70.67245
+          ],
+          "old_ns": [
+            1175.11445,
+            1182.75015,
+            1172.0978,
+            1164.6382,
+            1175.48855,
+            1159.5283,
+            1168.9192
+          ],
+          "probe": "S16_existing_piece_key_cache_bound_position_0_pieces_804",
+          "rounds": 7,
+          "old_median_ns": 1172.0978,
+          "new_median_ns": 69.4104,
+          "reduction_percent": 94.07810508645268,
+          "old_range_ns": [
+            1159.5283,
+            1182.75015
+          ],
+          "new_range_ns": [
+            63.01315,
+            73.5214
+          ]
+        },
+        {
+          "count_per_round": 20000,
+          "new_ns": [
+            60.54605,
+            58.05285,
+            60.9846,
+            58.35685,
+            62.73415,
+            57.2315,
+            67.98845
+          ],
+          "old_ns": [
+            1022.33615,
+            1011.3409,
+            1019.0625,
+            1007.6497,
+            1000.6475,
+            1003.67275,
+            1020.94205
+          ],
+          "probe": "S16_existing_piece_key_cache_bound_position_1_pieces_706",
+          "rounds": 7,
+          "old_median_ns": 1011.3409,
+          "new_median_ns": 60.54605,
+          "reduction_percent": 94.01328968303368,
+          "old_range_ns": [
+            1000.6475,
+            1022.33615
+          ],
+          "new_range_ns": [
+            57.2315,
+            67.98845
+          ]
+        },
+        {
+          "count_per_round": 20000,
+          "new_ns": [
+            38.5769,
+            42.28995,
+            40.9916,
+            41.6694,
+            37.58685,
+            39.1222,
+            41.21105
+          ],
+          "old_ns": [
+            613.44135,
+            611.4384,
+            599.90335,
+            593.1878,
+            664.87065,
+            598.70815,
+            612.05655
+          ],
+          "probe": "S16_existing_piece_key_cache_bound_position_2_pieces_412",
+          "rounds": 7,
+          "old_median_ns": 611.4384,
+          "new_median_ns": 40.9916,
+          "reduction_percent": 93.2958741223973,
+          "old_range_ns": [
+            593.1878,
+            664.87065
+          ],
+          "new_range_ns": [
+            37.58685,
+            42.28995
+          ]
+        },
+        {
+          "count_per_round": 20000,
+          "new_ns": [
+            60.89205,
+            58.9768,
+            66.29625,
+            53.4473,
+            60.4763,
+            57.00105,
+            54.96765
+          ],
+          "old_ns": [
+            982.1062,
+            967.41345,
+            986.9951,
+            998.69555,
+            989.9889,
+            987.7089,
+            984.0819
+          ],
+          "probe": "S16_existing_piece_key_cache_bound_position_3_pieces_660",
+          "rounds": 7,
+          "old_median_ns": 986.9951,
+          "new_median_ns": 58.9768,
+          "reduction_percent": 94.02461065916133,
+          "old_range_ns": [
+            967.41345,
+            998.69555
+          ],
+          "new_range_ns": [
+            53.4473,
+            66.29625
+          ]
+        },
+        {
+          "count_per_round": 20000,
+          "new_ns": [
+            18.5628,
+            22.5157,
+            23.1014,
+            16.9088,
+            23.90305,
+            21.86,
+            23.6505
+          ],
+          "old_ns": [
+            251.67685,
+            253.31265,
+            249.60495,
+            249.5125,
+            253.46605,
+            257.347,
+            250.90985
+          ],
+          "probe": "S16_existing_piece_key_cache_bound_position_4_pieces_167",
+          "rounds": 7,
+          "old_median_ns": 251.67685,
+          "new_median_ns": 22.5157,
+          "reduction_percent": 91.05372623664034,
+          "old_range_ns": [
+            249.5125,
+            257.347
+          ],
+          "new_range_ns": [
+            16.9088,
+            23.90305
+          ]
+        },
+        {
+          "count_per_round": 20000,
+          "new_ns": [
+            37.00305,
+            43.35885,
+            46.06165,
+            54.39505,
+            44.38265,
+            43.5799,
+            44.72945
+          ],
+          "old_ns": [
+            717.9872,
+            712.5934,
+            711.4815,
+            710.4569,
+            715.89465,
+            710.24295,
+            707.7948
+          ],
+          "probe": "S16_existing_piece_key_cache_bound_position_5_pieces_482",
+          "rounds": 7,
+          "old_median_ns": 711.4815,
+          "new_median_ns": 44.38265,
+          "reduction_percent": 93.76193899630559,
+          "old_range_ns": [
+            707.7948,
+            717.9872
+          ],
+          "new_range_ns": [
+            37.00305,
+            54.39505
+          ]
+        },
+        {
+          "count_per_round": 20000,
+          "new_ns": [
+            27.798,
+            26.2828,
+            32.21595,
+            28.9247,
+            29.1856,
+            29.377,
+            31.92165
+          ],
+          "old_ns": [
+            378.3969,
+            374.47115,
+            378.07205,
+            380.38245,
+            388.67555,
+            387.77185,
+            378.87
+          ],
+          "probe": "S16_existing_piece_key_cache_bound_position_6_pieces_254",
+          "rounds": 7,
+          "old_median_ns": 378.87,
+          "new_median_ns": 29.1856,
+          "reduction_percent": 92.29667168157943,
+          "old_range_ns": [
+            374.47115,
+            388.67555
+          ],
+          "new_range_ns": [
+            26.2828,
+            32.21595
+          ]
+        }
+      ]
+    },
+    {
+      "id": "S17",
+      "status": "query-only prototype; possible low priority",
+      "finding": "Borrowed all-draw-class scan tested on 804 Kings versus precomputed zero nonqualifying-count query. Opening borrowed predicate short-circuits in ~1ns here.",
+      "limitations": "Count prototype ignores update/invalidation cost, extra board state and editor paths; fixture is worst case for a scan and is not a representative material distribution. No src/search.rs draw-material query calls; no search-time benefit established.",
+      "measurements": [
+        {
+          "count_per_round": 20000,
+          "new_ns": [
+            0.31595,
+            0.3082,
+            0.3244,
+            0.5427,
+            0.31985,
+            0.2981,
+            0.5311
+          ],
+          "old_ns": [
+            293.3989,
+            285.4659,
+            286.59165,
+            292.2578,
+            296.1296,
+            288.6657,
+            295.7551
+          ],
+          "probe": "S17_all_draw_class_804_query_only",
+          "rounds": 7,
+          "old_median_ns": 292.2578,
+          "new_median_ns": 0.31985,
+          "reduction_percent": 99.89055895172002,
+          "old_range_ns": [
+            285.4659,
+            296.1296
+          ],
+          "new_range_ns": [
+            0.2981,
+            0.5427
+          ]
+        }
+      ]
+    },
+    {
+      "id": "S18",
+      "status": "write-only prototype; possible",
+      "finding": "Prototype emits 7-byte header +8 bytes per piece preserving type, origin, coordinates, color, promoted flag. Compared serialization with TSFEN and measured opening byte sizes.",
+      "limitations": "No decoder/versioning/endianness contract/malformed-input validation or end-to-end I/O/training bottleneck measured. Existing text interchange unchanged. Write-only kernel cannot justify changing persisted public formats.",
+      "measurements": [
+        {
+          "count_per_round": 100,
+          "new_ns": [
+            1327.78,
+            1325.57,
+            1326.52,
+            1346.62,
+            1344.0,
+            1292.13,
+            1292.08
+          ],
+          "old_ns": [
+            115307.98,
+            116916.53,
+            116070.04,
+            117175.17,
+            116804.3,
+            117147.26,
+            116608.59
+          ],
+          "probe": "S18_snapshot_write_only_position_0_pieces_804",
+          "rounds": 7,
+          "old_median_ns": 116804.3,
+          "new_median_ns": 1326.52,
+          "reduction_percent": 98.86432263195789,
+          "old_range_ns": [
+            115307.98,
+            117175.17
+          ],
+          "new_range_ns": [
+            1292.08,
+            1346.62
+          ]
+        },
+        {
+          "decode_validated": false,
+          "json_bytes": 95968,
+          "packed_prototype_bytes": 6439,
+          "probe": "S18_size_position_0_pieces_804",
+          "tsfen_bytes": 14734
+        },
+        {
+          "count_per_round": 100,
+          "new_ns": [
+            1135.87,
+            1176.52,
+            1133.14,
+            1133.08,
+            1164.18,
+            1132.72,
+            1132.57
+          ],
+          "old_ns": [
+            91494.43,
+            91927.62,
+            92870.1,
+            91589.49,
+            90915.28,
+            91796.16,
+            92095.81
+          ],
+          "probe": "S18_snapshot_write_only_position_1_pieces_706",
+          "rounds": 7,
+          "old_median_ns": 91796.16,
+          "new_median_ns": 1133.14,
+          "reduction_percent": 98.76559106611866,
+          "old_range_ns": [
+            90915.28,
+            92870.1
+          ],
+          "new_range_ns": [
+            1132.57,
+            1176.52
+          ]
+        },
+        {
+          "decode_validated": false,
+          "json_bytes": 84247,
+          "packed_prototype_bytes": 5655,
+          "probe": "S18_size_position_1_pieces_706",
+          "tsfen_bytes": 12917
+        },
+        {
+          "count_per_round": 100,
+          "new_ns": [
+            674.17,
+            671.38,
+            690.53,
+            694.66,
+            674.5,
+            680.76,
+            693.41
+          ],
+          "old_ns": [
+            54533.44,
+            55458.32,
+            54917.2,
+            62775.56,
+            55187.42,
+            56199.0,
+            55117.37
+          ],
+          "probe": "S18_snapshot_write_only_position_2_pieces_412",
+          "rounds": 7,
+          "old_median_ns": 55187.42,
+          "new_median_ns": 680.76,
+          "reduction_percent": 98.76645800800254,
+          "old_range_ns": [
+            54533.44,
+            62775.56
+          ],
+          "new_range_ns": [
+            671.38,
+            694.66
+          ]
+        },
+        {
+          "decode_validated": false,
+          "json_bytes": 49244,
+          "packed_prototype_bytes": 3303,
+          "probe": "S18_size_position_2_pieces_412",
+          "tsfen_bytes": 7620
+        },
+        {
+          "count_per_round": 100,
+          "new_ns": [
+            1335.05,
+            1354.94,
+            1083.91,
+            1087.5,
+            1078.19,
+            1083.18,
+            1083.71
+          ],
+          "old_ns": [
+            107185.93,
+            114011.22,
+            88171.47,
+            90971.95,
+            89524.66,
+            86859.71,
+            91218.32
+          ],
+          "probe": "S18_snapshot_write_only_position_3_pieces_660",
+          "rounds": 7,
+          "old_median_ns": 90971.95,
+          "new_median_ns": 1083.91,
+          "reduction_percent": 98.80852284687752,
+          "old_range_ns": [
+            86859.71,
+            114011.22
+          ],
+          "new_range_ns": [
+            1078.19,
+            1354.94
+          ]
+        },
+        {
+          "decode_validated": false,
+          "json_bytes": 78792,
+          "packed_prototype_bytes": 5287,
+          "probe": "S18_size_position_3_pieces_660",
+          "tsfen_bytes": 12102
+        },
+        {
+          "count_per_round": 100,
+          "new_ns": [
+            279.35,
+            285.43,
+            278.86,
+            277.91,
+            278.79,
+            282.84,
+            286.05
+          ],
+          "old_ns": [
+            20928.86,
+            21803.58,
+            21977.98,
+            22320.91,
+            22103.52,
+            22718.3,
+            22737.3
+          ],
+          "probe": "S18_snapshot_write_only_position_4_pieces_167",
+          "rounds": 7,
+          "old_median_ns": 22103.52,
+          "new_median_ns": 279.35,
+          "reduction_percent": 98.73617414782804,
+          "old_range_ns": [
+            20928.86,
+            22737.3
+          ],
+          "new_range_ns": [
+            277.91,
+            286.05
+          ]
+        },
+        {
+          "decode_validated": false,
+          "json_bytes": 20041,
+          "packed_prototype_bytes": 1343,
+          "probe": "S18_size_position_4_pieces_167",
+          "tsfen_bytes": 3156
+        },
+        {
+          "count_per_round": 100,
+          "new_ns": [
+            807.09,
+            803.6,
+            805.13,
+            834.27,
+            803.91,
+            804.61,
+            804.23
+          ],
+          "old_ns": [
+            64312.0,
+            65172.08,
+            64929.77,
+            64793.18,
+            64984.27,
+            65841.66,
+            65404.35
+          ],
+          "probe": "S18_snapshot_write_only_position_5_pieces_482",
+          "rounds": 7,
+          "old_median_ns": 64984.27,
+          "new_median_ns": 804.61,
+          "reduction_percent": 98.76183882653449,
+          "old_range_ns": [
+            64312.0,
+            65841.66
+          ],
+          "new_range_ns": [
+            803.6,
+            834.27
+          ]
+        },
+        {
+          "decode_validated": false,
+          "json_bytes": 57663,
+          "packed_prototype_bytes": 3863,
+          "probe": "S18_size_position_5_pieces_482",
+          "tsfen_bytes": 8969
+        },
+        {
+          "count_per_round": 100,
+          "new_ns": [
+            418.12,
+            416.36,
+            440.3,
+            439.82,
+            434.98,
+            477.94,
+            427.74
+          ],
+          "old_ns": [
+            32999.75,
+            34499.43,
+            35077.78,
+            35875.85,
+            34788.23,
+            35358.18,
+            34715.37
+          ],
+          "probe": "S18_snapshot_write_only_position_6_pieces_254",
+          "rounds": 7,
+          "old_median_ns": 34788.23,
+          "new_median_ns": 434.98,
+          "reduction_percent": 98.74963457468229,
+          "old_range_ns": [
+            32999.75,
+            35875.85
+          ],
+          "new_range_ns": [
+            416.36,
+            477.94
+          ]
+        },
+        {
+          "decode_validated": false,
+          "json_bytes": 30373,
+          "packed_prototype_bytes": 2039,
+          "probe": "S18_size_position_6_pieces_254",
+          "tsfen_bytes": 4701
+        }
+      ]
+    },
+    {
+      "id": "C03",
+      "status": "replay kernel prototype; possible",
+      "finding": "Repeated 64/512-ply two-King reversible sequences compare replay from original state with clone of a state checkpoint plus last32 plies; hashes, repetition_count and history length agree.",
+      "limitations": "GameState clone preserves repetition/history here, unlike BoardPosition reload. This is not an integrated DebugTool checkpoint cache, branch invalidation/memory budget or GUI latency measurement. Actual exotic-route replay parity and persisted trunk metadata remain needed. Keeping many full GameState checkpoints naively duplicates history prefixes; retention budget or shared immutable history needs design. Prototype stores only one checkpoint per length.",
+      "measurements": [
+        {
+          "count_per_round": 100,
+          "new_ns": [
+            1413.2,
+            1412.1,
+            1527.57,
+            1516.18,
+            1593.68,
+            1602.45,
+            1829.7
+          ],
+          "old_ns": [
+            2929.3,
+            2742.21,
+            2802.73,
+            3036.42,
+            3069.89,
+            3096.78,
+            3304.42
+          ],
+          "probe": "C03_checkpoint_64_plies_last32",
+          "rounds": 7,
+          "old_median_ns": 3036.42,
+          "new_median_ns": 1527.57,
+          "reduction_percent": 49.691742249095974,
+          "old_range_ns": [
+            2742.21,
+            3304.42
+          ],
+          "new_range_ns": [
+            1412.1,
+            1829.7
+          ]
+        },
+        {
+          "count_per_round": 100,
+          "new_ns": [
+            2830.46,
+            2788.5,
+            2807.43,
+            2785.28,
+            2813.32,
+            2780.53,
+            2907.27
+          ],
+          "old_ns": [
+            21633.32,
+            22122.28,
+            22402.37,
+            22072.46,
+            22141.72,
+            22232.95,
+            22822.3
+          ],
+          "probe": "C03_checkpoint_512_plies_last32",
+          "rounds": 7,
+          "old_median_ns": 22141.72,
+          "new_median_ns": 2807.43,
+          "reduction_percent": 87.32063272410635,
+          "old_range_ns": [
+            21633.32,
+            22822.3
+          ],
+          "new_range_ns": [
+            2780.53,
+            2907.27
+          ]
+        }
+      ]
+    },
+    {
+      "id": "R19",
+      "status": "measured naive iterator prototype rejected; broader idea remains possible",
+      "finding": "Compared VirtualBoard::get_pieces_by_color Vec materialization followed by attack_utils candidate-count filtering with borrowed base-army iteration, moved/promoted overlay and removed-victim predicates, then the same candidate-count filtering. Query changes through all1296 squares and is blackboxed. On opening+6VPSsnapshots, both colors, candidate counts agree at100sampletargets percase. The borrowed pipeline regresses13/14 median color-position cases; 6VPS-only subset regresses11/12. Do not ship this prototype.",
+      "limitations": "Kernel-only and different return shapes: no owned Vec is needed by the caller in the borrowed arm. It measures candidate prefilter counts, not full attack reachability or early exits; no production BoardLike rewrite, ancestor composition or heavy exotic-capture overlay coverage. One ordinary generated move is overlaid per position. This demonstrates that extra per-attacker filtering can offset removed bulk Vec clones; it does not reject every optimized visitor/overlay design. Prior whole-search CPU ratio1.01508 interval0.98089..1.06270 also did not establish a gain.",
+      "measurements": [
+        {
+          "count_per_round": 10000,
+          "new_ns": [
+            3488.9903,
+            3597.157,
+            3514.1468,
+            3491.2827,
+            3498.0824,
+            3512.5008,
+            3468.5652
+          ],
+          "old_ns": [
+            3144.6521,
+            3260.7239,
+            3162.7881,
+            3229.5165,
+            3176.8575,
+            3168.072,
+            3123.8212
+          ],
+          "probe": "R19_virtual_army_candidate_count_position_0_pieces_804_Black",
+          "rounds": 7,
+          "old_median_ns": 3168.072,
+          "new_median_ns": 3498.0824,
+          "reduction_percent": -10.416758204990279,
+          "old_range_ns": [
+            3123.8212,
+            3260.7239
+          ],
+          "new_range_ns": [
+            3468.5652,
+            3597.157
+          ]
+        },
+        {
+          "count_per_round": 10000,
+          "new_ns": [
+            3354.9899,
+            3312.9821,
+            3317.2941,
+            3369.5248,
+            3310.1455,
+            3305.0966,
+            3356.5105
+          ],
+          "old_ns": [
+            1966.3106,
+            1915.17,
+            1918.112,
+            1953.9439,
+            1955.9571,
+            1938.8299,
+            1957.783
+          ],
+          "probe": "R19_virtual_army_candidate_count_position_0_pieces_804_White",
+          "rounds": 7,
+          "old_median_ns": 1953.9439,
+          "new_median_ns": 3317.2941,
+          "reduction_percent": -69.77427550504393,
+          "old_range_ns": [
+            1915.17,
+            1966.3106
+          ],
+          "new_range_ns": [
+            3305.0966,
+            3369.5248
+          ]
+        },
+        {
+          "count_per_round": 10000,
+          "new_ns": [
+            2069.7774,
+            2038.8722,
+            2074.4492,
+            2060.797,
+            2094.2588,
+            2074.3918,
+            2047.6929
+          ],
+          "old_ns": [
+            1956.3965,
+            1950.0825,
+            1946.8613,
+            1984.8002,
+            1956.5889,
+            1971.3324,
+            1946.0467
+          ],
+          "probe": "R19_virtual_army_candidate_count_position_1_pieces_706_Black",
+          "rounds": 7,
+          "old_median_ns": 1956.3965,
+          "new_median_ns": 2069.7774,
+          "reduction_percent": -5.795394747434883,
+          "old_range_ns": [
+            1946.0467,
+            1984.8002
+          ],
+          "new_range_ns": [
+            2038.8722,
+            2094.2588
+          ]
+        },
+        {
+          "count_per_round": 10000,
+          "new_ns": [
+            1862.4911,
+            1842.2243,
+            1826.0932,
+            1831.5633,
+            1883.6133,
+            1876.7767,
+            1866.3595
+          ],
+          "old_ns": [
+            1725.8841,
+            1668.2487,
+            1654.8862,
+            1689.5943,
+            1687.8744,
+            1713.135,
+            1700.5741
+          ],
+          "probe": "R19_virtual_army_candidate_count_position_1_pieces_706_White",
+          "rounds": 7,
+          "old_median_ns": 1689.5943,
+          "new_median_ns": 1862.4911,
+          "reduction_percent": -10.233036415901735,
+          "old_range_ns": [
+            1654.8862,
+            1725.8841
+          ],
+          "new_range_ns": [
+            1826.0932,
+            1883.6133
+          ]
+        },
+        {
+          "count_per_round": 10000,
+          "new_ns": [
+            1122.4092,
+            1116.9812,
+            1119.9467,
+            1094.8162,
+            1097.373,
+            1091.4028,
+            1100.8684
+          ],
+          "old_ns": [
+            997.2453,
+            1014.1466,
+            989.56,
+            1002.5318,
+            989.0365,
+            1006.588,
+            991.5211
+          ],
+          "probe": "R19_virtual_army_candidate_count_position_2_pieces_412_Black",
+          "rounds": 7,
+          "old_median_ns": 997.2453,
+          "new_median_ns": 1100.8684,
+          "reduction_percent": -10.39093390562984,
+          "old_range_ns": [
+            989.0365,
+            1014.1466
+          ],
+          "new_range_ns": [
+            1091.4028,
+            1122.4092
+          ]
+        },
+        {
+          "count_per_round": 10000,
+          "new_ns": [
+            906.9655,
+            901.5013,
+            907.9217,
+            909.2155,
+            928.1982,
+            921.3066,
+            903.2197
+          ],
+          "old_ns": [
+            881.198,
+            884.6664,
+            874.0087,
+            879.4391,
+            879.0794,
+            889.7655,
+            881.4567
+          ],
+          "probe": "R19_virtual_army_candidate_count_position_2_pieces_412_White",
+          "rounds": 7,
+          "old_median_ns": 881.198,
+          "new_median_ns": 907.9217,
+          "reduction_percent": -3.032655543929969,
+          "old_range_ns": [
+            874.0087,
+            889.7655
+          ],
+          "new_range_ns": [
+            901.5013,
+            928.1982
+          ]
+        },
+        {
+          "count_per_round": 10000,
+          "new_ns": [
+            1724.0887,
+            1718.0647,
+            1716.026,
+            1720.2502,
+            1724.9406,
+            1740.9704,
+            1698.4619
+          ],
+          "old_ns": [
+            1557.2002,
+            1544.1362,
+            1525.9694,
+            1572.127,
+            1554.1831,
+            1553.3489,
+            1528.5927
+          ],
+          "probe": "R19_virtual_army_candidate_count_position_3_pieces_660_Black",
+          "rounds": 7,
+          "old_median_ns": 1553.3489,
+          "new_median_ns": 1720.2502,
+          "reduction_percent": -10.74461120743704,
+          "old_range_ns": [
+            1525.9694,
+            1572.127
+          ],
+          "new_range_ns": [
+            1698.4619,
+            1740.9704
+          ]
+        },
+        {
+          "count_per_round": 10000,
+          "new_ns": [
+            1846.2079,
+            1841.536,
+            1834.5049,
+            1851.5164,
+            1820.3749,
+            1814.4954,
+            1819.0761
+          ],
+          "old_ns": [
+            1731.68,
+            1747.0853,
+            1722.6994,
+            1763.1408,
+            1738.1902,
+            1723.7245,
+            1729.9901
+          ],
+          "probe": "R19_virtual_army_candidate_count_position_3_pieces_660_White",
+          "rounds": 7,
+          "old_median_ns": 1731.68,
+          "new_median_ns": 1834.5049,
+          "reduction_percent": -5.937869583294825,
+          "old_range_ns": [
+            1722.6994,
+            1763.1408
+          ],
+          "new_range_ns": [
+            1814.4954,
+            1851.5164
+          ]
+        },
+        {
+          "count_per_round": 10000,
+          "new_ns": [
+            113.443,
+            112.2577,
+            116.0716,
+            124.3876,
+            116.7221,
+            126.7162,
+            122.4179
+          ],
+          "old_ns": [
+            130.4243,
+            126.573,
+            126.967,
+            134.2589,
+            127.8402,
+            127.9733,
+            128.5511
+          ],
+          "probe": "R19_virtual_army_candidate_count_position_4_pieces_167_Black",
+          "rounds": 7,
+          "old_median_ns": 127.9733,
+          "new_median_ns": 116.7221,
+          "reduction_percent": 8.791833921607083,
+          "old_range_ns": [
+            126.573,
+            134.2589
+          ],
+          "new_range_ns": [
+            112.2577,
+            126.7162
+          ]
+        },
+        {
+          "count_per_round": 10000,
+          "new_ns": [
+            692.9271,
+            690.67,
+            692.2012,
+            684.612,
+            681.985,
+            678.8869,
+            684.4493
+          ],
+          "old_ns": [
+            658.0877,
+            661.1327,
+            650.3146,
+            641.1864,
+            636.3605,
+            630.1441,
+            621.213
+          ],
+          "probe": "R19_virtual_army_candidate_count_position_4_pieces_167_White",
+          "rounds": 7,
+          "old_median_ns": 641.1864,
+          "new_median_ns": 684.612,
+          "reduction_percent": -6.772695116427909,
+          "old_range_ns": [
+            621.213,
+            661.1327
+          ],
+          "new_range_ns": [
+            678.8869,
+            692.9271
+          ]
+        },
+        {
+          "count_per_round": 10000,
+          "new_ns": [
+            1286.1436,
+            1293.8959,
+            1372.2297,
+            1365.5455,
+            1298.5425,
+            1289.5365,
+            1291.814
+          ],
+          "old_ns": [
+            1250.9585,
+            1268.0628,
+            1261.5351,
+            1296.6169,
+            1261.4754,
+            1240.7165,
+            1223.0876
+          ],
+          "probe": "R19_virtual_army_candidate_count_position_5_pieces_482_Black",
+          "rounds": 7,
+          "old_median_ns": 1261.4754,
+          "new_median_ns": 1293.8959,
+          "reduction_percent": -2.5700461538924935,
+          "old_range_ns": [
+            1223.0876,
+            1296.6169
+          ],
+          "new_range_ns": [
+            1286.1436,
+            1372.2297
+          ]
+        },
+        {
+          "count_per_round": 10000,
+          "new_ns": [
+            1168.4009,
+            1171.9934,
+            1166.5273,
+            1198.1043,
+            1208.7852,
+            1182.8011,
+            1185.5642
+          ],
+          "old_ns": [
+            1056.0634,
+            1049.1729,
+            1043.4685,
+            1067.6188,
+            1052.2097,
+            1056.5957,
+            1073.3609
+          ],
+          "probe": "R19_virtual_army_candidate_count_position_5_pieces_482_White",
+          "rounds": 7,
+          "old_median_ns": 1056.0634,
+          "new_median_ns": 1182.8011,
+          "reduction_percent": -12.000955624444508,
+          "old_range_ns": [
+            1043.4685,
+            1073.3609
+          ],
+          "new_range_ns": [
+            1166.5273,
+            1208.7852
+          ]
+        },
+        {
+          "count_per_round": 10000,
+          "new_ns": [
+            549.8178,
+            547.7642,
+            553.5928,
+            562.8891,
+            552.5759,
+            545.465,
+            553.0697
+          ],
+          "old_ns": [
+            496.7933,
+            497.2357,
+            488.5735,
+            497.3689,
+            488.6823,
+            497.5258,
+            504.5786
+          ],
+          "probe": "R19_virtual_army_candidate_count_position_6_pieces_254_Black",
+          "rounds": 7,
+          "old_median_ns": 497.2357,
+          "new_median_ns": 552.5759,
+          "reduction_percent": -11.129570945931686,
+          "old_range_ns": [
+            488.5735,
+            504.5786
+          ],
+          "new_range_ns": [
+            545.465,
+            562.8891
+          ]
+        },
+        {
+          "count_per_round": 10000,
+          "new_ns": [
+            685.8101,
+            690.213,
+            705.9545,
+            696.6162,
+            720.8199,
+            710.1365,
+            707.2786
+          ],
+          "old_ns": [
+            688.7444,
+            690.6415,
+            680.2231,
+            692.9367,
+            687.8207,
+            703.1626,
+            689.1495
+          ],
+          "probe": "R19_virtual_army_candidate_count_position_6_pieces_254_White",
+          "rounds": 7,
+          "old_median_ns": 689.1495,
+          "new_median_ns": 705.9545,
+          "reduction_percent": -2.438512978678801,
+          "old_range_ns": [
+            680.2231,
+            703.1626
+          ],
+          "new_range_ns": [
+            685.8101,
+            720.8199
+          ]
+        }
+      ]
+    },
+    {
+      "id": "S04",
+      "status": "API design; speed measurement inapplicable",
+      "finding": "Explicit move-success result removes quiet-success versus failure ambiguity in public Option<Position> result. Current checked callers often compare side-to-move to detect success.",
+      "limitations": "No algorithmic work removed by changing result enum alone; changing every admission caller for a speculative nanosecond gain is unwarranted. No move-result API change included.",
+      "measurements": []
+    },
+    {
+      "id": "S20",
+      "status": "API design; no performance candidate",
+      "finding": "Checked multi-leg admission already validates whole routes before mutation; trusted malformed-input failure is outside generated-move contract. PR209 adds promotion correctness checks.",
+      "limitations": "Transactional effect records/validated-move tokens need an API design and correctness project. Board-clone transaction would add substantial work; no speed claim or new implementation.",
+      "measurements": []
+    },
+    {
+      "id": "C04",
+      "status": "lifecycle contract; speed measurement inapplicable",
+      "finding": "setup_initial_position replaces board/caches/hash but intentionally retains turn/history/progress state in current implementation. Source census found79 references including tests.",
+      "limitations": "Changing reset semantics is behavioral/API work, not a measured speed optimization. No reproduced production failure or reset change in this patch.",
+      "measurements": []
+    },
+    {
+      "id": "S11",
+      "status": "lifecycle contract; preserve null-move semantics",
+      "finding": "set_current_turn is a low-level hash-aware toggle. Search null-move production path explicitly toggles at lines3659/3671, with separate repetition handling; automatic reset would break intended search state.",
+      "limitations": "An editor-specific reset wrapper may improve API clarity but offers no measured speedup. Existing method unchanged; null-move history behavior preserved.",
+      "measurements": []
+    }
+  ],
+  "probe_patch": "/tmp/speed-state-probe.patch",
+  "corpus_adapter": "/tmp/speed-state-corpus.json",
+  "corpus_note": "Six latest VPS-derived board positions only, sampled plies24,701,161,1400,420,931; threeWhite/threeBlack. Kernel loading resets move history/repetition to snapshot semantics. Source-game metadata kept by parent corpus.",
+  "initial_opening_raw_measurements": "/tmp/speed-state-kernels.jsonl",
+  "corpus": [
+    {
+      "history_legs": 27,
+      "pieces": 706,
+      "ply": 24,
+      "repetition_count": 1,
+      "source_game": "/mnt/HC_Volume_107032879/taikyoku/tourney/corrected-rules-20261031/slot0703-NNUE_W512_v3_HLF_G3GA-vs-NNUE_W512_v3_HLF_G3ATK-a-black.json",
+      "source_timestamp": 1793594646,
+      "source_game_sha256": "9c9108f56ae681b83562af99c477b28959c0519873eb50186b8bd5940828605c",
+      "source_mtime": 1793595840.1945379,
+      "replay_engine_sha256": "d38d9c545df75fb871e358fb99be3562b0fe19ad39918f4088db31da92b98550"
+    },
+    {
+      "history_legs": 775,
+      "pieces": 412,
+      "ply": 701,
+      "repetition_count": 1,
+      "source_game": "/mnt/HC_Volume_107032879/taikyoku/tourney/corrected-rules-20261031/slot0703-NNUE_W512_v3_HLF_G3GA-vs-NNUE_W512_v3_HLF_G3ATK-a-black.json",
+      "source_timestamp": 1793594646,
+      "source_game_sha256": "9c9108f56ae681b83562af99c477b28959c0519873eb50186b8bd5940828605c",
+      "source_mtime": 1793595840.1945379,
+      "replay_engine_sha256": "d38d9c545df75fb871e358fb99be3562b0fe19ad39918f4088db31da92b98550"
+    },
+    {
+      "history_legs": 176,
+      "pieces": 660,
+      "ply": 161,
+      "repetition_count": 1,
+      "source_game": "/mnt/HC_Volume_107032879/taikyoku/tourney/corrected-rules-20261031/slot0700-NNUE_W512_v3-vs-NNUE_W512_v3_HLF_G3FP-a-white.json",
+      "source_timestamp": 1793593980,
+      "source_game_sha256": "37de679e5090e022e8ead138d0bb102eb4282370ce23d44d438e8e35d13aa010",
+      "source_mtime": 1793595590.919565,
+      "replay_engine_sha256": "d38d9c545df75fb871e358fb99be3562b0fe19ad39918f4088db31da92b98550"
+    },
+    {
+      "history_legs": 1607,
+      "pieces": 167,
+      "ply": 1400,
+      "repetition_count": 1,
+      "source_game": "/mnt/HC_Volume_107032879/taikyoku/tourney/corrected-rules-20261031/slot0700-NNUE_W512_v3-vs-NNUE_W512_v3_HLF_G3FP-a-white.json",
+      "source_timestamp": 1793593980,
+      "source_game_sha256": "37de679e5090e022e8ead138d0bb102eb4282370ce23d44d438e8e35d13aa010",
+      "source_mtime": 1793595590.919565,
+      "replay_engine_sha256": "d38d9c545df75fb871e358fb99be3562b0fe19ad39918f4088db31da92b98550"
+    },
+    {
+      "history_legs": 442,
+      "pieces": 482,
+      "ply": 420,
+      "repetition_count": 1,
+      "source_game": "/mnt/HC_Volume_107032879/taikyoku/tourney/corrected-rules-20261031/slot0633-NNUE_W512_v3_HLFS_G3PT-vs-NNUE_W512_v3_HLF_CH-a-white.json",
+      "source_timestamp": 1793593579,
+      "source_game_sha256": "fc7256c8362cac638344336d11ec42521a793956de08a4eeeb02a0e3956b0943",
+      "source_mtime": 1793594645.5374782,
+      "replay_engine_sha256": "d38d9c545df75fb871e358fb99be3562b0fe19ad39918f4088db31da92b98550"
+    },
+    {
+      "history_legs": 969,
+      "pieces": 254,
+      "ply": 931,
+      "repetition_count": 1,
+      "source_game": "/mnt/HC_Volume_107032879/taikyoku/tourney/corrected-rules-20261031/slot0633-NNUE_W512_v3_HLFS_G3PT-vs-NNUE_W512_v3_HLF_CH-a-white.json",
+      "source_timestamp": 1793593579,
+      "source_game_sha256": "fc7256c8362cac638344336d11ec42521a793956de08a4eeeb02a0e3956b0943",
+      "source_mtime": 1793594645.5374782,
+      "replay_engine_sha256": "d38d9c545df75fb871e358fb99be3562b0fe19ad39918f4088db31da92b98550"
+    }
+  ],
+  "r19_summary": {
+    "all_cases": 14,
+    "all_regressions": 13,
+    "vps_cases": 12,
+    "vps_regressions": 11,
+    "vps_sum_median_ns_ratio": 1.0726027219149923
+  }
+}

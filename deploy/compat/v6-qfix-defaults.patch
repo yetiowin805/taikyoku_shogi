@@ -1,0 +1,98 @@
+--- a/src/eval.rs
++++ b/src/eval.rs
+@@ -1109,6 +1109,8 @@
+     Baseline,
+     History,
+     TacticalLmr,
++    /// November 2026 v6 transfer: tactical LMR with the now-default q corrections.
++    TacticalLmrQFix,
+     GuardedNull,
+     Sacrifice,
+     ThreatQ,
+@@ -1130,10 +1132,11 @@
+
+ impl SearchExperiment {
+     /// Supported checkpoint policies, also exposed by the engine admission probe.
+-    pub const ALL: [Self; 18] = [
++    pub const ALL: [Self; 19] = [
+         Self::Baseline,
+         Self::History,
+         Self::TacticalLmr,
++        Self::TacticalLmrQFix,
+         Self::GuardedNull,
+         Self::Sacrifice,
+         Self::ThreatQ,
+@@ -1229,7 +1232,7 @@
+     /// Missing → false.
+     #[serde(default)]
+     pub q_own_large_only: bool,
+-    /// October 2026 W512-v3 search experiment; absent means unchanged production.
++    /// New checkpoints use QFix; absent in serialized old checkpoints preserves Baseline.
+     #[serde(default)]
+     pub experiment: SearchExperiment,
+     /// Third-wave search trial; missing preserves the checkpoint's old search.
+@@ -1259,7 +1262,7 @@
+             q_open_any_capture: false,
+             q_recapture_only: false,
+             q_own_large_only: true,
+-            experiment: SearchExperiment::Baseline,
++            experiment: SearchExperiment::QFix,
+             trial: SearchTrial::None,
+         }
+     }
+--- a/src/search.rs
++++ b/src/search.rs
+@@ -315,7 +315,7 @@
+             q_open_any_capture: false,
+             q_recapture_only: false,
+             q_own_large_only: true,
+-            experiment: SearchExperiment::Baseline,
++            experiment: SearchExperiment::QFix,
+             trial: SearchTrial::None,
+         }
+     }
+--- a/src/search/experiments.rs
++++ b/src/search/experiments.rs
+@@ -10,7 +10,10 @@
+         matches!(self, Self::History | Self::HistoryTacticalLmr) || self.second_wave_hl()
+     }
+     pub(super) fn tactical_lmr(self) -> bool {
+-        matches!(self, Self::TacticalLmr | Self::HistoryTacticalLmr) || self.second_wave_hl()
++        matches!(
++            self,
++            Self::TacticalLmr | Self::TacticalLmrQFix | Self::HistoryTacticalLmr
++        ) || self.second_wave_hl()
+     }
+     pub(super) fn guarded_null(self) -> bool {
+         matches!(
+@@ -43,7 +46,7 @@
+         )
+     }
+     pub(super) fn q_fix(self) -> bool {
+-        self == Self::QFix || self.second_wave_hl() || self == Self::QFixNull
++        matches!(self, Self::QFix | Self::QFixNull | Self::TacticalLmrQFix) || self.second_wave_hl()
+     }
+     pub(super) fn continuation(self) -> bool {
+         self == Self::HistoryTacticalLmrQFixContinuation
+@@ -503,6 +506,21 @@
+         put(&mut state, PieceType::King, Color::Black, 1, 1);
+         put(&mut state, PieceType::King, Color::White, 34, 34);
+         state
++    }
++
++    #[test]
++    fn new_searches_use_qfix_while_legacy_checkpoints_keep_their_identity() {
++        assert_eq!(SearchConfig::default().experiment, SearchExperiment::QFix);
++        let checkpoint = crate::eval::EvalCheckpoint::seed("new-default");
++        assert_eq!(
++            checkpoint.search_defaults.experiment,
++            SearchExperiment::QFix
++        );
++        let lf = SearchExperiment::TacticalLmrQFix;
++        assert!(lf.tactical_lmr());
++        assert!(!lf.history());
++        assert!(!lf.sacrifice());
++        assert!(!lf.guarded_null());
+     }
+
+     #[test]

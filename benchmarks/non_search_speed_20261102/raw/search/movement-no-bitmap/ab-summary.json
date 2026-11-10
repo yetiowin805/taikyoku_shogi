@@ -1,0 +1,366 @@
+{
+  "all_signatures_match": true,
+  "cpu": {
+    "pairs": 72,
+    "positions": 6,
+    "source_games": 3,
+    "metric": "cpu_ms",
+    "geomean_ms": {
+      "baseline": 92.86727145157748,
+      "candidate": 92.07941045788964
+    },
+    "candidate_over_baseline": 0.9915162685263273,
+    "total_ms": {
+      "baseline": 9293.153,
+      "candidate": 9241.733
+    },
+    "total_ratio": 0.994466894067062,
+    "ratio_by_repetition": {
+      "0": 0.9905942325309381,
+      "1": 0.9880984888668259,
+      "2": 0.9911002251999897,
+      "3": 0.996290002962126
+    },
+    "peak_rss_kib": {
+      "baseline": 302900,
+      "candidate": 302896
+    },
+    "total_nodes_each_arm": 2156292,
+    "q_nodes_each_arm": 1230400,
+    "nodes_include_q_nodes": true,
+    "source_game_cluster_bootstrap_95": [
+      0.9784533682206373,
+      1.0063578071191377
+    ],
+    "position_cluster_bootstrap_95": [
+      0.9675494900030339,
+      1.0107893198756948
+    ]
+  },
+  "wall": {
+    "pairs": 72,
+    "positions": 6,
+    "source_games": 3,
+    "metric": "ms",
+    "geomean_ms": {
+      "baseline": 92.87708228944963,
+      "candidate": 92.09372059531614
+    },
+    "candidate_over_baseline": 0.9915656082768388,
+    "total_ms": {
+      "baseline": 9294.120806,
+      "candidate": 9242.946629
+    },
+    "total_ratio": 0.994493919535997,
+    "ratio_by_repetition": {
+      "0": 0.9906495108673395,
+      "1": 0.9879401817122133,
+      "2": 0.9912478493031793,
+      "3": 0.9964439707683779
+    },
+    "peak_rss_kib": {
+      "baseline": 302900,
+      "candidate": 302896
+    },
+    "total_nodes_each_arm": 2156292,
+    "q_nodes_each_arm": 1230400,
+    "nodes_include_q_nodes": true,
+    "source_game_cluster_bootstrap_95": [
+      0.9785038547833494,
+      1.0064655198075942
+    ],
+    "position_cluster_bootstrap_95": [
+      0.9675298430463235,
+      1.0108584071691447
+    ]
+  },
+  "by_model": {
+    "NNUE_W512_v3_HLF_G3ATK": {
+      "pairs": 24,
+      "positions": 6,
+      "source_games": 3,
+      "metric": "cpu_ms",
+      "geomean_ms": {
+        "baseline": 94.06825741284172,
+        "candidate": 94.04243684688613
+      },
+      "candidate_over_baseline": 0.9997255124452625,
+      "total_ms": {
+        "baseline": 3591.624,
+        "candidate": 3566.409
+      },
+      "total_ratio": 0.9929794989675981,
+      "ratio_by_repetition": {
+        "0": 1.0088882971865338,
+        "1": 0.9943785210096101,
+        "2": 0.9939758830373879,
+        "3": 1.0017340461279136
+      },
+      "peak_rss_kib": {
+        "baseline": 302900,
+        "candidate": 302896
+      },
+      "total_nodes_each_arm": 835816,
+      "q_nodes_each_arm": 536084,
+      "nodes_include_q_nodes": true,
+      "source_game_cluster_bootstrap_95": [
+        0.9891358215559947,
+        1.016618341149673
+      ],
+      "position_cluster_bootstrap_95": [
+        0.9827593399464072,
+        1.0149507819720143
+      ]
+    },
+    "NNUE_W512_v3_HLF_G3FP": {
+      "pairs": 24,
+      "positions": 6,
+      "source_games": 3,
+      "metric": "cpu_ms",
+      "geomean_ms": {
+        "baseline": 90.02944687864508,
+        "candidate": 89.08056308741482
+      },
+      "candidate_over_baseline": 0.9894602952241911,
+      "total_ms": {
+        "baseline": 2816.707,
+        "candidate": 2791.858
+      },
+      "total_ratio": 0.9911779961494044,
+      "ratio_by_repetition": {
+        "0": 0.9837585977995124,
+        "1": 0.9910575182553807,
+        "2": 0.9855310472587381,
+        "3": 0.9975525305718254
+      },
+      "peak_rss_kib": {
+        "baseline": 300476,
+        "candidate": 300508
+      },
+      "total_nodes_each_arm": 652804,
+      "q_nodes_each_arm": 345148,
+      "nodes_include_q_nodes": true,
+      "source_game_cluster_bootstrap_95": [
+        0.9808277017146695,
+        0.9969697789172143
+      ],
+      "position_cluster_bootstrap_95": [
+        0.9777068392750184,
+        1.0012260521609375
+      ]
+    },
+    "NNUE_W512_v3_HLFS_G3PT": {
+      "pairs": 24,
+      "positions": 6,
+      "source_games": 3,
+      "metric": "cpu_ms",
+      "geomean_ms": {
+        "baseline": 94.57152148658929,
+        "candidate": 93.19245709485901
+      },
+      "candidate_over_baseline": 0.9854177624505507,
+      "total_ms": {
+        "baseline": 2884.822,
+        "candidate": 2883.466
+      },
+      "total_ratio": 0.9995299536678519,
+      "ratio_by_repetition": {
+        "0": 0.9793902131645559,
+        "1": 0.9789265560136372,
+        "2": 0.9938173327663585,
+        "3": 0.9896214690483516
+      },
+      "peak_rss_kib": {
+        "baseline": 301536,
+        "candidate": 301552
+      },
+      "total_nodes_each_arm": 667672,
+      "q_nodes_each_arm": 349168,
+      "nodes_include_q_nodes": true,
+      "source_game_cluster_bootstrap_95": [
+        0.9655432774521355,
+        1.0055816180445407
+      ],
+      "position_cluster_bootstrap_95": [
+        0.9376375988001865,
+        1.0229452522400755
+      ]
+    }
+  },
+  "by_position": {
+    "early development-slot0703-ply24": {
+      "pairs": 12,
+      "positions": 1,
+      "source_games": 1,
+      "metric": "cpu_ms",
+      "geomean_ms": {
+        "baseline": 261.0384807207104,
+        "candidate": 253.9909263963466
+      },
+      "candidate_over_baseline": 0.9730018566423384,
+      "total_ms": {
+        "baseline": 3435.614,
+        "candidate": 3351.714
+      },
+      "total_ratio": 0.9755793287604486,
+      "ratio_by_repetition": {
+        "0": 0.9863469895462383,
+        "1": 0.9772968133600897,
+        "2": 0.9594164542796684,
+        "3": 0.9691506856234451
+      },
+      "peak_rss_kib": {
+        "baseline": 302900,
+        "candidate": 302896
+      },
+      "total_nodes_each_arm": 751676,
+      "q_nodes_each_arm": 607232,
+      "nodes_include_q_nodes": true
+    },
+    "late middlegame-slot0703-ply701": {
+      "pairs": 12,
+      "positions": 1,
+      "source_games": 1,
+      "metric": "cpu_ms",
+      "geomean_ms": {
+        "baseline": 124.14435019306188,
+        "candidate": 125.03374851381957
+      },
+      "candidate_over_baseline": 1.0071642271224948,
+      "total_ms": {
+        "baseline": 1493.55,
+        "candidate": 1504.557
+      },
+      "total_ratio": 1.007369689665562,
+      "ratio_by_repetition": {
+        "0": 1.0066942357009547,
+        "1": 0.9976927790829853,
+        "2": 1.020912324232123,
+        "3": 1.0035021569259146
+      },
+      "peak_rss_kib": {
+        "baseline": 302828,
+        "candidate": 302844
+      },
+      "total_nodes_each_arm": 521092,
+      "q_nodes_each_arm": 191212,
+      "nodes_include_q_nodes": true
+    },
+    "development-slot0700-ply161": {
+      "pairs": 12,
+      "positions": 1,
+      "source_games": 1,
+      "metric": "cpu_ms",
+      "geomean_ms": {
+        "baseline": 179.6358767996657,
+        "candidate": 182.8834591719859
+      },
+      "candidate_over_baseline": 1.0180786958049697,
+      "total_ms": {
+        "baseline": 2157.645,
+        "candidate": 2203.498
+      },
+      "total_ratio": 1.0212514106815533,
+      "ratio_by_repetition": {
+        "0": 1.086276685536698,
+        "1": 0.994007550629037,
+        "2": 0.9867766974371877,
+        "3": 1.008268898982791
+      },
+      "peak_rss_kib": {
+        "baseline": 302900,
+        "candidate": 302896
+      },
+      "total_nodes_each_arm": 472492,
+      "q_nodes_each_arm": 286988,
+      "nodes_include_q_nodes": true
+    },
+    "endgame-slot0700-ply1400": {
+      "pairs": 12,
+      "positions": 1,
+      "source_games": 1,
+      "metric": "cpu_ms",
+      "geomean_ms": {
+        "baseline": 38.49020067538963,
+        "candidate": 36.1950425083224
+      },
+      "candidate_over_baseline": 0.9403703247373628,
+      "total_ms": {
+        "baseline": 469.572,
+        "candidate": 436.368
+      },
+      "total_ratio": 0.9292887991617899,
+      "ratio_by_repetition": {
+        "0": 0.881636687469835,
+        "1": 0.9442547486988895,
+        "2": 0.9650226867046476,
+        "3": 0.9733730273085339
+      },
+      "peak_rss_kib": {
+        "baseline": 302900,
+        "candidate": 302896
+      },
+      "total_nodes_each_arm": 87360,
+      "q_nodes_each_arm": 12516,
+      "nodes_include_q_nodes": true
+    },
+    "middlegame-slot0633-ply420": {
+      "pairs": 12,
+      "positions": 1,
+      "source_games": 1,
+      "metric": "cpu_ms",
+      "geomean_ms": {
+        "baseline": 101.91248980723086,
+        "candidate": 102.31343631274886
+      },
+      "candidate_over_baseline": 1.0039342234330295,
+      "total_ms": {
+        "baseline": 1396.811,
+        "candidate": 1401.993
+      },
+      "total_ratio": 1.0037098791461407,
+      "ratio_by_repetition": {
+        "0": 0.9715666726423785,
+        "1": 1.009997201821849,
+        "2": 1.0083337767112521,
+        "3": 1.0266536190476818
+      },
+      "peak_rss_kib": {
+        "baseline": 302900,
+        "candidate": 302844
+      },
+      "total_nodes_each_arm": 287572,
+      "q_nodes_each_arm": 132336,
+      "nodes_include_q_nodes": true
+    },
+    "late endgame-slot0633-ply931": {
+      "pairs": 12,
+      "positions": 1,
+      "source_games": 1,
+      "metric": "cpu_ms",
+      "geomean_ms": {
+        "baseline": 28.091437000579678,
+        "candidate": 28.338283242850252
+      },
+      "candidate_over_baseline": 1.0087872415450116,
+      "total_ms": {
+        "baseline": 339.961,
+        "candidate": 343.603
+      },
+      "total_ratio": 1.01071299354926,
+      "ratio_by_repetition": {
+        "0": 1.0226917292906033,
+        "1": 1.0068831370125257,
+        "2": 1.0077414362271446,
+        "3": 0.997988177048986
+      },
+      "peak_rss_kib": {
+        "baseline": 302828,
+        "candidate": 302844
+      },
+      "total_nodes_each_arm": 36100,
+      "q_nodes_each_arm": 116,
+      "nodes_include_q_nodes": true
+    }
+  }
+}

@@ -1,0 +1,246 @@
+{
+  "run": "/mnt/HC_Volume_107032879/taikyoku/tourney/corrected-rules-20261031",
+  "out": "/opt/taikyoku-v6-search-20261109/admission",
+  "search_variants": {
+    "NNUE_W384_v6A_LF": {
+      "base_entrant": "NNUE_W384_v6A",
+      "experiment": "tactical_lmr_q_fix",
+      "trial": "none"
+    },
+    "NNUE_W384_v6A_HLF_G3CF": {
+      "base_entrant": "NNUE_W384_v6A",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "context_retry"
+    },
+    "NNUE_W384_v6A_HLF_G3ATK": {
+      "base_entrant": "NNUE_W384_v6A",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "major_threat_lmr"
+    },
+    "NNUE_W384_v6A_HLF_G3PV": {
+      "base_entrant": "NNUE_W384_v6A",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "promote_pv"
+    },
+    "NNUE_W384_v6A_HLF_G3RFQH": {
+      "base_entrant": "NNUE_W384_v6A",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "q_refill_history"
+    },
+    "NNUE_W384_v6A_HLF": {
+      "base_entrant": "NNUE_W384_v6A",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "none"
+    },
+    "NNUE_W384_v6A_HLF_G3PVSPV": {
+      "base_entrant": "NNUE_W384_v6A",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "pvs_promote"
+    },
+    "NNUE_W384_v6A_HLF_G3GA": {
+      "base_entrant": "NNUE_W384_v6A",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "growth_aware"
+    },
+    "NNUE_W384_v6A_HLF_G3QH": {
+      "base_entrant": "NNUE_W384_v6A",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "q_history"
+    },
+    "NNUE_W384_v6A_HLF_G3RF": {
+      "base_entrant": "NNUE_W384_v6A",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "q_refill"
+    },
+    "NNUE_W384_v6A_HLFS_G3QH": {
+      "base_entrant": "NNUE_W384_v6A",
+      "experiment": "history_tactical_lmr_q_fix_sacrifice",
+      "trial": "q_history"
+    },
+    "NNUE_W384_v6A_HLF_G3SC": {
+      "base_entrant": "NNUE_W384_v6A",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "searched_lmr"
+    },
+    "NNUE_W384_v6A_HLFN": {
+      "base_entrant": "NNUE_W384_v6A",
+      "experiment": "history_tactical_lmr_q_fix_null",
+      "trial": "none"
+    },
+    "NNUE_W384_v6A_HLFS_G3CF": {
+      "base_entrant": "NNUE_W384_v6A",
+      "experiment": "history_tactical_lmr_q_fix_sacrifice",
+      "trial": "context_retry"
+    },
+    "NNUE_W384_v6A_HLF_HR": {
+      "base_entrant": "NNUE_W384_v6A",
+      "experiment": "history_tactical_lmr_q_fix_history_reduction",
+      "trial": "none"
+    },
+    "NNUE_W384_v6A_HLFS_G3PR": {
+      "base_entrant": "NNUE_W384_v6A",
+      "experiment": "history_tactical_lmr_q_fix_sacrifice",
+      "trial": "partial_root"
+    },
+    "NNUE_W384_v6Cm_LF": {
+      "base_entrant": "NNUE_W384_v6Cm",
+      "experiment": "tactical_lmr_q_fix",
+      "trial": "none"
+    },
+    "NNUE_W384_v6Cm_HLF_G3CF": {
+      "base_entrant": "NNUE_W384_v6Cm",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "context_retry"
+    },
+    "NNUE_W384_v6Cm_HLF_G3ATK": {
+      "base_entrant": "NNUE_W384_v6Cm",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "major_threat_lmr"
+    },
+    "NNUE_W384_v6Cm_HLF_G3PV": {
+      "base_entrant": "NNUE_W384_v6Cm",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "promote_pv"
+    },
+    "NNUE_W384_v6Cm_HLF_G3RFQH": {
+      "base_entrant": "NNUE_W384_v6Cm",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "q_refill_history"
+    },
+    "NNUE_W384_v6Cm_HLF": {
+      "base_entrant": "NNUE_W384_v6Cm",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "none"
+    },
+    "NNUE_W384_v6Cm_HLF_G3PVSPV": {
+      "base_entrant": "NNUE_W384_v6Cm",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "pvs_promote"
+    },
+    "NNUE_W384_v6Cm_HLF_G3GA": {
+      "base_entrant": "NNUE_W384_v6Cm",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "growth_aware"
+    },
+    "NNUE_W384_v6Cm_HLF_G3QH": {
+      "base_entrant": "NNUE_W384_v6Cm",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "q_history"
+    },
+    "NNUE_W384_v6Cm_HLF_G3RF": {
+      "base_entrant": "NNUE_W384_v6Cm",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "q_refill"
+    },
+    "NNUE_W384_v6Cm_HLFS_G3QH": {
+      "base_entrant": "NNUE_W384_v6Cm",
+      "experiment": "history_tactical_lmr_q_fix_sacrifice",
+      "trial": "q_history"
+    },
+    "NNUE_W384_v6Cm_HLF_G3SC": {
+      "base_entrant": "NNUE_W384_v6Cm",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "searched_lmr"
+    },
+    "NNUE_W384_v6Cm_HLFN": {
+      "base_entrant": "NNUE_W384_v6Cm",
+      "experiment": "history_tactical_lmr_q_fix_null",
+      "trial": "none"
+    },
+    "NNUE_W384_v6Cm_HLFS_G3CF": {
+      "base_entrant": "NNUE_W384_v6Cm",
+      "experiment": "history_tactical_lmr_q_fix_sacrifice",
+      "trial": "context_retry"
+    },
+    "NNUE_W384_v6Cm_HLF_HR": {
+      "base_entrant": "NNUE_W384_v6Cm",
+      "experiment": "history_tactical_lmr_q_fix_history_reduction",
+      "trial": "none"
+    },
+    "NNUE_W384_v6Cm_HLFS_G3PR": {
+      "base_entrant": "NNUE_W384_v6Cm",
+      "experiment": "history_tactical_lmr_q_fix_sacrifice",
+      "trial": "partial_root"
+    },
+    "NNUE_W512_v6Cm_LF": {
+      "base_entrant": "NNUE_W512_v6Cm",
+      "experiment": "tactical_lmr_q_fix",
+      "trial": "none"
+    },
+    "NNUE_W512_v6Cm_HLF_G3CF": {
+      "base_entrant": "NNUE_W512_v6Cm",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "context_retry"
+    },
+    "NNUE_W512_v6Cm_HLF_G3ATK": {
+      "base_entrant": "NNUE_W512_v6Cm",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "major_threat_lmr"
+    },
+    "NNUE_W512_v6Cm_HLF_G3PV": {
+      "base_entrant": "NNUE_W512_v6Cm",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "promote_pv"
+    },
+    "NNUE_W512_v6Cm_HLF_G3RFQH": {
+      "base_entrant": "NNUE_W512_v6Cm",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "q_refill_history"
+    },
+    "NNUE_W512_v6Cm_HLF": {
+      "base_entrant": "NNUE_W512_v6Cm",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "none"
+    },
+    "NNUE_W512_v6Cm_HLF_G3PVSPV": {
+      "base_entrant": "NNUE_W512_v6Cm",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "pvs_promote"
+    },
+    "NNUE_W512_v6Cm_HLF_G3GA": {
+      "base_entrant": "NNUE_W512_v6Cm",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "growth_aware"
+    },
+    "NNUE_W512_v6Cm_HLF_G3QH": {
+      "base_entrant": "NNUE_W512_v6Cm",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "q_history"
+    },
+    "NNUE_W512_v6Cm_HLF_G3RF": {
+      "base_entrant": "NNUE_W512_v6Cm",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "q_refill"
+    },
+    "NNUE_W512_v6Cm_HLFS_G3QH": {
+      "base_entrant": "NNUE_W512_v6Cm",
+      "experiment": "history_tactical_lmr_q_fix_sacrifice",
+      "trial": "q_history"
+    },
+    "NNUE_W512_v6Cm_HLF_G3SC": {
+      "base_entrant": "NNUE_W512_v6Cm",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "searched_lmr"
+    },
+    "NNUE_W512_v6Cm_HLFN": {
+      "base_entrant": "NNUE_W512_v6Cm",
+      "experiment": "history_tactical_lmr_q_fix_null",
+      "trial": "none"
+    },
+    "NNUE_W512_v6Cm_HLFS_G3CF": {
+      "base_entrant": "NNUE_W512_v6Cm",
+      "experiment": "history_tactical_lmr_q_fix_sacrifice",
+      "trial": "context_retry"
+    },
+    "NNUE_W512_v6Cm_HLF_HR": {
+      "base_entrant": "NNUE_W512_v6Cm",
+      "experiment": "history_tactical_lmr_q_fix_history_reduction",
+      "trial": "none"
+    },
+    "NNUE_W512_v6Cm_HLFS_G3PR": {
+      "base_entrant": "NNUE_W512_v6Cm",
+      "experiment": "history_tactical_lmr_q_fix_sacrifice",
+      "trial": "partial_root"
+    }
+  }
+}

@@ -74,6 +74,22 @@ impl DebugTool {
         moves
     }
 
+    /// Borrow one record without cloning the rest of the effective timeline.
+    pub(crate) fn effective_move_at(&self, index: usize) -> Option<&MoveRecord> {
+        let prefix_len = if self.setup.is_some() {
+            0
+        } else {
+            self.trunk
+                .as_ref()
+                .map_or(0, |trunk| self.branch_index.min(trunk.moves.len()))
+        };
+        if index < prefix_len {
+            self.trunk.as_ref()?.moves.get(index)
+        } else {
+            self.branch.get(index - prefix_len)
+        }
+    }
+
     fn timeline_len(&self) -> usize {
         if self.setup.is_some() {
             self.branch.len()
@@ -1087,6 +1103,48 @@ impl Default for DebugTool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn borrowed_timeline_lookup_matches_owned_trunk_branch_and_setup() {
+        let mut tool = DebugTool::new();
+        let moves: Vec<_> = (0..6)
+            .map(|i| {
+                GameHistory::move_to_record(
+                    &Move::new(Position::new(i, 9).unwrap(), Position::new(i, 10).unwrap()),
+                    Color::Black,
+                    usize::from(i) + 1,
+                )
+            })
+            .collect();
+        tool.trunk = Some(GameRecord {
+            timestamp: 0,
+            moves: moves[..4].to_vec(),
+            result: None,
+        });
+        tool.branch = moves[4..].to_vec();
+        for prefix in [0, 2, 4, 100] {
+            tool.branch_index = prefix;
+            let owned = tool.effective_moves();
+            for i in 0..=owned.len() {
+                assert_eq!(
+                    serde_json::to_value(tool.effective_move_at(i)).unwrap(),
+                    serde_json::to_value(owned.get(i)).unwrap()
+                );
+            }
+        }
+        tool.setup = Some(SetupSnapshot {
+            board: Board::new(),
+            turn: Color::Black,
+            draw_counter: 0,
+        });
+        let owned = tool.effective_moves();
+        for i in 0..=owned.len() {
+            assert_eq!(
+                serde_json::to_value(tool.effective_move_at(i)).unwrap(),
+                serde_json::to_value(owned.get(i)).unwrap()
+            );
+        }
+    }
 
     #[test]
     fn test_rebuild_to_idempotent_on_initial() {
