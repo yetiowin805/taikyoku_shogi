@@ -116,11 +116,13 @@ def active_admission(config):
 
 
 def allocation_busy(control):
-    with (control / "allocation.lock").open("a+") as lock:
-        try:
-            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError:
-            return True
+    # Validation asks trainers to yield without holding the scheduler's gate.
+    for name in ("allocation.lock", "validation-request.lock"):
+        with (control / name).open("a+") as lock:
+            try:
+                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                return True
     return False
 
 

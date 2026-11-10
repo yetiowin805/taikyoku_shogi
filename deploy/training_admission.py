@@ -21,6 +21,9 @@ import tournament_tasks
 import tourney_analysis as a
 from register_training_models import merge_bindings
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "training/tactical_tree"))
+from supervise import BoundaryLeases
+
 
 def freeze_models(models, control, *, search_variants=False, generation=None):
     entries, bindings = [], {}
@@ -178,7 +181,7 @@ def validate_v6(model):
 
 @contextmanager
 def validation_cpu(config):
-    """Borrow one flexible CPU; maintenance lets trainers checkpoint and yield."""
+    """Queue for one game-boundary CPU without blocking scheduler allocation."""
     indices = config.get("lease_indices")
     if indices is None:
         yield
@@ -188,27 +191,29 @@ def validation_cpu(config):
     control = Path(config["run"]) / "analysis"
     affinity = os.sched_getaffinity(0)
     lease = None
+    request = (control / "validation-request.lock").open("a+")
+    waiters = None
     try:
-        with (control / "allocation.lock").open("a+") as allocation:
-            fcntl.flock(allocation, fcntl.LOCK_EX)
-            while lease is None:
-                for index in indices:
-                    candidate = (control / f"cpu-{index}.lock").open("a+")
-                    try:
-                        fcntl.flock(candidate, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                    except BlockingIOError:
-                        candidate.close()
-                    else:
-                        lease = candidate
-                        os.sched_setaffinity(0, {index})
-                        break
-                if lease is None:
-                    time.sleep(0.2)
+        # Trainers yield at checkpoints; the coordinator ignores this separate
+        # request lock and can continue releasing completed game leases.
+        fcntl.flock(request, fcntl.LOCK_EX)
+        waiters = BoundaryLeases(control, indices, 1)
+        # Never hold allocation.lock while waiting: the coordinator needs that
+        # gate to finish its scheduling loop and release completed game leases.
+        while (acquired := waiters.take()) is None:
+            time.sleep(0.2)
+        index, lease = acquired
+        os.sched_setaffinity(0, {index})
         yield
     finally:
-        os.sched_setaffinity(0, affinity)
-        if lease is not None:
-            lease.close()
+        if waiters is not None:
+            waiters.close()
+        request.close()
+        try:
+            os.sched_setaffinity(0, affinity)
+        finally:
+            if lease is not None:
+                lease.close()
 
 
 def admit(config, model):
