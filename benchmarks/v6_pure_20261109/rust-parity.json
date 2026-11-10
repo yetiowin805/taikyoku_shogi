@@ -1,0 +1,68 @@
+[
+  {
+    "name": "NNUE_W384_v6A",
+    "original_index": 28065,
+    "rust": {
+      "material": 4085.767578125,
+      "score": -1300,
+      "turn": "White"
+    },
+    "python": -1300.0,
+    "error": 0.0
+  },
+  {
+    "name": "NNUE_W384_v6B",
+    "original_index": 28065,
+    "rust": {
+      "material": 4085.767578125,
+      "score": -759,
+      "turn": "White"
+    },
+    "python": -759.0,
+    "error": 0.0
+  },
+  {
+    "name": "NNUE_W384_v6C",
+    "original_index": 28065,
+    "rust": {
+      "material": 4085.767578125,
+      "score": -273,
+      "turn": "White"
+    },
+    "python": -273.0,
+    "error": 0.0
+  },
+  {
+    "name": "NNUE_W384_v6A",
+    "original_index": 40952,
+    "rust": {
+      "material": -2900.732421875,
+      "score": 5249,
+      "turn": "White"
+    },
+    "python": 5249.0,
+    "error": 0.0
+  },
+  {
+    "name": "NNUE_W384_v6B",
+    "original_index": 40952,
+    "rust": {
+      "material": -2900.732421875,
+      "score": 5111,
+      "turn": "White"
+    },
+    "python": 5111.0,
+    "error": 0.0
+  },
+  {
+    "name": "NNUE_W384_v6C",
+    "original_index": 40952,
+    "rust": {
+      "material": -2900.732421875,
+      "score": 8140,
+      "turn": "White"
+    },
+    "python": 8140.0,
+    "error": 0.0
+  }
+]

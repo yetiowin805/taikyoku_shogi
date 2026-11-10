@@ -1,5 +1,11 @@
 The [v6 automatic training pipeline](V6_TRAINING.md) prepares completed evidence and runs four regimes at widths 384 and 512.
 
+The [v6 pure NNUE postmortem and retry plan](V6_PURE_RETRY.md) records the
+conversion failure, measured diagnostics, and staged experiments for a future
+attempt. It marks **promotion possibility in the NNUE input** as a required
+representation fix, including when fixed material is retained. The fix and
+experiments are planned, not enabled by this document.
+
 # Ability NNUE starter models
 
 The [v6 evidence collector](V6_COLLECTION.md) freezes corrected-rule games and
