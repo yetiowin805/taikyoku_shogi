@@ -1,0 +1,24 @@
+{
+  "seed": 20261109,
+  "resamples": 10000,
+  "unit": "related-game group",
+  "groups": 52,
+  "reference": "NNUE_W384_v6A",
+  "metric": "candidate minus A teacher probability MSE",
+  "comparisons": {
+    "NNUE_W384_v6B": {
+      "mean_delta": 0.03385072664465783,
+      "paired_group_bootstrap_95_percentile_interval": [
+        0.027011325982874784,
+        0.0410202815729233
+      ]
+    },
+    "NNUE_W384_v6C": {
+      "mean_delta": 0.03462989314126272,
+      "paired_group_bootstrap_95_percentile_interval": [
+        0.02751778523737385,
+        0.04210658513124427
+      ]
+    }
+  }
+}

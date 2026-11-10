@@ -1,0 +1,788 @@
+{
+  "linear_ablations": {
+    "ability_total_teacher": {
+      "train": {
+        "teacher": 0.01877042432989911,
+        "outcome": 0.13917952878422382,
+        "selection": 0.036831789998047815,
+        "score_quantiles": [
+          -22427.611724113154,
+          -8348.291688641226,
+          110.47887767106533,
+          8435.741079616664,
+          20078.403677362792
+        ],
+        "score_material_correlation": 0.9583117898232789
+      },
+      "validation": {
+        "teacher": 0.02100355388478512,
+        "outcome": 0.11491027103243164,
+        "selection": 0.035089561456932095,
+        "score_quantiles": [
+          -19482.84631939555,
+          -8795.360303067218,
+          233.12753171765354,
+          9369.372137079637,
+          19417.52059936004
+        ],
+        "score_material_correlation": 0.9585674097080382
+      }
+    },
+    "ability_teacher_plus_frozen_A": {
+      "train": {
+        "teacher": 0.007620101774455755,
+        "outcome": 0.12407124298275626,
+        "selection": 0.02508777295570083,
+        "score_quantiles": [
+          -24930.78313735483,
+          -8837.835455841076,
+          99.06143605302782,
+          9074.022309262513,
+          22122.881772073408
+        ],
+        "score_material_correlation": 0.9100170385637327
+      },
+      "validation": {
+        "teacher": 0.011404076351982413,
+        "outcome": 0.11881116647131314,
+        "selection": 0.02751513986988202,
+        "score_quantiles": [
+          -21912.769670280937,
+          -9682.271042019987,
+          345.3178971817618,
+          10467.225443535524,
+          22587.993551646206
+        ],
+        "score_material_correlation": 0.9116767679841441
+      }
+    },
+    "ability_material_plus_frozen_A": {
+      "train": {
+        "teacher": 0.007881296820320176,
+        "outcome": 0.12075469543850446,
+        "selection": 0.02481230661304782,
+        "score_quantiles": [
+          -25427.731880488405,
+          -8602.875556200699,
+          121.19092787538995,
+          9012.238350815982,
+          22452.05323614838
+        ],
+        "score_material_correlation": 0.9110478933786551
+      },
+      "validation": {
+        "teacher": 0.01202668736877492,
+        "outcome": 0.11948952133472254,
+        "selection": 0.02814611246366706,
+        "score_quantiles": [
+          -21501.566348726392,
+          -9288.56950790947,
+          451.05958236015977,
+          10335.837654824518,
+          22460.7129657178
+        ],
+        "score_material_correlation": 0.9134203695472943
+      }
+    }
+  },
+  "piece_removal": {
+    "positions": 98,
+    "material_removed_quantiles": [
+      140.0,
+      1663.199951171875,
+      6237.0
+    ],
+    "models": {
+      "parent384": {
+        "positive": 98,
+        "negative": 0,
+        "zero": 0,
+        "response_quantiles": [
+          140.0,
+          957.5599853515625,
+          1877.7999877929688,
+          6304.3,
+          6396.0
+        ],
+        "response_material_ratio_quantiles": [
+          0.2568542350370284,
+          0.8974134199134198,
+          1.0007746111912779,
+          1.0275925925925926,
+          1.3725405026799573
+        ],
+        "worst_examples": [
+          {
+            "original_index": 36416,
+            "piece": [
+              "PrimordialDragon"
+            ],
+            "material": 140.0,
+            "response": 140.0,
+            "game": "8ccb692170eb9d9c39cb423f5b66575ba2c637b2ae099833584b171fe9a31eaa",
+            "ply": 1322
+          },
+          {
+            "original_index": 10391,
+            "piece": [
+              "Peacock"
+            ],
+            "material": 1663.199951171875,
+            "response": 427.199951171875,
+            "game": "29dfc8983f744366e00f031fa36805135c004ba976e7f021932fbb2bb00db98c",
+            "ply": 18
+          },
+          {
+            "original_index": 18128,
+            "piece": [
+              "Shitennou"
+            ],
+            "material": 400.0,
+            "response": 464.0,
+            "game": "479ca4000cfce645da11bf16db1ab585b3d7640fe65afd5989a88f15107f5965",
+            "ply": 819
+          },
+          {
+            "original_index": 27339,
+            "piece": [
+              "Shitennou"
+            ],
+            "material": 400.0,
+            "response": 509.0,
+            "game": "6ba9b11d42ef270fa045971e6906c37c1cda2c76710e2cc8728556b3a59d89fb",
+            "ply": 464
+          },
+          {
+            "original_index": 39489,
+            "piece": [
+              "Shitennou"
+            ],
+            "material": 400.0,
+            "response": 532.0,
+            "game": "9951357e01885a977d07706290e481120f5966707813ca7bb30c24e281602b7e",
+            "ply": 859
+          }
+        ]
+      },
+      "NNUE_W384_v6A": {
+        "positive": 98,
+        "negative": 0,
+        "zero": 0,
+        "response_quantiles": [
+          169.0,
+          949.420068359375,
+          1668.2999877929688,
+          6312.9,
+          6450.0
+        ],
+        "response_material_ratio_quantiles": [
+          0.3722943538662279,
+          0.8156986495412667,
+          0.9999198332531666,
+          1.0412962962962962,
+          1.485
+        ],
+        "worst_examples": [
+          {
+            "original_index": 36416,
+            "piece": [
+              "PrimordialDragon"
+            ],
+            "material": 140.0,
+            "response": 169.0,
+            "game": "8ccb692170eb9d9c39cb423f5b66575ba2c637b2ae099833584b171fe9a31eaa",
+            "ply": 1322
+          },
+          {
+            "original_index": 18128,
+            "piece": [
+              "Shitennou"
+            ],
+            "material": 400.0,
+            "response": 497.0,
+            "game": "479ca4000cfce645da11bf16db1ab585b3d7640fe65afd5989a88f15107f5965",
+            "ply": 819
+          },
+          {
+            "original_index": 27339,
+            "piece": [
+              "Shitennou"
+            ],
+            "material": 400.0,
+            "response": 504.0,
+            "game": "6ba9b11d42ef270fa045971e6906c37c1cda2c76710e2cc8728556b3a59d89fb",
+            "ply": 464
+          },
+          {
+            "original_index": 39489,
+            "piece": [
+              "Shitennou"
+            ],
+            "material": 400.0,
+            "response": 594.0,
+            "game": "9951357e01885a977d07706290e481120f5966707813ca7bb30c24e281602b7e",
+            "ply": 859
+          },
+          {
+            "original_index": 32235,
+            "piece": [
+              "Peacock"
+            ],
+            "material": 1663.199951171875,
+            "response": 619.199951171875,
+            "game": "7dcf7a68b306d389088eb08684f1c695f26d836fd52ab423e215e78dfe18b367",
+            "ply": 64
+          }
+        ]
+      },
+      "prelude-384-B": {
+        "positive": 74,
+        "negative": 16,
+        "zero": 8,
+        "response_quantiles": [
+          -989.0,
+          -68.6,
+          90.5,
+          768.1999999999998,
+          2281.0
+        ],
+        "response_material_ratio_quantiles": [
+          -0.5946368620941577,
+          -0.04124579245668273,
+          0.05648148148148148,
+          0.39018084338907527,
+          1.685
+        ],
+        "worst_examples": [
+          {
+            "original_index": 40952,
+            "piece": [
+              "Peacock"
+            ],
+            "material": 1663.199951171875,
+            "response": -989.0,
+            "game": "9ec7e6d2667137baed48d603610de1cbee1336329a7a6f97903a9c845e36a5f9",
+            "ply": 240
+          },
+          {
+            "original_index": 41185,
+            "piece": [
+              "Peacock"
+            ],
+            "material": 1663.199951171875,
+            "response": -774.0,
+            "game": "9f8d0d4de961bbe6b0d4c2c32e6c946598653a28089c8af7087998589f2e3971",
+            "ply": 126
+          },
+          {
+            "original_index": 28065,
+            "piece": [
+              "GreatGeneral"
+            ],
+            "material": 2160.0,
+            "response": -470.0,
+            "game": "6d73464f0ee3696b6b54ce6542f33a3dfac7a50b7a9a1664e1232d98c3039124",
+            "ply": 16
+          },
+          {
+            "original_index": 17010,
+            "piece": [
+              "ViceGeneral"
+            ],
+            "material": 1382.4000244140625,
+            "response": -220.0,
+            "game": "4424d3dc064fd5304fdc32ce89745c49d0ef57074bf1b5b64f10eaaddd9b1afb",
+            "ply": 35
+          },
+          {
+            "original_index": 522,
+            "piece": [
+              "GreatGeneral"
+            ],
+            "material": 2160.0,
+            "response": -206.0,
+            "game": "01cae2f32f151271dbd2d0299e31f116fa6ee76391f7b0c5988a10e143a7f307",
+            "ply": 9
+          }
+        ]
+      },
+      "NNUE_W384_v6B": {
+        "positive": 81,
+        "negative": 16,
+        "zero": 1,
+        "response_quantiles": [
+          -372.0,
+          -38.8,
+          211.5,
+          1079.9999999999998,
+          1901.0
+        ],
+        "response_material_ratio_quantiles": [
+          -0.2357142857142857,
+          -0.02057725160584939,
+          0.10275372924527776,
+          0.4365277777777778,
+          1.6869692093548478
+        ],
+        "worst_examples": [
+          {
+            "original_index": 28065,
+            "piece": [
+              "GreatGeneral"
+            ],
+            "material": 2160.0,
+            "response": -372.0,
+            "game": "6d73464f0ee3696b6b54ce6542f33a3dfac7a50b7a9a1664e1232d98c3039124",
+            "ply": 16
+          },
+          {
+            "original_index": 40952,
+            "piece": [
+              "Peacock"
+            ],
+            "material": 1663.199951171875,
+            "response": -279.0,
+            "game": "9ec7e6d2667137baed48d603610de1cbee1336329a7a6f97903a9c845e36a5f9",
+            "ply": 240
+          },
+          {
+            "original_index": 41185,
+            "piece": [
+              "Peacock"
+            ],
+            "material": 1663.199951171875,
+            "response": -251.0,
+            "game": "9f8d0d4de961bbe6b0d4c2c32e6c946598653a28089c8af7087998589f2e3971",
+            "ply": 126
+          },
+          {
+            "original_index": 522,
+            "piece": [
+              "GreatGeneral"
+            ],
+            "material": 2160.0,
+            "response": -135.0,
+            "game": "01cae2f32f151271dbd2d0299e31f116fa6ee76391f7b0c5988a10e143a7f307",
+            "ply": 9
+          },
+          {
+            "original_index": 53351,
+            "piece": [
+              "Peacock"
+            ],
+            "material": 1663.199951171875,
+            "response": -97.0,
+            "game": "d3e1eb7c50c69864ddc45011aa49672e9f2ba3acc89eea42e3225c1035037b1b",
+            "ply": 212
+          }
+        ]
+      },
+      "NNUE_W384_v6C": {
+        "positive": 75,
+        "negative": 22,
+        "zero": 1,
+        "response_quantiles": [
+          -801.0,
+          -99.19999999999999,
+          199.0,
+          1228.7999999999997,
+          1893.0
+        ],
+        "response_material_ratio_quantiles": [
+          -0.4816017457405665,
+          -0.049351851851851855,
+          0.10092592592592592,
+          0.5207314814814814,
+          2.345
+        ],
+        "worst_examples": [
+          {
+            "original_index": 41185,
+            "piece": [
+              "Peacock"
+            ],
+            "material": 1663.199951171875,
+            "response": -801.0,
+            "game": "9f8d0d4de961bbe6b0d4c2c32e6c946598653a28089c8af7087998589f2e3971",
+            "ply": 126
+          },
+          {
+            "original_index": 40952,
+            "piece": [
+              "Peacock"
+            ],
+            "material": 1663.199951171875,
+            "response": -580.0,
+            "game": "9ec7e6d2667137baed48d603610de1cbee1336329a7a6f97903a9c845e36a5f9",
+            "ply": 240
+          },
+          {
+            "original_index": 522,
+            "piece": [
+              "GreatGeneral"
+            ],
+            "material": 2160.0,
+            "response": -434.0,
+            "game": "01cae2f32f151271dbd2d0299e31f116fa6ee76391f7b0c5988a10e143a7f307",
+            "ply": 9
+          },
+          {
+            "original_index": 28065,
+            "piece": [
+              "GreatGeneral"
+            ],
+            "material": 2160.0,
+            "response": -434.0,
+            "game": "6d73464f0ee3696b6b54ce6542f33a3dfac7a50b7a9a1664e1232d98c3039124",
+            "ply": 16
+          },
+          {
+            "original_index": 16765,
+            "piece": [
+              "HookMover"
+            ],
+            "material": 6237.0,
+            "response": -236.0,
+            "game": "42934863c590194bf0d103a07a50ee2fa82fbc83f18a87d599a2804dbd6f5a7f",
+            "ply": 174
+          }
+        ]
+      },
+      "NNUE_W384_v6Cm": {
+        "positive": 98,
+        "negative": 0,
+        "zero": 0,
+        "response_quantiles": [
+          138.0,
+          962.0199951171875,
+          1693.2999877929688,
+          6299.9,
+          6578.0
+        ],
+        "response_material_ratio_quantiles": [
+          0.3626743439637946,
+          0.8365277777777778,
+          1.0014159451659452,
+          1.050515046028014,
+          1.535
+        ],
+        "worst_examples": [
+          {
+            "original_index": 36416,
+            "piece": [
+              "PrimordialDragon"
+            ],
+            "material": 140.0,
+            "response": 138.0,
+            "game": "8ccb692170eb9d9c39cb423f5b66575ba2c637b2ae099833584b171fe9a31eaa",
+            "ply": 1322
+          },
+          {
+            "original_index": 18128,
+            "piece": [
+              "Shitennou"
+            ],
+            "material": 400.0,
+            "response": 443.0,
+            "game": "479ca4000cfce645da11bf16db1ab585b3d7640fe65afd5989a88f15107f5965",
+            "ply": 819
+          },
+          {
+            "original_index": 39489,
+            "piece": [
+              "Shitennou"
+            ],
+            "material": 400.0,
+            "response": 589.0,
+            "game": "9951357e01885a977d07706290e481120f5966707813ca7bb30c24e281602b7e",
+            "ply": 859
+          },
+          {
+            "original_index": 10391,
+            "piece": [
+              "Peacock"
+            ],
+            "material": 1663.199951171875,
+            "response": 603.199951171875,
+            "game": "29dfc8983f744366e00f031fa36805135c004ba976e7f021932fbb2bb00db98c",
+            "ply": 18
+          },
+          {
+            "original_index": 27339,
+            "piece": [
+              "Shitennou"
+            ],
+            "material": 400.0,
+            "response": 614.0,
+            "game": "6ba9b11d42ef270fa045971e6906c37c1cda2c76710e2cc8728556b3a59d89fb",
+            "ply": 464
+          }
+        ]
+      }
+    }
+  },
+  "feature_conflicts": [
+    [
+      {
+        "base": "FreeKing",
+        "channels": [
+          25,
+          34,
+          35,
+          36,
+          37,
+          38,
+          39,
+          40,
+          41
+        ],
+        "material": 1620.0,
+        "piece": "FreeKing",
+        "promoted": false,
+        "royal": false
+      },
+      {
+        "base": "FreeBaku",
+        "channels": [
+          25,
+          34,
+          35,
+          36,
+          37,
+          38,
+          39,
+          40,
+          41
+        ],
+        "material": 80.0,
+        "piece": "FreeKing",
+        "promoted": true,
+        "royal": false
+      },
+      {
+        "base": "FreeDemon",
+        "channels": [
+          25,
+          34,
+          35,
+          36,
+          37,
+          38,
+          39,
+          40,
+          41
+        ],
+        "material": 80.0,
+        "piece": "FreeKing",
+        "promoted": true,
+        "royal": false
+      },
+      {
+        "base": "TreacherousFox",
+        "channels": [
+          25,
+          34,
+          35,
+          36,
+          37,
+          38,
+          39,
+          40,
+          41
+        ],
+        "material": 80.0,
+        "piece": "MountainCrane",
+        "promoted": true,
+        "royal": false
+      },
+      {
+        "base": "MountainCrane",
+        "channels": [
+          25,
+          34,
+          35,
+          36,
+          37,
+          38,
+          39,
+          40,
+          41
+        ],
+        "material": 80.0,
+        "piece": "MountainCrane",
+        "promoted": false,
+        "royal": false
+      },
+      {
+        "base": "GreatStag",
+        "channels": [
+          25,
+          34,
+          35,
+          36,
+          37,
+          38,
+          39,
+          40,
+          41
+        ],
+        "material": 80.0,
+        "piece": "FreeStag",
+        "promoted": true,
+        "royal": false
+      },
+      {
+        "base": "RunningStag",
+        "channels": [
+          25,
+          34,
+          35,
+          36,
+          37,
+          38,
+          39,
+          40,
+          41
+        ],
+        "material": 80.0,
+        "piece": "FreeStag",
+        "promoted": true,
+        "royal": false
+      },
+      {
+        "base": "FreeStag",
+        "channels": [
+          25,
+          34,
+          35,
+          36,
+          37,
+          38,
+          39,
+          40,
+          41
+        ],
+        "material": 80.0,
+        "piece": "FreeStag",
+        "promoted": false,
+        "royal": false
+      },
+      {
+        "base": "CloudEagle",
+        "channels": [
+          25,
+          34,
+          35,
+          36,
+          37,
+          38,
+          39,
+          40,
+          41
+        ],
+        "material": 80.0,
+        "piece": "StrongEagle",
+        "promoted": true,
+        "royal": false
+      },
+      {
+        "base": "StrongEagle",
+        "channels": [
+          25,
+          34,
+          35,
+          36,
+          37,
+          38,
+          39,
+          40,
+          41
+        ],
+        "material": 80.0,
+        "piece": "StrongEagle",
+        "promoted": false,
+        "royal": false
+      },
+      {
+        "base": "FlyingHorse",
+        "channels": [
+          25,
+          34,
+          35,
+          36,
+          37,
+          38,
+          39,
+          40,
+          41
+        ],
+        "material": 80.0,
+        "piece": "FreeKing",
+        "promoted": true,
+        "royal": false
+      }
+    ],
+    [
+      {
+        "base": "Tengu",
+        "channels": [
+          25,
+          35,
+          37,
+          39,
+          41,
+          77
+        ],
+        "material": 2494.800048828125,
+        "piece": "Tengu",
+        "promoted": false,
+        "royal": false
+      },
+      {
+        "base": "Peacock",
+        "channels": [
+          25,
+          35,
+          37,
+          39,
+          41,
+          77
+        ],
+        "material": 2494.800048828125,
+        "piece": "Tengu",
+        "promoted": true,
+        "royal": false
+      },
+      {
+        "base": "OldKite",
+        "channels": [
+          25,
+          35,
+          37,
+          39,
+          41,
+          77
+        ],
+        "material": 2494.800048828125,
+        "piece": "Tengu",
+        "promoted": true,
+        "royal": false
+      },
+      {
+        "base": "Capricorn",
+        "channels": [
+          25,
+          35,
+          37,
+          39,
+          41,
+          77
+        ],
+        "material": 2970.0,
+        "piece": "Capricorn",
+        "promoted": false,
+        "royal": false
+      }
+    ]
+  ]
+}

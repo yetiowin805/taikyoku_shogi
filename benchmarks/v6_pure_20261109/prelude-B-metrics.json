@@ -1,0 +1,62 @@
+[
+  {
+    "window": 1,
+    "alpha": 0.75,
+    "validation": {
+      "teacher": 0.010308397822776318,
+      "outcome": 0.1177408263139842,
+      "outcome_mass": 0.999689826302692,
+      "selection": 0.0264232620964575
+    },
+    "training_loss": 14.250420547190288,
+    "seconds": 99.65087342262268,
+    "conversion_baseline": 0.025070831466584783,
+    "conversion_guard": 0.00759661947109557,
+    "decision": "continue"
+  },
+  {
+    "window": 2,
+    "alpha": 0.5,
+    "validation": {
+      "teacher": 0.015906928352509096,
+      "outcome": 0.12176275677527222,
+      "outcome_mass": 0.999689826302692,
+      "selection": 0.031785302615923564
+    },
+    "training_loss": 14.182079652537539,
+    "seconds": 530.6527752876282,
+    "conversion_baseline": 0.025070831466584783,
+    "conversion_guard": 0.009917772300136119,
+    "decision": "continue"
+  },
+  {
+    "window": 3,
+    "alpha": 0.25,
+    "validation": {
+      "teacher": 0.027022629205901642,
+      "outcome": 0.13411917538004514,
+      "outcome_mass": 0.999689826302692,
+      "selection": 0.04308711113202317
+    },
+    "training_loss": 14.21223686380631,
+    "seconds": 530.5144724845886,
+    "conversion_baseline": 0.025070831466584783,
+    "conversion_guard": 0.012717157471165733,
+    "decision": "continue"
+  },
+  {
+    "window": 4,
+    "alpha": 0,
+    "validation": {
+      "teacher": 0.04601333280912923,
+      "outcome": 0.15494960599076288,
+      "outcome_mass": 0.999689826302692,
+      "selection": 0.062353773786374286
+    },
+    "training_loss": 14.492324898805236,
+    "seconds": 529.5578148365021,
+    "conversion_baseline": 0.025070831466584783,
+    "conversion_guard": 0.014206180499193402,
+    "decision": "continue"
+  }
+]
