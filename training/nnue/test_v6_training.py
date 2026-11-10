@@ -24,6 +24,51 @@ from train import export
 
 
 class TrainingTests(unittest.TestCase):
+    def test_256_only_campaign_uses_one_shared_material_prelude(self):
+        names = [f"NNUE_W256_v6{regime}" for regime in ("A", "Cm", "Dm")]
+        config = dict(out="/training", parents={"256": "/p256"}, training_models=names)
+        jobs = pipeline.tasks(config)
+        self.assertEqual([job["name"] for job in jobs], ["prelude-256-A", *names])
+        for job in jobs:
+            self.assertEqual(job["fit"]["width"], 256)
+            self.assertEqual(job["fit"]["parent"], "/p256")
+        for job in jobs[1:]:
+            self.assertEqual(job["dependencies"], ["prelude-256-A"])
+            self.assertEqual(job["fit"]["start"], "/training/prelude-256-A/start.pt")
+        for job in jobs[2:]:
+            self.assertTrue(job["fit"]["retain_material"])
+        for parents in ({}, {"128": "/p"}, {"0256": "/p"}):
+            with self.subTest(parents=parents), self.assertRaises(ValueError):
+                pipeline.tasks(dict(config, parents=parents))
+
+    def test_preflight_accepts_one_parent_and_checks_every_material_table(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            parents = {}
+            for width in (256, 384, 512):
+                blob = root / f"{width}.bin"
+                blob.write_bytes(b"pinned parent blob")
+                path = root / f"{width}.json"
+                path.write_text(
+                    json.dumps(
+                        dict(
+                            weights=dict(
+                                piece={"pawn": 1}, nnue=dict(width=width, file=blob.name, sha256=data.file_hash(blob))
+                            )
+                        )
+                    )
+                )
+                parents[str(width)] = str(path)
+            config = dict(parents={"256": parents["256"]}, identities={}, lease_indices=[7, 1, 3, 4, 5, 6])
+            pipeline.preflight(config)
+            pipeline.preflight(dict(config, parents=parents))
+            last = Path(parents["512"])
+            changed = json.loads(last.read_text())
+            changed["weights"]["piece"]["pawn"] = 2
+            last.write_text(json.dumps(changed))
+            with self.assertRaisesRegex(ValueError, "material baselines"):
+                pipeline.preflight(dict(config, parents=parents))
+
     def test_selected_campaign_uses_original_a_and_distinct_material_runs(self):
         config = dict(out="/training", parents={"384": "/p384", "512": "/p512"})
         self.assertEqual(len(pipeline.tasks(config)), 12)
@@ -330,7 +375,7 @@ class TrainingTests(unittest.TestCase):
             source.mkdir(parents=True)
             schema = dict(channels=92, features=16, hash="00" * 32, names_hash="11" * 32)
             parents = {}
-            for width in (384, 512):
+            for width in (256, 384, 512):
                 net = PilotNet(16, width)
                 for parameter in net.parameters():
                     parameter.data.zero_()
@@ -409,7 +454,9 @@ class TrainingTests(unittest.TestCase):
                 python=sys.executable,
                 window_draws=8,
                 training_models=[
-                    f"NNUE_W{width}_v6{regime}" for width in (384, 512) for regime in ("A", "B", "C", "D", "Cm", "Dm")
+                    f"NNUE_W{width}_v6{regime}"
+                    for width in (256, 384, 512)
+                    for regime in ("A", "B", "C", "D", "Cm", "Dm")
                 ],
             )
             config_path = root / "config.json"
@@ -434,7 +481,7 @@ class TrainingTests(unittest.TestCase):
                     process.terminate()
                     process.communicate(timeout=30)
             ready = json.loads((out / "ready.json").read_text())
-            self.assertEqual(len(ready["models"]), 12)
+            self.assertEqual(len(ready["models"]), 18)
             before = {p: data.file_hash(p) for p in out.glob("*/complete.json")}
             subprocess.run(command, check=True, timeout=30, capture_output=True)
             self.assertEqual(before, {p: data.file_hash(p) for p in before})

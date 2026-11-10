@@ -55,7 +55,19 @@ values are hand-reduced to compensate for the corrected range-two-mover rules.
 
 ## Shared conversion and regimes
 
-Parents are 384v4.5 and 512v3. Each width has two matched four-window preludes:
+The original parents are 384v4.5 and 512v3. Campaign widths are selected by the
+`parents` mapping, which supports any nonempty subset of 256, 384, and 512;
+each descriptor must match its width and every parent must share the same
+material table. A 256-only follow-up can continue from 256v3 with
+`training_models: ["NNUE_W256_v6A", "NNUE_W256_v6Cm", "NNUE_W256_v6Dm"]`.
+Use a separate output/configuration directory and an admission watcher targeting
+those three names. Reuse the verified frozen v6 dataset without changing its
+labels, splits, sampling weights, or scale, and check the new parent's exposure
+against the original collection audit. Do not rewrite a completed campaign's
+configuration. Dataset preparation selects the smallest configured width's
+parent for its common material baseline.
+
+Each width has two matched four-window preludes:
 A retains material with alpha 1; B uses alpha 0.75, 0.5, 0.25, 0. Each window has
 65,536 weighted draws by default, effective batch eight, microbatch one. A/B use
 the same BCE objective and seed during the prelude. Conversion stops with an

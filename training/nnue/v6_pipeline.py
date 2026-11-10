@@ -22,10 +22,18 @@ def stop(*_):
     STOP = True
 
 
+def configured_widths(config):
+    parents = config["parents"]
+    if not parents or any(width not in {"256", "384", "512"} for width in parents):
+        raise ValueError("parents must select widths from 256, 384, and 512")
+    return sorted(int(width) for width in parents)
+
+
 def tasks(config):
     out = Path(config["out"])
     result = []
-    for width in (384, 512):
+    widths = configured_widths(config)
+    for width in widths:
         for regime in "AB":
             name = f"prelude-{width}-{regime}"
             result.append(
@@ -57,7 +65,7 @@ def tasks(config):
         return result
     if not selected or len(selected) != len(set(selected)):
         raise ValueError("training_models must be nonempty and distinct")
-    for width in (384, 512):
+    for width in widths:
         for regime in "CD":
             start = f"prelude-{width}-A"
             result.append(
@@ -103,13 +111,14 @@ def finished(out, job):
 
 
 def preflight(config):
+    configured_widths(config)
     if config["lease_indices"] != [7, 1, 3, 4, 5, 6]:
         raise ValueError("unexpected CPU lease set")
     for path, digest in config["identities"].items():
         if data.file_hash(path) != digest:
             raise ValueError("pinned input changed: " + path)
     parents = [json.loads(Path(p).read_text()) for p in config["parents"].values()]
-    if parents[0]["weights"]["piece"] != parents[1]["weights"]["piece"]:
+    if any(parent["weights"]["piece"] != parents[0]["weights"]["piece"] for parent in parents[1:]):
         raise ValueError("parents have different material baselines")
     for width, p in config["parents"].items():
         d = json.loads(Path(p).read_text())["weights"]["nnue"]

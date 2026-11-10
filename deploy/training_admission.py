@@ -112,7 +112,7 @@ def validate_entries(bundle, entries, bindings, smoke=None):
 
 def validate_v6(model):
     """Only a converged, parity-checked final export; never an intermediate best."""
-    match = re.fullmatch(r"NNUE_W(384|512)_v6([ABCD])(m?)", model.name)
+    match = re.fullmatch(r"NNUE_W(256|384|512)_v6([ABCD])(m?)", model.name)
     if match is None:
         raise ValueError("Invalid v6 model name")
     width, regime = int(match[1]), match[2]
