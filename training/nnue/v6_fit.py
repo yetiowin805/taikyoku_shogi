@@ -119,6 +119,9 @@ def publish(net, out, parent, schema, samples, features, ids, mode, scale):
     blob.replace(target)
     cp = json.loads(Path(parent).read_text())
     cp["name"] = out.name
+    # Keep the new-agent default when the pinned parent predates QFix defaults.
+    if cp.setdefault("search_defaults", {}).get("experiment", "baseline") == "baseline":
+        cp["search_defaults"]["experiment"] = "q_fix"
     cp["weights"]["nnue"] = dict(
         file=target.name, sha256=sha, width=net.width, feature_hash=schema["names_hash"], output_mode=mode
     )

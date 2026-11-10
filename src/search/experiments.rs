@@ -10,7 +10,10 @@ impl SearchExperiment {
         matches!(self, Self::History | Self::HistoryTacticalLmr) || self.second_wave_hl()
     }
     pub(super) fn tactical_lmr(self) -> bool {
-        matches!(self, Self::TacticalLmr | Self::HistoryTacticalLmr) || self.second_wave_hl()
+        matches!(
+            self,
+            Self::TacticalLmr | Self::TacticalLmrQFix | Self::HistoryTacticalLmr
+        ) || self.second_wave_hl()
     }
     pub(super) fn guarded_null(self) -> bool {
         matches!(
@@ -500,6 +503,21 @@ mod tests {
         put(&mut state, PieceType::King, Color::Black, 1, 1);
         put(&mut state, PieceType::King, Color::White, 34, 34);
         state
+    }
+
+    #[test]
+    fn new_searches_use_qfix_while_legacy_checkpoints_keep_their_identity() {
+        assert_eq!(SearchConfig::default().experiment, SearchExperiment::QFix);
+        let checkpoint = crate::eval::EvalCheckpoint::seed("new-default");
+        assert_eq!(
+            checkpoint.search_defaults.experiment,
+            SearchExperiment::QFix
+        );
+        let lf = SearchExperiment::TacticalLmrQFix;
+        assert!(lf.tactical_lmr());
+        assert!(!lf.history());
+        assert!(!lf.sacrifice());
+        assert!(!lf.guarded_null());
     }
 
     #[test]

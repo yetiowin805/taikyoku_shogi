@@ -442,6 +442,7 @@ class TrainingTests(unittest.TestCase):
                 desc = json.loads(Path(model).read_text())["weights"]["nnue"]
                 retained = Path(model).parent.name.endswith("m")
                 self.assertEqual(desc["output_mode"], "residual" if "v6A" in model or retained else "total")
+                self.assertEqual(json.loads(Path(model).read_text())["search_defaults"]["experiment"], "q_fix")
                 if retained:
                     metrics = json.loads((Path(model).parent / "metrics.json").read_text())
                     self.assertTrue(all(row["alpha"] == 1 for row in metrics))

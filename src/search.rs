@@ -317,7 +317,7 @@ impl Default for SearchConfig {
             q_open_any_capture: false,
             q_recapture_only: false,
             q_own_large_only: true,
-            experiment: SearchExperiment::Baseline,
+            experiment: SearchExperiment::QFix,
             trial: SearchTrial::None,
         }
     }
