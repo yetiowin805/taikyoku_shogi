@@ -49,9 +49,11 @@ L also gains F during transfer. The new tournament games are the strength test.
 Fresh Rust search defaults and fresh baseline NNUE exports explicitly use
 `q_fix`. Missing experiment fields in legacy serialized checkpoints still
 resolve to `baseline`. Existing registered descriptors are never rewritten.
-The new LF policy adds L to F without adding H. All transferred entrants pin
-`generation: search`, including packages with no third-wave trial, so generation
-retirement protection does not depend on recognizing their new v6 IDs.
+The new LF policy adds L to F without adding H. The 48 transfers now pin `generation: v6_search`, separate from both unmodified
+`v6` and the older `search` experiments. The original admission receipt records
+the initial search-cohort assignment; `generation-map.json` records the later
+requested metadata transition. Explicit admission generations take precedence
+over the legacy search default, including packages with no third-wave trial.
 
 The live engine uses a pinned historical source. Its compatibility patch lives
 at `deploy/compat/v6-qfix-defaults.patch`; current main already applies the q
@@ -79,3 +81,14 @@ the coordinator service was not restarted and assignments remain enabled.
 The existing dashboard was refreshed without changing its frozen confidence
 section. New entrants join subsequent pairings through the normal scheduler.
 No strength or speed gain is claimed by these correctness checks.
+
+## Generation transition
+
+Use the shared scheduler upgrader with `--generation-map generation-map.json`.
+It validates every ID/label first, lets current games finish, backs up state,
+manifest and configuration, and applies only entrant generation metadata while
+the coordinator is stopped. Restart uses the same coordinator and rolling game
+engine. Assignment pause/resume uses the existing durable command protocol.
+Original model descriptors, network files, game records and ratings evidence
+are preserved. The original admission receipt remains historical evidence of
+the earlier transaction; a separate receipt records the metadata migration.

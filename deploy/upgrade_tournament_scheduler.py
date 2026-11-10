@@ -46,6 +46,22 @@ def clock_transition(config, initial_ms, increment_ms):
     return dict(config, command=command, time_control=dict(initial_ms=initial_ms, increment_ms=increment_ms))
 
 
+def generation_transition(state, bindings):
+    """Prepare metadata only; publish after draining and stopping the coordinator."""
+    if not isinstance(bindings, dict) or not bindings:
+        raise ValueError("Generation bindings must be a nonempty object")
+    for ident, label in bindings.items():
+        if not isinstance(ident, str) or not isinstance(label, str) or not label or label.strip() != label:
+            raise ValueError("Invalid generation binding")
+    missing = set(bindings) - {e["id"] for e in state["entrants"]}
+    if missing:
+        raise ValueError("Unknown generation entrants: " + ", ".join(sorted(missing)))
+    return dict(
+        state,
+        entrants=[dict(e, generation=bindings[e["id"]]) if e["id"] in bindings else dict(e) for e in state["entrants"]],
+    )
+
+
 def external_leases(control, services, count):
     pids = {
         int(subprocess.check_output(["systemctl", "show", name, "-p", "MainPID", "--value"], text=True).strip() or 0)
@@ -126,6 +142,10 @@ def upgrade(args):
     expected = a.file_digest(binary)
     pointer = (control / "active-engine.json").read_bytes()
     cfg = a.read(control / "config.json")
+    generation_map = getattr(args, "generation_map", None)
+    bindings = a.read(generation_map) if generation_map is not None else None
+    if bindings is not None:
+        generation_transition(a.read(run / "state.json"), bindings)  # Validate before the drain.
     # Validate before touching any service or taking the game-admission gate.
     clock_transition(cfg, args.initial_time_ms, args.increment_ms)
     if len(cfg["cpus"]) != 8 or cfg.get("sidecar") != "none":
@@ -158,6 +178,12 @@ def upgrade(args):
             backup.mkdir()
             for path in [run / "state.json", control / "config.json", control / "manifest.json"]:
                 tasks.durable(backup / path.name, path.read_bytes())
+            if bindings is not None:
+                changed = generation_transition(a.read(run / "state.json"), bindings)
+                tasks.durable(run / "state.json", json.dumps(changed, indent=2).encode())
+                manifest = a.read(control / "manifest.json")
+                manifest["entrants"] = changed["entrants"]
+                tasks.durable(control / "manifest.json", json.dumps(manifest, indent=2).encode())
             cfg["command"][0] = str(binary)
             tasks.durable(control / "config.json", json.dumps(cfg, indent=2).encode())
             service("start", args.coordinator)
@@ -192,6 +218,9 @@ def main():
     parser.add_argument("run", type=Path)
     parser.add_argument("binary", type=Path)
     parser.add_argument("--coordinator", default="taikyoku-coordinator.service")
+    parser.add_argument(
+        "--generation-map", type=Path, help="JSON entrant-to-generation bindings; applied after games finish"
+    )
     parser.add_argument("--replace-service", action="append", default=[])
     parser.add_argument("--external-service", action="append", default=[])
     parser.add_argument("--initial-time-ms", type=int, help="Apply after current games finish; 60000 for 1+1")

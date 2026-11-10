@@ -242,5 +242,6 @@
       "experiment": "history_tactical_lmr_q_fix_sacrifice",
       "trial": "partial_root"
     }
-  }
+  },
+  "generation": "v6_search"
 }
