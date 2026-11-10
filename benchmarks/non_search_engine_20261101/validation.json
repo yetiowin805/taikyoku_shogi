@@ -1,0 +1,42 @@
+{
+  "rust_format": "passed",
+  "clippy_all_targets_all_features": "passed",
+  "cargo_test": {
+    "passed": 570,
+    "failed": 0,
+    "ignored": 4
+  },
+  "ruff_format": "313 files unchanged",
+  "ruff_full": {
+    "passed": false,
+    "preexisting_errors": 30,
+    "locations": [
+      "untracked data/analysis",
+      "untracked data/backups"
+    ],
+    "fixes_applied": 0
+  },
+  "ruff_excluding_scratch_trees": "passed",
+  "deploy_python_unittest": {
+    "passed": 227,
+    "failed": 0
+  },
+  "canvas_typescript": {
+    "passed": true,
+    "compiler": "TypeScript 7.0.2",
+    "sdk": "local cursor/canvas declarations",
+    "react_types": "temporary @types/react"
+  },
+  "html_preview": {
+    "layout": "visually inspected in Codex browser",
+    "finding_filter_counts": {
+      "initial": 73,
+      "promotion_search": 10,
+      "promotion_and_dubious": 5,
+      "reset": 73
+    },
+    "relative_links": "renderer validated250links including local targets"
+  },
+  "search_executed_for_audit_benchmarks": false,
+  "production_code_changed": false
+}
