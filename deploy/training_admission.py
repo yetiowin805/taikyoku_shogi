@@ -50,7 +50,7 @@ def freeze_models(models, control, *, search_variants=False, generation=None):
             entry["generation"] = generation
         # Transferred packages are search experiments, including trial=None on
         # new network generations whose IDs have no legacy search inference.
-        if search_variants:
+        if search_variants and generation is None:
             entry["generation"] = "search"
         entries.append(entry)
     return entries, bindings
@@ -409,7 +409,13 @@ def main():
             parser.error("--watch is only for training admissions")
         tournament_tasks.ready(Path(config["run"]))
         models = prepare_search_variants(config)
-        admit_checkpoints(Path(config["run"]), models, out / "admission" / "search-variants", search_variants=True)
+        admit_checkpoints(
+            Path(config["run"]),
+            models,
+            out / "admission" / "search-variants",
+            search_variants=True,
+            generation=config.get("generation"),
+        )
         return
     names = config["admission_models"]
     if not names or len(set(names)) != len(names) or any(Path(n).name != n or n in (".", "..") for n in names):

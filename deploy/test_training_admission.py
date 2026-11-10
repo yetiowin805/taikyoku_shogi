@@ -213,6 +213,11 @@ class AdmissionTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "definition changed"):
                     admission.prepare_search_variants(config)
 
+    def test_explicit_v6_search_generation_overrides_legacy_search_cohort(self):
+        with self.admission_fixture("none") as (_, model, control, _):
+            entries, _ = admission.freeze_models([model], control, search_variants=True, generation="v6_search")
+            self.assertEqual(entries[0]["generation"], "v6_search")
+
     def test_corrected_baseline_can_be_a_transfer_source(self):
         with self.admission_fixture() as (run, model, _, _):
             source = model / "model.json"
