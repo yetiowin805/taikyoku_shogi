@@ -18,7 +18,7 @@ fn main() {
         .into_iter()
         .find(|mv| {
             mv.free_eagle_path()
-                .is_some_and(|path| path == &[p(18, 18), p(19, 19), p(20, 20), p(21, 21)])
+                .is_some_and(|path| path == [p(18, 18), p(19, 19), p(20, 20), p(21, 21)])
         })
         .unwrap();
     let before_hash = state.hash();

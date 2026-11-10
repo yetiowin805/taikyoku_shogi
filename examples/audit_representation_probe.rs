@@ -67,7 +67,7 @@ impl CopyInlineMove {
                 CopyInlineData::Standard => MoveData::Standard,
                 CopyInlineData::TwoStep(intermediate) => MoveData::TwoStep { intermediate },
                 CopyInlineData::FreeEagle { path, len } => MoveData::FreeEagle {
-                    path: path[..len as usize].to_vec(),
+                    path: path[..len as usize].to_vec().into(),
                 },
             },
         }
@@ -108,7 +108,7 @@ impl InlineMove {
                     intermediate: *intermediate,
                 },
                 InlineData::FreeEagle { path, len } => MoveData::FreeEagle {
-                    path: path[..*len as usize].to_vec(),
+                    path: path[..*len as usize].to_vec().into(),
                 },
             },
         }
@@ -158,7 +158,10 @@ impl PackedMove {
             2 => {
                 let len = ((self.0 >> 57) & 7) as usize;
                 let path: Vec<_> = (0..len).map(|n| self.square(n)).collect();
-                (self.square(len - 1), MoveData::FreeEagle { path })
+                (
+                    self.square(len - 1),
+                    MoveData::FreeEagle { path: path.into() },
+                )
             }
             _ => unreachable!(),
         };
@@ -315,7 +318,7 @@ fn main() {
         opening.get_board().pieces_by_color(Color::Black).len(),
         opening.get_board().pieces_by_color(Color::White).len(), opening_moves.len(), rich_moves.len(),
         rich_moves.iter().filter(|m| m.is_free_eagle()).count(),
-        rich_moves.iter().filter_map(|m| m.free_eagle_path().map(Vec::len)).max().unwrap());
+        rich_moves.iter().filter_map(|m| m.free_eagle_path().map(<[_]>::len)).max().unwrap());
     for (name, moves) in [("opening", &opening_moves), ("free_eagle", &rich_moves)] {
         let inline: Vec<_> = moves.iter().map(InlineMove::from_move).collect();
         let copy_inline: Vec<_> = inline.iter().map(CopyInlineMove::from_inline).collect();

@@ -233,5 +233,13 @@
     "performance_revision": "94798a64583a6b93a57b70f228c5d18e9f28d9ae",
     "coverage": "51originallypromising/speculative findings:44followupareas+7previousbugfixes; originalrawresultsremainunchanged",
     "report_validation": "StaticHTML/JSON/anchors/JSsyntaxpassed; browserfileURLpreviewblocked; reportbranch570Rusttests+227Pythontests, Clippypass. CandidatePR210CIallpass."
+  },
+  "merge_compatibility": {
+    "base_revision": "cd848f3706594c5b1aa865367e2b11944e258d28",
+    "note": "The two probes below were adapted to the merged MovePath/slice API and current Clippy checks. Original probe_sources hashes and all raw measurements retain their historical meaning; no timings were rerun or claimed for these updated helpers.",
+    "sources": {
+      "examples/audit_notation_probe.rs": "e2100f25835bcf18225838660d514dfbc332a3814e2c8a8e3a9e316515d44690",
+      "examples/audit_representation_probe.rs": "75062256bdbbcbaacf6a03300728fa0ae798907daabe5521b2eff15b0aaa30d9"
+    }
   }
 }
