@@ -1,0 +1,21 @@
+[Unit]
+Description=NNUE v6 collection handoff and eight training runs
+After=local-fs.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/taikyoku/nnue-v6-training.env
+ExecStart=/usr/bin/python3 ${PIPELINE} ${CONFIG}
+CPUQuota=600%
+AllowedCPUs=1 3-7
+KillMode=control-group
+TimeoutStopSec=60
+Restart=on-failure
+RestartSec=10
+Nice=10
+Environment=OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1
+
+[Install]
+WantedBy=multi-user.target

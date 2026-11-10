@@ -22,7 +22,7 @@ def model_inputs(model):
     return manifest, paths
 
 
-def select_leader(state, fit):
+def select_leader(state, fit, current=None):
     if fit.get("status") not in ("converged", "separated", "disconnected"):
         raise ValueError("no usable order-neutral rating fit")
     active = {e["id"]: e for e in state["entrants"] if e["id"] not in state.get("retired", [])}
@@ -33,7 +33,7 @@ def select_leader(state, fit):
     if not eligible:
         raise ValueError("no active rated model")
     # Follow the displayed ranking, including provisional component offsets. No promotion margin.
-    name = min(eligible, key=lambda n: (-ratings[n], n))
+    name = min(eligible, key=lambda n: (-ratings[n], n != current, n))
     return active[name], ratings[name]
 
 

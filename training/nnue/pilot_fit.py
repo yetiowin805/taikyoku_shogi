@@ -39,14 +39,28 @@ class PilotNet(Net):
         continuous = self.embedding(indices, offsets) + self.bias
         with torch.no_grad():
             unique, inverse = torch.unique(indices, return_inverse=True)
-            rows = torch.round(self.embedding.weight.index_select(0, unique) * 4096).clamp(-2048, 2048) / 4096
-            discrete = torch.nn.functional.embedding_bag(inverse, rows, offsets, mode="sum", include_last_offset=True)
-            discrete += torch.round(self.bias * 4096) / 4096
-        x = continuous + (discrete - continuous).detach()
-        x = x.clamp(0, 1).reshape(-1, self.width * 2)
-        x = rounded(x, 127, half_up=True)
+            rows = torch.round(self.embedding.weight.index_select(0, unique) * 4096).clamp(-2048, 2048)
+            # Sum integer-valued rows in f64: embedding_bag has no integer kernel.
+            # Keep activation thresholds in integer arithmetic, just like inference.
+            sums = (
+                torch.nn.functional.embedding_bag(
+                    inverse, rows.double(), offsets, mode="sum", include_last_offset=True
+                ).long()
+                + torch.round(self.bias * 4096).long()
+            )
+            discrete = ((sums * 127 + 2048) // 4096).clamp(0, 127).reshape(-1, self.width * 2)
+        continuous = continuous.clamp(0, 1).reshape(-1, self.width * 2)
+        x = (continuous - continuous.detach()) + discrete.float() / 127
         for layer in (self.h1, self.h2):
-            w = rounded(layer.weight, 64)
+            w = rounded(layer.weight.clamp(-127 / 64, 127 / 64), 64)
+            with torch.no_grad():
+                qw = torch.round(layer.weight * 64).clamp(-127, 127).long()
+                # Match export's float32 bias scaling followed by f64 centering.
+                qb = (layer.bias * (127 * 64)).double()
+                if layer is self.h1:
+                    qb = qb - qw.sum(dim=1) * 63.5
+                qb = torch.round(qb).long()
+                discrete = ((torch.nn.functional.linear(discrete, qw, qb) + 32) // 64).clamp(0, 127)
             if layer is self.h1:
                 # Export folds the centering offset into the integer bias.
                 shift = w.sum(dim=1) * 0.5
@@ -54,8 +68,10 @@ class PilotNet(Net):
                 x = x - 0.5
             else:
                 bias = rounded(layer.bias, 127 * 64)
-            x = torch.nn.functional.linear(x, w, bias).clamp(0, 1)
-            x = rounded(x, 127, half_up=True)
+            continuous = torch.nn.functional.linear(x, w, bias).clamp(0, 1)
+            # Subtract identical values before adding the quantized activation;
+            # cancellation after the addition can perturb a rounding tie.
+            x = (continuous - continuous.detach()) + discrete.float() / 127
         return self.output(x).squeeze(-1)
 
 

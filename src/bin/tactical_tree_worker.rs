@@ -2,18 +2,20 @@
 //! Usage: tactical_tree_worker GAME START_PLY MODEL; stdin requests have version/id/op/path.
 use serde::Deserialize;
 use serde_json::{json, Value};
+use sha2::{Digest, Sha256};
 use std::collections::HashSet;
 use std::io::{self, BufRead, Write};
 use std::time::Instant;
 use taikyoku_shogi::{
     alphabeta_player::AlphaBetaPlayer,
+    board_position::BoardPosition,
     eval::{evaluate, material_piece_value, EvalCheckpoint, EvalWeights},
     game_history::GameHistory,
     game_state::{GameState, Move},
     movement::{BlockingMode, MovementCapability, MovementConfig},
     notation::move_encode,
     piece::{Color, Piece},
-    search::{move_captures_enemy, probe_quiescence, search_with_progress},
+    search::{move_captures_enemy, probe_quiescence, search_with_progress, SearchConfig},
     training::record::{GameRecordV2, GameStart},
 };
 
@@ -49,6 +51,10 @@ struct Request {
     mobility: bool,
     #[serde(default)]
     include_pieces: bool,
+    /// Collection requests reuse a process and advance through the original game.
+    root_ply: Option<usize>,
+    #[serde(default)]
+    candidates: Vec<Move>,
 }
 
 fn emit(value: Value) {
@@ -110,6 +116,56 @@ fn position(base: &GameState, path: &[Move]) -> Result<GameState, String> {
         advance(&mut state, mv)?;
     }
     Ok(state)
+}
+
+fn collection_metadata(state: &GameState) -> Value {
+    use taikyoku_shogi::nnue::features;
+    let mut encoded = Vec::new();
+    for (i, color) in [
+        state.get_current_turn(),
+        state.get_current_turn().opposite(),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        if i == 1 {
+            encoded.push(b'|');
+        }
+        let mut active = features::active(state.get_board(), color);
+        active.sort_unstable();
+        for feature in active {
+            encoded.extend_from_slice(&(feature as u32).to_le_bytes());
+        }
+    }
+    let mut board = BoardPosition::from_state(state);
+    board.pieces.sort_by_key(|p| p.position.to_index());
+    let full = serde_json::to_vec(&json!({"position":board,"history":state.get_move_history()}))
+        .expect("position serialization");
+    json!({"canonical_position_hash":format!("{:x}",Sha256::digest(encoded)),
+        "state_history_hash":format!("{:x}",Sha256::digest(full)),
+        "feature_schema_hash":format!("{:x}",sha2::digest::Output::<Sha256>::from(features::schema().hash)),
+        "turn":sign(state),"draw_counter":state.get_turns_without_capture_or_promotion(),
+        "repetitions":state.repetition_count(),"history_len":state.get_move_history().len(),
+        "piece_count":board.pieces.len(),
+        "royal_count":board.pieces.iter().filter(|p|p.piece_type.is_royal()).count(),
+        "range_two_movers":board.pieces.iter().filter(|p|matches!(p.piece_type,
+            taikyoku_shogi::piece::PieceType::HookMover | taikyoku_shogi::piece::PieceType::Capricorn |
+            taikyoku_shogi::piece::PieceType::Tengu | taikyoku_shogi::piece::PieceType::Peacock)).count()})
+}
+
+fn advance_recorded(
+    state: &mut GameState,
+    record: &taikyoku_shogi::game_history::MoveRecord,
+) -> Result<(), String> {
+    if record.color != state.get_current_turn() {
+        return Err("prefix color mismatch".into());
+    }
+    let old = state.get_current_turn();
+    state.make_move(GameHistory::record_to_move(record)?);
+    if state.get_current_turn() == old {
+        return Err("prefix replay failed".into());
+    }
+    Ok(())
 }
 
 fn has_capturing_range(caps: &[MovementCapability]) -> bool {
@@ -350,7 +406,73 @@ fn handle(
     }
     let state = position(base, &req.path)?;
     let pov = sign(&state);
-    if req.op == "evaluate" {
+    if req.op == "training_features" {
+        use taikyoku_shogi::nnue::features;
+        let mut info = collection_metadata(&state);
+        let mut us = features::active(state.get_board(), state.get_current_turn());
+        let mut them = features::active(state.get_board(), state.get_current_turn().opposite());
+        us.sort_unstable();
+        them.sort_unstable();
+        info["event"] = json!("complete");
+        info["id"] = json!(req.id);
+        info["us"] = json!(us);
+        info["them"] = json!(them);
+        info["material_black"] = json!(taikyoku_shogi::nnue::material(
+            state.get_board(),
+            player.weights()
+        ));
+        emit(info);
+    } else if req.op == "collection_probe" {
+        if req.time_ms == 0 || req.depth > 8 {
+            return Err("collection probe needs a positive budget and q depth <= 8".into());
+        }
+        let moves = legal(&state);
+        let outcome = terminal(&state, moves.is_empty());
+        let mut info = collection_metadata(&state);
+        info["version"] = json!(1);
+        info["id"] = json!(req.id);
+        info["event"] = json!("complete");
+        info["op"] = json!(req.op);
+        info["terminal"] = json!(outcome);
+        info["static_black"] = json!(evaluate(&state, player.weights()) * pov);
+        info["material_black"] = json!(taikyoku_shogi::nnue::material(
+            state.get_board(),
+            player.weights()
+        ));
+        if outcome.is_none() {
+            let q = probe_quiescence(
+                &state,
+                player.weights(),
+                req.depth,
+                SearchConfig::default().q_prune_mode,
+                Some(req.time_ms),
+            );
+            info["quiescence"] = json!({"score_black":q.score*pov,"aborted":q.aborted,
+                "nodes":q.nodes,"depth":req.depth,"budget_ms":req.time_ms,
+                "policy":"standalone-open-window-no-previous-landing-v1"});
+        }
+        info["elapsed_ms"] = json!(started.elapsed().as_millis());
+        emit(info);
+    } else if req.op == "rank_candidates" {
+        if req.candidates.len() > 32 {
+            return Err("at most 32 alternative candidates".into());
+        }
+        let moves = legal(&state);
+        let mut choices = req.candidates.clone();
+        choices.extend(moves.iter().take(3).cloned());
+        let mut seen = HashSet::new();
+        let mut ranked = Vec::new();
+        for mv in choices {
+            if !moves.contains(&mv) || !seen.insert(serde_json::to_string(&mv).unwrap()) {
+                continue;
+            }
+            let child = position(&state, std::slice::from_ref(&mv))?;
+            ranked.push(
+                json!({"move":mv,"static_root":evaluate(&child,player.weights())*sign(&child)*pov}),
+            );
+        }
+        emit(json!({"version":1,"id":req.id,"event":"complete","op":req.op,"candidates":ranked}));
+    } else if req.op == "evaluate" {
         let mut flipped = state.clone();
         flipped.set_current_turn(state.get_current_turn().opposite());
         emit(
@@ -448,6 +570,7 @@ fn handle(
         let result = search_with_progress(&state, player.weights(), &config, &mut progress);
         emit(
             json!({"version":1,"id":req.id,"event":"complete","op":"search",
+            "search_config":format!("{:?}",config),
             "completed_depth":result.completed_depth,"nodes":result.nodes,"q_nodes":result.q_nodes,
             "partial_root_depth":result.partial_root_depth,
             "selected_depth":result.partial_root_depth.unwrap_or(result.completed_depth),
@@ -482,15 +605,8 @@ fn run() -> Result<(), String> {
         GameStart::Position { position } => position.to_state()?,
     };
     for record in &game.moves[..ply - 1] {
-        if record.color != base.get_current_turn() {
-            return Err("prefix color mismatch".into());
-        }
         // Original immutable records follow the same complete-history replay as analyze_position.
-        let old = base.get_current_turn();
-        base.make_move(GameHistory::record_to_move(record)?);
-        if base.get_current_turn() == old {
-            return Err("prefix replay failed".into());
-        }
+        advance_recorded(&mut base, record)?;
     }
     let player = AlphaBetaPlayer::from_checkpoint(EvalCheckpoint::load_path(&args[3])?);
     let actual = game.moves[ply - 1..]
@@ -500,12 +616,31 @@ fn run() -> Result<(), String> {
         .collect::<Result<Vec<_>, _>>()?;
     emit(
         json!({"version":1,"event":"ready","actual":actual,"history_len":base.get_move_history().len(),
-        "search_config":format!("{:?}",player.config())}),
+        "search_config":format!("{:?}",player.config()),
+        "collection_protocol":1}),
     );
+    let original = base.clone();
+    let mut current_ply = ply;
     for line in io::stdin().lock().lines() {
         let line = line.map_err(|e| e.to_string())?;
         let req: Request = serde_json::from_str(&line).map_err(|e| e.to_string())?;
-        if let Err(error) = handle(&base, ply, &game, &player, &req) {
+        if let Some(target) = req.root_ply {
+            if target < ply || target > game.moves.len() + 1 {
+                emit(
+                    json!({"version":1,"id":req.id,"event":"error","error":"root ply out of range"}),
+                );
+                continue;
+            }
+            if target < current_ply {
+                base = original.clone();
+                current_ply = ply;
+            }
+            for record in &game.moves[current_ply - 1..target - 1] {
+                advance_recorded(&mut base, record)?;
+            }
+            current_ply = target;
+        }
+        if let Err(error) = handle(&base, current_ply, &game, &player, &req) {
             emit(json!({"version":1,"id":req.id,"event":"error","error":error}));
         }
     }
@@ -523,6 +658,57 @@ fn main() {
 mod tests {
     use super::*;
     use taikyoku_shogi::{piece::PieceType, position::Position};
+    #[test]
+    fn collection_fingerprint_separates_history_from_features() {
+        let mut state = GameState::new();
+        state.setup_initial_position();
+        let original = collection_metadata(&state);
+        let mut snapshot = BoardPosition::from_state(&state);
+        snapshot.draw_counter = 8;
+        let changed = collection_metadata(&snapshot.to_state().unwrap());
+        assert_eq!(
+            original["canonical_position_hash"],
+            changed["canonical_position_hash"]
+        );
+        assert_ne!(
+            original["state_history_hash"],
+            changed["state_history_hash"]
+        );
+        let mut flipped = state.clone();
+        flipped.set_current_turn(Color::White);
+        assert_eq!(collection_metadata(&flipped)["turn"], -1);
+    }
+
+    #[test]
+    fn collection_hash_matches_python_canonical_feature_encoding() {
+        let mut state = GameState::new();
+        state.clear_board();
+        state.place_piece(Piece::new(
+            PieceType::King,
+            Color::Black,
+            Position::new(0, 0).unwrap(),
+        ));
+        state.place_piece(Piece::new(
+            PieceType::King,
+            Color::White,
+            Position::new(35, 35).unwrap(),
+        ));
+        let mut bytes = Vec::new();
+        for color in [Color::Black, Color::White] {
+            if color == Color::White {
+                bytes.push(b'|');
+            }
+            let mut active = taikyoku_shogi::nnue::features::active(state.get_board(), color);
+            active.sort_unstable();
+            for value in active {
+                bytes.extend_from_slice(&(value as u32).to_le_bytes());
+            }
+        }
+        assert_eq!(
+            collection_metadata(&state)["canonical_position_hash"],
+            format!("{:x}", Sha256::digest(bytes))
+        );
+    }
     #[test]
     fn scan_selection_is_bounded_and_keeps_absolute_plies() {
         let req = |extra: Value| {
