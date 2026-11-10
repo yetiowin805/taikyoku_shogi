@@ -1,0 +1,201 @@
+{
+  "snapshot_time": "2026-11-10T06:45:21.696602+00:00",
+  "games": 3791,
+  "selection_rule": "Descending highest-rated non-v6 representative per search configuration, including retired sources; mandatory F normalized before deduplication; baseline-only networks excluded; retain source S setting.",
+  "selection": [
+    {
+      "rank": 1,
+      "suffix": "LF",
+      "source": "NNUE_W512_v3_L",
+      "rating": 1572.4272668820236,
+      "source_experiment": "tactical_lmr",
+      "experiment": "tactical_lmr_q_fix",
+      "trial": "none",
+      "descriptor_sha256": "1a7e56c4bccc3ec3ea2c5c63cda57159a3d353f1c6b242ff328856f6f1b7815a"
+    },
+    {
+      "rank": 2,
+      "suffix": "HLF_G3CF",
+      "source": "NNUE_W512_v3_HLF_G3CF",
+      "rating": 1569.565041612159,
+      "source_experiment": "history_tactical_lmr_q_fix",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "context_retry",
+      "descriptor_sha256": "6c72b4cc0a22674f81edbf7c521cbbb41d562c5400c5dd5edbb59d25fc00ff5e"
+    },
+    {
+      "rank": 3,
+      "suffix": "HLF_G3ATK",
+      "source": "NNUE_W512_v3_HLF_G3ATK",
+      "rating": 1567.8051734021396,
+      "source_experiment": "history_tactical_lmr_q_fix",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "major_threat_lmr",
+      "descriptor_sha256": "84ed7528e9c5813c32613cfab41179797828dd5cd908f85190aaa1ce951bd520"
+    },
+    {
+      "rank": 4,
+      "suffix": "HLF_G3PV",
+      "source": "NNUE_W512_v3_HLF_G3PV",
+      "rating": 1553.9675367744271,
+      "source_experiment": "history_tactical_lmr_q_fix",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "promote_pv",
+      "descriptor_sha256": "b40545496ae459617f3259829e46bbfcc2d93bd9660885f3fa0b6e8c55ae47d1"
+    },
+    {
+      "rank": 5,
+      "suffix": "HLF_G3RFQH",
+      "source": "NNUE_W512_v3_HLF_G3RFQH",
+      "rating": 1551.3856529288614,
+      "source_experiment": "history_tactical_lmr_q_fix",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "q_refill_history",
+      "descriptor_sha256": "a0ef23a3f0c64148e82cfb5e0023cdcedbddd1f23c832e83081359ed2799c4fa"
+    },
+    {
+      "rank": 6,
+      "suffix": "HLF",
+      "source": "NNUE_W384_v4.5_HLF",
+      "rating": 1550.884851686381,
+      "source_experiment": "history_tactical_lmr_q_fix",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "none",
+      "descriptor_sha256": "a25ff65eeaff86589a6d1e4bef8da3a381129de65aa33baf7cd36fc3d7df5274"
+    },
+    {
+      "rank": 7,
+      "suffix": "HLF_G3PVSPV",
+      "source": "NNUE_W512_v3_HLF_G3PVSPV",
+      "rating": 1547.6417289478818,
+      "source_experiment": "history_tactical_lmr_q_fix",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "pvs_promote",
+      "descriptor_sha256": "40576373861bb10e3f0d1073fc8d4702109a1bc8d320d0f2962fffe5c08e57bf"
+    },
+    {
+      "rank": 8,
+      "suffix": "HLF_G3GA",
+      "source": "NNUE_W512_v3_HLF_G3GA",
+      "rating": 1545.156565235463,
+      "source_experiment": "history_tactical_lmr_q_fix",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "growth_aware",
+      "descriptor_sha256": "7b5798ad41e722f41506ed0b8d632e056520ca13c0f3fba588847645aebfae4e"
+    },
+    {
+      "rank": 9,
+      "suffix": "HLF_G3QH",
+      "source": "NNUE_W512_v3_HLF_G3QH",
+      "rating": 1542.3375868417097,
+      "source_experiment": "history_tactical_lmr_q_fix",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "q_history",
+      "descriptor_sha256": "400c096e5088ecdcca9a0e86ee74c7d8315242b28728a51bf0a79c3d78be1958"
+    },
+    {
+      "rank": 10,
+      "suffix": "HLF_G3RF",
+      "source": "NNUE_W512_v3_HLF_G3RF",
+      "rating": 1540.894664267753,
+      "source_experiment": "history_tactical_lmr_q_fix",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "q_refill",
+      "descriptor_sha256": "82ec4896bef98ba28f512668dffe66842275b83f208e5f55f1166d8ccc01d474"
+    },
+    {
+      "rank": 11,
+      "suffix": "HLFS_G3QH",
+      "source": "NNUE_W512_v3_HLFS_G3QH",
+      "rating": 1538.5466630724613,
+      "source_experiment": "history_tactical_lmr_q_fix_sacrifice",
+      "experiment": "history_tactical_lmr_q_fix_sacrifice",
+      "trial": "q_history",
+      "descriptor_sha256": "26168de504da077afc0403d068581b16a5df0b4d574e90235908a4eff65542ac"
+    },
+    {
+      "rank": 12,
+      "suffix": "HLF_G3SC",
+      "source": "NNUE_W512_v3_HLF_G3SC",
+      "rating": 1535.120077331248,
+      "source_experiment": "history_tactical_lmr_q_fix",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "searched_lmr",
+      "descriptor_sha256": "ef2df4a7280cb62f62b9cd2eb4299cf8d0e7c7ff3c2060175d00b729797e0108"
+    },
+    {
+      "rank": 13,
+      "suffix": "HLFN",
+      "source": "NNUE_W512_v3_HLFN",
+      "rating": 1533.5453350971138,
+      "source_experiment": "history_tactical_lmr_q_fix_null",
+      "experiment": "history_tactical_lmr_q_fix_null",
+      "trial": "none",
+      "descriptor_sha256": "b4a5b58829b9436e9a4fbceced88b94842bcd22808361be44884f9d5b6b0204a"
+    },
+    {
+      "rank": 14,
+      "suffix": "HLFS_G3CF",
+      "source": "NNUE_W512_v3_HLFS_G3CF",
+      "rating": 1525.56090342047,
+      "source_experiment": "history_tactical_lmr_q_fix_sacrifice",
+      "experiment": "history_tactical_lmr_q_fix_sacrifice",
+      "trial": "context_retry",
+      "descriptor_sha256": "6ed5426d83e5719e36a40a3bd68f13170a4848dff55e6e2485d77890c7146eff"
+    },
+    {
+      "rank": 15,
+      "suffix": "HLF_HR",
+      "source": "NNUE_W512_v3_HLF_HR",
+      "rating": 1521.65146110952,
+      "source_experiment": "history_tactical_lmr_q_fix_history_reduction",
+      "experiment": "history_tactical_lmr_q_fix_history_reduction",
+      "trial": "none",
+      "descriptor_sha256": "0e796648ba5e86b8a005193d4c0722a446b2977d3dd94c2986128d78c1405d00"
+    },
+    {
+      "rank": 16,
+      "suffix": "HLFS_G3PR",
+      "source": "NNUE_W512_v3_HLFS_G3PR",
+      "rating": 1520.8668687444356,
+      "source_experiment": "history_tactical_lmr_q_fix_sacrifice",
+      "experiment": "history_tactical_lmr_q_fix_sacrifice",
+      "trial": "partial_root",
+      "descriptor_sha256": "e4c43fc293a311caf8aac8aeeddc9f2b261a7a036b178d4ba6d19d03b9921646"
+    }
+  ],
+  "skipped_equivalents": [
+    {
+      "id": "NNUE_W512_v3_HL",
+      "rating": 1547.672905097484,
+      "equivalent_to": "NNUE_W384_v4.5_HLF"
+    }
+  ],
+  "bases": {
+    "NNUE_W384_v6A": {
+      "feature_hash": "126bc08ca9871740d5cc545d4c1723d21e7705089bf98a79b8714a598409ca72",
+      "file": "/mnt/HC_Volume_107032879/taikyoku/tourney/corrected-rules-20261031/analysis/models/66ed5df3a98a170823d6dbf0675d5ff3f0332bc425426809f64ef701a759c9b5.nnue",
+      "output_mode": "residual",
+      "sha256": "66ed5df3a98a170823d6dbf0675d5ff3f0332bc425426809f64ef701a759c9b5",
+      "width": 384
+    },
+    "NNUE_W384_v6Cm": {
+      "feature_hash": "126bc08ca9871740d5cc545d4c1723d21e7705089bf98a79b8714a598409ca72",
+      "file": "/mnt/HC_Volume_107032879/taikyoku/tourney/corrected-rules-20261031/analysis/models/2fb47b37ece772158af3244c790a035eef7ac19b426272f5a881d57d2de30972.nnue",
+      "output_mode": "residual",
+      "sha256": "2fb47b37ece772158af3244c790a035eef7ac19b426272f5a881d57d2de30972",
+      "width": 384
+    },
+    "NNUE_W512_v6Cm": {
+      "feature_hash": "126bc08ca9871740d5cc545d4c1723d21e7705089bf98a79b8714a598409ca72",
+      "file": "/mnt/HC_Volume_107032879/taikyoku/tourney/corrected-rules-20261031/analysis/models/d5c5dfcd28ac333b4373381a150a54e0929512571c94edb86c6e72e701885f15.nnue",
+      "output_mode": "residual",
+      "sha256": "d5c5dfcd28ac333b4373381a150a54e0929512571c94edb86c6e72e701885f15",
+      "width": 512
+    }
+  },
+  "inputs_sha256": {
+    "snapshot.json": "a01f84926aa6e1ee918666ca475cafedeefe24ca9ac4d52fc479a88a05652e79",
+    "descriptors.json": "3b363d8ae89312a0264f6f4e97560a91d0c33ca65edb03aed060a12c89f72470"
+  }
+}

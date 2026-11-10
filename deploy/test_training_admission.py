@@ -44,7 +44,7 @@ class AdmissionTests(unittest.TestCase):
                 yield run, model, control, support
 
     def test_trial_cohort_is_pinned_and_idempotent_without_changing_old_admissions(self):
-        for trial, expected in [(None, None), ("none", None), ("q_refill", "search")]:
+        for trial, expected in [(None, None), ("none", "search"), ("q_refill", "search")]:
             with self.subTest(trial=trial), self.admission_fixture(trial) as (run, model, control, _):
                 requests = []
 
@@ -212,6 +212,29 @@ class AdmissionTests(unittest.TestCase):
                 config["search_variants"]["base_H"] = "guarded_null"
                 with self.assertRaisesRegex(ValueError, "definition changed"):
                     admission.prepare_search_variants(config)
+
+    def test_corrected_baseline_can_be_a_transfer_source(self):
+        with self.admission_fixture() as (run, model, _, _):
+            source = model / "model.json"
+            checkpoint = a.read(source)
+            checkpoint["search_defaults"] = dict(experiment="q_fix", trial="none")
+            a.atomic(source, checkpoint)
+            before = source.read_bytes()
+            a.atomic(run / "state.json", dict(entrants=[dict(id="base", model=str(source))]))
+            config = dict(
+                run=str(run),
+                out=str(model.parent / "variants"),
+                base_entrant="base",
+                search_variants={"v6_LF": "tactical_lmr_q_fix"},
+            )
+            models = admission.prepare_search_variants(config)
+            self.assertEqual(len(models), 1)
+            self.assertEqual(a.read(models[0] / "model.json")["search_defaults"]["experiment"], "tactical_lmr_q_fix")
+            self.assertEqual(source.read_bytes(), before)
+            checkpoint["search_defaults"]["experiment"] = "history"
+            a.atomic(source, checkpoint)
+            with self.assertRaisesRegex(ValueError, "corrected baseline"):
+                admission.prepare_search_variants(config)
 
     def test_search_package_can_transfer_across_distinct_registered_networks(self):
         with tempfile.TemporaryDirectory() as temp:

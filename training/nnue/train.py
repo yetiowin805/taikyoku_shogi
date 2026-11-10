@@ -403,6 +403,9 @@ def fit(a):
             cp["weights"]["lr_flight_k"] = 0
             cp["weights"]["two_mover_align_k"] = 0
             cp["search_defaults"]["q_own_large_only"] = True
+            # New baseline exports use corrected qsearch; existing model files stay immutable.
+            if cp["search_defaults"].get("experiment", "baseline") == "baseline":
+                cp["search_defaults"]["experiment"] = "q_fix"
             target = a.out / f"{cp['name']}.json"
             old_blob = None
             if target.exists():
