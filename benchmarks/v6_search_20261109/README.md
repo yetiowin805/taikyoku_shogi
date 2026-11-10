@@ -67,5 +67,15 @@ unittests. The tiny training/fork/restart integration verifies new exports write
 `q_fix`. Regression tests cover new defaults versus legacy checkpoint identity,
 LF policy plumbing, corrected-baseline transfer, and trial=None search cohorts.
 
-Live validation and admission receipts are recorded separately after completion.
+The pinned production compatibility source also passes all 28 search-experiment
+unit tests, including q cache separation, recursive evasion, and legal-move checks.
+`admission-receipt.json` records the completed live transaction: 48 entrants
+admitted, bringing the roster to 141. Both production helpers validated all 48
+new descriptors. Fourteen legacy fixed-depth comparisons (seven existing
+packages on two positions, depth 2) matched every emitted result except wall
+clock time. LF completed depth-2 smoke searches on all three requested networks.
+All 93 existing entrant definitions and model descriptor hashes stayed unchanged;
+the coordinator service was not restarted and assignments remain enabled.
+The existing dashboard was refreshed without changing its frozen confidence
+section. New entrants join subsequent pairings through the normal scheduler.
 No strength or speed gain is claimed by these correctness checks.
