@@ -2743,5 +2743,12 @@
       "seed": 49,
       "top_five_recovered": 4
     }
-  ]
+  ],
+  "environment": {
+    "system": "Linux",
+    "kernel": "6.8.0-138-generic",
+    "architecture": "x86_64",
+    "rustc": "rustc 1.92.0 (ded5c06cf 2025-12-08)",
+    "profile": "cargo --release; in-process synthetic game outcomes; no engine searches"
+  }
 }

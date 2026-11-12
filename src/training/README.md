@@ -333,7 +333,8 @@ the allocator adds both directed edges for every running or committed pending
 game, as if it will draw, before choosing the next pair. It reserves each new
 pair under the coordinator mutex before another worker can choose. Actual
 decisive results can restore connectivity priority. Pending return legs always
-finish, including after restart or a change in eligibility.
+finish, including after restart or a change in eligibility. Migration preserves
+interrupted attempts and their return legs for retry; aborted attempts are not results.
 
 After this assumed-draw graph is connected, weighted deficits allocate 85% of
 new pairs to placement/top-five information, 10% to champion probing, and 5% to

@@ -140,7 +140,7 @@ pub fn migrate(state: &mut TourneyState) -> Result<(), String> {
     let started: BTreeSet<_> = state
         .slots
         .iter()
-        .filter(|s| s.status == SlotStatus::Done)
+        .filter(|s| matches!(s.status, SlotStatus::Done | SlotStatus::Aborted))
         .map(pair_key)
         .collect();
     for slot in &mut state.slots {
@@ -1192,16 +1192,43 @@ mod tests {
     }
 
     #[test]
+    fn migration_retries_interrupted_games_and_their_return_legs() {
+        let mut s = fixture(4);
+        for _ in 0..4 {
+            claim(&mut s).unwrap();
+        }
+        for slot in &mut s.slots {
+            slot.status = SlotStatus::Pending;
+        }
+        s.slots[0].status = SlotStatus::Aborted;
+        s.format = TourneyFormat::Knockout;
+        s.adaptive = None;
+        migrate(&mut s).unwrap();
+        assert_eq!(s.slots[0].status, SlotStatus::Aborted);
+        assert_eq!(s.slots[1].status, SlotStatus::Pending);
+        assert_eq!(s.slots[2].status, SlotStatus::Cancelled);
+        assert_eq!(s.adaptive.as_ref().unwrap().completed_games, 0);
+        assert!(s.slots.iter().all(|s| s.score_a.is_none()));
+        // Resume converts interrupted attempts to pending before workers claim.
+        s.slots[0].status = SlotStatus::Pending;
+        assert_eq!(claim(&mut s).unwrap(), Some(0));
+        assert_eq!(claim(&mut s).unwrap(), Some(1));
+    }
+
+    #[test]
     #[ignore = "50-seed adaptive-policy validation; run explicitly with --release --ignored --nocapture"]
     fn fifty_seed_policy_comparison() {
         use crate::training::tournament::{ensure_ratings, rate_finished_slot};
         use rand::{Rng, SeedableRng};
         let mut rows = vec![];
+        let first_seed = std::env::var("SCHEDULER_SEED_START")
+            .map(|s| s.parse::<u64>().expect("invalid simulation seed"))
+            .unwrap_or(0);
         for scenario in ["sparse", "admission", "correlated"] {
             if std::env::var("SCHEDULER_SCENARIO").is_ok_and(|s| s != scenario) {
                 continue;
             }
-            for seed in 0..50_u64 {
+            for seed in first_seed..first_seed + 50 {
                 for adaptive in [false, true] {
                     let mut s = fixture(12);
                     s.seed_base = seed + 1;

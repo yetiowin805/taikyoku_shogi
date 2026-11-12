@@ -108,6 +108,9 @@ the coordinator keeps pending return legs of started pairs, archives unfinished
 brackets, and marks wholly unstarted assignments `cancelled`. Cancelled slots
 remain in history and are never retried. It starts all available game workers
 on the shared adaptive allocator; `--top-two-worker` is removed from the command.
+Interrupted (`aborted`) attempts and their return legs are retained and retried
+with the same slot, colors and starting seed. The upgrader itself never interrupts
+a game; stopping games remains a separate explicit operator action.
 
 Future generations require an explicit order before admission. Supply the full
 oldest-to-newest order; existing generation labels cannot be omitted:
