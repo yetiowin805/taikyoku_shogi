@@ -41,6 +41,8 @@ pub struct Report {
     /// Unknown IDs need explicit entrant metadata to receive cohort protection.
     pub unclassified: BTreeSet<String>,
     pub inactive: BTreeSet<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub adaptive_exposure: Option<BTreeMap<String, super::adaptive::Exposure>>,
 }
 
 impl Report {
@@ -145,7 +147,31 @@ pub(super) fn evaluate(state: &TourneyState, fit: &Fit) -> Result<Report, String
         retained_by_generation: BTreeSet::new(),
         unclassified,
         inactive: BTreeSet::new(),
+        adaptive_exposure: None,
     };
+    if state.format == super::tournament::TourneyFormat::Adaptive {
+        report.policy = "adaptive-top5-p01-p05-g40-o6-v1";
+        report.minimum_games = 40;
+        report.minimum_covered_opponents = 6;
+        report.minimum_scc_agents = 0;
+        report.inactive = state.retired.clone();
+        if let Some(adaptive) = &state.adaptive {
+            report.adaptive_exposure = Some(adaptive.exposure.clone());
+            for (id, e) in &adaptive.exposure {
+                report.candidates.insert(
+                    id.clone(),
+                    Candidate {
+                        games: e.games,
+                        covered_opponents: e.opponents,
+                        stronger_rivals: 0,
+                        rivals_ahead_by_50: 0,
+                        coverage_met: e.games >= 40 && e.opponents >= 6,
+                    },
+                );
+            }
+        }
+        return Ok(report);
+    }
     if report.eligible_components.is_empty() {
         report.protect_generations();
         return Ok(report);

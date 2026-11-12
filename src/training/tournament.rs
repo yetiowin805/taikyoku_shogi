@@ -51,6 +51,8 @@ pub enum TourneyFormat {
     Swiss,
     /// Continuous seeded knockout until cooperative stop.
     Knockout,
+    /// Posterior-guided pairs with connectivity-first scheduling.
+    Adaptive,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -83,6 +85,8 @@ pub enum SlotStatus {
     Running,
     Done,
     Aborted,
+    /// Unstarted assignment archived during a scheduler migration; never retried.
+    Cancelled,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -122,6 +126,8 @@ pub struct TourneySlot {
 pub struct TourneyState {
     #[serde(default)]
     pub runtime_control: super::runtime_tasks::ControlState,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub adaptive: Option<super::adaptive::Scheduler>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub time_control: Option<super::clock::FischerControl>,
     pub run_id: String,
@@ -178,6 +184,7 @@ pub struct TourneyState {
 #[derive(Debug, Clone)]
 pub struct TourneyConfig {
     pub top_two_worker: bool,
+    pub rollback_scheduler: bool,
     pub time_control: Option<super::clock::FischerControl>,
     pub run_id: String,
     pub outdir: PathBuf,
@@ -205,6 +212,7 @@ impl Default for TourneyConfig {
     fn default() -> Self {
         Self {
             top_two_worker: false,
+            rollback_scheduler: false,
             time_control: None,
             run_id: new_run_id(),
             outdir: PathBuf::from("data/raw/tourney"),
@@ -311,6 +319,11 @@ fn score_from_result(a_is_black: bool, result: &Option<GameResult>) -> f64 {
 }
 
 pub(crate) fn ensure_ratings(state: &mut TourneyState) {
+    if let Err(error) = super::adaptive::refresh(state) {
+        state.runtime_control.assignments_paused = true;
+        state.runtime_control.pause_reason = format!("adaptive scheduling failed: {error}");
+        state.adaptive.get_or_insert_with(Default::default).error = Some(error);
+    }
     if state.order_neutral_only {
         let fit = super::order_neutral::from_state(state);
         assert!(
@@ -361,6 +374,7 @@ pub(crate) fn build_schedule(cfg: &TourneyConfig) -> TourneyState {
     }
     let mut state = TourneyState {
         runtime_control: Default::default(),
+        adaptive: None,
         time_control: cfg.time_control,
         run_id: cfg.run_id.clone(),
         depth: cfg.depth,
@@ -421,7 +435,7 @@ pub(crate) fn build_schedule(cfg: &TourneyConfig) -> TourneyState {
                 }
             }
         }
-        TourneyFormat::Swiss | TourneyFormat::Knockout => {
+        TourneyFormat::Swiss | TourneyFormat::Knockout | TourneyFormat::Adaptive => {
             // Continuous: slots are appended on demand.
         }
     }
@@ -990,13 +1004,16 @@ pub(crate) fn inflight_count(state: &TourneyState) -> usize {
 }
 
 pub(crate) fn format_is_continuous(format: TourneyFormat) -> bool {
-    matches!(format, TourneyFormat::Swiss | TourneyFormat::Knockout)
+    matches!(
+        format,
+        TourneyFormat::Swiss | TourneyFormat::Knockout | TourneyFormat::Adaptive
+    )
 }
 
 /// True when every scheduled RR slot is Done. Swiss/knockout never complete on their own.
 pub fn tournament_is_complete(state: &TourneyState) -> bool {
     match state.format {
-        TourneyFormat::Swiss | TourneyFormat::Knockout => false,
+        TourneyFormat::Swiss | TourneyFormat::Knockout | TourneyFormat::Adaptive => false,
         TourneyFormat::RoundRobin => {
             !state.slots.is_empty() && state.slots.iter().all(|s| s.status == SlotStatus::Done)
         }
@@ -1015,6 +1032,7 @@ pub fn slot_status_counts(state: &TourneyState) -> (usize, usize, usize, usize) 
             SlotStatus::Pending => pending += 1,
             SlotStatus::Running => running += 1,
             SlotStatus::Aborted => aborted += 1,
+            SlotStatus::Cancelled => {}
         }
     }
     (done, pending, running, aborted)
@@ -1100,6 +1118,13 @@ pub fn save_state(cfg: &TourneyConfig, state: &TourneyState) -> Result<(), Strin
     super::durable::write(&elo_path(cfg), elo_json.as_bytes(), false)?;
     let ratings_json = serde_json::to_string_pretty(&state.ratings).map_err(|e| e.to_string())?;
     super::durable::write(&ratings_path(cfg), ratings_json.as_bytes(), false)?;
+    if let Some(adaptive) = &state.adaptive {
+        super::durable::write(
+            &dir.join("adaptive-scheduler.json"),
+            &serde_json::to_vec_pretty(adaptive).map_err(|e| e.to_string())?,
+            false,
+        )?;
+    }
     let neutral = super::order_neutral::from_state(&state);
     super::durable::write(
         &dir.join("order-neutral-ratings.json"),
@@ -1316,6 +1341,27 @@ pub(crate) fn claim_for_worker(
     if state.runtime_control.assignments_paused {
         return None;
     }
+    if state.format == TourneyFormat::Adaptive {
+        return match super::adaptive::claim(state) {
+            Ok(slot) => slot,
+            Err(error) => {
+                state.runtime_control.assignments_paused = true;
+                state.runtime_control.pause_reason = format!("adaptive scheduling failed: {error}");
+                state.adaptive.get_or_insert_with(Default::default).error = Some(error);
+                None
+            }
+        };
+    }
+    if state.adaptive.is_some() {
+        if let Some(slot) = state
+            .slots
+            .iter_mut()
+            .find(|s| s.status == SlotStatus::Pending)
+        {
+            slot.status = SlotStatus::Running;
+            return Some(slot.id);
+        }
+    }
     if top_two && worker == 2 {
         super::top_two::claim(state).or_else(|| claim_or_schedule_slot(state, cfg))
     } else {
@@ -1351,10 +1397,12 @@ fn resolve_start(
     light: &crate::training::pool::StartsSource,
 ) -> Result<GameStart, String> {
     match format {
-        TourneyFormat::Swiss | TourneyFormat::Knockout => match start_mode {
-            SlotStartMode::Opening => Ok(GameStart::Opening),
-            SlotStartMode::Light => light.start_for_seed(start_seed),
-        },
+        TourneyFormat::Swiss | TourneyFormat::Knockout | TourneyFormat::Adaptive => {
+            match start_mode {
+                SlotStartMode::Opening => Ok(GameStart::Opening),
+                SlotStartMode::Light => light.start_for_seed(start_seed),
+            }
+        }
         TourneyFormat::RoundRobin => {
             let starts = parse_starts_spec(starts_spec)?;
             starts.start_for_seed(start_seed)
@@ -1370,7 +1418,7 @@ fn claim_or_schedule_slot(st: &mut TourneyState, cfg: &TourneyConfig) -> Option<
     match st.format {
         TourneyFormat::Swiss => while inflight_count(st) < cap && schedule_one_swiss_game(st) {},
         TourneyFormat::Knockout => fill_knockout_queue(st, cap),
-        TourneyFormat::RoundRobin => {}
+        TourneyFormat::RoundRobin | TourneyFormat::Adaptive => {}
     }
     let idx = match st.format {
         TourneyFormat::Knockout => pending_slot_claim_index(st),
@@ -1456,6 +1504,12 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
 
     let mut state = if cfg.resume && state_path(cfg).exists() {
         let mut s = load_state(&state_path(cfg))?;
+        if cfg.format == TourneyFormat::Adaptive && s.format != TourneyFormat::Adaptive {
+            super::adaptive::migrate(&mut s)?;
+        }
+        if cfg.rollback_scheduler {
+            super::adaptive::rollback(&mut s)?;
+        }
         for slot in &mut s.slots {
             if slot.status == SlotStatus::Running || slot.status == SlotStatus::Aborted {
                 slot.status = SlotStatus::Pending;
@@ -1481,14 +1535,23 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
         }
         s
     };
-    if (cfg.top_two_worker || !state.top_two_pairs.is_empty())
+    if state.adaptive.is_none()
+        && state.format != TourneyFormat::Adaptive
+        && (cfg.top_two_worker || !state.top_two_pairs.is_empty())
         && (state.format != TourneyFormat::Knockout || ![4, 8].contains(&cfg.jobs))
     {
         return Err("top-two worker requires knockout format and --jobs 4 or 8".into());
     }
-    let top_two_enabled = cfg.top_two_worker || !state.top_two_pairs.is_empty();
+    let top_two_enabled = state.adaptive.is_none()
+        && state.format != TourneyFormat::Adaptive
+        && (cfg.top_two_worker || !state.top_two_pairs.is_empty());
     state.order_neutral_only = true;
     ensure_ratings(&mut state);
+    if let Some(error) = state.adaptive.as_ref().and_then(|a| a.error.as_ref()) {
+        return Err(format!(
+            "adaptive scheduler initialization failed: {error}; tournament did not start"
+        ));
+    }
     apply_time_control(&mut state, cfg)?;
     if state.time_control.is_some() {
         if let Some(pointer) = std::env::var_os("TAIKYOKU_ENGINE_POINTER") {
@@ -1578,6 +1641,11 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
                             }
                         }
                         let mut st = state_mu.lock().unwrap();
+                        if let Some(error) = st.adaptive.as_ref().and_then(|a| a.error.as_ref()) {
+                            eprintln!("adaptive scheduling failed: {error}; draining games; no new games will start");
+                            admission_failed.store(true, Ordering::Relaxed);
+                            return;
+                        }
                         if st.runtime_control.assignments_paused {
                             drop(st);
                             shared_lease.take();
@@ -1585,6 +1653,12 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
                             continue;
                         }
                         let claim = claim_for_worker(&mut st, cfg, worker_index, top_two_enabled);
+                        if let Some(error) = st.adaptive.as_ref().and_then(|a| a.error.as_ref()) {
+                            eprintln!("adaptive scheduling failed: {error}; draining games; no new games will start");
+                            let _ = save_state(cfg, &st);
+                            admission_failed.store(true, Ordering::Relaxed);
+                            return;
+                        }
                         match claim {
                             Some(id) => {
                                 if let Err(e) = save_state(cfg, &st) {
@@ -2491,6 +2565,7 @@ mod tests {
     fn migrate_legacy_elo_into_ratings() {
         let mut st = TourneyState {
             runtime_control: Default::default(),
+            adaptive: None,
             run_id: "x".into(),
             depth: 2,
             max_time_ms: None,

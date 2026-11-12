@@ -119,6 +119,7 @@ fn main() {
                 }
             }
 
+            "tournament-adaptive-protocol" => println!("1"),
             "tournament-task-protocol" => {
                 println!("{}", taikyoku_shogi::training::runtime_tasks::PROTOCOL)
             }

@@ -130,6 +130,16 @@ def print_header(run_dir: Path, state: dict[str, Any]) -> None:
     title_bits = ", ".join(f"{k}×{v}" for k, v in sorted(titles.items(), key=lambda kv: -kv[1]))
     print(f"run={run_dir.name}  format={state.get('format')}  path={run_dir}")
     print(f"slots={len(slots)}  " + " ".join(f"{k}={v}" for k, v in sorted(c.items())))
+    adaptive = state.get("adaptive")
+    if adaptive:
+        print(
+            f"adaptive pairs={len(adaptive['pairs'])} actual_sccs={adaptive['actual_components']} assumed_draw_sccs={adaptive['assumed_components']} lanes={adaptive['lane_pairs']}"
+        )
+        if adaptive["pairs"]:
+            pair = adaptive["pairs"][-1]
+            print(f"latest={pair['reason']} {' vs '.join(pair['agents'])} slots={pair['slot_ids']}")
+        if adaptive.get("error"):
+            print(f"SCHEDULER ERROR: {adaptive['error']}")
     pairs = state.get("top_two_pairs", [])
     if pairs:
         pair = pairs[-1]
@@ -138,7 +148,7 @@ def print_header(run_dir: Path, state: dict[str, Any]) -> None:
         print(
             f"top-two pairs={len(pairs)} latest={' vs '.join(pair['agents'])} "
             f"done={sum(s['status'] == 'done' for s in games)}/2 "
-            "(order-neutral only)"
+            + ("(historical supplemental lane)" if adaptive else "(order-neutral only)")
         )
     if trees:
         print(
@@ -166,7 +176,7 @@ def print_tree(tree: dict[str, Any], slots: dict[int, dict[str, Any]]) -> None:
     for m in tree.get("matches", []):
         if stage_label(m.get("stage")) == "Final" and m.get("winner"):
             champ = m["winner"]
-    flag = "complete" if complete else "in progress"
+    flag = "archived" if tree.get("archived") else ("complete" if complete else "in progress")
     extra = f"  champion={champ}" if champ else ""
     print(f"## Tree {tid}  {flag}  bracket={tree.get('bracket_size')}{extra}")
     if seeds:
@@ -210,7 +220,7 @@ def trees_for_display(trees: list[dict[str, Any]], which: str | None, all_trees:
         return picked
     if all_trees:
         return trees
-    unfinished = [t for t in trees if not t.get("complete")]
+    unfinished = [t for t in trees if not t.get("complete") and not t.get("archived")]
     finished = [t for t in trees if t.get("complete")]
     out: list[dict[str, Any]] = []
     if finished:
@@ -221,9 +231,10 @@ def trees_for_display(trees: list[dict[str, Any]], which: str | None, all_trees:
 
 
 def print_trees(state: dict[str, Any], which: str | None, all_trees: bool = False) -> None:
-    trees: list[dict[str, Any]] = list(state.get("knockouts") or [])
+    archived = set((state.get("adaptive") or {}).get("archived_knockouts", []))
+    trees: list[dict[str, Any]] = [dict(t, archived=t["id"] in archived) for t in state.get("knockouts") or []]
     if not trees:
-        print("(no knockout trees — Swiss / RR run)\n")
+        print("(no knockout trees)\n")
         return
     slots = slot_by_id(state)
     shown = trees_for_display(trees, which, all_trees)

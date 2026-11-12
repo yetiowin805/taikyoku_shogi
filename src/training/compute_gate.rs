@@ -48,7 +48,8 @@ impl ComputeGate {
         return Err("adaptive compute requires Linux".into());
         Ok(())
     }
-    /// Eight-CPU admission: worker 0 remains a game player, worker 2 top-two.
+    /// Eight-CPU admission: workers 0 and 2 remain game players. Legacy knockout
+    /// assigns worker 2 top-two pairs; adaptive scheduling gives both normal claims.
     /// Demand and reservations share one cross-process lock with the analyzer.
     pub fn claim_worker(&self, worker: usize) -> Result<Option<File>, String> {
         if self.cpus.len() == 4 {

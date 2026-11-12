@@ -334,6 +334,13 @@ fn process_all_matches(state: &mut TourneyState) {
     replace_aborted_games(state);
     let n_trees = state.knockouts.len();
     for t in 0..n_trees {
+        if state
+            .adaptive
+            .as_ref()
+            .is_some_and(|a| a.archived_knockouts.contains(&state.knockouts[t].id))
+        {
+            continue;
+        }
         let n_matches = state.knockouts[t].matches.len();
         for m in 0..n_matches {
             process_match(state, t, m);
@@ -519,6 +526,13 @@ fn match_game_scores(state: &TourneyState, m: &KnockoutMatch) -> Vec<f64> {
 fn enqueue_needed_games(state: &mut TourneyState) {
     let n_trees = state.knockouts.len();
     for t in 0..n_trees {
+        if state
+            .adaptive
+            .as_ref()
+            .is_some_and(|a| a.archived_knockouts.contains(&state.knockouts[t].id))
+        {
+            continue;
+        }
         let n_m = state.knockouts[t].matches.len();
         for mi in 0..n_m {
             maybe_enqueue_match_games(state, t, mi);

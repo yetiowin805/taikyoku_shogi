@@ -46,6 +46,25 @@ def clock_transition(config, initial_ms, increment_ms):
     return dict(config, command=command, time_control=dict(initial_ms=initial_ms, increment_ms=increment_ms))
 
 
+def scheduler_transition(config, adaptive, rollback=False):
+    """Switch pairing only; the coordinator migrates committed slots on resume."""
+    if adaptive and rollback:
+        raise ValueError("Choose adaptive activation or scheduler rollback, not both")
+    if not adaptive and not rollback:
+        return config
+    command = list(config["command"])
+    if command.count("--format") != 1:
+        raise ValueError("Adaptive migration requires one explicit --format")
+    index = command.index("--format")
+    if index + 1 == len(command) or command[index + 1] not in ("knockout", "adaptive"):
+        raise ValueError("Adaptive migration requires a knockout or adaptive run")
+    command[index + 1] = "knockout" if rollback else "adaptive"
+    command = [part for part in command if part not in ("--top-two-worker", "--rollback-scheduler")]
+    if rollback:
+        command.append("--rollback-scheduler")
+    return dict(config, command=command)
+
+
 def generation_transition(state, bindings):
     """Prepare metadata only; publish after draining and stopping the coordinator."""
     if not isinstance(bindings, dict) or not bindings:
@@ -139,6 +158,12 @@ def upgrade(args):
     control = run / "analysis"
     if subprocess.check_output([str(binary), "tournament-task-protocol"], text=True).strip() != "1":
         raise ValueError("Replacement scheduler lacks the required task protocol")
+    adaptive = getattr(args, "adaptive", False)
+    rollback = getattr(args, "rollback_scheduler", False)
+    if (adaptive or rollback) and subprocess.check_output(
+        [str(binary), "tournament-adaptive-protocol"], text=True
+    ).strip() != "1":
+        raise ValueError("Replacement scheduler lacks adaptive support")
     expected = a.file_digest(binary)
     pointer = (control / "active-engine.json").read_bytes()
     cfg = a.read(control / "config.json")
@@ -147,7 +172,7 @@ def upgrade(args):
     if bindings is not None:
         generation_transition(a.read(run / "state.json"), bindings)  # Validate before the drain.
     # Validate before touching any service or taking the game-admission gate.
-    clock_transition(cfg, args.initial_time_ms, args.increment_ms)
+    scheduler_transition(clock_transition(cfg, args.initial_time_ms, args.increment_ms), adaptive, rollback)
     if len(cfg["cpus"]) != 8 or cfg.get("sidecar") != "none":
         raise ValueError("Legacy migration requires an eight-CPU external-sidecar scheduler")
     report = control / "scheduler-upgrade.json"
@@ -184,6 +209,7 @@ def upgrade(args):
                 manifest = a.read(control / "manifest.json")
                 manifest["entrants"] = changed["entrants"]
                 tasks.durable(control / "manifest.json", json.dumps(manifest, indent=2).encode())
+            cfg = scheduler_transition(cfg, adaptive, rollback)
             cfg["command"][0] = str(binary)
             tasks.durable(control / "config.json", json.dumps(cfg, indent=2).encode())
             service("start", args.coordinator)
@@ -197,6 +223,10 @@ def upgrade(args):
                             "Scheduler did not start; inspect tournament.log; backup: " + str(backup)
                         ) from None
                     time.sleep(1)
+            if adaptive and a.read(run / "state.json")["format"] != "adaptive":
+                raise RuntimeError("Restarted scheduler did not activate adaptive scheduling")
+            if rollback and a.read(run / "state.json")["format"] != "knockout":
+                raise RuntimeError("Restarted scheduler did not restore knockout scheduling")
             if args.initial_time_ms is not None:
                 applied = a.read(run / "state.json").get("time_control")
                 if applied != cfg["time_control"]:
@@ -217,6 +247,11 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("run", type=Path)
     parser.add_argument("binary", type=Path)
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--adaptive", action="store_true", help="Finish started pairs and replace bracket sampling")
+    mode.add_argument(
+        "--rollback-scheduler", action="store_true", help="Keep evidence and resume new knockout brackets"
+    )
     parser.add_argument("--coordinator", default="taikyoku-coordinator.service")
     parser.add_argument(
         "--generation-map", type=Path, help="JSON entrant-to-generation bindings; applied after games finish"

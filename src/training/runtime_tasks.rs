@@ -39,6 +39,7 @@ struct Request {
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 enum Command {
     Admit { entrants: Vec<ValidatedEntrant> },
+    SetGenerationOrder { generations: Vec<String> },
     PauseAssignments { reason: String },
     ResumeAssignments,
 }
@@ -56,6 +57,29 @@ fn apply(state: &mut TourneyState, request: Request) -> Result<(), String> {
         return Err("task protocol or run identity mismatch".into());
     }
     match request.command {
+        Command::SetGenerationOrder { generations } => {
+            let unique: std::collections::BTreeSet<_> = generations.iter().collect();
+            if generations.is_empty()
+                || unique.len() != generations.len()
+                || generations.iter().any(|g| g.is_empty() || g.trim() != g)
+            {
+                return Err("generation order needs unique nonempty labels".into());
+            }
+            for entrant in &state.entrants {
+                if let Some(label) = super::generations::label(entrant)? {
+                    if !generations.iter().any(|g| g == label) {
+                        return Err(format!(
+                            "generation order omits admitted generation {label}"
+                        ));
+                    }
+                }
+            }
+            state
+                .adaptive
+                .as_mut()
+                .ok_or("generation order requires adaptive scheduling")?
+                .generation_order = generations;
+        }
         Command::PauseAssignments { reason } => {
             if reason.trim().is_empty() {
                 return Err("pause requires a reason".into());
@@ -73,7 +97,14 @@ fn apply(state: &mut TourneyState, request: Request) -> Result<(), String> {
             }
             for item in entrants {
                 let entrant = item.entrant;
-                super::generations::label(&entrant)?;
+                let generation = super::generations::label(&entrant)?;
+                if let (Some(adaptive), Some(label)) = (&state.adaptive, generation) {
+                    if !adaptive.generation_order.iter().any(|g| g == label) {
+                        return Err(format!(
+                            "generation {label} needs an explicit adaptive generation-order entry"
+                        ));
+                    }
+                }
                 if entrant.id.is_empty()
                     || entrant.engine.is_some()
                     || state.retired.contains(&entrant.id)
@@ -480,6 +511,42 @@ mod tests {
         f.command("003", json!({"kind":"resume_assignments"}));
         process(&f.cfg, &mut state).unwrap();
         assert!(claim_for_worker(&mut state, &f.cfg, 0, true).is_some());
+    }
+
+    #[test]
+    fn adaptive_generation_order_must_cover_existing_labels_and_precedes_admission() {
+        let mut f = Fixture::new("adaptive-generations");
+        f.state.format = super::super::tournament::TourneyFormat::Adaptive;
+        f.state.adaptive = Some(Default::default());
+        let mut entrant = f.entrant("new");
+        entrant["entrant"]["generation"] = json!("future");
+        f.command("001", json!({"kind":"admit","entrants":[entrant.clone()]}));
+        process(&f.cfg, &mut f.state).unwrap();
+        assert_eq!(f.state.runtime_control.receipts["001"].status, "rejected");
+        f.command(
+            "002",
+            json!({"kind":"set_generation_order","generations":["future"]}),
+        );
+        process(&f.cfg, &mut f.state).unwrap();
+        assert_eq!(f.state.runtime_control.receipts["002"].status, "applied");
+        f.command("003", json!({"kind":"admit","entrants":[entrant]}));
+        process(&f.cfg, &mut f.state).unwrap();
+        assert_eq!(f.state.runtime_control.receipts["003"].status, "applied");
+        for (id, labels) in [
+            ("004", json!(["other"])),
+            ("005", json!(["future", "future"])),
+        ] {
+            f.command(
+                id,
+                json!({"kind":"set_generation_order","generations":labels}),
+            );
+            process(&f.cfg, &mut f.state).unwrap();
+            assert_eq!(f.state.runtime_control.receipts[id].status, "rejected");
+        }
+        assert_eq!(
+            f.state.adaptive.as_ref().unwrap().generation_order,
+            vec!["future"]
+        );
     }
 
     #[test]

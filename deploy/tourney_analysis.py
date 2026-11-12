@@ -745,9 +745,11 @@ def prepare(args, run):
         "--depth",
         str(depth),
         "--format",
-        state.get("format", "knockout") if state else "knockout",
+        getattr(args, "format", None) or (state.get("format", "knockout") if state else "knockout"),
     ]
-    if getattr(args, "top_two_worker", False) or "--top-two-worker" in previous.get("command", []):
+    if command[command.index("--format") + 1] != "adaptive" and (
+        getattr(args, "top_two_worker", False) or "--top-two-worker" in previous.get("command", [])
+    ):
         command.append("--top-two-worker")
     if args.action == "resume":
         command.append("--resume")
@@ -852,6 +854,7 @@ def main():
     parser.add_argument(
         "--top-two-worker", action="store_true", help="reserve one game worker for order-neutral top-two pairs"
     )
+    parser.add_argument("--format", choices=["knockout", "swiss", "round_robin", "adaptive"])
     parser.add_argument("--depth", type=int)
     parser.add_argument("--time-ms", type=int)
     parser.add_argument("--initial-time-ms", type=int, help="Fischer initial clock per side; 900000 for 15+5")
@@ -904,9 +907,10 @@ def main():
             demand = read(control / "analysis-demand.json") if (control / "analysis-demand.json").exists() else {}
             healthy = process_identity(demand.get("pid")) is not None and time.time() - demand.get("updated", 0) < 30
             reserved = len(demand.get("assigned", [])) if healthy else 0
+            adaptive = "adaptive" in config.get("command", [])
             allocation = dict(
-                tournament=7 - reserved,
-                top_two=1,
+                tournament=(8 if adaptive else 7) - reserved,
+                top_two=0 if adaptive else 1,
                 analysis_reserved=reserved,
                 analysis_active=len((pool_status or {}).get("active_cpus", [])) if healthy else 0,
             )

@@ -16,6 +16,33 @@ import upgrade_tournament_scheduler as upgrade
 
 
 class TasksTests(unittest.TestCase):
+    def test_adaptive_transition_changes_only_scheduling_flags(self):
+        config = dict(
+            command=["engine", "tournament", "--format", "knockout", "--top-two-worker", "--resume"],
+            cpus=list(range(8)),
+        )
+        changed = upgrade.scheduler_transition(config, True)
+        self.assertEqual(changed["command"], ["engine", "tournament", "--format", "adaptive", "--resume"])
+        self.assertEqual(config["command"][3], "knockout")
+        self.assertEqual(changed["cpus"], config["cpus"])
+        self.assertEqual(upgrade.scheduler_transition(changed, True), changed)
+        self.assertIs(upgrade.scheduler_transition(config, False), config)
+        rolled_back = upgrade.scheduler_transition(changed, False, True)
+        self.assertEqual(rolled_back["command"][3], "knockout")
+        self.assertEqual(rolled_back["command"].count("--rollback-scheduler"), 1)
+        self.assertEqual(upgrade.scheduler_transition(rolled_back, False, True), rolled_back)
+        self.assertEqual(upgrade.scheduler_transition(rolled_back, True), changed)
+        with self.assertRaises(ValueError):
+            upgrade.scheduler_transition(config, True, True)
+        for command in (
+            ["engine"],
+            ["engine", "--format"],
+            ["engine", "--format", "swiss"],
+            ["engine", "--format", "knockout", "--format", "adaptive"],
+        ):
+            with self.assertRaises(ValueError):
+                upgrade.scheduler_transition(dict(command=command), True)
+
     def test_clock_transition_preserves_schedule_and_requires_valid_pair(self):
         config = dict(
             command=["engine", "tournament", "--resume", "--initial-time-ms", "900000", "--increment-ms", "5000"],
