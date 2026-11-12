@@ -43,6 +43,8 @@ pub struct Report {
     pub inactive: BTreeSet<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub adaptive_exposure: Option<BTreeMap<String, super::adaptive::Exposure>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub adaptive_retirement_threshold: Option<super::adaptive::RetirementThreshold>,
 }
 
 impl Report {
@@ -148,15 +150,27 @@ pub(super) fn evaluate(state: &TourneyState, fit: &Fit) -> Result<Report, String
         unclassified,
         inactive: BTreeSet::new(),
         adaptive_exposure: None,
+        adaptive_retirement_threshold: None,
     };
     if state.format == super::tournament::TourneyFormat::Adaptive {
-        report.policy = "adaptive-top5-p01-p05-g40-o6-v1";
+        report.policy = if state
+            .adaptive
+            .as_ref()
+            .is_some_and(|a| a.retirement_threshold.is_some())
+        {
+            "adaptive-top5-p1over4active-p05-g40-o6-v2"
+        } else {
+            // A read-only fit of a pre-upgrade snapshot must describe the rule
+            // that produced its saved lifecycle decisions.
+            "adaptive-top5-p01-p05-g40-o6-v1"
+        };
         report.minimum_games = 40;
         report.minimum_covered_opponents = 6;
         report.minimum_scc_agents = 0;
         report.inactive = state.retired.clone();
         if let Some(adaptive) = &state.adaptive {
             report.adaptive_exposure = Some(adaptive.exposure.clone());
+            report.adaptive_retirement_threshold = adaptive.retirement_threshold;
             for (id, e) in &adaptive.exposure {
                 report.candidates.insert(
                     id.clone(),

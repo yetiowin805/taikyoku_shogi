@@ -34,6 +34,30 @@ pub struct Exposure {
     pub protected_by: Vec<String>,
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct RetirementThreshold {
+    /// Registered entrants eligible at the start of this evidence update.
+    pub active_agents: usize,
+    pub probability: f64,
+    /// Reuse the same denominator after a restart with unchanged evidence.
+    pub evidence_key: u64,
+}
+
+impl RetirementThreshold {
+    pub fn from_state(state: &TourneyState) -> Self {
+        let active_agents = state
+            .entrants
+            .iter()
+            .filter(|e| !state.retired.contains(&e.id))
+            .count();
+        Self {
+            active_agents,
+            probability: 1. / (4. * active_agents.max(1) as f64),
+            evidence_key: evidence_key(state),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Confirmation {
     pub leader: String,
@@ -52,6 +76,8 @@ pub struct Scheduler {
     pub anchor_picks: usize,
     pub confirmations: Vec<Confirmation>,
     pub exposure: BTreeMap<String, Exposure>,
+    #[serde(default)]
+    pub retirement_threshold: Option<RetirementThreshold>,
     pub completed_games: usize,
     pub actual_components: usize,
     pub assumed_components: usize,
@@ -77,6 +103,7 @@ impl Default for Scheduler {
             anchor_picks: 0,
             confirmations: vec![],
             exposure: BTreeMap::new(),
+            retirement_threshold: None,
             completed_games: 0,
             actual_components: 0,
             assumed_components: 0,
@@ -474,6 +501,18 @@ fn wilson_upper(success: usize, total: usize) -> f64 {
     (p + z * z / (2. * n) + z * (p * (1. - p) / n + z * z / (4. * n * n)).sqrt()) / (1. + z * z / n)
 }
 
+fn inactive_under_policy(was_inactive: bool, e: &Exposure, in_main: bool, cutoff: f64) -> bool {
+    if !e.protected_by.is_empty()
+        || e.top_five_probability > 0.05
+        || e.games < MIN_GAMES
+        || e.opponents < MIN_OPPONENTS
+        || !in_main
+    {
+        return false;
+    }
+    was_inactive || e.probability_upper < cutoff
+}
+
 pub fn refresh(state: &mut TourneyState) -> Result<(), String> {
     if state.format != TourneyFormat::Adaptive {
         return Ok(());
@@ -546,8 +585,25 @@ pub fn refresh(state: &mut TourneyState) -> Result<(), String> {
             }
         }
     }
+    // Freeze the input pool for this whole pass. Lifecycle changes must not make
+    // later entrants face a different cutoff, or trigger a fixed-point cascade.
+    let threshold = state
+        .adaptive
+        .as_ref()
+        .unwrap()
+        .retirement_threshold
+        .filter(|t| t.evidence_key == key)
+        .unwrap_or_else(|| RetirementThreshold::from_state(state));
+    // Old checkpoints used a fixed 1% cutoff. Recheck those decisions once;
+    // subsequent updates retain the existing 5% reactivation hysteresis.
+    let recheck_legacy = state
+        .adaptive
+        .as_ref()
+        .unwrap()
+        .retirement_threshold
+        .is_none();
     let mut report = BTreeMap::new();
-    let mut inactive = state.retired.clone();
+    let mut inactive = BTreeSet::new();
     for i in registered {
         let games = coverage[i].values().sum();
         let opponents = coverage[i]
@@ -557,28 +613,22 @@ pub fn refresh(state: &mut TourneyState) -> Result<(), String> {
         let probability = counts[i] as f64 / DRAWS as f64;
         let upper = wilson_upper(counts[i], DRAWS);
         let reasons = protected.remove(&p.names[i]).unwrap_or_default();
-        if !reasons.is_empty()
-            || probability > 0.05
-            || games < MIN_GAMES
-            || opponents < MIN_OPPONENTS
-        {
-            inactive.remove(&p.names[i]);
-        } else if !main.contains(&i) {
-            // Do not prune a separated entrant out of connectivity repair.
-            inactive.remove(&p.names[i]);
-        } else if upper < 0.01 {
+        let e = Exposure {
+            games,
+            opponents,
+            top_five_probability: probability,
+            probability_upper: upper,
+            protected_by: reasons,
+        };
+        if inactive_under_policy(
+            !recheck_legacy && state.retired.contains(&p.names[i]),
+            &e,
+            main.contains(&i),
+            threshold.probability,
+        ) {
             inactive.insert(p.names[i].clone());
         }
-        report.insert(
-            p.names[i].clone(),
-            Exposure {
-                games,
-                opponents,
-                top_five_probability: probability,
-                probability_upper: upper,
-                protected_by: reasons,
-            },
-        );
+        report.insert(p.names[i].clone(), e);
     }
     state.retired = inactive;
     let assumed_components = Graph::new(state, &p.names, true).groups.len();
@@ -587,6 +637,7 @@ pub fn refresh(state: &mut TourneyState) -> Result<(), String> {
     a.actual_components = graph.groups.len();
     a.assumed_components = assumed_components;
     a.exposure = report;
+    a.retirement_threshold = Some(threshold);
     a.error = None;
     a.cache = Some((key, p));
     Ok(())
@@ -1156,6 +1207,126 @@ mod tests {
         assert!(normal_cdf(1.96) > 0.974 && normal_cdf(1.96) < 0.976);
         assert!(wilson_upper(82, DRAWS) > 0.01);
         assert!(wilson_upper(0, DRAWS) < 0.01);
+    }
+
+    #[test]
+    fn retirement_cutoff_counts_only_active_registered_entrants() {
+        let mut s = fixture(192);
+        s.retired = s.entrants.iter().take(47).map(|e| e.id.clone()).collect();
+        // A historical, non-entrant identity must not change the denominator.
+        s.retired.insert("historical-only".into());
+        let threshold = RetirementThreshold::from_state(&s);
+        assert_eq!(threshold.active_agents, 145);
+        assert!((threshold.probability - 1. / 580.).abs() < 1e-15);
+        s.retired.clear();
+        assert!(RetirementThreshold::from_state(&s).probability < threshold.probability);
+        assert_eq!(threshold.active_agents, 145);
+        let empty = RetirementThreshold::from_state(&fixture(0));
+        assert_eq!(empty.active_agents, 0);
+        assert!(empty.probability.is_finite());
+    }
+
+    #[test]
+    fn scaled_cutoff_keeps_borderline_agents_and_retains_lifecycle_guards() {
+        let cutoff = RetirementThreshold::from_state(&fixture(145)).probability;
+        let mut e = Exposure {
+            games: 40,
+            opponents: 6,
+            top_five_probability: 0.001,
+            probability_upper: 0.005,
+            protected_by: vec![],
+        };
+        assert!(inactive_under_policy(false, &e, true, 0.01));
+        assert!(!inactive_under_policy(false, &e, true, cutoff));
+        // Existing inactivity keeps its hysteresis after the migration pass.
+        assert!(inactive_under_policy(true, &e, true, cutoff));
+        e.probability_upper = cutoff;
+        assert!(!inactive_under_policy(false, &e, true, cutoff));
+        e.probability_upper = wilson_upper(0, DRAWS);
+        assert!(inactive_under_policy(false, &e, true, cutoff));
+        assert!(!inactive_under_policy(true, &e, false, cutoff));
+        e.games = 39;
+        assert!(!inactive_under_policy(true, &e, true, cutoff));
+        e.games = 40;
+        e.opponents = 5;
+        assert!(!inactive_under_policy(true, &e, true, cutoff));
+        e.opponents = 6;
+        e.protected_by.push("generation:handcrafted".into());
+        assert!(!inactive_under_policy(true, &e, true, cutoff));
+        e.protected_by.clear();
+        e.top_five_probability = 0.051;
+        e.probability_upper = 0.06;
+        assert!(!inactive_under_policy(true, &e, true, cutoff));
+    }
+
+    #[test]
+    fn legacy_checkpoint_inactivity_is_rechecked_once_and_cutoff_is_persisted() {
+        let mut s = fixture(8);
+        for a in 0..8 {
+            for b in a + 1..8 {
+                for seed in 0..8 {
+                    result(&mut s, a, b, 0.5, seed);
+                }
+            }
+        }
+        s.retired.insert("agent07".into());
+        refresh(&mut s).unwrap();
+        assert!(s.retired.is_empty());
+        let threshold = s.adaptive.as_ref().unwrap().retirement_threshold.unwrap();
+        assert_eq!(threshold.active_agents, 7);
+        assert_eq!(threshold.probability, 1. / 28.);
+        // Reusing unchanged evidence does not iterate the active-count dependency.
+        refresh(&mut s).unwrap();
+        assert_eq!(
+            s.adaptive
+                .as_ref()
+                .unwrap()
+                .retirement_threshold
+                .unwrap()
+                .active_agents,
+            7
+        );
+        let saved = serde_json::to_value(&s).unwrap();
+        let mut restored: TourneyState = serde_json::from_value(saved).unwrap();
+        refresh(&mut restored).unwrap();
+        assert_eq!(
+            restored
+                .adaptive
+                .as_ref()
+                .unwrap()
+                .retirement_threshold
+                .unwrap()
+                .active_agents,
+            7
+        );
+        result(&mut restored, 0, 1, 0.5, 100);
+        refresh(&mut restored).unwrap();
+        assert_eq!(
+            restored
+                .adaptive
+                .unwrap()
+                .retirement_threshold
+                .unwrap()
+                .active_agents,
+            8
+        );
+        let fit = super::super::order_neutral::from_state(&s);
+        assert_eq!(
+            fit.retirement
+                .unwrap()
+                .adaptive_retirement_threshold
+                .unwrap()
+                .active_agents,
+            7
+        );
+        // Check compatibility with pre-threshold scheduler JSON.
+        let mut old = serde_json::to_value(&s).unwrap();
+        old["adaptive"]
+            .as_object_mut()
+            .unwrap()
+            .remove("retirement_threshold");
+        let restored: TourneyState = serde_json::from_value(old).unwrap();
+        assert!(restored.adaptive.unwrap().retirement_threshold.is_none());
     }
 
     #[test]

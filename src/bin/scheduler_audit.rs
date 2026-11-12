@@ -80,7 +80,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "inactive":state.retired,"actual_components":scheduler.actual_components,
             "assumed_components":scheduler.assumed_components,"fit_seconds":fit_seconds,
             "eight_claims_seconds":selection_seconds,"upcoming_pairs":&scheduler.pairs[existing..],
-            "exposure":scheduler.exposure,"completed_results_unchanged":true
+            "exposure":scheduler.exposure,"completed_results_unchanged":true,
+            "retirement_threshold":scheduler.retirement_threshold
         }))?
     );
     Ok(())
