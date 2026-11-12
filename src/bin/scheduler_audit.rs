@@ -39,7 +39,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         adaptive::refresh(&mut state)?;
     }
     for slot in &mut state.slots {
-        if running.contains(&slot.id) {
+        if running.contains(&slot.id) || slot.status == SlotStatus::Aborted {
             slot.status = SlotStatus::Pending;
         }
     }
