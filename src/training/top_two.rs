@@ -1,5 +1,5 @@
 //! Supplemental, color-swapped leader pairs. Only worker 2 claims these slots.
-use super::tournament::{next_slot_id, SlotStartMode, SlotStatus, TourneySlot, TourneyState};
+use super::tournament::{next_slot_id, SlotStatus, TourneySlot, TourneyState};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -41,6 +41,7 @@ pub fn claim(state: &mut TourneyState) -> Option<usize> {
     let seed = state
         .seed_base
         .wrapping_add((id as u64).wrapping_mul(0x9e3779b97f4a7c15));
+    let start_mode = super::adaptive::start_mode(state, &ranked[0].0, &ranked[1].0);
     for offset in 0..2 {
         state.slots.push(TourneySlot {
             id: id + offset,
@@ -56,7 +57,7 @@ pub fn claim(state: &mut TourneyState) -> Option<usize> {
             game_path: None,
             score_a: None,
             round: 0,
-            start_mode: SlotStartMode::Opening,
+            start_mode,
         });
     }
     eprintln!(

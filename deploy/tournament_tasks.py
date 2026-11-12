@@ -82,8 +82,9 @@ def wait(run, task_id, digest):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("run", type=Path)
-    parser.add_argument("action", choices=["pause", "resume", "status"])
+    parser.add_argument("action", choices=["pause", "resume", "status", "generation-order"])
     parser.add_argument("--reason", default="operator maintenance")
+    parser.add_argument("--generations", nargs="+", help="Complete oldest-to-newest generation order")
     args = parser.parse_args()
     if args.action == "status":
         print(json.dumps(a.read(args.run / "state.json").get("runtime_control", {}), indent=2))
@@ -93,6 +94,10 @@ def main():
         if args.action == "pause"
         else dict(kind="resume_assignments")
     )
+    if args.action == "generation-order":
+        if not args.generations:
+            parser.error("generation-order requires --generations")
+        command = dict(kind="set_generation_order", generations=args.generations)
     task_id, digest = submit(args.run, command)
     print(json.dumps(dict(task_id=task_id, receipt=wait(args.run, task_id, digest)), indent=2))
 

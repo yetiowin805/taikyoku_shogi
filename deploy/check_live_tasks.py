@@ -55,8 +55,9 @@ def main():
         worker = root / "worker"
         worker.write_text(WORKER)
         worker.chmod(0o755)
-        model = Path(sys.argv[2]).resolve() if len(sys.argv) > 2 else root / "model.json"
-        if len(sys.argv) <= 2:
+        model_args = [arg for arg in sys.argv[2:] if arg not in ("--adaptive", "--migrate")]
+        model = Path(model_args[0]).resolve() if model_args else root / "model.json"
+        if not model_args:
             model.write_text("{}")
         model_files = {str(model): a.file_digest(model)}
         nnue = a.read(model).get("weights", {}).get("nnue")
@@ -86,6 +87,7 @@ def main():
             TAIKYOKU_COMPUTE_DIR=str(control),
             TAIKYOKU_COMPUTE_CPUS=",".join(map(str, cpus)),
         )
+        adaptive = "--adaptive" in sys.argv[2:]
         command = [
             str(binary),
             "tournament",
@@ -96,7 +98,7 @@ def main():
             "--run-id",
             "run",
             "--format",
-            "knockout",
+            "adaptive" if adaptive else "knockout",
             "--starts",
             "opening",
             "--jobs",
@@ -139,14 +141,25 @@ def main():
                 proc.send_signal(signal.SIGTERM)
                 proc.wait(timeout=10)
                 a.atomic(control / "tasks/error.json", dict(error="old recovered failure"))
+                if "--migrate" in sys.argv[2:]:
+                    command[command.index("--format") + 1] = "adaptive"
                 proc = subprocess.Popen(command + ["--resume"], cwd=root, env=env, stdout=log, stderr=log)
                 until(lambda: (control / "tasks/ready.json").exists(), proc)
+                if "--migrate" in sys.argv[2:]:
+                    migrated = a.read(run / "state.json")
+                    assert migrated["format"] == "adaptive"
+                    assert migrated["adaptive"]["archived_knockouts"]
+                    assert migrated["adaptive"]["archived_slots"]
+                    assert any(s["status"] == "cancelled" for s in migrated["slots"])
                 task_id, digest = tasks.submit(run, dict(kind="resume_assignments"), "003-resume")
                 tasks.wait(run, task_id, digest)
 
                 def finish_until_new_entrant():
                     state = a.read(run / "state.json")
-                    if any("new" in [s["model_a"], s["model_b"]] and s["status"] != "pending" for s in state["slots"]):
+                    if any(
+                        "new" in [s["model_a"], s["model_b"]] and s["status"] in ("running", "done")
+                        for s in state["slots"]
+                    ):
                         return True
                     for request in directory.glob("*.request.json"):
                         request.with_suffix(".release").touch()

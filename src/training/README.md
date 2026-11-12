@@ -324,3 +324,58 @@ Existing brackets and committed supplemental pairs finish with their original
 entrants. Eligibility controls new brackets and new supplemental pairs. New
 models must still be registered in the run's entrants and manifest; merely
 writing a checkpoint does not register it.
+
+## Adaptive pairing
+
+`--format adaptive` replaces brackets with committed two-game, reversed-color
+pairs. Every worker uses the same allocator. Strong connectivity takes priority:
+the allocator adds both directed edges for every running or committed pending
+game, as if it will draw, before choosing the next pair. It reserves each new
+pair under the coordinator mutex before another worker can choose. Actual
+decisive results can restore connectivity priority. Pending return legs always
+finish, including after restart or a change in eligibility. Migration preserves
+interrupted attempts and their return legs for retry; aborted attempts are not results.
+
+After this assumed-draw graph is connected, weighted deficits allocate 85% of
+new pairs to placement/top-five information, 10% to champion probing, and 5% to
+generation anchors. Connectivity pairs do not consume those shares. If fewer
+than two classified generations exist or their eligible links are already busy,
+the unavailable anchor share goes to learning.
+There is no dedicated probe worker. The first pair for any matchup uses the
+normal opening; every later pair uses light starts, including champion probes.
+Learning combines contrast information with uncertainty about top-five
+membership, so its main budget does not keep sorting already-certain winners.
+
+Published ratings retain the existing unregularized Bradley–Terry/color fit.
+The separate scheduling model has independent, identical zero-centered strength
+priors (SD 4 log-odds, approximately 695 Elo) and a shared color prior (SD 1).
+It uses a Laplace covariance plus a positive-semidefinite cluster-sandwich term,
+grouping by matchup, seed, and start mode. These Gaussian probabilities are
+approximations, especially for sparse or nontransitive results. Adding the
+sandwich term is conservative relative to the Laplace covariance in every
+contrast; it is not a calibration guarantee. Selection fits assume unfinished
+games draw; exposure, inactivation and published evidence use completed games only.
+
+An entrant needs 40 completed games and six opponents with at least two games
+each in the largest actual SCC before becoming inactive. Separated entrants
+remain eligible for repair. Inactivation requires the 95% Monte Carlo upper
+bound for top-five probability to be below 1% (8,192 joint draws); reactivation
+requires probability above 5%, insufficient exposure, or protection. This
+interval controls sampling noise, not model error. Inactive agents retain all
+evidence and receive no scheduled audit games. Generation champions, up to two
+bridge agents between distant adjacent generations, and confirmed champion
+counters remain protected. Counter confirmation uses four fresh paired starts
+after a positive discovery signal, with a 100-Elo interaction prior; it is an
+approximate residual check, not a multiple-testing guarantee.
+
+`adaptive-scheduler.json` records allocation counts, actual/assumed SCC counts,
+exposure, protection, archived assignments, and each pair's reason, seed and
+assumed-draw slot IDs. The authoritative copy is in `state.json`. The adaptive
+retirement report uses `adaptive_exposure`; legacy rival-count fields are zero
+and are not evidence for this policy. Invalid fits stop new assignments and
+fail the coordinator after running games drain.
+
+Use `scheduler_audit SNAPSHOT` for a read-only migration/selection rehearsal and
+`cargo test --release training::adaptive::tests::fifty_seed_policy_comparison --lib -- --ignored --nocapture`
+for the reproducible synthetic comparison. See `deploy/LIVE_TOURNAMENT_TASKS.md`
+for migration, future generation order, and rollback.

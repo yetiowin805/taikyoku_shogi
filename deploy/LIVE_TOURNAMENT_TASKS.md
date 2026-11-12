@@ -91,3 +91,48 @@ fake game processes. It checks admission while all workers are busy, unchanged
 worker PIDs, result retention, pause against reclaims, receipt-loss recovery,
 restart while paused, and actual assignment to the new entrant. Its check deadlines
 are test failure detection, not limits on production work.
+
+## Adaptive scheduler activation and rollback
+
+Stage a validated binary supporting both `tournament-task-protocol` and
+`tournament-adaptive-protocol`, then use the same lease drain:
+
+```
+python3 deploy/upgrade_tournament_scheduler.py RUN NEW_COORDINATOR --adaptive
+```
+
+Add `--external-service NAME` only for services currently holding CPU leases.
+The upgrader lets running games finish, preserves the engine pointer and clocks,
+backs up state/config/manifest, and switches the format to adaptive. On resume,
+the coordinator keeps pending return legs of started pairs, archives unfinished
+brackets, and marks wholly unstarted assignments `cancelled`. Cancelled slots
+remain in history and are never retried. It starts all available game workers
+on the shared adaptive allocator; `--top-two-worker` is removed from the command.
+Interrupted (`aborted`) attempts and their return legs are retained and retried
+with the same slot, colors and starting seed. The upgrader itself never interrupts
+a game; stopping games remains a separate explicit operator action.
+
+Future generations require an explicit order before admission. Supply the full
+oldest-to-newest order; existing generation labels cannot be omitted:
+
+```
+python3 deploy/tournament_tasks.py RUN generation-order --generations handcrafted v2_v3 v4_v5 search v6 v6_search next_generation
+```
+
+To return to new knockout brackets, use an adaptive-capable binary with:
+
+```
+python3 deploy/upgrade_tournament_scheduler.py RUN NEW_COORDINATOR --rollback-scheduler
+```
+
+This drains running games, retains results earned since activation, finishes
+committed return legs, and leaves archived brackets closed. It does not restore
+an old state snapshot or reinstate a dedicated top-two worker. The ledger and
+new `cancelled` status require a compatible binary; an old pre-adaptive binary
+cannot safely consume the migrated state. Re-enabling adaptive preserves its
+pair ledger. To test the adaptive live-task path locally:
+
+```
+python3 deploy/check_live_tasks.py target/debug/taikyoku_shogi --adaptive
+python3 deploy/check_live_tasks.py target/debug/taikyoku_shogi --migrate
+```

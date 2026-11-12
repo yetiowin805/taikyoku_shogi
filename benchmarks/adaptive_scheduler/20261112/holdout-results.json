@@ -1,0 +1,2753 @@
+{
+  "source_revision": "18a2cb56d01c0f59ce964cf0891a1f3d2fe1e497",
+  "base_revision": "482a4bb",
+  "method": "Legacy knockout+top-two versus adaptive policies in the same candidate executable. 50 seeded runs per scenario and policy; 12 entrants; 320 new completed games plus shared sparse initial draws. Admission adds four entrants at game 80. Game completions are asynchronous, with capacity 8 -> 2 -> 8; reduced capacity retains workers 0 and 2. Both policies use the corrected rematch start rule. Scores use latent strengths, color advantage, draws; correlated case adds a +/-0.65 log-odds opening effect shared by paired legs. Held-out seed range 50..99, selected by SCHEDULER_SEED_START=50. No learning-policy changes were made after inspecting these seeds; the subsequent aborted-slot migration fix does not affect these simulations.",
+  "limits": "Synthetic recovery of unordered top-five membership, not measured real-engine strength, wall-clock throughput, or error calibration. Baseline is the legacy policy compiled in the candidate, not a separately built parent binary. These seeds were not used for policy selection, but the scenarios and latent strengths are the same as development. This is a held-out random-outcome check, not validation across a broad range of game-strength models. Approximate paired normal intervals describe variability across 50 run-level recovery differences; no multiple-comparison correction. Zero false-inactivation events is not a guarantee.",
+  "summary": [
+    {
+      "scenario": "sparse",
+      "baseline_mean": 4.66,
+      "candidate_mean": 4.9,
+      "paired_delta": 0.24,
+      "approximate_paired_95_interval": [
+        0.09657001708150417,
+        0.38342998291849584
+      ],
+      "baseline_false_inactive_runs": 0,
+      "candidate_false_inactive_runs": 0
+    },
+    {
+      "scenario": "admission",
+      "baseline_mean": 4.66,
+      "candidate_mean": 4.86,
+      "paired_delta": 0.2,
+      "approximate_paired_95_interval": [
+        0.02291245103057077,
+        0.37708754896942925
+      ],
+      "baseline_false_inactive_runs": 0,
+      "candidate_false_inactive_runs": 0
+    },
+    {
+      "scenario": "correlated",
+      "baseline_mean": 4.62,
+      "candidate_mean": 4.52,
+      "paired_delta": -0.1,
+      "approximate_paired_95_interval": [
+        -0.2878297101099824,
+        0.08782971010998233
+      ],
+      "baseline_false_inactive_runs": 0,
+      "candidate_false_inactive_runs": 0
+    }
+  ],
+  "results": [
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 50,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 50,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 51,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 51,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 52,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 52,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 53,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 53,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 54,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 54,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 55,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 55,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 56,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 56,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 57,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 57,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 58,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 58,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 59,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 59,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 60,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 60,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 61,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 61,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 62,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 62,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 63,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 63,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 64,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 64,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 65,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 65,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 66,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 66,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 67,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 67,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 68,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 68,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 69,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 69,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 70,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 70,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 71,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 71,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 72,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 72,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 73,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 73,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 74,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 74,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 75,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 75,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 76,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 76,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 77,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 77,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 78,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 78,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 79,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 79,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 80,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 80,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 81,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 81,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 82,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 82,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 83,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 83,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 84,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 84,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 85,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 85,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 86,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 86,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 87,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 87,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 88,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 88,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 89,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 89,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 90,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 90,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 91,
+      "top_five_recovered": 3
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 91,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 92,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 92,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 93,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 93,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 94,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 94,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 95,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 95,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 96,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 96,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 97,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 97,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 98,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 98,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 99,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "sparse",
+      "seed": 99,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 50,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 50,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 51,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 51,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 52,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 52,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 53,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 53,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 54,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 54,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 55,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 55,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 56,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 56,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 57,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 57,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 58,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 58,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 59,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 59,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 60,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 60,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 61,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 61,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 62,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 62,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 63,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 63,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 64,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 64,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 65,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 65,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 66,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 66,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 67,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 67,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 68,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 68,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 69,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 69,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 70,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 70,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 71,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 71,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 72,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 72,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 73,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 73,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 74,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 74,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 75,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 75,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 76,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 76,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 77,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 77,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 78,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 78,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 79,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 79,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 80,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 80,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 81,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 81,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 82,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 82,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 83,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 83,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 84,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 84,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 85,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 85,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 86,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 86,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 87,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 87,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 88,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 88,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 89,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 89,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 90,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 90,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 91,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 91,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 92,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 92,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 93,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 93,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 94,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 94,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 95,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 95,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 96,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 96,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 97,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 97,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 98,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 98,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 99,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 8,
+      "scenario": "admission",
+      "seed": 99,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 50,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 50,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 51,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 51,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 52,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 52,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 53,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 53,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 54,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 54,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 55,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 55,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 56,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 56,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 57,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 57,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 58,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 58,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 59,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 59,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 60,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 60,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 61,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 61,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 62,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 62,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 63,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 63,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 64,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 64,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 65,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 65,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 66,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 66,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 67,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 67,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 68,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 68,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 69,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 69,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 70,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 70,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 71,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 71,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 72,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 72,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 73,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 73,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 74,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 74,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 75,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 75,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 76,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 76,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 77,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 77,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 78,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 78,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 79,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 79,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 80,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 80,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 81,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 81,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 82,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 82,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 83,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 83,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 84,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 84,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 85,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 85,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 86,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 86,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 87,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 87,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 88,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 88,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 89,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 89,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 90,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 90,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 91,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 91,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 92,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 92,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 93,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 93,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 94,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 94,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 95,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 95,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 96,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 96,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 97,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 97,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 98,
+      "top_five_recovered": 4
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 98,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": false,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 99,
+      "top_five_recovered": 5
+    },
+    {
+      "adaptive": true,
+      "false_top_five_inactivity": false,
+      "games": 320,
+      "initial_games": 12,
+      "scenario": "correlated",
+      "seed": 99,
+      "top_five_recovered": 5
+    }
+  ],
+  "environment": {
+    "system": "Linux",
+    "kernel": "6.8.0-138-generic",
+    "architecture": "x86_64",
+    "rustc": "rustc 1.92.0 (ded5c06cf 2025-12-08)",
+    "profile": "cargo --release; in-process synthetic game outcomes; no engine searches"
+  }
+}

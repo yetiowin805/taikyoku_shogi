@@ -1483,6 +1483,11 @@ pub fn cmd_tournament(args: &[String]) -> Result<(), String> {
             cfg.games_per_pair = v;
             continue;
         }
+        if args[i] == "--rollback-scheduler" {
+            cfg.rollback_scheduler = true;
+            i += 1;
+            continue;
+        }
         if args[i] == "--top-two-worker" {
             cfg.top_two_worker = true;
             i += 1;
@@ -1522,9 +1527,10 @@ pub fn cmd_tournament(args: &[String]) -> Result<(), String> {
                 "round_robin" | "rr" => TourneyFormat::RoundRobin,
                 "swiss" => TourneyFormat::Swiss,
                 "knockout" | "ko" => TourneyFormat::Knockout,
+                "adaptive" => TourneyFormat::Adaptive,
                 other => {
                     return Err(format!(
-                        "Unknown --format {other} (round_robin|swiss|knockout)"
+                        "Unknown --format {other} (round_robin|swiss|knockout|adaptive)"
                     ))
                 }
             };
