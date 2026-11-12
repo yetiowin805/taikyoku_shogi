@@ -373,8 +373,14 @@ top-five probability invariant to opponent strengths or uncertainty. With fixed
 8,192 draws, the zero-hit Wilson upper bound is approximately 0.0469%, just below
 the 0.05% floor; the Monte Carlo guard remains in force at every pool size.
 On first reading an older scheduler checkpoint without the saved threshold,
-previous inactivation decisions are rechecked against the new cutoff. Later
-reactivation requires probability above 5%, insufficient exposure, or protection. This
+previous inactivation decisions are rechecked against the new cutoff. Reactivation
+uses that same dynamic cutoff on the top-five probability estimate, or occurs
+for insufficient exposure, protection, or separation from the largest SCC.
+Inactivation still requires the Monte Carlo upper bound to fall below the
+cutoff; a previously inactive agent can stay inactive within the resulting
+sampling-uncertainty band. The applied reactivation cutoff is saved alongside
+the inactivation cutoff, including when upgrading a v2 checkpoint with unchanged
+evidence. This
 interval controls sampling noise, not model error. Inactive agents retain all
 evidence and receive no scheduled audit games. Generation champions, up to two
 bridge agents between distant adjacent generations, and confirmed champion

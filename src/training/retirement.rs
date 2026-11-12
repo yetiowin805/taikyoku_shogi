@@ -153,16 +153,13 @@ pub(super) fn evaluate(state: &TourneyState, fit: &Fit) -> Result<Report, String
         adaptive_retirement_threshold: None,
     };
     if state.format == super::tournament::TourneyFormat::Adaptive {
-        report.policy = if state
-            .adaptive
-            .as_ref()
-            .is_some_and(|a| a.retirement_threshold.is_some())
-        {
-            "adaptive-top5-p5overactive-clamped-p05-g40-o6-v2"
-        } else {
-            // A read-only fit of a pre-upgrade snapshot must describe the rule
-            // that produced its saved lifecycle decisions.
-            "adaptive-top5-p01-p05-g40-o6-v1"
+        // A read-only fit describes the rules that produced the saved decisions.
+        report.policy = match state.adaptive.as_ref().and_then(|a| a.retirement_threshold) {
+            Some(t) if t.reactivation_probability.is_some() => {
+                "adaptive-top5-shared-p5overactive-clamped-g40-o6-v3"
+            }
+            Some(_) => "adaptive-top5-p5overactive-clamped-p05-g40-o6-v2",
+            None => "adaptive-top5-p01-p05-g40-o6-v1",
         };
         report.minimum_games = 40;
         report.minimum_covered_opponents = 6;

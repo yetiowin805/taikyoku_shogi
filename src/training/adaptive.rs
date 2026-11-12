@@ -39,6 +39,9 @@ pub struct RetirementThreshold {
     /// Registered entrants eligible at the start of this evidence update.
     pub active_agents: usize,
     pub probability: f64,
+    /// Missing in older checkpoints, which used a fixed 5% reactivation cutoff.
+    #[serde(default)]
+    pub reactivation_probability: Option<f64>,
     /// Reuse the same denominator after a restart with unchanged evidence.
     pub evidence_key: u64,
 }
@@ -50,9 +53,11 @@ impl RetirementThreshold {
             .iter()
             .filter(|e| !state.retired.contains(&e.id))
             .count();
+        let probability = (5. / active_agents.max(1) as f64).clamp(0.0005, 0.01);
         Self {
             active_agents,
-            probability: (5. / active_agents.max(1) as f64).clamp(0.0005, 0.01),
+            probability,
+            reactivation_probability: Some(probability),
             evidence_key: evidence_key(state),
         }
     }
@@ -503,7 +508,7 @@ fn wilson_upper(success: usize, total: usize) -> f64 {
 
 fn inactive_under_policy(was_inactive: bool, e: &Exposure, in_main: bool, cutoff: f64) -> bool {
     if !e.protected_by.is_empty()
-        || e.top_five_probability > 0.05
+        || e.top_five_probability > cutoff
         || e.games < MIN_GAMES
         || e.opponents < MIN_OPPONENTS
         || !in_main
@@ -587,15 +592,16 @@ pub fn refresh(state: &mut TourneyState) -> Result<(), String> {
     }
     // Freeze the input pool for this whole pass. Lifecycle changes must not make
     // later entrants face a different cutoff, or trigger a fixed-point cascade.
-    let threshold = state
+    let mut threshold = state
         .adaptive
         .as_ref()
         .unwrap()
         .retirement_threshold
         .filter(|t| t.evidence_key == key)
         .unwrap_or_else(|| RetirementThreshold::from_state(state));
+    threshold.reactivation_probability = Some(threshold.probability);
     // Old checkpoints used a fixed 1% cutoff. Recheck those decisions once;
-    // subsequent updates retain the existing 5% reactivation hysteresis.
+    // subsequent updates retain inactivity only within the Monte Carlo band.
     let recheck_legacy = state
         .adaptive
         .as_ref()
@@ -1254,10 +1260,11 @@ mod tests {
         };
         assert!(inactive_under_policy(false, &e, true, 0.01));
         assert!(!inactive_under_policy(false, &e, true, cutoff));
-        // Existing inactivity keeps its hysteresis after the migration pass.
+        // Sampling uncertainty can retain inactivity even below the shared cutoff.
         assert!(inactive_under_policy(true, &e, true, cutoff));
         e.probability_upper = cutoff;
         assert!(!inactive_under_policy(false, &e, true, cutoff));
+        e.top_five_probability = 0.;
         e.probability_upper = wilson_upper(0, DRAWS);
         assert!(inactive_under_policy(false, &e, true, cutoff));
         assert!(!inactive_under_policy(true, &e, false, cutoff));
@@ -1270,9 +1277,33 @@ mod tests {
         e.protected_by.push("generation:handcrafted".into());
         assert!(!inactive_under_policy(true, &e, true, cutoff));
         e.protected_by.clear();
-        e.top_five_probability = 0.051;
-        e.probability_upper = 0.06;
+        e.top_five_probability = cutoff + 0.001;
+        e.probability_upper = cutoff + 0.002;
         assert!(!inactive_under_policy(true, &e, true, cutoff));
+    }
+
+    #[test]
+    fn reactivation_uses_the_same_capped_cutoff_at_all_pool_sizes() {
+        for active_agents in [145, 1000, 20000] {
+            let threshold = RetirementThreshold::from_state(&fixture(active_agents));
+            let cutoff = threshold.probability;
+            assert_eq!(threshold.reactivation_probability, Some(cutoff));
+            let mut e = Exposure {
+                games: 40,
+                opponents: 6,
+                top_five_probability: cutoff * 1.1,
+                probability_upper: cutoff * 1.2,
+                protected_by: vec![],
+            };
+            // These probabilities are all far below the former 5% threshold.
+            assert!(e.top_five_probability < 0.05);
+            assert!(!inactive_under_policy(true, &e, true, cutoff));
+            e.top_five_probability = cutoff;
+            assert!(inactive_under_policy(true, &e, true, cutoff));
+            e.top_five_probability = cutoff * 0.5;
+            e.probability_upper = cutoff * 0.75;
+            assert!(inactive_under_policy(false, &e, true, cutoff));
+        }
     }
 
     #[test]
@@ -1334,6 +1365,39 @@ mod tests {
                 .unwrap()
                 .active_agents,
             7
+        );
+        // A v2 snapshot keeps its original denominator but gets the shared
+        // reactivation rule on resume, even without new completed evidence.
+        let mut v2 = serde_json::to_value(&s).unwrap();
+        v2["adaptive"]["retirement_threshold"]
+            .as_object_mut()
+            .unwrap()
+            .remove("reactivation_probability");
+        v2["retired"] = serde_json::json!(["agent07"]);
+        let mut restored: TourneyState = serde_json::from_value(v2).unwrap();
+        assert_eq!(
+            super::super::order_neutral::from_state(&restored)
+                .retirement
+                .unwrap()
+                .policy,
+            "adaptive-top5-p5overactive-clamped-p05-g40-o6-v2"
+        );
+        refresh(&mut restored).unwrap();
+        assert!(restored.retired.is_empty());
+        let applied = restored
+            .adaptive
+            .as_ref()
+            .unwrap()
+            .retirement_threshold
+            .unwrap();
+        assert_eq!(applied.active_agents, 7);
+        assert_eq!(applied.reactivation_probability, Some(applied.probability));
+        assert_eq!(
+            super::super::order_neutral::from_state(&restored)
+                .retirement
+                .unwrap()
+                .policy,
+            "adaptive-top5-shared-p5overactive-clamped-g40-o6-v3"
         );
         // Check compatibility with pre-threshold scheduler JSON.
         let mut old = serde_json::to_value(&s).unwrap();
