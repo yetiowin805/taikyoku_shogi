@@ -158,7 +158,7 @@ pub(super) fn evaluate(state: &TourneyState, fit: &Fit) -> Result<Report, String
             .as_ref()
             .is_some_and(|a| a.retirement_threshold.is_some())
         {
-            "adaptive-top5-p1over4active-p05-g40-o6-v2"
+            "adaptive-top5-p5overactive-clamped-p05-g40-o6-v2"
         } else {
             // A read-only fit of a pre-upgrade snapshot must describe the rule
             // that produced its saved lifecycle decisions.

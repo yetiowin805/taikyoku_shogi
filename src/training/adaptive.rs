@@ -52,7 +52,7 @@ impl RetirementThreshold {
             .count();
         Self {
             active_agents,
-            probability: 1. / (4. * active_agents.max(1) as f64),
+            probability: (5. / active_agents.max(1) as f64).clamp(0.0005, 0.01),
             evidence_key: evidence_key(state),
         }
     }
@@ -1217,9 +1217,25 @@ mod tests {
         s.retired.insert("historical-only".into());
         let threshold = RetirementThreshold::from_state(&s);
         assert_eq!(threshold.active_agents, 145);
-        assert!((threshold.probability - 1. / 580.).abs() < 1e-15);
+        assert_eq!(threshold.probability, 0.01);
         s.retired.clear();
-        assert!(RetirementThreshold::from_state(&s).probability < threshold.probability);
+        assert_eq!(RetirementThreshold::from_state(&s).probability, 0.01);
+        assert_eq!(
+            RetirementThreshold::from_state(&fixture(500)).probability,
+            0.01
+        );
+        assert_eq!(
+            RetirementThreshold::from_state(&fixture(1000)).probability,
+            0.005
+        );
+        assert_eq!(
+            RetirementThreshold::from_state(&fixture(10000)).probability,
+            0.0005
+        );
+        assert_eq!(
+            RetirementThreshold::from_state(&fixture(20000)).probability,
+            0.0005
+        );
         assert_eq!(threshold.active_agents, 145);
         let empty = RetirementThreshold::from_state(&fixture(0));
         assert_eq!(empty.active_agents, 0);
@@ -1228,12 +1244,12 @@ mod tests {
 
     #[test]
     fn scaled_cutoff_keeps_borderline_agents_and_retains_lifecycle_guards() {
-        let cutoff = RetirementThreshold::from_state(&fixture(145)).probability;
+        let cutoff = RetirementThreshold::from_state(&fixture(1000)).probability;
         let mut e = Exposure {
             games: 40,
             opponents: 6,
             top_five_probability: 0.001,
-            probability_upper: 0.005,
+            probability_upper: 0.007,
             protected_by: vec![],
         };
         assert!(inactive_under_policy(false, &e, true, 0.01));
@@ -1274,7 +1290,7 @@ mod tests {
         assert!(s.retired.is_empty());
         let threshold = s.adaptive.as_ref().unwrap().retirement_threshold.unwrap();
         assert_eq!(threshold.active_agents, 7);
-        assert_eq!(threshold.probability, 1. / 28.);
+        assert_eq!(threshold.probability, 0.01);
         // Reusing unchanged evidence does not iterate the active-count dependency.
         refresh(&mut s).unwrap();
         assert_eq!(
