@@ -356,11 +356,25 @@ sandwich term is conservative relative to the Laplace covariance in every
 contrast; it is not a calibration guarantee. Selection fits assume unfinished
 games draw; exposure, inactivation and published evidence use completed games only.
 
-An entrant needs 40 completed games and six opponents with at least two games
-each in the largest actual SCC before becoming inactive. Separated entrants
+An entrant needs 40 completed games overall and six opponents in the largest
+actual SCC with at least two games each before becoming inactive. The entrant
+must itself belong to that SCC. Separated entrants
 remain eligible for repair. Inactivation requires the 95% Monte Carlo upper
-bound for top-five probability to be below 1% (8,192 joint draws); reactivation
-requires probability above 5%, insufficient exposure, or protection. This
+bound for top-five probability to be below `clamp(5 / active_agents, 0.0005, 0.01)` (8,192 joint draws);
+`active_agents` counts registered, non-inactive entrants before the eligibility
+pass. The cutoff is capped at 1% (up to 500 active entrants), is 0.5% at
+1,000 entrants, and has a floor of 0.05% (10,000 or more active entrants).
+The denominator is frozen for the whole pass, and the applied count and cutoff
+are saved in `adaptive.retirement_threshold` and the retirement report. Eligibility
+changes do not trigger another pass until new completed evidence or entrant /
+generation metadata arrives; this avoids processing-order effects and immediate
+self-induced cascades. The formula compensates for pool size but does not make
+top-five probability invariant to opponent strengths or uncertainty. With fixed
+8,192 draws, the zero-hit Wilson upper bound is approximately 0.0469%, just below
+the 0.05% floor; the Monte Carlo guard remains in force at every pool size.
+On first reading an older scheduler checkpoint without the saved threshold,
+previous inactivation decisions are rechecked against the new cutoff. Later
+reactivation requires probability above 5%, insufficient exposure, or protection. This
 interval controls sampling noise, not model error. Inactive agents retain all
 evidence and receive no scheduled audit games. Generation champions, up to two
 bridge agents between distant adjacent generations, and confirmed champion
