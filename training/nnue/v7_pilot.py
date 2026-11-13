@@ -153,7 +153,7 @@ def prepare(args):
 def stage_state(out, stage):
     if stage == "diagnostics":
         report = json.loads((out / "report.json").read_text())
-        return "incomplete" if report["incomplete_runs"] else "completed"
+        return "incomplete" if report["incomplete_runs"] or report.get("incomplete_diagnostics") else "completed"
     status = out / ("status.json" if stage == "collection" else "training/status.json")
     state = json.loads(status.read_text())["state"]
     if state not in ("completed", "pilot_budget"):

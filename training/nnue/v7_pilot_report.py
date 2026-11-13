@@ -222,6 +222,22 @@ def report(root):
                 os.environ["TACTICAL_LEASE_FD"] = str(lease.fileno())
                 break
             time.sleep(1)
+        if lease is None:
+            missing = [j["name"] for j in tasks(config)[1:] if not (out / j["name"] / "complete.json").exists()]
+            atomic(
+                root / "report.json",
+                dict(
+                    incomplete_runs=missing,
+                    incomplete_diagnostics=True,
+                    reason="no diagnostic CPU lease before deadline",
+                    comparisons={},
+                    **times,
+                ),
+            )
+            (root / "report.md").write_text(
+                "# V7 sensitivity pilot\n\nDiagnostics are inconclusive: no CPU lease was available before the deadline. No unleased analysis was started.\n"
+            )
+            return
         comparisons = {}
         for regime, view in VARIANTS:
             for seed in (20261112, 20261113):

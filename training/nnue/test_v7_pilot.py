@@ -90,6 +90,8 @@ class PilotTests(unittest.TestCase):
                 v7_pilot.stage_state(root, "diagnostics")
             (root / "report.json").write_text(json.dumps(dict(incomplete_runs=["E"])))
             self.assertEqual(v7_pilot.stage_state(root, "diagnostics"), "incomplete")
+            (root / "report.json").write_text(json.dumps(dict(incomplete_runs=[], incomplete_diagnostics=True)))
+            self.assertEqual(v7_pilot.stage_state(root, "diagnostics"), "incomplete")
 
     def test_small_training_challenge_quota_retains_a_targeted_example(self):
         game = dict(
