@@ -189,7 +189,7 @@ def cutoff(db, config):
 def build_views(source, out):
     """Shared immutable feature bytes, with explicit per-view sampling masses."""
     import v6_dataset as dataset
-    from train import atomic_json
+    from v6_collect import atomic as atomic_json
 
     source = Path(source)
     identity = dataset.verify(source)
