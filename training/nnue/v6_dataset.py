@@ -255,7 +255,8 @@ def prepare(config):
     if not pairs:
         raise ValueError("no independently verified stable sibling pairs for regime D")
     schema = json.loads(subprocess.check_output([config["nnue_tool"], "schema"], text=True))
-    baseline = json.loads(Path(config["parents"]["384"]).read_text())
+    baseline_width = min(config["parents"], key=int)
+    baseline = json.loads(Path(config["parents"][baseline_width]).read_text())
     baseline["weights"].pop("nnue", None)
     atomic(out / "baseline.json", baseline)
     STOP.clear()

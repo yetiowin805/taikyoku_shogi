@@ -13,22 +13,24 @@ from training_admission import a
 
 
 class V6AdmissionTests(unittest.TestCase):
+    width = 384
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.out = Path(self.temp.name)
-        self.model = self.out / "NNUE_W384_v6B"
+        self.model = self.out / f"NNUE_W{self.width}_v6B"
         self.model.mkdir()
         parent = self.out / "parent.json"
         parent.write_text("parent descriptor")
-        start = self.out / "prelude-384-B/start.pt"
+        start = self.out / f"prelude-{self.width}-B/start.pt"
         start.parent.mkdir()
         start.write_bytes(b"shared prelude weights")
         dataset = self.out / "dataset/dataset.json"
         dataset.parent.mkdir()
         dataset.write_text("dataset manifest")
         dispatched = dict(
-            width=384,
+            width=self.width,
             regime="B",
             out=str(self.model),
             parent=str(parent),
@@ -45,7 +47,7 @@ class V6AdmissionTests(unittest.TestCase):
         a.atomic(self.model / "recipe.json", self.recipe)
         a.atomic(
             self.out / "pipeline-config.json",
-            dict(parents={"384": str(parent)}, identities={str(parent): a.file_digest(parent)}),
+            dict(parents={str(self.width): str(parent)}, identities={str(parent): a.file_digest(parent)}),
         )
         self.complete = dict(
             recipe=a.digest(json.dumps(self.recipe, sort_keys=True, separators=(",", ":")).encode()),
@@ -58,7 +60,7 @@ class V6AdmissionTests(unittest.TestCase):
         blob.write_bytes(b"quantized inference weights")
         self.checkpoint = dict(
             name=self.model.name,
-            weights=dict(nnue=dict(file=blob.name, sha256=a.file_digest(blob), width=384, output_mode="total")),
+            weights=dict(nnue=dict(file=blob.name, sha256=a.file_digest(blob), width=self.width, output_mode="total")),
         )
         a.atomic(self.model / "model.json", self.checkpoint)
         self.metrics = [
@@ -114,9 +116,9 @@ class V6AdmissionTests(unittest.TestCase):
 
     def test_material_variant_requires_residual_export_and_a_start(self):
         old = self.model
-        self.model = self.out / "NNUE_W384_v6Cm"
+        self.model = self.out / f"NNUE_W{self.width}_v6Cm"
         old.rename(self.model)
-        start = self.out / "prelude-384-A/start.pt"
+        start = self.out / f"prelude-{self.width}-A/start.pt"
         start.parent.mkdir()
         start.write_bytes(b"matched A prelude")
         recipe = dict(
@@ -202,6 +204,10 @@ class V6AdmissionTests(unittest.TestCase):
             a.atomic(run / "state.json", dict(entrants=[]))
             with self.assertRaisesRegex(ValueError, "missing from tournament"):
                 admission.confirmed_admission(config, model.name)
+
+
+class V6Admission256Tests(V6AdmissionTests):
+    width = 256
 
 
 if __name__ == "__main__":
