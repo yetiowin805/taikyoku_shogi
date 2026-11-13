@@ -1,0 +1,33 @@
+// DOM checks without screenshots or access to the live tournament.
+const fs=require('node:fs'), path=require('node:path'), assert=require('node:assert/strict');
+const modules=process.env.DASHBOARD_NODE_MODULES||path.join(__dirname,'node_modules');
+const {JSDOM,VirtualConsole}=require(path.join(modules,'jsdom'));
+const root=path.resolve(process.argv[2]), read=name=>fs.readFileSync(path.join(root,name),'utf8');
+const delay=()=>new Promise(resolve=>setTimeout(resolve,70));
+(async()=>{
+ const errors=[];const console=new VirtualConsole();console.on('jsdomError',e=>errors.push(e.message));
+ const dom=new JSDOM(read('nnue-tournament-react.html'),{runScripts:'dangerously',url:'http://dashboard.test/#retirement-status',virtualConsole:console});
+ await delay();const w=dom.window, doc=w.document;
+ const choose=label=>{const button=[...doc.querySelectorAll('nav button')].find(b=>b.textContent===label);assert(button,label);button.click();};
+ assert.equal(doc.documentElement.dataset.dashboardView,'retirement');
+ assert.notEqual(w.getComputedStyle(doc.querySelector('#retirement-status')).display,'none');
+ choose('Ratings');await delay();assert.equal(w.getComputedStyle(doc.querySelector('#retirement-status')).display,'none');
+ choose('Scheduler');await delay();assert.equal([...doc.querySelectorAll('h2')].filter(n=>n.textContent==='Adaptive game scheduler').length,1);
+ choose('Generation strength');await delay();assert.equal(doc.querySelector('iframe').getAttribute('src'),'generation-strength.html');
+ choose('Archive');await delay();assert(doc.querySelector('a[href="dashboard-archive-20261112.html"]'));assert(!doc.querySelector('#seeds2-confidence'));
+ assert(read('dashboard-archive-20261112.html').includes('<!-- SEEDS2_CONFIDENCE_START -->'));
+ assert(!doc.querySelector('#rules-epoch-note'));assert(!doc.querySelector('iframe'));
+ for(const key of ['D','R','ACTIVE_ONLY'])assert.equal(read('nnue-tournament-react.html').split(`/*nnue-dashboard:${key}*/`).length,2);
+ assert.equal(errors.length,0,errors.join('\n'));w.close();
+ let data=JSON.parse(read('generation-strength-live.json')), tick;
+ const report=new JSDOM(read('generation-strength.html'),{runScripts:'dangerously',url:'http://dashboard.test/generation-strength.html',virtualConsole:console,beforeParse(w){w.fetch=async name=>({ok:true,json:async()=>name.includes('status')?{phase:'current'}:data});w.setInterval=fn=>{tick=fn;return 1};}});
+ await delay();const r=report.window.document;
+ assert.equal(r.querySelectorAll('#groups tr').length,data.generations.length);
+ assert(!r.querySelector('#report').hidden);assert(r.querySelector('#snapshot').textContent.includes(data.games.toLocaleString()));
+ const first=r.querySelector('#first'),second=r.querySelector('#second');[first.value,second.value]=[second.value,first.value];first.dispatchEvent(new report.window.Event('change'));
+ assert(r.querySelector('#comparison').textContent.includes('Elo'));
+ const originalGames=data.games;data={...data,games:originalGames+2,generated_at:'test-refresh'};await tick();
+ assert(r.querySelector('#snapshot').textContent.includes((originalGames+2).toLocaleString()));
+ assert.equal(errors.length,0,errors.join('\n'));report.window.close();
+ process.stdout.write('Dashboard navigation, archive retention, retirement visibility, refresh anchors, generic comparisons and automatic data reload passed.\n');
+})().catch(e=>{process.stderr.write(e.stack+'\n');process.exitCode=1});

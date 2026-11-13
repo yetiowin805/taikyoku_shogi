@@ -1,0 +1,72 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Generation strength</title>
+<style>
+:root{color-scheme:light dark;--bg:light-dark(#fff,#181a1d);--fg:light-dark(#20252b,#e7e9ec);--muted:light-dark(#58616d,#b3bac4);--line:light-dark(#c6ccd4,#505760);--panel:light-dark(#f6f7f8,#23262a);--accent:light-dark(#145fc1,#90bcff)}*{box-sizing:border-box}body{margin:0;padding:20px;background:var(--bg);color:var(--fg);font:14px/1.5 system-ui,sans-serif}h1{font-size:23px;margin:0 0 8px}h2{font-size:18px;margin:24px 0 8px}p{max-width:1100px;margin:8px 0}a{color:var(--accent)}.muted,small{color:var(--muted)}small{display:block}select{font:inherit;padding:7px;border:1px solid var(--line);background:var(--panel);color:var(--fg);border-radius:4px}label{display:inline-flex;align-items:center;gap:7px;margin:8px 15px 8px 0}.wrap{overflow:auto}table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}th,td{text-align:left;padding:10px;border-bottom:1px solid var(--line);white-space:nowrap}th{background:var(--panel);font-size:12px}td:first-child{font-weight:600}summary{cursor:pointer;font-weight:600}.comparison{border-left:3px solid var(--accent);padding:10px 14px;font-size:16px}#status{padding:8px 0;color:var(--muted)}details{margin:18px 0}
+</style></head><body>
+<h1>Generation strength</h1>
+<p>How strong is each generation after allowing for uncertain ratings and different numbers of candidates?</p>
+<div id="status" role="status">Loading the latest accepted statistical estimates…</div>
+<main id="report" hidden>
+<p id="snapshot" class="muted"></p>
+<h2>Compare generations on equal terms</h2>
+<p id="definition"></p>
+<div class="wrap"><table><thead><tr><th>Generation</th><th>Active / registered</th><th id="equal-heading">Equal number of tries</th><th>Strongest existing member</th><th>Best estimated individual</th></tr></thead><tbody id="groups"></tbody></table></div>
+<p class="muted">Intervals are 95% posterior credible intervals. Strength uses a common scale with the registered field’s mean at 1500 in every posterior draw. No individual agent is the reference. These values are separate from the tournament’s published ratings.</p>
+<h2>Head-to-head generation comparison</h2>
+<label>First <select id="first"></select></label><label>Second <select id="second"></select></label><label>Compare <select id="measure"><option value="best5">Equal number of tries</option><option value="max">Strongest existing member</option></select></label>
+<p id="comparison" class="comparison"></p>
+<h2>Members of each generation</h2>
+<label>Generation <select id="members"></select></label>
+<div class="wrap"><table><thead><tr><th>Agent</th><th>Estimated strength</th><th>95% interval</th><th>Completed games</th></tr></thead><tbody id="agents"></tbody></table></div>
+<details><summary>Model, update quality & limitations</summary>
+<p>The model pools related agents by generation, known parent network and search recipe. It fits wins, draws and losses jointly with a shared Black advantage and an opening effect shared by repeated games on the same start. All opening types are pooled. Shrinkage reduces noisy leader estimates; equal-sized subsets address the extra opportunity from having more candidates.</p>
+<p>The strongest-existing-member estimate still benefits from a genuinely larger roster. The equal-tries column averages the best of a uniformly chosen subset of existing agents in each posterior draw; it does not predict newly invented agents. Registered inactive agents remain part of the comparison.</p>
+<p>New game results update posterior weights against the last full fit, including complete affected opening blocks. Updates are accepted only with Pareto k below 0.7 and at least 400 effective weighted draws (and 10% of the original draws). Otherwise a full fit runs in the background. The last accepted result remains visible if a fit is pending or fails.</p>
+<p id="quality"></p>
+<p>Credible intervals depend on this model and its priors. They do not establish transitive strength in every matchup or guarantee future performance. Historical validation and prior-sensitivity findings are saved in the <a href="generation-strength-study-20261112.html">original study</a>; those historical tests are not rerun on every refresh.</p>
+<p><a href="generation-strength-live.json">Current estimates (JSON)</a> · <a href="generation-strength-status.json">Update status</a></p>
+</details></main>
+<script>
+let data, signature;
+const el=id=>document.getElementById(id);
+const label=g=>g==='handcrafted'?'Handcrafted':g.replaceAll('_','–');
+const short=n=>n.replace('NNUE_W','');
+const number=n=>Math.round(n).toLocaleString();
+const interval=v=>`${number(v.mean)} (${number(v.low)} to ${number(v.high)})`;
+function cell(row,text){const td=document.createElement('td');td.textContent=text;row.append(td);return td;}
+function table(id,rows){el(id).replaceChildren(...rows.map(values=>{const tr=document.createElement('tr');values.forEach(text=>cell(tr,text));return tr;}));}
+function choices(id,groups,fallback){const previous=el(id).value;el(id).replaceChildren(...groups.map(g=>{const o=document.createElement('option');o.value=g;o.textContent=label(g);return o;}));el(id).value=groups.includes(previous)?previous:fallback;}
+function compare(){
+ if(!data)return;
+ const a=el('first').value,b=el('second').value,m=el('measure').value;
+ if(a===b){el('comparison').textContent='Select two different generations to compare.';return;}
+ const p=data.comparisons.find(p=>p.a===a&&p.b===b||p.a===b&&p.b===a);
+ if(!p){el('comparison').textContent='No comparison available for this pair.';return;}
+ const sign=p.a===a?1:-1,v=p[m+'_difference'];const low=sign===1?v.low:-v.high,high=sign===1?v.high:-v.low;
+ const chance=sign===1?p[m+'_p_a_better']:1-p[m+'_p_a_better'];
+ el('comparison').textContent=`${label(a)} minus ${label(b)}: ${Math.round(sign*v.mean)>0?'+':''}${Math.round(sign*v.mean)} Elo (95% interval ${Math.round(low)} to ${Math.round(high)}). Model probability of ${label(a)} being stronger: ${(100*chance).toFixed(1)}%.`;
+}
+function members(){if(data)table('agents',data.agents.filter(a=>a.generation===el('members').value).map(a=>[short(a.agent),number(a.strength.mean),`${number(a.strength.low)} to ${number(a.strength.high)}`,a.games.toLocaleString()]));}
+function render(){
+ const groups=data.generations.slice().sort((a,b)=>b.expected_best5.mean-a.expected_best5.mean);const names=groups.map(g=>g.generation);
+ el('snapshot').textContent=`${data.games.toLocaleString()} completed games · ${new Date(data.asof).toLocaleString()} · ${data.update_method}`;
+ el('definition').textContent=`Equal tries = the expected strongest member among ${data.equal_k} distinct randomly chosen registered agents from each generation. The adjacent column estimates the strongest member of the entire existing roster.`;
+ el('equal-heading').textContent=`Best of ${data.equal_k} equal tries · 95% interval`;
+ table('groups',groups.map(g=>[label(g.generation),`${g.active} / ${g.members}`,interval(g.expected_best5),interval(g.strongest_existing),`${short(g.champion)} · ${interval(g.champion_strength)}`]));
+ choices('first',names,names[0]);choices('second',names,names[1]||names[0]);choices('members',names,names[0]);compare();members();
+ const d=data.update_diagnostics;
+ el('quality').textContent=data.update_method==='importance update'?`Accepted update: Pareto k ${d.pareto_k.toFixed(3)}; effective weighted draws ${Math.round(d.weight_ess)} of ${d.draws}; ${d.changed_blocks} affected opening blocks since the full fit.`:'Accepted full fit: no divergences or maximum-tree-depth hits; all monitored R-hat values ≤1.05 and effective sample sizes ≥200.';
+ el('report').hidden=false;
+}
+async function json(name){const r=await fetch(name,{cache:'no-store'});if(!r.ok)throw Error(`${name}: HTTP ${r.status}`);return r.json();}
+async function refresh(){
+ try{
+  const [r,s]=await Promise.allSettled([json('generation-strength-live.json'),json('generation-strength-status.json')]);
+  if(r.status==='fulfilled'){data=r.value;if(signature!==data.generated_at){signature=data.generated_at;render();}}
+  if(r.status==='rejected'&&!data)throw r.reason;
+  const status=s.status==='fulfilled'?s.value:null;
+  el('status').textContent=status?.phase==='failed'?`Update failed: ${status.error}. Showing the last accepted estimate.`:status?.phase==='refitting'?`A full fit is running for ${status.requested_games} games. Showing the last accepted estimate.`:status?.phase==='updating'?`Updating for ${status.requested_games} games…`:data?'Current for the saved dashboard snapshot. New evidence triggers an update when the dashboard is refreshed.':'Waiting for the first accepted fit.';
+ }catch(error){el('status').textContent=`Could not load the update: ${error.message}.`;}
+}
+for(const id of ['first','second','measure'])el(id).addEventListener('change',compare);el('members').addEventListener('change',members);
+refresh();setInterval(refresh,30000);
+</script></body></html>
