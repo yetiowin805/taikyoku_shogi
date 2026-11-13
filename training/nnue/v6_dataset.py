@@ -18,7 +18,8 @@ SCALE = 2822.9057434005167
 def completed(db):
     stages = [data.get_meta(db, key) for key in ("initialized", "audit_planned", "deep_planned")]
     count = db.execute("SELECT count(*) FROM jobs").fetchone()[0]
-    unfinished = db.execute("SELECT count(*) FROM jobs WHERE status!='completed'").fetchone()[0]
+    allowed = ("completed", "cancelled") if data.get_meta(db, "pilot_cutoff") else ("completed",)
+    unfinished = sum(row["status"] not in allowed for row in db.execute("SELECT status FROM jobs"))
     return bool(count and all(x is not None for x in stages) and not unfinished)
 
 
@@ -57,9 +58,10 @@ def temperature(rows):
     )
 
 
-def sampling_weights(rows):
+def sampling_weights(rows, proportions=None):
     """One hierarchy: stratum -> group -> game -> phase -> distinct feature row."""
-    proportions = dict(representative=0.75, challenge=0.20, alternative=0.05)
+    if proportions is None:
+        proportions = dict(representative=0.75, challenge=0.20, alternative=0.05)
     for split in ("train", "validation", "test"):
         pool = [r for r in rows if r["split"] == split]
         tree = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(list))))
@@ -86,6 +88,7 @@ def sampling_weights(rows):
 
 def select_rows(db):
     games = {r["id"]: json.loads(r["payload"]) for r in db.execute("SELECT * FROM games")}
+    omitted = set((data.get_meta(db, "pilot_cutoff") or {}).get("excluded_roots", []))
     labels = defaultdict(list)
     for job in db.execute(
         "SELECT position_id,teacher,tier,result FROM jobs WHERE status='completed' AND tier NOT IN ('outcome','alternatives')"
@@ -107,6 +110,9 @@ def select_rows(db):
     excluded = Counter()
     for raw in db.execute("SELECT * FROM positions ORDER BY game_id,ply,id"):
         p = json.loads(raw["payload"])
+        if (p.get("parent") or p["id"]) in omitted:
+            excluded["pilot_incomplete_family"] += 1
+            continue
         probe = json.loads(raw["probe"]) if raw["probe"] else None
         observations = labels.get(raw["id"], [])
         if not probe or probe.get("terminal") is not None or not observations:
@@ -148,6 +154,9 @@ def select_rows(db):
                 outcome=outcome,
                 game_path=game["path"],
                 feature_schema_hash=probe["feature_schema_hash"],
+                pilot_views=p.get("pilot_views", []),
+                legal_promotion=probe.get("legal_promotion", False),
+                material_total=probe.get("material_total", 0),
             )
         )
     scale, calibration = temperature(rows)
@@ -161,6 +170,7 @@ def select_rows(db):
         drift = max(max(x) - min(x) for x in by_family.values())
         gap = max(probs) - min(probs)
         r["confidence"] = max(0.25, 1 / (1 + (gap / 0.15) ** 2 + (drift / 0.15) ** 2)) if len(probs) > 1 else 0.75
+        r["raw_confidence"] = r["confidence"]
     # Global feature equivalence: no feature identity can cross a split. Conflicting
     # histories are withheld; repeated compatible rows get one deterministic vote.
     buckets = defaultdict(list)
@@ -172,6 +182,7 @@ def select_rows(db):
             excluded["feature_split_or_history_conflict"] += len(group)
             continue
         chosen = min(group, key=lambda r: r["id"])
+        chosen["pilot_views"] = sorted({view for r in group for view in r.get("pilot_views", [])})
         # Average duplicate evidence, but do not propagate outcomes between histories.
         chosen["q"] = sum(r["q"] for r in group) / len(group)
         chosen["score"] = SCALE * math.log(max(1e-6, chosen["q"]) / max(1e-6, 1 - chosen["q"]))
@@ -247,12 +258,13 @@ def prepare(config):
         db.close()
     counts = Counter(r["split"] for r in rows)
     groups = {s: {r["group"] for r in rows if r["split"] == s} for s in ("train", "validation", "test")}
-    if any(counts[s] < 8 for s in groups) or any(
+    required = ("train", "validation") if config.get("sensitivity") else tuple(groups)
+    if any(counts[s] < 8 for s in required) or any(
         groups[a] & groups[b] for a, b in [("train", "validation"), ("train", "test"), ("validation", "test")]
     ):
         raise ValueError("insufficient clean disjoint train/validation/test groups")
     pairs = ranking_pairs(rows, report["teacher_scale"])
-    if not pairs:
+    if not pairs and not config.get("sensitivity"):
         raise ValueError("no independently verified stable sibling pairs for regime D")
     schema = json.loads(subprocess.check_output([config["nnue_tool"], "schema"], text=True))
     baseline_width = min(config["parents"], key=int)
@@ -343,4 +355,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("config", type=Path)
     args = parser.parse_args()
-    prepare(json.loads(args.config.read_text()))
+    config = json.loads(args.config.read_text())
+    result = prepare(config)
+    if config.get("sensitivity"):
+        from v7_pilot_data import build_views
+
+        build_views(result, Path(config["out"]) / "views")
