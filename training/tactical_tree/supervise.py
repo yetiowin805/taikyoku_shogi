@@ -77,22 +77,14 @@ class BoundaryLeases:
                     lease.close()
                     return
                 with (control / "allocation.lock").open("a+") as admission:
-                    # A game claimant holds allocation.lock while trying the CPU
-                    # nonblocking. Give it time to observe our newly acquired CPU
-                    # and release allocation, instead of repeatedly losing that race.
-                    # Bound the wait: maintenance can hold allocation while draining
-                    # CPUs, so an unconditional blocking acquisition would deadlock.
-                    for _ in range(5):
-                        try:
-                            fcntl.flock(admission, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                        except BlockingIOError:
-                            if self.stopped.wait(0.01):
-                                break
-                        else:
-                            self.count += 1
-                            self.ready.put((index, lease))
-                            return
-                    lease.close()
+                    try:
+                        fcntl.flock(admission, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    except BlockingIOError:
+                        lease.close()
+                    else:
+                        self.count += 1
+                        self.ready.put((index, lease))
+                        return
             self.stopped.wait(0.2)
 
     def take(self):

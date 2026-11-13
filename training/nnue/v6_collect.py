@@ -374,7 +374,9 @@ def run(config_path):
         fcntl.flock(own, fcntl.LOCK_EX | fcntl.LOCK_NB)
         db = data.connect(out)
         workers = {}
-        waiters = runtime.LeasePool(Path(config["control"]), BoundaryLeases)
+        waiters = runtime.LeasePool(
+            Path(config["control"]), BoundaryLeases, reserve=config["workers"] if config.get("sensitivity") else None
+        )
         end_state = "stopped"
         last_status = 0
         try:

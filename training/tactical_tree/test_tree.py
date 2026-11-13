@@ -142,50 +142,6 @@ class TreeTest(unittest.TestCase):
             self.assertIsNotNone(again)
             again[1].close()
 
-    def test_boundary_waiter_retries_brief_allocation_contention_before_releasing_cpu(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            p = Path(tmp)
-            waiting = BoundaryLeases(p, [], 1)
-            original = supervise.fcntl.flock
-            contended = False
-
-            def flock(file, flags):
-                nonlocal contended
-                if flags & supervise.fcntl.LOCK_NB and not contended:
-                    contended = True
-                    raise BlockingIOError("game claimant briefly owns allocation")
-                return original(file, flags)
-
-            with (
-                mock.patch.object(supervise.fcntl, "flock", side_effect=flock),
-                mock.patch.object(waiting.stopped, "wait", return_value=False) as pause,
-            ):
-                waiting.wait(p, 4)
-            pause.assert_called_once_with(0.01)
-            index, lease = waiting.ready.get_nowait()
-            self.assertEqual(index, 4)
-            waiting.close()
-            lease.close()
-
-    def test_boundary_waiter_releases_cpu_for_sustained_maintenance(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            p = Path(tmp)
-            waiting = BoundaryLeases(p, [], 1)
-            with (p / "allocation.lock").open("a+") as maintenance:
-                supervise.fcntl.flock(maintenance, supervise.fcntl.LOCK_EX)
-
-                def pause(seconds):
-                    if seconds == 0.2:
-                        waiting.stopped.set()
-                    return waiting.stopped.is_set()
-
-                with mock.patch.object(waiting.stopped, "wait", side_effect=pause) as pauses:
-                    waiting.wait(p, 4)
-                self.assertEqual(pauses.call_args_list.count(mock.call(0.01)), 5)
-                with (p / "cpu-4.lock").open("a+") as cpu:
-                    supervise.fcntl.flock(cpu, supervise.fcntl.LOCK_EX | supervise.fcntl.LOCK_NB)
-            waiting.close()
-
 
 class RolloutTest(unittest.TestCase):
     def tearDown(self):

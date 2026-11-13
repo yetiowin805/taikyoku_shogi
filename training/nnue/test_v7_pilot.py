@@ -1,7 +1,9 @@
 """Pilot treatment, exposure, sampling and cutoff regression tests (run remotely)."""
 
 import json
+import os
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -14,9 +16,66 @@ import v6_pipeline as pipeline
 import v7_pilot
 import v7_pilot_data as pilot_data
 import v7_pilot_sampling as sampling
+from v6_runtime import LeasePool
+from v7_pilot_reservation import Reservation
 
 
 class PilotTests(unittest.TestCase):
+    def test_reservation_uses_scheduler_assignments_and_releases_demand(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            reservation = Reservation(root, 4)
+            self.assertEqual(reservation.refresh(), [])
+            value = reservation.read()
+            self.assertEqual(value["pending"], 4)
+            self.assertEqual(value["pid"], os.getpid())
+            value["assigned"] = [3, 5]
+            reservation.write(value)
+            self.assertEqual(reservation.refresh(), [3, 5])
+            reservation.close()
+            self.assertEqual(reservation.read()["pending"], 0)
+            self.assertEqual(reservation.read()["assigned"], [])
+            with self.assertRaises(ValueError):
+                Reservation(root, 7)
+
+    def test_reservation_never_overwrites_another_live_analyzer(self):
+        with tempfile.TemporaryDirectory() as temp:
+            reservation = Reservation(temp, 1)
+            other = dict(pid=os.getppid(), assigned=[1], pending=1, updated=time.time())
+            reservation.write(other)
+            with self.assertRaisesRegex(RuntimeError, "another live analyzer"):
+                reservation.refresh()
+            reservation.close()
+            self.assertEqual(reservation.read(), other)
+
+    def test_reserved_pool_only_claims_assigned_slots(self):
+        created = []
+
+        class Waiter:
+            threads = []
+
+            def __init__(self, control, indices, maximum):
+                created.extend(indices)
+                self.index = indices[0]
+
+            def take(self):
+                return self.index, "lease"
+
+            def close(self):
+                pass
+
+        with tempfile.TemporaryDirectory() as temp:
+            pool = LeasePool(Path(temp), Waiter, reserve=2)
+            self.assertIsNone(pool.update([1, 3, 4, 5, 6, 7], False))
+            value = pool.reservation.read()
+            value["assigned"] = [5]
+            pool.reservation.write(value)
+            self.assertEqual(pool.update([1, 3, 4, 5, 6, 7], False), (5, "lease"))
+            self.assertEqual(created, [5])
+            pool.update([], True)
+            self.assertEqual(pool.reservation.read()["pending"], 0)
+            pool.close()
+
     def test_clean_child_exit_is_not_enough_to_complete_a_stage(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)

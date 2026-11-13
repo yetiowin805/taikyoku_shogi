@@ -150,7 +150,11 @@ def run(config):
     atomic(pinned, config)
     with (out / "pipeline.lock").open("a+") as own:
         fcntl.flock(own, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        pool = LeasePool(Path(config["control"]), BoundaryLeases)
+        pool = LeasePool(
+            Path(config["control"]),
+            BoundaryLeases,
+            reserve=config.get("max_parallel", 4) if config.get("sensitivity") else None,
+        )
         held = {}
         running = {}
         pausing = set()
@@ -195,7 +199,10 @@ def run(config):
                         continue
                 maintenance = allocation_busy(Path(config["control"]))
                 acquired = pool.update(
-                    [i for i in config["lease_indices"][: config.get("max_parallel", 6)] if i not in held], maintenance
+                    [i for i in config["lease_indices"] if i not in held]
+                    if len(held) < config.get("max_parallel", 6)
+                    else [],
+                    maintenance,
                 )
                 if acquired:
                     held[acquired[0]] = acquired[1]

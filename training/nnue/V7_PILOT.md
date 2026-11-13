@@ -116,7 +116,10 @@ revision. `v7_pilot.py run OUTPUT` performs collection, preparation, training an
 diagnostics sequentially. Preparation must finish successfully before launching.
 Use an immutable isolated deployment, six flexible game-boundary leases for
 collection, four concurrent training jobs, and one leased CPU for diagnostics.
-Preserve tournament workers 0 and 2. Build and validate remotely before launch.
+Preserve tournament workers 0 and 2. The pilot publishes bounded, expiring demand
+through the tournament's existing reservation protocol and takes only assigned
+CPU leases. It refuses to overwrite another live analyzer's reservation. Build
+and validate remotely before launch.
 
 Recommended service bounds are six CPU equivalents and 8 GiB memory, with BLAS and
 Torch threads fixed to one per worker. A service failure must remain visible;

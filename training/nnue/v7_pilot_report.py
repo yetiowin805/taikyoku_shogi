@@ -211,14 +211,14 @@ def report(root):
     config = json.loads((root / "pipeline.json").read_text())
     times = json.loads((root / "timing.json").read_text())
     out = root / "training"
-    pool = LeasePool(Path(config["control"]), BoundaryLeases)
+    pool = LeasePool(Path(config["control"]), BoundaryLeases, reserve=1)
     lease = None
     try:
         while time.time() < times["deadline"]:
-            acquired = pool.update([7], allocation_busy(Path(config["control"])))
+            acquired = pool.update(config["lease_indices"], allocation_busy(Path(config["control"])))
             if acquired:
-                _, lease = acquired
-                os.sched_setaffinity(0, {json.loads((root / "config.json").read_text())["cpus"][7]})
+                index, lease = acquired
+                os.sched_setaffinity(0, {json.loads((root / "config.json").read_text())["cpus"][index]})
                 os.environ["TACTICAL_LEASE_FD"] = str(lease.fileno())
                 break
             time.sleep(1)
