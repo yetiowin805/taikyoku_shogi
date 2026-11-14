@@ -1,0 +1,52 @@
+{
+  "base_revision": "b5edce9",
+  "snapshot_completed_games": 5664,
+  "registered_agents": 192,
+  "completed_results_unchanged": true,
+  "method": "Conditional Gaussian/Laplace scheduling screen; 100 Elo offset prior; 25% test threshold; within 50 Elo of generation leader",
+  "candidates": [
+    {
+      "agent": "NNUE_W384_v4.5_HLF",
+      "benchmark": "NNUE_W256_v6Cm_HLF_G3PVSPV",
+      "completed_pairs": 10,
+      "coverage_met": true,
+      "eligible": true,
+      "fresh_pairs": 0,
+      "games": 20,
+      "generation": "v6_search",
+      "margin_elo": -17.674089480281342,
+      "paired_opponents": 6,
+      "panel": [
+        "NNUE_W256_v6Cm_HLF_G3PVSPV",
+        "NNUE_W384_v6A_HLF_G3ATK",
+        "NNUE_W256_v6Cm_HLF_HR"
+      ],
+      "probability": 0.619188373199455,
+      "protected": false,
+      "sd_elo": 106.56307103576957
+    },
+    {
+      "agent": "NNUE_W512_v3_HLFS_G3CF",
+      "benchmark": "NNUE_W256_v6Cm_HLF_G3PVSPV",
+      "completed_pairs": 7,
+      "coverage_met": true,
+      "eligible": true,
+      "fresh_pairs": 0,
+      "games": 14,
+      "generation": "v6_search",
+      "margin_elo": -82.59511795693952,
+      "paired_opponents": 5,
+      "panel": [
+        "NNUE_W256_v6Cm_HLF_G3PVSPV",
+        "NNUE_W384_v6A_HLF_G3ATK",
+        "NNUE_W256_v6Cm_HLF_HR"
+      ],
+      "probability": 0.38667205333580834,
+      "protected": false,
+      "sd_elo": 113.17607736973181
+    }
+  ],
+  "implementation_revision": "db11c2b",
+  "source_snapshot": "VPS: /mnt/HC_Volume_107032879/taikyoku-generation-matchup-20261114/audit-state.json",
+  "validation_environment": "VPS; one build job; CPUQuota=50%; MemoryMax=3G; no tournament changes"
+}
