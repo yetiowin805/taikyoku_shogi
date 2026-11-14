@@ -482,6 +482,8 @@ struct SearchContext {
     q_cap_index: usize,
     q_label: Option<LazyMoveLabel>,
     q_stand_pat: i32,
+    // V7 sensitivity pilot: collect a completed qsearch line only on explicit probes.
+    q_trace: Option<HashMap<usize, Vec<Move>>>,
     q_prune_mode: QPruneMode,
     q_caps_generated: u64,
     q_caps_searched: u64,
@@ -2343,6 +2345,7 @@ pub fn search_with_progress(
         q_cap_index: 0,
         q_label: None,
         q_stand_pat: 0,
+        q_trace: None,
         q_prune_mode: config.q_prune_mode,
         q_caps_generated: 0,
         q_caps_searched: 0,
@@ -2950,6 +2953,29 @@ pub fn probe_quiescence(
     mode: QPruneMode,
     max_time_ms: Option<u64>,
 ) -> SearchResult {
+    probe_quiescence_inner(state, weights, qdepth, mode, max_time_ms, false).0
+}
+
+/// Collection-only probe. Missing line means an aborted, terminal, cached, or
+/// depth-limited continuation; callers must not call that a settled leaf.
+pub fn probe_quiescence_with_line(
+    state: &GameState,
+    weights: &EvalWeights,
+    qdepth: u32,
+    mode: QPruneMode,
+    max_time_ms: Option<u64>,
+) -> (SearchResult, Option<Vec<Move>>) {
+    probe_quiescence_inner(state, weights, qdepth, mode, max_time_ms, true)
+}
+
+fn probe_quiescence_inner(
+    state: &GameState,
+    weights: &EvalWeights,
+    qdepth: u32,
+    mode: QPruneMode,
+    max_time_ms: Option<u64>,
+    trace: bool,
+) -> (SearchResult, Option<Vec<Move>>) {
     let root_ply = state.get_move_history().len();
     // Bind one root accumulator and reuse it for both the reported static
     // score and the search. Evaluating the immutable input first would build
@@ -2999,6 +3025,7 @@ pub fn probe_quiescence(
         q_cap_index: 0,
         q_label: None,
         q_stand_pat: 0,
+        q_trace: None,
         q_prune_mode: mode,
         q_caps_generated: 0,
         q_caps_searched: 0,
@@ -3031,6 +3058,7 @@ pub fn probe_quiescence(
         royal_extension_spent: false,
         royal_extensions: 0,
     };
+    ctx.q_trace = trace.then(HashMap::new);
     let mut pos = nnue_root.take().unwrap_or_else(|| state.clone());
     pos.ensure_eval_inc(weights);
     let score = if qdepth == 0 {
@@ -3050,7 +3078,14 @@ pub fn probe_quiescence(
             &mut ctx,
         )
     };
-    SearchResult {
+    let line = if ctx.abort {
+        None
+    } else {
+        ctx.q_trace
+            .as_mut()
+            .and_then(|lines| lines.remove(&root_ply))
+    };
+    let result = SearchResult {
         royal_extensions: ctx.royal_extensions,
         royal_probe: None,
         iteration_timings: Vec::new(),
@@ -3081,7 +3116,8 @@ pub fn probe_quiescence(
         q_unique_saturated: ctx.q_unique_saturated,
         root_moves_scored: 0,
         aborted: ctx.abort,
-    }
+    };
+    (result, line)
 }
 
 /// Test harness: PathAware q with an explicit window and contested square.
@@ -3147,6 +3183,7 @@ fn with_quiesce_test_context<R>(
         q_cap_index: 0,
         q_label: None,
         q_stand_pat: 0,
+        q_trace: None,
         q_prune_mode: QPruneMode::PathAware,
         q_caps_generated: 0,
         q_caps_searched: 0,
@@ -3251,6 +3288,7 @@ fn probe_quiet_parent_leaf_stats(
         q_cap_index: 0,
         q_label: None,
         q_stand_pat: 0,
+        q_trace: None,
         q_prune_mode: QPruneMode::PathAware,
         q_caps_generated: 0,
         q_caps_searched: 0,
@@ -3354,6 +3392,7 @@ fn probe_capture_parent_leaf_or_quiesce_rs(
         q_cap_index: 0,
         q_label: None,
         q_stand_pat: 0,
+        q_trace: None,
         q_prune_mode: QPruneMode::PathAware,
         q_caps_generated: 0,
         q_caps_searched: 0,
@@ -3558,6 +3597,7 @@ fn alphabeta_impl(
     is_pv: bool,
     ctx: &mut SearchContext,
 ) -> i32 {
+    ctx.reset_q_line();
     ctx.nodes += 1;
 
     if cfg!(debug_assertions) && ctx.nodes.is_multiple_of(256) {
@@ -3852,6 +3892,9 @@ fn search_move_list(
     let mut actually_searched = 0usize;
 
     for (i, mv) in moves.iter().enumerate() {
+        if let Some(lines) = &mut ctx.q_trace {
+            lines.remove(&(parent_ply + 1));
+        }
         if ctx.timed_out() {
             break;
         }
@@ -4050,6 +4093,7 @@ fn search_move_list(
         }
 
         if score > best {
+            ctx.trace_q_best(mv, parent_ply);
             best = score;
             best_move_key = Some(mv_key);
         }
@@ -4281,6 +4325,7 @@ fn quiesce_impl(
     known_not_in_check: bool,
     ctx: &mut SearchContext,
 ) -> i32 {
+    ctx.reset_q_line();
     ctx.nodes += 1;
     ctx.q_nodes += 1;
     ctx.q_depth_left = qdepth;
@@ -4343,7 +4388,7 @@ fn quiesce_impl(
     ctx.q_tt_probes += 1;
     let mut tt_move: Option<MoveKey> = None;
     if let Some(e) = ctx.q_tt.probe(key) {
-        if e.depth >= qdepth {
+        if e.depth >= qdepth && ctx.q_trace.is_none() {
             ctx.q_tt_hits += 1;
             match e.bound {
                 TtBound::Exact => return e.score,
@@ -4364,6 +4409,9 @@ fn quiesce_impl(
     }
     let alpha_orig = alpha;
 
+    if let Some(lines) = &mut ctx.q_trace {
+        lines.insert(ctx.ply, Vec::new());
+    }
     let stand_pat = evaluate_with_ply(state, weights, ctx.ply);
     ctx.q_stand_pat = stand_pat;
     let resolve_major = prev_to_is_major_enemy(state, weights, prev_to);
@@ -4751,6 +4799,7 @@ fn quiesce_impl(
 
         let previous_move = ctx.experiments.previous_move;
         let incoming_move = experiments::incoming_move(state, &mv, ctx);
+        let trace_move = ctx.q_trace.as_ref().map(|_| mv.clone());
         let Some(undo) = state.make_move_for_search_with_weights(mv, weights) else {
             continue;
         };
@@ -4824,6 +4873,9 @@ fn quiesce_impl(
         ctx.q_caps_at_node = n_caps;
 
         if score > best {
+            if let Some(mv) = &trace_move {
+                ctx.trace_q_best(mv, parent_ply);
+            }
             best = score;
             best_move_key = Some(mv_key);
         }
@@ -5013,6 +5065,23 @@ fn alphabeta_record(
 }
 
 impl SearchContext {
+    fn reset_q_line(&mut self) {
+        if let Some(lines) = &mut self.q_trace {
+            lines.remove(&self.ply);
+        }
+    }
+
+    fn trace_q_best(&mut self, mv: &Move, ply: usize) {
+        if let Some(lines) = &mut self.q_trace {
+            let child = lines.get(&(ply + 1)).cloned();
+            lines.remove(&ply);
+            if let Some(mut line) = child {
+                line.insert(0, mv.clone());
+                lines.insert(ply, line);
+            }
+        }
+    }
+
     /// Log progress about every 3s while a search is still running.
     fn maybe_log_progress(&mut self) {
         let now = Instant::now();
@@ -7734,6 +7803,22 @@ mod tests {
         // White to move: hung gold is a loud capture (≥ floor).
         let stand = evaluate_with_ply(&state, &weights, 0);
         let with_q = probe_quiescence(&state, &weights, 4, QPruneMode::PathAware, None);
+        let (traced, line) =
+            probe_quiescence_with_line(&state, &weights, 4, QPruneMode::PathAware, None);
+        assert_eq!(traced.score, with_q.score);
+        let line = line.expect("completed recapture has a settled endpoint");
+        assert!(!line.is_empty());
+        let mut endpoint = state.clone();
+        for mv in line {
+            assert!(endpoint.generate_legal_moves().contains(&mv));
+            endpoint.make_move_for_search(mv).expect("legal trace move");
+        }
+        let (_, truncated) =
+            probe_quiescence_with_line(&state, &weights, 0, QPruneMode::PathAware, None);
+        assert!(
+            truncated.is_none(),
+            "a depth-zero static value is not a settled endpoint"
+        );
         assert!(
             with_q.score > stand + 500,
             "q should take the hung gold: stand={stand} with_q={} q_caps={}",
