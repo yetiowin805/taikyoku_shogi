@@ -41,7 +41,7 @@ class RecoveryTest(unittest.TestCase):
                 patch.object(v5_training.subprocess, "run") as service,
             ):
                 with self.assertRaisesRegex(RuntimeError, "snapshot failed: 7"):
-                    v5_training.main()
+                    v5_training.run_training(v5_training.argparse.Namespace(config=path), config)
             pool.close.assert_called_once()
             self.assertEqual(
                 [c.args[0] for c in service.call_args_list],
@@ -101,7 +101,7 @@ class RecoveryTest(unittest.TestCase):
                     v5_training, "admit", side_effect=lambda config, model: events.append("admit:" + model.name)
                 ),
             ):
-                v5_training.main()
+                v5_training.run_training(v5_training.argparse.Namespace(config=path), config)
             self.assertEqual(
                 events, [f"{action}:NNUE_W512_v5{suffix}" for suffix in "abc" for action in ["train", "admit"]]
             )

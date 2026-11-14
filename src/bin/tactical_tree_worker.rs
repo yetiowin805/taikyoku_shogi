@@ -1,5 +1,6 @@
 //! Isolated JSONL oracle for the tactical-tree pilot. Production search is unchanged.
 //! Usage: tactical_tree_worker GAME START_PLY MODEL; stdin requests have version/id/op/path.
+use rand::{rngs::StdRng, Rng, SeedableRng};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -15,7 +16,10 @@ use taikyoku_shogi::{
     movement::{BlockingMode, MovementCapability, MovementConfig},
     notation::move_encode,
     piece::{Color, Piece},
-    search::{move_captures_enemy, probe_quiescence, search_with_progress, SearchConfig},
+    search::{
+        move_captures_enemy, probe_quiescence, probe_quiescence_with_line, search_with_progress,
+        SearchConfig,
+    },
     training::record::{GameRecordV2, GameStart},
 };
 
@@ -30,6 +34,8 @@ struct Request {
     depth: u32,
     #[serde(default)]
     time_ms: u64,
+    #[serde(default)]
+    sampling_seed: u64,
     /// Parity survey: finish a finite requested depth without a time cutoff.
     #[serde(default)]
     fixed_depth: bool,
@@ -422,7 +428,35 @@ fn handle(
             player.weights()
         ));
         emit(info);
-    } else if req.op == "collection_probe" {
+    } else if req.op == "collection_moves" {
+        let moves = legal(&state);
+        let mut categories = [Vec::new(), Vec::new(), Vec::new()];
+        for mv in moves {
+            if req.candidates.contains(&mv) {
+                continue;
+            }
+            let index = if move_captures_enemy(&state, &mv) {
+                0
+            } else if mv.promoted {
+                1
+            } else {
+                2
+            };
+            categories[index].push(mv);
+        }
+        let available: Vec<_> = categories.iter().filter(|x| !x.is_empty()).collect();
+        let mut rng = StdRng::seed_from_u64(req.sampling_seed);
+        let chosen = if available.is_empty() {
+            None
+        } else {
+            let group = available[rng.gen_range(0..available.len())];
+            Some(group[rng.gen_range(0..group.len())].clone())
+        };
+        emit(
+            json!({"version":1,"id":req.id,"event":"complete","move":chosen,
+            "category_counts":categories.iter().map(Vec::len).collect::<Vec<_>>()}),
+        );
+    } else if req.op == "collection_probe" || req.op == "collection_settle" {
         if req.time_ms == 0 || req.depth > 8 {
             return Err("collection probe needs a positive budget and q depth <= 8".into());
         }
@@ -434,19 +468,43 @@ fn handle(
         info["event"] = json!("complete");
         info["op"] = json!(req.op);
         info["terminal"] = json!(outcome);
+        info["legal_promotion"] = json!(moves.iter().any(|mv| mv.promoted));
+        info["material_total"] = json!(pieces(&state)
+            .iter()
+            .map(|piece| material_piece_value(piece, player.weights()).abs())
+            .sum::<f32>());
         info["static_black"] = json!(evaluate(&state, player.weights()) * pov);
         info["material_black"] = json!(taikyoku_shogi::nnue::material(
             state.get_board(),
             player.weights()
         ));
         if outcome.is_none() {
-            let q = probe_quiescence(
-                &state,
-                player.weights(),
-                req.depth,
-                SearchConfig::default().q_prune_mode,
-                Some(req.time_ms),
-            );
+            let (q, line) = if req.op == "collection_settle" {
+                probe_quiescence_with_line(
+                    &state,
+                    player.weights(),
+                    req.depth,
+                    SearchConfig::default().q_prune_mode,
+                    Some(req.time_ms),
+                )
+            } else {
+                (
+                    probe_quiescence(
+                        &state,
+                        player.weights(),
+                        req.depth,
+                        SearchConfig::default().q_prune_mode,
+                        Some(req.time_ms),
+                    ),
+                    None,
+                )
+            };
+            if let Some(path) = &line {
+                // Validate the exact sequence, including intermediate captures and promotions.
+                let leaf = position(&state, path)?;
+                info["settled_position"] = collection_metadata(&leaf);
+            }
+            info["settled_line"] = json!(line);
             info["quiescence"] = json!({"score_black":q.score*pov,"aborted":q.aborted,
                 "nodes":q.nodes,"depth":req.depth,"budget_ms":req.time_ms,
                 "policy":"standalone-open-window-no-previous-landing-v1"});
