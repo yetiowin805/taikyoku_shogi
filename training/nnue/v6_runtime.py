@@ -13,13 +13,24 @@ import v6_teachers as teachers
 class LeasePool:
     """Never replace a cancelled blocking waiter until its thread has exited."""
 
-    def __init__(self, control, factory):
+    def __init__(self, control, factory, reserve=None):
         self.control = control
         self.factory = factory
         self.waiting = {}
         self.retired = {}
+        self.reservation = None
+        if reserve is not None:
+            from v7_pilot_reservation import Reservation
+
+            self.reservation = Reservation(control, reserve)
 
     def update(self, candidates, maintenance):
+        if self.reservation:
+            if maintenance:
+                self.reservation.close()
+            else:
+                assigned = self.reservation.refresh()
+                candidates = [i for i in candidates if i in assigned]
         self.retired = {
             index: waiter
             for index, waiter in self.retired.items()
@@ -45,6 +56,8 @@ class LeasePool:
         return None
 
     def close(self):
+        if self.reservation:
+            self.reservation.close()
         for waiter in (*self.waiting.values(), *self.retired.values()):
             waiter.close()
 
@@ -113,6 +126,8 @@ class Worker:
             if self.oracle.ready.get("collection_protocol") != 1:
                 raise ValueError("worker lacks v6 collection protocol")
             self.binding = key
+        if config.get("feature_version"):
+            request = dict(request, feature_version=config["feature_version"])
         return self.oracle.call(request, self.events.put)
 
     def assign(self, job, position, game, config):

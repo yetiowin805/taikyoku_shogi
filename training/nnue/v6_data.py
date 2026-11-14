@@ -73,8 +73,9 @@ def parent_index(db, paths):
     for path in paths:
         identities[str(path)] = dataset_storage.sample_digest(path)
         for row in dataset_storage.rows(path):
-            if row.get("game_sha256") and row.get("group"):
-                games[row["game_sha256"]].add((row["group"], row["split"]))
+            game_hash = row.get("game_sha256", row.get("game"))
+            if game_hash and row.get("group"):
+                games[game_hash].add((row["group"], row["split"]))
             if row["split"] == "train":
                 if not row.get("canonical_position_hash"):
                     raise ValueError(f"parent sample lacks canonical feature identity: {path}")
@@ -143,7 +144,7 @@ def challenge_score(moves, index, result):
     return max(signals)
 
 
-def select_roots(game, game_hash, split, seed, representative=32, challenge=8):
+def select_roots(game, game_hash, split, seed, representative=32, challenge=8, random_challenge_min=2):
     moves = game["moves"]
     valid = [i for i, move in enumerate(moves) if move.get("color") in ("Black", "White")]
     selected = {}
@@ -159,7 +160,7 @@ def select_roots(game, game_hash, split, seed, representative=32, challenge=8):
     # No outcome/error mining in holdouts. Random challenges still cover all phases.
     pool = [i for i in valid if i not in selected]
     random_order = sorted(pool, key=lambda i: hashed([seed, game_hash, "challenge", i]))
-    random_quota = max(2, math.ceil(challenge / 4)) if split == "train" else challenge
+    random_quota = max(random_challenge_min, math.ceil(challenge / 4)) if split == "train" else challenge
     targeted = sorted(pool, key=lambda i: (-challenge_score(moves, i, game["result"])[0], i))
     challenge_picks = []
     mate_claims = 0
@@ -231,11 +232,11 @@ def initialize(db, config):
             continue
         digest = hashlib.sha256(raw).hexdigest()
         target = out / "games" / (digest + ".json")
-        if not target.exists():
+        if not target.exists() and not config.get("sensitivity"):
             temp = target.with_suffix(".tmp")
             temp.write_bytes(raw)
             temp.replace(target)
-        elif file_hash(target) != digest:
+        elif target.exists() and file_hash(target) != digest:
             raise ValueError("frozen game changed")
         prefix = [{key: move[key] for key in MOVE_KEYS if key in move} for move in game["moves"][:64]]
         records[digest] = dict(
@@ -256,6 +257,16 @@ def initialize(db, config):
     if not records:
         raise ValueError("no completed games in frozen source")
     assign_groups(records, prior, config["seed"])
+    if config.get("sensitivity"):
+        import v7_pilot_data
+
+        records = v7_pilot_data.select_games(records, config)
+        for row in records.values():
+            target = Path(row["path"])
+            if not target.exists():
+                shutil.copyfile(row["original"], target)
+            if file_hash(target) != row["id"]:
+                raise ValueError("pilot source game changed during freezing")
     roots = []
     for digest, row in sorted(records.items()):
         db.execute("INSERT OR REPLACE INTO games VALUES(?,?)", (digest, encoded(row)))
@@ -263,7 +274,13 @@ def initialize(db, config):
             continue
         game = json.loads(Path(row["path"]).read_text())
         for selected in select_roots(
-            game, digest, row["split"], config["seed"], config["representative"], config["challenge"]
+            game,
+            digest,
+            row["split"],
+            config["seed"],
+            config["representative"],
+            config["challenge"],
+            random_challenge_min=1 if config.get("sensitivity") else 2,
         ):
             payload = dict(
                 selected,
@@ -376,10 +393,22 @@ def plan_audits(db, config):
     if get_meta(db, "audit_planned"):
         return
     rows = [row for row in root_rows(db, config) if row["result"].get("label")]
-    audit = mixed_selection(rows, config["audit_roots"], [config["seed"], "audit"], evidence_priority)
+    if config.get("full_v7"):
+        from v7_full_data import audit_selection
+
+        audit = audit_selection(rows, 0.10, [config["seed"], "audit"], evidence_priority)
+    else:
+        audit = mixed_selection(rows, config["audit_roots"], [config["seed"], "audit"], evidence_priority)
     for row in audit:
         for teacher in (config["primary"], config["challenger"]):
             add_job(db, row["id"], teacher, "audit", config["budgets"]["audit"], 20)
+    if config.get("sensitivity"):
+        import v7_pilot_data
+
+        v7_pilot_data.plan(db, config, rows)
+        set_meta(db, "audit_planned", dict(roots=len(audit), sensitivity=True))
+        db.commit()
+        return
     training = [row for row in rows if row["split"] == "train"]
     branches = mixed_selection(training, config["branch_roots"], [config["seed"], "branches"], evidence_priority)
     for row in branches:
@@ -400,9 +429,16 @@ def plan_deep(db, config):
         row["gap"] = 0
         if other and (label := json.loads(other[0]).get("label")):
             row["gap"] = abs(probability(row["result"]["label"]["score_black"]) - probability(label["score_black"]))
-    deep = mixed_selection(
-        rows, config["deep_roots"], [config["seed"], "deep"], lambda row: max(row["gap"], evidence_priority(row))
-    )
+    if config.get("full_v7"):
+        from v7_full_data import audit_selection
+
+        deep = audit_selection(
+            rows, 0.20, [config["seed"], "deep"], lambda row: max(row["gap"], evidence_priority(row))
+        )
+    else:
+        deep = mixed_selection(
+            rows, config["deep_roots"], [config["seed"], "deep"], lambda row: max(row["gap"], evidence_priority(row))
+        )
     for row in deep:
         for teacher in (config["primary"], config["challenger"]):
             add_job(db, row["id"], teacher, "deep", config["budgets"]["deep"], 40)

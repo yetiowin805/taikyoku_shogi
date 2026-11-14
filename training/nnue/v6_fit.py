@@ -29,13 +29,16 @@ def stop(*_):
 
 
 def objective(logits, q, outcome, confidence, regime):
-    if regime == "C":
+    if regime in ("C", "Cu"):
+        if regime == "Cu":
+            confidence = torch.ones_like(confidence)
         target = torch.logit(q.clamp(0.01, 0.99))
         return confidence * (
             0.8 * 0.25 * F.huber_loss(logits, target, reduction="none", delta=1)
             + 0.2 * 2 * (torch.sigmoid(logits) - q).square()
         )
-    target = torch.where(torch.isfinite(outcome), 0.85 * q + 0.15 * torch.nan_to_num(outcome), q)
+    fraction = 0.30 if regime == "Ao" else 0.15
+    target = torch.where(torch.isfinite(outcome), (1 - fraction) * q + fraction * torch.nan_to_num(outcome), q)
     return F.binary_cross_entropy_with_logits(logits, target, reduction="none")
 
 
@@ -132,7 +135,7 @@ def publish(net, out, parent, schema, samples, features, ids, mode, scale):
     return dict(max_score_error=max(errors), positions=len(errors), output_mode=mode)
 
 
-def fit(config):
+def fit(config, storage_lease=None):
     global STOP
     STOP = False
     signal.signal(signal.SIGTERM, stop)
@@ -156,10 +159,13 @@ def fit(config):
     conversion = config.get("prelude", False)
     regime = config["regime"]
     retain_material = config.get("retain_material", False)
-    if not isinstance(retain_material, bool) or (retain_material and (regime not in "CD" or conversion)):
-        raise ValueError("retain_material is only supported for main C/D runs")
+    residual_regimes = ("A", "Ao", "C", "Cu", "E") if config.get("full_v7") else ("C", "D", "Cu")
+    if not isinstance(retain_material, bool) or (retain_material and (regime not in residual_regimes or conversion)):
+        raise ValueError("retain_material is only supported for main residual training runs")
     width = config["width"]
-    if regime not in "ABCD" or len(regime) != 1:
+    if regime not in (
+        ("A", "C", "Ao", "Cu", "E") if config.get("pilot_windows") or config.get("full_v7") else tuple("ABCD")
+    ):
         raise ValueError("unknown regime")
     if regime == "D" and not pairs:
         raise ValueError("ranking regime requires verified pairs")
@@ -186,7 +192,8 @@ def fit(config):
     state = None
     resume_offset, resume_loss, sampler_state = 0, 0.0, None
     saved_conversion_baseline = None
-    policy = Policy(min_epochs=4, max_epochs=None, patience=3, lr_reductions=2)
+    adaptive = None
+    policy = Policy(min_epochs=8 if config.get("full_v7") else 4, max_epochs=None, patience=3, lr_reductions=2)
     tracker = Plateau(math.inf)
     if checkpoint.exists():
         state = torch.load(checkpoint, weights_only=True, mmap=True, map_location="cpu")
@@ -203,6 +210,7 @@ def fit(config):
         resume_loss = state.get("running_loss", 0.0)
         sampler_state = state.get("sampler")
         saved_conversion_baseline = state.get("conversion_baseline")
+        adaptive = state.get("adaptive")
     elif config.get("start"):
         net = load_net(Path(config["start"]), schema["features"], width)
     else:
@@ -215,6 +223,18 @@ def fit(config):
         del state
         gc.collect()
     weights = [samples[i]["sampling_weight"] for i in train_ids]
+    if regime == "E":
+        import v7_pilot_sampling as adaptive_sampling
+
+        def measure(ids):
+            return evaluate(net, samples, features, ids, 1, scale)["teacher"]
+
+        if adaptive is None:
+            adaptive = adaptive_sampling.initialize(samples, train_ids, measure)
+        weights = adaptive_sampling.sampling_weights(adaptive, samples, train_ids)
+    pilot_windows = config.get("pilot_windows")
+    if pilot_windows is not None and (pilot_windows < 8 or pilot_windows > 12):
+        raise ValueError("pilot requires 8 to 12 matched windows")
     pair_weights = [p["weight"] for p in pairs]
     window_draws = config.get("window_draws", 65536)
     if window_draws < 8 or window_draws % 8:
@@ -248,16 +268,21 @@ def fit(config):
                 tracker=vars(tracker),
                 recipe=data.hashed(recipe),
                 conversion_baseline=conversion_baseline,
+                adaptive=adaptive,
             ),
             temp,
         )
         temp.replace(checkpoint)
 
     window = start
-    while not tracker.stopped and (not conversion or window < 4):
-        if STOP:
+    while not tracker.stopped and (window < 4 if conversion else window < pilot_windows if pilot_windows else True):
+        if storage_lease is not None:
+            storage_lease.check_headroom()
+        if STOP or time.time() >= config.get("deadline", math.inf):
             raise InterruptedError("training paused at a resumable window boundary")
-        alpha = 1 if regime == "A" or retain_material else max(0, 1 - (window + 1) / 4) if conversion else 0
+        alpha = (
+            1 if regime in ("A", "Ao", "E") or retain_material else max(0, 1 - (window + 1) / 4) if conversion else 0
+        )
         rng = random.Random(config["seed"] + window)
         draws = rng.choices(train_ids, weights=weights, k=window_draws)
         running = resume_loss
@@ -265,13 +290,18 @@ def fit(config):
             rng.setstate(sampler_state)
         started = time.time()
         for first in range(resume_offset, window_draws, 8):
-            if STOP:
+            if STOP or time.time() >= config.get("deadline", math.inf):
                 persist(window, first, running, rng.getstate())
                 raise InterruptedError("training paused at an effective-batch boundary")
             warmup = min(1.0, 0.1 + 0.9 * (window * window_draws + first + 8) / 32768)
             for optimizer, peak in ((emb, 1e-4), (dense, 1.5e-4)):
                 for group in optimizer.param_groups:
-                    group["lr"] = peak * warmup * (0.5**tracker.reductions)
+                    reductions = (
+                        sum(window >= at for at in (pilot_windows - 4, pilot_windows - 2))
+                        if pilot_windows and not conversion
+                        else tracker.reductions
+                    )
+                    group["lr"] = peak * warmup * (0.5**reductions)
             emb.zero_grad(set_to_none=True)
             dense.zero_grad(set_to_none=True)
             for i in draws[first : first + 8]:
@@ -329,7 +359,9 @@ def fit(config):
             conversion_baseline=conversion_baseline,
             conversion_guard=guard,
         )
-        if not conversion and validation["selection"] < best:
+        if not conversion and (
+            (pilot_windows and window + 1 == pilot_windows) or (not pilot_windows and validation["selection"] < best)
+        ):
             best = validation["selection"]
             record["export"] = publish(
                 net,
@@ -339,10 +371,22 @@ def fit(config):
                 samples,
                 features,
                 val,
-                "residual" if regime == "A" or retain_material else "total",
+                "residual" if regime in ("A", "Ao", "E") or retain_material else "total",
                 scale,
             )
-        decision = tracker.observe(window + 1, validation["selection"], policy) if not conversion else "continue"
+        decision = (
+            tracker.observe(window + 1, validation["selection"], policy)
+            if not conversion and not pilot_windows
+            else "continue"
+        )
+        if (pilot_windows or config.get("full_v7")) and not conversion:
+            if regime == "E" and window + 1 >= 4:
+                record["adaptive"] = adaptive_sampling.update(adaptive, samples, train_ids, measure)
+                weights = adaptive_sampling.sampling_weights(adaptive, samples, train_ids)
+            if window + 1 in (4, 8, pilot_windows) or (config.get("full_v7") and (window + 1) % 8 == 0):
+                from v7_pilot_report import predictions
+
+                predictions(net, config, window + 1, scale)
         if decision == "reduce_lr":
             for opt in (emb, dense):
                 for group in opt.param_groups:
@@ -360,7 +404,7 @@ def fit(config):
             recipe=data.hashed(recipe),
             windows=window,
             draws=window * window_draws,
-            reason="matched_prelude" if conversion else tracker.stopped,
+            reason="matched_prelude" if conversion else "matched_pilot_budget" if pilot_windows else tracker.stopped,
             best=best if math.isfinite(best) else None,
         ),
     )
@@ -372,7 +416,30 @@ def main():
     p.add_argument("config", type=Path)
     a = p.parse_args()
     try:
-        fit(json.loads(a.config.read_text()))
+        config = json.loads(a.config.read_text())
+        if config.get("full_v7"):
+            import dataset_storage
+
+            parent = Path(config["parent"])
+            descriptor = json.loads(parent.read_text())["weights"]["nnue"]
+            inputs = [parent, parent.parent / descriptor["file"]]
+            if config.get("start"):
+                inputs.append(Path(config["start"]))
+            checkpoint = Path(config["out"]) / "training.pt"
+            if checkpoint.exists():
+                inputs.append(checkpoint)
+            with dataset_storage.prepare(
+                config["dataset"], config["out"], config["width"], extra_inputs=inputs
+            ) as storage_lease:
+                fit(config, storage_lease)
+            if not config.get("pilot_windows"):
+                dataset_storage.archive_checkpoint(checkpoint)
+            atomic_json(
+                Path(config["out"]) / "storage-complete.json",
+                dict(complete_sha256=data.file_hash(Path(config["out"]) / "complete.json")),
+            )
+        else:
+            fit(config)
     except InterruptedError:
         raise SystemExit(75) from None
 

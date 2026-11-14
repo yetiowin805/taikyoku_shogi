@@ -1,5 +1,6 @@
 //! Isolated JSONL oracle for the tactical-tree pilot. Production search is unchanged.
 //! Usage: tactical_tree_worker GAME START_PLY MODEL; stdin requests have version/id/op/path.
+use rand::{rngs::StdRng, Rng, SeedableRng};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -15,13 +16,17 @@ use taikyoku_shogi::{
     movement::{BlockingMode, MovementCapability, MovementConfig},
     notation::move_encode,
     piece::{Color, Piece},
-    search::{move_captures_enemy, probe_quiescence, search_with_progress, SearchConfig},
+    search::{
+        move_captures_enemy, probe_quiescence, probe_quiescence_with_line, search_with_progress,
+        SearchConfig,
+    },
     training::record::{GameRecordV2, GameStart},
 };
 
 #[derive(Deserialize)]
 struct Request {
     version: u32,
+    feature_version: Option<u32>,
     id: String,
     op: String,
     #[serde(default)]
@@ -30,6 +35,8 @@ struct Request {
     depth: u32,
     #[serde(default)]
     time_ms: u64,
+    #[serde(default)]
+    sampling_seed: u64,
     /// Parity survey: finish a finite requested depth without a time cutoff.
     #[serde(default)]
     fixed_depth: bool,
@@ -118,8 +125,27 @@ fn position(base: &GameState, path: &[Move]) -> Result<GameState, String> {
     Ok(state)
 }
 
+#[cfg(test)]
 fn collection_metadata(state: &GameState) -> Value {
-    use taikyoku_shogi::nnue::features;
+    collection_metadata_for(state, taikyoku_shogi::nnue::features::schema())
+}
+fn collection_metadata_for(
+    state: &GameState,
+    schema: &taikyoku_shogi::nnue::features::Schema,
+) -> Value {
+    let mut info = collection_metadata_inner(state, schema);
+    if schema.version == 2 {
+        info["legacy_position_hash"] = json!(feature_fingerprint(
+            state,
+            taikyoku_shogi::nnue::features::schema()
+        ));
+    }
+    info
+}
+fn feature_fingerprint(
+    state: &GameState,
+    schema: &taikyoku_shogi::nnue::features::Schema,
+) -> String {
     let mut encoded = Vec::new();
     for (i, color) in [
         state.get_current_turn(),
@@ -131,19 +157,25 @@ fn collection_metadata(state: &GameState) -> Value {
         if i == 1 {
             encoded.push(b'|');
         }
-        let mut active = features::active(state.get_board(), color);
+        let mut active = schema.active(state.get_board(), color);
         active.sort_unstable();
         for feature in active {
             encoded.extend_from_slice(&(feature as u32).to_le_bytes());
         }
     }
+    format!("{:x}", Sha256::digest(encoded))
+}
+fn collection_metadata_inner(
+    state: &GameState,
+    schema: &taikyoku_shogi::nnue::features::Schema,
+) -> Value {
     let mut board = BoardPosition::from_state(state);
     board.pieces.sort_by_key(|p| p.position.to_index());
     let full = serde_json::to_vec(&json!({"position":board,"history":state.get_move_history()}))
         .expect("position serialization");
-    json!({"canonical_position_hash":format!("{:x}",Sha256::digest(encoded)),
+    json!({"canonical_position_hash":feature_fingerprint(state, schema),
         "state_history_hash":format!("{:x}",Sha256::digest(full)),
-        "feature_schema_hash":format!("{:x}",sha2::digest::Output::<Sha256>::from(features::schema().hash)),
+        "feature_schema_hash":format!("{:x}",sha2::digest::Output::<Sha256>::from(schema.hash)),
         "turn":sign(state),"draw_counter":state.get_turns_without_capture_or_promotion(),
         "repetitions":state.repetition_count(),"history_len":state.get_move_history().len(),
         "piece_count":board.pieces.len(),
@@ -405,12 +437,14 @@ fn handle(
         return scan(base, start_ply, game, player, req, started);
     }
     let state = position(base, &req.path)?;
+    let feature_schema =
+        taikyoku_shogi::nnue::features::by_version(req.feature_version.unwrap_or(1))?;
     let pov = sign(&state);
     if req.op == "training_features" {
-        use taikyoku_shogi::nnue::features;
-        let mut info = collection_metadata(&state);
-        let mut us = features::active(state.get_board(), state.get_current_turn());
-        let mut them = features::active(state.get_board(), state.get_current_turn().opposite());
+        let mut info = collection_metadata_for(&state, feature_schema);
+        let mut us = feature_schema.active(state.get_board(), state.get_current_turn());
+        let mut them =
+            feature_schema.active(state.get_board(), state.get_current_turn().opposite());
         us.sort_unstable();
         them.sort_unstable();
         info["event"] = json!("complete");
@@ -422,31 +456,83 @@ fn handle(
             player.weights()
         ));
         emit(info);
-    } else if req.op == "collection_probe" {
+    } else if req.op == "collection_moves" {
+        let moves = legal(&state);
+        let mut categories = [Vec::new(), Vec::new(), Vec::new()];
+        for mv in moves {
+            if req.candidates.contains(&mv) {
+                continue;
+            }
+            let index = if move_captures_enemy(&state, &mv) {
+                0
+            } else if mv.promoted {
+                1
+            } else {
+                2
+            };
+            categories[index].push(mv);
+        }
+        let available: Vec<_> = categories.iter().filter(|x| !x.is_empty()).collect();
+        let mut rng = StdRng::seed_from_u64(req.sampling_seed);
+        let chosen = if available.is_empty() {
+            None
+        } else {
+            let group = available[rng.gen_range(0..available.len())];
+            Some(group[rng.gen_range(0..group.len())].clone())
+        };
+        emit(
+            json!({"version":1,"id":req.id,"event":"complete","move":chosen,
+            "category_counts":categories.iter().map(Vec::len).collect::<Vec<_>>()}),
+        );
+    } else if req.op == "collection_probe" || req.op == "collection_settle" {
         if req.time_ms == 0 || req.depth > 8 {
             return Err("collection probe needs a positive budget and q depth <= 8".into());
         }
         let moves = legal(&state);
         let outcome = terminal(&state, moves.is_empty());
-        let mut info = collection_metadata(&state);
+        let mut info = collection_metadata_for(&state, feature_schema);
         info["version"] = json!(1);
         info["id"] = json!(req.id);
         info["event"] = json!("complete");
         info["op"] = json!(req.op);
         info["terminal"] = json!(outcome);
+        info["legal_promotion"] = json!(moves.iter().any(|mv| mv.promoted));
+        info["material_total"] = json!(pieces(&state)
+            .iter()
+            .map(|piece| material_piece_value(piece, player.weights()).abs())
+            .sum::<f32>());
         info["static_black"] = json!(evaluate(&state, player.weights()) * pov);
         info["material_black"] = json!(taikyoku_shogi::nnue::material(
             state.get_board(),
             player.weights()
         ));
         if outcome.is_none() {
-            let q = probe_quiescence(
-                &state,
-                player.weights(),
-                req.depth,
-                SearchConfig::default().q_prune_mode,
-                Some(req.time_ms),
-            );
+            let (q, line) = if req.op == "collection_settle" {
+                probe_quiescence_with_line(
+                    &state,
+                    player.weights(),
+                    req.depth,
+                    SearchConfig::default().q_prune_mode,
+                    Some(req.time_ms),
+                )
+            } else {
+                (
+                    probe_quiescence(
+                        &state,
+                        player.weights(),
+                        req.depth,
+                        SearchConfig::default().q_prune_mode,
+                        Some(req.time_ms),
+                    ),
+                    None,
+                )
+            };
+            if let Some(path) = &line {
+                // Validate the exact sequence, including intermediate captures and promotions.
+                let leaf = position(&state, path)?;
+                info["settled_position"] = collection_metadata_for(&leaf, feature_schema);
+            }
+            info["settled_line"] = json!(line);
             info["quiescence"] = json!({"score_black":q.score*pov,"aborted":q.aborted,
                 "nodes":q.nodes,"depth":req.depth,"budget_ms":req.time_ms,
                 "policy":"standalone-open-window-no-previous-landing-v1"});

@@ -30,6 +30,14 @@ def configured_widths(config):
 
 
 def tasks(config):
+    if config.get("full_v7"):
+        from v7_full import tasks as full_tasks
+
+        return full_tasks(config)
+    if config.get("sensitivity"):
+        from v7_pilot import tasks as pilot_tasks
+
+        return pilot_tasks(config)
     out = Path(config["out"])
     result = []
     widths = configured_widths(config)
@@ -97,6 +105,12 @@ def finished(out, job):
     marker = out / job["name"] / "complete.json"
     if not marker.exists():
         return False
+    if job["fit"].get("full_v7"):
+        storage = marker.with_name("storage-complete.json")
+        if not storage.exists():
+            return False  # Resume the archival step after an interrupted upload.
+        if json.loads(storage.read_text())["complete_sha256"] != data.file_hash(marker):
+            raise ValueError("storage completion identity mismatch: " + job["name"])
     cp = out / job["name"] / ("start.pt" if job["fit"].get("prelude") else "model.json")
     if not cp.exists():
         raise ValueError("completion marker without artifact: " + job["name"])
@@ -104,7 +118,9 @@ def finished(out, job):
         d = json.loads(cp.read_text())["weights"]["nnue"]
         if data.file_hash(cp.parent / d["file"]) != d["sha256"]:
             raise ValueError("completed model changed")
-        expected = "residual" if job["fit"]["regime"] == "A" or job["fit"].get("retain_material") else "total"
+        expected = (
+            "residual" if job["fit"]["regime"] in ("A", "Ao", "E") or job["fit"].get("retain_material") else "total"
+        )
         if d.get("output_mode") != expected:
             raise ValueError("completed model output mode differs")
     return True
@@ -144,7 +160,11 @@ def run(config):
     atomic(pinned, config)
     with (out / "pipeline.lock").open("a+") as own:
         fcntl.flock(own, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        pool = LeasePool(Path(config["control"]), BoundaryLeases)
+        pool = LeasePool(
+            Path(config["control"]),
+            BoundaryLeases,
+            reserve=config.get("max_parallel", 4) if config.get("sensitivity") else None,
+        )
         held = {}
         running = {}
         pausing = set()
@@ -152,6 +172,13 @@ def run(config):
         jobs = tasks(config)
         try:
             while not STOP:
+                if (
+                    config.get("sensitivity")
+                    and not config.get("full_v7")
+                    and time.time() >= config["training_deadline"]
+                ):
+                    atomic(out / "status.json", dict(state="pilot_budget", updated=time.time()))
+                    return
                 report = dict(
                     updated=time.time(),
                     pid=os.getpid(),
@@ -168,7 +195,9 @@ def run(config):
                 # to commit its final status and release its process lock.
                 collection = Path(config["catalogue"]).parent
                 status = json.loads((collection / "status.json").read_text())
-                ready = ready and status.get("state") == "completed"
+                ready = ready and status.get("state") in (
+                    ("completed", "pilot_budget") if config.get("sensitivity") else ("completed",)
+                )
                 if not ready:
                     atomic(
                         out / "status.json",
@@ -183,7 +212,12 @@ def run(config):
                         time.sleep(1)
                         continue
                 maintenance = allocation_busy(Path(config["control"]))
-                acquired = pool.update([i for i in config["lease_indices"] if i not in held], maintenance)
+                acquired = pool.update(
+                    [i for i in config["lease_indices"] if i not in held]
+                    if len(held) < config.get("max_parallel", 6)
+                    else [],
+                    maintenance,
+                )
                 if acquired:
                     held[acquired[0]] = acquired[1]
                 for name, (proc, _cpu, log) in list(running.items()):
@@ -206,9 +240,10 @@ def run(config):
                         job = next(j for j in jobs if j["name"] == name)
                         if not finished(out, job):
                             raise ValueError("trainer exited without completion: " + name)
-                        # Finished optimizer state is no longer needed; preserve inference
-                        # models and shared prelude starts to bound disk usage.
-                        (out / name / "training.pt").unlink(missing_ok=True)
+                        # Full v7 verifies archival before eviction. Legacy campaigns
+                        # retain their existing disposable-checkpoint behavior.
+                        if not job["fit"].get("full_v7"):
+                            (out / name / "training.pt").unlink(missing_ok=True)
                 used = {cpu for _, cpu, _ in running.values()}
                 if maintenance:
                     for name, (proc, _cpu, _log) in running.items():
@@ -218,9 +253,19 @@ def run(config):
                     for cpu in list(held):
                         if cpu not in used:
                             held.pop(cpu).close()
-                if not prepared and not running and (out / "dataset/dataset.json").exists():
+                if (
+                    not prepared
+                    and not running
+                    and (out / "dataset/dataset.json").exists()
+                    and (not config.get("sensitivity") or (out / "views/views.json").exists())
+                ):
                     dataset.verify(out / "dataset")
                     prepared = True
+                if config.get("sensitivity") and not config.get("full_v7"):
+                    from v7_pilot import calibrate_training
+
+                    calibrate_training(config)
+                    jobs = tasks(config)
                 done = {j["name"] for j in jobs if finished(out, j)}
                 if prepared and len(done) == len(jobs):
                     atomic(
@@ -264,6 +309,8 @@ def run(config):
                                 threads=1,
                                 window_draws=config.get("window_draws", 65536),
                             )
+                            if config.get("sensitivity"):
+                                fit.update(job["fit"])
                             path = out / (name + ".json")
                             atomic(path, fit)
                             args = [config["python"], str(Path(__file__).with_name("v6_fit.py")), str(path)]

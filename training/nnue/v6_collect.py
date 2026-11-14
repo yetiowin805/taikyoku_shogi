@@ -189,6 +189,8 @@ def probe_steps(db, config, job, position):
     )
     # Holdout exposure is checked against both parent lineages. No relabeling makes it fresh.
     exposed = db.execute("SELECT 1 FROM parent_features WHERE hash=?", (probe["canonical_position_hash"],)).fetchone()
+    if not exposed and probe.get("legacy_position_hash"):
+        exposed = db.execute("SELECT 1 FROM parent_features WHERE hash=?", (probe["legacy_position_hash"],)).fetchone()
     eligible = position["split"] != "train" and not position["inherited"] and not exposed
     if job["teacher"] == config["primary"]:
         db.execute(
@@ -216,6 +218,10 @@ def probe_steps(db, config, job, position):
 
 
 def execute_steps(db, config, job, position, oracle):
+    if config.get("sensitivity") and job["tier"] in ("settle", "explore"):
+        import v7_pilot_data
+
+        return (yield from v7_pilot_data.execute_steps(db, config, job, position))
     if job["tier"] == "alternatives":
         source = db.execute(
             "SELECT result FROM jobs WHERE position_id=? AND teacher=? AND tier='broad' AND status='completed'",
@@ -370,7 +376,9 @@ def run(config_path):
         fcntl.flock(own, fcntl.LOCK_EX | fcntl.LOCK_NB)
         db = data.connect(out)
         workers = {}
-        waiters = runtime.LeasePool(Path(config["control"]), BoundaryLeases)
+        waiters = runtime.LeasePool(
+            Path(config["control"]), BoundaryLeases, reserve=config["workers"] if config.get("sensitivity") else None
+        )
         end_state = "stopped"
         last_status = 0
         try:
@@ -382,6 +390,12 @@ def run(config_path):
             db.commit()
             status(db, config, "waiting_for_cpu", workers)
             while not STOP.is_set():
+                if (
+                    config.get("sensitivity", {}).get("collection_deadline") is not None
+                    and time.time() >= config["sensitivity"]["collection_deadline"]
+                ):
+                    end_state = "pilot_budget"
+                    break
                 maintenance = allocation_busy(Path(config["control"]))
                 candidates = [i for i in indices if i not in workers]
                 acquired = waiters.update(candidates, maintenance)
@@ -464,6 +478,10 @@ def run(config_path):
             for worker in workers.values():
                 worker.close()
             db.execute("UPDATE jobs SET status='pending',attempts=max(0,attempts-1) WHERE status='running'")
+            if end_state == "pilot_budget":
+                import v7_pilot_data
+
+                v7_pilot_data.cutoff(db, config)
             db.commit()
             if end_state != "failed":
                 status(db, config, end_state)
