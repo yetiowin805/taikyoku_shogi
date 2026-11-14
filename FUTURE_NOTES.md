@@ -2,6 +2,153 @@
 
 Ideas parked after a knockout, not the next patch. Search / eval experiments that are ready to measure still live in [`IDEAS_TO_TRY.md`](IDEAS_TO_TRY.md).
 
+## Recurring game review: conversion and tactical awareness (2026-11-13)
+
+Revisit these questions after a meaningful training/search generation change and
+periodically as fresh tournament games accumulate. Inspection of v6_search games
+suggests three useful research directions; their prevalence and causes have not
+been established by a representative audit. These are proposed investigations,
+not implemented improvements or a reason to change the running training recipe.
+
+Start with a small fresh sample as well as the extreme examples below. Record
+which failure is reproducible, the relevant position/history, plausible defenses,
+and whether additional search resolves it. Pick one bounded training or search
+experiment at a time and keep ordinary-play controls.
+
+### Converting an advantage against the last royal
+
+Some very long draws appear to involve an agent that cannot finish against the
+opponent's last royal despite an apparent advantage. Distinguish a genuinely
+unconvertible position or rule draw from a missed forced finish, repeated checking,
+poor coordination, or failure to make progress before the game cap. A large
+recorded evaluation alone does not establish a forced win.
+
+- **Inspect:** replay the final-royal phase, identify when conversion stalled, and
+  check whether stronger/better-directed search can demonstrate a legal finish.
+  Include escapes, defensive resources, promotions creating another royal, and
+  the actual repetition/progress/clock state. Follow this variant's terminal and
+  legal-move rules rather than assuming orthodox checkmate rules apply.
+- **Training experiments:** collect verified finishing sequences, earlier
+  conversion decisions, and hard defenses from these endgames. Balance them with
+  positions where chasing the royal fails; cap each game's contribution. Consider
+  a conversion/progress auxiliary target only when its labels can be justified.
+- **Search/eval experiments:** investigate bounded mate/royal-capture verification,
+  better forcing-move ordering, attacker coordination and escape-square control,
+  or a progress-sensitive conversion term. Check that any selective mate search
+  is sound under the variant's legal defenses. Avoid rewarding checks or proximity
+  that do not actually improve the position.
+- **Measure:** conversion rate on a held-out endgame suite, plies/time to finish,
+  avoidable repetitions and game-cap draws, plus false attacks, lost wins and
+  search-budget cost. Do not count a shorter loss or an unsound attack as progress.
+
+### Tactical and trapped-piece awareness
+
+Investigate pieces that are materially valuable but lack safe mobility, are
+trapped after a natural move, or can be won by a tactical sequence that shallow
+search/evaluation misses. Distinguish an actual trap from a temporarily restricted
+piece with a safe exchange, escape, promotion, or counterattack.
+
+- **Inspect:** use sustained evaluation-drop episodes to find the earlier decision
+  and analyze legal alternatives on the same board. Classify immediate hanging
+  pieces, traps requiring preparation, discovered/path captures, and bad exchanges.
+  A later score collapse is a candidate-finding signal, not proof of a blunder.
+- **Training experiments:** add positive and negative trap examples, escape moves,
+  and plausible but losing alternatives from search. Test whether existing inputs
+  can represent the relevant mobility/attack context before adding features.
+- **Search/eval experiments:** audit capture/threat eligibility, pruning and
+  quiescence at the missed tactic; test safe-mobility or tactical-exposure features
+  and selective extensions only where justified. Respect multi-leg and path-capture
+  semantics, including changes to occupancy after intermediate captures.
+- **Measure:** held-out trap/escape decision quality, false alarms against sound
+  sacrifices or temporary confinement, same-budget playing strength, and node/time
+  overhead. A better teacher fit alone does not establish better play.
+
+### Unexpected mating attacks, especially with jumping pieces
+
+Review attacks where an agent remains confident until its last royal becomes
+unsavable, including jumps over apparently protective pieces and combinations
+with range or multi-leg attackers. Check threat recognition and defensive move
+selection before the terminal score appears, not just the final capture.
+
+- **Inspect:** reconstruct the attack and its best legal defenses; distinguish
+  missed attack-map semantics, a horizon/pruning miss, a bad evaluation, and a
+  misleading incomplete search result. Include similar-looking attacks that
+  cannot be forced.
+- **Training experiments:** mine attack precursors and defensive alternatives,
+  with emphasis on jumping routes, coordination, and misleading shelter. Verify
+  labels with stronger analysis or a sound terminal proof where available; do not
+  promote the agent's own confident mate score to ground truth automatically.
+- **Search/eval experiments:** audit legal threat/capture generation and royal
+  safety inputs for jumping attacks. Test targeted threat/evasion ordering or
+  extensions, and whether forcing quiet moves need selective quiescence coverage.
+  Neighboring flight squares alone need not capture longer-range or jumping threats.
+- **Measure:** attack/defense success at the tournament time budget, how early the
+  threat is recognized, false mate/threat alarms, and regressions from expanding
+  too many forcing moves. Keep multi-royal positions as controls.
+
+### Evidence to revisit and how to select fresh examples
+
+The November 13 inspection used the `corrected-rules-20261031` VPS tournament.
+Curated games and their `INDEX.txt` / `selection.json` are local, gitignored data;
+they are not included in this PR. The run and slot IDs identify source games if
+these local collections are no longer available.
+
+- `data/raw/tourney/v6-search-longest-draws-20261113/`: slots **5359, 5284, 4296,
+  4587, 5100**, selected by recorded ply count among completed draws involving
+  v6_search. These are extreme cases, not a draw-cause frequency estimate.
+- `data/raw/tourney/v6-search-durable-expected-drops-20261113/`: slots **5658, 4395,
+  5072, 4445, 3992, 5482, 5307, 5065, 4161, 5025**. These are investigation seeds;
+  review is needed before assigning any of them to a failure category above.
+
+For fresh sustained-drop candidates, compare the **same agent's** recorded search
+scores, converted to its perspective (negate Black-absolute scores for White).
+With `E` denoting an expected-final-score mapping, rank positive values of:
+
+```text
+min(E(x-6), E(x-4), E(x-2), E(x))
+  - max(E(x+2), E(x+4), E(x+6), E(x+8))
+```
+
+Require all eight samples to exist and, for the early-game review, all to lie in
+the first half of the game. Samples cover 14 plies; every earlier sample must
+exceed every later sample. Group overlapping windows from the same episode when
+sampling for review or training so a single event does not dominate.
+
+The exploratory mapping used `E(s) = sigmoid((s - 1714.6) / 2991.6)`, fitted to
+v6_search-versus-v6_search outcomes with draws worth 0.5. It is an approximate
+ranking aid for that snapshot, not a universal evaluator or a proposed training
+target. Recheck calibration after model/search changes; distinguish mate-band
+scores and opponent/phase/family effects. Preserve raw scores as well as mapped
+values. Raw zero need not imply a 50% eventual score.
+
+**GUI ply `n`** labels the record at `moves[n-1]`; replay `n-1` to analyze the board
+where that move's search began. Preserve the full replay state/history and engine,
+model and clock provenance. Do not compare neighboring agents' evaluations as if
+they were independent assessments of one identical position.
+
+### Experiment and follow-up discipline
+
+- Refresh a small representative sample along with the worst cases; record
+  counterexamples and unresolved cases. Keep game/start families together when
+  splitting development examples and held-out checks. Separate targeted gains
+  from ordinary-position regressions.
+- Compare a frozen baseline and one candidate under matched starts/colors and
+  clocks. Record revisions, model hashes, sample sizes, uncertainty, correctness
+  checks and resource cost. Run labeling, builds and substantial suites on the
+  authorized VPS/CI, within its available budget.
+- Improve labels or sampling when a stronger teacher reliably recognizes the
+  mistake; investigate search first when the necessary candidate/defense is never
+  examined. If both fail, retain the uncertainty rather than training on an
+  unverified correction. Verify the eventual playing result either way.
+- After an experiment, add its result and next question here; promote a concrete
+  proposal into [Ideas to try](IDEAS_TO_TRY.md). Follow the existing history-freeze
+  rule for a future major eval/search behavior change; this research note itself
+  does not change engine behavior.
+
+Related: [last-royal flight and tropism ideas](IDEAS_TO_TRY.md#l--last-royal-flight-penalty),
+[NNUE data/mate roadmap](training/nnue/DATA_ROADMAP.md), and
+[v6 collection and training research](training/nnue/V6_RESEARCH.md).
+
 ## Search performance follow-ups (2026-09-12)
 
 The current speed change implements **cached ordering keys** and **skipping
