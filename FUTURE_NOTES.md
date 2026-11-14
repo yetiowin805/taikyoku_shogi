@@ -86,6 +86,173 @@ selection before the terminal score appears, not just the final capture.
   threat is recognized, false mate/threat alarms, and regressions from expanding
   too many forcing moves. Keep multi-royal positions as controls.
 
+### Future-evaluation bootstrapping and temporal-difference learning
+
+**Potentially fruitful; candidate experiment.** A later evaluation can reveal a
+trap or mating threat that the network did not recognize earlier. Multi-step
+TD learning and TD(lambda) mix information from subsequent positions; TDLeaf
+combines temporal-difference learning with minimax search. See the
+[TDLeaf paper](https://arxiv.org/abs/cs/9901001).
+
+One possible controlled experiment is a small future-target component:
+
+```text
+target(s_t) = (1-alpha) * P(frozen_teacher(s_t))
+            + alpha * P(frozen_teacher(s_(t+n)))
+```
+
+This is a proposed probability-target blend, not a complete implementation of
+TD(lambda). Compare a small blend with the teacher-only baseline; several
+horizons, such as 4/8/16 plies, are experimental choices rather than established
+settings. Keep targets detached/frozen, use a consistent original-player score
+perspective, and fit any probability calibration on training data only. A
+replay-verified terminal result can replace a bootstrap estimate at termination;
+a game-cap draw or a mate-range search score is not automatically that result.
+
+The central question is **when the position actually became bad**. If a piece
+was already trapped, its later loss may improve the earlier label. If a legal
+escape existed and the agent blundered later, copying the loss backward can
+penalize a defensible position. The same issue applies to a later win caused by
+an opponent mistake. Played continuations estimate the behavior of those players,
+not necessarily best-defense values. Smoothing future scores can reduce isolated
+blips, but does not remove this causal ambiguity.
+
+Use durable drops to select earlier boards for stronger analysis and inspect
+alternative defenses. Compare future-target blending with deeper **same-position**
+teacher labels, and retain successful escapes and unsound attacks as controls.
+The min-before/max-after rule above is a mining criterion, not ground-truth value.
+Start with game/start-group-held-out tactical decisions and matched-budget games;
+keep representative training exposure and prevent overlapping episodes dominating.
+
+### Further techniques to investigate
+
+This is a curated research menu, not an exhaustive catalog or a recommendation to
+implement everything. The status audit checked current search policies, NNUE
+features/losses, collection scripts, existing research notes and matching commit
+subjects at baseline `b5edce9` (2026-11-13). **Candidate** means no direct
+implementation/completed experiment was identified in those inspected paths;
+it does not prove that an old deployment or untracked experiment never tried it.
+**Extension** means related work already exists; only the described additional
+step is a new investigation. Confirm deployment/benchmark history before spending
+compute, then record the experiment, result and decision here.
+
+1. **Root/tree value bootstrapping — extension.** Train static evaluations toward
+   stronger minimax estimates on roots and selected internal search nodes, not
+   just later played positions. This could expose tempting losing alternatives
+   and defenses. Root/child collection and sibling ranking already exist; broader
+   internal-node distillation is the question. Preserve bound/exactness provenance
+   and fair coverage; do not treat every partial search score as an exact label.
+   [Search-bootstrapping research](https://proceedings.neurips.cc/paper/2009/hash/389bc7bb1e1c2a5e7e147703232a88f6-Abstract.html).
+
+2. **Iterative student-state aggregation — extension.** After an initial model,
+   collect positions and branches its own search visits, have a stronger frozen
+   teacher label them, and mix them into replay. This adapts the
+   [DAgger](https://proceedings.mlr.press/v15/ross11a.html) idea to distribution
+   shift in value learning; its imitation-learning guarantees do not automatically
+   transfer. Existing collection is related; the explicit student-driven iteration
+   is the experiment. Keep holdouts immutable and preserve broad coverage.
+
+3. **Learned move ordering / policy distillation — candidate.** Distill trustworthy
+   teacher move rankings into a small legal-move scorer or policy head. First use
+   it for ordering, retaining legal alternatives and conventional fallback ordering.
+   This could expose jumping attacks and defensive moves sooner. Preserve full
+   routes/promotions; measure inference cost and strength at equal wall time.
+   [Policy/value-network precedent](https://arxiv.org/abs/1712.01815).
+
+4. **Auxiliary tactical or progress heads — candidate.** Shared representations
+   could learn safe mobility, attacked royals, verified trap/escape labels, or
+   conversion progress alongside value. These labels are Taikyoku-specific
+   hypotheses, not established benefits. Evaluate value/playing improvements and
+   negative transfer; a shorter game alone can mean a quicker loss. Training-only
+   heads may avoid inference cost. [Multi-head precedent](https://lczero.org/dev/backend/nn/).
+
+5. **WDL targets and context-dependent calibration — candidate.** Compare a learned
+   win/draw/loss head or phase/family-aware calibration with the current scalar
+   probability target. Separate genuine draws from caps/unknown endings and
+   calibrate on training data only. This may distinguish stable conversion failure
+   from high-variance tactical positions; WDL alone is not epistemic uncertainty.
+   [WDL-head precedent](https://lczero.org/dev/backend/nn/).
+
+6. **Sparse relational attack/threat features — candidate.** Test explicit
+   attacker-victim or royal-threat relationships beyond the current ability,
+   occupancy and royal channels. Modern Stockfish has
+   [NNUE threat input features](https://raw.githubusercontent.com/official-stockfish/Stockfish/master/src/nnue/features/full_threats.h).
+   Rebuild semantics for jumping, path and multi-leg moves; measure incremental
+   update cost, feature aliasing, schema compatibility and actual playing benefit.
+   Existing handcrafted attack terms are not this experiment.
+
+7. **Verified symmetry augmentation / equivariance — candidate.** Explore extra
+   data sharing only for transformations proven to preserve this variant's legal
+   moves, promotion/provenance, terminal rules and history. Current perspective
+   normalization already exists; arbitrary rotations/reflections are not safe.
+   Test move-application equivalence and transform targets consistently before
+   adding training examples or representation constraints.
+   [Symmetry-sharing research](https://proceedings.mlr.press/v48/cohenc16.html).
+
+8. **Verified-ending curriculum — extension.** Begin with reachable, demonstrably
+   convertible final-royal positions and hard defenses, then introduce earlier and
+   more difficult precursor states as performance improves. Mate-focused sampling
+   is already proposed; a staged/adaptive curriculum is the additional experiment.
+   Preserve representative replay and reject impossible synthetic positions.
+   [Reverse-curriculum research](https://proceedings.mlr.press/v78/florensa17a.html)
+   motivates the analogy, not a claim of proven gains in Taikyoku.
+
+9. **Bounded proof-number / df-pn royal-capture solver — candidate.** Try a small
+   offline AND/OR solver for tactical labels and endgame regression cases before
+   considering selective production use. Include every necessary legal defense;
+   checking-only orthodox tsume assumptions do not establish a proof here. Handle
+   cycles and inherited history; resource exhaustion returns unknown, not mate.
+   [df-pn applied to shogi mate problems](https://ipsj.ixsq.nii.ac.jp/records/11597).
+
+10. **Tiny exact endgame databases — candidate.** Explore retrograde analysis for
+    a demonstrably affordable, closed family of very small full-board positions,
+    supplying verified conversion/defense examples. Include all legal transitions,
+    promotions, royal succession and relevant draw-history state before claiming
+    exactness. Full Taikyoku tablebases are not a proposed near-term deliverable.
+    [Chess tablebase-generator precedent](https://github.com/syzygy1/tb).
+
+11. **Singular / only-move extensions — candidate.** Test a promising move against
+    alternatives at a verification depth before allocating extra search to it,
+    especially for sole-royal defenses and tactical escapes. This differs from
+    existing royal and recapture extensions. Specify exclusion-search/TT-bound
+    handling; a selective depth-limited test is not a full-game uniqueness proof.
+    Measure tactical gain, node explosion and equal-clock playing strength.
+    [Stockfish search implementation](https://github.com/official-stockfish/Stockfish/blob/master/src/search.cpp).
+
+12. **Evaluation correction history — candidate.** Learn a small contextual
+    correction from reliable search-versus-static discrepancies during search.
+    This differs from quiet/continuation move-ordering history. It could compensate
+    for recurring local evaluation bias, but can also reinforce it. Specify update
+    eligibility, bound handling and TT/static-score separation before an ablation.
+    [Stockfish correction-history implementation](https://github.com/official-stockfish/Stockfish/blob/master/src/search.cpp).
+
+**Already represented; do not relabel as untried:** history/killer ordering,
+null-move policies, tactical LMR, aspiration/PVS, threat/recapture/quiescence
+experiments and time-growth policies have implementations or trial arms in
+[`src/search.rs`](src/search.rs), [`src/search/experiments.rs`](src/search/experiments.rs)
+and [`src/eval.rs`](src/eval.rs). Teacher/outcome blending, confidence/parent-error
+weighting, quantization-aware training, pure-NNUE variants and sibling ranking
+also have implementation or experiment history; see
+[`V6_TRAINING.md`](training/nnue/V6_TRAINING.md),
+[`V6_PURE_RETRY.md`](training/nnue/V6_PURE_RETRY.md),
+[`difficulty_weights.py`](training/nnue/difficulty_weights.py) and
+[`pilot_fit.py`](training/nnue/pilot_fit.py).
+
+The [tactical-tree pilot](training/tactical_tree/README.md) already explores local,
+PV, contested and refutation-guided trees with conservative terminal-proof bounds;
+new MCTS/best-first or uncertainty-allocation proposals should explain what they
+add to that work. [Existing v6 research](training/nnue/V6_RESEARCH.md) also covers
+diverse teachers, same-board disagreement, selective deeper labeling, broader
+representative data and alternative ranking targets. Existing work is not evidence
+that a technique succeeded, nor that it should be enabled by default.
+
+For a next small investigation, prioritize verified relabeling around durable
+failures and a controlled future-target ablation. Use representation/ordering or
+specialized proof experiments when the audit identifies those bottlenecks.
+Architecture changes, new heads/features and exact endgame tooling need separate
+compatibility and compute plans. Apply the experiment/follow-up discipline below;
+external results provide starting ideas, not Taikyoku performance guarantees.
+
 ### Evidence to revisit and how to select fresh examples
 
 The November 13 inspection used the `corrected-rules-20261031` VPS tournament.
