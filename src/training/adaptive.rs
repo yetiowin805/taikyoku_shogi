@@ -9,6 +9,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
+pub mod generation_matchups;
+
 const DRAWS: usize = 8192;
 const TOP_K: usize = 5;
 const MIN_GAMES: usize = 40;
@@ -83,6 +85,8 @@ pub struct Scheduler {
     pub exposure: BTreeMap<String, Exposure>,
     #[serde(default)]
     pub retirement_threshold: Option<RetirementThreshold>,
+    #[serde(default)]
+    pub generation_matchups: generation_matchups::State,
     pub completed_games: usize,
     pub actual_components: usize,
     pub assumed_components: usize,
@@ -109,6 +113,7 @@ impl Default for Scheduler {
             confirmations: vec![],
             exposure: BTreeMap::new(),
             retirement_threshold: None,
+            generation_matchups: generation_matchups::State::default(),
             completed_games: 0,
             actual_components: 0,
             assumed_components: 0,
@@ -557,6 +562,12 @@ pub fn refresh(state: &mut TourneyState) -> Result<(), String> {
         .cloned()
         .unwrap_or_default();
     let mut protected = BTreeMap::<String, Vec<String>>::new();
+    for (name, generation) in generation_matchups::refresh(state, &p, &published.ratings)? {
+        protected
+            .entry(name)
+            .or_default()
+            .push(format!("generation_matchup:{generation}"));
+    }
     for (generation, name) in generation_champions(state, &published.ratings) {
         protected
             .entry(name)
@@ -762,6 +773,9 @@ fn choose(
         return Ok((pair.0, pair.1, "generation_anchor".into()));
     }
     if lane == 1 {
+        if let Some(pair) = generation_matchups::choose(state, &actual) {
+            return Ok(pair);
+        }
         // Selection, including the champion identity, uses the draw-completed
         // scheduling state. Published leader identity is used for counter protection.
         let champion =
@@ -979,6 +993,7 @@ pub fn claim(state: &mut TourneyState) -> Result<Option<usize>, String> {
         });
     }
     let assumed_components = Graph::new(state, &virtual_fit.names, true).groups.len();
+    generation_matchups::record(state, &a, &b);
     let scheduler = state.adaptive.as_mut().unwrap();
     scheduler.assumed_components = assumed_components;
     if reason == "probe_confirmation" {
@@ -1008,7 +1023,7 @@ mod tests {
         build_schedule, claim_for_worker, TourneyConfig, TourneyEntrant,
     };
 
-    fn fixture(n: usize) -> TourneyState {
+    pub(super) fn fixture(n: usize) -> TourneyState {
         let mut s = build_schedule(&TourneyConfig {
             format: TourneyFormat::Adaptive,
             entrants: (0..n)
