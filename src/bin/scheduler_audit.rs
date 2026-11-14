@@ -81,7 +81,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "assumed_components":scheduler.assumed_components,"fit_seconds":fit_seconds,
             "eight_claims_seconds":selection_seconds,"upcoming_pairs":&scheduler.pairs[existing..],
             "exposure":scheduler.exposure,"completed_results_unchanged":true,
-            "retirement_threshold":scheduler.retirement_threshold
+            "retirement_threshold":scheduler.retirement_threshold,
+            "generation_matchups":scheduler.generation_matchups
         }))?
     );
     Ok(())
