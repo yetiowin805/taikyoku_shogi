@@ -1,5 +1,6 @@
 <script>
   import Board from './lib/Board.svelte';
+  import GameExplorer from './lib/GameExplorer.svelte';
   import AnalysisPanel from './lib/AnalysisPanel.svelte';
   import EvalSparkline from './lib/EvalSparkline.svelte';
   import SearchPanel from './lib/SearchPanel.svelte';
@@ -9,7 +10,6 @@
   let snapshot = $state(null);
   let games = $state([]);
   let selectedGame = $state('');
-  let gameFilter = $state('');
   let logLines = $state([]);
   let selected = $state(null);
   let highlights = $state([]);
@@ -395,34 +395,6 @@
       log(String(e), 'err');
     }
   }
-
-  function gameLabel(path) {
-    const parts = String(path).replace(/\\/g, '/').split('/');
-    return parts[parts.length - 1] || path;
-  }
-
-  function gameGroup(path) {
-    const parts = String(path).replace(/\\/g, '/').split('/');
-    if (parts.length <= 1) return '(root)';
-    return parts.slice(0, -1).join('/');
-  }
-
-  let filteredGames = $derived.by(() => {
-    const q = gameFilter.trim().toLowerCase();
-    if (!q) return games;
-    return games.filter((g) => g.toLowerCase().includes(q));
-  });
-
-  let gameGroups = $derived.by(() => {
-    /** @type {Map<string, string[]>} */
-    const map = new Map();
-    for (const g of filteredGames) {
-      const key = gameGroup(g);
-      if (!map.has(key)) map.set(key, []);
-      map.get(key).push(g);
-    }
-    return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-  });
 
   async function refreshGames() {
     try {
@@ -899,42 +871,7 @@
       {/if}
 
       {#if mode !== 'analysis'}
-      <div class="panel games-panel">
-        <h3>
-          Games
-          <span class="count">{filteredGames.length}/{games.length}</span>
-        </h3>
-        <p class="hint">Includes nested folders and tourney <code>slot*.json</code>.</p>
-        <div class="row">
-          <input
-            class="game-filter"
-            type="search"
-            placeholder="Filter path…"
-            bind:value={gameFilter}
-          />
-          <button type="button" onclick={refreshGames} title="Refresh list">↻</button>
-        </div>
-        <select
-          class="game-list"
-          size="10"
-          bind:value={selectedGame}
-          ondblclick={onLoad}
-        >
-          {#each gameGroups as [folder, items]}
-            <optgroup label={folder}>
-              {#each items as g}
-                <option value={g}>{gameLabel(g)}</option>
-              {/each}
-            </optgroup>
-          {/each}
-        </select>
-        <div class="row">
-          <button type="button" onclick={onLoad} disabled={!selectedGame}>Load</button>
-        </div>
-        {#if selectedGame}
-          <p class="hint path-hint" title={selectedGame}>{selectedGame}</p>
-        {/if}
-      </div>
+      <GameExplorer {games} bind:selectedGame {onLoad} onRefresh={refreshGames} />
       {/if}
 
       <div class="panel review-panel">
