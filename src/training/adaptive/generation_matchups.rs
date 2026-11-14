@@ -32,8 +32,9 @@ pub struct State {
 pub struct Admission {
     pub agent: String,
     pub generation: String,
-    /// Coverage when first eligible. Subsequent ordinary games of any origin
-    /// supply confirmation; no slot IDs, batches, or special result classes.
+    /// All observed pair coverage when first eligible, including other SCCs.
+    /// This conservatively prevents old results from becoming fresh evidence
+    /// when components merge. No slot IDs, batches, or special result classes.
     pub initial_pairs: usize,
 }
 
@@ -153,9 +154,6 @@ pub(super) fn refresh(
             let Some(generation) = labels.get(opponent).filter(|g| targets.contains(*g)) else {
                 continue;
             };
-            if graph.component[index[agent.as_str()]] != graph.component[index[opponent.as_str()]] {
-                continue;
-            }
             games
                 .entry((agent.clone(), generation.clone()))
                 .or_default()
@@ -177,8 +175,14 @@ pub(super) fn refresh(
         .clone();
     let mut reports = vec![];
     let mut protection = vec![];
-    for ((agent, generation), games) in games {
+    for ((agent, generation), mut games) in games {
         if !labels.contains_key(&agent) {
+            continue;
+        }
+        let i = index[agent.as_str()];
+        let observed_pairs = pair_coverage(&games).0;
+        games.retain(|g| graph.component[i] == graph.component[g.opponent]);
+        if games.is_empty() {
             continue;
         }
         let members: Vec<_> = ranked
@@ -192,7 +196,6 @@ pub(super) fn refresh(
             .take(3)
             .map(|n| (*n).clone())
             .collect();
-        let i = index[agent.as_str()];
         let j = index[benchmark.as_str()];
         let (completed_pairs, paired_opponents) = pair_coverage(&games);
         let (probability, margin_elo, sd_elo) = estimate(p, i, j, &games);
@@ -209,7 +212,7 @@ pub(super) fn refresh(
             admissions.push(Admission {
                 agent: agent.clone(),
                 generation: generation.clone(),
-                initial_pairs: completed_pairs,
+                initial_pairs: observed_pairs,
             });
         }
         let fresh_pairs = admissions
@@ -435,6 +438,27 @@ mod tests {
         assert!(choose(&s, &p).is_none());
         let tracking = &s.adaptive.as_ref().unwrap().generation_matchups;
         assert_eq!((tracking.scheduled_pairs, tracking.probe_pairs), (20, 1));
+    }
+
+    #[test]
+    fn merging_components_does_not_turn_old_games_into_confirmation() {
+        let (mut s, p, ratings) = setup();
+        s.entrants[3].generation = Some("elite".into());
+        for i in 0..4 {
+            add_pair(&mut s, i % 3, [1., 0.5]);
+            add_pair(&mut s, 3, [1., 1.]);
+        }
+        refresh(&mut s, &p, &ratings).unwrap();
+        assert!(report(&s).eligible);
+        assert_eq!(report(&s).completed_pairs, 4);
+        assert_eq!(report(&s).fresh_pairs, 0);
+        // The reverse edge joins the SCCs. Only this new pair supplies fresh
+        // evidence; the four old pairs outside the component cannot do so.
+        add_pair(&mut s, 3, [0., 0.]);
+        refresh(&mut s, &p, &ratings).unwrap();
+        assert_eq!(report(&s).completed_pairs, 9);
+        assert_eq!(report(&s).fresh_pairs, 1);
+        assert!(!report(&s).protected);
     }
 
     #[test]

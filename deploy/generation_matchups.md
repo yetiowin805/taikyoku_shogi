@@ -39,6 +39,9 @@ are recalculated as real results arrive; pending games never supply evidence.
 
 The saved scheduler state records eligibility coverage baselines, current matchup
 reports, and budget counters. Reloading identical evidence cannot create fresh
+confirmation. The initial baseline includes already observed pairs outside the
+agent's SCC, so a component merger cannot turn old games into confirmation. This
+is conservative: while components stay separated, those excluded pairs can delay
 confirmation. Losing relevance, coverage, or the probability threshold removes
 the corresponding exception. Existing committed return legs remain honoured.
 Unknown/new generations provide no evidence and cannot trigger revival.
