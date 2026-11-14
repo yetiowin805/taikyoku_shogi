@@ -2,10 +2,14 @@
 
 import json
 import os
+import subprocess
+import sys
 import tempfile
 import time
 import unittest
+import venv
 from pathlib import Path
+from unittest.mock import patch
 
 import torch
 
@@ -21,6 +25,49 @@ from v7_pilot_reservation import Reservation
 
 
 class PilotTests(unittest.TestCase):
+    def test_short_budget_freezes_equal_draws_and_keeps_adaptive_windows(self):
+        with tempfile.TemporaryDirectory() as temp:
+            out = Path(temp)
+            prelude = out / "prelude-256-A"
+            prelude.mkdir()
+            (prelude / "complete.json").write_text("{}")
+            (prelude / "metrics.json").write_text(json.dumps([dict(seconds=60)] * 4))
+            config = dict(
+                out=temp,
+                parents={"256": "/parent"},
+                training_deadline=7000,
+                pilot_short=True,
+                window_draws=8192,
+                prelude_draws=1024,
+            )
+            with patch("v7_pilot.time.time", return_value=1000):
+                v7_pilot.calibrate_training(config)
+            budget = json.loads((out / "pilot-budget.json").read_text())
+            self.assertEqual(budget["windows"], 8)
+            self.assertEqual(budget["window_draws"], 1024)
+            self.assertFalse(budget["minimum_budget_at_risk"])
+            jobs = v7_pilot.tasks(config)
+            self.assertEqual(jobs[0]["fit"]["window_draws"], 1024)
+            self.assertEqual({j["fit"]["window_draws"] for j in jobs[1:]}, {1024})
+            self.assertEqual({j["fit"]["pilot_windows"] for j in jobs[1:]}, {8})
+            with patch("v7_pilot.time.time", return_value=6999):
+                v7_pilot.calibrate_training(config)
+            self.assertEqual(json.loads((out / "pilot-budget.json").read_text()), budget)
+
+    def test_training_python_preserves_venv_and_checks_dependencies(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp) / "venv"
+            venv.EnvBuilder(with_pip=False, symlinks=True).create(root)
+            python = root / "bin/python"
+            self.assertTrue(python.is_symlink())
+            selected = v7_pilot.training_python(python)
+            self.assertEqual(selected, str(python))
+            prefix = subprocess.check_output([selected, "-c", "import sys; print(sys.prefix)"], text=True).strip()
+            self.assertEqual(prefix, str(root))
+            with self.assertRaisesRegex(RuntimeError, "missing training packages: numpy, torch"):
+                v7_pilot.check_training_python(python)
+        v7_pilot.check_training_python(sys.executable)
+
     def test_reservation_uses_scheduler_assignments_and_releases_demand(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)

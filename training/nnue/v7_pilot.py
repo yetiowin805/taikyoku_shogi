@@ -16,18 +16,50 @@ import v6_teachers as teachers
 VARIANTS = (("A", "S1"), ("A", "S2"), ("A", "S3"), ("Ao", "S1"), ("C", "S1"), ("Cu", "S1"), ("E", "S1"))
 
 
+def training_python(path):
+    # Resolving a venv's Python symlink loses its pyvenv.cfg and installed packages.
+    return str(Path(path).expanduser().absolute())
+
+
+def check_training_python(path):
+    """Check package discovery cheaply; real imports/training run under CPU leases."""
+    probe = (
+        "import importlib.util, sys; "
+        "missing = [name for name in ('numpy', 'torch') if importlib.util.find_spec(name) is None]; "
+        "sys.exit('missing training packages: ' + ', '.join(missing) if missing else 0)"
+    )
+    try:
+        subprocess.run([training_python(path), "-c", probe], check=True, capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.SubprocessError) as error:
+        detail = getattr(error, "stderr", "") or str(error)
+        raise RuntimeError(f"training Python preflight failed for {path}: {detail[:1000]}") from error
+
+
 def tasks(config):
     out = Path(config["out"])
     budget = out / "pilot-budget.json"
-    windows = json.loads(budget.read_text())["windows"] if budget.exists() else 12
+    frozen = json.loads(budget.read_text()) if budget.exists() else {}
+    windows = frozen.get("windows", 8 if config.get("pilot_short") else 12)
+    draws = frozen.get("window_draws", config.get("window_draws", 65536))
     common = dict(
-        width=256, parent=config["parents"]["256"], pilot_windows=windows, deadline=config["training_deadline"]
+        width=256,
+        parent=config["parents"]["256"],
+        pilot_windows=windows,
+        window_draws=draws,
+        deadline=config["training_deadline"],
     )
     jobs = [
         dict(
             name="prelude-256-A",
             dependencies=[],
-            fit=dict(common, regime="A", prelude=True, dataset=str(out / "views/S1"), seed=20261112),
+            fit=dict(
+                common,
+                regime="A",
+                prelude=True,
+                dataset=str(out / "views/S1"),
+                seed=20261112,
+                window_draws=config.get("prelude_draws", config.get("window_draws", 65536)),
+            ),
         )
     ]
     for regime, view in VARIANTS:
@@ -62,19 +94,33 @@ def calibrate_training(config):
     available = max(0, config["training_deadline"] - time.time())
     # Four waves at four workers. Reserve 25% for exports, probes and adaptive audits.
     windows = next((n for n in (12, 10, 8) if 4 * n * seconds * 1.25 <= available), 8)
+    draws = config.get("window_draws", 65536)
+    predicted = 4 * windows * seconds * 1.25
+    at_risk = 4 * 8 * seconds * 1.25 > available
+    if config.get("pilot_short"):
+        # Keep four ordinary + four adaptive windows, reducing all arms equally.
+        # Leave five minutes for exports plus a 2x allowance for treatment overhead.
+        windows = 8
+        prelude_draws = config.get("prelude_draws", draws)
+        affordable = int(max(0, available - 300) * prelude_draws / (4 * windows * max(seconds, 0.001) * 2))
+        draws = max(512, min(draws, affordable) // 512 * 512)
+        predicted = 4 * windows * seconds * draws / prelude_draws * 2 + 300
+        at_risk = predicted > available
     collect.atomic(
         path,
         dict(
             windows=windows,
+            window_draws=draws,
             prelude_window_seconds=seconds,
             available_seconds=available,
-            predicted_seconds=4 * windows * seconds * 1.25,
-            minimum_budget_at_risk=4 * 8 * seconds * 1.25 > available,
+            predicted_seconds=predicted,
+            minimum_budget_at_risk=at_risk,
         ),
     )
 
 
 def prepare(args):
+    check_training_python(args.python)
     collect.prepare(args)
     out = args.out.resolve()
     config = json.loads((out / "config.json").read_text())
@@ -131,7 +177,7 @@ def prepare(args):
         lease_indices=config["lease_indices"],
         binary=config["binary"],
         nnue_tool=str(args.nnue_tool.resolve()),
-        python=str(args.python.resolve()),
+        python=training_python(args.python),
         sensitivity=True,
         training_deadline=0,
         max_parallel=4,
@@ -205,6 +251,7 @@ def run(path):
         signal.signal(signal.SIGTERM, stop)
         signal.signal(signal.SIGINT, stop)
         try:
+            check_training_python(pipeline["python"])
             for stage, module, argument in (
                 ("collection", "v6_collect.py", ["run", str(out / "config.json")]),
                 ("training", "v6_pipeline.py", [str(out / "pipeline.json")]),

@@ -114,6 +114,10 @@ Pilot models are never automatically admitted to the main tournament.
 and NNUE tool, Python environment, parent sample manifests, output path and code
 revision. `v7_pilot.py run OUTPUT` performs collection, preparation, training and
 diagnostics sequentially. Preparation must finish successfully before launching.
+The Python executable must retain its virtual-environment path; resolving its
+symlink selects the system interpreter and loses the environment's packages.
+Preparation and startup check that NumPy and Torch are discoverable before
+starting expensive stages. Actual imports and fitting run under CPU leases.
 Use an immutable isolated deployment, six flexible game-boundary leases for
 collection, four concurrent training jobs, and one leased CPU for diagnostics.
 Preserve tournament workers 0 and 2. The pilot publishes bounded, expiring demand
@@ -128,3 +132,20 @@ The original deadlines survive restart. No stage is marked complete merely becau
 it was interrupted. `report.json` and `report.md` distinguish incomplete runs from
 matched-budget results. These controls do not cap the Codex desktop application's
 memory; local work must remain limited to bounded text operations.
+
+### Two-hour recovery trial
+
+The November 13 collection completed, but the first training attempt failed
+before any optimizer step because preparation resolved the venv Python symlink.
+The authorized recovery reuses that collection and its prepared views, preserves
+the failed attempt's state, and starts a fresh two-hour budget: 100 minutes for
+training and 20 minutes for diagnostics, with a two-hour service runtime cap.
+
+With `pilot_short=true`, the shared four-window prelude uses 1,024 draws per
+window. Its measured throughput determines one frozen draw count for all 14
+treatment runs, in multiples of 512 up to 8,192. Every treatment retains eight
+windows, allowing E four ordinary windows followed by adaptive sampling. The
+calibration allows twice the prelude cost plus five minutes for overhead. If
+even the minimum draw budget does not fit, the budget records that risk; missing
+comparisons remain inconclusive. These shorter runs are sensitivity evidence,
+not equivalent to the original 65,536-draw training schedule or strength tests.
