@@ -189,6 +189,8 @@ def probe_steps(db, config, job, position):
     )
     # Holdout exposure is checked against both parent lineages. No relabeling makes it fresh.
     exposed = db.execute("SELECT 1 FROM parent_features WHERE hash=?", (probe["canonical_position_hash"],)).fetchone()
+    if not exposed and probe.get("legacy_position_hash"):
+        exposed = db.execute("SELECT 1 FROM parent_features WHERE hash=?", (probe["legacy_position_hash"],)).fetchone()
     eligible = position["split"] != "train" and not position["inherited"] and not exposed
     if job["teacher"] == config["primary"]:
         db.execute(
@@ -388,7 +390,10 @@ def run(config_path):
             db.commit()
             status(db, config, "waiting_for_cpu", workers)
             while not STOP.is_set():
-                if config.get("sensitivity") and time.time() >= config["sensitivity"]["collection_deadline"]:
+                if (
+                    config.get("sensitivity", {}).get("collection_deadline") is not None
+                    and time.time() >= config["sensitivity"]["collection_deadline"]
+                ):
                     end_state = "pilot_budget"
                     break
                 maintenance = allocation_busy(Path(config["control"]))

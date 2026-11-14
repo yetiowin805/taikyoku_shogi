@@ -36,6 +36,7 @@ pub struct Descriptor {
     pub feature_hash: String,
 }
 pub struct Network {
+    pub schema: &'static features::Schema,
     pub output_mode: OutputMode,
     pub width: usize,
     pub sha256: String,
@@ -102,12 +103,12 @@ impl Network {
         if d.width < 32 || d.width > 4096 || !d.width.is_multiple_of(32) {
             return Err("invalid NNUE width".into());
         }
-        if d.feature_hash
-            != format!(
-                "{:x}",
-                Sha256::digest(serde_json::to_vec(&features::schema().names).unwrap())
-            )
-        {
+        let schema = if d.feature_hash == features::schema().names_hash() {
+            features::schema()
+        } else {
+            features::schema_v2()
+        };
+        if d.feature_hash != schema.names_hash() {
             return Err("NNUE descriptor feature names differ".into());
         }
         let path = checkpoint
@@ -152,13 +153,13 @@ impl Network {
         if &bytes::<8>(&mut r)? != b"TKNNUE01" {
             return Err("invalid NNUE magic".into());
         }
-        if u32le(&mut r)? != 1
+        if u32le(&mut r)? != schema.version
             || u32le(&mut r)? as usize != d.width
-            || u32le(&mut r)? as usize != features::CHANNELS
+            || u32le(&mut r)? as usize != schema.channels
         {
             return Err("unsupported NNUE header".into());
         }
-        if bytes::<32>(&mut r)? != features::schema().hash {
+        if bytes::<32>(&mut r)? != schema.hash {
             return Err("NNUE feature schema mismatch".into());
         }
         if u32le(&mut r)? != 4096
@@ -169,7 +170,7 @@ impl Network {
         }
         let w = d.width;
         let expected = 64
-            + features::FEATURES * w * 2
+            + schema.features() * w * 2
             + w * 4
             + 2 * w * 32
             + 32 * 4
@@ -179,7 +180,7 @@ impl Network {
         if r.get_ref().metadata().map_err(|e| e.to_string())?.len() != expected as u64 {
             return Err("NNUE byte length mismatch".into());
         }
-        let mut weights = vec![0i16; features::FEATURES * w];
+        let mut weights = vec![0i16; schema.features() * w];
         let mut buf = [0u8; 8192];
         for chunk in weights.chunks_mut(4096) {
             let n = chunk.len() * 2;
@@ -189,6 +190,7 @@ impl Network {
             }
         }
         let net = Arc::new(Self {
+            schema,
             output_mode: d.output_mode,
             width: w,
             sha256: d.sha256.clone(),
@@ -308,6 +310,7 @@ pub(crate) mod tests {
     impl Network {
         pub(crate) fn clone_for_test(&self) -> Network {
             Network {
+                schema: self.schema,
                 output_mode: self.output_mode,
                 width: self.width,
                 sha256: self.sha256.clone(),
@@ -324,6 +327,7 @@ pub(crate) mod tests {
     }
     pub(crate) fn net(width: usize, tag: &str) -> Arc<Network> {
         Arc::new(Network {
+            schema: features::schema(),
             output_mode: OutputMode::Residual,
             width,
             sha256: tag.into(),
@@ -538,6 +542,49 @@ pub(crate) mod tests {
             actual,
             "e1aaa350f52836d488f7383a6859cc3f901dfce2df0098681e90b6fdf1034556"
         );
+    }
+
+    #[test]
+    fn v2_accumulator_tracks_identity_and_promotion_changes() {
+        let mut candidate = net(32, "v2").clone_for_test();
+        candidate.schema = features::schema_v2();
+        candidate.weights = (0..candidate.schema.features() * 32)
+            .map(|i| (i % 13) as i16 - 6)
+            .collect();
+        let candidate = Arc::new(candidate);
+        let p = Position::new(10, 10).unwrap();
+        let mut piece = Piece::new(PieceType::GoldGeneral, Color::Black, p);
+        let mut board = Board::new();
+        board.place_piece(piece);
+        let mut accumulator = Accumulator::new(Arc::clone(&candidate), &board);
+        for (kind, promoted, origin) in [
+            (PieceType::FierceWolf, false, None),
+            (PieceType::Rook, false, None),
+            (PieceType::Rook, true, Some(PieceType::FlyingSwallow)),
+            (PieceType::Whale, true, Some(PieceType::ReverseChariot)),
+            (PieceType::RainDragon, true, Some(PieceType::EarthDragon)),
+        ] {
+            accumulator.change(&piece, -1);
+            piece.piece_type = kind;
+            piece.is_promoted = promoted;
+            piece.base_piece_type = origin;
+            accumulator.change(&piece, 1);
+            let mut current = Board::new();
+            current.place_piece(piece);
+            assert!(accumulator.matches_rebuild(&current));
+            let mut direct = [candidate.bias.clone(), candidate.bias.clone()].concat();
+            for (side, color) in [Color::Black, Color::White].into_iter().enumerate() {
+                for feature in candidate.schema.active(&current, color) {
+                    for (value, weight) in direct[side * 32..(side + 1) * 32]
+                        .iter_mut()
+                        .zip(&candidate.weights[feature * 32..(feature + 1) * 32])
+                    {
+                        *value += i32::from(*weight);
+                    }
+                }
+            }
+            assert_eq!(accumulator.sums, direct);
+        }
     }
     #[test]
     fn checkpoint_hash_length_and_schema_validation() {

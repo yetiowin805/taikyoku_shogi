@@ -26,6 +26,7 @@ use taikyoku_shogi::{
 #[derive(Deserialize)]
 struct Request {
     version: u32,
+    feature_version: Option<u32>,
     id: String,
     op: String,
     #[serde(default)]
@@ -124,8 +125,27 @@ fn position(base: &GameState, path: &[Move]) -> Result<GameState, String> {
     Ok(state)
 }
 
+#[cfg(test)]
 fn collection_metadata(state: &GameState) -> Value {
-    use taikyoku_shogi::nnue::features;
+    collection_metadata_for(state, taikyoku_shogi::nnue::features::schema())
+}
+fn collection_metadata_for(
+    state: &GameState,
+    schema: &taikyoku_shogi::nnue::features::Schema,
+) -> Value {
+    let mut info = collection_metadata_inner(state, schema);
+    if schema.version == 2 {
+        info["legacy_position_hash"] = json!(feature_fingerprint(
+            state,
+            taikyoku_shogi::nnue::features::schema()
+        ));
+    }
+    info
+}
+fn feature_fingerprint(
+    state: &GameState,
+    schema: &taikyoku_shogi::nnue::features::Schema,
+) -> String {
     let mut encoded = Vec::new();
     for (i, color) in [
         state.get_current_turn(),
@@ -137,19 +157,25 @@ fn collection_metadata(state: &GameState) -> Value {
         if i == 1 {
             encoded.push(b'|');
         }
-        let mut active = features::active(state.get_board(), color);
+        let mut active = schema.active(state.get_board(), color);
         active.sort_unstable();
         for feature in active {
             encoded.extend_from_slice(&(feature as u32).to_le_bytes());
         }
     }
+    format!("{:x}", Sha256::digest(encoded))
+}
+fn collection_metadata_inner(
+    state: &GameState,
+    schema: &taikyoku_shogi::nnue::features::Schema,
+) -> Value {
     let mut board = BoardPosition::from_state(state);
     board.pieces.sort_by_key(|p| p.position.to_index());
     let full = serde_json::to_vec(&json!({"position":board,"history":state.get_move_history()}))
         .expect("position serialization");
-    json!({"canonical_position_hash":format!("{:x}",Sha256::digest(encoded)),
+    json!({"canonical_position_hash":feature_fingerprint(state, schema),
         "state_history_hash":format!("{:x}",Sha256::digest(full)),
-        "feature_schema_hash":format!("{:x}",sha2::digest::Output::<Sha256>::from(features::schema().hash)),
+        "feature_schema_hash":format!("{:x}",sha2::digest::Output::<Sha256>::from(schema.hash)),
         "turn":sign(state),"draw_counter":state.get_turns_without_capture_or_promotion(),
         "repetitions":state.repetition_count(),"history_len":state.get_move_history().len(),
         "piece_count":board.pieces.len(),
@@ -411,12 +437,14 @@ fn handle(
         return scan(base, start_ply, game, player, req, started);
     }
     let state = position(base, &req.path)?;
+    let feature_schema =
+        taikyoku_shogi::nnue::features::by_version(req.feature_version.unwrap_or(1))?;
     let pov = sign(&state);
     if req.op == "training_features" {
-        use taikyoku_shogi::nnue::features;
-        let mut info = collection_metadata(&state);
-        let mut us = features::active(state.get_board(), state.get_current_turn());
-        let mut them = features::active(state.get_board(), state.get_current_turn().opposite());
+        let mut info = collection_metadata_for(&state, feature_schema);
+        let mut us = feature_schema.active(state.get_board(), state.get_current_turn());
+        let mut them =
+            feature_schema.active(state.get_board(), state.get_current_turn().opposite());
         us.sort_unstable();
         them.sort_unstable();
         info["event"] = json!("complete");
@@ -462,7 +490,7 @@ fn handle(
         }
         let moves = legal(&state);
         let outcome = terminal(&state, moves.is_empty());
-        let mut info = collection_metadata(&state);
+        let mut info = collection_metadata_for(&state, feature_schema);
         info["version"] = json!(1);
         info["id"] = json!(req.id);
         info["event"] = json!("complete");
@@ -502,7 +530,7 @@ fn handle(
             if let Some(path) = &line {
                 // Validate the exact sequence, including intermediate captures and promotions.
                 let leaf = position(&state, path)?;
-                info["settled_position"] = collection_metadata(&leaf);
+                info["settled_position"] = collection_metadata_for(&leaf, feature_schema);
             }
             info["settled_line"] = json!(line);
             info["quiescence"] = json!({"score_black":q.score*pov,"aborted":q.aborted,

@@ -393,7 +393,12 @@ def plan_audits(db, config):
     if get_meta(db, "audit_planned"):
         return
     rows = [row for row in root_rows(db, config) if row["result"].get("label")]
-    audit = mixed_selection(rows, config["audit_roots"], [config["seed"], "audit"], evidence_priority)
+    if config.get("full_v7"):
+        from v7_full_data import audit_selection
+
+        audit = audit_selection(rows, 0.10, [config["seed"], "audit"], evidence_priority)
+    else:
+        audit = mixed_selection(rows, config["audit_roots"], [config["seed"], "audit"], evidence_priority)
     for row in audit:
         for teacher in (config["primary"], config["challenger"]):
             add_job(db, row["id"], teacher, "audit", config["budgets"]["audit"], 20)
@@ -424,9 +429,16 @@ def plan_deep(db, config):
         row["gap"] = 0
         if other and (label := json.loads(other[0]).get("label")):
             row["gap"] = abs(probability(row["result"]["label"]["score_black"]) - probability(label["score_black"]))
-    deep = mixed_selection(
-        rows, config["deep_roots"], [config["seed"], "deep"], lambda row: max(row["gap"], evidence_priority(row))
-    )
+    if config.get("full_v7"):
+        from v7_full_data import audit_selection
+
+        deep = audit_selection(
+            rows, 0.20, [config["seed"], "deep"], lambda row: max(row["gap"], evidence_priority(row))
+        )
+    else:
+        deep = mixed_selection(
+            rows, config["deep_roots"], [config["seed"], "deep"], lambda row: max(row["gap"], evidence_priority(row))
+        )
     for row in deep:
         for teacher in (config["primary"], config["challenger"]):
             add_job(db, row["id"], teacher, "deep", config["budgets"]["deep"], 40)

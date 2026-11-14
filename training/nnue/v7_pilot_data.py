@@ -10,6 +10,10 @@ import v6_data as data
 
 def select_games(records, config):
     """Keep complete split identities; sample one game per related group."""
+    if config.get("full_v7"):
+        from v7_full_data import select_games as full_select_games
+
+        return full_select_games(records, config)
     groups = defaultdict(list)
     for row in records.values():
         if (
@@ -82,8 +86,10 @@ def plan(db, config, rows):
         data.add_job(db, row["id"], config["primary"], "settle", config["q_budget_ms"], 25)
         by_group[row["group"]].append(row)
     for group in sorted(by_group):
-        root = min(by_group[group], key=lambda r: data.hashed([config["seed"], "explore", r["id"]]))
-        data.add_job(db, root["id"], config["primary"], "explore", 0, 30)
+        count = config.get("explore_roots_per_group", 1)
+        roots = sorted(by_group[group], key=lambda r: data.hashed([config["seed"], "explore", r["id"]]))[:count]
+        for root in roots:
+            data.add_job(db, root["id"], config["primary"], "explore", 0, 30)
 
 
 def settle_steps(db, config, position, members):

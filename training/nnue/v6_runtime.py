@@ -126,6 +126,8 @@ class Worker:
             if self.oracle.ready.get("collection_protocol") != 1:
                 raise ValueError("worker lacks v6 collection protocol")
             self.binding = key
+        if config.get("feature_version"):
+            request = dict(request, feature_version=config["feature_version"])
         return self.oracle.call(request, self.events.put)
 
     def assign(self, job, position, game, config):

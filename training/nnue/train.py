@@ -146,7 +146,7 @@ def export(net, path, schema, output_mode="residual"):
     tmp = path.with_suffix(".tmp")
     with tmp.open("wb") as f:
         f.write(b"TKNNUE01")
-        f.write(struct.pack("<III", 1, net.width, schema["channels"]))
+        f.write(struct.pack("<III", schema.get("version", 1), net.width, schema["channels"]))
         f.write(bytes.fromhex(schema["hash"]))
         f.write(struct.pack("<III", 4096, 64, int(output_mode == "residual")))
         w = net.embedding.weight.detach().numpy()

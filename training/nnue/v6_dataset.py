@@ -266,7 +266,10 @@ def prepare(config):
     pairs = ranking_pairs(rows, report["teacher_scale"])
     if not pairs and not config.get("sensitivity"):
         raise ValueError("no independently verified stable sibling pairs for regime D")
-    schema = json.loads(subprocess.check_output([config["nnue_tool"], "schema"], text=True))
+    schema_args = [config["nnue_tool"], "schema"]
+    if config.get("feature_version"):
+        schema_args.append(str(config["feature_version"]))
+    schema = json.loads(subprocess.check_output(schema_args, text=True))
     baseline_width = min(config["parents"], key=int)
     baseline = json.loads(Path(config["parents"][baseline_width]).read_text())
     baseline["weights"].pop("nnue", None)
@@ -290,7 +293,10 @@ def prepare(config):
                         str(out / "baseline.json"),
                     )
                     game = r["game"]
-                result = oracle.call(dict(op="training_features", root_ply=r["ply"], path=r["path"]), lambda _: None)
+                request = dict(op="training_features", root_ply=r["ply"], path=r["path"])
+                if config.get("feature_version"):
+                    request["feature_version"] = config["feature_version"]
+                result = oracle.call(request, lambda _: None)
                 for key in ("canonical_position_hash", "state_history_hash", "turn", "feature_schema_hash"):
                     if result[key] != r[key]:
                         raise ValueError("feature replay mismatch: " + key)

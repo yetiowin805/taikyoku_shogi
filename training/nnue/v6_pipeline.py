@@ -30,6 +30,10 @@ def configured_widths(config):
 
 
 def tasks(config):
+    if config.get("full_v7"):
+        from v7_full import tasks as full_tasks
+
+        return full_tasks(config)
     if config.get("sensitivity"):
         from v7_pilot import tasks as pilot_tasks
 
@@ -101,6 +105,12 @@ def finished(out, job):
     marker = out / job["name"] / "complete.json"
     if not marker.exists():
         return False
+    if job["fit"].get("full_v7"):
+        storage = marker.with_name("storage-complete.json")
+        if not storage.exists():
+            return False  # Resume the archival step after an interrupted upload.
+        if json.loads(storage.read_text())["complete_sha256"] != data.file_hash(marker):
+            raise ValueError("storage completion identity mismatch: " + job["name"])
     cp = out / job["name"] / ("start.pt" if job["fit"].get("prelude") else "model.json")
     if not cp.exists():
         raise ValueError("completion marker without artifact: " + job["name"])
@@ -162,7 +172,11 @@ def run(config):
         jobs = tasks(config)
         try:
             while not STOP:
-                if config.get("sensitivity") and time.time() >= config["training_deadline"]:
+                if (
+                    config.get("sensitivity")
+                    and not config.get("full_v7")
+                    and time.time() >= config["training_deadline"]
+                ):
                     atomic(out / "status.json", dict(state="pilot_budget", updated=time.time()))
                     return
                 report = dict(
@@ -226,9 +240,10 @@ def run(config):
                         job = next(j for j in jobs if j["name"] == name)
                         if not finished(out, job):
                             raise ValueError("trainer exited without completion: " + name)
-                        # Finished optimizer state is no longer needed; preserve inference
-                        # models and shared prelude starts to bound disk usage.
-                        (out / name / "training.pt").unlink(missing_ok=True)
+                        # Full v7 verifies archival before eviction. Legacy campaigns
+                        # retain their existing disposable-checkpoint behavior.
+                        if not job["fit"].get("full_v7"):
+                            (out / name / "training.pt").unlink(missing_ok=True)
                 used = {cpu for _, cpu, _ in running.values()}
                 if maintenance:
                     for name, (proc, _cpu, _log) in running.items():
@@ -246,7 +261,7 @@ def run(config):
                 ):
                     dataset.verify(out / "dataset")
                     prepared = True
-                if config.get("sensitivity"):
+                if config.get("sensitivity") and not config.get("full_v7"):
                     from v7_pilot import calibrate_training
 
                     calibrate_training(config)

@@ -1,4 +1,4 @@
-"""Independent NumPy reference for the version-1 Rust inference format."""
+"""Independent NumPy reference for the versioned Rust inference format."""
 
 import struct
 
@@ -10,8 +10,10 @@ class Quantized:
         self.data = np.memmap(path, mode="r", dtype="u1")
         b = self.data
         assert bytes(b[:8]) == b"TKNNUE01"
-        version, self.width, channels = struct.unpack("<III", b[8:20])
-        assert version == 1 and channels == 92
+        self.version, self.width, self.channels = struct.unpack("<III", b[8:20])
+        assert self.version in (1, 2) and self.channels > 0
+        assert self.version != 2 or features == 2592 * self.channels
+        assert self.version != 1 or self.channels == 92
         first, second, baseline = struct.unpack("<III", b[52:64])
         assert (first, second) == (4096, 64) and baseline in (0, 1)
         self.output_mode = "residual" if baseline else "total"

@@ -135,7 +135,7 @@ def publish(net, out, parent, schema, samples, features, ids, mode, scale):
     return dict(max_score_error=max(errors), positions=len(errors), output_mode=mode)
 
 
-def fit(config):
+def fit(config, storage_lease=None):
     global STOP
     STOP = False
     signal.signal(signal.SIGTERM, stop)
@@ -159,10 +159,13 @@ def fit(config):
     conversion = config.get("prelude", False)
     regime = config["regime"]
     retain_material = config.get("retain_material", False)
-    if not isinstance(retain_material, bool) or (retain_material and (regime not in ("C", "D", "Cu") or conversion)):
-        raise ValueError("retain_material is only supported for main C/D/Cu runs")
+    residual_regimes = ("A", "Ao", "C", "Cu", "E") if config.get("full_v7") else ("C", "D", "Cu")
+    if not isinstance(retain_material, bool) or (retain_material and (regime not in residual_regimes or conversion)):
+        raise ValueError("retain_material is only supported for main residual training runs")
     width = config["width"]
-    if regime not in (("A", "C", "Ao", "Cu", "E") if config.get("pilot_windows") else tuple("ABCD")):
+    if regime not in (
+        ("A", "C", "Ao", "Cu", "E") if config.get("pilot_windows") or config.get("full_v7") else tuple("ABCD")
+    ):
         raise ValueError("unknown regime")
     if regime == "D" and not pairs:
         raise ValueError("ranking regime requires verified pairs")
@@ -190,7 +193,7 @@ def fit(config):
     resume_offset, resume_loss, sampler_state = 0, 0.0, None
     saved_conversion_baseline = None
     adaptive = None
-    policy = Policy(min_epochs=4, max_epochs=None, patience=3, lr_reductions=2)
+    policy = Policy(min_epochs=8 if config.get("full_v7") else 4, max_epochs=None, patience=3, lr_reductions=2)
     tracker = Plateau(math.inf)
     if checkpoint.exists():
         state = torch.load(checkpoint, weights_only=True, mmap=True, map_location="cpu")
@@ -273,6 +276,8 @@ def fit(config):
 
     window = start
     while not tracker.stopped and (window < 4 if conversion else window < pilot_windows if pilot_windows else True):
+        if storage_lease is not None:
+            storage_lease.check_headroom()
         if STOP or time.time() >= config.get("deadline", math.inf):
             raise InterruptedError("training paused at a resumable window boundary")
         alpha = (
@@ -374,11 +379,11 @@ def fit(config):
             if not conversion and not pilot_windows
             else "continue"
         )
-        if pilot_windows and not conversion:
+        if (pilot_windows or config.get("full_v7")) and not conversion:
             if regime == "E" and window + 1 >= 4:
                 record["adaptive"] = adaptive_sampling.update(adaptive, samples, train_ids, measure)
                 weights = adaptive_sampling.sampling_weights(adaptive, samples, train_ids)
-            if window + 1 in (4, 8, pilot_windows):
+            if window + 1 in (4, 8, pilot_windows) or (config.get("full_v7") and (window + 1) % 8 == 0):
                 from v7_pilot_report import predictions
 
                 predictions(net, config, window + 1, scale)
@@ -411,7 +416,30 @@ def main():
     p.add_argument("config", type=Path)
     a = p.parse_args()
     try:
-        fit(json.loads(a.config.read_text()))
+        config = json.loads(a.config.read_text())
+        if config.get("full_v7"):
+            import dataset_storage
+
+            parent = Path(config["parent"])
+            descriptor = json.loads(parent.read_text())["weights"]["nnue"]
+            inputs = [parent, parent.parent / descriptor["file"]]
+            if config.get("start"):
+                inputs.append(Path(config["start"]))
+            checkpoint = Path(config["out"]) / "training.pt"
+            if checkpoint.exists():
+                inputs.append(checkpoint)
+            with dataset_storage.prepare(
+                config["dataset"], config["out"], config["width"], extra_inputs=inputs
+            ) as storage_lease:
+                fit(config, storage_lease)
+            if not config.get("pilot_windows"):
+                dataset_storage.archive_checkpoint(checkpoint)
+            atomic_json(
+                Path(config["out"]) / "storage-complete.json",
+                dict(complete_sha256=data.file_hash(Path(config["out"]) / "complete.json")),
+            )
+        else:
+            fit(config)
     except InterruptedError:
         raise SystemExit(75) from None
 
