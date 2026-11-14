@@ -71,6 +71,9 @@ CLI usage: `cargo run --` with no args that match a subcommand, or any bad flag,
 | [`AGENTS.md`](AGENTS.md) | Git branches, eval/search history freeze |
 | [`IDEAS_TO_TRY.md`](IDEAS_TO_TRY.md) | Search / eval experiments from knockout games (not implemented) |
 
+Recurring review questions on last-royal conversion, trapped pieces, and jumping-piece
+mating attacks are tracked in [Future notes](FUTURE_NOTES.md#recurring-game-review-conversion-and-tactical-awareness-2026-11-13).
+
 ## Current scope
 
 | Area | Status |
