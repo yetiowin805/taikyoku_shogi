@@ -1,5 +1,17 @@
 # Agent notes
 
+## NNUE training admission
+
+Automatically admit each completed NNUE candidate to the live tournament as soon
+as its final export, provenance, schema compatibility, parity, and legal-search
+checks pass. Do not wait for other widths or recipes, or for another user request.
+Configure the durable admission watcher when launching training, verify actual
+coordinator receipts, and preserve later withdrawals across watcher restarts.
+Prepare compatible engine support before the first new-format model completes.
+Keep collection and dataset views frozen before admitting candidates from that
+campaign. Admission starts playing evaluation; it does not declare a winner or
+replace a parent. Follow an explicit user exception when one is given.
+
 ## Git branches
 
 **Always start work on a new branch off up-to-date `main`.** Do not pile unrelated commits onto an old feature branch (e.g. reusing `cursor/random-worker-seeds` for hang-prune or Texel changes).

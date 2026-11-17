@@ -23,14 +23,27 @@ struct Job {
     #[serde(default)]
     scores: std::collections::BTreeMap<usize, f32>,
 }
-fn schema() -> serde_json::Value {
-    json!({"version":1,"channels":features::CHANNELS,"features":features::FEATURES,"hash":format!("{:x}",sha2::digest::Output::<Sha256>::from(features::schema().hash)),"names_hash":format!("{:x}",Sha256::digest(serde_json::to_vec(&features::schema().names).unwrap())),"names":features::schema().names})
+fn schema(s: &features::Schema) -> serde_json::Value {
+    json!({"version":s.version,"channels":s.channels,"features":s.features(),"hash":format!("{:x}",sha2::digest::Output::<Sha256>::from(s.hash)),"names_hash":s.names_hash(),"names":s.names})
 }
 fn run() -> Result<(), String> {
     let a: Vec<_> = std::env::args().collect();
     match a.get(1).map(String::as_str) {
-        Some("schema") => println!("{}", schema()),
-        Some("export") if a.len() == 5 => {
+        Some("schema") if a.len() <= 3 => {
+            let version = a
+                .get(2)
+                .map(|s| s.parse::<u32>().map_err(|e| e.to_string()))
+                .transpose()?
+                .unwrap_or(1);
+            println!("{}", schema(features::by_version(version)?));
+        }
+        Some("export") if a.len() == 5 || a.len() == 6 => {
+            let version = a
+                .get(5)
+                .map(|s| s.parse::<u32>().map_err(|e| e.to_string()))
+                .transpose()?
+                .unwrap_or(1);
+            let feature_schema = features::by_version(version)?;
             let cp = EvalCheckpoint::load_path(&a[2])?;
             if cp.weights.nnue.is_some() {
                 return Err("export baseline must be handcrafted".into());
@@ -80,8 +93,8 @@ fn run() -> Result<(), String> {
                             .or_else(|| m.eval.filter(|s| s.abs() < 900_000).map(|s| s as f32))
                         {
                             let stm = state.get_current_turn();
-                            let us = features::active(state.get_board(), stm);
-                            let them = features::active(state.get_board(), stm.opposite());
+                            let us = feature_schema.active(state.get_board(), stm);
+                            let them = feature_schema.active(state.get_board(), stm.opposite());
                             let mut encoded = Vec::with_capacity((us.len() + them.len()) * 4);
                             for &i in us.iter().chain(&them) {
                                 encoded.extend_from_slice(&(i as u32).to_le_bytes());
@@ -111,7 +124,7 @@ fn run() -> Result<(), String> {
             index.flush().map_err(|e| e.to_string())?;
             fs::write(
                 dir.join("schema.json"),
-                serde_json::to_vec_pretty(&schema()).unwrap(),
+                serde_json::to_vec_pretty(&schema(feature_schema)).unwrap(),
             )
             .map_err(|e| e.to_string())?;
             let identity = json!({"version":1,"samples":count,"baseline_sha256":nnue::hash_file(Path::new(&a[2]))?,"features_sha256":nnue::hash_file(&dir.join("features.bin"))?,"samples_sha256":nnue::hash_file(&dir.join("samples.jsonl"))?,"schema_sha256":nnue::hash_file(&dir.join("schema.json"))?});
