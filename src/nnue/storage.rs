@@ -78,7 +78,7 @@ impl Accumulator {
         self.ensure_storage();
         // The cache identity is the exact selected feature set, including the
         // original ability list (White jumping pieces may differ from Black).
-        let ability = features::schema().row_classes[features::key(piece)];
+        let ability = self.net.schema.row_classes[features::key(piece)];
         let relative_color = usize::from(piece.color == Color::White) ^ side;
         let square = if side == 1 {
             1295 - piece.position.to_index()
@@ -130,11 +130,13 @@ impl Accumulator {
     }
     fn add_direct(&self, dst: &mut [i32], piece: &Piece, side: usize, sign: i32) {
         let w = self.net.width;
-        features::visit(piece, [Color::Black, Color::White][side], |i| {
-            for (a, &b) in dst.iter_mut().zip(&self.net.weights[i * w..(i + 1) * w]) {
-                *a += sign * i32::from(b);
-            }
-        });
+        self.net
+            .schema
+            .visit(piece, [Color::Black, Color::White][side], |i| {
+                for (a, &b) in dst.iter_mut().zip(&self.net.weights[i * w..(i + 1) * w]) {
+                    *a += sign * i32::from(b);
+                }
+            });
     }
     pub(super) fn change_cached(&mut self, piece: &Piece, sign: i32) {
         let w = self.net.width;

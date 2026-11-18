@@ -179,6 +179,38 @@ def validate_v6(model):
         raise ValueError("v6 best export has no valid quantization parity evidence")
 
 
+def validation_demand(control, release=False):
+    """Ask the coordinator to release a game lease, rather than only queueing on it."""
+    path = control / "analysis-demand.json"
+    with (control / "allocation.lock").open("a+") as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return
+        current = a.read(path) if path.exists() else {}
+        owner = current.get("pid", 0)
+        if release:
+            if owner == os.getpid():
+                a.atomic(path, dict(pid=0, pending=0, assigned=[], updated=time.time(), owner="training-admission"))
+            return
+        if owner != os.getpid() and isinstance(owner, int) and owner > 0:
+            try:
+                os.kill(owner, 0)
+            except ProcessLookupError:
+                pass
+            else:
+                if time.time() - current.get("updated", 0) < 30:
+                    return
+        assigned = current.get("assigned", []) if owner == os.getpid() else []
+        if any(index not in (1, 3, 4, 5, 6, 7) for index in assigned):
+            raise ValueError("Invalid admission CPU reservation")
+        # Request all flexible boundaries temporarily so the first finished game
+        # can supply our single CPU. Release demand immediately on acquisition.
+        a.atomic(
+            path, dict(pid=os.getpid(), pending=6, assigned=assigned, updated=time.time(), owner="training-admission")
+        )
+
+
 @contextmanager
 def validation_cpu(config):
     """Queue for one game-boundary CPU without blocking scheduler allocation."""
@@ -193,6 +225,7 @@ def validation_cpu(config):
     lease = None
     request = (control / "validation-request.lock").open("a+")
     waiters = None
+    reserved = config.get("completion_policy") == "nnue-v7"
     try:
         # Trainers yield at checkpoints; the coordinator ignores this separate
         # request lock and can continue releasing completed game leases.
@@ -200,12 +233,20 @@ def validation_cpu(config):
         waiters = BoundaryLeases(control, indices, 1)
         # Never hold allocation.lock while waiting: the coordinator needs that
         # gate to finish its scheduling loop and release completed game leases.
+        refreshed = 0
         while (acquired := waiters.take()) is None:
+            if reserved and time.monotonic() - refreshed >= 5:
+                validation_demand(control)
+                refreshed = time.monotonic()
             time.sleep(0.2)
         index, lease = acquired
+        if reserved:
+            validation_demand(control, release=True)
         os.sched_setaffinity(0, {index})
         yield
     finally:
+        if reserved:
+            validation_demand(control, release=True)
         if waiters is not None:
             waiters.close()
         request.close()
@@ -216,6 +257,64 @@ def validation_cpu(config):
                 lease.close()
 
 
+def validate_v7(model):
+    """Admit only the final residual export from a pinned full-v7 treatment."""
+    match = re.fullmatch(r"NNUE_W(256|384)_v7_(S[123])_(A|Ao|C|Cu|E)", model.name)
+    if match is None:
+        raise ValueError("Invalid v7 model name")
+    width, view, regime = int(match[1]), match[2], match[3]
+    recipe = a.read(model / "recipe.json")
+    complete = a.read(model / "complete.json")
+    expected = dict(a.read(model.parent / (model.name + ".json")))
+    for key in ("dataset_sha256", "parent_sha256", "start_sha256"):
+        expected[key] = recipe[key]
+    if recipe != expected or recipe.get("prelude") or not recipe.get("full_v7"):
+        raise ValueError("v7 recipe differs from dispatched full training")
+    if recipe.get("retain_material") is not True or recipe["width"] != width or recipe["regime"] != regime:
+        raise ValueError("v7 treatment or material policy differs")
+    if Path(recipe["out"]) != model:
+        raise ValueError("v7 output path differs")
+    pipeline = a.read(model.parent / "pipeline-config.json")
+    parent = Path(pipeline["parents"][str(width)])
+    start = model.parent / f"prelude-{width}-A/start.pt"
+    dataset = model.parent / "views" / view
+    for key, path in (("parent", parent), ("start", start), ("dataset", dataset)):
+        if Path(recipe[key]) != path:
+            raise ValueError("v7 input path differs: " + key)
+        source = path / "dataset.json" if key == "dataset" else path
+        if a.file_digest(source) != recipe[key + "_sha256"]:
+            raise ValueError("v7 input changed: " + key)
+    if pipeline["identities"][str(parent)] != recipe["parent_sha256"]:
+        raise ValueError("v7 parent differs from pinned pipeline")
+    recipe_hash = a.digest(json.dumps(recipe, sort_keys=True, separators=(",", ":")).encode())
+    if complete["recipe"] != recipe_hash or complete.get("reason") != "plateau" or complete["windows"] < 8:
+        raise ValueError("v7 completion is not a converged final model")
+    storage = a.read(model / "storage-complete.json")
+    if storage.get("complete_sha256") != a.file_digest(model / "complete.json"):
+        raise ValueError("v7 storage finalization incomplete")
+    checkpoint = a.read(model / "model.json")
+    descriptor = checkpoint["weights"]["nnue"]
+    if checkpoint["name"] != model.name or descriptor["width"] != width or descriptor["output_mode"] != "residual":
+        raise ValueError("v7 model identity or output mode differs")
+    if a.file_digest(model / descriptor["file"]) != descriptor["sha256"]:
+        raise ValueError("v7 exported network changed")
+    metrics = a.read(model / "metrics.json")
+    if len(metrics) != complete["windows"] or any(row.get("alpha") != 1 for row in metrics):
+        raise ValueError("v7 window history or fixed material differs")
+    best = min(metrics, key=lambda row: row["validation"]["selection"])
+    parity = best.get("export", {})
+    error = parity.get("max_score_error", math.inf)
+    if (
+        not math.isfinite(complete["best"])
+        or best["validation"]["selection"] != complete["best"]
+        or not math.isfinite(error)
+        or error > 2
+        or parity.get("positions", 0) < 1
+        or parity.get("output_mode") != "residual"
+    ):
+        raise ValueError("v7 final export lacks quantization parity evidence")
+
+
 def admit(config, model):
     run, out = Path(config["run"]), Path(config["out"])
     report = out / "admission" / model.name
@@ -223,15 +322,21 @@ def admit(config, model):
     if a.read(model / "status.json").get("state") != "completed":
         raise ValueError("Model must finish training before admission")
     policy = config.get("completion_policy", "legacy")
-    if policy not in ("legacy", "nnue-v6"):
+    if policy not in ("legacy", "nnue-v6", "nnue-v7"):
         raise ValueError("Unknown training completion policy")
-    if policy == "nnue-v6" and (not config.get("lease_indices") or not config.get("smoke")):
-        raise ValueError("v6 admission requires a leased CPU and pinned search smoke game")
+    if policy in ("nnue-v6", "nnue-v7") and (not config.get("lease_indices") or not config.get("smoke")):
+        raise ValueError("NNUE admission requires a leased CPU and pinned search smoke game")
     with validation_cpu(config):
         if policy == "nnue-v6":
             validate_v6(model)
+        if policy == "nnue-v7":
+            validate_v7(model)
         admit_checkpoints(
-            run, [model], report, generation="v6" if policy == "nnue-v6" else None, smoke=config.get("smoke")
+            run,
+            [model],
+            report,
+            generation={"nnue-v6": "v6", "nnue-v7": "v7"}.get(policy),
+            smoke=config.get("smoke"),
         )
 
 
@@ -442,6 +547,8 @@ def main():
                         continue
                     status = model / "status.json"
                     if not status.exists() or a.read(status).get("state") != "completed":
+                        continue
+                    if config.get("completion_policy") == "nnue-v7" and not (model / "storage-complete.json").exists():
                         continue
                     admit(config, model)
                 except Exception as error:
