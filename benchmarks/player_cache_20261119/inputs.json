@@ -1,0 +1,66 @@
+{
+  "games": [
+    {
+      "file": "data/raw/tourney/curated-vps-20261108/slot2297-NNUE_W512_v3_HLFN-vs-NNUE_W1024_v4.5-a-black.json",
+      "sha256": "f3b8bb01b187f2eecacde6628305e68283b0dc8c7012b05ab0f37be01cda8418",
+      "slot": 2297,
+      "first": 218
+    },
+    {
+      "file": "data/raw/tourney/curated-vps-20261108/slot1637-NNUE_W384_v4.5-vs-NNUE_W512_v3_HLF_G3GA-a-white.json",
+      "sha256": "adbcb65b39ca06085168b767fd1356c1afbf26af100cb3fd3b2139bb215bc1b9",
+      "slot": 1637,
+      "first": 208
+    },
+    {
+      "file": "data/raw/tourney/curated-vps-20261108/slot1762-NNUE_W384_v4.5_HLF-vs-NNUE_W256_v3-a-black.json",
+      "sha256": "aa14dd0308d03d661ad98063a02ea9640002cf44d06a44c5903124a86c024390",
+      "slot": 1762,
+      "first": 724
+    },
+    {
+      "file": "data/raw/tourney/curated-vps-20261108/slot2905-NNUE_W384_v4.5-vs-NNUE_W512_v3_HLF_G3QH-a-black.json",
+      "sha256": "b5a50b04627b4226b7586adfb36cb8e3043e08fca18ce8c4a1eb62f8d29d491f",
+      "slot": 2905,
+      "first": 624
+    },
+    {
+      "file": "data/raw/tourney/curated-vps-20261108/slot0788-NNUE_W512_v3_HLF-vs-NNUE_W512_v4-a-black.json",
+      "sha256": "a112c1d67d69872d0b55b6fa755ca9b988615ea8d72a54f8fb2e507926f3e117",
+      "slot": 788,
+      "first": 732
+    },
+    {
+      "file": "data/raw/tourney/curated-vps-20261108/slot0203-NNUE_W512_v3_HLF_G3PVS-vs-NNUE_W384_v5a-a-white.json",
+      "sha256": "90869519a8ba62502a855cb71c03c28fac2202854b784dfc6f4fbd5c9f6152da",
+      "slot": 203,
+      "first": 886
+    }
+  ],
+  "models": [
+    {
+      "file": "models/nnue-v4.5/NNUE_W512_v4.5/model.json",
+      "name": "NNUE_W512_v4.5",
+      "sha256": "42bb57d10d2b01bbe59fb7ab7c75a260158c72bd322b3b8cf8533376f486d37e",
+      "blob_sha256": "81b1c69ab269ecce313a93b0cbe866ede18c37d8a5ff83116dc20d196ba12ea4"
+    },
+    {
+      "file": "models/nnue-v4.5/NNUE_W384_v4.5/model.json",
+      "name": "NNUE_W384_v4.5",
+      "sha256": "016e7a4bcc96a4e0bb91724d575faca1b25264943c78c268d96472120e351855",
+      "blob_sha256": "d16f28d452104d9c79a5f8e8a8dc3fb6fdeb8ee896440a14acc62e1968414c1e"
+    },
+    {
+      "file": "models/nnue-v3/NNUE_W512_v3/model.json",
+      "name": "NNUE_W512_v3",
+      "sha256": "977b4177d85b73e85b6c4c2b72f1c8d299221058b839993bf705728d567c1475",
+      "blob_sha256": "a2f0ddbd753237dfbb699a13c93df538e7bfb441319e377fca1995ac448f09a5"
+    },
+    {
+      "file": "models/nnue-v3/NNUE_W1536_v3/model.json",
+      "name": "NNUE_W1536_v3",
+      "sha256": "e33264d795b9610027c535f380c0a6a942e8470923b7f0adbdd52829782cd321",
+      "blob_sha256": "f9c19733dc22ae8139353bd4eb3afc08c185c2807c2a058ad98c7da003ad46c2"
+    }
+  ]
+}

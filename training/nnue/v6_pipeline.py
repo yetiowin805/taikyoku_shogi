@@ -150,6 +150,10 @@ def run(config):
         pausing = set()
         prepared = False
         jobs = tasks(config)
+
+        def verified_names():
+            return [job["name"] for job in jobs if finished(out, job)]
+
         try:
             while not STOP:
                 report = dict(
@@ -157,7 +161,6 @@ def run(config):
                     pid=os.getpid(),
                     cpus=list(held),
                     active=list(running),
-                    completed=[j["name"] for j in jobs if finished(out, j)],
                 )
                 db = dataset.connect(config["catalogue"])
                 try:
@@ -172,7 +175,12 @@ def run(config):
                 if not ready:
                     atomic(
                         out / "status.json",
-                        dict(report, state="waiting_for_collection", collection_state=status.get("state")),
+                        dict(
+                            report,
+                            state="waiting_for_collection",
+                            collection_state=status.get("state"),
+                            completed=verified_names(),
+                        ),
                     )
                     time.sleep(10)
                     continue
@@ -180,12 +188,14 @@ def run(config):
                     try:
                         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
                     except BlockingIOError:
+                        verified_names()
                         time.sleep(1)
                         continue
                 maintenance = allocation_busy(Path(config["control"]))
                 acquired = pool.update([i for i in config["lease_indices"] if i not in held], maintenance)
                 if acquired:
                     held[acquired[0]] = acquired[1]
+                exited_trainers = []
                 for name, (proc, _cpu, log) in list(running.items()):
                     code = proc.poll()
                     if code is None:
@@ -203,12 +213,7 @@ def run(config):
                         dataset.verify(out / "dataset")
                         prepared = True
                     else:
-                        job = next(j for j in jobs if j["name"] == name)
-                        if not finished(out, job):
-                            raise ValueError("trainer exited without completion: " + name)
-                        # Finished optimizer state is no longer needed; preserve inference
-                        # models and shared prelude starts to bound disk usage.
-                        (out / name / "training.pt").unlink(missing_ok=True)
+                        exited_trainers.append(name)
                 used = {cpu for _, cpu, _ in running.values()}
                 if maintenance:
                     for name, (proc, _cpu, _log) in running.items():
@@ -221,7 +226,14 @@ def run(config):
                 if not prepared and not running and (out / "dataset/dataset.json").exists():
                     dataset.verify(out / "dataset")
                     prepared = True
-                done = {j["name"] for j in jobs if finished(out, j)}
+                # Reap first so markers published during this poll participate in
+                # the same verification used for dependency release and handoff.
+                report["completed"] = verified_names()
+                done = set(report["completed"])
+                for name in exited_trainers:
+                    if name not in done:
+                        raise ValueError("trainer exited without completion: " + name)
+                    (out / name / "training.pt").unlink(missing_ok=True)
                 if prepared and len(done) == len(jobs):
                     atomic(
                         out / "ready.json",

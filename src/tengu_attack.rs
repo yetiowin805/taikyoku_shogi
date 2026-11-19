@@ -55,7 +55,10 @@ fn is_on_same_diagonal(from: Position, to: Position) -> bool {
 
 /// Find the 2 potential intermediate positions for a two-step diagonal move
 /// Returns 0, 1, or 2 valid intermediate positions
-fn find_potential_intermediates(tengu_pos: Position, target: Position) -> [Option<Position>; 2] {
+pub(crate) fn find_potential_intermediates(
+    tengu_pos: Position,
+    target: Position,
+) -> [Option<Position>; 2] {
     let mut intermediates = [None; 2];
 
     let f_t = tengu_pos.file() as i16;
@@ -348,7 +351,7 @@ fn is_on_same_orthogonal(from: Position, to: Position) -> bool {
 /// Returns 0, 1, or 2 valid intermediate positions
 /// Only calculates intermediates for L-shaped paths (different file and rank)
 /// Same file/rank cases can only use a single slide.
-fn find_potential_intermediates_orthogonal(
+pub(crate) fn find_potential_intermediates_orthogonal(
     hook_mover_pos: Position,
     target: Position,
 ) -> [Option<Position>; 2] {

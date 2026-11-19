@@ -1,4 +1,5 @@
 use serde_json::{json, Value};
+use sha2::{Digest, Sha256};
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Command, Stdio};
 use taikyoku_shogi::{
@@ -80,6 +81,56 @@ fn collection_worker_reuses_history_and_checks_branches() {
     );
     assert_eq!(exported["state_history_hash"], start["state_history_hash"]);
     assert!(!exported["us"].as_array().unwrap().is_empty());
+    for ply in [1, 2] {
+        let req = |op: &str| json!({"version":1,"id":op,"op":op,"root_ply":ply});
+        let features = call(req("training_features")).pop().unwrap();
+        let mut hash = Sha256::new();
+        for field in ["us", "them"] {
+            if field == "them" {
+                hash.update(b"|");
+            }
+            let indices: Vec<u32> = serde_json::from_value(features[field].clone()).unwrap();
+            assert!(indices.is_sorted());
+            for id in indices {
+                hash.update(id.to_le_bytes());
+            }
+        }
+        assert_eq!(
+            features["canonical_position_hash"],
+            format!("{:x}", hash.finalize())
+        );
+        let inspected = call(req("inspect")).pop().unwrap();
+        let pov = inspected["turn"].as_i64().unwrap();
+        let legal = inspected["legal"].as_array().unwrap();
+        let tail = legal.last().unwrap()["move"].clone();
+        let invalid = json!({"from":{"file":0,"rank":0},"to":{"file":0,"rank":0},"promoted":false,"data":"Standard"});
+        let mut rank = req("rank_candidates");
+        rank["candidates"] = json!([tail, invalid, tail]);
+        let response = call(rank).pop().unwrap();
+        let mut expected = vec![tail];
+        for entry in legal.iter().take(3) {
+            if !expected.contains(&entry["move"]) {
+                expected.push(entry["move"].clone());
+            }
+        }
+        let ranked = response["candidates"].as_array().unwrap();
+        assert_eq!(ranked.len(), expected.len());
+        for (row, mv) in ranked.iter().zip(expected) {
+            assert_eq!(row["move"], mv);
+            let mut child = req("evaluate");
+            child["path"] = json!([mv]);
+            let after = call(child).pop().unwrap();
+            assert_eq!(
+                row["static_root"],
+                after["static_black"].as_i64().unwrap() * pov
+            );
+            let mut inspect_reply = req("inspect");
+            inspect_reply["reply"] = mv;
+            let with_reply = call(inspect_reply).pop().unwrap();
+            assert_eq!(with_reply["reply"]["legal"], true);
+            assert_eq!(with_reply["reply"]["static_black"], after["static_black"]);
+        }
+    }
     let later = call(request("later", 3)).pop().unwrap();
     assert_eq!(later["history_len"], 2);
     let back = call(request("back", 2)).pop().unwrap();

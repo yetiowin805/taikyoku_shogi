@@ -4,7 +4,10 @@ use crate::eval::{load_checkpoint_or_seed, EvalCheckpoint, EvalWeights, DEFAULT_
 use crate::game_state::{GameState, Move};
 use crate::piece::Color;
 use crate::player::{AgentOptions, MoveAnnotation};
-use crate::search::{search, search_info_for_display, QPruneMode, SearchConfig};
+use crate::search::{
+    search_info_for_display, search_with_progress, QPruneMode, SearchConfig, SearchProgress,
+    SearchResult,
+};
 use std::env;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
@@ -30,12 +33,17 @@ fn cached_seed_weights() -> &'static EvalWeights {
 
 pub struct AlphaBetaPlayer {
     weights: EvalWeights,
+    cache: crate::nnue::PlayerCache,
     config: SearchConfig,
 }
 
 impl AlphaBetaPlayer {
     pub fn new(weights: EvalWeights, config: SearchConfig) -> Self {
-        Self { weights, config }
+        Self {
+            weights,
+            config,
+            cache: Default::default(),
+        }
     }
 
     /// Built-in seed weights, default search depth.
@@ -208,7 +216,7 @@ impl AlphaBetaPlayer {
             cfg.fischer_soft_ms = Some(budget.soft_ms);
             cfg.cancel = cancel;
         }
-        let result = search(game_state, &self.weights, &cfg);
+        let result = self.search(game_state, &cfg);
         let mv = match result.best_move {
             Some(mv) => mv,
             None => game_state.generate_legal_moves().into_iter().next()?,
@@ -232,7 +240,25 @@ impl AlphaBetaPlayer {
     pub fn analyze(&self, game_state: &GameState) -> crate::search::SearchResult {
         let mut cfg = self.config.clone();
         cfg.collect_trace = false;
-        search(game_state, &self.weights, &cfg)
+        self.search(game_state, &cfg)
+    }
+
+    pub fn search(&self, state: &GameState, config: &SearchConfig) -> SearchResult {
+        self.search_with_progress(state, config, &mut |_, _, _, _, _| {})
+    }
+
+    pub fn search_with_progress(
+        &self,
+        state: &GameState,
+        config: &SearchConfig,
+        progress: SearchProgress<'_>,
+    ) -> SearchResult {
+        let _scope = self
+            .weights
+            .nnue_runtime
+            .as_ref()
+            .map(|_| self.cache.enter());
+        search_with_progress(state, &self.weights, config, progress)
     }
 
     pub fn search_info(&self, game_state: &GameState) -> crate::search::SearchInfo {

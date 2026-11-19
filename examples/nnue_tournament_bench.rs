@@ -12,7 +12,6 @@ use taikyoku_shogi::{
     alphabeta_player::AlphaBetaPlayer,
     eval::EvalCheckpoint,
     game_state::GameState,
-    search::search,
     training::{record::load_game_json, worker::replay_to_ply},
 };
 #[derive(Deserialize)]
@@ -59,11 +58,13 @@ fn main() {
     let mut players = HashMap::new();
     for line in io::stdin().lock().lines() {
         let q: Request = serde_json::from_str(&line.unwrap()).unwrap();
-        let player = players.entry(q.model).or_insert_with(|| {
-            AlphaBetaPlayer::from_checkpoint(
-                EvalCheckpoint::load_path(&corpus.models[q.model].path).unwrap(),
-            )
-        });
+        let player = players
+            .entry((q.model, states[q.position].get_current_turn()))
+            .or_insert_with(|| {
+                AlphaBetaPlayer::from_checkpoint(
+                    EvalCheckpoint::load_path(&corpus.models[q.model].path).unwrap(),
+                )
+            });
         let state = &states[q.position];
         let mut cfg = player.config().clone();
         cfg.depth = q.depth.max(1);
@@ -75,7 +76,7 @@ fn main() {
         cfg.collect_trace = false;
         let before = cpu_us();
         let start = Instant::now();
-        let result = search(state, player.weights(), &cfg);
+        let result = player.search(state, &cfg);
         let ms = start.elapsed().as_secs_f64() * 1000.;
         let cpu_ms = (cpu_us() - before) as f64 / 1000.;
         let legal = state.generate_legal_moves();

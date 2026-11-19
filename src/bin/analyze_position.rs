@@ -8,7 +8,6 @@ use taikyoku_shogi::{
     notation::move_encode,
     piece::Color,
     player::AgentOptions,
-    search::search_with_progress,
     training::record::{GameRecordV2, GameStart},
 };
 
@@ -92,7 +91,7 @@ fn run() -> Result<(), String> {
         );
         let _ = io::stdout().flush();
     };
-    let result = search_with_progress(&state, player.weights(), player.config(), &mut emit);
+    let result = player.search_with_progress(&state, player.config(), &mut emit);
     if result.best_move.is_none() && !result.aborted {
         println!(
             "{}",

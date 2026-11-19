@@ -1990,6 +1990,61 @@ fn can_directed_two_step_victim_hits(capabilities: &[MovementCapability]) -> boo
     has_two_step
 }
 
+/// For two ordinary slides, a perpendicular capture has at most two corners.
+fn directed_slide_corners(
+    piece: &Piece,
+    victim: Position,
+    first: &MovementCapability,
+    second: &MovementCapability,
+) -> Option<[Option<Position>; 2]> {
+    use crate::attack_utils::{adjust_directions_for_color, get_direction_toward};
+    use crate::movement::direction::{DIRECTION_SET_DIAGONAL, DIRECTION_SET_ORTHOGONAL};
+    use crate::movement::BlockingMode;
+    use crate::tengu_attack::{
+        find_potential_intermediates, find_potential_intermediates_orthogonal,
+    };
+
+    let (
+        MovementCapability::Range {
+            directions: first,
+            blocking: BlockingMode::NoJump,
+            ..
+        },
+        MovementCapability::Range {
+            directions: second,
+            blocking: BlockingMode::NoJump,
+            ..
+        },
+    ) = (first, second)
+    else {
+        return None;
+    };
+    let axes = first | second;
+    let corners = if axes & !DIRECTION_SET_DIAGONAL == 0 {
+        find_potential_intermediates(piece.position, victim)
+    } else if axes & !DIRECTION_SET_ORTHOGONAL == 0 {
+        find_potential_intermediates_orthogonal(piece.position, victim)
+    } else {
+        return None;
+    };
+    let first_dirs = adjust_directions_for_color(*first, piece.color);
+    let second_dirs = adjust_directions_for_color(*second, piece.color);
+    let mut ordered = corners.map(|corner| {
+        let via = corner?;
+        let direction = get_direction_toward(piece.position, via)?.to_bit();
+        let turn = get_direction_toward(via, victim)?.to_bit();
+        (direction & first_dirs != 0 && turn & second_dirs != 0).then_some((direction, via))
+    });
+    // Each corner has a distinct first-ray direction. Preserve the generator's
+    // ascending direction-bit order, including White's oriented capabilities.
+    if let [Some((a, _)), Some((b, _))] = ordered {
+        if a > b {
+            ordered.swap(0, 1);
+        }
+    }
+    Some(ordered.map(|corner| corner.map(|(_, via)| via)))
+}
+
 fn emit_directed_two_step_captures_hitting(
     state: &GameState,
     piece: &crate::piece::Piece,
@@ -2011,6 +2066,25 @@ fn emit_directed_two_step_captures_hitting(
                     victim,
                 ) {
                     state.emit_standard_moves_to(piece, landing, out);
+                }
+                if let Some(corners) = directed_slide_corners(piece, victim, first, second) {
+                    if victim_is_enemy {
+                        for via in corners.into_iter().flatten() {
+                            // The empty corner is the only square shared by the legs.
+                            // Moving off the origin cannot open or block the second ray.
+                            if board.is_empty(via)
+                                && path_utils::is_path_clear_for_boardlike(
+                                    board,
+                                    piece.position,
+                                    via,
+                                )
+                                && path_utils::is_path_clear_for_boardlike(board, via, victim)
+                            {
+                                state.emit_two_step_moves_to(piece, via, victim, out);
+                            }
+                        }
+                    }
+                    continue;
                 }
                 let first_targets =
                     MovementGenerator::capability_landings(piece, board, first.as_ref());
@@ -5461,6 +5535,130 @@ mod tests {
     use crate::eval::{EvalWeights, ALL_PIECE_TYPES};
     use crate::piece::{Color, Piece, PieceType};
     use crate::position::Position;
+
+    #[test]
+    fn directed_slide_captures_match_ordered_forward_walk() {
+        use std::slice::from_ref;
+        let mut cases = 0;
+        let mut both_corners = 0;
+        let mut promotions = 0;
+        for kind in [
+            PieceType::Capricorn,
+            PieceType::Tengu,
+            PieceType::HookMover,
+            PieceType::Peacock,
+        ] {
+            for color in [Color::Black, Color::White] {
+                for (f, r) in [(0, 0), (18, 18), (10, 25), (34, 33)] {
+                    let origin = Position::new(f, r).unwrap();
+                    let piece = Piece::new(kind, color, origin);
+                    let config = MovementConfig::for_piece(&piece);
+                    for blocked in [false, true] {
+                        let mut state = GameState::new();
+                        state.set_current_turn(color);
+                        state.place_piece(piece);
+                        if blocked {
+                            for index in (7..1296).step_by(29) {
+                                let at = Position::from_index(index).unwrap();
+                                if at != origin {
+                                    let side = if index % 2 == 0 {
+                                        color
+                                    } else {
+                                        color.opposite()
+                                    };
+                                    state.place_piece(Piece::new(PieceType::Pawn, side, at));
+                                }
+                            }
+                        }
+                        // The target travels through the same board, including
+                        // promotion zones, the edge, and both square colors.
+                        for index in (0..1296).step_by(19) {
+                            let victim = Position::from_index(index).unwrap();
+                            if state.get_board().get_piece(victim).is_some() {
+                                continue;
+                            }
+                            state.place_piece(Piece::new(
+                                PieceType::Pawn,
+                                color.opposite(),
+                                victim,
+                            ));
+                            let board = state.get_board();
+                            let mut expected = Vec::new();
+                            for cap in &config.capabilities {
+                                let (first, second) = match cap {
+                                    MovementCapability::TwoStep { first, second } => {
+                                        (first.as_ref(), Some(second.as_ref()))
+                                    }
+                                    other => (other, None),
+                                };
+                                let landings =
+                                    MovementGenerator::capability_landings(&piece, board, first);
+                                if landings.contains(&victim) {
+                                    state.emit_standard_moves_to(&piece, victim, &mut expected);
+                                }
+                                if let Some(second) = second {
+                                    for via in landings {
+                                        if !board.is_empty(via)
+                                            || !path_utils::is_perpendicular_turn(
+                                                origin, via, victim,
+                                            )
+                                        {
+                                            continue;
+                                        }
+                                        let after = BoardAfterStep::new(board, piece, via);
+                                        let mover = Piece {
+                                            position: via,
+                                            ..piece
+                                        };
+                                        if MovementGenerator::generate_targets_filtered(
+                                            &mover,
+                                            &after,
+                                            from_ref(second),
+                                            true,
+                                        )
+                                        .contains(&victim)
+                                        {
+                                            state.emit_two_step_moves_to(
+                                                &piece,
+                                                via,
+                                                victim,
+                                                &mut expected,
+                                            );
+                                        }
+                                    }
+                                }
+                            }
+                            let mut actual = Vec::new();
+                            emit_directed_two_step_captures_hitting(
+                                &state,
+                                &piece,
+                                victim,
+                                &config.capabilities,
+                                &mut actual,
+                            );
+                            assert_eq!(
+                                actual, expected,
+                                "{piece:?} -> {victim:?}; blocked={blocked}"
+                            );
+                            both_corners += usize::from(
+                                actual
+                                    .iter()
+                                    .filter_map(|m| m.intermediate())
+                                    .collect::<HashSet<_>>()
+                                    .len()
+                                    == 2,
+                            );
+                            promotions += actual.iter().filter(|m| m.promoted).count();
+                            cases += 1;
+                            state.remove_piece(victim);
+                        }
+                    }
+                }
+            }
+        }
+        assert!(cases > 4_000 && both_corners > 100 && promotions > 100);
+        eprintln!("ordered slide probe: {cases} cases, {both_corners} with both corners, {promotions} promotion routes");
+    }
 
     #[test]
     fn vice_general_jump_does_not_score_or_prune_as_a_path_capture() {

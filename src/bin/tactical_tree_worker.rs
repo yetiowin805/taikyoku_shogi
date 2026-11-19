@@ -15,7 +15,7 @@ use taikyoku_shogi::{
     movement::{BlockingMode, MovementCapability, MovementConfig},
     notation::move_encode,
     piece::{Color, Piece},
-    search::{move_captures_enemy, probe_quiescence, search_with_progress, SearchConfig},
+    search::{move_captures_enemy, probe_quiescence, SearchConfig},
     training::record::{GameRecordV2, GameStart},
 };
 
@@ -102,6 +102,10 @@ fn advance(state: &mut GameState, mv: &Move) -> Result<(), String> {
     if terminal(state, false).is_some() || !legal(state).contains(mv) {
         return Err(format!("illegal continuation {}", move_encode(mv)));
     }
+    apply_legal_move(state, mv)
+}
+
+fn apply_legal_move(state: &mut GameState, mv: &Move) -> Result<(), String> {
     let old = state.get_current_turn();
     state.make_move(mv.clone());
     if state.get_current_turn() == old {
@@ -118,22 +122,18 @@ fn position(base: &GameState, path: &[Move]) -> Result<GameState, String> {
     Ok(state)
 }
 
-fn collection_metadata(state: &GameState) -> Value {
+fn collection_metadata(state: &GameState, export_features: bool) -> Value {
     use taikyoku_shogi::nnue::features;
+    let turn = state.get_current_turn();
+    // active() already returns ordered indices. Reuse the same lists for the
+    // legacy canonical hash and the optional training payload.
+    let active = [turn, turn.opposite()].map(|color| features::active(state.get_board(), color));
     let mut encoded = Vec::new();
-    for (i, color) in [
-        state.get_current_turn(),
-        state.get_current_turn().opposite(),
-    ]
-    .into_iter()
-    .enumerate()
-    {
+    for (i, indices) in active.iter().enumerate() {
         if i == 1 {
             encoded.push(b'|');
         }
-        let mut active = features::active(state.get_board(), color);
-        active.sort_unstable();
-        for feature in active {
+        for &feature in indices {
             encoded.extend_from_slice(&(feature as u32).to_le_bytes());
         }
     }
@@ -141,7 +141,7 @@ fn collection_metadata(state: &GameState) -> Value {
     board.pieces.sort_by_key(|p| p.position.to_index());
     let full = serde_json::to_vec(&json!({"position":board,"history":state.get_move_history()}))
         .expect("position serialization");
-    json!({"canonical_position_hash":format!("{:x}",Sha256::digest(encoded)),
+    let mut info = json!({"canonical_position_hash":format!("{:x}",Sha256::digest(encoded)),
         "state_history_hash":format!("{:x}",Sha256::digest(full)),
         "feature_schema_hash":format!("{:x}",sha2::digest::Output::<Sha256>::from(features::schema().hash)),
         "turn":sign(state),"draw_counter":state.get_turns_without_capture_or_promotion(),
@@ -150,7 +150,12 @@ fn collection_metadata(state: &GameState) -> Value {
         "royal_count":board.pieces.iter().filter(|p|p.piece_type.is_royal()).count(),
         "range_two_movers":board.pieces.iter().filter(|p|matches!(p.piece_type,
             taikyoku_shogi::piece::PieceType::HookMover | taikyoku_shogi::piece::PieceType::Capricorn |
-            taikyoku_shogi::piece::PieceType::Tengu | taikyoku_shogi::piece::PieceType::Peacock)).count()})
+            taikyoku_shogi::piece::PieceType::Tengu | taikyoku_shogi::piece::PieceType::Peacock)).count()});
+    if export_features {
+        info["us"] = json!(active[0]);
+        info["them"] = json!(active[1]);
+    }
+    info
 }
 
 fn advance_recorded(
@@ -407,16 +412,9 @@ fn handle(
     let state = position(base, &req.path)?;
     let pov = sign(&state);
     if req.op == "training_features" {
-        use taikyoku_shogi::nnue::features;
-        let mut info = collection_metadata(&state);
-        let mut us = features::active(state.get_board(), state.get_current_turn());
-        let mut them = features::active(state.get_board(), state.get_current_turn().opposite());
-        us.sort_unstable();
-        them.sort_unstable();
+        let mut info = collection_metadata(&state, true);
         info["event"] = json!("complete");
         info["id"] = json!(req.id);
-        info["us"] = json!(us);
-        info["them"] = json!(them);
         info["material_black"] = json!(taikyoku_shogi::nnue::material(
             state.get_board(),
             player.weights()
@@ -428,7 +426,7 @@ fn handle(
         }
         let moves = legal(&state);
         let outcome = terminal(&state, moves.is_empty());
-        let mut info = collection_metadata(&state);
+        let mut info = collection_metadata(&state, false);
         info["version"] = json!(1);
         info["id"] = json!(req.id);
         info["event"] = json!("complete");
@@ -462,11 +460,17 @@ fn handle(
         choices.extend(moves.iter().take(3).cloned());
         let mut seen = HashSet::new();
         let mut ranked = Vec::new();
+        let is_terminal = terminal(&state, false).is_some();
         for mv in choices {
             if !moves.contains(&mv) || !seen.insert(serde_json::to_string(&mv).unwrap()) {
                 continue;
             }
-            let child = position(&state, std::slice::from_ref(&mv))?;
+            // The ordered list above has already verified the complete route.
+            if is_terminal {
+                return Err(format!("illegal continuation {}", move_encode(&mv)));
+            }
+            let mut child = state.clone();
+            apply_legal_move(&mut child, &mv)?;
             ranked.push(
                 json!({"move":mv,"static_root":evaluate(&child,player.weights())*sign(&child)*pov}),
             );
@@ -513,7 +517,7 @@ fn handle(
             reply = json!({"legal":valid});
             if valid {
                 let mut after = state.clone();
-                advance(&mut after, mv)?;
+                apply_legal_move(&mut after, mv)?;
                 reply["static_black"] = json!(evaluate(&after, player.weights()) * sign(&after));
             }
         }
@@ -567,7 +571,7 @@ fn handle(
                 "candidate_scores_are_heuristic":true}),
             );
         };
-        let result = search_with_progress(&state, player.weights(), &config, &mut progress);
+        let result = player.search_with_progress(&state, &config, &mut progress);
         emit(
             json!({"version":1,"id":req.id,"event":"complete","op":"search",
             "search_config":format!("{:?}",config),
@@ -662,10 +666,10 @@ mod tests {
     fn collection_fingerprint_separates_history_from_features() {
         let mut state = GameState::new();
         state.setup_initial_position();
-        let original = collection_metadata(&state);
+        let original = collection_metadata(&state, false);
         let mut snapshot = BoardPosition::from_state(&state);
         snapshot.draw_counter = 8;
-        let changed = collection_metadata(&snapshot.to_state().unwrap());
+        let changed = collection_metadata(&snapshot.to_state().unwrap(), false);
         assert_eq!(
             original["canonical_position_hash"],
             changed["canonical_position_hash"]
@@ -676,7 +680,7 @@ mod tests {
         );
         let mut flipped = state.clone();
         flipped.set_current_turn(Color::White);
-        assert_eq!(collection_metadata(&flipped)["turn"], -1);
+        assert_eq!(collection_metadata(&flipped, false)["turn"], -1);
     }
 
     #[test]
@@ -705,7 +709,7 @@ mod tests {
             }
         }
         assert_eq!(
-            collection_metadata(&state)["canonical_position_hash"],
+            collection_metadata(&state, false)["canonical_position_hash"],
             format!("{:x}", Sha256::digest(bytes))
         );
     }
