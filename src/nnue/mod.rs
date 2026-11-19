@@ -14,7 +14,7 @@ use std::{
     path::Path,
     sync::{Arc, Mutex, OnceLock},
 };
-pub(crate) use storage::Snapshot;
+pub(crate) use storage::{PlayerCache, Snapshot};
 
 /// v6 representation experiment: legacy residual or learned total score.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -39,7 +39,7 @@ pub struct Network {
     pub output_mode: OutputMode,
     pub width: usize,
     pub sha256: String,
-    weights: Vec<i16>,
+    weights: TransformerWeights,
     bias: Vec<i32>,
     h1: Vec<i8>,
     b1: Vec<i32>,
@@ -47,6 +47,55 @@ pub struct Network {
     b2: Vec<i32>,
     out: Vec<f32>,
     out_bias: f32,
+}
+// Checkpoints always store little-endian i16. Pick an exact in-memory representation
+// before publishing the network. Accumulation remains i32 in both cases.
+#[derive(Clone, Debug)]
+enum TransformerWeights {
+    Byte(Vec<i8>),
+    Wide(Vec<i16>),
+}
+
+impl TransformerWeights {
+    fn read(reader: &mut (impl Read + Seek), count: usize) -> Result<Self, String> {
+        let start = reader.stream_position().map_err(|e| e.to_string())?;
+        let mut bytes = [0u8; 8192];
+        let mut narrow = vec![0i8; count];
+        for chunk in narrow.chunks_mut(bytes.len() / 2) {
+            let raw = &mut bytes[..chunk.len() * 2];
+            reader.read_exact(raw).map_err(|e| e.to_string())?;
+            let mut fits = true;
+            for (dst, pair) in chunk.iter_mut().zip(raw.chunks_exact(2)) {
+                let weight = i16::from_le_bytes([pair[0], pair[1]]);
+                *dst = weight as i8;
+                fits &= i16::from(*dst) == weight;
+            }
+            if !fits {
+                // A late outlier must not leave both full tables resident at once.
+                drop(narrow);
+                reader
+                    .seek(SeekFrom::Start(start))
+                    .map_err(|e| e.to_string())?;
+                let mut wide = vec![0i16; count];
+                for chunk in wide.chunks_mut(bytes.len() / 2) {
+                    let raw = &mut bytes[..chunk.len() * 2];
+                    reader.read_exact(raw).map_err(|e| e.to_string())?;
+                    for (dst, pair) in chunk.iter_mut().zip(raw.chunks_exact(2)) {
+                        *dst = i16::from_le_bytes([pair[0], pair[1]]);
+                    }
+                }
+                return Ok(Self::Wide(wide));
+            }
+        }
+        Ok(Self::Byte(narrow))
+    }
+
+    fn valid_magnitude(&self) -> bool {
+        match self {
+            Self::Byte(_) => true,
+            Self::Wide(weights) => weights.iter().all(|&v| v.unsigned_abs() <= 2048),
+        }
+    }
 }
 impl std::fmt::Debug for Network {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -179,15 +228,7 @@ impl Network {
         if r.get_ref().metadata().map_err(|e| e.to_string())?.len() != expected as u64 {
             return Err("NNUE byte length mismatch".into());
         }
-        let mut weights = vec![0i16; features::FEATURES * w];
-        let mut buf = [0u8; 8192];
-        for chunk in weights.chunks_mut(4096) {
-            let n = chunk.len() * 2;
-            r.read_exact(&mut buf[..n]).map_err(|e| e.to_string())?;
-            for (v, b) in chunk.iter_mut().zip(buf[..n].chunks_exact(2)) {
-                *v = i16::from_le_bytes([b[0], b[1]]);
-            }
-        }
+        let weights = TransformerWeights::read(&mut r, features::FEATURES * w)?;
         let net = Arc::new(Self {
             output_mode: d.output_mode,
             width: w,
@@ -202,7 +243,7 @@ impl Network {
             out_bias: f32s(&mut r, 1)?[0],
         });
         // Accumulator arithmetic stays bounded even on a completely occupied board.
-        if net.weights.iter().any(|&x| i32::from(x).abs() > 2048)
+        if !net.weights.valid_magnitude()
             || net.bias.iter().any(|x| x.unsigned_abs() > 1_000_000)
             || net
                 .b1
@@ -306,6 +347,19 @@ pub(crate) mod tests {
         search::{search, SearchConfig},
     };
     impl Network {
+        pub(super) fn wide_test_weights(&self) -> &[i16] {
+            let TransformerWeights::Wide(weights) = &self.weights else {
+                panic!("expected synthetic wide fixture");
+            };
+            weights
+        }
+
+        pub(super) fn wide_test_weights_mut(&mut self) -> &mut [i16] {
+            let TransformerWeights::Wide(weights) = &mut self.weights else {
+                panic!("expected synthetic wide fixture");
+            };
+            weights
+        }
         pub(crate) fn clone_for_test(&self) -> Network {
             Network {
                 output_mode: self.output_mode,
@@ -327,9 +381,11 @@ pub(crate) mod tests {
             output_mode: OutputMode::Residual,
             width,
             sha256: tag.into(),
-            weights: (0..features::FEATURES * width)
-                .map(|i| (i % 13) as i16 - 6)
-                .collect(),
+            weights: TransformerWeights::Wide(
+                (0..features::FEATURES * width)
+                    .map(|i| (i % 13) as i16 - 6)
+                    .collect(),
+            ),
             bias: vec![2048; width],
             h1: (0..2 * width * 32).map(|i| (i % 7) as i8 - 3).collect(),
             b1: vec![1024; 32],
@@ -540,6 +596,82 @@ pub(crate) mod tests {
         );
     }
     #[test]
+    fn byte_extrema_match_wide_through_rebuild_update_and_undo() {
+        let mut wide = Arc::try_unwrap(net(32, "test-wide-extrema")).unwrap();
+        for (i, weight) in wide.wide_test_weights_mut().iter_mut().enumerate() {
+            *weight = if (i ^ (i / 32)).count_ones() % 2 == 0 {
+                -128
+            } else {
+                127
+            };
+        }
+        let mut narrow = wide.clone_for_test();
+        narrow.weights = TransformerWeights::Byte(
+            wide.wide_test_weights()
+                .iter()
+                .map(|&w| i8::try_from(w).unwrap())
+                .collect(),
+        );
+        let board = state();
+        let mut a = Accumulator::new(Arc::new(wide), board.get_board());
+        let mut b = Accumulator::new(Arc::new(narrow), board.get_board());
+        assert_eq!(a.sums, b.sums);
+        for (i, &kind) in eval::ALL_PIECE_TYPES.iter().enumerate() {
+            let origin = Position::from_index(i).unwrap();
+            let mut from = Piece::new(
+                kind,
+                if i % 2 == 0 {
+                    Color::Black
+                } else {
+                    Color::White
+                },
+                origin,
+            );
+            from.is_promoted = i % 3 == 0;
+            let mut to = from;
+            to.position = Position::from_index(1295 - i).unwrap();
+            let before = a.sums.clone();
+            let x = a.save_and_apply([&from].into_iter(), Some(&to));
+            let y = b.save_and_apply([&from].into_iter(), Some(&to));
+            assert_eq!(a.sums, b.sums);
+            for turn in [Color::Black, Color::White] {
+                assert_eq!(a.residual(turn), b.residual(turn));
+            }
+            assert!(a.restore_sums(x) && b.restore_sums(y));
+            assert_eq!(a.sums, before);
+            assert_eq!(b.sums, before);
+        }
+    }
+
+    #[test]
+    fn transformer_exact_extrema_wide_fallback_and_reader_position() {
+        use std::io::Cursor;
+        // Place both representable extrema and outliers across a chunk boundary.
+        for last in [-2049i16, -2048, -129, -128, 127, 128, 2048, 2049, i16::MIN] {
+            let mut values = vec![-128i16, 0, 127];
+            values.resize(4097, 42);
+            values[4096] = last;
+            let mut blob = vec![0xcd; 7];
+            blob.extend(values.iter().flat_map(|weight| weight.to_le_bytes()));
+            blob.push(0xab);
+            let mut reader = Cursor::new(blob);
+            reader.set_position(7);
+            let weights = TransformerWeights::read(&mut reader, values.len()).unwrap();
+            assert_eq!(weights.valid_magnitude(), last.unsigned_abs() <= 2048);
+            match weights {
+                TransformerWeights::Byte(x) => {
+                    assert!(i8::try_from(last).is_ok());
+                    assert!(x.into_iter().map(i16::from).eq(values));
+                }
+                TransformerWeights::Wide(x) => {
+                    assert!(i8::try_from(last).is_err());
+                    assert_eq!(x, values);
+                }
+            }
+            assert_eq!(bytes::<1>(&mut reader).unwrap(), [0xab]);
+        }
+    }
+    #[test]
     fn checkpoint_hash_length_and_schema_validation() {
         use std::io::{BufWriter, Write};
         let dir = std::env::temp_dir().join(format!("taikyoku-nnue-load-{}", std::process::id()));
@@ -555,7 +687,7 @@ pub(crate) mod tests {
         for v in [4096u32, 64, 1] {
             f.write_all(&v.to_le_bytes()).unwrap();
         }
-        for v in &n.weights {
+        for v in n.wide_test_weights() {
             f.write_all(&v.to_le_bytes()).unwrap();
         }
         for v in &n.bias {
@@ -584,7 +716,21 @@ pub(crate) mod tests {
             ),
         };
         let loaded = Network::load(&dir.join("model.json"), &d).unwrap();
-        assert_eq!(loaded.weights, n.weights);
+        let TransformerWeights::Byte(weights) = &loaded.weights else {
+            panic!("expected exact byte representation");
+        };
+        assert!(weights
+            .iter()
+            .map(|&v| i16::from(v))
+            .eq(n.wide_test_weights().iter().copied()));
+        let pos = state();
+        let narrow = Accumulator::new(loaded.clone(), pos.get_board());
+        let wide = Accumulator::new(n.clone(), pos.get_board());
+        assert_eq!(narrow.sums, wide.sums);
+        for turn in [Color::Black, Color::White] {
+            assert_eq!(narrow.residual(turn), wide.residual(turn));
+        }
+        drop(narrow);
         let retained = Arc::downgrade(&loaded);
         drop(loaded);
         let still_cached = retained

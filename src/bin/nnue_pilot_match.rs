@@ -9,7 +9,6 @@ use taikyoku_shogi::{
     eval::EvalCheckpoint,
     game_history::{GameHistory, GameResult},
     piece::Color,
-    search::search,
     training::{
         record::{AgentSpec, GameRecordV2},
         worker::replay_to_ply,
@@ -125,7 +124,7 @@ fn run() -> Result<(), String> {
         let player = if is_candidate { &a } else { &b };
         let config = if is_candidate { &cfg } else { &other };
         let before = Instant::now();
-        let r = search(&state, player.weights(), config);
+        let r = player.search(&state, config);
         let mv = r.best_move.ok_or("search returned no move")?;
         if !legal.contains(&mv) {
             return Err("search returned illegal route".into());

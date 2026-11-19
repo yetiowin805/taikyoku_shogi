@@ -53,6 +53,35 @@ type Parked = (
 thread_local! {
     static PARKED: std::cell::RefCell<Option<Parked>> = const { std::cell::RefCell::new(None) };
 }
+/// One player's parked values. Raw searches may still use their thread's default slot.
+#[derive(Default)]
+pub(crate) struct PlayerCache(std::sync::Mutex<Option<Parked>>);
+
+impl PlayerCache {
+    pub(crate) fn enter(&self) -> impl Drop + '_ {
+        // Move ownership, so no lock or lookup is needed in the evaluation hot path.
+        let saved = PARKED.with(|slot| slot.replace(self.0.lock().unwrap().take()));
+        PlayerCacheScope {
+            owner: self,
+            saved,
+            thread_marker: std::marker::PhantomData,
+        }
+    }
+}
+
+struct PlayerCacheScope<'a> {
+    owner: &'a PlayerCache,
+    thread_marker: std::marker::PhantomData<std::rc::Rc<()>>,
+    saved: Option<Parked>,
+}
+
+impl Drop for PlayerCacheScope<'_> {
+    fn drop(&mut self) {
+        let used = PARKED.with(|slot| slot.replace(self.saved.take()));
+        *self.owner.0.lock().unwrap() = used;
+    }
+}
+
 impl Drop for Accumulator {
     fn drop(&mut self) {
         if self.storage.keys.is_empty() {
@@ -129,12 +158,27 @@ impl Accumulator {
         }
     }
     fn add_direct(&self, dst: &mut [i32], piece: &Piece, side: usize, sign: i32) {
-        let w = self.net.width;
-        features::visit(piece, [Color::Black, Color::White][side], |i| {
-            for (a, &b) in dst.iter_mut().zip(&self.net.weights[i * w..(i + 1) * w]) {
-                *a += sign * i32::from(b);
-            }
-        });
+        fn add<T: Copy + Into<i32>>(
+            weights: &[T],
+            dst: &mut [i32],
+            piece: &Piece,
+            side: usize,
+            sign: i32,
+        ) {
+            let width = dst.len();
+            features::visit(piece, [Color::Black, Color::White][side], |index| {
+                for (sum, &weight) in dst
+                    .iter_mut()
+                    .zip(&weights[index * width..(index + 1) * width])
+                {
+                    *sum += sign * weight.into();
+                }
+            });
+        }
+        match &self.net.weights {
+            super::TransformerWeights::Byte(weights) => add(weights, dst, piece, side, sign),
+            super::TransformerWeights::Wide(weights) => add(weights, dst, piece, side, sign),
+        }
     }
     pub(super) fn change_cached(&mut self, piece: &Piece, sign: i32) {
         let w = self.net.width;
@@ -344,7 +388,7 @@ mod tests {
                             features::visit(&p, c, |i| {
                                 for (a, &b) in expected[side * 32..(side + 1) * 32]
                                     .iter_mut()
-                                    .zip(&acc.net.weights[i * 32..(i + 1) * 32])
+                                    .zip(&acc.net.wide_test_weights()[i * 32..(i + 1) * 32])
                                 {
                                     *a += i32::from(b);
                                 }
@@ -375,7 +419,7 @@ mod tests {
                     features::visit(p, persp, |i| {
                         for (a, &b) in out[side * w..(side + 1) * w]
                             .iter_mut()
-                            .zip(&net.weights[i * w..(i + 1) * w])
+                            .zip(&net.wide_test_weights()[i * w..(i + 1) * w])
                         {
                             *a += i32::from(b);
                         }
@@ -393,7 +437,7 @@ mod tests {
             if big {
                 // Three or more channels at 16000 overflow i16, forcing the direct path
                 // (loadable nets cap weights at 2048, where 17+ channels overflow).
-                net.weights.iter_mut().for_each(|x| *x = 16000);
+                net.wide_test_weights_mut().fill(16000);
             }
             let net = Arc::new(net);
             let mut s = GameState::new();
@@ -434,11 +478,42 @@ mod tests {
     }
 
     #[test]
+    fn separate_players_keep_private_rows_even_with_the_same_network() {
+        let net = super::super::tests::net(32, "shared-weights");
+        let a = PlayerCache::default();
+        let b = PlayerCache::default();
+        let piece = Piece::new(
+            crate::piece::PieceType::Pawn,
+            Color::Black,
+            Position::new(4, 4).unwrap(),
+        );
+        let has_row = |cache: &PlayerCache, fill: bool| {
+            let _scope = cache.enter();
+            let mut acc = Accumulator::new(net.clone(), &Board::new());
+            acc.ensure_storage();
+            let warm = acc.storage.keys.iter().any(|&key| key != EMPTY);
+            if fill {
+                acc.ensure_row(&piece, 0).unwrap();
+            }
+            warm
+        };
+        assert!(!has_row(&a, true));
+        assert!(!has_row(&b, false));
+        std::thread::scope(|scope| assert!(scope.spawn(|| has_row(&a, false)).join().unwrap()));
+        assert!(!has_row(&b, true));
+        assert!(has_row(&a, false));
+        assert!(has_row(&b, false));
+    }
+
+    #[test]
     fn parked_caches_are_adopted_only_by_the_same_network() {
         use crate::game_state::GameState;
         let a = super::super::tests::net(32, "park");
         let mut different = a.clone_for_test();
-        different.weights.iter_mut().for_each(|v| *v += 1);
+        different
+            .wide_test_weights_mut()
+            .iter_mut()
+            .for_each(|v| *v += 1);
         let b = Arc::new(different);
         let mut s = GameState::new();
         s.setup_initial_position();

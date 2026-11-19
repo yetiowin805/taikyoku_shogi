@@ -377,8 +377,7 @@ async fn api_analysis_start(
                     current.message = format!("Depth {depth} complete · deepening");
                     current.search = Some(search);
                 };
-            let result =
-                crate::search::search_with_progress(&game_state, &weights, &config, &mut progress);
+            let result = player.search_with_progress(&game_state, &config, &mut progress);
             if cancel.load(Ordering::Relaxed) {
                 let mut current = view.lock().unwrap_or_else(|e| e.into_inner());
                 current.running = false;
