@@ -1,0 +1,77 @@
+diff --git a/examples/nnue_tournament_bench.rs b/examples/nnue_tournament_bench.rs
+index 37646b9..a4925e5 100644
+--- a/examples/nnue_tournament_bench.rs
++++ b/examples/nnue_tournament_bench.rs
+@@ -74,11 +74,13 @@ fn main() {
+             Some(q.budget_ms)
+         };
+         cfg.collect_trace = false;
++        taikyoku_shogi::nnue::take_cache_counts();
+         let before = cpu_us();
+         let start = Instant::now();
+         let result = player.search(state, &cfg);
+         let ms = start.elapsed().as_secs_f64() * 1000.;
+         let cpu_ms = (cpu_us() - before) as f64 / 1000.;
++        let counts = taikyoku_shogi::nnue::take_cache_counts();
+         let legal = state.generate_legal_moves();
+         assert!(
+             result.best_move.as_ref().is_some_and(|m| legal.contains(m)),
+@@ -99,7 +101,7 @@ fn main() {
+                 .len();
+         println!(
+             "{}",
+-            json!({"position":q.position,"name":corpus.positions[q.position].name,"model":q.model,"agent":corpus.models[q.model].name,
++            json!({"cache_counts":counts,"position":q.position,"name":corpus.positions[q.position].name,"model":q.model,"agent":corpus.models[q.model].name,
+             "ms":ms,"cpu_ms":cpu_ms,"depth":q.depth,"completed_depth":result.completed_depth,"aborted":result.aborted,
+             "nodes":result.nodes,"q_nodes":result.q_nodes,"score":result.score,"best":result.best_move,"signature":signature_sha256,
+             "pieces":pieces,"legal":legal.len(),"ply":corpus.positions[q.position].ply,"hash":state.hash(),"nnue":player.weights().nnue_runtime.is_some()})
+diff --git a/src/nnue/mod.rs b/src/nnue/mod.rs
+index 9937fdb..002a6fb 100644
+--- a/src/nnue/mod.rs
++++ b/src/nnue/mod.rs
+@@ -14,6 +14,7 @@ use std::{
+     path::Path,
+     sync::{Arc, Mutex, OnceLock},
+ };
++pub use storage::take_cache_counts;
+ pub(crate) use storage::{PlayerCache, Snapshot};
+ 
+ /// v6 representation experiment: legacy residual or learned total score.
+diff --git a/src/nnue/storage.rs b/src/nnue/storage.rs
+index 6a4e89f..7bad272 100644
+--- a/src/nnue/storage.rs
++++ b/src/nnue/storage.rs
+@@ -16,6 +16,17 @@ const SLOTS: usize = 16384;
+ // row reads per perspective into one. Keys are the exact changed-piece list.
+ const DELTA_SLOTS: usize = 4096;
+ const DELTA_MIN_CHANGES: usize = 4;
++thread_local! { static COUNTS: std::cell::Cell<[u64; 4]> = const { std::cell::Cell::new([0; 4]) }; }
++fn count(index: usize) {
++    COUNTS.with(|counts| {
++        let mut c = counts.get();
++        c[index] += 1;
++        counts.set(c);
++    });
++}
++pub fn take_cache_counts() -> [u64; 4] {
++    COUNTS.with(|c| c.replace([0; 4]))
++}
+ const EMPTY: usize = usize::MAX;
+ fn piece_code(p: &Piece) -> u32 {
+     (features::key(p) as u32) << 11 | p.position.to_index() as u32
+@@ -119,6 +130,7 @@ impl Accumulator {
+             .wrapping_mul(0x9e3779b97f4a7c15)
+             .rotate_right(32) as usize)
+             % SLOTS;
++        count(usize::from(self.storage.keys[slot] != key));
+         if self.storage.keys[slot] == key {
+             return Some((slot * w, key));
+         }
+@@ -226,6 +238,7 @@ impl Accumulator {
+                 self.storage.delta_keys = vec![Vec::new(); DELTA_SLOTS];
+                 self.storage.deltas = vec![0; DELTA_SLOTS * 2 * w];
+             }
++            count(2 + usize::from(self.storage.delta_keys[slot] != codes));
+             if self.storage.delta_keys[slot] == codes {
+                 let d = &self.storage.deltas[slot * 2 * w..(slot + 1) * 2 * w];
+                 for (o, (&a, &b)) in out.iter_mut().zip(self.sums.iter().zip(d)) {
