@@ -307,10 +307,12 @@ def confirmed_admission(config, name):
 
 
 def prepare_search_variants(config, *, bundle=None):
-    """Derive immutable search arms from registered baselines, sharing NNUE files.
+    """Derive immutable search arms from registered checkpoints, sharing NNUE files.
 
     A string policy uses base_entrant; an object explicitly selects another
-    base_entrant, experiment and an optional October 2026 generation-three trial.
+    base_entrant, experiment and an optional trial. Omission means no trial,
+    including when the source checkpoint uses one.
+    Non-baseline sources require an exact experiment and trial in source_search.
     Distinct (base, policy, trial) tuples allow one search
     package to be tested on several networks in a single coordinator transaction.
     """
@@ -349,6 +351,7 @@ def prepare_search_variants(config, *, bundle=None):
         [trial for _, _, _, trial in resolved],
     )
     bases = {}
+    source_search = config.get("source_search", {})
     # Validate every source before writing any candidate descriptor.
     for _, base_id, _, _ in resolved:
         if base_id in bases:
@@ -358,23 +361,34 @@ def prepare_search_variants(config, *, bundle=None):
             raise ValueError("Search variants require a current-engine NNUE baseline")
         source = Path(base["model"])
         checkpoint = a.read(source)
-        if checkpoint.get("search_defaults", {}).get("experiment", "baseline") not in ("baseline", "q_fix"):
-            raise ValueError("Search baseline must use the baseline or corrected baseline policy")
-        if checkpoint.get("search_defaults", {}).get("trial", "none") != "none":
-            raise ValueError("Search baseline must use the unchanged trial")
+        defaults = checkpoint.get("search_defaults", {})
+        inherited = dict(experiment=defaults.get("experiment", "baseline"), trial=defaults.get("trial", "none"))
+        if base_id in source_search:
+            if inherited != source_search[base_id]:
+                raise ValueError(f"Search variant source search settings changed: {base_id}")
+        else:
+            if inherited["experiment"] not in ("baseline", "q_fix"):
+                raise ValueError("Search baseline must use the baseline or corrected baseline policy")
+            if inherited["trial"] != "none":
+                raise ValueError("Search baseline must use the unchanged trial")
         descriptor = checkpoint["weights"]["nnue"]
         network = (source.parent / descriptor["file"]).resolve()
         if a.file_digest(network) != descriptor["sha256"]:
             raise ValueError("Baseline NNUE hash mismatch")
         bases[base_id] = (base, source, checkpoint, network)
+    for _, base_id, policy, trial in resolved:
+        defaults = bases[base_id][2].get("search_defaults", {})
+        if (policy, trial) == (defaults.get("experiment", "baseline"), defaults.get("trial", "none")):
+            raise ValueError(f"Search variant duplicates the source search settings: {base_id}")
     models = []
     for name, base_id, policy, trial in resolved:
         _, _, checkpoint, network = bases[base_id]
         model = copy.deepcopy(checkpoint)
         model["name"] = name
-        model.setdefault("search_defaults", {})["experiment"] = policy
-        if trial != "none":
-            model["search_defaults"]["trial"] = trial
+        defaults = model.setdefault("search_defaults", {})
+        defaults["experiment"] = policy
+        if trial != "none" or "trial" in defaults:
+            defaults["trial"] = trial
         model["weights"]["nnue"]["file"] = str(network)
         directory = out / name
         directory.mkdir(parents=True, exist_ok=True)
