@@ -2658,12 +2658,11 @@ pub fn search_with_progress(
                 } else {
                     experiments::QuietThreats::default()
                 };
-                let major_targets =
-                    if quiet_red > 0 && ctx.experiments.trial == SearchTrial::MajorThreatLmr {
-                        experiments::new_major_targets(state, weights, mv)
-                    } else {
-                        Vec::new()
-                    };
+                let major_targets = if quiet_red > 0 && ctx.experiments.trial.major_threat_lmr() {
+                    experiments::new_major_targets(state, weights, mv)
+                } else {
+                    Vec::new()
+                };
                 if quiet_red > 0 && experiments::protect_history(&ctx, mv) {
                     quiet_red -= 1;
                 }
@@ -3976,8 +3975,7 @@ fn search_move_list(
         } else {
             experiments::QuietThreats::default()
         };
-        let major_targets = if quiet_red > 0 && ctx.experiments.trial == SearchTrial::MajorThreatLmr
-        {
+        let major_targets = if quiet_red > 0 && ctx.experiments.trial.major_threat_lmr() {
             experiments::new_major_targets(state, weights, mv)
         } else {
             Vec::new()

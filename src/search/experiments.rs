@@ -70,10 +70,19 @@ impl SearchTrial {
         matches!(self, Self::QHistory | Self::QRefillHistory)
     }
     pub(super) fn internal_pvs(self) -> bool {
-        matches!(self, Self::InternalPvs | Self::PvsPromote)
+        matches!(
+            self,
+            Self::InternalPvs | Self::PvsPromote | Self::MajorThreatPvsPromote
+        )
     }
     pub(super) fn promote_pv(self) -> bool {
-        matches!(self, Self::PromotePv | Self::PvsPromote)
+        matches!(
+            self,
+            Self::PromotePv | Self::PvsPromote | Self::MajorThreatPvsPromote
+        )
+    }
+    pub(super) fn major_threat_lmr(self) -> bool {
+        matches!(self, Self::MajorThreatLmr | Self::MajorThreatPvsPromote)
     }
 }
 
@@ -562,6 +571,15 @@ mod tests {
             r#"{"depth":2,"max_time_ms":null,"trial":"typo"}"#
         )
         .is_err());
+    }
+
+    #[test]
+    fn v7_combined_trial_enables_both_search_paths() {
+        let combined = SearchTrial::MajorThreatPvsPromote;
+        assert!(combined.major_threat_lmr() && combined.internal_pvs() && combined.promote_pv());
+        assert!(!SearchTrial::PvsPromote.major_threat_lmr());
+        assert!(!SearchTrial::MajorThreatLmr.internal_pvs());
+        assert!(!SearchTrial::MajorThreatLmr.promote_pv());
     }
 
     #[test]
