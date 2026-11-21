@@ -127,31 +127,6 @@ button {
   margin: 0 0 0.35rem;
 }
 
-.games-panel .count {
-  font-weight: normal;
-  color: #5a5346;
-  font-size: 0.85rem;
-}
-
-.games-panel .game-filter {
-  flex: 1;
-  min-width: 0;
-}
-
-.games-panel .game-list {
-  width: 100%;
-  margin: 0.25rem 0 0.35rem;
-  font-size: 0.8rem;
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
-}
-
-.games-panel .path-hint {
-  margin: 0.25rem 0 0;
-  word-break: break-all;
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
-  font-size: 0.7rem;
-}
-
 .review-panel .count {
   font-weight: normal;
   color: #5a5346;
