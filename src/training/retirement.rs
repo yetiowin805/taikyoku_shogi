@@ -155,6 +155,14 @@ pub(super) fn evaluate(state: &TourneyState, fit: &Fit) -> Result<Report, String
     if state.format == super::tournament::TourneyFormat::Adaptive {
         // A read-only fit describes the rules that produced the saved decisions.
         report.policy = match state.adaptive.as_ref().and_then(|a| a.retirement_threshold) {
+            Some(_)
+                if state
+                    .adaptive
+                    .as_ref()
+                    .is_some_and(|a| a.scc_local_retirement) =>
+            {
+                "adaptive-top5-scc9-g40-o6-v4"
+            }
             Some(t) if t.reactivation_probability.is_some() => {
                 "adaptive-top5-shared-p5overactive-clamped-g40-o6-v3"
             }
@@ -163,7 +171,15 @@ pub(super) fn evaluate(state: &TourneyState, fit: &Fit) -> Result<Report, String
         };
         report.minimum_games = 40;
         report.minimum_covered_opponents = 6;
-        report.minimum_scc_agents = 0;
+        report.minimum_scc_agents = if state
+            .adaptive
+            .as_ref()
+            .is_some_and(|a| a.scc_local_retirement)
+        {
+            9
+        } else {
+            0
+        };
         report.inactive = state.retired.clone();
         if let Some(adaptive) = &state.adaptive {
             report.adaptive_exposure = Some(adaptive.exposure.clone());

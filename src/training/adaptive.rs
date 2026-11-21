@@ -90,6 +90,8 @@ pub struct Scheduler {
     pub retirement_threshold: Option<RetirementThreshold>,
     #[serde(default)]
     pub generation_matchups: generation_matchups::State,
+    #[serde(default)]
+    pub scc_local_retirement: bool,
     pub completed_games: usize,
     pub actual_components: usize,
     pub assumed_components: usize,
@@ -118,6 +120,7 @@ impl Default for Scheduler {
             exposure: BTreeMap::new(),
             retirement_threshold: None,
             generation_matchups: generation_matchups::State::default(),
+            scc_local_retirement: false,
             completed_games: 0,
             actual_components: 0,
             assumed_components: 0,
@@ -518,12 +521,17 @@ fn wilson_upper(success: usize, total: usize) -> f64 {
     (p + z * z / (2. * n) + z * (p * (1. - p) / n + z * z / (4. * n * n)).sqrt()) / (1. + z * z / n)
 }
 
-fn inactive_under_policy(was_inactive: bool, e: &Exposure, in_main: bool, cutoff: f64) -> bool {
+fn inactive_under_policy(
+    was_inactive: bool,
+    e: &Exposure,
+    eligible_scc: bool,
+    cutoff: f64,
+) -> bool {
     if !e.protected_by.is_empty()
         || e.top_five_probability > cutoff
         || e.games < MIN_GAMES
         || e.opponents < MIN_OPPONENTS
-        || !in_main
+        || !eligible_scc
     {
         return false;
     }
@@ -552,22 +560,37 @@ pub fn refresh(state: &mut TourneyState) -> Result<(), String> {
     let p = Arc::new(model::fit(state, false)?);
     let published = super::order_neutral::from_state(state);
     let registered = registered(state, &p);
+    let graph = Graph::new(state, &p.names, false);
+    let mut groups = vec![Vec::new(); graph.groups.len()];
+    for &i in &registered {
+        groups[graph.component[i]].push(i);
+    }
     let mut counts = vec![0; p.names.len()];
-    for draw in p.draws(DRAWS, state.seed_base ^ key) {
-        let mut rank = registered.clone();
-        rank.sort_unstable_by(|&i, &j| draw[j].total_cmp(&draw[i]).then(i.cmp(&j)));
-        for &i in rank.iter().take(TOP_K) {
-            counts[i] += 1;
+    for group in &groups {
+        if group.len() <= TOP_K {
+            for &i in group {
+                counts[i] = DRAWS;
+            }
+            continue;
+        }
+        let members: BTreeSet<_> = group.iter().map(|&i| &p.names[i]).collect();
+        let mut local = state.clone();
+        local.entrants.retain(|e| members.contains(&e.id));
+        local.slots.retain(|g| {
+            g.status == SlotStatus::Done
+                && members.contains(&g.model_a)
+                && members.contains(&g.model_b)
+        });
+        let posterior = model::fit(&local, false)?;
+        let mut rank: Vec<_> = (0..group.len()).collect();
+        for draw in posterior.draws(DRAWS, state.seed_base ^ evidence_key(&local)) {
+            rank.sort_unstable_by(|&i, &j| draw[j].total_cmp(&draw[i]).then(i.cmp(&j)));
+            for &i in rank.iter().take(TOP_K) {
+                counts[group[i]] += 1;
+            }
         }
     }
     let coverage = exposure(state, &p);
-    let graph = Graph::new(state, &p.names, false);
-    let main = graph
-        .groups
-        .iter()
-        .max_by_key(|g| g.len())
-        .cloned()
-        .unwrap_or_default();
     let mut protected = BTreeMap::<String, Vec<String>>::new();
     for (name, generation) in generation_matchups::refresh(state, &p, &published.ratings)? {
         protected
@@ -629,11 +652,11 @@ pub fn refresh(state: &mut TourneyState) -> Result<(), String> {
     let mut report = BTreeMap::new();
     let mut inactive = BTreeSet::new();
     for i in registered {
-        let games = coverage[i].values().sum();
-        let opponents = coverage[i]
+        let inside = coverage[i]
             .iter()
-            .filter(|(j, n)| **n >= 2 && main.contains(j))
-            .count();
+            .filter(|(j, _)| graph.component[**j] == graph.component[i]);
+        let games = inside.clone().map(|(_, n)| n).sum();
+        let opponents = inside.filter(|(_, n)| **n >= 2).count();
         let probability = counts[i] as f64 / DRAWS as f64;
         let upper = wilson_upper(counts[i], DRAWS);
         let reasons = protected.remove(&p.names[i]).unwrap_or_default();
@@ -645,9 +668,11 @@ pub fn refresh(state: &mut TourneyState) -> Result<(), String> {
             protected_by: reasons,
         };
         if inactive_under_policy(
-            !recheck_legacy && state.retired.contains(&p.names[i]),
+            !recheck_legacy
+                && state.adaptive.as_ref().unwrap().scc_local_retirement
+                && state.retired.contains(&p.names[i]),
             &e,
-            main.contains(&i),
+            groups[graph.component[i]].len() >= 9,
             threshold.probability,
         ) {
             inactive.insert(p.names[i].clone());
@@ -660,6 +685,7 @@ pub fn refresh(state: &mut TourneyState) -> Result<(), String> {
     a.completed_games = p.games;
     a.actual_components = graph.groups.len();
     a.assumed_components = assumed_components;
+    a.scc_local_retirement = true;
     a.exposure = report;
     a.retirement_threshold = Some(threshold);
     a.error = None;
@@ -1239,7 +1265,7 @@ mod tests {
 
     #[test]
     fn weak_exposed_agent_retires_but_separated_or_generation_champion_does_not() {
-        let mut s = fixture(8);
+        let mut s = fixture(10);
         for a in 0..7 {
             for b in a + 1..7 {
                 for k in 0..8 {
@@ -1252,6 +1278,15 @@ mod tests {
                 result(&mut s, a, 7, if k == 0 { 0.5 } else { 1. }, k);
             }
         }
+        refresh(&mut s).unwrap();
+        assert!(!s.retired.contains("agent07"));
+        let original = s.adaptive.as_ref().unwrap().exposure["agent07"].clone();
+        result(&mut s, 7, 9, 1., 100);
+        refresh(&mut s).unwrap();
+        let current = &s.adaptive.as_ref().unwrap().exposure["agent07"];
+        assert_eq!(current.games, original.games);
+        assert_eq!(current.top_five_probability, original.top_five_probability);
+        result(&mut s, 0, 8, 0.5, 101);
         refresh(&mut s).unwrap();
         assert!(s.retired.contains("agent07"));
         s.entrants[7].generation = Some("handcrafted".into());
@@ -1460,7 +1495,7 @@ mod tests {
                 .retirement
                 .unwrap()
                 .policy,
-            "adaptive-top5-shared-p5overactive-clamped-g40-o6-v3"
+            "adaptive-top5-scc9-g40-o6-v4"
         );
         // Check compatibility with pre-threshold scheduler JSON.
         let mut old = serde_json::to_value(&s).unwrap();
