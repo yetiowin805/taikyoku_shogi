@@ -264,6 +264,7 @@ mod tests {
                 for leg in 0..20 {
                     let id = state.slots.len();
                     state.slots.push(TourneySlot {
+                        time_control: None,
                         id,
                         model_a: format!("agent{i:02}"),
                         model_b: format!("agent{j:02}"),

@@ -815,6 +815,8 @@ usual. Completed records, ratings, pairings and models are preserved; each game
 retains its actual clock in `stats.clock.control`. Ratings consequently include
 both clock regimes unless explicitly filtered in a separate comparison.
 
+In adaptive 1+1 tournaments, one in every six new top-five-information pairs uses 15 minutes plus a five-second increment. The first eligible pair starts the cycle. Both color legs share the assigned clock, which survives interrupted games and coordinator restarts. Other scheduling lanes use the tournament clock. Fitted ratings give completed 15+5 results 30 times the weight of ordinary results. Records, opponent coverage and pair counts count each played game once. Historical results without a per-slot clock retain unit weight.
+
 Current search uses the increment remaining after move setup as the base of its
 bank-sensitive limits. The next iteration is estimated at three times the last
 iteration; it must fit within `increment + 1% of remaining bank`, counting search
