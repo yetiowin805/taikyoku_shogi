@@ -1467,6 +1467,10 @@ mod tests {
         // A v2 snapshot keeps its original denominator but gets the shared
         // reactivation rule on resume, even without new completed evidence.
         let mut v2 = serde_json::to_value(&s).unwrap();
+        v2["adaptive"]
+            .as_object_mut()
+            .unwrap()
+            .remove("scc_local_retirement");
         v2["adaptive"]["retirement_threshold"]
             .as_object_mut()
             .unwrap()
