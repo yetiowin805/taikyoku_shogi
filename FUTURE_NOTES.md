@@ -2,6 +2,72 @@
 
 Ideas parked after a knockout, not the next patch. Search / eval experiments that are ready to measure still live in [`IDEAS_TO_TRY.md`](IDEAS_TO_TRY.md).
 
+## Quiescence can stop one move before a major recapture
+
+Slot **7773**, GUI ply **44**, is a reproducible example. White was
+`NNUE_W256_v6Cm_HLF_G3PVSPV` and Black was `NNUE_W256_v7_S3_C_LF_G3ATK`.
+The replay is in the corrected-rules tournament. The downloaded filename is
+`slot7773-NNUE_W256_v6Cm_HLF_G3PVSPV-vs-NNUE_W256_v7_S3_C_LF_G3ATK-a-white.json`.
+Start from the position after 43 records, preserving the game history.
+
+### What the trace showed
+
+An instrumented copy of the archived engine for this game reproduced the
+played move, its depth-2 score of **+2,551**, and **46,776 nodes** using White's
+original checkpoint. Scores below use White's evaluator and are Black-absolute.
+Routes use zero-based replay coordinates.
+
+1. White's Great Master takes a pawn (`16,25-16,10`). Regular search includes
+   Black's actual Lion Dog recapture (`17,9-16,10`). The static evaluation
+   immediately after the recapture is **+4,323**.
+2. The one-ply quiescence search finds White's Vice General sweep
+   (`29,18-11,0+`). It takes eight Black pieces, including a Peacock, Great
+   Dragon, and Free Eagle, and promotes to Great General. Quiescence scores the
+   Lion Dog line at **+2,497** before Black can reply. Both the Great Dove
+   (`11,1-11,0`) and Running Bear (`13,0-11,0`) can take the new Great General.
+3. At depth 2 the search ranks a different Black reply, the Bishop General move
+   (`31,2-8,25+`), higher at **+2,551**. The root still chooses the pawn
+   capture. A separate run with the original analyzer chooses a different White
+   move at depth 3. Whether a targeted extension would change the depth-2 root
+   choice remains untested.
+
+The checkpoint configured two quiescence plies. The Lion Dog's continuation
+used the one-ply budget for leaves outside the principal variation, including
+when the pawn capture was verified at the root. The actual failure was the
+cutoff after White's sweep. The Lion Dog itself survived regular search.
+Ply 40 is a second position worth checking. Its Flying Eagle pawn capture also
+reproduces at depth 2 and disappears at depth 3. Its internal branch remains
+untraced. [Leaf depth policy](src/search.rs#L4155)
+
+### Experiments to revisit
+
+1. **One recapture-only ply at the horizon.** Start with the existing one-time
+   major-recapture extension. At budget exhaustion after a substantial capture
+   or promotion, use the post-move board to generate legal captures of the
+   newly landed piece. Give those replies one extra ply and cap their number.
+   Compare the existing experiment first. Its trigger and candidate set may
+   differ from a dedicated single-square pass. Reuse the directed generator,
+   preserve stand pat where legal, and keep extended quiescence cache entries
+   distinct by remaining budget and policy. [Existing extension](src/search.rs#L4315)
+   · [Directed generator](src/search.rs#L2243)
+2. **Verify close tactical replies selectively.** Recheck replies near the
+   decision window when their scores depend on a large capture at the final
+   quiescence ply. The Lion Dog scored only 54 points below the Bishop General
+   reply, so restricting verification to the current best line could miss it.
+3. **Use exchange estimates for ordering.** Try cheap attackers of an expensive
+   landed piece early. Track the actual victims, promotion, and any friendly
+   pieces lost before considering a harder pruning rule. Stockfish and
+   YaneuraOu exempt same-square recaptures from some quiescence pruning and
+   still apply static exchange evaluation. [Stockfish search](https://github.com/official-stockfish/Stockfish/blob/master/src/search.cpp)
+   · [YaneuraOu search](https://github.com/yaneurao/YaneuraOu/blob/master/source/engine/yaneuraou-engine/yaneuraou-search.cpp#L4674)
+
+First compare the Lion Dog reply score, the depth-2 root choice, and whether
+the added reply is actually searched. Then sample similar exchanges and ordinary
+opening and middlegame controls. At the tournament clock, record extension
+frequency, added quiescence nodes, move time, and completed main-search depth.
+A better result on slot 7773 is a regression check. Tournament results are
+needed to judge the strength tradeoff.
+
 ## Recurring game review: conversion and tactical awareness (2026-11-13)
 
 Revisit these questions after a meaningful training/search generation change and
