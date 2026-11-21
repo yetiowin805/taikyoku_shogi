@@ -685,6 +685,7 @@ fn push_slot(
 ) -> usize {
     let id = next_slot_id(state);
     state.slots.push(TourneySlot {
+        time_control: None,
         id,
         model_a,
         model_b,

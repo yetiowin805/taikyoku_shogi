@@ -8,6 +8,15 @@ pub struct FischerControl {
     pub increment_ms: u64,
 }
 impl FischerControl {
+    pub const ONE_PLUS_ONE: Self = Self {
+        initial_ms: 60_000,
+        increment_ms: 1_000,
+    };
+    pub const FIFTEEN_PLUS_FIVE: Self = Self {
+        initial_ms: 900_000,
+        increment_ms: 5_000,
+    };
+
     pub fn validate(self) -> Result<(), String> {
         if self.initial_ms <= 1000
             || self.increment_ms == 0

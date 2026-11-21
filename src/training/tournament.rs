@@ -103,6 +103,9 @@ pub struct TourneyEntrant {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TourneySlot {
+    /// Clock committed to this slot. Historical unmarked results carry unit weight.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub time_control: Option<super::clock::FischerControl>,
     pub id: usize,
     pub model_a: String,
     pub model_b: String,
@@ -120,6 +123,16 @@ pub struct TourneySlot {
     pub round: usize,
     #[serde(default)]
     pub start_mode: SlotStartMode,
+}
+
+impl TourneySlot {
+    pub fn rating_weight(&self) -> usize {
+        if self.time_control == Some(super::clock::FischerControl::FIFTEEN_PLUS_FIVE) {
+            30
+        } else {
+            1
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -419,6 +432,7 @@ pub(crate) fn build_schedule(cfg: &TourneyConfig) -> TourneyState {
                         .wrapping_add((pi as u64).wrapping_mul(17));
                     for a_is_black in [true, false] {
                         state.slots.push(TourneySlot {
+                            time_control: None,
                             id,
                             model_a: model_a.clone(),
                             model_b: model_b.clone(),
@@ -881,6 +895,7 @@ fn enqueue_swiss_slot(state: &mut TourneyState, a: String, b: String) {
         .wrapping_add(97);
 
     state.slots.push(TourneySlot {
+        time_control: None,
         id,
         model_a: a,
         model_b: b,
@@ -1661,6 +1676,9 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
                         }
                         match claim {
                             Some(id) => {
+                                let default_clock = st.time_control;
+                                let slot = st.slots.iter_mut().find(|s| s.id == id).unwrap();
+                                slot.time_control = slot.time_control.or(default_clock);
                                 if let Err(e) = save_state(cfg, &st) {
                                     eprintln!("cannot persist claimed game: {e}; draining workers");
                                     admission_failed.store(true, Ordering::Relaxed);
@@ -1686,6 +1704,7 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
                         start_mode,
                         format,
                         starts_spec,
+                        time_control,
                     ) = {
                         let st = state_mu.lock().unwrap();
                         let Some(slot) = st.slots.iter().find(|s| s.id == slot_id) else {
@@ -1701,6 +1720,7 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
                             slot.start_mode,
                             st.format,
                             st.starts_spec.clone(),
+                            slot.time_control,
                         )
                     };
 
@@ -1757,7 +1777,7 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
 
                     let play_seed = start_seed.wrapping_add(if a_is_black { 0 } else { 1 });
                     let play_cfg = WorkerConfig {
-                        time_control: state_mu.lock().unwrap().time_control,
+                        time_control,
                         black,
                         white,
                         start,
@@ -2183,6 +2203,7 @@ mod tests {
         );
         for _ in 0..3 {
             st.slots.push(TourneySlot {
+                time_control: None,
                 id: next_slot_id(&st),
                 model_a: "p0".into(),
                 model_b: "p1".into(),
@@ -2600,6 +2621,7 @@ mod tests {
     fn give_min_games(st: &mut TourneyState, a: &str, b: &str, n: usize) {
         for _ in 0..n {
             st.slots.push(TourneySlot {
+                time_control: None,
                 id: next_slot_id(st),
                 model_a: a.into(),
                 model_b: b.into(),
@@ -2761,6 +2783,7 @@ mod tests {
         );
         for _ in 0..MINIMUM_GAMES {
             st.slots.push(TourneySlot {
+                time_control: None,
                 id: next_slot_id(&st),
                 model_a: "p0".into(),
                 model_b: "p1".into(),

@@ -79,6 +79,9 @@ pub struct Scheduler {
     pub pairs: Vec<Pair>,
     pub allocation_credit: [i64; 3],
     pub lane_pairs: [usize; 3],
+    /// Next eligible pair in the six-pair clock cycle. The first pair is long.
+    #[serde(default)]
+    top_five_clock_phase: u8,
     pub learning_picks: usize,
     pub anchor_picks: usize,
     pub confirmations: Vec<Confirmation>,
@@ -108,6 +111,7 @@ impl Default for Scheduler {
             pairs: vec![],
             allocation_credit: [0; 3],
             lane_pairs: [0; 3],
+            top_five_clock_phase: 0,
             learning_picks: 0,
             anchor_picks: 0,
             confirmations: vec![],
@@ -231,6 +235,9 @@ fn evidence_key(state: &TourneyState) -> u64 {
         s.model_a.hash(&mut h);
         s.model_b.hash(&mut h);
         s.score_a.map(f64::to_bits).hash(&mut h);
+        if s.rating_weight() != 1 {
+            s.rating_weight().hash(&mut h);
+        }
         s.a_is_black.hash(&mut h);
         s.start_seed.hash(&mut h);
         (s.start_mode == SlotStartMode::Opening).hash(&mut h);
@@ -926,6 +933,7 @@ pub fn draw_completed(state: &TourneyState) -> TourneyState {
         if matches!(slot.status, SlotStatus::Pending | SlotStatus::Running) {
             slot.status = SlotStatus::Done;
             slot.score_a = Some(0.5);
+            slot.time_control = None; // A pending result is only one hypothetical draw.
         }
     }
     copy
@@ -941,6 +949,22 @@ pub fn start_mode(state: &TourneyState, a: &str, b: &str) -> SlotStartMode {
         SlotStartMode::Light
     } else {
         SlotStartMode::Opening
+    }
+}
+
+fn pair_clock(state: &mut TourneyState, reason: &str) -> Option<super::clock::FischerControl> {
+    use super::clock::FischerControl;
+    if reason != "top_five_information" || state.time_control != Some(FischerControl::ONE_PLUS_ONE)
+    {
+        return state.time_control;
+    }
+    let phase = &mut state.adaptive.as_mut().unwrap().top_five_clock_phase;
+    let long = *phase == 0;
+    *phase = (*phase + 1) % 6;
+    if long {
+        Some(FischerControl::FIFTEEN_PLUS_FIVE)
+    } else {
+        state.time_control
     }
 }
 
@@ -969,9 +993,11 @@ pub fn claim(state: &mut TourneyState) -> Result<Option<usize>, String> {
         .filter(|s| matches!(s.status, SlotStatus::Pending | SlotStatus::Running))
         .map(|s| s.id)
         .collect();
+    let time_control = pair_clock(state, &reason);
     let first_black = super::tournament::assign_a_is_black(state, &a, &b, id);
     for offset in 0..2 {
         state.slots.push(TourneySlot {
+            time_control,
             id: id + offset,
             model_a: a.clone(),
             model_b: b.clone(),
@@ -1023,6 +1049,27 @@ mod tests {
         build_schedule, claim_for_worker, TourneyConfig, TourneyEntrant,
     };
 
+    #[test]
+    fn long_clock_cadence_survives_resume_and_ignores_other_lanes() {
+        use crate::training::clock::FischerControl as Clock;
+        let mut s = fixture(3);
+        s.adaptive.get_or_insert_with(Default::default);
+        s.time_control = Some(Clock::ONE_PLUS_ONE);
+        for i in 0..13 {
+            assert_eq!(
+                pair_clock(&mut s, "probe_confirmation"),
+                Some(Clock::ONE_PLUS_ONE)
+            );
+            let expected = if i % 6 == 0 {
+                Clock::FIFTEEN_PLUS_FIVE
+            } else {
+                Clock::ONE_PLUS_ONE
+            };
+            assert_eq!(pair_clock(&mut s, "top_five_information"), Some(expected));
+            s = serde_json::from_slice(&serde_json::to_vec(&s).unwrap()).unwrap();
+        }
+    }
+
     pub(super) fn fixture(n: usize) -> TourneyState {
         let mut s = build_schedule(&TourneyConfig {
             format: TourneyFormat::Adaptive,
@@ -1042,6 +1089,7 @@ mod tests {
 
     fn result(s: &mut TourneyState, a: usize, b: usize, score: f64, seed: u64) {
         s.slots.push(TourneySlot {
+            time_control: None,
             id: next_slot_id(s),
             model_a: format!("agent{a:02}"),
             model_b: format!("agent{b:02}"),

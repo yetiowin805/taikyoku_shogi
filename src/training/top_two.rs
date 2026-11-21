@@ -44,6 +44,7 @@ pub fn claim(state: &mut TourneyState) -> Option<usize> {
     let start_mode = super::adaptive::start_mode(state, &ranked[0].0, &ranked[1].0);
     for offset in 0..2 {
         state.slots.push(TourneySlot {
+            time_control: None,
             id: id + offset,
             model_a: ranked[0].0.clone(),
             model_b: ranked[1].0.clone(),
@@ -243,6 +244,7 @@ mod tests {
         ] {
             let id = next_slot_id(&state);
             state.slots.push(TourneySlot {
+                time_control: None,
                 id,
                 model_a: a.into(),
                 model_b: b.into(),
@@ -368,6 +370,7 @@ mod tests {
             let count = 16 / (1usize << i.ilog2());
             for _ in 0..count {
                 state.slots.push(TourneySlot {
+                    time_control: None,
                     id: state.slots.len(),
                     model_a: ranked[i].0.clone(),
                     model_b: ranked[0].0.clone(),

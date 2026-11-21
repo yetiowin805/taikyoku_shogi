@@ -37,6 +37,7 @@ pub fn from_state(state: &TourneyState) -> Fit {
             slot.model_a.clone(),
             slot.model_b.clone(),
             slot.score_a.unwrap_or(f64::NAN),
+            slot.rating_weight() as u64,
         ));
     }
     let mut result = fit(&names.into_iter().collect::<Vec<_>>(), &games);
@@ -53,7 +54,7 @@ pub fn from_state(state: &TourneyState) -> Fit {
         if result.components.len() > 1 {
             result = embed_components(result);
         }
-        result.method = "Bradley-Terry + shared Black advantage; within SCCs; minimum squared shifts, edge gap >=100; active mean=1500";
+        result.method = "Bradley-Terry + shared Black advantage; 15+5 weight=30; within SCCs; minimum squared shifts, edge gap >=100; active mean=1500";
     }
     if state.order_neutral_only {
         result.retirement = Some(
@@ -97,10 +98,10 @@ pub(crate) fn inactive_agents(fit: &Fit) -> BTreeSet<String> {
         .unwrap_or_default()
 }
 
-fn fit(names: &[String], games: &[(String, String, f64)]) -> Fit {
+fn fit(names: &[String], games: &[(String, String, f64, u64)]) -> Fit {
     let n = names.len();
     let mut out = Fit {
-        method: "Bradley-Terry; equal game weights; draws=half; mean=1500",
+        method: "Bradley-Terry; 15+5 weight=30; draws=half; mean=1500",
         status: "disconnected",
         games: games.len(),
         black_advantage_elo: 0.,
@@ -117,7 +118,7 @@ fn fit(names: &[String], games: &[(String, String, f64)]) -> Fit {
     let index: BTreeMap<_, _> = names.iter().enumerate().map(|(i, s)| (s, i)).collect();
     // Integer half-points make aggregation exactly independent of input order.
     let mut points = vec![vec![0u64; n]; n];
-    for (a, b, score) in games {
+    for (a, b, score, weight) in games {
         let (Some(&i), Some(&j)) = (index.get(a), index.get(b)) else {
             out.status = "invalid_results";
             return out;
@@ -127,8 +128,8 @@ fn fit(names: &[String], games: &[(String, String, f64)]) -> Fit {
             return out;
         }
         let p = (score * 2.0) as u64;
-        points[i][j] += p;
-        points[j][i] += 2 - p;
+        points[i][j] += p * weight;
+        points[j][i] += (2 - p) * weight;
     }
     let mut reach: Vec<Vec<bool>> = (0..n)
         .map(|i| (0..n).map(|j| i == j || points[i][j] > 0).collect())
@@ -286,11 +287,11 @@ fn fit(names: &[String], games: &[(String, String, f64)]) -> Fit {
 /// Weighted projection of zero shifts onto all DAG difference constraints.
 /// Hildreth's dual coordinate ascent solves the strictly convex minimum-change
 /// problem; deterministic edge order and half-point input preserve order neutrality.
-fn separated_fit(mut out: Fit, games: &[(String, String, f64)]) -> Fit {
+fn separated_fit(mut out: Fit, games: &[(String, String, f64, u64)]) -> Fit {
     for group in &out.components {
         let inner: Vec<_> = games
             .iter()
-            .filter(|(a, b, _)| group.contains(a) && group.contains(b))
+            .filter(|(a, b, _, _)| group.contains(a) && group.contains(b))
             .cloned()
             .collect();
         let fitted = fit(group, &inner);
@@ -424,7 +425,7 @@ mod tests {
         fit(
             &names.iter().map(|s| s.to_string()).collect::<Vec<_>>(),
             &g.iter()
-                .map(|&(a, b, s)| (a.into(), b.into(), s))
+                .map(|&(a, b, s)| (a.into(), b.into(), s, 1))
                 .collect::<Vec<_>>(),
         )
     }

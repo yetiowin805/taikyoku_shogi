@@ -124,7 +124,7 @@ pub fn fit(state: &TourneyState, assume_draws: bool) -> Result<Posterior, String
         .map(|(i, n)| (n.as_str(), i))
         .collect();
     let mut aggregate = BTreeMap::<(usize, usize, bool), (usize, u64)>::new();
-    let mut blocks = BTreeMap::<(usize, usize, u64, bool), Vec<(bool, f64)>>::new();
+    let mut blocks = BTreeMap::<(usize, usize, u64, bool), Vec<(bool, f64, usize)>>::new();
     let mut games = 0;
     for s in &state.slots {
         let score = match s.status {
@@ -151,12 +151,17 @@ pub fn fit(state: &TourneyState, assume_draws: bool) -> Result<Posterior, String
             )
         };
         let entry = aggregate.entry((a, b, black)).or_default();
-        entry.0 += 1;
-        entry.1 += (score * 2.) as u64;
+        let weight = if s.status == SlotStatus::Done {
+            s.rating_weight()
+        } else {
+            1
+        };
+        entry.0 += weight;
+        entry.1 += (score * 2.) as u64 * weight as u64;
         blocks
             .entry((a, b, s.start_seed, s.start_mode == SlotStartMode::Opening))
             .or_default()
-            .push((black, score));
+            .push((black, score, weight));
         games += 1;
     }
     let observations: Vec<_> = aggregate
@@ -221,9 +226,9 @@ pub fn fit(state: &TourneyState, assume_draws: bool) -> Result<Posterior, String
     for ((a, b, _, _), outcomes) in blocks {
         let mut residual = 0.;
         let mut color_residual = 0.;
-        for (black, score) in outcomes {
+        for (black, score, weight) in outcomes {
             let color = if black { 1. } else { -1. };
-            let r = score - sigmoid(theta[a] - theta[b] + color * theta[n - 1]);
+            let r = weight as f64 * (score - sigmoid(theta[a] - theta[b] + color * theta[n - 1]));
             residual += r;
             color_residual += color * r;
         }
@@ -340,6 +345,7 @@ mod tests {
         for i in 0..80 {
             let black = i % 2 == 0;
             state.slots.push(TourneySlot {
+                time_control: None,
                 id: i,
                 model_a: "a0".into(),
                 model_b: "a1".into(),
@@ -366,6 +372,7 @@ mod tests {
     fn rejects_invalid_completed_results_and_ignores_cancelled_work() {
         let mut state = fixture();
         state.slots.push(TourneySlot {
+            time_control: None,
             id: 0,
             model_a: "a0".into(),
             model_b: "a1".into(),

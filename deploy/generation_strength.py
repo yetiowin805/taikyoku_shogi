@@ -86,6 +86,7 @@ def load_design(snapshot, training=None):
         new = current[slot["id"]]
         for field in ["model_a", "model_b", "start_seed", "start_mode", "a_is_black", "score_a"]:
             assert slot[field] == new[field], (slot["id"], field)
+        assert slot.get("time_control") == new.get("time_control"), slot["id"]
     return design, train_done, payload
 
 
@@ -97,6 +98,7 @@ def observations(slots, names):
     keys = sorted(grouped)
     width = max(map(len, grouped.values()), default=1)
     arrays = {name: np.zeros((len(keys), width), dtype=int) for name in ["a", "b", "color", "y", "mask"]}
+    arrays["rating_weight"] = np.zeros((len(keys), width), dtype=int)
     slot_ids = np.full((len(keys), width), -1)
     for row, key in enumerate(keys):
         for col, slot in enumerate(sorted(grouped[key], key=lambda s: s["id"])):
@@ -104,6 +106,9 @@ def observations(slots, names):
             arrays["b"][row, col] = index[slot["model_b"]]
             arrays["color"][row, col] = 1 if slot["a_is_black"] else -1
             arrays["y"][row, col] = {1.0: 0, 0.5: 1, 0.0: 2}[slot["score_a"]]
+            arrays["rating_weight"][row, col] = (
+                30 if slot.get("time_control") == {"initial_ms": 900000, "increment_ms": 5000} else 1
+            )
             arrays["mask"][row, col] = 1
             slot_ids[row, col] = slot["id"]
     return arrays, slot_ids
@@ -157,7 +162,7 @@ def model(design, obs, kind="structured", prior_scale=1.0, points=15, paired=Tru
     logits = jnp.stack([d / 2, jnp.full_like(d, log_nu), -d / 2], axis=-1)
     probs = jax.nn.log_softmax(logits, axis=-1)
     selected = jnp.take_along_axis(probs, jnp.asarray(obs["y"])[:, :, None, None], axis=-1)[..., 0]
-    pair_log = (selected * obs["mask"][:, :, None]).sum(axis=1)
+    pair_log = (selected * (obs["mask"] * obs["rating_weight"])[:, :, None]).sum(axis=1)
     numpyro.factor("games", logsumexp(pair_log + jnp.asarray(weights), axis=1).sum())
 
 

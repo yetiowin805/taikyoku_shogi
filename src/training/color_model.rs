@@ -59,8 +59,9 @@ impl Model {
                 (&slot.model_b, &slot.model_a, !slot.a_is_black, 1. - score)
             };
             let entry = counts.entry((a.clone(), b.clone(), black)).or_default();
-            entry.0 += 1;
-            entry.1 += (2. * score) as u64;
+            let weight = slot.rating_weight();
+            entry.0 += weight;
+            entry.1 += (2. * score) as u64 * weight as u64;
             model.games += 1;
         }
         for ((a, b, black), (n, points)) in counts {
@@ -133,7 +134,13 @@ impl Model {
             .sum();
         self.status = if self.games == 0 {
             "no_within_scc_games"
-        } else if black_points == 2 * self.games as u64 {
+        } else if black_points
+            == 2 * self
+                .observations
+                .iter()
+                .map(|(_, n, _)| *n as u64)
+                .sum::<u64>()
+        {
             "all_black_wins"
         } else if black_points == 0 {
             "all_white_wins"
@@ -280,8 +287,9 @@ impl Model {
                     slot.start_mode == SlotStartMode::Opening,
                 ))
                 .or_default()[usize::from(black)];
-            entry.0 += 1;
-            entry.1 += (score * 2.) as u64;
+            let weight = slot.rating_weight();
+            entry.0 += weight;
+            entry.1 += (score * 2.) as u64 * weight as u64;
         }
         let mut meat = vec![vec![0.; self.beta.len()]; self.beta.len()];
         for ((a, b, _, _), colors) in &blocks {
@@ -351,6 +359,7 @@ mod tests {
             for game in 0..games {
                 let id = state.slots.len();
                 state.slots.push(TourneySlot {
+                    time_control: None,
                     id,
                     model_a: "a".into(),
                     model_b: "b".into(),
@@ -365,6 +374,36 @@ mod tests {
             }
         }
         state
+    }
+
+    #[test]
+    fn long_results_match_thirty_unit_results_but_count_once() {
+        use crate::training::clock::FischerControl as Clock;
+        let mut s = fixture((2, 4), (2, 4));
+        let mut repeated = s.clone();
+        for idx in [0, 4] {
+            s.slots[idx].time_control = Some(Clock::FIFTEEN_PLUS_FIVE);
+            for _ in 1..30 {
+                let mut extra = repeated.slots[idx].clone();
+                extra.id = repeated.slots.len();
+                repeated.slots.push(extra);
+            }
+        }
+        let weighted = from_state(&s);
+        let reference = from_state(&repeated);
+        assert_eq!(weighted.games, 8);
+        assert_eq!(weighted.color_fit_games, 8);
+        assert_eq!(reference.games, 66);
+        assert!((weighted.ratings["a"] - reference.ratings["a"]).abs() < 1e-6);
+        assert!(weighted.ratings["a"] > 1650.);
+        let p = crate::training::scheduling_model::fit(&s, false).unwrap();
+        let q = crate::training::scheduling_model::fit(&repeated, false).unwrap();
+        assert_eq!(p.games, 8);
+        assert!(p
+            .mean
+            .iter()
+            .zip(&q.mean)
+            .all(|(a, b)| (a - b).abs() < 1e-7));
     }
 
     #[test]

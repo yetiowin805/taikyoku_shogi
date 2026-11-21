@@ -58,6 +58,7 @@ pub struct Report {
 }
 
 struct Game {
+    weight: f64,
     opponent: usize,
     score: f64,
     black: bool,
@@ -97,8 +98,8 @@ fn estimate(p: &Posterior, agent: usize, benchmark: usize, games: &[Game]) -> (f
                     -p.mean[p.names.len()]
                 };
             let prob = model::sigmoid(offset + delta);
-            gradient += prob - g.score;
-            h += prob * (1. - prob);
+            gradient += g.weight * (prob - g.score);
+            h += g.weight * prob * (1. - prob);
         }
         let step = gradient / h;
         delta -= step;
@@ -158,6 +159,7 @@ pub(super) fn refresh(
                 .entry((agent.clone(), generation.clone()))
                 .or_default()
                 .push(Game {
+                    weight: s.rating_weight() as f64,
                     opponent: index[opponent.as_str()],
                     score,
                     black,
@@ -341,6 +343,7 @@ mod tests {
         let id = super::super::next_slot_id(state);
         for (leg, score) in scores.into_iter().enumerate() {
             state.slots.push(TourneySlot {
+                time_control: None,
                 id: id + leg,
                 model_a: "agent05".into(),
                 model_b: format!("agent{opponent:02}"),
