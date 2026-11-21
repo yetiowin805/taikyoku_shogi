@@ -954,13 +954,18 @@ pub fn start_mode(state: &TourneyState, a: &str, b: &str) -> SlotStartMode {
 
 fn pair_clock(state: &mut TourneyState, reason: &str) -> Option<super::clock::FischerControl> {
     use super::clock::FischerControl;
-    if reason != "top_five_information" || state.time_control != Some(FischerControl::ONE_PLUS_ONE) {
+    if reason != "top_five_information" || state.time_control != Some(FischerControl::ONE_PLUS_ONE)
+    {
         return state.time_control;
     }
     let phase = &mut state.adaptive.as_mut().unwrap().top_five_clock_phase;
     let long = *phase == 0;
     *phase = (*phase + 1) % 6;
-    if long { Some(FischerControl::FIFTEEN_PLUS_FIVE) } else { state.time_control }
+    if long {
+        Some(FischerControl::FIFTEEN_PLUS_FIVE)
+    } else {
+        state.time_control
+    }
 }
 
 pub fn claim(state: &mut TourneyState) -> Result<Option<usize>, String> {
@@ -1051,8 +1056,15 @@ mod tests {
         s.adaptive.get_or_insert_with(Default::default);
         s.time_control = Some(Clock::ONE_PLUS_ONE);
         for i in 0..13 {
-            assert_eq!(pair_clock(&mut s, "probe_confirmation"), Some(Clock::ONE_PLUS_ONE));
-            let expected = if i % 6 == 0 { Clock::FIFTEEN_PLUS_FIVE } else { Clock::ONE_PLUS_ONE };
+            assert_eq!(
+                pair_clock(&mut s, "probe_confirmation"),
+                Some(Clock::ONE_PLUS_ONE)
+            );
+            let expected = if i % 6 == 0 {
+                Clock::FIFTEEN_PLUS_FIVE
+            } else {
+                Clock::ONE_PLUS_ONE
+            };
             assert_eq!(pair_clock(&mut s, "top_five_information"), Some(expected));
             s = serde_json::from_slice(&serde_json::to_vec(&s).unwrap()).unwrap();
         }

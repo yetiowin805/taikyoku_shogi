@@ -134,7 +134,13 @@ impl Model {
             .sum();
         self.status = if self.games == 0 {
             "no_within_scc_games"
-        } else if black_points == 2 * self.observations.iter().map(|(_, n, _)| *n as u64).sum::<u64>() {
+        } else if black_points
+            == 2 * self
+                .observations
+                .iter()
+                .map(|(_, n, _)| *n as u64)
+                .sum::<u64>()
+        {
             "all_black_wins"
         } else if black_points == 0 {
             "all_white_wins"
@@ -393,7 +399,11 @@ mod tests {
         let p = crate::training::scheduling_model::fit(&s, false).unwrap();
         let q = crate::training::scheduling_model::fit(&repeated, false).unwrap();
         assert_eq!(p.games, 8);
-        assert!(p.mean.iter().zip(&q.mean).all(|(a, b)| (a-b).abs() < 1e-7));
+        assert!(p
+            .mean
+            .iter()
+            .zip(&q.mean)
+            .all(|(a, b)| (a - b).abs() < 1e-7));
     }
 
     #[test]

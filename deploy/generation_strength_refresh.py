@@ -22,7 +22,16 @@ def evidence_key(payload):
     state = payload["state"]
     evidence = {
         "games": sorted(
-            (g["id"], g["model_a"], g["model_b"], g["score_a"], g["a_is_black"], g["start_seed"], g["start_mode"], g.get("time_control"))
+            (
+                g["id"],
+                g["model_a"],
+                g["model_b"],
+                g["score_a"],
+                g["a_is_black"],
+                g["start_seed"],
+                g["start_mode"],
+                g.get("time_control"),
+            )
             for g in state["slots"]
             if g["status"] == "done"
         ),
@@ -104,7 +113,11 @@ def block_log_likelihood(samples, obs, points=15):
         logits = np.stack([d / 2, np.broadcast_to(nu[start:end, None, None, None], d.shape), -d / 2], axis=-1)
         lp = logits - logsumexp(logits, axis=-1, keepdims=True)
         selected = np.take_along_axis(lp, obs["y"][None, ..., None, None], axis=-1)[..., 0]
-        out.append(logsumexp((selected * (obs["mask"] * obs["rating_weight"])[None, ..., None]).sum(axis=2) + weights, axis=-1).sum(axis=-1))
+        out.append(
+            logsumexp(
+                (selected * (obs["mask"] * obs["rating_weight"])[None, ..., None]).sum(axis=2) + weights, axis=-1
+            ).sum(axis=-1)
+        )
     return np.concatenate(out)
 
 

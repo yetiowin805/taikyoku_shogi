@@ -151,7 +151,11 @@ pub fn fit(state: &TourneyState, assume_draws: bool) -> Result<Posterior, String
             )
         };
         let entry = aggregate.entry((a, b, black)).or_default();
-        let weight = if s.status == SlotStatus::Done { s.rating_weight() } else { 1 };
+        let weight = if s.status == SlotStatus::Done {
+            s.rating_weight()
+        } else {
+            1
+        };
         entry.0 += weight;
         entry.1 += (score * 2.) as u64 * weight as u64;
         blocks

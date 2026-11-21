@@ -106,7 +106,9 @@ def observations(slots, names):
             arrays["b"][row, col] = index[slot["model_b"]]
             arrays["color"][row, col] = 1 if slot["a_is_black"] else -1
             arrays["y"][row, col] = {1.0: 0, 0.5: 1, 0.0: 2}[slot["score_a"]]
-            arrays["rating_weight"][row, col] = 30 if slot.get("time_control") == {"initial_ms": 900000, "increment_ms": 5000} else 1
+            arrays["rating_weight"][row, col] = (
+                30 if slot.get("time_control") == {"initial_ms": 900000, "increment_ms": 5000} else 1
+            )
             arrays["mask"][row, col] = 1
             slot_ids[row, col] = slot["id"]
     return arrays, slot_ids
