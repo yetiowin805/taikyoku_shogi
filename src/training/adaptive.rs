@@ -559,6 +559,10 @@ pub fn refresh(state: &mut TourneyState) -> Result<(), String> {
     }
     let p = Arc::new(model::fit(state, false)?);
     let published = super::order_neutral::from_state(state);
+    if let Some(error) = published.error {
+        state.runtime_control.ratings_error = Some(error);
+        return Ok(());
+    }
     let registered = registered(state, &p);
     let graph = Graph::new(state, &p.names, false);
     let mut groups = vec![Vec::new(); graph.groups.len()];
@@ -778,8 +782,16 @@ fn choose(
         return Ok((i, j, "connectivity".into()));
     }
     let selection_state = draw_completed(state);
-    let ratings = super::order_neutral::from_state(&selection_state).ratings;
-    let paths = anchors(state, p, &ratings);
+    let fit = super::order_neutral::from_state(&selection_state);
+    let ratings = if fit.error.is_some() {
+        &state.elo
+    } else {
+        &fit.ratings
+    };
+    if !p.names.iter().all(|name| ratings.contains_key(name)) {
+        return Err("no complete ratings for opponent selection".into());
+    }
+    let paths = anchors(state, p, ratings);
     let anchor_pairs: Vec<_> = paths
         .iter()
         .flat_map(|v| v.windows(2).map(|w| (w[0], w[1])))
@@ -812,7 +824,7 @@ fn choose(
         // Selection, including the champion identity, uses the draw-completed
         // scheduling state. Published leader identity is used for counter protection.
         let champion =
-            leader(&selection_state, p, &ratings).ok_or("no eligible scheduling champion")?;
+            leader(&selection_state, p, ratings).ok_or("no eligible scheduling champion")?;
         let candidates: Vec<_> = active
             .iter()
             .copied()
