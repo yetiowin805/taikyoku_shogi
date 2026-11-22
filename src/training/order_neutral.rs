@@ -9,6 +9,8 @@ use std::collections::{BTreeMap, BTreeSet};
 pub struct Fit {
     pub method: &'static str,
     pub status: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
     pub games: usize,
     /// Shared nuisance parameter, jointly fitted across all start modes.
     pub black_advantage_elo: f64,
@@ -41,26 +43,28 @@ pub fn from_state(state: &TourneyState) -> Fit {
         ));
     }
     let mut result = fit(&names.into_iter().collect::<Vec<_>>(), &games);
-    if ["converged", "disconnected", "separated"].contains(&result.status) {
-        let mut model = super::color_model::Model::new(state, &result)
-            .expect("invalid color-aware rating input");
-        let (iterations, residual) = model.estimate().expect("joint strength/color fit failed");
-        result.ratings = model.ratings(&result);
-        result.black_advantage_elo = model.beta.last().unwrap() * super::color_model::SCALE;
-        result.color_fit_status = model.status;
-        result.color_fit_games = model.games;
-        result.iterations = iterations;
-        result.max_score_residual = Some(residual);
-        if result.components.len() > 1 {
-            result = embed_components(result);
-        }
-        result.method = "Bradley-Terry + shared Black advantage; 15+5 weight=30; within SCCs; minimum squared shifts, edge gap >=100; active mean=1500";
+    if let Err(error) = fit_color(state, &mut result) {
+        result.error = Some(error);
+        result.ratings.clear();
+        return result;
     }
+    if result.components.len() > 1 {
+        result = embed_components(result);
+        if result.status == "not_converged" {
+            result.error = Some("component embedding did not converge".into());
+            return result;
+        }
+    }
+    result.method = "Bradley-Terry + shared Black advantage; 15+5 weight=30; within SCCs; minimum squared shifts, edge gap >=100; active mean=1500";
     if state.order_neutral_only {
-        result.retirement = Some(
-            super::retirement::evaluate(state, &result)
-                .expect("order-neutral retirement uncertainty calculation failed"),
-        );
+        match super::retirement::evaluate(state, &result) {
+            Ok(report) => result.retirement = Some(report),
+            Err(error) => {
+                result.error = Some(error);
+                result.ratings.clear();
+                return result;
+            }
+        }
     }
     let inactive = if state.order_neutral_only {
         inactive_agents(&result)
@@ -91,6 +95,21 @@ pub fn from_state(state: &TourneyState) -> Fit {
     result
 }
 
+fn fit_color(state: &TourneyState, result: &mut Fit) -> Result<(), String> {
+    if !["converged", "disconnected", "separated"].contains(&result.status) {
+        return Err(format!("strength fit: {}", result.status));
+    }
+    let mut model = super::color_model::Model::new(state, result)?;
+    let (iterations, residual) = model.estimate()?;
+    result.ratings = model.ratings(result);
+    result.black_advantage_elo = model.beta.last().unwrap() * super::color_model::SCALE;
+    result.color_fit_status = model.status;
+    result.color_fit_games = model.games;
+    result.iterations = iterations;
+    result.max_score_residual = Some(residual);
+    Ok(())
+}
+
 pub(crate) fn inactive_agents(fit: &Fit) -> BTreeSet<String> {
     fit.retirement
         .as_ref()
@@ -98,11 +117,18 @@ pub(crate) fn inactive_agents(fit: &Fit) -> BTreeSet<String> {
         .unwrap_or_default()
 }
 
+// Allow roundoff in the summed log likelihood near a stationary point. The
+// gradient (and, for estimated color, the Newton step) still decides convergence.
+pub(super) fn loss_roundoff(loss: f64) -> f64 {
+    (32.0 * f64::EPSILON * loss.abs()).max(1e-12)
+}
+
 fn fit(names: &[String], games: &[(String, String, f64, u64)]) -> Fit {
     let n = names.len();
     let mut out = Fit {
         method: "Bradley-Terry; 15+5 weight=30; draws=half; mean=1500",
         status: "disconnected",
+        error: None,
         games: games.len(),
         black_advantage_elo: 0.,
         color_fit_status: "not_fitted",
@@ -270,7 +296,7 @@ fn fit(names: &[String], games: &[(String, String, f64, u64)]) -> Fit {
             for i in 0..n - 1 {
                 next[i] -= scale * step[i];
             }
-            if loss(&next) <= current - 1e-4 * scale * descent + 1e-12 {
+            if loss(&next) <= current - 1e-4 * scale * descent + loss_roundoff(current) {
                 x = next;
                 accepted = true;
                 break;

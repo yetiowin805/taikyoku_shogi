@@ -206,7 +206,10 @@ impl Model {
                     .zip(&step)
                     .map(|(b, s)| b - rate * s)
                     .collect();
-                if self.loss(&next) <= current - 1e-4 * rate * descent + 1e-12 {
+                if self.loss(&next)
+                    <= current - 1e-4 * rate * descent
+                        + super::order_neutral::loss_roundoff(current)
+                {
                     self.beta = next;
                     accepted = true;
                     break;

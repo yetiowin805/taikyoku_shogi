@@ -332,6 +332,7 @@ fn score_from_result(a_is_black: bool, result: &Option<GameResult>) -> f64 {
 }
 
 pub(crate) fn ensure_ratings(state: &mut TourneyState) {
+    let previous_retired = state.retired.clone();
     if let Err(error) = super::adaptive::refresh(state) {
         state.runtime_control.assignments_paused = true;
         state.runtime_control.pause_reason = format!("adaptive scheduling failed: {error}");
@@ -339,11 +340,13 @@ pub(crate) fn ensure_ratings(state: &mut TourneyState) {
     }
     if state.order_neutral_only {
         let fit = super::order_neutral::from_state(state);
-        assert!(
-            !fit.ratings.is_empty(),
-            "order-neutral fit failed: {}",
-            fit.status
-        );
+        if let Some(error) = fit.error {
+            eprintln!("ratings stale: {error}; retaining previous standings and retirements");
+            state.runtime_control.ratings_error = Some(error);
+            state.retired = previous_retired;
+            return;
+        }
+        state.runtime_control.ratings_error = None;
         state.retired = super::order_neutral::inactive_agents(&fit);
         state.ratings = fit
             .ratings
@@ -1120,15 +1123,20 @@ pub fn apply_imported_ratings(
     n
 }
 
+fn checkpoint(cfg: &TourneyConfig, state: &TourneyState) -> Result<(), String> {
+    let bytes = serde_json::to_vec(state).map_err(|e| e.to_string())?;
+    super::durable::write(&state_path(cfg), &bytes, true)
+}
+
 pub fn save_state(cfg: &TourneyConfig, state: &TourneyState) -> Result<(), String> {
     let dir = run_dir(cfg);
     fs::create_dir_all(&dir).map_err(|e| format!("create {}: {e}", dir.display()))?;
     let mut state = state.clone();
     ensure_ratings(&mut state);
-    let path = state_path(cfg);
-    // Compact: rewritten after every game and holds every slot of a continuous run.
-    let json = serde_json::to_string(&state).map_err(|e| e.to_string())?;
-    super::durable::write(&path, json.as_bytes(), true)?;
+    checkpoint(cfg, &state)?;
+    if state.runtime_control.ratings_error.is_some() {
+        return Ok(());
+    }
     let elo_json = serde_json::to_string_pretty(&state.elo).map_err(|e| e.to_string())?;
     super::durable::write(&elo_path(cfg), elo_json.as_bytes(), false)?;
     let ratings_json = serde_json::to_string_pretty(&state.ratings).map_err(|e| e.to_string())?;
@@ -1356,6 +1364,15 @@ pub(crate) fn claim_for_worker(
     if state.runtime_control.assignments_paused {
         return None;
     }
+    if state.format == TourneyFormat::Adaptive && state.runtime_control.ratings_error.is_some() {
+        // Previously committed pairs can supply the next result and trigger a new fit.
+        let slot = state
+            .slots
+            .iter_mut()
+            .find(|s| s.status == SlotStatus::Pending)?;
+        slot.status = SlotStatus::Running;
+        return Some(slot.id);
+    }
     if state.format == TourneyFormat::Adaptive {
         return match super::adaptive::claim(state) {
             Ok(slot) => slot,
@@ -1507,6 +1524,60 @@ fn apply_time_control(state: &mut TourneyState, cfg: &TourneyConfig) -> Result<(
     Ok(())
 }
 
+fn game_path(dir: &Path, id: usize, a: &str, b: &str, a_is_black: bool) -> PathBuf {
+    let color = if a_is_black { "a-black" } else { "a-white" };
+    dir.join(format!("slot{id:04}-{a}-vs-{b}-{color}.json"))
+}
+
+// The atomic game record can reach disk just before the coordinator checkpoint.
+// Only adaptive slots have no bracket or legacy rating events to reconstruct.
+fn recover_adaptive_results(state: &mut TourneyState, dir: &Path) -> Result<(), String> {
+    if state.format != TourneyFormat::Adaptive || !state.order_neutral_only {
+        return Ok(());
+    }
+    let models: BTreeMap<_, _> = state.entrants.iter().map(|e| (&e.id, &e.model)).collect();
+    for slot in state
+        .slots
+        .iter_mut()
+        .filter(|s| s.status == SlotStatus::Running)
+    {
+        let path = game_path(dir, slot.id, &slot.model_a, &slot.model_b, slot.a_is_black);
+        let file = match fs::File::open(&path) {
+            Ok(file) => file,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(e) => return Err(format!("open {}: {e}", path.display())),
+        };
+        let record: super::record::GameRecordV2 =
+            serde_json::from_reader(std::io::BufReader::new(file))
+                .map_err(|e| format!("read {}: {e}", path.display()))?;
+        let (black, white) = if slot.a_is_black {
+            (&slot.model_a, &slot.model_b)
+        } else {
+            (&slot.model_b, &slot.model_a)
+        };
+        if record.result.is_none()
+            || record.abort_reason.is_some()
+            || record.seed != slot.start_seed.wrapping_add(u64::from(!slot.a_is_black))
+            || record.black.model.as_ref()
+                != Some(*models.get(black).ok_or("missing Black entrant")?)
+            || record.white.model.as_ref()
+                != Some(*models.get(white).ok_or("missing White entrant")?)
+            || record.stats.clock.as_ref().map(|clock| clock.control) != slot.time_control
+        {
+            return Err(format!(
+                "saved game does not match running slot {}: {}",
+                slot.id,
+                path.display()
+            ));
+        }
+        slot.score_a = Some(score_from_result(slot.a_is_black, &record.result));
+        slot.status = SlotStatus::Done;
+        slot.game_path = Some(path.display().to_string());
+        eprintln!("recovered completed slot {} from disk", slot.id);
+    }
+    Ok(())
+}
+
 /// Run or resume a tournament. Returns final state (possibly partial on stop).
 pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
     if let Some(pointer) = std::env::var_os("TAIKYOKU_ENGINE_POINTER") {
@@ -1519,6 +1590,7 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
 
     let mut state = if cfg.resume && state_path(cfg).exists() {
         let mut s = load_state(&state_path(cfg))?;
+        recover_adaptive_results(&mut s, &dir)?;
         if cfg.format == TourneyFormat::Adaptive && s.format != TourneyFormat::Adaptive {
             super::adaptive::migrate(&mut s)?;
         }
@@ -1800,13 +1872,7 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
                     }));
                     match play {
                         Ok(Ok(rec)) => {
-                            let path = games_dir.join(format!(
-                                "slot{:04}-{}-vs-{}-{}.json",
-                                slot_id,
-                                model_a,
-                                model_b,
-                                if a_is_black { "a-black" } else { "a-white" }
-                            ));
+                            let path = game_path(games_dir, slot_id, &model_a, &model_b, a_is_black);
                             if let Err(e) = rec.save_path(&path) {
                                 eprintln!("slot {slot_id} could not save game: {e}");
                                 let mut st = state_mu.lock().unwrap();
@@ -1816,14 +1882,21 @@ pub fn run_tournament(cfg: &TourneyConfig) -> Result<TourneyState, String> {
                             }
                             let score_a = score_from_result(a_is_black, &rec.result);
                             let mut st = state_mu.lock().unwrap();
-                            ensure_ratings(&mut st);
                             if let Some(slot) = st.slots.iter_mut().find(|s| s.id == slot_id) {
                                 slot.status = SlotStatus::Done;
                                 slot.score_a = Some(score_a);
                                 slot.game_path = Some(path.display().to_string());
                             }
-                            rate_finished_slot(&mut st, slot_id, &model_a, &model_b, score_a);
                             st.updated_at = now_secs();
+                            if st.format == TourneyFormat::Adaptive {
+                                st.runtime_control.ratings_error = Some("result recorded; ratings pending".into());
+                                if let Err(e) = checkpoint(cfg, &st) {
+                                    eprintln!("cannot checkpoint game {slot_id}: {e}; draining workers");
+                                    admission_failed.store(true, Ordering::Relaxed);
+                                    return;
+                                }
+                            }
+                            rate_finished_slot(&mut st, slot_id, &model_a, &model_b, score_a);
                             if let Err(e) = save_state(cfg, &st) {
                                 eprintln!("cannot persist completed game: {e}; draining workers");
                                 admission_failed.store(true, Ordering::Relaxed);
@@ -2006,6 +2079,41 @@ mod tests {
         let b = glicko_update_period(p, &[(o, 1.0)]);
         assert!((a.r - b.r).abs() < 1e-12);
         assert!((a.rd - b.rd).abs() < 1e-12);
+    }
+
+    #[test]
+    fn failed_fit_checkpoints_results_and_preserves_published_standings() {
+        let cfg = TourneyConfig {
+            entrants: entrants(2),
+            format: TourneyFormat::RoundRobin,
+            outdir: std::env::temp_dir(),
+            run_id: format!("stale-ratings-{}", std::process::id()),
+            ..Default::default()
+        };
+        let mut state = build_schedule(&cfg);
+        state.order_neutral_only = true;
+        ensure_ratings(&mut state);
+        save_state(&cfg, &state).unwrap();
+        let old = fs::read(standings_path(&cfg)).unwrap();
+        let ratings = state.elo.clone();
+        state.slots[0].status = SlotStatus::Done;
+        state.slots[0].score_a = Some(0.25); // deterministic rejection by the fit
+        state.retired.insert("p0".into());
+        save_state(&cfg, &state).unwrap();
+        let saved = load_state(&state_path(&cfg)).unwrap();
+        assert!(saved.runtime_control.ratings_error.is_some());
+        assert_eq!(saved.slots[0].score_a, Some(0.25));
+        assert_eq!(saved.elo, ratings);
+        assert_eq!(saved.retired, state.retired);
+        assert_eq!(fs::read(standings_path(&cfg)).unwrap(), old);
+        state.slots[0].score_a = Some(0.5);
+        save_state(&cfg, &state).unwrap();
+        assert!(load_state(&state_path(&cfg))
+            .unwrap()
+            .runtime_control
+            .ratings_error
+            .is_none());
+        fs::remove_dir_all(run_dir(&cfg)).unwrap();
     }
 
     #[test]

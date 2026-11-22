@@ -15,6 +15,8 @@ pub const PROTOCOL: u32 = 1;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ControlState {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ratings_error: Option<String>,
     pub assignments_paused: bool,
     pub pause_reason: String,
     pub receipts: BTreeMap<String, Receipt>,
