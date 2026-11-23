@@ -392,6 +392,7 @@ fn diversity_placement(
     counts: &[BTreeMap<usize, usize>],
     pairs: &[(usize, usize)],
     seed: u64,
+    information: impl Fn(usize, usize) -> f64,
 ) -> Result<Option<(usize, usize)>, String> {
     use rand::{Rng, SeedableRng};
     let report = &state.adaptive.as_ref().unwrap().exposure;
@@ -428,12 +429,24 @@ fn diversity_placement(
                 } else {
                     return None;
                 };
-                (graph.component[i] == graph.component[j]).then_some((j, labels[j]?))
+                if graph.component[i] != graph.component[j] {
+                    return None;
+                }
+                let label = labels[j]?;
+                // With one prior pseudo-game, two further games reduce expected
+                // Beta posterior variance by a fraction 2/(n+3). This models
+                // direct scores separately from transitive strength information.
+                let n = counts[i].get(&j).copied().unwrap_or(0);
+                Some((j, label, information(i, j) * 2.0 / (n as f64 + 3.0)))
             })
             .collect();
-        for &(j, label) in &opponents {
+        let total_information: f64 = opponents.iter().map(|&(_, _, value)| value).sum();
+        if total_information <= 0.0 {
+            continue;
+        }
+        for &(j, label, pair_information) in &opponents {
             let gain = diversity_gain(total, largest, groups.get(label).copied().unwrap_or(0))
-                / opponents.len() as f64;
+                * (pair_information / total_information);
             if gain > 0.0 {
                 weight += gain;
                 if rng.gen::<f64>() * weight < gain {
@@ -1016,7 +1029,7 @@ fn choose(
     a.learning_picks += 1;
     if a.learning_picks % 2 == 1 {
         let counts = exposure(&selection_state, p);
-        if let Some((i, j)) = diversity_placement(state, p, &counts, &pairs, seed)? {
+        if let Some((i, j)) = diversity_placement(state, p, &counts, &pairs, seed, information)? {
             return Ok((i, j, "placement".into()));
         }
         let under = active.iter().copied().filter(|&i| {
