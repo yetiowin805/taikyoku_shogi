@@ -156,6 +156,14 @@ pub(super) fn evaluate(state: &TourneyState, fit: &Fit) -> Result<Report, String
         // A read-only fit describes the rules that produced the saved decisions.
         report.policy = match state.adaptive.as_ref().and_then(|a| a.retirement_threshold) {
             Some(_)
+                if state.adaptive.as_ref().is_some_and(|a| {
+                    a.scc_local_retirement
+                        && a.exposure.values().any(|e| e.covered_generations.is_some())
+                }) =>
+            {
+                "adaptive-top5-scc9-gen2x20-o6-v5"
+            }
+            Some(_)
                 if state
                     .adaptive
                     .as_ref()
@@ -192,7 +200,10 @@ pub(super) fn evaluate(state: &TourneyState, fit: &Fit) -> Result<Report, String
                         covered_opponents: e.opponents,
                         stronger_rivals: 0,
                         rivals_ahead_by_50: 0,
-                        coverage_met: e.games >= 40 && e.opponents >= 6,
+                        coverage_met: e
+                            .covered_generations
+                            .map_or(e.games >= 40, |n| n >= super::adaptive::MIN_GENERATIONS)
+                            && e.opponents >= 6,
                     },
                 );
             }
