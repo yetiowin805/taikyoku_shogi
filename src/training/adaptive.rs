@@ -13,7 +13,9 @@ pub mod generation_matchups;
 
 const DRAWS: usize = 8192;
 const TOP_K: usize = 5;
-const MIN_GAMES: usize = 40;
+const LEARNING_TARGET_GAMES: usize = 40;
+pub(super) const GAMES_PER_GENERATION: usize = 20;
+pub(super) const MIN_GENERATIONS: usize = 2;
 const MIN_OPPONENTS: usize = 6;
 const WEIGHTS: [i64; 3] = [85, 10, 5];
 
@@ -31,6 +33,8 @@ pub struct Pair {
 pub struct Exposure {
     pub games: usize,
     pub opponents: usize,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub covered_generations: Option<usize>,
     pub top_five_probability: f64,
     pub probability_upper: f64,
     pub protected_by: Vec<String>,
@@ -529,7 +533,7 @@ fn inactive_under_policy(
 ) -> bool {
     if !e.protected_by.is_empty()
         || e.top_five_probability > cutoff
-        || e.games < MIN_GAMES
+        || e.covered_generations.unwrap_or_default() < MIN_GENERATIONS
         || e.opponents < MIN_OPPONENTS
         || !eligible_scc
     {
@@ -655,10 +659,26 @@ pub fn refresh(state: &mut TourneyState) -> Result<(), String> {
         .is_none();
     let mut report = BTreeMap::new();
     let mut inactive = BTreeSet::new();
+    let mut labels = BTreeMap::new();
+    for e in &state.entrants {
+        if let Some(label) = super::generations::label(e)? {
+            labels.insert(e.id.as_str(), label);
+        }
+    }
     for i in registered {
         let inside = coverage[i]
             .iter()
             .filter(|(j, _)| graph.component[**j] == graph.component[i]);
+        let mut generation_games = BTreeMap::new();
+        for (&j, &games) in inside.clone() {
+            if let Some(&label) = labels.get(p.names[j].as_str()) {
+                *generation_games.entry(label).or_insert(0usize) += games;
+            }
+        }
+        let covered_generations = generation_games
+            .values()
+            .filter(|&&n| n >= GAMES_PER_GENERATION)
+            .count();
         let games = inside.clone().map(|(_, n)| n).sum();
         let opponents = inside.filter(|(_, n)| **n >= 2).count();
         let probability = counts[i] as f64 / DRAWS as f64;
@@ -667,6 +687,7 @@ pub fn refresh(state: &mut TourneyState) -> Result<(), String> {
         let e = Exposure {
             games,
             opponents,
+            covered_generations: Some(covered_generations),
             top_five_probability: probability,
             probability_upper: upper,
             protected_by: reasons,
@@ -907,7 +928,7 @@ fn choose(
     if a.learning_picks % 2 == 1 {
         let counts = exposure(&selection_state, p);
         let under = active.iter().copied().filter(|&i| {
-            counts[i].values().sum::<usize>() < MIN_GAMES
+            counts[i].values().sum::<usize>() < LEARNING_TARGET_GAMES
                 || counts[i].values().filter(|&&n| n >= 2).count() < MIN_OPPONENTS
         });
         if let Some(i) = under.min_by_key(|&i| (counts[i].values().sum::<usize>(), i)) {
@@ -1299,6 +1320,16 @@ mod tests {
         assert_eq!(current.games, original.games);
         assert_eq!(current.top_five_probability, original.top_five_probability);
         result(&mut s, 0, 8, 0.5, 101);
+        for entrant in &mut s.entrants[..7] {
+            entrant.generation = Some("v6".into());
+        }
+        refresh(&mut s).unwrap();
+        assert!(!s.retired.contains("agent07"));
+        assert_eq!(
+            s.adaptive.as_ref().unwrap().exposure["agent07"].covered_generations,
+            Some(1)
+        );
+        s.entrants[0].generation = Some("v7".into());
         refresh(&mut s).unwrap();
         assert!(s.retired.contains("agent07"));
         s.entrants[7].generation = Some("handcrafted".into());
@@ -1362,6 +1393,7 @@ mod tests {
     fn scaled_cutoff_keeps_borderline_agents_and_retains_lifecycle_guards() {
         let cutoff = RetirementThreshold::from_state(&fixture(1000)).probability;
         let mut e = Exposure {
+            covered_generations: Some(2),
             games: 40,
             opponents: 6,
             top_five_probability: 0.001,
@@ -1378,9 +1410,9 @@ mod tests {
         e.probability_upper = wilson_upper(0, DRAWS);
         assert!(inactive_under_policy(false, &e, true, cutoff));
         assert!(!inactive_under_policy(true, &e, false, cutoff));
-        e.games = 39;
+        e.covered_generations = Some(1);
         assert!(!inactive_under_policy(true, &e, true, cutoff));
-        e.games = 40;
+        e.covered_generations = Some(2);
         e.opponents = 5;
         assert!(!inactive_under_policy(true, &e, true, cutoff));
         e.opponents = 6;
@@ -1399,6 +1431,7 @@ mod tests {
             let cutoff = threshold.probability;
             assert_eq!(threshold.reactivation_probability, Some(cutoff));
             let mut e = Exposure {
+                covered_generations: Some(2),
                 games: 40,
                 opponents: 6,
                 top_five_probability: cutoff * 1.1,
@@ -1511,7 +1544,7 @@ mod tests {
                 .retirement
                 .unwrap()
                 .policy,
-            "adaptive-top5-scc9-g40-o6-v4"
+            "adaptive-top5-scc9-gen2x20-o6-v5"
         );
         // Check compatibility with pre-threshold scheduler JSON.
         let mut old = serde_json::to_value(&s).unwrap();
