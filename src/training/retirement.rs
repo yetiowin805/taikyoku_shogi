@@ -158,6 +158,14 @@ pub(super) fn evaluate(state: &TourneyState, fit: &Fit) -> Result<Report, String
             Some(_)
                 if state.adaptive.as_ref().is_some_and(|a| {
                     a.scc_local_retirement
+                        && a.exposure.values().any(|e| e.outside_largest.is_some())
+                }) =>
+            {
+                "adaptive-top5-scc9-g40-out20-o6-v6"
+            }
+            Some(_)
+                if state.adaptive.as_ref().is_some_and(|a| {
+                    a.scc_local_retirement
                         && a.exposure.values().any(|e| e.covered_generations.is_some())
                 }) =>
             {
@@ -200,9 +208,11 @@ pub(super) fn evaluate(state: &TourneyState, fit: &Fit) -> Result<Report, String
                         covered_opponents: e.opponents,
                         stronger_rivals: 0,
                         rivals_ahead_by_50: 0,
-                        coverage_met: e
-                            .covered_generations
-                            .map_or(e.games >= 40, |n| n >= super::adaptive::MIN_GENERATIONS)
+                        coverage_met: e.games >= 40
+                            && e.outside_largest.map_or_else(
+                                || e.covered_generations.is_none_or(|n| n >= 2),
+                                |n| n >= super::adaptive::MIN_OUTSIDE,
+                            )
                             && e.opponents >= 6,
                     },
                 );

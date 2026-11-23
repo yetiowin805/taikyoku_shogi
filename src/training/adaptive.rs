@@ -14,8 +14,7 @@ pub mod generation_matchups;
 const DRAWS: usize = 8192;
 const TOP_K: usize = 5;
 const LEARNING_TARGET_GAMES: usize = 40;
-pub(super) const GAMES_PER_GENERATION: usize = 20;
-pub(super) const MIN_GENERATIONS: usize = 2;
+pub(super) const MIN_OUTSIDE: usize = 20;
 const MIN_OPPONENTS: usize = 6;
 const WEIGHTS: [i64; 3] = [85, 10, 5];
 
@@ -34,7 +33,11 @@ pub struct Exposure {
     pub games: usize,
     pub opponents: usize,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub covered_generations: Option<usize>,
+    pub covered_generations: Option<usize>, // previous checkpoint format
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub outside_largest: Option<usize>,
+    #[serde(default)]
+    pub needs_generation_opponents: bool,
     pub top_five_probability: f64,
     pub probability_upper: f64,
     pub protected_by: Vec<String>,
@@ -349,6 +352,99 @@ fn exposure(state: &TourneyState, p: &Posterior) -> Vec<BTreeMap<usize, usize>> 
     out
 }
 
+fn opponent_labels<'a>(
+    state: &'a TourneyState,
+    p: &Posterior,
+) -> Result<Vec<Option<&'a str>>, String> {
+    let mut labels = vec![None; p.names.len()];
+    for e in &state.entrants {
+        if let Ok(i) = p.names.binary_search(&e.id) {
+            labels[i] = super::generations::label(e)?;
+        }
+    }
+    Ok(labels)
+}
+
+fn generation_counts<'a, 'b>(
+    inside: impl Iterator<Item = (&'b usize, &'b usize)>,
+    labels: &[Option<&'a str>],
+) -> BTreeMap<&'a str, usize> {
+    let mut counts = BTreeMap::new();
+    for (&j, &games) in inside {
+        if let Some(label) = labels[j] {
+            *counts.entry(label).or_default() += games;
+        }
+    }
+    counts
+}
+
+// Change in squared shortfall, normalized so two useful games at zero coverage
+// have weight one. Recompute the largest group after adding the proposed pair.
+fn diversity_gain(total: usize, largest: usize, opponent_group: usize) -> f64 {
+    let before = MIN_OUTSIDE.saturating_sub(total - largest);
+    let after = MIN_OUTSIDE.saturating_sub(total + 2 - largest.max(opponent_group + 2));
+    (before.pow(2) - after.pow(2)) as f64 / (MIN_OUTSIDE.pow(2) - (MIN_OUTSIDE - 2).pow(2)) as f64
+}
+
+fn diversity_placement(
+    state: &TourneyState,
+    p: &Posterior,
+    counts: &[BTreeMap<usize, usize>],
+    pairs: &[(usize, usize)],
+    seed: u64,
+) -> Result<Option<(usize, usize)>, String> {
+    use rand::{Rng, SeedableRng};
+    let report = &state.adaptive.as_ref().unwrap().exposure;
+    if !report.values().any(|e| e.needs_generation_opponents) {
+        return Ok(None);
+    }
+    let graph = Graph::new(state, &p.names, false);
+    let labels = opponent_labels(state, p)?;
+    let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+    let mut weight = 1.0; // one ordinary placement opportunity
+    let mut choice = None;
+    for (i, name) in p.names.iter().enumerate() {
+        if !report
+            .get(name)
+            .is_some_and(|e| e.needs_generation_opponents)
+        {
+            continue;
+        }
+        let groups = generation_counts(
+            counts[i]
+                .iter()
+                .filter(|(j, _)| graph.component[**j] == graph.component[i]),
+            &labels,
+        );
+        let total = groups.values().sum();
+        let largest = groups.values().max().copied().unwrap_or(0);
+        let opponents: Vec<_> = pairs
+            .iter()
+            .filter_map(|&(a, b)| {
+                let j = if a == i {
+                    b
+                } else if b == i {
+                    a
+                } else {
+                    return None;
+                };
+                (graph.component[i] == graph.component[j]).then_some((j, labels[j]?))
+            })
+            .collect();
+        for &(j, label) in &opponents {
+            let gain = diversity_gain(total, largest, groups.get(label).copied().unwrap_or(0))
+                / opponents.len() as f64;
+            if gain > 0.0 {
+                weight += gain;
+                if rng.gen::<f64>() * weight < gain {
+                    choice = Some((i, j));
+                }
+            }
+        }
+    }
+    Ok(choice)
+}
+
 fn generation_champions(
     state: &TourneyState,
     ratings: &BTreeMap<String, f64>,
@@ -533,7 +629,7 @@ fn inactive_under_policy(
 ) -> bool {
     if !e.protected_by.is_empty()
         || e.top_five_probability > cutoff
-        || e.covered_generations.unwrap_or_default() < MIN_GENERATIONS
+        || e.games < 40
         || e.opponents < MIN_OPPONENTS
         || !eligible_scc
     {
@@ -659,47 +755,40 @@ pub fn refresh(state: &mut TourneyState) -> Result<(), String> {
         .is_none();
     let mut report = BTreeMap::new();
     let mut inactive = BTreeSet::new();
-    let mut labels = BTreeMap::new();
-    for e in &state.entrants {
-        if let Some(label) = super::generations::label(e)? {
-            labels.insert(e.id.as_str(), label);
-        }
-    }
+    let labels = opponent_labels(state, &p)?;
     for i in registered {
         let inside = coverage[i]
             .iter()
             .filter(|(j, _)| graph.component[**j] == graph.component[i]);
-        let mut generation_games = BTreeMap::new();
-        for (&j, &games) in inside.clone() {
-            if let Some(&label) = labels.get(p.names[j].as_str()) {
-                *generation_games.entry(label).or_insert(0usize) += games;
-            }
-        }
-        let covered_generations = generation_games
-            .values()
-            .filter(|&&n| n >= GAMES_PER_GENERATION)
-            .count();
+        let diversity = generation_counts(inside.clone(), &labels);
+        let outside =
+            diversity.values().sum::<usize>() - diversity.values().max().copied().unwrap_or(0);
         let games = inside.clone().map(|(_, n)| n).sum();
         let opponents = inside.filter(|(_, n)| **n >= 2).count();
         let probability = counts[i] as f64 / DRAWS as f64;
         let upper = wilson_upper(counts[i], DRAWS);
         let reasons = protected.remove(&p.names[i]).unwrap_or_default();
-        let e = Exposure {
+        let mut e = Exposure {
             games,
             opponents,
-            covered_generations: Some(covered_generations),
+            covered_generations: None,
+            outside_largest: Some(outside),
+            needs_generation_opponents: false,
             top_five_probability: probability,
             probability_upper: upper,
             protected_by: reasons,
         };
-        if inactive_under_policy(
+        let otherwise_eligible = inactive_under_policy(
             !recheck_legacy
                 && state.adaptive.as_ref().unwrap().scc_local_retirement
                 && state.retired.contains(&p.names[i]),
             &e,
             groups[graph.component[i]].len() >= 9,
             threshold.probability,
-        ) {
+        );
+        e.needs_generation_opponents =
+            otherwise_eligible && upper < threshold.probability && outside < MIN_OUTSIDE;
+        if otherwise_eligible && outside >= MIN_OUTSIDE {
             inactive.insert(p.names[i].clone());
         }
         report.insert(p.names[i].clone(), e);
@@ -927,6 +1016,9 @@ fn choose(
     a.learning_picks += 1;
     if a.learning_picks % 2 == 1 {
         let counts = exposure(&selection_state, p);
+        if let Some((i, j)) = diversity_placement(state, p, &counts, &pairs, seed)? {
+            return Ok((i, j, "placement".into()));
+        }
         let under = active.iter().copied().filter(|&i| {
             counts[i].values().sum::<usize>() < LEARNING_TARGET_GAMES
                 || counts[i].values().filter(|&&n| n >= 2).count() < MIN_OPPONENTS
@@ -1326,8 +1418,8 @@ mod tests {
         refresh(&mut s).unwrap();
         assert!(!s.retired.contains("agent07"));
         assert_eq!(
-            s.adaptive.as_ref().unwrap().exposure["agent07"].covered_generations,
-            Some(1)
+            s.adaptive.as_ref().unwrap().exposure["agent07"].outside_largest,
+            Some(0)
         );
         s.entrants[0].generation = Some("v7".into());
         refresh(&mut s).unwrap();
@@ -1346,6 +1438,15 @@ mod tests {
         }
         refresh(&mut s).unwrap();
         assert!(!s.retired.contains("agent07"));
+    }
+
+    #[test]
+    fn generation_coverage_marginal_gain() {
+        assert_eq!(diversity_gain(40, 40, 40), 0.);
+        assert_eq!(diversity_gain(40, 40, 0), 1.);
+        assert!(diversity_gain(40, 22, 10) > diversity_gain(40, 21, 10));
+        assert_eq!(diversity_gain(40, 20, 10), 0.); // 20/10/10 qualifies
+        assert!(diversity_gain(37, 19, 18) < diversity_gain(37, 19, 0)); // overtakes largest
     }
 
     #[test]
@@ -1393,7 +1494,9 @@ mod tests {
     fn scaled_cutoff_keeps_borderline_agents_and_retains_lifecycle_guards() {
         let cutoff = RetirementThreshold::from_state(&fixture(1000)).probability;
         let mut e = Exposure {
-            covered_generations: Some(2),
+            covered_generations: None,
+            outside_largest: Some(20),
+            needs_generation_opponents: false,
             games: 40,
             opponents: 6,
             top_five_probability: 0.001,
@@ -1410,9 +1513,9 @@ mod tests {
         e.probability_upper = wilson_upper(0, DRAWS);
         assert!(inactive_under_policy(false, &e, true, cutoff));
         assert!(!inactive_under_policy(true, &e, false, cutoff));
-        e.covered_generations = Some(1);
+        e.games = 39;
         assert!(!inactive_under_policy(true, &e, true, cutoff));
-        e.covered_generations = Some(2);
+        e.games = 40;
         e.opponents = 5;
         assert!(!inactive_under_policy(true, &e, true, cutoff));
         e.opponents = 6;
@@ -1431,7 +1534,9 @@ mod tests {
             let cutoff = threshold.probability;
             assert_eq!(threshold.reactivation_probability, Some(cutoff));
             let mut e = Exposure {
-                covered_generations: Some(2),
+                covered_generations: None,
+                outside_largest: Some(20),
+                needs_generation_opponents: false,
                 games: 40,
                 opponents: 6,
                 top_five_probability: cutoff * 1.1,
@@ -1544,7 +1649,7 @@ mod tests {
                 .retirement
                 .unwrap()
                 .policy,
-            "adaptive-top5-scc9-gen2x20-o6-v5"
+            "adaptive-top5-scc9-g40-out20-o6-v6"
         );
         // Check compatibility with pre-threshold scheduler JSON.
         let mut old = serde_json::to_value(&s).unwrap();
