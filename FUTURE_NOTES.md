@@ -2,6 +2,10 @@
 
 Ideas parked after a knockout, not the next patch. Search / eval experiments that are ready to measure still live in [`IDEAS_TO_TRY.md`](IDEAS_TO_TRY.md).
 
+## Check top-five probabilities by resampling whole opening pairs
+
+Refit the rankings across bootstrap samples of opening pairs, keeping both colors together and retaining the 30× rating weight on sampled 15+5 games. Compare each agent’s frequency of finishing in the top five with the scheduler’s joint-draw estimate. In particular, check sensitivity for agents whose rating depends on a single long-clock sweep, such as `256_v7_S3_E_HLF_G3ATK` at 9,027 games.
+
 ## Quiescence can stop one move before a major recapture
 
 Slot **7773**, GUI ply **44**, is a reproducible example. White was

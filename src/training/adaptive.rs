@@ -820,7 +820,12 @@ pub fn refresh(state: &mut TourneyState) -> Result<(), String> {
     Ok(())
 }
 
-fn available_pairs(state: &TourneyState, p: &Posterior, active: &[usize]) -> Vec<(usize, usize)> {
+fn available_pairs(
+    state: &TourneyState,
+    p: &Posterior,
+    active: &[usize],
+    allowed: impl Fn(usize, usize) -> bool,
+) -> Vec<(usize, usize)> {
     let busy: BTreeSet<_> = state
         .slots
         .iter()
@@ -837,6 +842,7 @@ fn available_pairs(state: &TourneyState, p: &Posterior, active: &[usize]) -> Vec
         .iter()
         .enumerate()
         .flat_map(|(k, &i)| active[k + 1..].iter().map(move |&j| (i, j)))
+        .filter(|&(i, j)| allowed(i, j))
         .collect();
     let free: Vec<_> = all
         .iter()
@@ -850,11 +856,118 @@ fn available_pairs(state: &TourneyState, p: &Posterior, active: &[usize]) -> Vec
     }
 }
 
-fn choose(
+struct PlacementEvidence {
+    labels: Vec<Option<String>>,
+    outside: Vec<usize>,
+}
+
+impl PlacementEvidence {
+    fn new(state: &TourneyState, p: &Posterior) -> Result<Self, String> {
+        let labels: Vec<_> = opponent_labels(state, p)?
+            .into_iter()
+            .map(|g| g.map(str::to_owned))
+            .collect();
+        let mut evidence = Self {
+            outside: vec![0; labels.len()],
+            labels,
+        };
+        for slot in state.slots.iter().filter(|s| s.status == SlotStatus::Done) {
+            let a = p
+                .names
+                .binary_search(&slot.model_a)
+                .map_err(|_| "missing slot agent")?;
+            let b = p
+                .names
+                .binary_search(&slot.model_b)
+                .map_err(|_| "missing slot agent")?;
+            if evidence.different(a, b) {
+                evidence.outside[a] += 1;
+                evidence.outside[b] += 1;
+            }
+        }
+        Ok(evidence)
+    }
+
+    fn different(&self, a: usize, b: usize) -> bool {
+        matches!((&self.labels[a], &self.labels[b]), (Some(x),Some(y)) if x != y)
+    }
+
+    fn blocked(&self, a: usize, b: usize) -> bool {
+        self.labels[a].is_some()
+            && self.labels[a] == self.labels[b]
+            && self.outside[a] < 20
+            && self.outside[b] < 20
+    }
+
+    fn keep(&self, a: usize, b: usize, seed: u64) -> usize {
+        use rand::{Rng, SeedableRng};
+        match self.outside[a].cmp(&self.outside[b]) {
+            std::cmp::Ordering::Less => a,
+            std::cmp::Ordering::Greater => b,
+            std::cmp::Ordering::Equal => {
+                if rand::rngs::StdRng::seed_from_u64(seed).gen_bool(0.5) {
+                    a
+                } else {
+                    b
+                }
+            }
+        }
+    }
+}
+
+type Selection = (usize, usize, String);
+
+fn choose(state: &mut TourneyState, p: &Posterior, seed: u64) -> Result<Option<Selection>, String> {
+    let evidence = PlacementEvidence::new(state, p)?;
+    let active = registered(state, p)
+        .into_iter()
+        .filter(|&i| !state.retired.contains(&p.names[i]))
+        .collect::<Vec<_>>();
+    if active.len() < 2 {
+        return Err("adaptive scheduler needs at least two eligible agents".into());
+    }
+    // If no outside opponent exists, select only legal ordinary pairs (or idle).
+    let can_redirect = active
+        .iter()
+        .filter_map(|&i| evidence.labels[i].as_ref())
+        .collect::<BTreeSet<_>>()
+        .len()
+        >= 2;
+    let pairs = available_pairs(state, p, &active, |i, j| {
+        can_redirect || !evidence.blocked(i, j)
+    });
+    if pairs.is_empty() {
+        return Ok(None);
+    }
+    let (i, j, reason) = choose_from(state, p, seed, &active, &pairs, None, &evidence)?;
+    if !evidence.blocked(i, j) {
+        return Ok(Some((i, j, reason)));
+    }
+    let keep = evidence.keep(i, j, seed);
+    let pairs = available_pairs(state, p, &active, |a, b| {
+        (a == keep || b == keep) && evidence.different(a, b)
+    });
+    let result = choose_from(
+        state,
+        p,
+        seed,
+        &active,
+        &pairs,
+        Some((keep, &reason)),
+        &evidence,
+    )?;
+    Ok(Some(result))
+}
+
+fn choose_from(
     state: &mut TourneyState,
     p: &Posterior,
     seed: u64,
-) -> Result<(usize, usize, String), String> {
+    active: &[usize],
+    pairs: &[(usize, usize)],
+    retry: Option<(usize, &str)>,
+    evidence: &PlacementEvidence,
+) -> Result<Selection, String> {
     let actual = state
         .adaptive
         .as_ref()
@@ -866,14 +979,6 @@ fn choose(
         .clone();
     let graph = Graph::new(state, &p.names, true);
     state.adaptive.as_mut().unwrap().assumed_components = graph.groups.len();
-    let active: Vec<_> = registered(state, p)
-        .into_iter()
-        .filter(|&i| !state.retired.contains(&p.names[i]))
-        .collect();
-    if active.len() < 2 {
-        return Err("adaptive scheduler needs at least two eligible agents".into());
-    }
-    let pairs = available_pairs(state, p, &active);
     let draws = p.draws(64, seed);
     let information = |i, j| p.information_score(i, j, &draws);
     let cross: Vec<_> = pairs
@@ -881,7 +986,7 @@ fn choose(
         .copied()
         .filter(|&(i, j)| graph.component[i] != graph.component[j])
         .collect();
-    if !cross.is_empty() {
+    if !cross.is_empty() && retry.is_none_or(|(_, r)| r == "connectivity") {
         let utility = |i: usize, j: usize| {
             let merged: BTreeSet<_> = (0..p.names.len())
                 .filter(|&k| {
@@ -904,6 +1009,13 @@ fn choose(
             .unwrap();
         return Ok((i, j, "connectivity".into()));
     }
+    if retry.is_some_and(|(_, r)| r == "connectivity") {
+        let &(i, j) = pairs
+            .iter()
+            .max_by(|&&(a, b), &&(c, d)| information(a, b).total_cmp(&information(c, d)))
+            .ok_or("no cross-generation opponent")?;
+        return Ok((i, j, "connectivity".into()));
+    }
     let selection_state = draw_completed(state);
     let fit = super::order_neutral::from_state(&selection_state);
     let ratings = if fit.error.is_some() {
@@ -922,32 +1034,58 @@ fn choose(
         .filter(|&(i, j)| pairs.contains(&(i.min(j), i.max(j))))
         .collect();
     let a = state.adaptive.as_mut().unwrap();
-    for (credit, weight) in a.allocation_credit.iter_mut().zip(WEIGHTS) {
-        *credit += weight;
-    }
-    let lane = (0..3)
-        .max_by_key(|&i| (a.allocation_credit[i], std::cmp::Reverse(i)))
-        .unwrap();
-    a.allocation_credit[lane] -= 100;
-    let lane = if lane == 2 && anchor_pairs.is_empty() {
-        0
+    let lane = if let Some((_, reason)) = retry {
+        match reason {
+            "generation_anchor" => 2,
+            "probe_discovery" | "probe_confirmation" | "probe_residual" => 1,
+            _ => 0,
+        }
     } else {
+        for (credit, weight) in a.allocation_credit.iter_mut().zip(WEIGHTS) {
+            *credit += weight;
+        }
+        let lane = (0..3)
+            .max_by_key(|&i| (a.allocation_credit[i], std::cmp::Reverse(i)))
+            .unwrap();
+        a.allocation_credit[lane] -= 100;
+        let lane = if lane == 2 && anchor_pairs.is_empty() {
+            0
+        } else {
+            lane
+        };
+        a.lane_pairs[lane] += 1;
         lane
     };
-    a.lane_pairs[lane] += 1;
     if lane == 2 {
-        let pair = anchor_pairs[a.anchor_picks % anchor_pairs.len()];
-        a.anchor_picks += 1;
+        let pair = if anchor_pairs.is_empty() {
+            *pairs
+                .iter()
+                .max_by(|&&(a, b), &&(c, d)| information(a, b).total_cmp(&information(c, d)))
+                .ok_or("no replacement anchor")?
+        } else {
+            anchor_pairs
+                [a.anchor_picks.saturating_sub(usize::from(retry.is_some())) % anchor_pairs.len()]
+        };
+        if retry.is_none() {
+            a.anchor_picks += 1;
+        }
         return Ok((pair.0, pair.1, "generation_anchor".into()));
     }
     if lane == 1 {
-        if let Some(pair) = generation_matchups::choose(state, &actual) {
+        if let Some(pair) = retry
+            .is_none()
+            .then(|| generation_matchups::choose(state, &actual))
+            .flatten()
+            .filter(|&(i, j, _)| !evidence.blocked(i, j))
+        {
             return Ok(pair);
         }
         // Selection, including the champion identity, uses the draw-completed
         // scheduling state. Published leader identity is used for counter protection.
-        let champion =
-            leader(&selection_state, p, ratings).ok_or("no eligible scheduling champion")?;
+        let champion = retry
+            .map(|(i, _)| i)
+            .or_else(|| leader(&selection_state, p, ratings))
+            .ok_or("no eligible scheduling champion")?;
         let candidates: Vec<_> = active
             .iter()
             .copied()
@@ -959,7 +1097,18 @@ fn choose(
             })
             .collect();
         let candidates = if candidates.is_empty() {
-            active.iter().copied().filter(|&i| i != champion).collect()
+            // Existing commitments can occupy every legal opponent of this focal
+            // agent. Keep the original probe's busy-pair fallback within the guard.
+            let alternatives: Vec<_> = active
+                .iter()
+                .copied()
+                .filter(|&i| i != champion && !evidence.blocked(i, champion))
+                .collect();
+            if alternatives.is_empty() {
+                let &(i, j) = pairs.first().ok_or("no eligible probe")?;
+                return Ok((i, j, "probe_discovery".into()));
+            }
+            alternatives
         } else {
             candidates
         };
@@ -1001,7 +1150,8 @@ fn choose(
             })
             .unwrap();
         let (mu, sd, n) = residual(state, &actual, champion, opponent, None);
-        if n >= 4
+        if !evidence.blocked(champion, opponent)
+            && n >= 4
             && normal_cdf(mu / sd) > 0.9
             && !state
                 .adaptive
@@ -1026,17 +1176,26 @@ fn choose(
         return Ok((champion, opponent, "probe_residual".into()));
     }
     let a = state.adaptive.as_mut().unwrap();
-    a.learning_picks += 1;
-    if a.learning_picks % 2 == 1 {
+    if retry.is_none() {
+        a.learning_picks += 1;
+    }
+    if retry.map_or(a.learning_picks % 2 == 1, |(_, r)| r == "placement") {
         let counts = exposure(&selection_state, p);
-        if let Some((i, j)) = diversity_placement(state, p, &counts, &pairs, seed, information)? {
+        if let Some((i, j)) = diversity_placement(state, p, &counts, pairs, seed, information)? {
             return Ok((i, j, "placement".into()));
         }
-        let under = active.iter().copied().filter(|&i| {
-            counts[i].values().sum::<usize>() < LEARNING_TARGET_GAMES
-                || counts[i].values().filter(|&&n| n >= 2).count() < MIN_OPPONENTS
-        });
-        if let Some(i) = under.min_by_key(|&i| (counts[i].values().sum::<usize>(), i)) {
+        let under = active
+            .iter()
+            .copied()
+            .filter(|&i| retry.is_none_or(|(k, _)| k == i))
+            .filter(|&i| {
+                counts[i].values().sum::<usize>() < LEARNING_TARGET_GAMES
+                    || counts[i].values().filter(|&&n| n >= 2).count() < MIN_OPPONENTS
+            });
+        if let Some(i) = retry
+            .map(|(k, _)| k)
+            .or_else(|| under.min_by_key(|&i| (counts[i].values().sum::<usize>(), i)))
+        {
             let opponents: Vec<_> = pairs
                 .iter()
                 .filter_map(|&(a, b)| {
@@ -1066,7 +1225,7 @@ fn choose(
     // weight favors agents whose inclusion in the top five is unresolved.
     let mut membership = vec![0.; p.names.len()];
     for draw in &draws {
-        let mut rank = active.clone();
+        let mut rank = active.to_vec();
         rank.sort_unstable_by(|&i, &j| draw[j].total_cmp(&draw[i]).then(i.cmp(&j)));
         for i in rank.into_iter().take(TOP_K) {
             membership[i] += 1. / draws.len() as f64;
@@ -1076,12 +1235,15 @@ fn choose(
         let uncertain = |k: usize| membership[k] * (1. - membership[k]);
         information(i, j) * (uncertain(i) + uncertain(j) + 1. / draws.len() as f64)
     };
-    let mut ranked = active;
+    let mut ranked = active.to_vec();
     ranked.sort_unstable_by(|&i, &j| draws[0][j].total_cmp(&draws[0][i]).then(i.cmp(&j)));
     let top: BTreeSet<_> = ranked.into_iter().take(TOP_K).collect();
+    let has_top = pairs
+        .iter()
+        .any(|(i, j)| top.contains(i) || top.contains(j));
     let &(i, j) = pairs
         .iter()
-        .filter(|&&(i, j)| top.contains(&i) || top.contains(&j))
+        .filter(|&&(i, j)| !has_top || top.contains(&i) || top.contains(&j))
         .max_by(|&&(a, b), &&(c, d)| {
             utility(a, b)
                 .total_cmp(&utility(c, d))
@@ -1148,7 +1310,9 @@ pub fn claim(state: &mut TourneyState) -> Result<Option<usize>, String> {
     let seed = state
         .seed_base
         .wrapping_add((id as u64).wrapping_mul(0x9e3779b97f4a7c15));
-    let (i, j, reason) = choose(state, &virtual_fit, seed)?;
+    let Some((i, j, reason)) = choose(state, &virtual_fit, seed)? else {
+        return Ok(None);
+    };
     let (a, b) = (virtual_fit.names[i].clone(), virtual_fit.names[j].clone());
     let mode = start_mode(state, &a, &b);
     let assumed = state
@@ -1265,6 +1429,49 @@ mod tests {
             round: 0,
             start_mode: SlotStartMode::Light,
         });
+    }
+
+    #[test]
+    fn early_cross_generation_evidence_uses_real_games_and_keeps_the_less_exposed_agent() {
+        let mut s = fixture(4);
+        for (e, label) in s.entrants.iter_mut().zip(["v2", "v3", "v6", "v7"]) {
+            e.generation = Some(label.into());
+        }
+        for k in 0..19 {
+            result(&mut s, 0, 2, 0.5, k);
+        }
+        result(&mut s, 0, 1, 1., 20);
+        result(&mut s, 1, 3, 0.5, 21);
+        s.slots.last_mut().unwrap().time_control =
+            Some(super::super::clock::FischerControl::FIFTEEN_PLUS_FIVE);
+        result(&mut s, 0, 3, 0.5, 22);
+        s.slots.last_mut().unwrap().status = SlotStatus::Running;
+        let p = model::fit(&s, true).unwrap();
+        let e = PlacementEvidence::new(&s, &p).unwrap();
+        assert_eq!(e.outside, [19, 1, 19, 1]);
+        assert!(e.blocked(0, 1));
+        assert_eq!(e.keep(0, 1, 99), 1);
+        s.slots.last_mut().unwrap().status = SlotStatus::Done;
+        assert!(!PlacementEvidence::new(&s, &p).unwrap().blocked(0, 1));
+    }
+
+    #[test]
+    fn new_pair_guard_waits_without_a_foreign_opponent_and_preserves_committed_legs() {
+        let mut s = fixture(2);
+        for e in &mut s.entrants {
+            e.generation = Some("young".into());
+        }
+        assert_eq!(claim(&mut s).unwrap(), None);
+        s.entrants.push(TourneyEntrant {
+            id: "outside".into(),
+            generation: Some("other".into()),
+            model: "unused".into(),
+            engine: None,
+        });
+        let first = claim(&mut s).unwrap().unwrap();
+        let slot = s.slots.iter().find(|g| g.id == first).unwrap();
+        assert!(slot.model_a == "outside" || slot.model_b == "outside");
+        assert_eq!(claim(&mut s).unwrap(), Some(first + 1));
     }
 
     #[test]
@@ -1395,7 +1602,7 @@ mod tests {
         refresh(&mut s).unwrap();
         let p = model::fit(&s, true).unwrap();
         for seed in 0..100 {
-            let (_, _, reason) = choose(&mut s, &p, seed).unwrap();
+            let (_, _, reason) = choose(&mut s, &p, seed).unwrap().unwrap();
             assert_ne!(reason, "connectivity");
         }
         assert_eq!(s.adaptive.as_ref().unwrap().lane_pairs, [85, 10, 5]);
