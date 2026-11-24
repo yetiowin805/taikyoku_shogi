@@ -1072,18 +1072,40 @@ fn choose_from(
         return Ok((pair.0, pair.1, "generation_anchor".into()));
     }
     if lane == 1 {
-        if let Some(pair) = retry
-            .is_none()
-            .then(|| generation_matchups::choose(state, &actual))
-            .flatten()
-            .filter(|&(i, j, _)| !evidence.blocked(i, j))
-        {
-            return Ok(pair);
+        let mut probe_focal = retry.map(|(i, _)| i);
+        if retry.is_none() {
+            if let Some((i, j, reason)) = generation_matchups::choose(state, &actual) {
+                if !evidence.blocked(i, j) {
+                    return Ok((i, j, reason));
+                }
+                let keep = evidence.keep(i, j, seed);
+                if let Some(pair) = generation_matchups::choose_filtered(state, &actual, |a, b| {
+                    (a == keep || b == keep) && evidence.different(a, b)
+                }) {
+                    return Ok(pair);
+                }
+                // A conditional entrant only has admission for its qualified panel.
+                // If that panel cannot supply the replacement, use the ordinary
+                // probe lane for an active focal agent.
+                if active.contains(&keep) && active.iter().any(|&k| evidence.different(keep, k)) {
+                    return choose_from(
+                        state,
+                        p,
+                        seed,
+                        active,
+                        &available_pairs(state, p, active, |a, b| {
+                            (a == keep || b == keep) && evidence.different(a, b)
+                        }),
+                        Some((keep, "probe_residual")),
+                        evidence,
+                    );
+                }
+                probe_focal = None;
+            }
         }
         // Selection, including the champion identity, uses the draw-completed
         // scheduling state. Published leader identity is used for counter protection.
-        let champion = retry
-            .map(|(i, _)| i)
+        let champion = probe_focal
             .or_else(|| leader(&selection_state, p, ratings))
             .ok_or("no eligible scheduling champion")?;
         let candidates: Vec<_> = active
@@ -1453,6 +1475,31 @@ mod tests {
         assert_eq!(e.keep(0, 1, 99), 1);
         s.slots.last_mut().unwrap().status = SlotStatus::Done;
         assert!(!PlacementEvidence::new(&s, &p).unwrap().blocked(0, 1));
+    }
+
+    #[test]
+    fn connectivity_redirect_keeps_the_less_tested_endpoint_and_the_lane() {
+        let mut s = fixture(4);
+        // The virtual connectivity proposal is reproducible. Label its exact endpoints
+        // as peers and give one completed outside game only to the first endpoint.
+        result(&mut s, 0, 1, 0.5, 1);
+        refresh(&mut s).unwrap();
+        let p = model::fit(&s, true).unwrap();
+        let seed = (0..500)
+            .find(|&seed| {
+                let (a, b, _) = choose(&mut s, &p, seed).unwrap().unwrap();
+                (a < 2) != (b < 2)
+            })
+            .unwrap();
+        let (a, b, lane) = choose(&mut s, &p, seed).unwrap().unwrap();
+        let keep = if a >= 2 { a } else { b };
+        for (i, e) in s.entrants.iter_mut().enumerate() {
+            e.generation = Some(if i == a || i == b { "new" } else { "outside" }.into());
+        }
+        let (x, y, new_lane) = choose(&mut s, &p, seed).unwrap().unwrap();
+        assert_eq!(lane, new_lane);
+        assert!(x == keep || y == keep);
+        assert_ne!(s.entrants[x].generation, s.entrants[y].generation);
     }
 
     #[test]

@@ -251,6 +251,14 @@ pub(super) fn refresh(
 }
 
 pub(super) fn choose(state: &TourneyState, p: &Posterior) -> Option<(usize, usize, String)> {
+    choose_filtered(state, p, |_, _| true)
+}
+
+pub(super) fn choose_filtered(
+    state: &TourneyState,
+    p: &Posterior,
+    allowed: impl Fn(usize, usize) -> bool,
+) -> Option<(usize, usize, String)> {
     let tracking = &state.adaptive.as_ref()?.generation_matchups;
     if tracking.probe_pairs >= (tracking.scheduled_pairs + 1) / PAIRS_PER_PROBE {
         return None;
@@ -284,6 +292,9 @@ pub(super) fn choose(state: &TourneyState, p: &Posterior) -> Option<(usize, usiz
                 continue;
             }
             let j = p.names.binary_search(opponent).ok()?;
+            if !allowed(i, j) {
+                continue;
+            }
             let prob = model::sigmoid(p.mean[benchmark] + r.margin_elo / SCALE - p.mean[j]);
             let variance = (r.sd_elo / SCALE).powi(2);
             let information = prob * (1. - prob);
