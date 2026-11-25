@@ -99,6 +99,8 @@ pub struct Scheduler {
     pub generation_matchups: generation_matchups::State,
     #[serde(default)]
     pub scc_local_retirement: bool,
+    #[serde(default)]
+    pub held_out_retirement: bool,
     pub completed_games: usize,
     pub actual_components: usize,
     pub assumed_components: usize,
@@ -128,6 +130,7 @@ impl Default for Scheduler {
             retirement_threshold: None,
             generation_matchups: generation_matchups::State::default(),
             scc_local_retirement: false,
+            held_out_retirement: false,
             completed_games: 0,
             actual_components: 0,
             assumed_components: 0,
@@ -698,7 +701,7 @@ pub fn refresh(state: &mut TourneyState) -> Result<(), String> {
                 && members.contains(&g.model_a)
                 && members.contains(&g.model_b)
         });
-        let posterior = model::fit(&local, false)?;
+        let posterior = model::retirement_uncertainty::fit(&local, &published)?;
         let mut rank: Vec<_> = (0..group.len()).collect();
         for draw in posterior.draws(DRAWS, state.seed_base ^ evidence_key(&local)) {
             rank.sort_unstable_by(|&i, &j| draw[j].total_cmp(&draw[i]).then(i.cmp(&j)));
@@ -793,7 +796,7 @@ pub fn refresh(state: &mut TourneyState) -> Result<(), String> {
         };
         let otherwise_eligible = inactive_under_policy(
             !recheck_legacy
-                && state.adaptive.as_ref().unwrap().scc_local_retirement
+                && state.adaptive.as_ref().unwrap().held_out_retirement
                 && state.retired.contains(&p.names[i]),
             &e,
             groups[graph.component[i]].len() >= 9,
@@ -813,6 +816,7 @@ pub fn refresh(state: &mut TourneyState) -> Result<(), String> {
     a.actual_components = graph.groups.len();
     a.assumed_components = assumed_components;
     a.scc_local_retirement = true;
+    a.held_out_retirement = true;
     a.exposure = report;
     a.retirement_threshold = Some(threshold);
     a.error = None;
@@ -1887,6 +1891,10 @@ mod tests {
         v2["adaptive"]
             .as_object_mut()
             .unwrap()
+            .remove("held_out_retirement");
+        v2["adaptive"]
+            .as_object_mut()
+            .unwrap()
             .remove("scc_local_retirement");
         v2["adaptive"]["retirement_threshold"]
             .as_object_mut()
@@ -1916,7 +1924,7 @@ mod tests {
                 .retirement
                 .unwrap()
                 .policy,
-            "adaptive-top5-scc9-g40-out20-o6-v6"
+            "adaptive-top5-heldout-scc9-g40-out20-o6-v7"
         );
         // Check compatibility with pre-threshold scheduler JSON.
         let mut old = serde_json::to_value(&s).unwrap();
