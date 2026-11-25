@@ -3,6 +3,8 @@ use super::tournament::{SlotStartMode, SlotStatus, TourneyState};
 use rand::{Rng, SeedableRng};
 use std::collections::{BTreeMap, BTreeSet};
 
+pub(super) mod retirement_uncertainty;
+
 pub const SCALE: f64 = 400. / std::f64::consts::LN_10;
 pub type Matrix = Vec<Vec<f64>>;
 
@@ -63,12 +65,12 @@ struct Observation {
     points: f64,
 }
 
-fn information(theta: &[f64], observations: &[Observation]) -> (Matrix, Vec<f64>) {
+fn information(theta: &[f64], observations: &[Observation], prior: &[f64]) -> (Matrix, Vec<f64>) {
     let n = theta.len();
     let mut h = vec![vec![0.; n]; n];
     let mut g = vec![0.; n];
     for i in 0..n {
-        let precision = if i == n - 1 { 1. } else { 1. / 16. };
+        let precision = prior[i];
         h[i][i] = precision;
         g[i] = theta[i] * precision;
     }
@@ -87,14 +89,12 @@ fn information(theta: &[f64], observations: &[Observation]) -> (Matrix, Vec<f64>
     (h, g)
 }
 
-fn loss(theta: &[f64], observations: &[Observation]) -> f64 {
-    let color = theta.len() - 1;
-    let prior = theta
+fn loss(theta: &[f64], observations: &[Observation], precision: &[f64]) -> f64 {
+    theta
         .iter()
-        .enumerate()
-        .map(|(i, t)| t * t * if i == color { 0.5 } else { 1. / 32. })
-        .sum::<f64>();
-    prior
+        .zip(precision)
+        .map(|(t, p)| 0.5 * p * t * t)
+        .sum::<f64>()
         + observations
             .iter()
             .map(|o| {
@@ -102,6 +102,40 @@ fn loss(theta: &[f64], observations: &[Observation]) -> f64 {
                 o.count as f64 * (z.max(0.) + (-z.abs()).exp().ln_1p()) - o.points * z
             })
             .sum::<f64>()
+}
+
+fn fit_mean(observations: &[Observation], prior: &[f64]) -> Result<Vec<f64>, String> {
+    let n = prior.len();
+    let mut theta = vec![0.; n];
+    let mut converged = false;
+    for _ in 0..80 {
+        let (h, g) = information(&theta, observations, prior);
+        let step = solve(&cholesky(&h)?, &g);
+        if step.iter().all(|s| s.abs() < 1e-8) {
+            converged = true;
+            break;
+        }
+        let before = loss(&theta, observations, prior);
+        let descent: f64 = step.iter().zip(&g).map(|(a, b)| a * b).sum();
+        let mut rate = 1.;
+        let mut accepted = false;
+        for _ in 0..40 {
+            let next: Vec<_> = theta.iter().zip(&step).map(|(t, s)| t - rate * s).collect();
+            if loss(&next, observations, prior) <= before - 1e-4 * rate * descent + 1e-10 {
+                theta = next;
+                accepted = true;
+                break;
+            }
+            rate *= 0.5;
+        }
+        if !accepted {
+            return Err("scheduling fit line search failed".into());
+        }
+    }
+    if !converged {
+        return Err("scheduling fit did not converge".into());
+    }
+    Ok(theta)
 }
 
 pub fn fit(state: &TourneyState, assume_draws: bool) -> Result<Posterior, String> {
@@ -175,36 +209,10 @@ pub fn fit(state: &TourneyState, assume_draws: bool) -> Result<Posterior, String
         })
         .collect();
     let n = names.len() + 1;
-    let mut theta = vec![0.; n];
-    let mut converged = false;
-    for _ in 0..80 {
-        let (h, g) = information(&theta, &observations);
-        let step = solve(&cholesky(&h)?, &g);
-        if step.iter().all(|s| s.abs() < 1e-8) {
-            converged = true;
-            break;
-        }
-        let before = loss(&theta, &observations);
-        let descent: f64 = step.iter().zip(&g).map(|(a, b)| a * b).sum();
-        let mut rate = 1.;
-        let mut accepted = false;
-        for _ in 0..40 {
-            let next: Vec<_> = theta.iter().zip(&step).map(|(t, s)| t - rate * s).collect();
-            if loss(&next, &observations) <= before - 1e-4 * rate * descent + 1e-10 {
-                theta = next;
-                accepted = true;
-                break;
-            }
-            rate *= 0.5;
-        }
-        if !accepted {
-            return Err("scheduling fit line search failed".into());
-        }
-    }
-    if !converged {
-        return Err("scheduling fit did not converge".into());
-    }
-    let (h, _) = information(&theta, &observations);
+    let mut prior = vec![1. / 16.; n];
+    prior[n - 1] = 1.;
+    let theta = fit_mean(&observations, &prior)?;
+    let (h, _) = information(&theta, &observations, &prior);
     let l = cholesky(&h)?;
     let mut covariance = vec![vec![0.; n]; n];
     for j in 0..n {
@@ -333,6 +341,46 @@ mod tests {
                 .collect(),
             ..Default::default()
         })
+    }
+
+    #[test]
+    fn retirement_uses_published_centers_and_uniform_clock_scaling_cancels() {
+        use crate::training::{clock::FischerControl, order_neutral};
+        let mut state = fixture();
+        state.entrants.truncate(2);
+        state.slots.clear();
+        for id in 0..12 {
+            state.slots.push(TourneySlot {
+                time_control: None,
+                id,
+                model_a: "a0".into(),
+                model_b: "a1".into(),
+                start_seed: (id / 2) as u64,
+                a_is_black: id % 2 == 0,
+                status: SlotStatus::Done,
+                game_path: None,
+                score_a: Some(if id % 3 == 0 { 0. } else { 1. }),
+                round: 0,
+                start_mode: SlotStartMode::Light,
+            });
+        }
+        let fit = |s: &TourneyState| {
+            let published = order_neutral::from_state(s);
+            let p = retirement_uncertainty::fit(s, &published).unwrap();
+            for (i, name) in p.names.iter().enumerate() {
+                assert!((p.mean[i] * SCALE - published.ratings[name]).abs() < 1e-8);
+            }
+            p.covariance[0][0] + p.covariance[1][1] - 2. * p.covariance[0][1]
+        };
+        let base = fit(&state);
+        for g in &mut state.slots {
+            g.time_control = Some(FischerControl::FIFTEEN_PLUS_FIVE);
+        }
+        assert!((base - fit(&state)).abs() < 1e-7);
+        for g in &mut state.slots[2..] {
+            g.time_control = None;
+        }
+        assert!(fit(&state) > base);
     }
 
     #[test]

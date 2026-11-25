@@ -156,6 +156,14 @@ pub(super) fn evaluate(state: &TourneyState, fit: &Fit) -> Result<Report, String
         // A read-only fit describes the rules that produced the saved decisions.
         report.policy = match state.adaptive.as_ref().and_then(|a| a.retirement_threshold) {
             Some(_)
+                if state
+                    .adaptive
+                    .as_ref()
+                    .is_some_and(|a| a.held_out_retirement) =>
+            {
+                "adaptive-top5-heldout-scc9-g40-out20-o6-v7"
+            }
+            Some(_)
                 if state.adaptive.as_ref().is_some_and(|a| {
                     a.scc_local_retirement
                         && a.exposure.values().any(|e| e.outside_largest.is_some())
