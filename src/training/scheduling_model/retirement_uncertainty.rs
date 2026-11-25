@@ -188,9 +188,9 @@ pub(in crate::training) fn fit(state: &TourneyState, published: &Fit) -> Result<
     // Condition on the published color in that case, as for fixed-color ratings.
     if published.color_fit_status != "estimated" || cholesky(&h).is_err() {
         for matrix in [&mut h, &mut meat] {
-            for i in 0..n {
-                matrix[n][i] = 0.;
-                matrix[i][n] = 0.;
+            matrix[n].fill(0.);
+            for row in &mut matrix[..n] {
+                row[n] = 0.;
             }
             matrix[n][n] = 1.;
         }
