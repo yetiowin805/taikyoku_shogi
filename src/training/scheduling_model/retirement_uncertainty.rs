@@ -199,9 +199,9 @@ pub(in crate::training) fn fit(state: &TourneyState, published: &Fit) -> Result<
     // H^-1 J H^-1: solving the rows twice avoids explicitly inverting H.
     let left: Vec<_> = meat.iter().map(|row| solve(&l, row)).collect();
     let mut covariance = zero;
-    for j in 0..=n {
+    for (j, row) in covariance.iter_mut().enumerate() {
         let column = left.iter().map(|row| row[j]).collect::<Vec<_>>();
-        covariance[j] = solve(&l, &column);
+        *row = solve(&l, &column);
     }
     let factor = cholesky(&covariance)?;
     Ok(Posterior {

@@ -90,6 +90,7 @@ fn information(theta: &[f64], observations: &[Observation], prior: &[f64]) -> (M
 }
 
 fn loss(theta: &[f64], observations: &[Observation], precision: &[f64]) -> f64 {
+    let color = theta.len() - 1;
     theta
         .iter()
         .zip(precision)
