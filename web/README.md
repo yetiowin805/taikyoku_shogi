@@ -28,7 +28,13 @@ Open the UI, switch **Play** / **Debug**, load games, click pieces to move.
 
 In **Play**, the **Alpha-beta** panel sets depth / model / time for `ab`. **Runs** can start `ab vs ab` (or vs `mi`) autoplay and stop/save when done.
 
-The game list includes `games/` and `data/raw/games/`. Loading a v2 training game applies its embedded start position (not always the opening).
+The game explorer includes `games/` and `data/raw/games/`. Click folders to browse,
+use the breadcrumb path or Parent folder to go back, and search by name or path
+across the whole library. Files sort naturally (for example, game2 before game10).
+Select a file and click **Open game**, or double-click it. The footer keeps the
+selected game's name and folder visible, even while browsing elsewhere. Larger
+folders and search results use pages of 80 entries. Refresh updates the library.
+Loading a v2 training game applies its embedded start position (not always the opening).
 
 Loaded games with recorded scores show separate evaluation lines for the Black
 agent (solid blue) and White agent (dashed amber). Colors identify the evaluating
