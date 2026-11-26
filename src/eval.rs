@@ -1174,13 +1174,15 @@ pub enum SearchTrial {
     MajorThreatLmr,
     QRefillHistory,
     PvsPromote,
+    /// v7 S2E transfer: compose the major-threat LMR and PVSPV trials.
+    MajorThreatPvsPromote,
     GrowthAware,
     PostCaptureSafety,
 }
 
 impl SearchTrial {
     /// Engine admission probes reject checkpoints requiring an unsupported trial.
-    pub const ALL: [Self; 14] = [
+    pub const ALL: [Self; 15] = [
         Self::None,
         Self::ContextRetry,
         Self::QRefill,
@@ -1193,6 +1195,7 @@ impl SearchTrial {
         Self::MajorThreatLmr,
         Self::QRefillHistory,
         Self::PvsPromote,
+        Self::MajorThreatPvsPromote,
         Self::GrowthAware,
         Self::PostCaptureSafety,
     ];
