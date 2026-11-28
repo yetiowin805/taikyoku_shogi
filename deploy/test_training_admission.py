@@ -396,6 +396,15 @@ class AdmissionTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "duplicates the source search settings"):
                     admission.prepare_search_variants(config)
 
+                config["search_variants"]["base_ATK_duplicate"]["quiescence_depth"] = 3
+                _, deeper = admission.prepare_search_variants(config)
+                self.assertEqual(a.read(deeper / "model.json")["search_defaults"]["quiescence_depth"], 3)
+                config["search_variants"]["same_as_inherited"] = dict(
+                    base_entrant="base", experiment="history_tactical_lmr_q_fix", trial="none", quiescence_depth=2
+                )
+                with self.assertRaisesRegex(ValueError, "distinct search policies per baseline"):
+                    admission.prepare_search_variants(config)
+
     def test_external_lease_exemption_requires_actual_service_owner(self):
         with tempfile.TemporaryDirectory() as temp:
             control = Path(temp)

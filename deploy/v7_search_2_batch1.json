@@ -1,0 +1,81 @@
+{
+  "generation": "v7_search_2",
+  "source_search": {
+    "NNUE_W256_v7_S3_E": {
+      "experiment": "history_tactical_lmr_q_fix_history_reduction",
+      "trial": "none"
+    },
+    "NNUE_W256_v7_S3_Ao": {
+      "experiment": "history_tactical_lmr_q_fix_history_reduction",
+      "trial": "none"
+    },
+    "NNUE_W384_v7_S3_C": {
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "major_threat_lmr"
+    }
+  },
+  "search_variants": {
+    "NNUE_W256_v7_S3_E_HLF_G3ATKPR": {
+      "base_entrant": "NNUE_W256_v7_S3_E",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "major_threat_partial_root"
+    },
+    "NNUE_W256_v7_S3_E_HLF_G3ATKHI": {
+      "base_entrant": "NNUE_W256_v7_S3_E",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "major_threat_high_value"
+    },
+    "NNUE_W256_v7_S3_E_HLF_G3PV": {
+      "base_entrant": "NNUE_W256_v7_S3_E",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "promote_pv"
+    },
+    "NNUE_W256_v7_S3_E_HLF_G3QH": {
+      "base_entrant": "NNUE_W256_v7_S3_E",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "q_history"
+    },
+    "NNUE_W256_v7_S3_E_HLF_G3ATK_Q3": {
+      "base_entrant": "NNUE_W256_v7_S3_E",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "major_threat_lmr",
+      "quiescence_depth": 3
+    },
+    "NNUE_W256_v7_S3_Ao_HLF_G3ATKPR": {
+      "base_entrant": "NNUE_W256_v7_S3_Ao",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "major_threat_partial_root"
+    },
+    "NNUE_W256_v7_S3_Ao_HLF_G3ATKHI": {
+      "base_entrant": "NNUE_W256_v7_S3_Ao",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "major_threat_high_value"
+    },
+    "NNUE_W256_v7_S3_Ao_HLF_G3PV": {
+      "base_entrant": "NNUE_W256_v7_S3_Ao",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "promote_pv"
+    },
+    "NNUE_W384_v7_S3_C_HLF_G3ATKPR": {
+      "base_entrant": "NNUE_W384_v7_S3_C",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "major_threat_partial_root"
+    },
+    "NNUE_W384_v7_S3_C_HLF_G3ATKHI": {
+      "base_entrant": "NNUE_W384_v7_S3_C",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "major_threat_high_value"
+    },
+    "NNUE_W384_v7_S3_C_HLF_G3QH": {
+      "base_entrant": "NNUE_W384_v7_S3_C",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "q_history"
+    },
+    "NNUE_W384_v7_S3_C_HLF_G3CF_Q3": {
+      "base_entrant": "NNUE_W384_v7_S3_C",
+      "experiment": "history_tactical_lmr_q_fix",
+      "trial": "context_retry",
+      "quiescence_depth": 3
+    }
+  }
+}

@@ -1176,13 +1176,17 @@ pub enum SearchTrial {
     PvsPromote,
     /// v7 S2E transfer: compose the major-threat LMR and PVSPV trials.
     MajorThreatPvsPromote,
+    /// v7 search wave 2: combine ATK with guarded partial-root selection.
+    MajorThreatPartialRoot,
+    /// v7 search wave 2: spend ATK verification only on higher-value victims.
+    MajorThreatHighValue,
     GrowthAware,
     PostCaptureSafety,
 }
 
 impl SearchTrial {
     /// Engine admission probes reject checkpoints requiring an unsupported trial.
-    pub const ALL: [Self; 15] = [
+    pub const ALL: [Self; 17] = [
         Self::None,
         Self::ContextRetry,
         Self::QRefill,
@@ -1196,6 +1200,8 @@ impl SearchTrial {
         Self::QRefillHistory,
         Self::PvsPromote,
         Self::MajorThreatPvsPromote,
+        Self::MajorThreatPartialRoot,
+        Self::MajorThreatHighValue,
         Self::GrowthAware,
         Self::PostCaptureSafety,
     ];
