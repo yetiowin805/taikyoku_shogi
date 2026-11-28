@@ -2,6 +2,10 @@
 
 Ideas parked after a knockout, not the next patch. Search / eval experiments that are ready to measure still live in [`IDEAS_TO_TRY.md`](IDEAS_TO_TRY.md).
 
+## Finding new search variants in v7 games
+
+Start with the quiet alternative in slot 9035 and the two opening exchanges in slot 9290. The research note connects these cases to 48 replayed decisions and a separate opening sample, then sets out what to mine before choosing the next tournament experiments. [V7 search discovery notes and replay data](benchmarks/v7_search_discovery_20261127/README.md)
+
 ## Let tournament games survive coordinator restarts
 
 Scheduler code changes currently require the coordinator to restart. Its game workers exit with it, so a deployment must either wait for long 15+5 games to finish or requeue interrupted slots from the opening.

@@ -1,0 +1,137 @@
+V7 search idea discovery from game records | 2026-11-27
+
+Selection and replay
+Tournament state for the depth sample was updated at 2026-11-27T18:39:50+00:00. It contained 10,266 completed and scored games.
+E = NNUE_W256_v7_S3_E_HLF_G3ATK. Ao = NNUE_W256_v7_S3_Ao_HLF_HR_G3ATK. All selected games used 60,000 ms + 1,000 ms.
+For each agent, hash-ordered eligible games supplied 12 own decisions on turns 15–50 and 12 on turns 51–150. One decision per unique pairing, seed and opening mode. The 48 pre-move boards had distinct hashes. A game needed a decision for that side with an absolute static score of at most 1,500, a recorded completed depth of three, and a selected depth of three where recorded. Hash ordering chose the turn within an eligible game. Hash namespace v7nov27discover1:. The sample excludes decisions that failed to finish depth three.
+The recorded game action supplied depth three. Fresh replays through the recorded move history with the game agent model and archived analyzer (binary SHA-256 checked against the game) supplied depths one and two. All 48 replays finished both. Differences can include timed search and replay effects. Scores below use engine evaluation units. Root choices are full routes.
+
+Changes of root move
+Depth three changed the depth-two choice in 26/48 cases. 4 returned to the depth-one winner. Of 22 winning moves that had won at neither shallow depth, 19 were quiet, 19 used another piece from both shallow winners, and 17 met both conditions. Quiet means no pieces of either side removed and no promotion.
+Legal routes per board ranged from 432 to 1325, median 691.5. Depth three changed the move in 3/14 decisions where the depth-two candidate took an enemy piece and 23/34 where it took none. The latter class includes friendly clearances. These are frequencies of changes, not measured accuracy or strength gains.
+
+Independent forced-line reviews
+Ten cases were hash-selected from the 22 positions with a new depth-three winner. A third network, NNUE_W384_v7_S3_C_HLF_G3PVSPV, evaluated the two resulting boards at two completed plies after each forced move. It favored the deeper choice in 6/10. All scores in this section are from the original mover’s perspective.
+slot  ply  score after d2 move  score after d3 move  best replies after the respective moves
+ 9190   32   -1267   -1411  21,3-20,3 | 17,2-17,14
+ 9039  106   -1493   -1622  21,9-22,10 | 21,9-22,10
+ 9035  115    -779     172  26,21-23,21 | 7,22-3,18
+ 9909  174   -3366   -3060  13,0-12,1 | 19,33-18,34
+ 9990   96   -3210   -3366  8,23-19,34 | 17,5-19,7
+ 8952  238   -1581   -1051  4,0-5,1 | 29,0-28,0
+10127  121   -2116   -1998  24,19-18,13-8,23 | 24,19-25,18-19,12
+ 9858  126   -2623   -2258  15,8-8,15 | 8,18-10,18
+10222  108   -1110   -1652  17,8-18,8 | 15,24-15,25
+ 9322  117    -767    -278  26,19-28,17 | 22,13-20,13
+
+Slot 9035, ply 115 | a counterfactual deployment
+Black E played the Great Master from (17,8) to (20,11). Its depth-two replay had preferred the Bishop General from (4,2) to (23,21), removing eight friendly pieces and zero enemies. White’s Flying Eagle from (26,21) can take it on (23,21). Both reviewers returned this reply at all three completed child depths. Reviewer scores are from Black’s perspective following each forced move.
+BishopGeneral / NNUE_W384_v7_S3_C_HLF_G3PVSPV | child depths 1, 2, 3: 1 -1279 (26,21-23,21), 2 -779 (26,21-23,21), 3 -1210 (26,21-23,21)
+BishopGeneral / NNUE_W256_v7_S3_Ao_HLF_HR_G3ATK | child depths 1, 2, 3: 1 -1890 (26,21-23,21), 2 -2069 (26,21-23,21), 3 -1620 (26,21-23,21)
+GreatMaster / NNUE_W384_v7_S3_C_HLF_G3PVSPV | child depths 1, 2, 3: 1 -667 (21,11-24,8), 2 +172 (7,22-3,18), 3 +7 (7,22-3,18)
+GreatMaster / NNUE_W256_v7_S3_Ao_HLF_HR_G3ATK | child depths 1, 2, 3: 1 -1647 (21,11-24,8), 2 -1560 (21,11-24,8), 3 -1300 (31,33-11,13)
+
+Opening range-piece deployments
+A separate hash-ordered sample took eight completed games per focal agent from distinct pairing, seed and mode combinations. For the named side only, all decisions in the first 48 game plies were scanned. Range-capturer moves that removed two or more friendly pieces and zero enemies were followed for 16 further plies, tracking the piece through its moves. The first observed continuation was kept for each pre-move board hash and full route. Repeated openings and related decisions within one game make these descriptive counts. Hash namespace v7-opening-lag-.
+Game slots: 9481 (E, White), 9802 (E, Black), 9290 (E, White), 9681 (E, White), 9521 (E, White), 9498 (E, White), 10321 (E, White), 9097 (E, Black), 10058 (Ao, Black), 10137 (Ao, White), 9297 (Ao, Black), 8965 (Ao, Black), 10001 (Ao, White), 10082 (Ao, Black), 10221 (Ao, Black), 8987 (Ao, Black)
+384 own decisions, 346 distinct boards, 81 observed deployments, 66 unique board+route deployments. Removal offsets after deployment: 1: 4, 3: 12, 5: 4, 7: 3, 9: 3, 11: 3, 13: 3; survived all 16 further plies: 34.
+All 12 deployments lost three plies later took enemy material on their own intervening move. The opposing capture ended on the range capturer’s square in 12/12. 9/12 had a lower same-agent score four plies after deployment. Recorded evaluations reflect both players' intervening choices and potentially different completed depths.
+slot  ply  piece and deployment | first enemy pieces taken | recapturer | original mover evaluation at p,p+2,p+4 | completed depths
+ 9481    4  GreatGeneral 18,32-32,18 | CopperGeneral, GoBetween, DarkSpirit, HookMover, FierceWolf, SquareMover, LeopardSoldier, FlyingEagle, Pawn | Rikishi | [-1372, -1170, -1484] | [3, 3, 3]
+ 9802    3  GreatGeneral 17,3-3,17 | CopperGeneral, GoBetween, DarkSpirit, HookMover, FierceWolf, SquareMover, LeopardSoldier, FlyingEagle, Pawn | NeighboringKing | [989, 1023, 178] | [4, 3, 3]
+ 9802    7  ViceGeneral 18,3-32,17 | GoBetween, Capricorn, FierceWolf, SquareMover, LeopardSoldier, FlyingEagle, Pawn | GreatStag | [178, 730, 955] | [3, 3, 3]
+ 9290    2  FierceDragon 20,32-6,18 | Peacock, GreatStag, GreatDragon, HookMover, CenterMaster, LionHawk, IronGeneral, FierceTiger, Pawn | WaterDragon | [-1152, -259, 680] | [3, 4, 4]
+ 9290   18  ViceGeneral 17,32-4,19 | FierceDragon, Capricorn | FowlCadet | [2094, 453, 394] | [2, 3, 3]
+ 9521   22  FlyingGeneral 5,33-18,33 | DrunkenElephant, PhoenixMaster, Pawn, ViceGeneral, DarkSpirit, FreeEagle, GreatStandard, RoaringDog | HookMover | [-3578, -3517, -3832] | [3, 3, 3]
+ 9097   17  FlyingGeneral 30,2-30,15 | ViceGeneral | KirinMaster | [1856, 948, 835] | [4, 3, 3]
+10058    3  GreatGeneral 17,3-3,17 | CopperGeneral, DarkSpirit, GoBetween, HookMover, FierceWolf, SquareMover, LeopardSoldier, FlyingEagle, Pawn | NeighboringKing | [1596, 1054, 803] | [3, 3, 3]
+10001   12  ViceGeneral 17,32-32,17 | HookMover, Phoenix, FierceStag, OldRat, StoneGeneral, Pawn, HornedHawk | WoodlandDemon | [2426, 2384, 1848] | [4, 4, 3]
+10001   18  FlyingGeneral 30,33-22,33 | FreeKing, RunningBear, Peacock, FowlCadet, SheepSoldier, Pawn, WaterGeneral, SouthernBarbarian, LeopardSoldier, SpearSoldier | RearStandard | [1688, 2371, 1371] | [3, 4, 3]
+ 8987   23  FlyingGeneral 5,2-13,2 | FreeKing, RunningBear, Pawn, Peacock, FowlCadet, SheepSoldier, SpearSoldier, WaterGeneral, SouthernBarbarian, OldRat | RearStandard | [1003, 1389, 839] | [3, 4, 3]
+ 8987   33  FlyingGeneral 30,2-6,2 | Tengu, ForestDemon, FrontStandard, HorseGeneral, MountainHawk, FierceLeopard, Pawn, AngryBoar, CatSword, VerticalHorse | RainDragon | [259, 431, 663] | [3, 3, 2]
+
+All root decisions
+slot  ply  agent  pre-move hash  legal routes  depth one | depth two | depth three  d2 takes enemy?  d3 quiet?
+ 9572   55  E   04543b5d7cf3242e   744  6,15-6,17 | 6,15-6,17 | 6,15-6,17  no  yes
+ 9430   56  E   b3e76e9304636928   779  29,18-29,0+ | 22,35-23,34 | 16,30-2,16  no  yes
+ 9362   43  E   62731b45263dad58   766  6,12-1,17 | 6,12-1,17 | 6,12-1,17  yes  no
+ 9577   58  E   d8f1cd2f2d21b600   727  4,19-0,15 | 5,28-5,4 | 5,28-5,4  yes  no
+ 9190   32  E   bfd6214664785f09   545  20,32-29,23 | 20,32-29,23 | 20,32-31,21  no  no
+ 9537   90  E   9e8e843400ba3f31   644  17,29-16,28 | 27,26-26,26 | 27,26-26,26  no  yes
+ 9289   55  E   1c53814b6425ed0e   673  1,35-16,35 | 1,35-16,35 | 1,35-16,35  yes  no
+10322   35  E   2040d7000664cce6   549  12,8-13,9 | 23,6-22,7 | 23,6-22,7  no  yes
+10152   94  E   85f24acb2780d959   852  11,34-10,33 | 30,34-29,34 | 30,34-29,34  no  yes
+ 9481   62  E   520c9faea1f76684   688  7,22-29,0+ | 18,33-8,23 | 4,19-10,19  no  yes
+ 9873   30  E   ac21b42b2a136f40   812  32,17-16,1-17,0 | 34,13-34,0 | 34,13-34,0  yes  no
+10056   36  E   09fd90a1877b97c5   520  13,33-16,30-6,20 | 13,33-17,29-8,20 | 13,33-16,30-6,20  no  yes
+10099  284  E   7842f9999780db1c  1050  7,33-5,33 | 8,28-7,27 | 18,30-18,28  no  yes
+ 9442  113  E   b593d79dfd21156a   679  15,2-13,4 | 27,13-14,26+ | 27,13-14,26+  no  no
+ 9818  139  E   54e74bce8225f6a9   588  26,8-25,9 | 26,8-25,9 | 26,8-25,9  yes  no
+ 9039  106  E   dc700ef5165fd08c   801  9,27-9,28 | 9,27-9,28 | 7,31-7,30  no  yes
+ 9035  115  E   7ab877b7da676736   820  14,2-13,3 | 4,2-23,21 | 17,8-20,11  no  yes
+10061  213  E   d44e4a91460cab25   913  21,24-20,25+ | 2,4-4,6 | 21,24-20,25+  no  no
+ 9244  286  E   4a754362ad7b6962  1195  8,27-7,26 | 17,19-14,16 | 17,19-14,16  no  yes
+ 9801  264  E   a5b036ffaa3e7d7e  1325  20,28-20,27 | 22,22-8,8 | 2,25-2,24  yes  yes
+ 9602  173  E   fa32abfbe8b0a626   486  11,1-12,2 | 19,6-19,7 | 11,1-12,2  no  yes
+ 9074  187  E   5daae22296ad8d19   619  22,6-21,7 | 11,8-9,8 | 11,8-9,8  no  yes
+ 9869  134  E   51305c2b44ee4ccb   786  15,18-31,2+ | 15,18-31,2+ | 17,29-16,28  yes  yes
+ 9909  174  E   2445f8bc67e30be9   694  20,33-20,30 | 18,34-19,33 | 14,32-15,32  yes  yes
+ 9318   39  Ao  50aadc5d2bdb8471   616  32,5-31,5 | 32,5-31,5 | 32,5-31,5  yes  no
+ 9882   99  Ao  4637d2ac9dd2aae4   478  23,8-24,9 | 18,8-18,7 | 18,8-19,8  no  yes
+10270   54  Ao  ff3e57b6625d3c51   683  22,34-22,0+ | 22,34-22,4+ | 18,26-18,23  no  yes
+10018   43  Ao  281145dc8e38699e   716  13,20-18,25+ | 20,17-25,12 | 20,17-25,12  no  yes
+10002   31  Ao  ecdc5a7e1ab829ac   535  1,19-4,19 | 17,9-17,12 | 17,9-17,12  no  yes
+ 9041   76  Ao  38aed54b38fed3f8   645  4,26-8,22 | 7,22-4,19 | 7,22-14,15  no  yes
+10145   41  Ao  9fb267933baae0f7   489  4,17-22,35+ | 4,17-12,25+ | 4,17-12,25+  yes  no
+ 9807   92  Ao  af13ef4053ceb4a4   825  21,15-6,0 | 3,34-27,10 | 3,34-27,10  yes  no
+ 8557   33  Ao  2a30e05e83a75748   655  14,3-14,4 | 4,16-4,18 | 17,7-17,6-18,5  no  yes
+ 8955   38  Ao  bb958b0e074731a2   755  11,12-18,5+ | 11,12-4,19 | 12,34-13,34  no  yes
+10098   81  Ao  6411e0d4f658c078   686  19,6-17,8 | 24,19-0,19 | 19,6-17,8  no  yes
+ 9990   96  Ao  dc6fe75a9d2d352d   625  18,28-17,28-16,27 | 9,27-9,28 | 20,33-22,31  no  yes
+ 8952  238  Ao  55e3f14214e84ec9   462  27,31-27,30 | 18,34-19,33 | 24,26-24,24  no  yes
+ 9787  199  Ao  2ee1b946d5bce754  1057  8,8-7,9 | 7,8-7,9 | 7,8-7,9  yes  no
+10127  121  Ao  f7ae80d01802e21b   731  1,9-1,25+ | 17,9-14,9 | 14,7-13,8  no  yes
+10257  110  Ao  88d3399ae473c787   812  7,35-6,34 | 18,19-18,13 | 22,28-22,13  no  no
+ 9177  225  Ao  5234777738e8711c   689  6,6-5,7 | 34,9-33,10 | 34,9-33,10  no  yes
+ 9858  126  Ao  3cd4c0c8132189f8   643  16,29-18,27 | 16,18-8,10+ | 7,17-8,17  no  yes
+ 9841  180  Ao  34eb24c812ec13b7   950  0,34-0,35 | 0,34-0,35 | 0,34-0,35  yes  no
+ 9816  111  Ao  0b7c6551fe8c0c85   835  24,9-7,26+ | 12,9-13,10 | 12,9-13,10  no  yes
+10222  108  Ao  9f72134ac1d9d259   671  15,25-15,24 | 23,14-24,14 | 7,34-5,32  no  yes
+ 9457  156  Ao  4284bd459ce62190   432  23,8-24,8 | 35,26-29,20 | 34,27-33,27  no  yes
+ 9322  117  Ao  d93e4c3625847e0a   918  18,2-18,4 | 30,17-26,21 | 26,7-7,26  no  no
+10217  130  Ao  43afa2c44c32e07f   842  12,29-13,29 | 3,34-28,9 | 3,34-28,9  yes  no
+
+Depth three on the 1+1 Fischer clock, v7 search leaders
+2026-11-27 10:17 PST | 10,259 completed tournament games
+All completed games involving 256_v7_S3_E_HLF_G3ATK or 256_v7_S3_Ao_HLF_HR_G3ATK. Counts are turns played by those agents. Six mutual 1+1 games contribute turns for both colors. A move counts as reaching three only if iteration three completed. The clock balance is measured before the move, and phase is the agent’s own turn count.
+short           | 189364 turns | 163801 at depth 3+ | 25563 below | 19910 interrupted at 3 |  5653 below 3 with no attempt | 3.979 s median bank on misses
+short/1-20      |   5150 turns |   4258 at depth 3+ |   892 below |   396 interrupted at 3 |   496 below 3 with no attempt | 43.363 s median bank on misses
+short/101+      | 163654 turns | 145576 at depth 3+ | 18078 below | 15062 interrupted at 3 |  3016 below 3 with no attempt | 3.084 s median bank on misses
+short/21-50     |   7710 turns |   5047 at depth 3+ |  2663 below |  1586 interrupted at 3 |  1077 below 3 with no attempt | 19.675 s median bank on misses
+short/51-100    |  12850 turns |   8920 at depth 3+ |  3930 below |  2866 interrupted at 3 |  1064 below 3 with no attempt | 4.947 s median bank on misses
+short/Ao        | 103348 turns |  90625 at depth 3+ | 12723 below | 10022 interrupted at 3 |  2701 below 3 with no attempt | 3.873 s median bank on misses
+short/E         |  86016 turns |  73176 at depth 3+ | 12840 below |  9888 interrupted at 3 |  2952 below 3 with no attempt | 4.077 s median bank on misses
+
+V7 search comparison using archived 1+1 game timings, 27 November 2026
+Baseline A = 256_v7_S3_E_HLF_G3ATK. Candidate B = 256_v7_S3_E_HLF_G3ATKPVSPV. One NNUE checkpoint.
+Eight complete color-reversed pairs from the earlier 10,258-game sample. Compare the time spent in completed iterations one through three, summed, on identical pre-move positions up to and including the first different move. The clocks are real tournament wall times and include server timing variability. Later, already-divergent positions are outside this comparison.
+Each pair had an identical start and identical route history through the compared point. Across pairs, group by board repetition key, full move-prefix fingerprint, ply, history length, current repetition count and draw counter. Repeated observations within a group contribute their median B/A ratio. These shared opening histories cluster within eight pairs.
+83 paired observations, 73 distinct position/history groups. Both players completed depth three on all observations.
+Median position ratio B/A 1.0115. Middle half 0.9755 to 1.0566. Range 0.6538 to 1.8924.
+
+Slot pair | first different ply | paired depth-three observations | median time ratio B/A
+9101/9102 | 5 | 5 | 0.9849
+9271/9272 | 5 | 5 | 0.9670
+9293/9294 | 5 | 5 | 1.0073
+9825/9826 | 14 | 14 | 1.0124
+9873/9874 | 9 | 9 | 0.9755
+10055/10056 | 6 | 6 | 0.9615
+10061/10062 | 10 | 10 | 1.0520
+10151/10152 | 29 | 29 | 1.0476
+
+Build provenance for the two discovery samples
+The 48 root-iteration games and 16 opening games shared one slot. All 126 player records in the 63 distinct games identified the same engine and analyzer binaries.
+Engine SHA-256    5f8e0ca5a7a1f48952fb8417c7f6965d7dfe5ac1c65d7afb12c2b158ec1c54d3
+Analyzer SHA-256  674cb08dd926db18e3ed79bedca1bcaa20baa53c120f9ffa68d64335005e7a56
+The production build record cites core optimizations at bbe4eb931b7ccba5eb1eb0109e94e9cff05f06bf and the v7 S2E opt-in ATK+PVSPV patch digest 900eb10114f2f51108927644ad9ed75ed9b5b87bf865ff2e9608b4d3630fb067. Use the binary hashes above when reproducing a recorded decision.
+Repository search and clock implementation references in the research note were checked against main at 2ef3be3209f6fb8911ab1175b568c0a4ea617012.
