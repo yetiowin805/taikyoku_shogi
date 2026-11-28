@@ -40,6 +40,29 @@ In eight color-reversed pairs, `256_v7_S3_E_HLF_G3ATK` and its `ATKPVSPV` counte
 
 **What to mine.** For one expensive extension or re-search, trace the nodes where it fires. Compare skipping just that invocation on the same position. Record the time, whether the returned bound or root choice changes, and the rare cases where verification saves a good move. If a cheap condition preserves those saves on fresh positions, try a narrower version and measure what the released time buys elsewhere at 1+1.
 
+## 6. Follow an existing threat through a sacrifice elsewhere
+
+**Replay slot 10358 from before ply 1135** in the corrected-rules tournament. Black was `256_v7_S3_Ao_HLF_G3PR` and White was `256_v6Cm_HLFS_G3QH`, playing 15+5. Black’s Water Dragon forked two Tengus. At 1136 White swept three pieces with its Great General. If Black immediately took either Tengu, the General could sweep five more Black pieces, including the Great Dove and Rain Demon. Instead, at 1137 the Great Dove took the General first, leaving the fork intact. At 1138 White took a Lion with one Tengu. Black took the other Tengu at 1139, as White’s search expected, and the survivor took a Rear Standard at 1140. The decision to investigate is the General sacrifice at **1136**. The Lion capture at **1138** is a useful control where the agent already saw the coming loss.
+
+With White’s regular search fixed at depth two, varying only the maximum quiescence depth reproduced the played move at the tournament setting:
+
+| Maximum quiescence plies | White’s choice at 1136 | Quiescence nodes |
+|---:|---|---:|
+| 1 | Tengu captures the Water Dragon | 9,009 |
+| 2 (tournament) | Great General sacrifice | 374,893 |
+| 3 | Tengu escapes and captures a Turtledove | 375,151 |
+| 4 | Same Tengu escape | 374,554 |
+
+The sacrifice led the immediate Water Dragon capture by 110 White evaluation points with one regular reply ply after each forced move. It trailed by 2,313 with two reply plies. At four reply plies it led again by 332. These are matched comparisons using White’s evaluator and the normal quiescence policy. Use this slot as evidence of sensitivity to depth. The objectively best move is still open, and the 258-node cost of the third quiescence ply is a single-position observation.
+
+**Experiments to separate:**
+
+1. Raise the maximum quiescence depth from two to three while retaining the existing one-ply cap on most non-principal lines. Measure quiescence nodes, time, and regular depths completed at 1+1. [Leaf budget policy](../../src/search.rs#L4155-L4162)
+2. Remember a fork of two valuable pieces for one intervening exchange. Before accepting a static score, verify whether the original attacker still has a legal capture on either target. If it does, give the defender a bounded search including quiet escapes, captures of the attacker and genuine counterthreats. Trace whether the decisive reply was excluded by the last-landing-square filter, exhausted its budget, or was searched and evaluated favorably. The pilot did not isolate which happened here. [Quiescence capture selection](../../src/search.rs#L4442-L4483)
+3. When an immediately capturable sacrifice becomes best in a shallow root iteration, give it and the displaced incumbent the same extra reply budget. Test whether the opponent can take the sacrifice first and collect the earlier target later. As a separate exploratory trigger, a hypothetical pass can identify a pending major loss and nominate real defenses to search. Use the pass only to identify a threat. [Beal’s generalised quiescence search](https://www.sciencedirect.com/science/article/pii/0004370290900728)
+
+**How to mine more games.** Start at positions where a newly attacked major remains exposed after its owner makes a forcing move elsewhere. Track the original attacker and victim across the interruption, including targets captured along a route. Replay both reply orders from the same pre-sacrifice position. Record what each side could collect, the first depth at which the preferred order changes, and whether the agent’s root choice follows it. Include ordinary exposed majors and sound counterthreats where taking the original target first really does lose material. Count opportunities across held-out opening pairs and measure how often verification saves a decision per millisecond at the tournament clock.
+
 ## Choosing the next experiment set
 
 1. **Count the opportunities.** Include ordinary decisions where each proposed trigger was available. Keep both colors of an opening pair together and hold out whole opening families for the final check. Use a small 15+5 sample to see which continuations survive more time. Compare speed under the clock where the candidate will play. Professional shogi realization-probability search used the frequency of a move category *when available* to allocate depth. Work on Breakthrough also showed how to discover extension triggers by combining simple move features. [Shogi game-record method](https://www.nactem.ac.uk/tsuruoka/papers/icga02.pdf) · [Search-extension feature discovery](https://staff.ru.is/yngvi/pdf/SkowronskiBW09.pdf)
