@@ -307,11 +307,14 @@ def confirmed_admission(config, name):
 
 
 def prepare_search_variants(config, *, bundle=None):
-    """Derive immutable search arms from registered baselines, sharing NNUE files.
+    """Derive immutable search arms from registered checkpoints, sharing NNUE files.
 
     A string policy uses base_entrant; an object explicitly selects another
-    base_entrant, experiment and an optional October 2026 generation-three trial.
-    Distinct (base, policy, trial) tuples allow one search
+    base_entrant, experiment and an optional trial. Omission means no trial,
+    including when the source checkpoint uses one.
+    Non-baseline sources require an exact experiment and trial in source_search.
+    An optional quiescence_depth overrides the inherited checkpoint depth. Distinct
+    (base, policy, trial, effective depth) tuples allow one search
     package to be tested on several networks in a single coordinator transaction.
     """
     run, out = Path(config["run"]), Path(config["out"])
@@ -319,17 +322,20 @@ def prepare_search_variants(config, *, bundle=None):
     variants = config["search_variants"]
     if not isinstance(variants, dict) or not variants:
         raise ValueError("Require distinct search policies")
+    required = {"base_entrant", "experiment"}
+    allowed = required | {"trial", "quiescence_depth"}
     resolved = []
-    seen = set()
     for name, spec in variants.items():
+        depth = None
         if isinstance(spec, str):
             base_id, policy, trial = config["base_entrant"], spec, "none"
-        elif isinstance(spec, dict) and set(spec) in (
-            {"base_entrant", "experiment"},
-            {"base_entrant", "experiment", "trial"},
-        ):
+        elif isinstance(spec, dict) and required <= spec.keys() <= allowed:
             base_id, policy = spec["base_entrant"], spec["experiment"]
             trial = spec.get("trial", "none")
+            if "quiescence_depth" in spec:
+                depth = spec["quiescence_depth"]
+                if type(depth) is not int or not 0 <= depth <= 2**32 - 1:
+                    raise ValueError("Invalid quiescence depth")
         else:
             raise ValueError("Invalid search variant specification")
         if not isinstance(base_id, str) or not isinstance(policy, str) or not policy or policy == "baseline":
@@ -338,19 +344,17 @@ def prepare_search_variants(config, *, bundle=None):
             raise ValueError("Invalid search trial")
         if Path(name).name != name or name in (".", "..", base_id):
             raise ValueError("Invalid search entrant identity or policy")
-        if (base_id, policy, trial) in seen:
-            raise ValueError("Require distinct search policies per baseline")
-        seen.add((base_id, policy, trial))
-        resolved.append((name, base_id, policy, trial))
+        resolved.append((name, base_id, policy, trial, depth))
     bundle = engine_updates.verify(a, bundle) if bundle is not None else engine_updates.active(a, run)
     engine_updates.require_search_support(
         bundle["engine_bin"],
-        [policy for _, _, policy, _ in resolved],
-        [trial for _, _, _, trial in resolved],
+        [policy for _, _, policy, _, _ in resolved],
+        [trial for _, _, _, trial, _ in resolved],
     )
     bases = {}
+    source_search = config.get("source_search", {})
     # Validate every source before writing any candidate descriptor.
-    for _, base_id, _, _ in resolved:
+    for _, base_id, _, _, _ in resolved:
         if base_id in bases:
             continue
         base = next(e for e in state["entrants"] if e["id"] == base_id)
@@ -358,23 +362,42 @@ def prepare_search_variants(config, *, bundle=None):
             raise ValueError("Search variants require a current-engine NNUE baseline")
         source = Path(base["model"])
         checkpoint = a.read(source)
-        if checkpoint.get("search_defaults", {}).get("experiment", "baseline") not in ("baseline", "q_fix"):
-            raise ValueError("Search baseline must use the baseline or corrected baseline policy")
-        if checkpoint.get("search_defaults", {}).get("trial", "none") != "none":
-            raise ValueError("Search baseline must use the unchanged trial")
+        defaults = checkpoint.get("search_defaults", {})
+        inherited = dict(experiment=defaults.get("experiment", "baseline"), trial=defaults.get("trial", "none"))
+        if base_id in source_search:
+            if inherited != source_search[base_id]:
+                raise ValueError(f"Search variant source search settings changed: {base_id}")
+        else:
+            if inherited["experiment"] not in ("baseline", "q_fix"):
+                raise ValueError("Search baseline must use the baseline or corrected baseline policy")
+            if inherited["trial"] != "none":
+                raise ValueError("Search baseline must use the unchanged trial")
         descriptor = checkpoint["weights"]["nnue"]
         network = (source.parent / descriptor["file"]).resolve()
         if a.file_digest(network) != descriptor["sha256"]:
             raise ValueError("Baseline NNUE hash mismatch")
         bases[base_id] = (base, source, checkpoint, network)
+    seen = set()
+    for _, base_id, policy, trial, depth in resolved:
+        defaults = bases[base_id][2].get("search_defaults", {})
+        inherited_depth = defaults.get("quiescence_depth", 2)
+        effective = (policy, trial, inherited_depth if depth is None else depth)
+        if (base_id, effective) in seen:
+            raise ValueError("Require distinct search policies per baseline")
+        seen.add((base_id, effective))
+        if effective == (defaults.get("experiment", "baseline"), defaults.get("trial", "none"), inherited_depth):
+            raise ValueError(f"Search variant duplicates the source search settings: {base_id}")
     models = []
-    for name, base_id, policy, trial in resolved:
+    for name, base_id, policy, trial, depth in resolved:
         _, _, checkpoint, network = bases[base_id]
         model = copy.deepcopy(checkpoint)
         model["name"] = name
-        model.setdefault("search_defaults", {})["experiment"] = policy
-        if trial != "none":
-            model["search_defaults"]["trial"] = trial
+        defaults = model.setdefault("search_defaults", {})
+        defaults["experiment"] = policy
+        if trial != "none" or "trial" in defaults:
+            defaults["trial"] = trial
+        if depth is not None:
+            defaults["quiescence_depth"] = depth
         model["weights"]["nnue"]["file"] = str(network)
         directory = out / name
         directory.mkdir(parents=True, exist_ok=True)

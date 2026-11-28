@@ -2600,7 +2600,7 @@ pub fn search_with_progress(
             let mut root_searched = 0usize;
             let mut exact_root_lines = Vec::new();
             // Do not let endpoint aliases select a different two-leg route as the incumbent.
-            if ctx.experiments.trial == SearchTrial::PartialRoot && actual_completed_depth > 0 {
+            if ctx.experiments.trial.partial_root() && actual_completed_depth > 0 {
                 if let Some(index) = moves.iter().position(|mv| mv == &completed_best) {
                     let incumbent = moves.remove(index);
                     moves.insert(0, incumbent);
@@ -2658,12 +2658,11 @@ pub fn search_with_progress(
                 } else {
                     experiments::QuietThreats::default()
                 };
-                let major_targets =
-                    if quiet_red > 0 && ctx.experiments.trial == SearchTrial::MajorThreatLmr {
-                        experiments::new_major_targets(state, weights, mv)
-                    } else {
-                        Vec::new()
-                    };
+                let major_targets = if quiet_red > 0 && ctx.experiments.trial.major_threat_lmr() {
+                    experiments::new_major_targets(state, weights, mv, ctx.experiments.trial)
+                } else {
+                    Vec::new()
+                };
                 if quiet_red > 0 && experiments::protect_history(&ctx, mv) {
                     quiet_red -= 1;
                 }
@@ -2816,7 +2815,7 @@ pub fn search_with_progress(
                 if let Some(k) = wipe_key {
                     sib_reps.entry(k).or_insert((score, e_i));
                 }
-                if ctx.experiments.trial == SearchTrial::PartialRoot
+                if ctx.experiments.trial.partial_root()
                     && root_verified
                     && score > candidate_start_alpha
                     && score < beta
@@ -2856,7 +2855,7 @@ pub fn search_with_progress(
                     elapsed_us: iteration_started.elapsed().as_micros() as u64,
                     completed: false,
                 });
-                if ctx.experiments.trial == SearchTrial::PartialRoot && actual_completed_depth > 0 {
+                if ctx.experiments.trial.partial_root() && actual_completed_depth > 0 {
                     if let Some((mv, score)) =
                         partial_root_improvement(&completed_best, &exact_root_lines)
                     {
@@ -3976,9 +3975,8 @@ fn search_move_list(
         } else {
             experiments::QuietThreats::default()
         };
-        let major_targets = if quiet_red > 0 && ctx.experiments.trial == SearchTrial::MajorThreatLmr
-        {
-            experiments::new_major_targets(state, weights, mv)
+        let major_targets = if quiet_red > 0 && ctx.experiments.trial.major_threat_lmr() {
+            experiments::new_major_targets(state, weights, mv, ctx.experiments.trial)
         } else {
             Vec::new()
         };

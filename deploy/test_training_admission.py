@@ -357,6 +357,54 @@ class AdmissionTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "distinct search policies"):
                     admission.prepare_search_variants(config)
 
+    def test_variant_can_remove_inherited_trial_without_altering_model(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            source = root / "model.json"
+            network = root / "network.bin"
+            network.write_bytes(b"fixed network")
+            model = dict(
+                name="base",
+                search_defaults=dict(depth=2, experiment="history_tactical_lmr_q_fix", trial="major_threat_lmr"),
+                weights=dict(nnue=dict(file=network.name, sha256=a.file_digest(network))),
+            )
+            a.atomic(source, model)
+            a.atomic(root / "state.json", dict(entrants=[dict(id="base", model=str(source))]))
+            config = dict(
+                run=str(root),
+                out=str(root / "out"),
+                base_entrant="base",
+                search_variants={"base_HLF": "history_tactical_lmr_q_fix"},
+            )
+            with (
+                patch.object(admission.engine_updates, "active", return_value=dict(engine_bin="engine")),
+                patch.object(admission.engine_updates, "require_search_support"),
+            ):
+                with self.assertRaisesRegex(ValueError, "corrected baseline"):
+                    admission.prepare_search_variants(config)
+                config["source_search"] = {
+                    "base": dict(experiment="history_tactical_lmr_q_fix", trial="major_threat_lmr")
+                }
+                (variant,) = admission.prepare_search_variants(config)
+                derived = a.read(variant / "model.json")
+                self.assertEqual(derived["search_defaults"], dict(model["search_defaults"], trial="none"))
+                self.assertEqual(derived["weights"]["nnue"]["sha256"], model["weights"]["nnue"]["sha256"])
+                self.assertEqual(a.read(source), model)
+                config["search_variants"]["base_ATK_duplicate"] = dict(
+                    base_entrant="base", experiment="history_tactical_lmr_q_fix", trial="major_threat_lmr"
+                )
+                with self.assertRaisesRegex(ValueError, "duplicates the source search settings"):
+                    admission.prepare_search_variants(config)
+
+                config["search_variants"]["base_ATK_duplicate"]["quiescence_depth"] = 3
+                _, deeper = admission.prepare_search_variants(config)
+                self.assertEqual(a.read(deeper / "model.json")["search_defaults"]["quiescence_depth"], 3)
+                config["search_variants"]["same_as_inherited"] = dict(
+                    base_entrant="base", experiment="history_tactical_lmr_q_fix", trial="none", quiescence_depth=2
+                )
+                with self.assertRaisesRegex(ValueError, "distinct search policies per baseline"):
+                    admission.prepare_search_variants(config)
+
     def test_external_lease_exemption_requires_actual_service_owner(self):
         with tempfile.TemporaryDirectory() as temp:
             control = Path(temp)

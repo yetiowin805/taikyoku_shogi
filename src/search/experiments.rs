@@ -70,10 +70,28 @@ impl SearchTrial {
         matches!(self, Self::QHistory | Self::QRefillHistory)
     }
     pub(super) fn internal_pvs(self) -> bool {
-        matches!(self, Self::InternalPvs | Self::PvsPromote)
+        matches!(
+            self,
+            Self::InternalPvs | Self::PvsPromote | Self::MajorThreatPvsPromote
+        )
     }
     pub(super) fn promote_pv(self) -> bool {
-        matches!(self, Self::PromotePv | Self::PvsPromote)
+        matches!(
+            self,
+            Self::PromotePv | Self::PvsPromote | Self::MajorThreatPvsPromote
+        )
+    }
+    pub(super) fn major_threat_lmr(self) -> bool {
+        matches!(
+            self,
+            Self::MajorThreatLmr
+                | Self::MajorThreatPvsPromote
+                | Self::MajorThreatPartialRoot
+                | Self::MajorThreatHighValue
+        )
+    }
+    pub(super) fn partial_root(self) -> bool {
+        matches!(self, Self::PartialRoot | Self::MajorThreatPartialRoot)
     }
 }
 
@@ -420,6 +438,7 @@ pub(super) fn new_major_targets(
     state: &GameState,
     weights: &EvalWeights,
     mv: &Move,
+    trial: SearchTrial,
 ) -> Vec<Position> {
     let us = state.get_current_turn();
     let entry = QuietEntry::new(mv);
@@ -428,6 +447,9 @@ pub(super) fn new_major_targets(
         .iter_pieces_by_color(us.opposite())
         .filter(|piece| {
             is_large_hang_victim(piece, weights)
+                && (trial != SearchTrial::MajorThreatHighValue
+                    || material_piece_value(piece, weights)
+                        >= 2.0 * min_quiescence_enemy_material())
                 && !piece.piece_type.is_royal()
                 && entry.affects(piece.position)
                 && !attacked_memo(state, piece.position, us)
@@ -562,6 +584,25 @@ mod tests {
             r#"{"depth":2,"max_time_ms":null,"trial":"typo"}"#
         )
         .is_err());
+    }
+
+    #[test]
+    fn wave_two_trials_select_the_intended_paths() {
+        let combined = SearchTrial::MajorThreatPartialRoot;
+        assert!(combined.major_threat_lmr() && combined.partial_root());
+        let narrow = SearchTrial::MajorThreatHighValue;
+        assert!(narrow.major_threat_lmr() && !narrow.partial_root());
+        assert!(!SearchTrial::MajorThreatLmr.partial_root());
+        assert!(!SearchTrial::PartialRoot.major_threat_lmr());
+    }
+
+    #[test]
+    fn v7_combined_trial_enables_both_search_paths() {
+        let combined = SearchTrial::MajorThreatPvsPromote;
+        assert!(combined.major_threat_lmr() && combined.internal_pvs() && combined.promote_pv());
+        assert!(!SearchTrial::PvsPromote.major_threat_lmr());
+        assert!(!SearchTrial::MajorThreatLmr.internal_pvs());
+        assert!(!SearchTrial::MajorThreatLmr.promote_pv());
     }
 
     #[test]
@@ -862,15 +903,30 @@ mod tests {
         put(&mut state, PieceType::Rook, Color::Black, 10, 10);
         put(&mut state, PieceType::Rook, Color::White, 20, 15);
         let checking_line = Move::new(position(10, 10), position(20, 10));
-        let targets = new_major_targets(&state, &weights, &checking_line);
+        let targets = new_major_targets(
+            &state,
+            &weights,
+            &checking_line,
+            SearchTrial::MajorThreatLmr,
+        );
         assert!(targets.contains(&position(20, 15)));
+        let narrow = SearchTrial::MajorThreatHighValue;
+        assert!(!new_major_targets(&state, &weights, &checking_line, narrow)
+            .contains(&position(20, 15)));
+        weights
+            .piece
+            .insert(PieceType::Rook, 2.0 * min_quiescence_enemy_material());
+        weights.rebuild_piece_value_table();
+        assert!(
+            new_major_targets(&state, &weights, &checking_line, narrow).contains(&position(20, 15))
+        );
         let undo = state
             .make_move_for_search_with_weights(checking_line, &weights)
             .unwrap();
         assert!(creates_major_threat(&state, &targets));
         state.unmake_move_for_search(undo);
         let harmless = Move::new(position(10, 10), position(11, 10));
-        let targets = new_major_targets(&state, &weights, &harmless);
+        let targets = new_major_targets(&state, &weights, &harmless, SearchTrial::MajorThreatLmr);
         let undo = state
             .make_move_for_search_with_weights(harmless, &weights)
             .unwrap();
