@@ -2,6 +2,8 @@
 
 Ideas parked after a knockout, not the next patch. Search / eval experiments that are ready to measure still live in [`IDEAS_TO_TRY.md`](IDEAS_TO_TRY.md).
 
+For NNUE training, start with the proposal to distinguish convertible advantages from positions that a network overvalues for hundreds of plies. [Training strategies](training/nnue/TRAINING_STRATEGIES.md)
+
 ## Let tournament games survive coordinator restarts
 
 Scheduler code changes currently require the coordinator to restart. Its game workers exit with it, so a deployment must either wait for long 15+5 games to finish or requeue interrupted slots from the opening.
